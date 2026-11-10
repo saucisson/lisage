@@ -9,6 +9,7 @@ DAY_TAG := daily-$(shell date +%F)
 
 .DEFAULT_GOAL := help
 .PHONY: help install lint format typecheck imports test check security build \
+        rust-lint rust-format rust-test rust-check rust-audit rust-deny \
         day-start day-report smoke-test mutate notify review merge-pr pr claim \
         claim-pr update-pr wait-ci night review-bundle sync-daily clean
 
@@ -35,13 +36,33 @@ imports: ## Verify the onion layer contract (import-linter, ADR-0002).
 test: ## Run the full test suite with the coverage floor (ADR-0007).
 	$(UV) run pytest
 
-check: lint typecheck imports test ## Full quality gate: run before reporting work.
+check: lint typecheck imports test rust-check ## Full quality gate: run before reporting work.
 
 security: ## Secret scan of the whole history (gitleaks, ADR-0008).
 	gitleaks git --no-banner --redact .
 
 build: ## Build the wheel and the sdist (ADR-0001).
 	$(UV) build
+
+rust-lint: ## Clippy on the Rust workspace (-D warnings).
+	cargo clippy --all-targets -- -D warnings
+
+rust-format: ## Format the Rust workspace in place (rustfmt).
+	cargo fmt --all
+
+rust-format-check: ## Check Rust formatting without modifying.
+	cargo fmt --all -- --check
+
+rust-test: ## Run the Rust test suite (cargo nextest).
+	cargo nextest run --all-targets
+
+rust-check: rust-format-check rust-lint rust-test ## Full Rust quality gate.
+
+rust-audit: ## Dependency vulnerability audit (cargo-audit).
+	cargo audit
+
+rust-deny: ## License and dependency policy (cargo-deny).
+	cargo deny check
 
 day-start: ## Tag the morning restore point on `daily` (docs/branching.md).
 	git tag "$(DAY_TAG)"
@@ -93,5 +114,5 @@ review-bundle: ## Print the reviewer bundle against origin/daily (ADR-0010).
 
 clean: ## Remove caches, build outputs and mutation cache.
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .mutmut-cache htmlcov \
-		build dist .coverage coverage.xml .review
+		build dist .coverage coverage.xml .review target
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +
