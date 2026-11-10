@@ -14,4 +14,6 @@ pub enum Value {
     Atom(Atom),
     Set(BTreeSet<Value>),
     Map(BTreeMap<Value, Value>),
+    /// Séquence ordonnée d'éléments (M2-1, constructeur `list`).
+    Seq(Vec<Value>),
 }

@@ -223,3 +223,64 @@ fn test_canonicite_compilation() {
     assert_eq!(racine_a1, racine_a2);
     assert_ne!(racine_a1, racine_b);
 }
+
+/// M2-1 : Seq — compilation par positions et round-trip.
+#[test]
+fn test_seq_compilation_round_trip() {
+    let schema = Schema::Seq(domaine(&[0, 1, 2]), 3);
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+
+    // Séquence vide.
+    let seq_vide = Value::Seq(vec![]);
+    let racine = compiler(&mut pool, anchor, &schema, &seq_vide).unwrap();
+    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), seq_vide);
+
+    // Séquence [1, 2].
+    let seq = Value::Seq(vec![atome(1), atome(2)]);
+    let racine = compiler(&mut pool, anchor, &schema, &seq).unwrap();
+    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), seq);
+
+    // Séquence pleine [0, 1, 2].
+    let seq_pleine = Value::Seq(vec![atome(0), atome(1), atome(2)]);
+    let racine = compiler(&mut pool, anchor, &schema, &seq_pleine).unwrap();
+    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), seq_pleine);
+}
+
+/// M2-1 : Seq — canonicité (même séquence = même nœud).
+#[test]
+fn test_seq_canonicite() {
+    let schema = Schema::Seq(domaine(&[0, 1]), 2);
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let seq = Value::Seq(vec![atome(0), atome(1)]);
+    let r1 = compiler(&mut pool, anchor, &schema, &seq).unwrap();
+    let r2 = compiler(&mut pool, anchor, &schema, &seq).unwrap();
+    assert_eq!(r1, r2);
+    let autre = Value::Seq(vec![atome(1), atome(0)]);
+    let r3 = compiler(&mut pool, anchor, &schema, &autre).unwrap();
+    assert_ne!(r1, r3);
+}
+
+/// M2-1 : Seq — erreur si longueur > max.
+#[test]
+fn test_seq_trop_longue() {
+    let schema = Schema::Seq(domaine(&[0, 1]), 2);
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let seq = Value::Seq(vec![atome(0), atome(1), atome(0)]);
+    assert!(compiler(&mut pool, anchor, &schema, &seq).is_err());
+}
+
+/// M2-1 : Seq — erreur si atome hors domaine.
+#[test]
+fn test_seq_hors_domaine() {
+    let schema = Schema::Seq(domaine(&[0, 1]), 2);
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let seq = Value::Seq(vec![atome(5)]);
+    assert!(matches!(
+        compiler(&mut pool, anchor, &schema, &seq),
+        Err(SchemaError::HorsDomaine(_))
+    ));
+}

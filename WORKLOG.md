@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M2-1 : Seq et compilation par positions (T5) (feat/17)
+
+- **Issue**: #17 (M2-1 — Seq et ses deux compilations, énoncé T5).
+- **Done**: `Value::Seq(Vec<Value>)` ajouté dans `lisage-lang`. `Schema::Seq(Domaine, longueur_max)` ajouté dans `lisage-core::schema` avec compilation **par positions** (balayage d'univers : chaque position a un niveau de cardinalité |D|+1, la valeur |D| = marqueur de fin, clé requise sans défaut) et décompilation round-trip. `SchemaKeys`, `ReferenceController`, `lookup`, `operations` mis à jour pour le nouveau variant. Tests unitaires (round-trip vide/[1,2]/pleine, canonicité, erreurs longueur/domaine) + PBT T5 (round-trip + canonicité sur séquences aléatoires). La compilation par énumération d'éléments (style DDD) reste à livrer en M2-1 suite.
+- **Evidence**: `make check` OK (91 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
+- **Judgement calls**: une seule compilation (par positions) livrée dans ce commit ; la compilation par énumération fera l'objet d'un commit séparé sur la même branche. Le marqueur de fin est modélisé comme valeur `cle_fin = |D|` sur le niveau de position, pas comme niveau séparé — plus compact et conforme à « clé requise ».
+- **Escalations**: aucune.
+
 ## 2026-11-10 - Corrections review PR #57 (2 BLOCKING, 4 TO-FIX) — ADR-0102, PR body #14, assertions 7 formes + SVG, pin SHA CUDD
 
 - **Issue**: #16 (M1-10) et #14 (M1-8), revue de la PR #57.
