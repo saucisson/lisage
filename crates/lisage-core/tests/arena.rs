@@ -1,0 +1,135 @@
+//! Tests de l'arena (M1-1) : R-share (table unique), handles, événements
+//! de trace épinglés par un observateur enregistreur.
+
+use std::collections::BTreeMap;
+use std::sync::Mutex;
+
+use lisage_algebra::interface::{
+    Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
+};
+use lisage_core::arena::Arena;
+use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
+
+struct MockKeys;
+
+impl KeyAlgebra for MockKeys {
+    type Key = u64;
+    fn normal_form(key: &Self::Key) -> Self::Key {
+        *key
+    }
+    fn cardinality(_level: Level) -> u64 {
+        2
+    }
+    fn default(_level: Level) -> Option<Self::Key> {
+        Some(0)
+    }
+}
+
+struct MockController;
+
+impl Controller for MockController {
+    type Key = u64;
+    type Payload = bool;
+    type Keys = MockKeys;
+    const FINGERPRINT: ControllerId = ControllerId(7);
+    fn default_payload(_level: Level) -> Option<Self::Payload> {
+        Some(false)
+    }
+}
+
+/// Observateur enregistreur : épingle la narration (contrat ADR-0005).
+#[derive(Default)]
+struct RecordingObserver {
+    events: Mutex<Vec<TraceEvent>>,
+}
+
+impl Observer for RecordingObserver {
+    fn on_event(&self, event: &TraceEvent) {
+        self.events.lock().unwrap().push(event.clone());
+    }
+}
+
+fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserver>) {
+    let observateur = std::sync::Arc::new(RecordingObserver::default());
+    let copie = observateur.clone();
+    struct Pont(std::sync::Arc<RecordingObserver>);
+    impl Observer for Pont {
+        fn on_event(&self, event: &TraceEvent) {
+            self.0.on_event(event);
+        }
+    }
+    (Arena::new(Box::new(Pont(copie))), observateur)
+}
+
+#[test]
+fn test_r_share_table_unique() {
+    let (mut arena, _trace) = arena_avec_trace();
+    let anchor = Anchor(0);
+    let premier = arena.intern(anchor, Form::Terminal(true));
+    let second = arena.intern(anchor, Form::Terminal(true));
+    assert_eq!(premier, second, "R-share : même forme ⇒ même nœud");
+    assert_eq!(arena.node_count(), 1);
+}
+
+#[test]
+fn test_formes_distinctes_nodes_distincts() {
+    let (mut arena, _trace) = arena_avec_trace();
+    let anchor = Anchor(0);
+    let vrai_ = arena.intern(anchor, Form::Terminal(true));
+    let faux = arena.intern(anchor, Form::Terminal(false));
+    assert_ne!(vrai_, faux);
+    assert_eq!(arena.node_count(), 2);
+}
+
+#[test]
+fn test_handles_unicite() {
+    let (mut arena, _trace) = arena_avec_trace();
+    let anchor = Anchor(3);
+    let terminal = arena.terminal(anchor, true);
+    let node = arena.intern(
+        anchor,
+        Form::Node {
+            level: Level(0),
+            arcs: BTreeMap::from([(1, terminal)]),
+        },
+    );
+    let handle_a = arena.handle(node, anchor);
+    let handle_b = arena.handle(node, anchor);
+    assert_eq!(handle_a, handle_b);
+    assert_eq!(handle_a.controller, ControllerId(7));
+    assert_eq!(handle_a.anchor, Anchor(3));
+}
+
+#[test]
+fn test_resolve_erreur_typee() {
+    let (arena, _trace) = arena_avec_trace();
+    let resultat = arena.resolve(NodeId(99));
+    assert_eq!(
+        resultat,
+        Err(lisage_core::PoolError::UnknownNode(NodeId(99)))
+    );
+}
+
+#[test]
+fn test_events_trace_narration() {
+    let (mut arena, trace) = arena_avec_trace();
+    let anchor = Anchor(0);
+    let node = arena.intern(anchor, Form::Terminal(true));
+    arena.intern(anchor, Form::Terminal(true));
+    let events = trace.events.lock().unwrap();
+    assert_eq!(
+        events.as_slice(),
+        &[
+            TraceEvent::NodeCreated { node, level: None },
+            TraceEvent::NodeShared { node },
+        ]
+    );
+}
+
+#[test]
+fn test_noop_observer_par_defaut() {
+    let mut arena: Arena<MockController> = Arena::new(Box::new(NoOpObserver));
+    let node = arena.terminal(Anchor(0), true);
+    assert_eq!(arena.node_count(), 1);
+    assert!(matches!(arena.resolve(node), Ok(Form::Terminal(true))));
+}

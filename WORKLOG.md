@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-1 : arena + handles, hash-consing à clé (contrôleur, ancre, forme) (feat/8)
+
+- **Issue**: #8 (M1-1 — Arena + handles).
+- **Done**: `Arena<C: Controller>` dans `lisage-core::arena`, implémentation du port `Pool` : table unique hash-consée à clé (contrôleur, ancre, forme normalisée par l'algèbre de clés), `NodeId` en ordre de création, `handle()` = (contrôleur, ancre, nœud), événements de trace `NodeCreated`/`NodeShared` émis à l'internement (observateur enregistreur épinglé en test). PBT C1 dans lisage-bench : unicité des handles (même forme ⇒ même nœud, même arena ou arenas distinctes ; formes distinctes ⇒ handles distincts).
+- **Evidence**: `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, `cargo nextest run --all-targets` OK (27 tests, 2 ignorés rouges M1-7). Non exécuté : `make check` complet (partie Python inchangée), `cargo audit`, CI réelle avant push.
+- **Judgement calls**: R-share seul à l'internement en M1-1 ; R-collapse/R-default s'insèrent à la création du handle en M1-2 (#9), conformément au séquencement interface → réductions.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-7 : interprète de référence (voie A) + différentiel A/B/C branché (feat/7)
 
 - **Issue**: #7 (M1-7 — Interprète de référence, phase 2 : tests).
