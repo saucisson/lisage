@@ -182,32 +182,36 @@ fn test_sept_formes_contre_r_n() {
 /// Référence indépendante par DP : nombre de mots circulaires de longueur
 /// `n` sur {0,1,2} sans deux `2` adjacents (contrainte circulaire incluse).
 fn reference_circulaire(n: usize) -> u64 {
-    let mut total = 0u64;
-    for premier in 0..3usize {
-        // dp[v] = nombre de façons d'atteindre la position courante avec la
-        // valeur v en dernier.
-        let mut dp = [0u64; 3];
-        dp[premier] = 1;
-        for _ in 1..n {
-            let mut next = [0u64; 3];
-            for (v, cellule_next) in next.iter_mut().enumerate() {
-                for (u, &dp_u) in dp.iter().enumerate() {
-                    if v == 2 && u == 2 {
-                        continue;
-                    }
-                    *cellule_next += dp_u;
-                }
-            }
-            dp = next;
+    (0..3usize)
+        .flat_map(|premier| {
+            dp_lineaire(n, premier)
+                .into_iter()
+                .filter(move |(dernier, _)| !(premier == 2 && *dernier == 2))
+                .map(|(_, compte)| compte)
+                .collect::<Vec<_>>()
+        })
+        .sum()
+}
+
+/// DP linéaire : nombre de mots de longueur `n` commençant par `premier`,
+/// sans deux `2` adjacents (contrainte circulaire non incluse). Retourne
+/// le dernier symbole et le compte.
+fn dp_lineaire(n: usize, premier: usize) -> Vec<(usize, u64)> {
+    let mut dp = [0u64; 3];
+    dp[premier] = 1;
+    for _ in 1..n {
+        let mut next = [0u64; 3];
+        for (v, cellule_next) in next.iter_mut().enumerate() {
+            *cellule_next = dp
+                .iter()
+                .enumerate()
+                .filter(|(u, _)| !(v == 2 && *u == 2))
+                .map(|(_, &dp_u)| dp_u)
+                .sum();
         }
-        for (v, &dp_v) in dp.iter().enumerate() {
-            if premier == 2 && v == 2 {
-                continue; // contrainte circulaire
-            }
-            total += dp_v;
-        }
+        dp = next;
     }
-    total
+    dp.iter().enumerate().map(|(v, &c)| (v, c)).collect()
 }
 
 /// Propriété (sans dépendance de test) : pour n = 3..=12, tout mot énuméré
