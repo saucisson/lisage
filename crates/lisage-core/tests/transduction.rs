@@ -24,6 +24,7 @@ struct IdentiteProfondeur;
 impl Transduction for IdentiteProfondeur {
     type H = u64;
     type S = u64;
+    type Out = bool;
 
     fn fingerprint(&self) -> u64 {
         1001
@@ -37,19 +38,30 @@ impl Transduction for IdentiteProfondeur {
     fn phi_aggr(&self, _level: Level, _h: &u64, arcs: &BTreeMap<u64, u64>) -> u64 {
         arcs.values().copied().max().unwrap_or(0)
     }
-    fn phi_out(
+    fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
+        pool: &mut P,
+        anchor: Anchor,
         level: Level,
         _h: &u64,
         arcs: BTreeMap<u64, (NodeId, u64)>,
-    ) -> Form<u64, bool> {
-        Form::Node {
-            level,
-            arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
-        }
+    ) -> NodeId {
+        pool.intern(
+            anchor,
+            Form::Node {
+                level,
+                arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+            },
+        )
     }
-    fn psi(&self, payload: bool, h: &u64) -> (bool, u64) {
-        (payload, *h)
+    fn psi<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        h: &u64,
+    ) -> (NodeId, u64) {
+        (pool.intern(anchor, Form::Terminal(payload)), *h)
     }
 }
 
@@ -61,6 +73,7 @@ struct CompteChemins {
 impl Transduction for CompteChemins {
     type H = ();
     type S = u64;
+    type Out = bool;
 
     fn fingerprint(&self) -> u64 {
         1002
@@ -72,20 +85,34 @@ impl Transduction for CompteChemins {
     fn phi_aggr(&self, _level: Level, _h: &(), arcs: &BTreeMap<u64, u64>) -> u64 {
         arcs.values().sum()
     }
-    fn phi_out(
+    fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
+        pool: &mut P,
+        anchor: Anchor,
         level: Level,
         _h: &(),
         arcs: BTreeMap<u64, (NodeId, u64)>,
-    ) -> Form<u64, bool> {
+    ) -> NodeId {
         self.appels.fetch_add(1, Ordering::SeqCst);
-        Form::Node {
-            level,
-            arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
-        }
+        pool.intern(
+            anchor,
+            Form::Node {
+                level,
+                arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+            },
+        )
     }
-    fn psi(&self, payload: bool, _h: &()) -> (bool, u64) {
-        (payload, u64::from(payload))
+    fn psi<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        _h: &(),
+    ) -> (NodeId, u64) {
+        (
+            pool.intern(anchor, Form::Terminal(payload)),
+            u64::from(payload),
+        )
     }
 }
 
@@ -95,6 +122,7 @@ struct Identite;
 impl Transduction for Identite {
     type H = ();
     type S = ();
+    type Out = bool;
 
     fn fingerprint(&self) -> u64 {
         1003
@@ -104,18 +132,35 @@ impl Transduction for Identite {
         let _ = h;
     }
     fn phi_aggr(&self, _level: Level, _h: &(), _arcs: &BTreeMap<u64, ()>) {}
-    fn phi_out(&self, level: Level, _h: &(), arcs: BTreeMap<u64, (NodeId, ())>) -> Form<u64, bool> {
-        Form::Node {
-            level,
-            arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
-        }
+    fn phi_out<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        level: Level,
+        _h: &(),
+        arcs: BTreeMap<u64, (NodeId, ())>,
+    ) -> NodeId {
+        pool.intern(
+            anchor,
+            Form::Node {
+                level,
+                arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+            },
+        )
     }
-    fn psi(&self, payload: bool, _h: &()) -> (bool, ()) {
-        (payload, ())
+    fn psi<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        _h: &(),
+    ) -> (NodeId, ()) {
+        (pool.intern(anchor, Form::Terminal(payload)), ())
     }
 }
 
-/// Construit un petit DAG : b = ν(1, {0 ↦ a, 1 ↦ ⊤}), a = ν(0, {0 ↦ ⊤, 1 ↦ ⊥}).
+/// Construit un petit DAG dans le pool d'entrée : b = ν(1, {0 ↦ a, 1 ↦ ⊤}),
+/// a = ν(0, {0 ↦ ⊤, 1 ↦ ⊥}).
 fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let faux = pool.intern(anchor, Form::Terminal(false));
@@ -136,19 +181,20 @@ fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
     (a, b)
 }
 
-/// Canal hérité : la transduction identité reconstruit les mêmes formes, donc
-/// le même nœud (A3, canonique par construction) ; la profondeur remontée
-/// vaut la hauteur du DAG.
+/// Canal hérité : la transduction identité reconstruit les mêmes formes ;
+/// la profondeur remontée vaut la hauteur du DAG.
 #[test]
 fn test_canal_herite_identite_et_profondeur() {
-    let mut pool = pool();
+    let mut entree = pool();
+    let mut sortie = pool();
     let anchor = Anchor(0);
-    let (_, b) = dag(&mut pool, anchor);
+    let (_, b) = dag(&mut entree, anchor);
     let mut runner = Transducteur::new(IdentiteProfondeur);
-    let (resultat, profondeur) = runner.run(&mut pool, anchor, b).unwrap();
+    let (resultat, profondeur) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
     assert_eq!(
-        resultat, b,
-        "identité ⇒ même nœud (formes identiques internées)"
+        sortie.resolve(resultat).unwrap(),
+        entree.resolve(b).unwrap(),
+        "identité ⇒ mêmes formes"
     );
     assert_eq!(profondeur, 2, "profondeur max atteinte = hauteur du DAG");
 }
@@ -157,16 +203,20 @@ fn test_canal_herite_identite_et_profondeur() {
 /// nombre de chemins acceptants (2 dans le DAG : 0·0 et 1).
 #[test]
 fn test_canal_synthetise_comptage() {
-    let mut pool = pool();
+    let mut entree = pool();
+    let mut sortie = pool();
     let anchor = Anchor(0);
-    let (_, b) = dag(&mut pool, anchor);
+    let (_, b) = dag(&mut entree, anchor);
     let appels = std::sync::Arc::new(AtomicU64::new(0));
     let compte = CompteChemins {
         appels: appels.clone(),
     };
     let mut runner = Transducteur::new(compte);
-    let (resultat, compte_chemins) = runner.run(&mut pool, anchor, b).unwrap();
-    assert_eq!(resultat, b);
+    let (resultat, compte_chemins) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    assert_eq!(
+        sortie.resolve(resultat).unwrap(),
+        entree.resolve(b).unwrap()
+    );
     assert_eq!(compte_chemins, 2, "deux chemins mènent à ⊤");
     assert_eq!(
         appels.load(Ordering::SeqCst),
@@ -179,13 +229,14 @@ fn test_canal_synthetise_comptage() {
 /// et deux opérations de fingerprints distincts ont des entrées séparées.
 #[test]
 fn test_memo_fingerprint_op_noeud() {
-    let mut pool = pool();
+    let mut entree = pool();
+    let mut sortie = pool();
     let anchor = Anchor(0);
-    let (_, b) = dag(&mut pool, anchor);
+    let (_, b) = dag(&mut entree, anchor);
     let mut runner = Transducteur::new(Identite);
-    let (r1, _) = runner.run(&mut pool, anchor, b).unwrap();
+    let (r1, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
     let taille_apres_1 = runner.taille_memo();
-    let (r2, _) = runner.run(&mut pool, anchor, b).unwrap();
+    let (r2, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
     assert_eq!(r1, r2);
     assert_eq!(
         runner.taille_memo(),
@@ -199,8 +250,8 @@ fn test_memo_fingerprint_op_noeud() {
     // séparée. Avec H = profondeur, ⊤ est visité à deux h distincts (1 via
     // l'arc 1 de b, 2 via l'arc 0 de a) : 5 entrées (b, a, ⊤×2, ⊥).
     let mut autre = Transducteur::new(IdentiteProfondeur);
-    let (r3, _) = autre.run(&mut pool, anchor, b).unwrap();
-    assert_eq!(r3, b);
+    let (r3, _) = autre.run(&entree, &mut sortie, anchor, b).unwrap();
+    assert_eq!(sortie.resolve(r3).unwrap(), entree.resolve(b).unwrap());
     assert_eq!(
         autre.taille_memo(),
         5,
@@ -213,7 +264,11 @@ fn test_memo_fingerprint_op_noeud() {
 #[test]
 fn test_transduction_sur_diagramme_compile() {
     let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
-    let mut pool = Arena::new(
+    let mut entree = Arena::new(
+        ReferenceController::new(schema.clone()),
+        Box::new(NoOpObserver),
+    );
+    let mut sortie = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
@@ -222,8 +277,11 @@ fn test_transduction_sur_diagramme_compile() {
         Value::Atom(Atom(0)),
         Value::Atom(Atom(1)),
     ]));
-    let racine = compiler(&mut pool, anchor, &schema, &ensemble).unwrap();
+    let racine = compiler(&mut entree, anchor, &schema, &ensemble).unwrap();
     let mut runner = Transducteur::new(Identite);
-    let (resultat, _) = runner.run(&mut pool, anchor, racine).unwrap();
-    assert_eq!(resultat, racine);
+    let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+    assert_eq!(
+        sortie.resolve(resultat).unwrap(),
+        entree.resolve(racine).unwrap()
+    );
 }
