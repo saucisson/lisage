@@ -36,3 +36,6 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+
+# Proptest regressions for #[ignore] local-only tests (hors CI)
+crates/lisage-bench/tests/cudd_local.proptest-regressions
