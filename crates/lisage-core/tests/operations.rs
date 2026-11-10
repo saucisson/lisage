@@ -3,8 +3,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
+use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
+use lisage_core::error::CoreError;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::operations::{ClePresentes, existe, filtrer, image};
 use lisage_core::pli::union;
@@ -149,4 +150,62 @@ fn test_image_reetiquetage_atomes() {
         &BTreeSet::from([atome(1), atome(0)]),
     );
     assert_eq!(image, attendu, "C1 : même image ⇒ même nœud");
+}
+
+/// `exists` sur un schéma non-Map : erreur typée `SchemaInattendu`, pas de
+/// panique à la frontière publique.
+#[test]
+fn test_existe_schema_non_map_erreur_typee() {
+    let schema = Schema::Atom(Domaine::nouveau(vec![Atom(0)]));
+    let mut entree = pool(&schema);
+    let mut sortie = pool(&schema);
+    let anchor = Anchor(0);
+    let racine = entree.intern(anchor, Form::Terminal(false));
+
+    let resultat = existe(
+        &entree,
+        &mut sortie,
+        anchor,
+        &schema,
+        racine,
+        Box::new(|_: &ClePresentes| true),
+    );
+    assert_eq!(
+        resultat.unwrap_err(),
+        CoreError::SchemaInattendu {
+            attendu: "Map",
+            recu: "Atom"
+        }
+    );
+}
+
+/// `filter` sur un nœud dont le niveau dépasse le schéma : erreur typée
+/// `NiveauHorsSchema` (au lieu d'un indice hors limites).
+#[test]
+fn test_filtre_niveau_hors_schema_erreur_typee() {
+    let schema = schema_map();
+    let mut entree = pool(&schema);
+    let mut sortie = pool(&schema);
+    let anchor = Anchor(0);
+    let terminal_faux = entree.intern(anchor, Form::Terminal(false));
+    let terminal_vrai = entree.intern(anchor, Form::Terminal(true));
+    // Niveau 4 hors du schéma (2 clés ⇒ niveaux 0..3) ; arcs distincts pour
+    // éviter tout collapse à l'internage.
+    let malforme = entree.intern(
+        anchor,
+        Form::Node {
+            level: Level(4),
+            arcs: BTreeMap::from([(0, terminal_faux), (1, terminal_vrai)]),
+        },
+    );
+
+    let resultat = filtrer(
+        &entree,
+        &mut sortie,
+        anchor,
+        &schema,
+        malforme,
+        Box::new(|_: &ClePresentes| true),
+    );
+    assert_eq!(resultat.unwrap_err(), CoreError::NiveauHorsSchema(Level(4)));
 }
