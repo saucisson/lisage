@@ -35,3 +35,10 @@ Closes #12
 - [x] No new dependency added.
 - [x] `Closes #12` present in the body.
 - [x] Full `make check` run on this branch.
+
+## Note on the ~500-line PR budget
+
+This PR adds 575 lines, slightly above the ~500 budget: the split of #12
+into two PRs (#50 engine generalization, #51 lookup itself) already keeps
+each PR focused; the excess here is mostly tests (unit + differential PBT,
+~330 lines) and doc comments, not core logic (`lookup.rs` is ~250 lines).
