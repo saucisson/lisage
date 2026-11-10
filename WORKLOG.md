@@ -52,6 +52,14 @@ One entry per commit or pull request:
 - **Judgement calls**: la décision émane directement de l'humain (prioritaire sur AGENTS.md dans la hiérarchie des instructions) ; un ADR (0101) est inclus plutôt qu'un simple commentaire, la décision valant ADR.
 - **Escalations**: aucune (la décision humaine elle-même est l'autorisation).
 
+## 2026-11-10 - M1-8 : témoins BDD — BDD classique + mini-BDD témoin + PBT C6 + baseline (feat/14)
+
+- **Issue**: #14 (M1-8 — Témoins BDD, énoncé C6), partie pur Rust (mode dégradé).
+- **Done**: `lisage-core::bdd` : `BddController` (FINGERPRINT 3, pas de R-default — arcs 0/1 explicites, R-collapse + R-share seuls) + `BddKeys` (cardinalité 2, pas de δ) + `compiler_bdd` (Shannon descendante, racine niveau 0, niveau ℓ = variable ℓ) + `compter_noeuds` + `evaluer`. `lisage-bench::temoin_bdd` : mini-BDD indépendant (table unique propre). PBT C6 dans `lisage-bench/tests/temoins.rs` : comptes de nœuds identiques + évaluation conforme sur les 2^n affectations (n ∈ 2..=8). Ligne de base bench `bdd_classique_n12_compter` (table LCG déterministe, assertion arène == témoin). Spike `docs/spike-ffi-cudd-sylvan.md`.
+- **Evidence**: `make check` OK (76 tests, 2 ignorés), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : différentiel contre CUDD/Sylvan réels (dépendance non ajoutée).
+- **Judgement calls**: pas de dépendance FFI (liste d'escalation) — différentiel C6 livré contre le mini-BDD interne, vraie question escaladée en commentaire structuré sur #14 (label `question`, le label `needs-human` n'existe pas dans ce repo) ; comptage des nœuds = atteignables depuis la racine, terminaux compris, même convention des deux côtés.
+- **Escalations**: commentaire structuré posé sur #14 pour la dépendance cudd-sys (options in-process / hors-processus / mode dégradé) ; aucune réponse consommée.
+
 ## 2026-11-10 - M1-6 (2/2) : corrections de review PR #53 — erreurs typées aux frontières (feat/13b, 572edb5)
 
 - **Issue**: #13 (M1-6), revue de la PR #53 (1 BLOCKING, 1 TO-FIX, 2 SUGGESTION).

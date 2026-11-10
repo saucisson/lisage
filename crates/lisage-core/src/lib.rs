@@ -7,6 +7,7 @@
 //! d'`algebra` (Liseuse) puissent lire les diagrammes.
 
 pub mod arena;
+pub mod bdd;
 pub mod error;
 pub mod lookup;
 pub mod observer;
