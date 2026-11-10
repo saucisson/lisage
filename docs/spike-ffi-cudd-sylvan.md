@@ -1,8 +1,9 @@
 # Spike — FFI CUDD/Sylvan (M1-8, risque technique n° 1)
 
-Statut : **spike documentaire** — aucune dépendance ajoutée (liste
-d'escalation AGENTS.md : toute nouvelle dépendance exige un `needs-human`).
-La question structurée est posée en commentaire de l'issue #14.
+Statut : **décision humaine reçue (2026-11-10)** — CUDD en conteneur Docker
+local, hors CI. Aucune dépendance ajoutée au projet (liste d'escalation
+AGENTS.md respectée). La question structurée a été posée en commentaire
+de l'issue #14.
 
 ## Pourquoi des liaisons (rappel de la roadmap § risques)
 
@@ -43,8 +44,27 @@ constructions → comptes comparés sur place).
 | conteneur CI précompilé + binaire de comparaison hors-processus | CI simple | pas de PBT in-process, comparaison par fichiers |
 | rester sur le mini-BDD interne (mode dégradé) | zéro dépendance | C6 affaibli (même auteur) |
 
-## Impact si la question reste sans réponse
+## Décision humaine (2026-11-10)
 
-M1-8 est livré en mode dégradé (mini-BDD interne) ; les baselines externes
-qui conditionnent les mesures publiées (M4-4, M5-2) restent à établir avec
-le témoin FFI choisi.
+> Pas en CI, mais en tests locaux sur cette machine. Installation si
+> possible dans un conteneur Docker.
+
+- **CI** : aucune dépendance C/C++. Le mini-BDD interne reste le témoin
+  de CI (mode dégradé, `make check` inchangé).
+- **Local** : image Docker `lisage-cudd:latest` (voir `docker/cudd/`) embarque
+  CUDD 3.0.0 compilé + le binaire `cudd_count` (lit une table de vérité sur
+  stdin, retourne le nombre de nœuds CUDD).
+- **Test différentiel local** : `crates/lisage-bench/tests/cudd_local.rs`
+  (`#[ignore]`, hors CI) génère des fonctions aléatoires, appelle le
+  conteneur via `docker run`, et compare le nombre de nœuds avec le BDD
+  interne. Exécution :
+  ```sh
+  docker build -t lisage-cudd:latest docker/cudd
+  cargo test -p lisage-bench --test cudd_local -- --ignored
+  ```
+
+## Impact
+
+C6 est vérifié localement contre un témoin externe indépendant (CUDD réel).
+Les baselines publiées (M4-4, M5-2) pourront s'appuyer sur ces mesures
+locales. En CI, le différentiel reste interne (mini-BDD).
