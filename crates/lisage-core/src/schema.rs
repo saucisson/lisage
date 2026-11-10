@@ -273,26 +273,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             compiler_ensemble(pool, anchor, domaine, elements, 0)
         }
         (Schema::Map(liste_cles, domaine_valeurs), Value::Map(map)) => {
-            for (cle, valeur) in map {
-                let Value::Atom(atome_cle) = cle else {
-                    return Err(SchemaError::TypeMismatch {
-                        attendu: "clé atomique",
-                        recu: forme_valeur(cle),
-                    });
-                };
-                if !liste_cles.contains(atome_cle) {
-                    return Err(SchemaError::HorsDomaine(*atome_cle));
-                }
-                let Value::Atom(atome_val) = valeur else {
-                    return Err(SchemaError::TypeMismatch {
-                        attendu: "valeur atomique",
-                        recu: forme_valeur(valeur),
-                    });
-                };
-                if !domaine_valeurs.contient(*atome_val) {
-                    return Err(SchemaError::HorsDomaine(*atome_val));
-                }
-            }
+            valider_map(liste_cles, domaine_valeurs, map)?;
             compiler_map(pool, anchor, liste_cles, map, 0)
         }
         (schema, valeur) => Err(SchemaError::TypeMismatch {
@@ -300,6 +281,36 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             recu: forme_valeur(valeur),
         }),
     }
+}
+
+/// Valide les clés et valeurs d'une map contre le schéma (erreurs typées,
+/// l'atome fautif est celui rapporté).
+fn valider_map(
+    liste_cles: &[Atom],
+    domaine_valeurs: &Domaine,
+    map: &BTreeMap<Value, Value>,
+) -> Result<(), SchemaError> {
+    for (cle, valeur) in map {
+        let Value::Atom(atome_cle) = cle else {
+            return Err(SchemaError::TypeMismatch {
+                attendu: "clé atomique",
+                recu: forme_valeur(cle),
+            });
+        };
+        if !liste_cles.contains(atome_cle) {
+            return Err(SchemaError::HorsDomaine(*atome_cle));
+        }
+        let Value::Atom(atome_valeur) = valeur else {
+            return Err(SchemaError::TypeMismatch {
+                attendu: "valeur atomique",
+                recu: forme_valeur(valeur),
+            });
+        };
+        if !domaine_valeurs.contient(*atome_valeur) {
+            return Err(SchemaError::HorsDomaine(*atome_valeur));
+        }
+    }
+    Ok(())
 }
 
 fn forme_schema(schema: &Schema) -> &'static str {
