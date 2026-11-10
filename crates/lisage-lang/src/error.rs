@@ -11,7 +11,10 @@ pub enum LangError {
     /// `lookup` sur une clé hors de l'univers déclaré.
     KeyOutsideUniverse(KeyName),
     /// Valeur d'un type inattendu à un point du calcul.
-    TypeMismatch { expected: &'static str, found: &'static str },
+    TypeMismatch {
+        expected: &'static str,
+        found: &'static str,
+    },
     /// Univers vide : aucun niveau de présence à balayer.
     EmptyUniverse,
 }
