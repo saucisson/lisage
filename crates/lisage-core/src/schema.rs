@@ -80,7 +80,7 @@ impl Schema {
             Schema::Set(domaine) => domaine.taille() as u32,
             Schema::Map(liste_cles, _) => PAS_NIVEAU_MAP * liste_cles.len() as u32,
             Schema::Seq(_, longueur_max) => longueur_max + 1,
-            Schema::Tag(liste, _) => PAS_NIVEAU_MAP * liste.len() as u32,
+            Schema::Tag(_, _) => 2, // niveau discriminant (0) + niveau valeur (1)
         }
     }
 

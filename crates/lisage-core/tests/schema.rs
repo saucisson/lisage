@@ -341,6 +341,22 @@ fn test_tag_canonicite_c2() {
     }
 }
 
+/// M2-2 : Tag — dimensionnement des niveaux : 2 niveaux (discriminant 0,
+/// valeur 1), cardinalité |K| puis |V|, pas de défaut (clé requise).
+#[test]
+fn test_tag_dimensionnement_niveaux() {
+    use lisage_algebra::interface::{KeyAlgebra, Level};
+    use lisage_core::schema::SchemaKeys;
+
+    let schema = Schema::Tag(vec![Atom(0), Atom(1), Atom(2)], domaine(&[10, 20]));
+    assert_eq!(schema.nombre_niveaux(), 2);
+    let keys = SchemaKeys::new(schema);
+    assert_eq!(keys.cardinality(Level(0)), 3, "niveau discriminant : |K|");
+    assert_eq!(keys.cardinality(Level(1)), 2, "niveau valeur : |V|");
+    assert_eq!(keys.default(Level(0)), None, "discriminant = clé requise");
+    assert_eq!(keys.default(Level(1)), None, "valeur = clé requise");
+}
+
 /// M2-2 : Tag — erreur discriminant hors liste.
 #[test]
 fn test_tag_discriminant_invalide() {
