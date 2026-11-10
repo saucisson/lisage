@@ -20,18 +20,20 @@ use lisage_lang::value::{Atom, Value};
 pub const ABSENT: u64 = 0;
 /// Clé d'arc de présence : présent.
 pub const PRESENT: u64 = 1;
+/// Cardinalité d'un niveau de présence : {absent, présent}.
+pub const CARDINALITE_PRESENCE: u64 = 2;
 
 /// Domaine d'atomes borné : énumération finie, avec défaut éventuel.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Domaine {
     /// Valeurs du domaine, dans l'ordre canonique.
     pub valeurs: Vec<Atom>,
-    /// Valeur par défaut δ du domaine, si déclarée.
+    /// Défaut δ du domaine, si déclaré.
     pub defaut: Option<Atom>,
 }
 
 impl Domaine {
-    /// Construit un domaine sans défaut.
+    /// Domaine sans défaut.
     pub fn nouveau(valeurs: Vec<Atom>) -> Self {
         Domaine {
             valeurs,
@@ -57,8 +59,7 @@ pub enum Schema {
     Atom(Domaine),
     /// `Set(Atom(D))` : ensemble d'atomes d'un domaine borné.
     Set(Domaine),
-    /// `Map(K, V)` : clés ordonnées (domaine borné) vers un domaine de
-    /// valeurs borné.
+    /// `Map(K, V)` : clés ordonnées vers un domaine de valeurs borné.
     Map(Vec<Atom>, Domaine),
 }
 
@@ -68,7 +69,7 @@ impl Schema {
         match self {
             Schema::Atom(_) => 1,
             Schema::Set(domaine) => domaine.taille() as u32,
-            Schema::Map(cles, _) => 2 * cles.len() as u32,
+            Schema::Map(liste_cles, _) => 2 * liste_cles.len() as u32,
         }
     }
 
@@ -158,12 +159,12 @@ impl KeyAlgebra for SchemaKeys {
     fn cardinality(&self, level: Level) -> u64 {
         match &self.schema {
             Schema::Atom(domaine) => domaine.taille() as u64,
-            Schema::Set(_) => 2,
-            Schema::Map(_, domaine_v) => {
+            Schema::Set(_) => CARDINALITE_PRESENCE,
+            Schema::Map(_, domaine_valeurs) => {
                 if level.0.is_multiple_of(2) {
-                    2
+                    CARDINALITE_PRESENCE
                 } else {
-                    domaine_v.taille() as u64
+                    domaine_valeurs.taille() as u64
                 }
             }
         }
@@ -234,8 +235,8 @@ impl Controller for ReferenceController {
     }
 }
 
-/// Compile une valeur en diagramme (balayage d'univers) dans le pool.
-/// Le payload du terminal d'acceptation est `true` (lecture ensembliste).
+/// Compile une valeur en diagramme (balayage d'univers) ; le terminal
+/// d'acceptation a pour payload `true` (lecture ensembliste).
 pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -271,7 +272,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             }
             compiler_ensemble(pool, anchor, domaine, elements, 0)
         }
-        (Schema::Map(cles, domaine_v), Value::Map(map)) => {
+        (Schema::Map(liste_cles, domaine_valeurs), Value::Map(map)) => {
             for (cle, valeur) in map {
                 let Value::Atom(atome_cle) = cle else {
                     return Err(SchemaError::TypeMismatch {
@@ -279,7 +280,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                         recu: forme_valeur(cle),
                     });
                 };
-                if !cles.contains(atome_cle) {
+                if !liste_cles.contains(atome_cle) {
                     return Err(SchemaError::HorsDomaine(*atome_cle));
                 }
                 let Value::Atom(atome_val) = valeur else {
@@ -288,11 +289,11 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                         recu: forme_valeur(valeur),
                     });
                 };
-                if !domaine_v.contient(*atome_val) {
+                if !domaine_valeurs.contient(*atome_val) {
                     return Err(SchemaError::HorsDomaine(*atome_val));
                 }
             }
-            compiler_map(pool, anchor, cles, map, 0)
+            compiler_map(pool, anchor, liste_cles, map, 0)
         }
         (schema, valeur) => Err(SchemaError::TypeMismatch {
             attendu: forme_schema(schema),
@@ -342,15 +343,15 @@ fn compiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
 fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    cles: &[Atom],
+    liste_cles: &[Atom],
     map: &BTreeMap<Value, Value>,
     index: usize,
 ) -> Result<NodeId, SchemaError> {
-    if index == cles.len() {
+    if index == liste_cles.len() {
         return Ok(pool.intern(anchor, Form::Terminal(true)));
     }
-    let suite = compiler_map(pool, anchor, cles, map, index + 1)?;
-    let cle = Value::Atom(cles[index]);
+    let suite = compiler_map(pool, anchor, liste_cles, map, index + 1)?;
+    let cle = Value::Atom(liste_cles[index]);
     let arcs = match map.get(&cle) {
         Some(Value::Atom(valeur)) => {
             let noeud_valeur = pool.intern(

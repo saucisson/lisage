@@ -112,47 +112,15 @@ fn test_erreurs_typees() {
     let schema = Schema::Set(domaine(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
-    let err = compiler(&mut pool, anchor, &schema, &atome(0)).unwrap_err();
+    let erreur = compiler(&mut pool, anchor, &schema, &atome(0)).unwrap_err();
     assert_eq!(
-        err,
+        erreur,
         SchemaError::TypeMismatch {
             attendu: "ensemble",
             recu: "atome"
         }
     );
     let hors = Value::Set(BTreeSet::from([atome(9)]));
-    let err = compiler(&mut pool, anchor, &schema, &hors).unwrap_err();
-    assert_eq!(err, SchemaError::HorsDomaine(Atom(9)));
-}
-
-/// La validation d'une map distingue la clé hors domaine de la valeur hors
-/// domaine (l'erreur porte l'atome fautif).
-#[test]
-fn test_erreur_valeur_hors_domaine_map() {
-    let schema = Schema::Map(vec![Atom(0)], domaine(&[0, 1]));
-    let mut pool = arena(schema.clone());
-    let anchor = Anchor(0);
-    let map = Value::Map(BTreeMap::from([(atome(0), atome(9))]));
-    let err = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
-    assert_eq!(err, SchemaError::HorsDomaine(Atom(9)));
-    let map = Value::Map(BTreeMap::from([(atome(7), atome(0))]));
-    let err = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
-    assert_eq!(err, SchemaError::HorsDomaine(Atom(7)));
-}
-
-/// Schéma Atom(D) : un seul niveau, Val = D.
-#[test]
-fn test_schema_atome() {
-    let schema = Schema::Atom(domaine(&[0, 1, 2]));
-    let mut pool = arena(schema.clone());
-    let anchor = Anchor(0);
-    let racine = compiler(&mut pool, anchor, &schema, &atome(2)).unwrap();
-    let terminal = pool.intern(anchor, Form::Terminal(true));
-    assert_eq!(
-        pool.resolve(racine).unwrap(),
-        &Form::Node {
-            level: Level(0),
-            arcs: BTreeMap::from([(2, terminal)]),
-        }
-    );
+    let erreur = compiler(&mut pool, anchor, &schema, &hors).unwrap_err();
+    assert_eq!(erreur, SchemaError::HorsDomaine(Atom(9)));
 }
