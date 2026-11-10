@@ -1,6 +1,5 @@
-//! Port d'instrumentation (M1-0, M1-9) : trait `Observer` dans `core/`,
-//! no-op par défaut. Les événements sont typés ; le sérialiseur de trace
-//! JSONL versionné vit dans `lisage-liseuse`.
+//! Port d'instrumentation (M1-0, M1-9) : `Observer` dans `core/`, no-op par
+//! défaut ; sérialiseur JSONL dans `lisage-liseuse`.
 
 use lisage_algebra::interface::{Handle, Level, NodeId};
 
@@ -29,8 +28,8 @@ pub enum TraceEvent {
     DiagramBuilt { handle: Handle, nodes: usize },
 }
 
-/// Observateur de trace. Implémentation par défaut no-op ; Liseuse fournit
-/// un observateur qui sérialise la trace. Bornes `Send`/`Sync` figées (M1-0).
+/// Observateur de trace, no-op par défaut (Liseuse fournit le sien).
+/// Bornes `Send`/`Sync` figées (M1-0).
 pub trait Observer: Send + Sync {
     /// Réception d'un événement de trace.
     fn on_event(&self, event: &TraceEvent);

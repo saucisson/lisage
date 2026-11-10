@@ -1,6 +1,5 @@
-//! Politique d'erreurs du niveau 1 (feuille de route § 10) : contrairement
-//! aux invariants internes de `core/`/`algebra/` (asserts), le niveau `lang/`
-//! remonte des `Result` typés, causes préservées, rien n'est avalé.
+//! Erreurs du niveau 1 (roadmap § 10) : `Result` typés, causes préservées
+//! (les invariants internes de `core/`/`algebra/` sont des asserts).
 
 /// Nom de clé du langage, type distinct à la frontière (ADR-0006).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
