@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M2-4 : saturate, deux policies — point fixe croissant, Statique (Ciardo) / AutoDetectee (Hamez) (T2/T3) (feat/20)
+
+- **Issue**: #20 (M2-4 — saturate, deux policies, énoncé T3).
+- **Done**: `lisage-core::saturate` : `saturer(τ, politique, …)` itère `X ← X ⊕ τ(X)` (union idempotente Bool, A5) jusqu'au point fixe, retourne `ResultatSaturation { noeud, iterations }`. `PolitiqueSaturation::{Statique(Vec<Level>), AutoDetectee}` — deux instances d'une même sémantique (même point fixe). Terminaison T2 sur schéma borné. Tests : terminaison + idempotence (identité ⇒ 1 itération), équivalence des deux politiques (même forme résolue), chaîne croissante manuelle {0}→{0,1,2}.
+- **Evidence**: `make check` OK (104 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
+- **Judgement calls**: les deux politiques partagent la boucle de point fixe (la politique ne filtre pas encore les niveaux dans la boucle — même sémantique, seul le résultat est livré) ; comparaison des points fixes via `decompiler` (les NodeId de l'union sont nouveaux).
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M2-3 : Mémoire de niveau — MemoireNiveau versionnée, politique contrôleur, φ_out à effet mémoire (T3) (feat/19)
 
 - **Issue**: #19 (M2-3 — Mémoire de niveau, énoncé T3).
