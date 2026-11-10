@@ -33,7 +33,7 @@ impl Transduction for Identite {
     fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
         let _ = h;
     }
-    fn phi_aggr(&self, _level: Level, _h: &(), _arcs: &BTreeMap<u64, ()>) {}
+    fn phi_aggr(&self, _level: Level, _h: &(), _arcs: &BTreeMap<u64, (Option<Level>, ())>) {}
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
@@ -75,8 +75,8 @@ impl Transduction for CompteChemins {
     fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
         let _ = h;
     }
-    fn phi_aggr(&self, _level: Level, _h: &(), arcs: &BTreeMap<u64, u64>) -> u64 {
-        arcs.values().sum()
+    fn phi_aggr(&self, _level: Level, _h: &(), arcs: &BTreeMap<u64, (Option<Level>, u64)>) -> u64 {
+        arcs.values().map(|(_, s)| *s).sum()
     }
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,

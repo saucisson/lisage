@@ -41,8 +41,16 @@ pub trait Transduction: Send + Sync {
     /// (T-NODE) dispatch : attribut hérité le long de l'arc `v` du niveau `ℓ`.
     fn phi_disp(&self, level: Level, h: &Self::H, arc: u64) -> Self::H;
 
-    /// (T-NODE) synthèse : agrégation des attributs des fils.
-    fn phi_aggr(&self, level: Level, h: &Self::H, arcs: &BTreeMap<u64, Self::S>) -> Self::S;
+    /// (T-NODE) synthèse : agrégation des attributs des fils. Chaque arc
+    /// porte le **niveau du fils** (`None` si le fils est un terminal) :
+    /// nécessaire à l'expansion-comptage A4 (les niveaux sautés entre `ℓ`
+    /// et le fils ont été collapsés, leur cardinalité entre dans le pli).
+    fn phi_aggr(
+        &self,
+        level: Level,
+        h: &Self::H,
+        arcs: &BTreeMap<u64, (Option<Level>, Self::S)>,
+    ) -> Self::S;
 
     /// (T-NODE) restructuration : nœud résultat interné dans le pool de
     /// sortie à partir des fils déjà transduits `{v ↦ (D', s)}` (A3).
@@ -129,8 +137,12 @@ impl<T: Transduction> Transducteur<T> {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
                     let (cible_resultat, s_arc) =
                         self.run_avec(pool_entree, pool_sortie, anchor, cible, h_arc)?;
+                    let niveau_cible = match pool_entree.resolve(cible) {
+                        Ok(Form::Node { level, .. }) => Some(*level),
+                        _ => None,
+                    };
                     enfants.insert(arc, (cible_resultat, s_arc.clone()));
-                    s_arcs.insert(arc, s_arc);
+                    s_arcs.insert(arc, (niveau_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 let noeud_resultat =
