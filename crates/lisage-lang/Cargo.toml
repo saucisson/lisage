@@ -1,0 +1,9 @@
+[package]
+name = "lisage-lang"
+version = "0.1.0"
+description = "Niveau 1 : types, interprète de référence"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
