@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-9 : Liseuse v0 — trace JSONL versionnée + rendu SVG statique (feat/15)
+
+- **Issue**: #15 (M1-9 — Port d'instrumentation, énoncé Liseuse).
+- **Done**: `lisage-liseuse::trace` : sérialiseur JSONL versionné (`{"v":1,...}`, une ligne = un événement, sérialisation écrite à la main — aucune dépendance) + `JsonlObserver` (clonable, collecte la trace, `ecrire` vers un `Write`). `lisage-liseuse::svg` : rendu SVG statique du diagramme (niveaux en lignes horizontales = clés de l'ordre, nœuds en x par parcours déterministe, terminaux en bas, arcs étiquetés). Le trait `Observer` + événements typés existaient déjà (M1-0). Tests : golden JSONL par type d'événement, versionnage, déterminisme de la trace (deux constructions ⇒ même trace), déterminisme et contenu du SVG.
+- **Evidence**: `make check` OK (80 tests, 2 ignorés), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : rendu HTML autonome + scrubber JS (v1, M2-6).
+- **Judgement calls**: JSONL hand-rollé (pas de serde — nouvelle dépendance escaladée) ; `JsonlObserver` clonable via `Arc<Mutex>` pour lire la trace après l'avoir donné au pool ; le SVG v0 rend le sous-diagramme atteignable depuis une racine (pas le pool entier).
+- **Escalations**: aucune.
+
 ## 2026-11-10 - Budget PR relevé à ~1 000 lignes (fix/budget-pr-1000, ADR-0101)
 
 - **Issue**: aucune (décision humaine directe, 2026-11-10 : « la règle des 500 lignes semble avoir posé plusieurs fois problème. Augmente la limite à 1.000 lignes. »).
