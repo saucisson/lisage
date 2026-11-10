@@ -8,7 +8,7 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::lookup::{Lookup, LookupController};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, PRESENT, ReferenceController, Schema, compiler};
+use lisage_core::schema::{ABSENT, Domaine, PRESENT, ReferenceController, Schema, compiler};
 use lisage_core::transduction::Transducteur;
 use lisage_lang::value::{Atom, Value};
 
@@ -72,7 +72,12 @@ fn payload_terminal(
                 if level.0.is_multiple_of(2) {
                     match map.get(&cle) {
                         Some(_) => noeud = *arcs.get(&PRESENT).expect("arc présent"),
-                        None => return None,
+                        // Arc par défaut implicite ⇒ D_δ = ε(None) ; arc
+                        // explicite (sous-arbre greffé) ⇒ on le suit.
+                        None => match arcs.get(&ABSENT) {
+                            Some(&suite) => noeud = suite,
+                            None => return None,
+                        },
                     }
                 } else {
                     let Some(Value::Atom(valeur)) = map.get(&cle) else {

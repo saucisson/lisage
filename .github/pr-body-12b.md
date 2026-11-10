@@ -36,9 +36,17 @@ Closes #12
 - [x] `Closes #12` present in the body.
 - [x] Full `make check` run on this branch.
 
-## Note on the ~500-line PR budget
+## Split proposal on the ~500-line PR budget (ADR-0019)
 
-This PR adds 575 lines, slightly above the ~500 budget: the split of #12
-into two PRs (#50 engine generalization, #51 lookup itself) already keeps
-each PR focused; the excess here is mostly tests (unit + differential PBT,
-~330 lines) and doc comments, not core logic (`lookup.rs` is ~250 lines).
+This PR adds 582 lines, above the ~500 budget. Proposed split, if the
+human wants a strict sub-500 PR:
+
+- **PR-A** (`feat/12b-core`, ~280 lines): `crates/lisage-core/src/lookup.rs`
+  + `lib.rs` + `schema.rs` (`SchemaKeys::new`) — the transduction itself, no tests.
+- **PR-B** (`feat/12b-tests`, ~300 lines): `crates/lisage-core/tests/lookup.rs`
+  + `crates/lisage-bench/tests/lookup.rs` (unit + differential PBT, incl. the
+  collapsed T-EXPAND case) + WORKLOG entry.
+
+The single-PR form is kept because the tests are the acceptance evidence
+for the core and the excess is tests/doc-comments, not logic; the split
+above remains available on request.

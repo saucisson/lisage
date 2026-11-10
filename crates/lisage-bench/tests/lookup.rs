@@ -8,7 +8,7 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::lookup::{Lookup, LookupController};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, PRESENT, ReferenceController, Schema, compiler};
+use lisage_core::schema::{ABSENT, Domaine, PRESENT, ReferenceController, Schema, compiler};
 use lisage_core::transduction::Transducteur;
 use lisage_lang::interpreter::lookup;
 use lisage_lang::value::{Atom, Value};
@@ -37,7 +37,12 @@ fn payload_terminal(
                 if level.0.is_multiple_of(2) {
                     match map.get(&cle) {
                         Some(_) => noeud = *arcs.get(&PRESENT).expect("arc présent"),
-                        None => return None,
+                        // Arc par défaut implicite ⇒ D_δ = ε(None) ; arc
+                        // explicite (sous-arbre greffé) ⇒ on le suit.
+                        None => match arcs.get(&ABSENT) {
+                            Some(&suite) => noeud = suite,
+                            None => return None,
+                        },
                     }
                 } else {
                     let Some(Value::Atom(valeur)) = map.get(&cle) else {
@@ -94,5 +99,51 @@ proptest! {
             _ => None,
         };
         prop_assert_eq!(dd, attendu_opt, "voie DD != voie A pour lookup");
+    }
+
+    /// C1 différentiel, cas collapsé : domaine valeur de cardinalité 1 ⇒
+    /// le niveau val(k) est R-collapsé à la compilation, `φ_out` le
+    /// ré-explicite (T-EXPAND + greffe). La voie DD doit toujours égaler
+    /// la voie A.
+    #[test]
+    fn test_c1_differentiel_lookup_collapsed_voie_a_vs_dd(
+        paires in prop::collection::vec((0u64..2, 0u64..1), 0..5),
+        cle in 0u64..2,
+    ) {
+        let liste_cles = vec![Atom(0), Atom(1)];
+        let domaine_valeurs = Domaine::nouveau(vec![Atom(0)]);
+        let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
+        let map: BTreeMap<Value, Value> = paires
+            .iter()
+            .map(|(k, v)| (atome(*k), atome(*v)))
+            .collect();
+        let valeur = Value::Map(map.clone());
+
+        let mut entree = Arena::new(
+            ReferenceController::new(schema.clone()),
+            Box::new(NoOpObserver),
+        );
+        let mut sortie = Arena::new(
+            LookupController::new(schema.clone()),
+            Box::new(NoOpObserver),
+        );
+        let anchor = Anchor(0);
+        let racine = compiler(&mut entree, anchor, &schema, &valeur).unwrap();
+        let cle_atome = Atom(cle);
+        let mut runner = Transducteur::new(Lookup::new(
+            cle_atome,
+            liste_cles.clone(),
+            domaine_valeurs.clone(),
+        ));
+        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+        let dd = payload_terminal(&sortie, resultat, &liste_cles, &map);
+
+        let ensemble = BTreeSet::from([valeur.clone()]);
+        let attendu = lookup(&ensemble, &atome(cle))[&valeur].clone();
+        let attendu_opt = match attendu {
+            Some(Value::Atom(a)) => Some(a.0),
+            _ => None,
+        };
+        prop_assert_eq!(dd, attendu_opt, "voie DD != voie A (cas collapsé)");
     }
 }
