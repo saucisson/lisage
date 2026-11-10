@@ -8,6 +8,7 @@
 
 pub mod arena;
 pub mod error;
+pub mod lookup;
 pub mod observer;
 pub mod schema;
 pub mod transduction;
