@@ -4,13 +4,12 @@
 //! par pli `(ℕ,+,×)`, opérations `map`/`filter`/`exists`, et vérification des
 //! **7 formes** (5 signatures internes + 2 terminaux) indépendamment de n.
 //!
-//! Modèle (docs/exemple-fil-rouge § 1) : chaque cellule i a un état
-//! `pc_i ∈ {think, hungry, eat}` ; la fourchette `left_i` est déterminée :
-//! `me` si i mange, `prev` si i-1 mange, `free` sinon. Un état atteignable =
-//! mot circulaire sur {T, H, E} sans deux `E` adjacents. La cellule légale
-//! (pc, left) est encodée par un atome de valeur :
-//! 0 = (think, free), 1 = (hungry, free), 2 = (eat, me),
-//! 3 = (think, prev), 4 = (hungry, prev).
+//! Modèle (docs/exemple-fil-rouge § 1-2) en **intercalage** : chaque cellule
+//! i contribue deux clés, `2i` = `pc_i` et `2i+1` = `left_i`, toutes deux à
+//! domaine {0, 1, 2} (`think/hungry/eat` et `free/me/prev`). La fourchette
+//! `left_i` est déterminée par le mot `pc` : `me` si i mange, `prev` si i-1
+//! mange, `free` sinon. Un état atteignable = mot circulaire sur {T, H, E}
+//! sans deux `E` adjacents.
 
 use std::collections::BTreeMap;
 
