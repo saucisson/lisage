@@ -12,3 +12,4 @@ lisage-lang = { path = "../lisage-lang" }
 lisage-algebra = { path = "../lisage-algebra" }
 
 [dev-dependencies]
+proptest = "1"
