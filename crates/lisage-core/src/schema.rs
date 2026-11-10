@@ -390,3 +390,168 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
         },
     ))
 }
+
+/// Décompile un diagramme en valeur (inverse de [`compiler`]) : utile pour
+/// les tests de round-trip et les diagnostics.
+pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
+    pool: &P,
+    schema: &Schema,
+    noeud: NodeId,
+) -> Result<Value, SchemaError> {
+    match schema {
+        Schema::Atom(domaine) => {
+            // Domaine à un seul élément : R-collapse réduit le nœud atomique
+            // au terminal d'acceptation.
+            if matches!(pool.resolve(noeud), Ok(Form::Terminal(true))) {
+                return match domaine.valeurs.first() {
+                    Some(atome) if domaine.taille() == 1 => Ok(Value::Atom(*atome)),
+                    _ => Err(SchemaError::NoeudInattendu {
+                        attendu: "nœud de niveau atomique",
+                        noeud,
+                    }),
+                };
+            }
+            let Form::Node { level, arcs } = pool.resolve(noeud)? else {
+                return Err(SchemaError::NoeudInattendu {
+                    attendu: "nœud de niveau atomique",
+                    noeud,
+                });
+            };
+            if *level != Level(0) {
+                return Err(SchemaError::NoeudInattendu {
+                    attendu: "niveau 0",
+                    noeud,
+                });
+            }
+            for (cle, cible) in arcs {
+                if matches!(pool.resolve(*cible), Ok(Form::Terminal(true))) {
+                    let atome = Atom(*cle);
+                    if domaine.contient(atome) {
+                        return Ok(Value::Atom(atome));
+                    }
+                    return Err(SchemaError::HorsDomaine(atome));
+                }
+            }
+            Err(SchemaError::NoeudInattendu {
+                attendu: "arc vers terminal true",
+                noeud,
+            })
+        }
+        Schema::Set(domaine) => {
+            let mut elements = BTreeSet::new();
+            decompiler_ensemble(pool, domaine, noeud, &mut elements)?;
+            Ok(Value::Set(elements))
+        }
+        Schema::Map(liste_cles, _) => {
+            let mut map = BTreeMap::new();
+            decompiler_map(pool, liste_cles, noeud, &mut map)?;
+            Ok(Value::Map(map))
+        }
+    }
+}
+
+fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
+    pool: &P,
+    domaine: &Domaine,
+    mut noeud: NodeId,
+    elements: &mut BTreeSet<Value>,
+) -> Result<(), SchemaError> {
+    loop {
+        match pool.resolve(noeud)? {
+            Form::Terminal(true) => return Ok(()),
+            Form::Terminal(false) => {
+                return Err(SchemaError::NoeudInattendu {
+                    attendu: "terminal true (ensemble vide) ou nœud de présence",
+                    noeud,
+                });
+            }
+            Form::Node { level, arcs } => {
+                let index = level.0 as usize;
+                if index >= domaine.taille() {
+                    return Err(SchemaError::NoeudInattendu {
+                        attendu: "niveau de présence du domaine",
+                        noeud,
+                    });
+                }
+                if let Some(&suite) = arcs.get(&PRESENT) {
+                    elements.insert(Value::Atom(domaine.valeurs[index]));
+                    noeud = suite;
+                } else if let Some(&suite) = arcs.get(&ABSENT) {
+                    noeud = suite;
+                } else {
+                    return Err(SchemaError::NoeudInattendu {
+                        attendu: "arc de présence",
+                        noeud,
+                    });
+                }
+            }
+        }
+    }
+}
+
+fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
+    pool: &P,
+    liste_cles: &[Atom],
+    mut noeud: NodeId,
+    map: &mut BTreeMap<Value, Value>,
+) -> Result<(), SchemaError> {
+    loop {
+        match pool.resolve(noeud)? {
+            Form::Terminal(true) => return Ok(()),
+            Form::Terminal(false) => {
+                return Err(SchemaError::NoeudInattendu {
+                    attendu: "terminal true (map vide) ou nœud de présence",
+                    noeud,
+                });
+            }
+            Form::Node { level, arcs } => {
+                if !level.0.is_multiple_of(2) {
+                    return Err(SchemaError::NoeudInattendu {
+                        attendu: "niveau de présence",
+                        noeud,
+                    });
+                }
+                let index = (level.0 / 2) as usize;
+                if index >= liste_cles.len() {
+                    return Err(SchemaError::NoeudInattendu {
+                        attendu: "niveau de présence d'une clé",
+                        noeud,
+                    });
+                }
+                if let Some(&noeud_valeur) = arcs.get(&PRESENT) {
+                    let Form::Node {
+                        level: niveau_valeur,
+                        arcs: arcs_valeur,
+                    } = pool.resolve(noeud_valeur)?
+                    else {
+                        return Err(SchemaError::NoeudInattendu {
+                            attendu: "nœud de niveau valeur",
+                            noeud: noeud_valeur,
+                        });
+                    };
+                    if *niveau_valeur != Schema::niveau_valeur(index) {
+                        return Err(SchemaError::NoeudInattendu {
+                            attendu: "niveau valeur de la clé",
+                            noeud: noeud_valeur,
+                        });
+                    }
+                    let Some((&valeur, &suite)) = arcs_valeur.iter().next() else {
+                        return Err(SchemaError::NoeudInattendu {
+                            attendu: "arc de valeur",
+                            noeud: noeud_valeur,
+                        });
+                    };
+                    map.insert(Value::Atom(liste_cles[index]), Value::Atom(Atom(valeur)));
+                    noeud = suite;
+                } else if let Some(&suite) = arcs.get(&ABSENT) {
+                    noeud = suite;
+                } else {
+                    return Err(SchemaError::NoeudInattendu {
+                        attendu: "arc de présence",
+                        noeud,
+                    });
+                }
+            }
+        }
+    }
+}
