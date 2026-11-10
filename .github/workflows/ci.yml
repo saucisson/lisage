@@ -64,6 +64,9 @@ jobs:
       - name: nextest
         run: cargo install cargo-nextest --locked && cargo nextest run --all-targets
 
+      - name: bench (criterion, refuse les régressions)
+        run: cargo bench --all --bench '*' -- --measurement-time 1 --warm-up-time 1
+
       - name: coverage
         run: |
           cargo install cargo-llvm-cov --locked
