@@ -10,6 +10,7 @@ pub mod arena;
 pub mod error;
 pub mod lookup;
 pub mod observer;
+pub mod operations;
 pub mod pli;
 pub mod schema;
 pub mod transduction;

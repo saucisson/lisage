@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-6 (2/2) : opérations à canal hérité seul — `exists`, `filter`, `map` (feat/13b)
+
+- **Issue**: #13 (M1-6 — Pli et semi-anneaux, énoncés A5/C7, partie opérations spec § 4).
+- **Done**: `lisage-core::operations` : `Existe` (pli `(Bool,∨,∧)`, verdict au terminal), `Filtre` (garde, membres rejetés → ε(false), règle A2 « tout rejeté ⇒ ε(false) » dans φ_out), `Image` (réétiquetage des atomes, schéma Atom) ; le canal hérité porte l'ensemble des clés présentes. Helpers `existe`/`filtrer`/`image`. Tests unitaires + PBT différentiels voie A vs voie DD (exists booléen ; filter et map par égalité structurelle C1 des nœuds). Périmètre documenté : prédicats de présence (un verdict sur valeurs d'un niveau val(k) collapsé exige le T-EXPAND § 6.2, hors périmètre).
+- **Evidence**: `make check` OK (69 tests, 2 ignorés rouges M1-7), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : `cargo audit`, CI réelle avant push.
+- **Judgement calls**: prédicats restreints à la présence (bien définis sur le DD réduit) plutôt que T-EXPAND dans φ_disp ; règle A2 ajoutée à `Filtre::phi_out` pour réduire les sous-arbres tout-rejetés.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-6 (1/2) : pli et semi-anneaux — `Pli<S>`, comptage A4, `union` (merge Bool), correction R-collapse (feat/13)
 
 - **Issue**: #13 (M1-6 — Pli et semi-anneaux, énoncés A4/A5/C7).
