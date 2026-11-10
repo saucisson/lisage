@@ -273,16 +273,23 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
         }
         (Schema::Map(cles, domaine_v), Value::Map(map)) => {
             for (cle, valeur) in map {
-                match (cle, valeur) {
-                    (Value::Atom(atome_cle), Value::Atom(atome_val))
-                        if cles.contains(atome_cle) && domaine_v.contient(*atome_val) => {}
-                    (Value::Atom(atome), _) => return Err(SchemaError::HorsDomaine(*atome)),
-                    _ => {
-                        return Err(SchemaError::TypeMismatch {
-                            attendu: "map d'atomes",
-                            recu: "clé ou valeur non atomique",
-                        });
-                    }
+                let Value::Atom(atome_cle) = cle else {
+                    return Err(SchemaError::TypeMismatch {
+                        attendu: "clé atomique",
+                        recu: forme_valeur(cle),
+                    });
+                };
+                if !cles.contains(atome_cle) {
+                    return Err(SchemaError::HorsDomaine(*atome_cle));
+                }
+                let Value::Atom(atome_val) = valeur else {
+                    return Err(SchemaError::TypeMismatch {
+                        attendu: "valeur atomique",
+                        recu: forme_valeur(valeur),
+                    });
+                };
+                if !domaine_v.contient(*atome_val) {
+                    return Err(SchemaError::HorsDomaine(*atome_val));
                 }
             }
             compiler_map(pool, anchor, cles, map, 0)
