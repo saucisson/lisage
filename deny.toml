@@ -7,4 +7,4 @@ yanked = "deny"
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+wildcards = "allow"
