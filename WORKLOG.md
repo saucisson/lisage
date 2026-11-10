@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-6 (1/2) : pli et semi-anneaux — `Pli<S>`, comptage A4, `union` (merge Bool), correction R-collapse (feat/13)
+
+- **Issue**: #13 (M1-6 — Pli et semi-anneaux, énoncés A4/A5/C7).
+- **Done**: `lisage-core::pli` : trait `SemiAnneau` (`zero/un/depuis_cardinalite/plus/fois`) avec `Naturel` (ℕ,+,×) et `BoolOu` (Bool,∨,∧) ; transduction `Pli<S>` (fold, H trivial, copie identité en sortie) avec expansion-comptage **A4 on-path** (niveaux valeur sautés ⇒ facteur |Val|, niveaux présence sautés ⇒ facteur 1 et leur niveau valeur hors chemin) et poids de l'arc par défaut implicite (A6) ; `compter` (count = pli sur (ℕ,+,×)) ; `union` (merge de construction **Bool idempotent = le hash-consing**, déclaration A5) style ZDD. Le trait `Transduction::phi_aggr` reçoit désormais le niveau de chaque fils (nécessaire à A4). **Correction M1-2** : `reduire`/`reduire_inverse` ne collapsent plus un niveau à défaut quand deux arcs explicites mènent à une cible ≠ D_δ (le collapse n'était pas préservant pour la sémantique ensemble de chemins, spec § 2.2 — il détruisait des membres et rendait le comptage inexact, cas limite A5). Tests unitaires (exemple spec § 5 count=2 sur val(a) collapsé, ensembles vide/plein, pli BoolOu, union idempotente/⊥ neutre/⊤ = map vide, A4) + PBT différentiel count voie A (interprète) vs voie DD (pli A4) sur ensembles aléatoires de maps.
+- **Evidence**: `make check` OK (63 tests, 2 ignorés rouges M1-7), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : `cargo audit`, CI réelle avant push.
+- **Judgement calls**: correction de `reduire` (comportement M1-2) rendue nécessaire par l'exactitude du comptage A4 — documentée, tests de confluence M1-2 toujours verts ; facteur A4 « on-path » (le niveau valeur d'une clé absente est hors chemin) ; `union` énumère toutes les valeurs d'un niveau sans défaut.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-5 (2/2) : `lookup(k)` — modes cherche/extrait/stop, fragment de DD, T-EXPAND + greffe (feat/12b)
 
 - **Issue**: #12 (M1-5 — lookup, spec § 6).

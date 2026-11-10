@@ -175,10 +175,15 @@ impl Transduction for Lookup {
         }
     }
 
-    fn phi_aggr(&self, _level: Level, _h: &Mode, arcs: &BTreeMap<u64, Self::S>) -> Self::S {
+    fn phi_aggr(
+        &self,
+        _level: Level,
+        _h: &Mode,
+        arcs: &BTreeMap<u64, (Option<Level>, Self::S)>,
+    ) -> Self::S {
         // Union canonique des fragments (fusion des arcs du niveau valeur).
         let mut fragment = BTreeMap::new();
-        for s in arcs.values() {
+        for (_, s) in arcs.values() {
             fragment.extend(s.iter().map(|(v, n)| (*v, *n)));
         }
         fragment

@@ -44,12 +44,14 @@ pub fn reduire<Key: Ord + Clone>(
     // R-collapse sur l'ensemble complet : l'arc par défaut implicite vaut D_δ.
     if let Some(cible) = collapse_arcs(&arcs) {
         // Couverture (spec § 2.2 : tout arc absent vaut δ(ℓ)) : avec un
-        // défaut, les arcs absents mènent à la même continuation que δ, donc
-        // le collapse vaut si δ est explicite ou si la cible est D_δ ;
-        // sans défaut, toutes les valeurs doivent être explicites.
+        // défaut, le collapse ne vaut que si seul l'arc δ est explicite
+        // (les arcs absents prennent la valeur δ, même chemin) ou si la
+        // cible est D_δ ; sinon deux arcs explicites vers la même cible
+        // dénotent des chemins distincts (présence) et ne collapsent pas.
+        // Sans défaut, toutes les valeurs doivent être explicites.
         let couvre = match &cle_defaut {
             None => arcs.len() as u64 >= cardinalite,
-            Some(cle) => arcs.contains_key(cle) || est_defaut(cible),
+            Some(cle) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(cle)),
         };
         if couvre {
             return Reduction::Collapse(cible);
@@ -90,13 +92,12 @@ pub fn reduire_inverse<Key: Ord + Clone>(
         };
     }
     if let Some(cible) = collapse_arcs(&arcs) {
-        // Couverture (spec § 2.2 : tout arc absent vaut δ(ℓ)) : avec un
-        // défaut, les arcs absents mènent à la même continuation que δ, donc
-        // le collapse vaut si δ est explicite ou si la cible est D_δ ;
-        // sans défaut, toutes les valeurs doivent être explicites.
+        // Même couverture que `reduire` (confluence) : avec un défaut, le
+        // collapse ne vaut que si seul l'arc δ est explicite ou si la cible
+        // est D_δ ; sans défaut, toutes les valeurs doivent être explicites.
         let couvre = match &cle_defaut {
             None => arcs.len() as u64 >= cardinalite,
-            Some(cle) => arcs.contains_key(cle) || est_defaut(cible),
+            Some(cle) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(cle)),
         };
         if couvre {
             return Reduction::Collapse(cible);
