@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use lisage_bench::differentiel::{voie_a_count, voie_b_count, voie_c_count};
 use lisage_bench::{voie_a, voie_b, voie_c};
 use lisage_lang::interpreter::{count, filter, lookup};
-use lisage_lang::value::Value;
+use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
 proptest! {
@@ -35,7 +35,7 @@ fn test_c0_exemple_factice() {
 }
 
 fn atome(valeur: u64) -> Value {
-    Value::Atom(valeur)
+    Value::Atom(Atom(valeur))
 }
 
 fn map_de(paires: &[(u64, u64)]) -> Value {

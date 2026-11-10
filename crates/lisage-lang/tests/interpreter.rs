@@ -4,10 +4,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_lang::interpreter::{count, exists, filter, lookup, map, member, saturate};
-use lisage_lang::value::Value;
+use lisage_lang::value::{Atom, Value};
 
 fn atome(valeur: u64) -> Value {
-    Value::Atom(valeur)
+    Value::Atom(Atom(valeur))
 }
 
 fn map_de(paires: &[(u64, u64)]) -> Value {
