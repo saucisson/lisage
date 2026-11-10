@@ -1,13 +1,14 @@
 //! Tests des schémas de référence (M1-3) : compilation balayage d'univers
-//! (un niveau de présence par clé, δ = absent, sans marqueur) et
-//! décompilation inverse.
+//! (un niveau de présence par clé, δ = absent, sans marqueur).
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_algebra::interface::{Anchor, Form, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, PRESENT, ReferenceController, Schema, SchemaError, compiler};
+use lisage_core::schema::{
+    ABSENT, Domaine, PRESENT, ReferenceController, Schema, SchemaError, compiler,
+};
 use lisage_lang::value::{Atom, Value};
 
 fn domaine(valeurs: &[u64]) -> Domaine {
@@ -43,7 +44,7 @@ fn test_compilation_map_exemple_spec() {
     };
     assert_eq!(*level, Level(1));
     assert_eq!(arcs.len(), 1);
-    let noeud_pres_b = arcs[&1];
+    let noeud_pres_b = arcs[&PRESENT];
     let Form::Node { level, arcs } = pool.resolve(noeud_pres_b).unwrap() else {
         panic!("nœud de présence attendu");
     };
@@ -53,7 +54,7 @@ fn test_compilation_map_exemple_spec() {
         panic!("nœud de valeur attendu");
     };
     assert_eq!(*level, Level(3));
-    assert_eq!(arcs, &BTreeMap::from([(0, terminal)]));
+    assert_eq!(arcs, &BTreeMap::from([(ABSENT, terminal)]));
 }
 
 /// R-collapse saute les niveaux de présence des éléments absents (style
@@ -93,7 +94,7 @@ fn test_map_vide_et_cle_absente() {
         anchor,
         Form::Node {
             level: Level(3),
-            arcs: BTreeMap::from([(0, terminal)]),
+            arcs: BTreeMap::from([(ABSENT, terminal)]),
         },
     );
     assert_eq!(
@@ -122,4 +123,36 @@ fn test_erreurs_typees() {
     let hors = Value::Set(BTreeSet::from([atome(9)]));
     let err = compiler(&mut pool, anchor, &schema, &hors).unwrap_err();
     assert_eq!(err, SchemaError::HorsDomaine(Atom(9)));
+}
+
+/// La validation d'une map distingue la clé hors domaine de la valeur hors
+/// domaine (l'erreur porte l'atome fautif).
+#[test]
+fn test_erreur_valeur_hors_domaine_map() {
+    let schema = Schema::Map(vec![Atom(0)], domaine(&[0, 1]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let map = Value::Map(BTreeMap::from([(atome(0), atome(9))]));
+    let err = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
+    assert_eq!(err, SchemaError::HorsDomaine(Atom(9)));
+    let map = Value::Map(BTreeMap::from([(atome(7), atome(0))]));
+    let err = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
+    assert_eq!(err, SchemaError::HorsDomaine(Atom(7)));
+}
+
+/// Schéma Atom(D) : un seul niveau, Val = D.
+#[test]
+fn test_schema_atome() {
+    let schema = Schema::Atom(domaine(&[0, 1, 2]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let racine = compiler(&mut pool, anchor, &schema, &atome(2)).unwrap();
+    let terminal = pool.intern(anchor, Form::Terminal(true));
+    assert_eq!(
+        pool.resolve(racine).unwrap(),
+        &Form::Node {
+            level: Level(0),
+            arcs: BTreeMap::from([(2, terminal)]),
+        }
+    );
 }
