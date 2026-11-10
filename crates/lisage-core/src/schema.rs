@@ -67,6 +67,9 @@ pub enum Schema {
     /// `Seq(D, N)` : séquence d'au plus `N` éléments d'un domaine borné `D`
     /// (M2-1, constructeur `list`). Le marqueur de fin est une clé requise.
     Seq(Domaine, u32),
+    /// `Tag(K, V)` : union typée — niveau discriminant (clés `K`) puis niveau
+    /// valeur `V` (M2-2). Un seul arc utile par nœud (C2).
+    Tag(Vec<Atom>, Domaine),
 }
 
 impl Schema {
@@ -77,6 +80,7 @@ impl Schema {
             Schema::Set(domaine) => domaine.taille() as u32,
             Schema::Map(liste_cles, _) => PAS_NIVEAU_MAP * liste_cles.len() as u32,
             Schema::Seq(_, longueur_max) => longueur_max + 1,
+            Schema::Tag(liste, _) => PAS_NIVEAU_MAP * liste.len() as u32,
         }
     }
 
@@ -188,6 +192,13 @@ impl KeyAlgebra for SchemaKeys {
                     CARDINALITE_PRESENCE
                 }
             }
+            Schema::Tag(liste, domaine_valeurs) => {
+                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+                    liste.len() as u64
+                } else {
+                    domaine_valeurs.taille() as u64
+                }
+            }
         }
     }
 
@@ -203,6 +214,7 @@ impl KeyAlgebra for SchemaKeys {
                 }
             }
             Schema::Seq(_, _) => None, // marqueur de fin = clé requise, pas de défaut
+            Schema::Tag(_, _) => None, // discriminant = clé requise
         }
     }
 }
@@ -252,6 +264,7 @@ impl Controller for ReferenceController {
                 }
             }
             Schema::Seq(_, _) => None,
+            Schema::Tag(_, _) => None,
         }
     }
 }
@@ -301,6 +314,10 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             valider_seq(domaine, *longueur_max, elements)?;
             compiler_seq(pool, anchor, domaine, *longueur_max, elements)
         }
+        (Schema::Tag(liste, domaine_valeurs), Value::Tag(discriminant, payload)) => {
+            valider_tag(liste, domaine_valeurs, *discriminant, payload)?;
+            compiler_tag(pool, anchor, liste, domaine_valeurs, *discriminant, payload)
+        }
         (schema, valeur) => Err(SchemaError::TypeMismatch {
             attendu: forme_schema(schema),
             recu: forme_valeur(valeur),
@@ -344,6 +361,7 @@ fn forme_schema(schema: &Schema) -> &'static str {
         Schema::Set(_) => "ensemble",
         Schema::Map(_, _) => "map",
         Schema::Seq(_, _) => "séquence",
+        Schema::Tag(_, _) => "union typée",
     }
 }
 
@@ -353,6 +371,7 @@ fn forme_valeur(valeur: &Value) -> &'static str {
         Value::Set(_) => "ensemble",
         Value::Map(_) => "map",
         Value::Seq(_) => "séquence",
+        Value::Tag(_, _) => "union typée",
     }
 }
 
@@ -501,6 +520,61 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
     ))
 }
 
+/// Valide un tag contre le schéma (discriminant dans la liste, payload dans le domaine).
+fn valider_tag(
+    liste: &[Atom],
+    domaine_valeurs: &Domaine,
+    discriminant: Atom,
+    payload: &Value,
+) -> Result<(), SchemaError> {
+    if !liste.contains(&discriminant) {
+        return Err(SchemaError::HorsDomaine(discriminant));
+    }
+    match payload {
+        Value::Atom(atome) if domaine_valeurs.contient(*atome) => Ok(()),
+        Value::Atom(atome) => Err(SchemaError::HorsDomaine(*atome)),
+        autre => Err(SchemaError::TypeMismatch {
+            attendu: "payload atomique",
+            recu: forme_valeur(autre),
+        }),
+    }
+}
+
+/// Compile un tag : niveau discriminant (un arc = un variant) puis niveau
+/// valeur. Un seul arc utile par nœud (C2).
+fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    liste: &[Atom],
+    domaine_valeurs: &Domaine,
+    discriminant: Atom,
+    payload: &Value,
+) -> Result<NodeId, SchemaError> {
+    let terminal = pool.intern(anchor, Form::Terminal(true));
+    let Value::Atom(atome_valeur) = payload else {
+        return Err(SchemaError::TypeMismatch {
+            attendu: "payload atomique",
+            recu: forme_valeur(payload),
+        });
+    };
+    let noeud_valeur = pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(1),
+            arcs: BTreeMap::from([(atome_valeur.0, terminal)]),
+        },
+    );
+    let index = liste.iter().position(|a| *a == discriminant).unwrap();
+    let _ = domaine_valeurs;
+    Ok(pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(0),
+            arcs: BTreeMap::from([(index as u64, noeud_valeur)]),
+        },
+    ))
+}
+
 /// Décompile un diagramme en valeur (inverse de [`compiler`]) : utile pour
 /// les tests de round-trip et les diagnostics.
 pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
@@ -562,7 +636,67 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             decompiler_seq(pool, domaine, *longueur_max, noeud, &mut elements)?;
             Ok(Value::Seq(elements))
         }
+        Schema::Tag(liste, domaine_valeurs) => decompiler_tag(pool, liste, domaine_valeurs, noeud),
     }
+}
+
+fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
+    pool: &P,
+    liste: &[Atom],
+    domaine_valeurs: &Domaine,
+    noeud: NodeId,
+) -> Result<Value, SchemaError> {
+    let Form::Node { level, arcs } = pool.resolve(noeud)? else {
+        return Err(SchemaError::NoeudInattendu {
+            attendu: "nœud discriminant",
+            noeud,
+        });
+    };
+    if *level != Level(0) {
+        return Err(SchemaError::NoeudInattendu {
+            attendu: "niveau discriminant (0)",
+            noeud,
+        });
+    }
+    let Some((&index, &noeud_valeur)) = arcs.iter().next() else {
+        return Err(SchemaError::NoeudInattendu {
+            attendu: "arc discriminant",
+            noeud,
+        });
+    };
+    let discriminant = *liste
+        .get(index as usize)
+        .ok_or(SchemaError::NoeudInattendu {
+            attendu: "index de discriminant valide",
+            noeud,
+        })?;
+    let Form::Node {
+        level: niveau_valeur,
+        arcs: arcs_valeur,
+    } = pool.resolve(noeud_valeur)?
+    else {
+        return Err(SchemaError::NoeudInattendu {
+            attendu: "nœud valeur",
+            noeud: noeud_valeur,
+        });
+    };
+    if *niveau_valeur != Level(1) {
+        return Err(SchemaError::NoeudInattendu {
+            attendu: "niveau valeur (1)",
+            noeud: noeud_valeur,
+        });
+    }
+    let Some((&valeur, _)) = arcs_valeur.iter().next() else {
+        return Err(SchemaError::NoeudInattendu {
+            attendu: "arc valeur",
+            noeud: noeud_valeur,
+        });
+    };
+    let atome = Atom(valeur);
+    if !domaine_valeurs.contient(atome) {
+        return Err(SchemaError::HorsDomaine(atome));
+    }
+    Ok(Value::Tag(discriminant, Box::new(Value::Atom(atome))))
 }
 
 fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(

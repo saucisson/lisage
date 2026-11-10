@@ -77,6 +77,7 @@ impl Controller for LookupController {
                 }
             }
             Schema::Seq(_, _) => None,
+            Schema::Tag(_, _) => None,
         }
     }
 }

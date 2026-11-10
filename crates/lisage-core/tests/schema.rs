@@ -305,3 +305,51 @@ fn test_seq_marqueur_fin_cle_requise() {
     assert_eq!(keys.cardinality(Level(0)), 4);
     assert_eq!(keys.cardinality(Level(3)), 2);
 }
+
+/// M2-2 : Tag — compilation union typée et round-trip (C2).
+#[test]
+fn test_tag_compilation_round_trip() {
+    let schema = Schema::Tag(vec![Atom(0), Atom(1), Atom(2)], domaine(&[10, 20]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+
+    for discriminant in [0u64, 1, 2] {
+        for valeur in [10u64, 20] {
+            let tag = Value::Tag(Atom(discriminant), Box::new(atome(valeur)));
+            let racine = compiler(&mut pool, anchor, &schema, &tag).unwrap();
+            assert_eq!(decompiler(&pool, &schema, racine).unwrap(), tag);
+        }
+    }
+}
+
+/// M2-2 : Tag — canonicité et un seul arc utile (C2).
+#[test]
+fn test_tag_canonicite_c2() {
+    use lisage_algebra::interface::Pool;
+    let schema = Schema::Tag(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let tag = Value::Tag(Atom(0), Box::new(atome(1)));
+    let r1 = compiler(&mut pool, anchor, &schema, &tag).unwrap();
+    let r2 = compiler(&mut pool, anchor, &schema, &tag).unwrap();
+    assert_eq!(r1, r2);
+    // Un seul arc sur le nœud discriminant.
+    if let Ok(Form::Node { arcs, .. }) = pool.resolve(r1) {
+        assert_eq!(arcs.len(), 1, "C2 : un seul arc utile par nœud");
+    } else {
+        panic!("nœud attendu");
+    }
+}
+
+/// M2-2 : Tag — erreur discriminant hors liste.
+#[test]
+fn test_tag_discriminant_invalide() {
+    let schema = Schema::Tag(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let tag = Value::Tag(Atom(5), Box::new(atome(0)));
+    assert!(matches!(
+        compiler(&mut pool, anchor, &schema, &tag),
+        Err(SchemaError::HorsDomaine(_))
+    ));
+}

@@ -16,4 +16,6 @@ pub enum Value {
     Map(BTreeMap<Value, Value>),
     /// Séquence ordonnée d'éléments (M2-1, constructeur `list`).
     Seq(Vec<Value>),
+    /// Union typée : discriminant + payload (M2-2, constructeur `Tag`).
+    Tag(Atom, Box<Value>),
 }
