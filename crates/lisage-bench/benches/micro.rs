@@ -10,6 +10,12 @@ use lisage_core::observer::NoOpObserver;
 
 /// Nombre de variables de la ligne de base BDD classique (M1-8).
 const BASELINE_VARIABLES: u32 = 12;
+/// Graine du LCG de la table de vérité déterministe.
+const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+/// Multiplicateur du LCG (Knuth).
+const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
+/// Incrément du LCG.
+const INCREMENT_LCG: u64 = 1442695040888963407;
 
 fn bench_voie_a(c: &mut Criterion) {
     c.bench_function("voie_a_factice", |b| b.iter(|| lisage_bench::voie_a(41)));
@@ -21,12 +27,12 @@ fn bench_voie_a(c: &mut Criterion) {
 /// compte (assertion interne du bench).
 fn bench_bdd_classique(c: &mut Criterion) {
     let table: Vec<bool> = {
-        let mut etat: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mut etat: u64 = GRAINE_LCG;
         (0..(1usize << BASELINE_VARIABLES))
             .map(|_| {
                 etat = etat
-                    .wrapping_mul(6364136223846793005)
-                    .wrapping_add(1442695040888963407);
+                    .wrapping_mul(MULTIPLICATEUR_LCG)
+                    .wrapping_add(INCREMENT_LCG);
                 (etat >> 63) == 1
             })
             .collect()

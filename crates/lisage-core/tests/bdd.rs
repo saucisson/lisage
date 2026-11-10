@@ -55,14 +55,13 @@ fn test_bdd_xor2_compte_et_evalue() {
 }
 
 #[test]
-fn test_bdd_partage_hash_consing() {
+fn test_bdd_projection_collapse() {
     let mut pool = pool(2);
     let anchor = Anchor(0);
     let keys = BddKeys::new(2);
-    // x0 (projection) : le nœud x1 est partagé entre les deux branches de x0.
+    // Projection sur x0 : les deux branches de la racine x1 potentielles
+    // sont constantes, R-collapse les réduit — racine x0 → (⊥, ⊤), 3 nœuds.
     let table = (0..4u64).map(|a| a & 1 == 1).collect::<Vec<bool>>();
     let racine = compiler_bdd(&mut pool, anchor, &keys, &table);
-    // Projection x0 : racine x0 → (⊥, ⊤), soit 3 nœuds (R-collapse des
-    // branches constantes).
     assert_eq!(compter_noeuds(&pool, racine), 3);
 }
