@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-6 (2/2) : corrections de review PR #53 — erreurs typées aux frontières (feat/13b, 572edb5)
+
+- **Issue**: #13 (M1-6), revue de la PR #53 (1 BLOCKING, 1 TO-FIX, 2 SUGGESTION).
+- **Done**: `Existe::new`/`Filtre::new` renvoient `CoreError::SchemaInattendu` au lieu de paniquer ; `valider_niveaux` renvoie `CoreError::NiveauHorsSchema` avant `disperser_chemin` (plus d'indice hors limites) ; constante `PAS_NIVEAU_MAP` nommée dans `schema.rs` et utilisée dans `operations.rs`. Tests ajoutés : schéma non-Map → `SchemaInattendu`, nœud de niveau 4 hors schéma → `NiveauHorsSchema`.
+- **Evidence**: `make check` OK (71 tests, 2 ignorés), `cargo clippy --all-targets -- -D warnings` OK, CI verte sur 572edb5, review de suivi 0 BLOCKING / 0 TO-FIX / 2 SUGGESTION (rapport frais, head_sha conforme).
+- **Judgement calls**: les 2 SUGGESTION restantes (validation de `image`, `assert!` interne dans `disperser_chemin`) laissées en l'état — non bloquantes.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-6 (2/2) : opérations à canal hérité seul — `exists`, `filter`, `map` (feat/13b)
 
 - **Issue**: #13 (M1-6 — Pli et semi-anneaux, énoncés A5/C7, partie opérations spec § 4).
