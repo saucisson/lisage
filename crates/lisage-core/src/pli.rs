@@ -231,8 +231,6 @@ where
 
 /// Union de deux diagrammes à payload `bool` (merge de construction, A5) :
 /// l'union idempotente — **le hash-consing est ce choix Bool** : la
-/// Union de deux diagrammes à payload `bool` (merge de construction, A5) :
-/// l'union idempotente — **le hash-consing est ce choix Bool** : la
 /// multiplicité est détruite à l'écriture, seul le cardinal est exact.
 /// Style ZDD : le terminal `⊤` est le membre « tous les niveaux par
 /// défaut » (porté par l'arc `δ(ℓ)`), et un nœud de niveau supérieur à

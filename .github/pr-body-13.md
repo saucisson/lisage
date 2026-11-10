@@ -4,6 +4,22 @@ M1-6 (1/2) : le pli et les semi-anneaux (spec § 5, A4/A5/C7) dans `lisage-core:
 
 Closes #13 (partie 1/2 : pli, comptage, union ; map/filter/exists en PR suivante)
 
+## Split proposal on the ~500-line PR budget (ADR-0019)
+
+This PR totals 646 changed lines, above the ~500 budget. Proposed split,
+if the human wants a strict sub-500 PR:
+
+- **PR-A1** (`feat/13-reductions`, ~150 lines): the `reduire`/`reduire_inverse`
+  coverage fix (R-collapse preserving the path semantics, spec § 2.2) + the
+  `phi_aggr` child-level trait change + signature updates in `lookup.rs` and
+  the transduction tests.
+- **PR-A2** (`feat/13-pli`, ~500 lines): `crates/lisage-core/src/pli.rs`
+  (`SemiAnneau`, `Naturel`, `BoolOu`, `Pli<S>`, `compter`, `union`) + core
+  tests + bench differential PBT.
+
+The single-PR form is kept because the reduction fix and the A4 fold are one
+logical change (count exactness); the split above remains available on request.
+
 ## Acceptance criteria mapping
 
 | Criterion | Where it is satisfied | Evidence |
