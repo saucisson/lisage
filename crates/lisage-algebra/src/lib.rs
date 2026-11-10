@@ -5,3 +5,4 @@
 //! contrat.
 
 pub mod interface;
+pub mod reduction;
