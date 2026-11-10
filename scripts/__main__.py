@@ -34,7 +34,7 @@ def main(*, command_line_arguments: Sequence[str]) -> int:
     """Entry point: environment loaded once, subcommand dispatched."""
     load_environment_file()
     arguments = build_argument_parser().parse_args(command_line_arguments)
-    runner: Callable[[argparse.Namespace], int] = arguments.runner
+    runner: Callable[..., int] = arguments.runner
     return runner(arguments=arguments)
 
 
