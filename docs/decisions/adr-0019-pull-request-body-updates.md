@@ -5,8 +5,8 @@
 
 ## Context
 
-The review checklist resolves an over-budget pull request (over ~500
-changed lines) with a split proposal written into the pull request
+The review checklist resolves an over-budget pull request (over ~1 000
+changed lines, budget relevé par ADR-0101) with a split proposal written into the pull request
 body. The protocol demands that write but provides no tool for it:
 `make pr` creates a pull request and never updates one, the review
 driver posts comments, and the worklog lives in the repository.
