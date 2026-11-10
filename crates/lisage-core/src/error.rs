@@ -19,6 +19,9 @@ pub enum CoreError {
     },
     /// Niveau d'un nœud hors du schéma (diagramme incompatible).
     NiveauHorsSchema(Level),
+    /// Effet mémoire produit alors que la politique du contrôleur est
+    /// `Aucune` (M2-3, T3).
+    MemoireNonAutorisee,
 }
 
 impl std::fmt::Display for CoreError {
@@ -34,6 +37,9 @@ impl std::fmt::Display for CoreError {
             }
             CoreError::NiveauHorsSchema(niveau) => {
                 write!(formatter, "niveau hors schéma: {niveau:?}")
+            }
+            CoreError::MemoireNonAutorisee => {
+                write!(formatter, "effet mémoire produit avec la politique Aucune")
             }
         }
     }

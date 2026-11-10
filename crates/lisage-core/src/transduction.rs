@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
+use lisage_algebra::interface::{Anchor, Form, Level, NodeId, PolitiqueMemoire, Pool};
 
 use crate::error::CoreError;
 use crate::memoire::{EffetMemoire, MemoireNiveau};
@@ -101,15 +101,24 @@ pub struct Transducteur<T: Transduction> {
     transduction: T,
     memo: HashMap<CleMemo<T::H>, (NodeId, T::S)>,
     memoire: MemoireNiveau<T::M>,
+    politique: PolitiqueMemoire,
 }
 
 impl<T: Transduction> Transducteur<T> {
-    /// Runner neuf pour la transduction donnée, mémoire vide (version 0).
+    /// Runner neuf pour la transduction donnée, mémoire vide (version 0),
+    /// politique `Aucune` (M1 : pas de mémoire de niveau).
     pub fn new(transduction: T) -> Self {
+        Self::avec_politique(transduction, PolitiqueMemoire::Aucune)
+    }
+
+    /// Runner avec une politique de stockage de la mémoire de niveau
+    /// déclarée par le contrôleur (M2-3, T3).
+    pub fn avec_politique(transduction: T, politique: PolitiqueMemoire) -> Self {
         Transducteur {
             transduction,
             memo: HashMap::new(),
             memoire: MemoireNiveau::new(),
+            politique,
         }
     }
 
@@ -190,6 +199,9 @@ impl<T: Transduction> Transducteur<T> {
                     noeud_entree: noeud,
                 };
                 let (noeud_resultat, effet) = self.transduction.phi_out(pool_sortie, ctx);
+                if self.politique == PolitiqueMemoire::Aucune && !effet.ecritures.is_empty() {
+                    return Err(CoreError::MemoireNonAutorisee);
+                }
                 effet.appliquer(&mut self.memoire);
                 (noeud_resultat, s)
             }
