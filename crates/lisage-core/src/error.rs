@@ -1,6 +1,5 @@
-//! Politique d'erreurs du cœur (feuille de route § 10) : les invariants
-//! internes de `core/` et `algebra/` sont des `assert!` (panic), les erreurs
-//! de frontière du port pool sont typées (`PoolError`, cause préservée).
+//! Erreurs du cœur (roadmap § 10) : invariants internes = `assert!` ;
+//! frontières du port pool = `PoolError` typé, cause préservée.
 
 use lisage_algebra::interface::PoolError;
 
