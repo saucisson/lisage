@@ -10,6 +10,7 @@ pub mod arena;
 pub mod error;
 pub mod observer;
 pub mod schema;
+pub mod transduction;
 
 pub use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,

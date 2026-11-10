@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-4 : moteur de transductions — canaux hérité/synthétisé, φ_aggr, mémo (op, nœud, h) (feat/11)
+
+- **Issue**: #11 (M1-4 — Transductions hérité/synthétisé, énoncé L3).
+- **Done**: `lisage-core::transduction` : trait `Transduction` (h0, φ_disp, φ_aggr, φ_out, psi, fingerprint) et runner `Transducteur` implémentant T-TERM/T-NODE (spec § 3.1) avec computed table à clé `(fingerprint(op), nœud, h)` (lemme L1/L3). Le runner intern la forme rendue par φ_out : le résultat est canonique par construction (A3), les réductions M1-2 s'appliquent. Tests unitaires (identité avec canal hérité = profondeur, comptage des chemins acceptants avec φ_aggr = somme, mémo : hits au second run, séparation par fingerprint et par h, application sur un diagramme compilé M1-3) + PBT dans lisage-bench (identité ⇒ même nœud, comptage transduction = comptage naïf récursif, sanité de la mémo sur DAG aléatoires).
+- **Evidence**: `make check` OK (52 tests, 2 ignorés rouges M1-7), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : `cargo audit`, CI réelle avant push.
+- **Judgement calls**: φ_out rend une `Form` (le runner intern) plutôt que d'interner lui-même — garde le trait indépendant du pool ; la mémoire de niveau M (tampons) est absente, non utilisée par les opérations de M1 ; le payload reste `bool` (lookup à payload Option(V) en M1-5, #12).
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-3 (3/3) : décompileur (round-trip) + PBT des schémas, clôture de l'issue (feat/10c)
 
 - **Issue**: #10 (M1-3 — Schémas de référence, énoncé Σ).
