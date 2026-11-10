@@ -22,6 +22,9 @@ pub const ABSENT: u64 = 0;
 pub const PRESENT: u64 = 1;
 /// Cardinalité d'un niveau de présence : {absent, présent}.
 pub const CARDINALITE_PRESENCE: u64 = 2;
+/// Pas entre les niveaux d'une map : présence de la clé `i` au niveau `2i`,
+/// valeur au niveau `2i+1`.
+pub const PAS_NIVEAU_MAP: u32 = 2;
 
 /// Domaine d'atomes borné : énumération finie, avec défaut éventuel.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -69,18 +72,18 @@ impl Schema {
         match self {
             Schema::Atom(_) => 1,
             Schema::Set(domaine) => domaine.taille() as u32,
-            Schema::Map(liste_cles, _) => 2 * liste_cles.len() as u32,
+            Schema::Map(liste_cles, _) => PAS_NIVEAU_MAP * liste_cles.len() as u32,
         }
     }
 
     /// Niveau de présence de la i-ème clé d'une map.
     pub fn niveau_presence(index: usize) -> Level {
-        Level(2 * index as u32)
+        Level(PAS_NIVEAU_MAP * index as u32)
     }
 
     /// Niveau valeur de la i-ème clé d'une map.
     pub fn niveau_valeur(index: usize) -> Level {
-        Level(2 * index as u32 + 1)
+        Level(PAS_NIVEAU_MAP * index as u32 + 1)
     }
 }
 
@@ -168,7 +171,7 @@ impl KeyAlgebra for SchemaKeys {
             Schema::Atom(domaine) => domaine.taille() as u64,
             Schema::Set(_) => CARDINALITE_PRESENCE,
             Schema::Map(_, domaine_valeurs) => {
-                if level.0.is_multiple_of(2) {
+                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
                     CARDINALITE_PRESENCE
                 } else {
                     domaine_valeurs.taille() as u64
@@ -182,7 +185,7 @@ impl KeyAlgebra for SchemaKeys {
             Schema::Atom(domaine) => domaine.defaut.map(|atome| atome.0),
             Schema::Set(_) => Some(ABSENT),
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(2) {
+                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
                     Some(ABSENT)
                 } else {
                     None
@@ -230,7 +233,7 @@ impl Controller for ReferenceController {
             Schema::Atom(domaine) => domaine.defaut.map(|_| false),
             Schema::Set(_) => Some(false),
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(2) {
+                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
                     Some(false)
                 } else {
                     None
@@ -510,13 +513,13 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                 });
             }
             Form::Node { level, arcs } => {
-                if !level.0.is_multiple_of(2) {
+                if !level.0.is_multiple_of(PAS_NIVEAU_MAP) {
                     return Err(SchemaError::NoeudInattendu {
                         attendu: "niveau de présence",
                         noeud,
                     });
                 }
-                let index = (level.0 / 2) as usize;
+                let index = (level.0 / PAS_NIVEAU_MAP) as usize;
                 if index >= liste_cles.len() {
                     return Err(SchemaError::NoeudInattendu {
                         attendu: "niveau de présence d'une clé",

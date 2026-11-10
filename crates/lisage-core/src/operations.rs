@@ -23,7 +23,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::error::CoreError;
 use crate::pli::{BoolOu, SemiAnneau};
-use crate::schema::{PRESENT, Schema};
+use crate::schema::{PAS_NIVEAU_MAP, PRESENT, Schema};
 use crate::transduction::{Transducteur, Transduction};
 
 /// Base du namespace de fingerprints de la famille garde/image.
@@ -44,15 +44,19 @@ pub struct Existe {
 }
 
 impl Existe {
-    /// `exists(p)` pour le schéma `Map(liste_cles, _)` donné.
-    pub fn new(schema: &Schema, predicat: PredicatMap) -> Self {
+    /// `exists(p)` pour le schéma `Map(liste_cles, _)` donné ; erreur typée
+    /// si le schéma n'est pas une map.
+    pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
         let Schema::Map(liste_cles, _) = schema else {
-            panic!("exists cible le schéma Map (invariant interne)")
+            return Err(CoreError::SchemaInattendu {
+                attendu: "Map",
+                recu: forme_schema(schema),
+            });
         };
-        Existe {
+        Ok(Existe {
             liste_cles: liste_cles.iter().map(|atome| atome.0).collect(),
             predicat,
-        }
+        })
     }
 }
 
@@ -65,14 +69,52 @@ pub struct Filtre {
 }
 
 impl Filtre {
-    /// `filter(p)` pour le schéma `Map(liste_cles, _)` donné.
-    pub fn new(schema: &Schema, predicat: PredicatMap) -> Self {
+    /// `filter(p)` pour le schéma `Map(liste_cles, _)` donné ; erreur typée
+    /// si le schéma n'est pas une map.
+    pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
         let Schema::Map(liste_cles, _) = schema else {
-            panic!("filter cible le schéma Map (invariant interne)")
+            return Err(CoreError::SchemaInattendu {
+                attendu: "Map",
+                recu: forme_schema(schema),
+            });
         };
-        Filtre {
+        Ok(Filtre {
             liste_cles: liste_cles.iter().map(|atome| atome.0).collect(),
             predicat,
+        })
+    }
+}
+
+/// Nom de la forme d'un schéma (pour les erreurs typées).
+fn forme_schema(schema: &Schema) -> &'static str {
+    match schema {
+        Schema::Atom(_) => "Atom",
+        Schema::Set(_) => "Set",
+        Schema::Map(_, _) => "Map",
+    }
+}
+
+/// Valide que tous les niveaux du diagramme sont dans le schéma (sinon
+/// `disperser_chemin` indicerait hors limites) : erreur typée `CoreError`.
+fn valider_niveaux<P: Pool<Key = u64, Payload = bool>>(
+    pool: &P,
+    schema: &Schema,
+    noeud: NodeId,
+    visite: &mut BTreeSet<NodeId>,
+) -> Result<(), CoreError> {
+    if !visite.insert(noeud) {
+        return Ok(());
+    }
+    match pool.resolve(noeud)? {
+        Form::Terminal(_) => Ok(()),
+        Form::Node { level, arcs } => {
+            if level.0 >= schema.nombre_niveaux() {
+                return Err(CoreError::NiveauHorsSchema(*level));
+            }
+            for cible in arcs.values() {
+                valider_niveaux(pool, schema, *cible, visite)?;
+            }
+            Ok(())
         }
     }
 }
@@ -96,9 +138,12 @@ impl Image {
 /// ajoute la clé ; un niveau valeur ne change rien).
 fn disperser_chemin(liste_cles: &[u64], level: Level, h: &ClePresentes, arc: u64) -> ClePresentes {
     let mut h = h.clone();
-    if level.0.is_multiple_of(2) && arc == PRESENT {
-        let index = (level.0 / 2) as usize;
-        h.insert(liste_cles[index]);
+    if level.0.is_multiple_of(PAS_NIVEAU_MAP) && arc == PRESENT {
+        let index = (level.0 / PAS_NIVEAU_MAP) as usize;
+        // Garanti par `valider_niveaux` avant la transduction.
+        if let Some(&cle) = liste_cles.get(index) {
+            h.insert(cle);
+        }
     }
     h
 }
@@ -275,7 +320,10 @@ where
     PIn: Pool<Key = u64, Payload = bool>,
     POut: Pool<Key = u64, Payload = bool>,
 {
-    let mut runner = Transducteur::new(Existe::new(schema, predicat));
+    let transduction = Existe::new(schema, predicat)?;
+    let mut visite = BTreeSet::new();
+    valider_niveaux(pool_entree, schema, noeud, &mut visite)?;
+    let mut runner = Transducteur::new(transduction);
     let (_, verdict) = runner.run(pool_entree, pool_sortie, anchor, noeud)?;
     Ok(verdict.0)
 }
@@ -294,7 +342,10 @@ where
     PIn: Pool<Key = u64, Payload = bool>,
     POut: Pool<Key = u64, Payload = bool>,
 {
-    let mut runner = Transducteur::new(Filtre::new(schema, predicat));
+    let transduction = Filtre::new(schema, predicat)?;
+    let mut visite = BTreeSet::new();
+    valider_niveaux(pool_entree, schema, noeud, &mut visite)?;
+    let mut runner = Transducteur::new(transduction);
     let (resultat, _) = runner.run(pool_entree, pool_sortie, anchor, noeud)?;
     Ok(resultat)
 }
