@@ -1,23 +1,27 @@
 # GitLab mirror of the GitHub CI (ADR-0007, ADR-0008).
-# Same gates, same order: lint, format, types, layers, tests, security.
+# Same gates, same order: fmt, clippy, nextest, coverage, audit, security.
 
 stages:
   - check
   - security
 
 default:
-  image: ghcr.io/astral-sh/uv:python3.15-bookworm-slim
+  image: rust:stable-bookworm
   before_script:
-    - uv sync --locked
+    - cargo install cargo-nextest --locked
+    - cargo install cargo-llvm-cov --locked
+    - cargo install cargo-audit --locked
+    - cargo install cargo-deny --locked
 
 quality-gate:
   stage: check
   script:
-    - uv run ruff check .
-    - uv run ruff format --check .
-    - uv run mypy tools/notify/src tools/notify/tests scripts
-    - uv run lint-imports
-    - uv run pytest
+    - cargo fmt --all -- --check
+    - cargo clippy --all-targets -- -D warnings
+    - cargo nextest run --all-targets
+    - cargo llvm-cov --all-targets --lcov --output-path lcov.info
+    - cargo audit
+    - cargo deny check
 
 # The reviewer agent runs LOCALLY on the developer machine as a headless
 # Vibe Code session (ADR-0010), spending the plan's included usage
@@ -29,10 +33,5 @@ secret-scan:
   variables:
     GIT_DEPTH: "0"
   script:
-    - uvx gitleaks git --no-banner --redact .
-
-dependency-audit:
-  stage: security
-  script:
-    - uv export --locked --format requirements-txt --output-file requirements.txt
-    - uvx pip-audit --requirement requirements.txt --strict
+    - cargo install gitleaks --locked || true
+    - gitleaks git --no-banner --redact .

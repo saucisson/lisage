@@ -1,97 +1,88 @@
-# Project template - task runner. `make help` lists every target.
+# Project Makefile - task runner. `make help` lists every target.
 # The day cycle targets (day-start, day-report, smoke-test) implement
 # docs/branching.md; the quality targets implement ADR-0007/0008.
 
-UV := uv
-PYTHON := $(UV) run python
-CONSOLE_SCRIPT := $(UV) run notify
 DAY_TAG := daily-$(shell date +%F)
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck imports test check security build \
-        day-start day-report smoke-test mutate notify review merge-pr pr claim \
+.PHONY: help lint format typecheck test check security build \
+        day-start day-report smoke-test mutate review merge-pr pr claim \
         claim-pr update-pr wait-ci night review-bundle sync-daily clean
 
 help: ## List available targets with their description.
 	@grep --extended-regexp '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
 
-install: ## Install the environment and the pre-commit hooks.
-	$(UV) sync --locked
-	$(UV) run pre-commit install
+lint: ## Lint every file (clippy -D warnings, ADR-0004/0008).
+	cargo clippy --all-targets -- -D warnings
 
-lint: ## Lint every file (Ruff, ADR-0004/0008).
-	$(UV) run ruff check .
+format: ## Format every file in place (rustfmt).
+	cargo fmt --all
 
-format: ## Format every file in place (Ruff).
-	$(UV) run ruff format .
+format-check: ## Check formatting without modifying (rustfmt --check).
+	cargo fmt --all -- --check
 
-typecheck: ## Run the reference type checker (mypy strict, ADR-0006).
-	$(UV) run mypy tools/notify/src tools/notify/tests scripts
+typecheck: ## Alias for clippy (Rust's strict checker, ADR-0006).
+	cargo clippy --all-targets -- -D warnings
 
-imports: ## Verify the onion layer contract (import-linter, ADR-0002).
-	$(UV) run lint-imports
+test: ## Run the full test suite (cargo nextest, ADR-0007).
+	cargo nextest run --all-targets
 
-test: ## Run the full test suite with the coverage floor (ADR-0007).
-	$(UV) run pytest
-
-check: lint typecheck imports test ## Full quality gate: run before reporting work.
+check: format-check lint test ## Full quality gate: run before reporting work.
 
 security: ## Secret scan of the whole history (gitleaks, ADR-0008).
 	gitleaks git --no-banner --redact .
 
-build: ## Build the wheel and the sdist (ADR-0001).
-	$(UV) build
+audit: ## Dependency audit (cargo-audit).
+	cargo audit
+
+deny: ## License and dependency policy (cargo-deny).
+	cargo deny check
+
+build: ## Build the workspace (ADR-0001).
+	cargo build --workspace
 
 day-start: ## Tag the morning restore point on `daily` (docs/branching.md).
 	git tag "$(DAY_TAG)"
 
 day-report: ## Print the end-of-day report since the morning tag.
-	$(PYTHON) -m scripts day-report --since-tag "$(DAY_TAG)"
+	@git log --oneline "$(DAY_TAG)..daily"
 
-smoke-test: ## Verify the notification pipeline via console delivery.
-	$(CONSOLE_SCRIPT) smoke
+smoke-test: ## Verify the workspace compiles and tests pass.
+	cargo nextest run --all-targets
 
 mutate: ## Run mutation testing (ADR-0012; EOD on daily).
-	$(UV) run mutmut run
-
-notify: ## Notify the owner: make notify severity=... message=... [issue-identifier=...]
-	$(CONSOLE_SCRIPT) send \
-		--severity "$(severity)" \
-		--message "$(message)" \
-		--issue-identifier "$(issue_identifier)"
+	cargo install cargo-mutate --locked && cargo mutate
 
 review: ## Run the local reviewer session on pull request PR=N (ADR-0010).
-	$(PYTHON) -m scripts review --pr-number $(PR)
+	@echo "Review driver not yet ported to Rust; see docs/agents/developer.md"
 
 merge-pr: ## Merge pull request PR=N into daily after review and CI (ADR-0009).
-	$(PYTHON) -m scripts merge-pr --pr-number $(PR)
+	@echo "Merge driver not yet ported to Rust; see docs/agents/developer.md"
 
-pr: ## Open the pull request from the current branch: TITLE=... [BODY_FILE=...] (ADR-0017).
-	$(PYTHON) -m scripts pr --title "$(TITLE)" --body-file "$(BODY_FILE)"
+pr: ## Open the pull request from the current branch: TITLE=... [BODY_FILE=...]
+	@echo "PR driver not yet ported to Rust; see docs/agents/developer.md"
 
-claim: ## Claim an issue before working it (auto-discovered night sessions): ISSUE=N (ADR-0017).
-	$(PYTHON) -m scripts claim --issue "$(ISSUE)"
+claim: ## Claim an issue before working it: ISSUE=N (ADR-0017).
+	@echo "Claim driver not yet ported to Rust; see docs/agents/developer.md"
 
-claim-pr: ## Claim a pull request before resuming it (night recovery): PR=N (ADR-0017).
-	$(PYTHON) -m scripts claim --pr "$(PR)"
+claim-pr: ## Claim a pull request before resuming it: PR=N (ADR-0017).
+	@echo "Claim driver not yet ported to Rust; see docs/agents/developer.md"
 
 update-pr: ## Replace a pull request body from a file: PR=N BODY_FILE=... (ADR-0019).
-	$(PYTHON) -m scripts update-pr --pr-number "$(PR)" --body-file "$(BODY_FILE)"
+	@echo "Update-PR driver not yet ported to Rust; see docs/agents/developer.md"
 
-sync-daily: ## Rebase daily onto origin/main, early in the day, push with lease (ADR-0020).
-	$(PYTHON) -m scripts sync-daily
+sync-daily: ## Rebase daily onto origin/main, push with lease (ADR-0020).
+	@echo "Sync driver not yet ported to Rust; see docs/agents/developer.md"
 
 wait-ci: ## Actively wait for CI on the pull request head: PR=N (ADR-0018).
-	$(PYTHON) -m scripts wait-ci --pr-number "$(PR)"
+	@echo "Wait-CI driver not yet ported to Rust; see docs/agents/developer.md"
 
-night: ## Run the unattended loop: ISSUES="12,13,14", MILESTONES="3,4", or auto-discovery when empty (ADR-0017).
-	$(PYTHON) -m scripts night --issues "$(ISSUES)" --milestones "$(MILESTONES)"
+night: ## Run the unattended loop (ADR-0017).
+	@echo "Night driver not yet ported to Rust; see docs/agents/developer.md"
 
 review-bundle: ## Print the reviewer bundle against origin/daily (ADR-0010).
-	$(PYTHON) -m scripts review-bundle --base-ref origin/daily
+	@echo "Review bundle not yet ported to Rust; see docs/agents/developer.md"
 
-clean: ## Remove caches, build outputs and mutation cache.
-	rm -rf .pytest_cache .mypy_cache .ruff_cache .mutmut-cache htmlcov \
-		build dist .coverage coverage.xml .review
-	find . -name __pycache__ -type d -prune -exec rm -rf {} +
+clean: ## Remove caches and build outputs.
+	rm -rf target .nextest .review .night

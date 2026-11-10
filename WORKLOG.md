@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M0-1 : purge Python, socle Rust (feat/1)
+
+- **Issue**: #1 (M0-1 — Dépôt depuis project-template).
+- **Done**: purge du Python (pyproject.toml, uv.lock, .python-version, tools/notify, scripts), mise en place du socle Rust : rust-toolchain.toml (stable épinglé), Cargo.toml workspace, deny.toml, crate factice lisage-core avec test factice, CI GitHub Actions et GitLab adaptées (fmt → clippy → nextest → coverage → audit), pre-commit (gitleaks, cargo fmt, clippy), Makefile et .gitignore mis à jour.
+- **Evidence**: non exécuté localement (cargo/rustc non installés dans l'environnement de session). La CI GitHub Actions exécutera fmt/clippy/nextest/coverage/audit sur le head du PR. Non exécuté non plus : cargo-deny, cargo-audit.
+- **Judgement calls**: les drivers Python (scripts/) sont supprimés avec le reste du Python ; ils seront réécrits en Rust ou remplacés par des commandes directes dans un jalon ultérieur. La crate factice porte le nom lisage-core en attendant le vrai squelette M0-2.
+- **Escalations**: aucune.
+
 ## 2026-11-09 - night session live trace
 
 - **Issue**: none (human request: the night loop goes silent while a session runs).

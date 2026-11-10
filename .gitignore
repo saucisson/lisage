@@ -1,23 +1,9 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.eggs/
-build/
-dist/
-wheels/
-
-# Environments
-.venv/
-.env
+# Rust
+target/
+Cargo.lock
 
 # Tooling caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-coverage.xml
-htmlcov/
+.nextest/
 .mutmut-cache/
 
 # Reviewer working directory (ADR-0010) - bundles, diffs, reports, context.
@@ -25,8 +11,6 @@ htmlcov/
 
 # Unattended loop trace (ADR-0017) - verbose worklists, anti-spin decisions.
 .night/
-
-# uv lock is COMMITTED (ADR-0001) - never ignore it.
 
 # Editors and OS
 .idea/
