@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-3 (2/3) : module schéma — Atom/Set/Map bornés, compilation balayage d'univers (feat/10b)
+
+- **Issue**: #10 (M1-3 — Schémas de référence, énoncé Σ).
+- **Done**: `lisage-core::schema` : `Domaine` (atomes bornés, défaut éventuel), `Schema::{Atom, Set, Map}`, `SchemaKeys` (Val(ℓ) et δ(ℓ) par niveau), `ReferenceController` (D_δ = terminal(false) pour les niveaux de présence, δ = ⊥ pour les niveaux valeur, spec § 2.1), `compiler` (balayage d'univers : un niveau de présence par clé, δ = absent, sans marqueur ; seul l'arc choisi est interné, l'autre mène au défaut porteur — R-collapse saute les absents, style ZDD) et `SchemaError` typée. Tests unitaires : exemple de la spec § 1 (map {a↦1,b↦0} sur K={a,b}, V={0,1}), collapse des absents, ensemble vide/plein, map vide et clé absente, erreurs typées.
+- **Evidence**: `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo nextest run --all-targets` OK (40 tests, 2 ignorés rouges M1-7). Non exécuté : `make check` complet, `cargo audit`, CI réelle avant push.
+- **Judgement calls**: `Set(Map(...))` (ensemble de maps, ex. S de la spec) nécessite l'union — reporté à M1-6 (#13) ; M1-3 compile les valeurs simples. Le décompileur (round-trip) et les PBT suivent en PR 3/3.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-3 (1/3) : algèbre de clés en méthodes d'instance — le schéma est une donnée runtime (feat/10)
 
 - **Issue**: #10 (M1-3 — Schchemas de référence, préparation).
