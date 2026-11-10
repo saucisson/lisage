@@ -23,7 +23,7 @@ pub enum TraceEvent {
     /// Nœud partagé : la forme était déjà internée (R-share).
     NodeShared { node: NodeId },
     /// Réduction appliquée à la création d'un handle.
-    ReductionApplied { rule: ReductionRule, node: NodeId },
+    ReductionApplied { rule: ReductionRule, level: Level },
     /// Diagramme achevé : handle racine et taille du pool.
     DiagramBuilt { handle: Handle, nodes: usize },
 }

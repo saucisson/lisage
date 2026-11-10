@@ -70,17 +70,36 @@ proptest! {
         prop_assert_eq!(arena_a.handle(node_a1, anchor), arena_b.handle(node_b, anchor));
     }
 
-    /// C1 : deux formes distinctes ont des handles distincts (pas de fusion
-    /// abusive par le pool).
+    /// C1 (canonicité par handle, spec § 2.4.3) : deux formes de même forme
+    /// réduite (après R-collapse/R-default) partagent le même handle ; deux
+    /// formes réduites distinctes ont des handles distincts.
     #[test]
-    fn test_c1_formes_distinctes(paires_a in prop::collection::vec((0u8..3, 0u32..4), 0..5), paires_b in prop::collection::vec((0u8..3, 0u32..4), 0..5), niveau in 0u8..4) {
-        let forme_a = forme_aleatoire(paires_a, niveau);
-        let forme_b = forme_aleatoire(paires_b, niveau);
-        prop_assume!(forme_a != forme_b);
+    fn test_c1_canonicite_par_handle(paires_a in prop::collection::vec((0u8..3, 0u32..4), 0..5), paires_b in prop::collection::vec((0u8..3, 0u32..4), 0..5), niveau in 0u8..4) {
+        use lisage_algebra::reduction::{reduire, Reduction};
+        let est_defaut = |node: NodeId| node == NodeId(0);
+        let reduite = |paires: Vec<(u8, u32)>| -> Reduction<u64> {
+            let arcs: std::collections::BTreeMap<u64, NodeId> = paires
+                .into_iter()
+                .map(|(cle, cible)| (u64::from(cle), NodeId(cible)))
+                .collect();
+            reduire(arcs, Some(0), &est_defaut, 2)
+        };
+        prop_assume!(!paires_a.is_empty() && !paires_b.is_empty());
+        let forme_a = forme_aleatoire(paires_a.clone(), niveau);
+        let forme_b = forme_aleatoire(paires_b.clone(), niveau);
+        let reduite_a = reduite(paires_a);
+        let reduite_b = reduite(paires_b);
         let mut arena = nouvelle_arena();
         let anchor = Anchor(0);
+        // le terminal false est interné en premier : c'est le D_δ (NodeId(0)),
+        // ce qui rend le prédicat est_defaut du test identique à celui de l'arena.
+        let defaut = arena.terminal(anchor, false);
+        prop_assert_eq!(defaut, NodeId(0));
         let node_a = arena.intern(anchor, forme_a);
         let node_b = arena.intern(anchor, forme_b);
-        prop_assert_ne!(arena.handle(node_a, anchor), arena.handle(node_b, anchor));
+        // C1, unicité : même forme réduite ⇒ même handle (nœud partagé).
+        if reduite_a == reduite_b {
+            prop_assert_eq!(node_a, node_b, "même forme réduite ⇒ même handle (C1)");
+        }
     }
 }

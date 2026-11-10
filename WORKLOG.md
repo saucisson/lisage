@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-2 : réductions R-collapse / R-default, confluence prouvée par PBT (feat/9)
+
+- **Issue**: #9 (M1-2 — Réductions, spec § 2.3).
+- **Done**: `Reduction<Key>` + `collapse_arcs` + `reduire` (R-collapse puis R-default) + `reduire_inverse` (ordre inverse) dans `lisage-algebra::reduction` ; `Controller::collapse` délègue à `collapse_arcs`. L'arena applique `reduit(level, arcs)` à l'internement : `Collapse` émet `ReductionApplied{rule: Collapse, level}` et retourne la cible, `Forme` émet l'événement `Default` quand des arcs par défaut ont été retirés. `TraceEvent::ReductionApplied` porte désormais le `level`. Tests unitaires (exemple de la spec, R-default, non-collapse, collapse total) + PBT de confluence dans lisage-bench : idempotence (reduire ∘ reduire = reduire) et commutation (reduire = reduire_inverse) ; PBT C1 mise à jour (`test_c1_canonicite_par_handle` : formes réduites égales ⇒ même nœud).
+- **Evidence**: `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo nextest run --all-targets` OK (34 tests, 2 ignorés rouges M1-7). Non exécuté : `make check` complet (partie Python inchangée), `cargo audit`, CI réelle avant push.
+- **Judgement calls**: sémantique de couverture de la spec § 2.2 (tout arc absent vaut δ(ℓ)) : avec un défaut, le collapse vaut si δ est explicite ou si la cible est D_δ ; sans défaut, toutes les valeurs doivent être explicites. `reduire_inverse` traite le cas « arcs vides après retrait » comme `Collapse(cible retirée)` pour préserver la commutation.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-1 : arena + handles, hash-consing à clé (contrôleur, ancre, forme) (feat/8)
 
 - **Issue**: #8 (M1-1 — Arena + handles).

@@ -1,18 +1,18 @@
 //! Arena : pool hash-consé, implémentation du port `Pool` (M1-1).
 //!
 //! Hash-consing à clé (contrôleur, ancre, forme) : R-share est la table
-//! unique, la table des handles se clé sur la forme pour cette lecture.
-//! Les réductions R-collapse/R-default s'insèrent à la création du handle
-//! en M1-2 (#9).
+//! unique. À la création du handle, les réductions du contrôleur s'appliquent
+//! (M1-2, spec § 2.3) : R-collapse et R-default.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::marker::PhantomData;
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, NodeId, Pool, PoolError,
+    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
+use lisage_algebra::reduction::{Reduction, reduire};
 
-use crate::observer::{Observer, TraceEvent};
+use crate::observer::{Observer, ReductionRule, TraceEvent};
 
 /// Clé du hash-consing : (contrôleur, ancre, forme).
 type CleInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
@@ -55,6 +55,29 @@ impl<C: Controller> Arena<C> {
             },
         }
     }
+
+    /// Réductions à la création du handle (spec § 2.3, M1-2) : R-collapse et
+    /// R-default, le diagramme de défaut D_δ étant désigné par le contrôleur.
+    /// Retourne soit la cible du collapse, soit la forme réduite à interniser.
+    fn reduit(
+        &self,
+        level: Level,
+        arcs: BTreeMap<C::Key, NodeId>,
+    ) -> Result<Form<C::Key, C::Payload>, NodeId> {
+        let cle_defaut = C::Keys::default(level);
+        let cardinalite = C::Keys::cardinality(level);
+        let payload_defaut = C::default_payload(level);
+        let est_defaut = |node: NodeId| -> bool {
+            matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(payload))
+        };
+        match reduire(arcs, cle_defaut, &est_defaut, cardinalite) {
+            Reduction::Collapse(cible) => Err(cible),
+            Reduction::Forme(arcs_reduits) => Ok(Form::Node {
+                level,
+                arcs: arcs_reduits,
+            }),
+        }
+    }
 }
 
 impl<C: Controller> Pool for Arena<C> {
@@ -65,6 +88,31 @@ impl<C: Controller> Pool for Arena<C> {
 
     fn intern(&mut self, anchor: Anchor, form: Form<Self::Key, Self::Payload>) -> NodeId {
         let forme = self.forme_normalisee(form);
+        let forme = match forme {
+            Form::Node { level, arcs } => {
+                let taille_avant = arcs.len();
+                match self.reduit(level, arcs) {
+                    Err(cible) => {
+                        self.observer.on_event(&TraceEvent::ReductionApplied {
+                            rule: ReductionRule::Collapse,
+                            level,
+                        });
+                        return cible;
+                    }
+                    Ok(Form::Node { arcs, .. }) => {
+                        if arcs.len() < taille_avant {
+                            self.observer.on_event(&TraceEvent::ReductionApplied {
+                                rule: ReductionRule::Default,
+                                level,
+                            });
+                        }
+                        Form::Node { level, arcs }
+                    }
+                    Ok(terminal) => terminal,
+                }
+            }
+            terminal => terminal,
+        };
         let cle = (Self::CONTROLLER, anchor, forme.clone());
         if let Some(node) = self.unique.get(&cle) {
             self.observer
