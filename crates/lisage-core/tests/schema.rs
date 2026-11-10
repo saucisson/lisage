@@ -284,3 +284,24 @@ fn test_seq_hors_domaine() {
         Err(SchemaError::HorsDomaine(_))
     ));
 }
+
+/// M2-1 : Seq — le marqueur de fin est une clé requise : `default()` retourne
+/// `None` pour tous les niveaux d'un schéma Seq (pas de défaut absorbable).
+#[test]
+fn test_seq_marqueur_fin_cle_requise() {
+    use lisage_algebra::interface::{KeyAlgebra, Level};
+    use lisage_core::schema::SchemaKeys;
+
+    let schema = Schema::Seq(domaine(&[0, 1, 2]), 3);
+    let keys = SchemaKeys::new(schema);
+    for niveau in 0..4 {
+        assert_eq!(
+            keys.default(Level(niveau)),
+            None,
+            "niveau {niveau} : pas de défaut (clé requise)"
+        );
+    }
+    // Cardinalité : |D|+1 par position, 2 au niveau marqueur.
+    assert_eq!(keys.cardinality(Level(0)), 4);
+    assert_eq!(keys.cardinality(Level(3)), 2);
+}
