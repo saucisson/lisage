@@ -27,6 +27,16 @@ Relates to #14 (M1-8). L'issue reste ouverte avec le label `needs-human` : la pa
 - **Convention des niveaux** : racine au niveau 0, niveau ℓ = variable ℓ, bit ℓ de l'affectation = variable ℓ (cohérent avec `evaluer` et le compilateur de schémas).
 - **Comptage des nœuds** : nœuds atteignables depuis la racine, terminaux compris, même convention des deux côtés du différentiel.
 
+## Split proposal (ADR-0019)
+
+The diff is 541 added lines across 11 files, marginally over the ~500-line
+budget. Proposed split if a strict split is required: this PR keeps the
+BDD-classique configuration + témoin mini-BDD + PBT C6 (the C6 evidence),
+and a follow-up PR would carry the bench baseline (`bdd_classique_n12_compter`)
+and the spike doc `docs/spike-ffi-cudd-sylvan.md`. Kept together here because
+the baseline's internal assertion (arène == témoin) is what makes the bench
+self-checking.
+
 ## Known limitations
 
 - Le témoin mini-BDD partage le même auteur que l'arène : C6 « fort » (CUDD/Sylvan) reste à établir après la réponse `needs-human` sur #14.

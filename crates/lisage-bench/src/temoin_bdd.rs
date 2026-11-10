@@ -31,17 +31,17 @@ impl MiniBdd {
     }
 
     /// `mk(var, bas, haut)` : partage + collapse (bas == haut ⇒ bas).
-    fn mk(&mut self, var: u32, bas: u32, haut: u32) -> u32 {
+    fn fabriquer_noeud(&mut self, variable: u32, bas: u32, haut: u32) -> u32 {
         if bas == haut {
             return bas;
         }
-        let cle = (var, bas, haut);
-        if let Some(&indice) = self.table_unique.get(&cle) {
+        let triplet = (variable, bas, haut);
+        if let Some(&indice) = self.table_unique.get(&triplet) {
             return indice;
         }
         let indice = self.noeuds.len() as u32;
-        self.noeuds.push(cle);
-        self.table_unique.insert(cle, indice);
+        self.noeuds.push(triplet);
+        self.table_unique.insert(triplet, indice);
         indice
     }
 
@@ -52,8 +52,8 @@ impl MiniBdd {
         self.construire(0, nombre_variables, table)
     }
 
-    fn construire(&mut self, var: u32, nombre_variables: u32, table: &[bool]) -> u32 {
-        if var == nombre_variables {
+    fn construire(&mut self, variable: u32, nombre_variables: u32, table: &[bool]) -> u32 {
+        if variable == nombre_variables {
             return if table[0] {
                 TERMINAL_VRAI
             } else {
@@ -63,9 +63,9 @@ impl MiniBdd {
         // Bit ℓ de l'indice = variable ℓ : positions paires = arc 0.
         let bas_table: Vec<bool> = table.iter().step_by(2).copied().collect();
         let haut_table: Vec<bool> = table.iter().skip(1).step_by(2).copied().collect();
-        let bas = self.construire(var + 1, nombre_variables, &bas_table);
-        let haut = self.construire(var + 1, nombre_variables, &haut_table);
-        self.mk(var, bas, haut)
+        let bas = self.construire(variable + 1, nombre_variables, &bas_table);
+        let haut = self.construire(variable + 1, nombre_variables, &haut_table);
+        self.fabriquer_noeud(variable, bas, haut)
     }
 
     /// Nombre de nœuds atteignables depuis `racine`, terminaux compris
@@ -77,8 +77,8 @@ impl MiniBdd {
             if !visite.insert(noeud) {
                 continue;
             }
-            let (var, bas, haut) = self.noeuds[noeud as usize];
-            if var != u32::MAX {
+            let (variable, bas, haut) = self.noeuds[noeud as usize];
+            if variable != u32::MAX {
                 pile.push(bas);
                 pile.push(haut);
             }
@@ -90,11 +90,11 @@ impl MiniBdd {
     pub fn evaluer(&self, racine: u32, affectation: u64) -> bool {
         let mut noeud = racine;
         loop {
-            let (var, bas, haut) = self.noeuds[noeud as usize];
-            if var == u32::MAX {
+            let (variable, bas, haut) = self.noeuds[noeud as usize];
+            if variable == u32::MAX {
                 return haut == TERMINAL_VRAI;
             }
-            let bit = (affectation >> var) & 1;
+            let bit = (affectation >> variable) & 1;
             noeud = if bit == 0 { bas } else { haut };
         }
     }
