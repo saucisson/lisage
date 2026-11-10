@@ -3,8 +3,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Atome borné : domaine fini énumérable, déclaré par le schéma (M1-3).
-pub type Atom = u64;
+/// Atome borné : type distinct (ADR-0006), domaine fini énumérable déclaré
+/// par le schéma (M1-3).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Atom(pub u64);
 
 /// Valeur du langage de référence (algèbre de types Σ, instance bornée).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
