@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - Décision M1-8 : CUDD en conteneur Docker local, hors CI (réponse à #14)
+
+- **Issue**: #14 (M1-8 — Témoins BDD, énoncé C6), question escaladée `needs-human`.
+- **Done**: décision humaine reçue : « Pas en CI, mais en tests locaux sur cette machine. Installation si possible dans un conteneur Docker. » Livré : `docker/cudd/Dockerfile` + `docker/cudd/cudd_count.c` (image `lisage-cudd:latest` avec CUDD 3.0.0 compilé + binaire `cudd_count`), test différentiel local `crates/lisage-bench/tests/cudd_local.rs` (`#[ignore]`, hors CI, appelle le conteneur via `docker run` et compare le nombre de nœuds contre le BDD interne), spike doc mis à jour (`docs/spike-ffi-cudd-sylvan.md`).
+- **Evidence**: `docker build -t lisage-cudd:latest docker/cudd` OK, `cudd_count` vérifié sur XOR(2)=3, XOR(3)=4, constantes=1. `cargo check -p lisage-bench --tests` OK. Test local exécuté : le différentiel détecte un écart (arène 7 vs CUDD 5 sur un cas aléatoire) — le BDD interne n'est pas encore réduit comme CUDD, le test `#[ignore]` servira de garde-fou local quand la réduction sera au point. `make check` non re-exécuté (aucun changement dans le code CI).
+- **Judgement calls**: pas de commentaire posé sur #14 (l'app GitHub App n'a pas le droit `issues:write`, 403) — la décision est documentée ici et dans le spike. Le test local reste `#[ignore]` tant que le BDD interne n'est pas réduit à l'identique de CUDD.
+- **Escalations**: question #14 consommée (réponse humaine).
+
 ## 2026-11-10 - M1-10 : démo philosophes n=3,4,5 — R_n, comptage par pli, filter/exists, figure SVG (feat/16)
 
 - **Issue**: #16 (M1-10 — Démo philosophes, énoncé C8).
