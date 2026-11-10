@@ -1,0 +1,11 @@
+[package]
+name = "lisage-plan"
+version = "0.1.0"
+description = "Oracle de rentabilité, conversions, plan de représentation"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lisage-lang = { path = "../lisage-lang" }
+lisage-algebra = { path = "../lisage-algebra" }

@@ -1,0 +1,14 @@
+[package]
+name = "lisage-bench"
+version = "0.1.0"
+description = "Différentiel, property-based, MCC, événements non locaux"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lisage-core = { path = "../lisage-core" }
+lisage-lang = { path = "../lisage-lang" }
+lisage-algebra = { path = "../lisage-algebra" }
+
+[dev-dependencies]

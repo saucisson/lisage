@@ -1,0 +1,10 @@
+[package]
+name = "lisage-algebra"
+version = "0.1.0"
+description = "Niveau 2 : contrôleur étendu, transductions, réductions"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lisage-lang = { path = "../lisage-lang" }

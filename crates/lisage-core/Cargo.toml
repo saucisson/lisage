@@ -7,5 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+lisage-lang = { path = "../lisage-lang" }
+lisage-algebra = { path = "../lisage-algebra" }
 
 [dev-dependencies]
