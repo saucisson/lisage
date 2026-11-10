@@ -90,13 +90,12 @@ fn test_sept_crates_presentes() {
     let mut found = BTreeMap::new();
     for entry in std::fs::read_dir(crates_path).unwrap() {
         let entry = entry.unwrap();
-        if entry.path().is_dir() {
-            let file_name = entry.file_name();
-            if let Some(name) = file_name.to_str() {
-                if name.starts_with("lisage-") {
-                    found.insert(name.to_string(), ());
-                }
-            }
+        let file_name = entry.file_name();
+        if entry.path().is_dir()
+            && let Some(name) = file_name.to_str()
+            && name.starts_with("lisage-")
+        {
+            found.insert(name.to_string(), ());
         }
     }
     assert_eq!(found, expected, "Les 7 crates lisage-* doivent exister");
