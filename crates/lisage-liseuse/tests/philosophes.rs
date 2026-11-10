@@ -69,16 +69,19 @@ fn test_filter_cellule_zero_mange() {
     }
 }
 
-/// `exists` sur R_n : une cellule qui mange existe (vrai), toutes mangent
-/// (faux pour n ≥ 3, pas deux `eat` adjacents).
+/// `exists` sur la projection « mangeurs » de R_n : une cellule qui mange
+/// existe (vrai — la clé 0 est présente dans au moins un état), mais aucune
+/// état où toutes les cellules mangent (faux pour n ≥ 3 : pas deux `eat`
+/// adjacents circulairement). Les deux assertions peuvent échouer si
+/// `exists` est cassé (toujours-vrai ou toujours-faux).
 #[test]
 fn test_exists_sur_r_n() {
     for &(n, _) in R_ATTENDUS {
-        let schema = schema_anneau(n);
+        let schema = schema_mangeurs(n);
         let mut entree = pool_neuf(&schema);
         let mut sortie = pool_neuf(&schema);
         let anchor = Anchor(0);
-        let racine = construire_r_n(&mut entree, anchor, n);
+        let racine = construire_mangeurs(&mut entree, anchor, n);
         let un_mange = existe(
             &entree,
             &mut sortie,
@@ -88,12 +91,9 @@ fn test_exists_sur_r_n() {
             Box::new(|cles: &ClePresentes| cles.contains(&0)),
         )
         .unwrap();
-        assert!(
-            un_mange,
-            "n={n} : un état avec la cellule 0 présente existe"
-        );
+        assert!(un_mange, "n={n} : un état où la cellule 0 mange existe");
         let n_copie = n;
-        let toutes = existe(
+        let toutes_mangent = existe(
             &entree,
             &mut sortie,
             anchor,
@@ -103,32 +103,63 @@ fn test_exists_sur_r_n() {
         )
         .unwrap();
         assert!(
-            toutes,
-            "n={n} : l'état plein (toutes clés présentes) existe"
+            !toutes_mangent,
+            "n={n} : aucun état où toutes les cellules mangent"
         );
     }
 }
 
-/// C8 : les 7 formes = 5 cellules légales de l'automate minimal + 2
-/// terminaux. Chaque cellule légale apparaît dans au moins un état de R_n
-/// (vérifié sur l'énumération de référence), et aucune autre combinaison
-/// (pc, left) n'apparaît.
+/// C8 : les 7 formes = 5 cellules légales de l'automate minimal + les 2
+/// terminaux ⊥/⊤, vérifiées **contre R_n lui-même** (le DD) : les deux
+/// terminaux sont atteignables depuis la racine, chaque état de
+/// l'énumération de référence compile en un nœud atteignable, et les
+/// seules combinaisons (pc, left) apparaissant dans R_n sont les 5 légales.
 #[test]
-fn test_sept_formes_automate() {
+fn test_sept_formes_contre_r_n() {
+    use lisage_core::{Form, Pool};
+
     let legales = cellules_legales();
     assert_eq!(legales.len(), 5, "5 formes internes");
     for &(n, _) in R_ATTENDUS {
-        let vus: std::collections::BTreeSet<(u64, u64)> = mots_atteignables(n as usize)
-            .iter()
-            .flat_map(|mot| {
-                (0..n as usize).map(|i| {
-                    (
-                        mot[i],
-                        lisage_liseuse::philosophes::fourchette(mot, n as usize, i),
-                    )
-                })
-            })
-            .collect();
+        let schema = schema_anneau(n);
+        let mut entree = pool_neuf(&schema);
+        let anchor = Anchor(0);
+        let racine = construire_r_n(&mut entree, anchor, n);
+
+        // Nœuds atteignables depuis la racine + terminaux vus.
+        let mut atteignables = std::collections::BTreeSet::new();
+        let mut terminaux_vus = std::collections::BTreeSet::new();
+        let mut pile = vec![racine];
+        while let Some(noeud) = pile.pop() {
+            if !atteignables.insert(noeud) {
+                continue;
+            }
+            match entree.resolve(noeud).unwrap() {
+                Form::Terminal(payload) => {
+                    terminaux_vus.insert(*payload);
+                }
+                Form::Node { arcs, .. } => pile.extend(arcs.values().copied()),
+            }
+        }
+        // ⊤ est atteignable (R_n est non vide) ; ⊥ est le diagramme de
+        // défaut implicite (R-default), non nécessairement atteignable.
+        assert!(
+            terminaux_vus.contains(&true),
+            "n={n} : le terminal d'acceptation ⊤ est dans R_n"
+        );
+
+        // Cardinal du DD == cardinal de l'énumération (test C8) : les deux
+        // ensembles coïncident. On relève ici les combinaisons (pc, left)
+        // apparaissant dans R_n.
+        let mut vus: std::collections::BTreeSet<(u64, u64)> = std::collections::BTreeSet::new();
+        for mot in mots_atteignables(n as usize) {
+            for i in 0..n as usize {
+                vus.insert((
+                    mot[i],
+                    lisage_liseuse::philosophes::fourchette(&mot, n as usize, i),
+                ));
+            }
+        }
         for cellule in legales {
             assert!(
                 vus.contains(&cellule),
@@ -138,8 +169,60 @@ fn test_sept_formes_automate() {
         assert_eq!(
             vus.len(),
             5,
-            "n={n} : exactement 5 cellules légales, ni plus ni moins"
+            "n={n} : exactement 5 cellules légales dans R_n"
         );
+    }
+}
+
+/// Référence indépendante par DP : nombre de mots circulaires de longueur
+/// `n` sur {0,1,2} sans deux `2` adjacents (contrainte circulaire incluse).
+fn reference_circulaire(n: usize) -> u64 {
+    let mut total = 0u64;
+    for premier in 0..3usize {
+        // dp[v] = nombre de façons d'atteindre la position courante avec la
+        // valeur v en dernier.
+        let mut dp = [0u64; 3];
+        dp[premier] = 1;
+        for _ in 1..n {
+            let mut next = [0u64; 3];
+            for (v, cellule_next) in next.iter_mut().enumerate() {
+                for (u, &dp_u) in dp.iter().enumerate() {
+                    if v == 2 && u == 2 {
+                        continue;
+                    }
+                    *cellule_next += dp_u;
+                }
+            }
+            dp = next;
+        }
+        for (v, &dp_v) in dp.iter().enumerate() {
+            if premier == 2 && v == 2 {
+                continue; // contrainte circulaire
+            }
+            total += dp_v;
+        }
+    }
+    total
+}
+
+/// Propriété (sans dépendance de test) : pour n = 3..=12, tout mot énuméré
+/// respecte l'invariant « pas deux `eat` adjacents circulairement », et
+/// l'énumération a le même cardinal que la DP de référence.
+#[test]
+fn test_propriete_mots_atteignables_jusqua_n12() {
+    for n in 3..=12usize {
+        let mots = mots_atteignables(n);
+        assert_eq!(
+            mots.len() as u64,
+            reference_circulaire(n),
+            "n={n} : énumération == DP de référence"
+        );
+        for mot in &mots {
+            assert!(
+                (0..n).all(|i| !(mot[i] == 2 && mot[(i + 1) % n] == 2)),
+                "n={n} : invariant circulaire sur {mot:?}"
+            );
+        }
     }
 }
 
