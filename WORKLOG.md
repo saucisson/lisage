@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-5 (1/2) : moteur de transductions généralisé — deux pools, payload de sortie `Out` (feat/12)
+
+- **Issue**: #12 (M1-5 — lookup, préparation du moteur).
+- **Done**: généralisation de `lisage-core::transduction` pour lookup (spec § 3.2 : `Δ_out` peut différer de `Δ_in`) : la transduction lit dans un pool à payload `bool` et écrit dans un pool à payload `Out` ; `psi` et `φ_out` prennent le pool de sortie et écrivent eux-mêmes par interning (A3), conformément à « φ_out est la seule règle qui écrit le diagramme » (spec § 3.1). `Transduction` gagne le type associé `Out`. Tests M1-4 mis à jour (deux pools, comparaison structurelle des formes en PBT).
+- **Evidence**: `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo nextest run --all-targets` OK (52 tests, 2 ignorés rouges M1-7). Non exécuté : `make check` complet, `cargo audit`, CI réelle avant push.
+- **Judgement calls**: deux pools plutôt qu'un payload enum fourre-tout (types distincts pour domaines distincts) ; la comparaison identité en PBT est structurelle (les NodeId sont propres à chaque pool).
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-4 : moteur de transductions — canaux hérité/synthétisé, φ_aggr, mémo (op, nœud, h) (feat/11)
 
 - **Issue**: #11 (M1-4 — Transductions hérité/synthétisé, énoncé L3).

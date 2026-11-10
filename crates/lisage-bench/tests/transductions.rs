@@ -1,6 +1,6 @@
-//! PBT du moteur de transductions (M1-4, L3) : identité (résultat = entrée),
-//! comptage des chemins acceptants (transduction vs comptage naïf récursif),
-//! et sanité de la mémo (op, nœud).
+//! PBT du moteur de transductions (M1-4, L3) : identité (mêmes formes en
+//! sortie), comptage des chemins acceptants (transduction vs comptage naïf
+//! récursif), et sanité de la mémo (op, nœud).
 
 use std::collections::BTreeMap;
 
@@ -24,6 +24,7 @@ struct Identite;
 impl Transduction for Identite {
     type H = ();
     type S = ();
+    type Out = bool;
 
     fn fingerprint(&self) -> u64 {
         2001
@@ -33,14 +34,30 @@ impl Transduction for Identite {
         let _ = h;
     }
     fn phi_aggr(&self, _level: Level, _h: &(), _arcs: &BTreeMap<u64, ()>) {}
-    fn phi_out(&self, level: Level, _h: &(), arcs: BTreeMap<u64, (NodeId, ())>) -> Form<u64, bool> {
-        Form::Node {
-            level,
-            arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
-        }
+    fn phi_out<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        level: Level,
+        _h: &(),
+        arcs: BTreeMap<u64, (NodeId, ())>,
+    ) -> NodeId {
+        pool.intern(
+            anchor,
+            Form::Node {
+                level,
+                arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+            },
+        )
     }
-    fn psi(&self, payload: bool, _h: &()) -> (bool, ()) {
-        (payload, ())
+    fn psi<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        _h: &(),
+    ) -> (NodeId, ()) {
+        (pool.intern(anchor, Form::Terminal(payload)), ())
     }
 }
 
@@ -49,6 +66,7 @@ struct CompteChemins;
 impl Transduction for CompteChemins {
     type H = ();
     type S = u64;
+    type Out = bool;
 
     fn fingerprint(&self) -> u64 {
         2002
@@ -60,20 +78,73 @@ impl Transduction for CompteChemins {
     fn phi_aggr(&self, _level: Level, _h: &(), arcs: &BTreeMap<u64, u64>) -> u64 {
         arcs.values().sum()
     }
-    fn phi_out(
+    fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
+        pool: &mut P,
+        anchor: Anchor,
         level: Level,
         _h: &(),
         arcs: BTreeMap<u64, (NodeId, u64)>,
-    ) -> Form<u64, bool> {
-        Form::Node {
-            level,
-            arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+    ) -> NodeId {
+        pool.intern(
+            anchor,
+            Form::Node {
+                level,
+                arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+            },
+        )
+    }
+    fn psi<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        _h: &(),
+    ) -> (NodeId, u64) {
+        (
+            pool.intern(anchor, Form::Terminal(payload)),
+            u64::from(payload),
+        )
+    }
+}
+
+/// Égalité structurelle de deux formes dans deux pools distincts (les NodeId
+/// sont propres à chaque pool).
+fn formes_egales(
+    pool_a: &PoolRef,
+    noeud_a: NodeId,
+    pool_b: &PoolRef,
+    noeud_b: NodeId,
+    visites: &mut std::collections::HashMap<(NodeId, NodeId), bool>,
+) -> bool {
+    if let Some(&vu) = visites.get(&(noeud_a, noeud_b)) {
+        return vu;
+    }
+    let egales = match (
+        pool_a.resolve(noeud_a).unwrap(),
+        pool_b.resolve(noeud_b).unwrap(),
+    ) {
+        (Form::Terminal(pa), Form::Terminal(pb)) => pa == pb,
+        (
+            Form::Node {
+                level: la,
+                arcs: aa,
+            },
+            Form::Node {
+                level: lb,
+                arcs: ab,
+            },
+        ) => {
+            la == lb
+                && aa.len() == ab.len()
+                && aa.iter().zip(ab.iter()).all(|((va, na), (vb, nb))| {
+                    va == vb && formes_egales(pool_a, *na, pool_b, *nb, visites)
+                })
         }
-    }
-    fn psi(&self, payload: bool, _h: &()) -> (bool, u64) {
-        (payload, u64::from(payload))
-    }
+        _ => false,
+    };
+    visites.insert((noeud_a, noeud_b), egales);
+    egales
 }
 
 /// Comptage naïf récursif des chemins acceptants (oracle indépendant).
@@ -84,8 +155,8 @@ fn compte_naif(pool: &PoolRef, noeud: NodeId) -> u64 {
     }
 }
 
-/// Construit un DAG aléatoire : terminaux puis nœuds de niveaux 0..3, arcs
-/// vers des nœuds d'index strictement inférieur (DAG acyclique).
+/// Construit un DAG aléatoire dans le pool d'entrée : terminaux puis nœuds
+/// de niveaux 0..3, arcs vers des nœuds d'index strictement inférieur.
 fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> NodeId {
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let faux = pool.intern(anchor, Form::Terminal(false));
@@ -105,34 +176,48 @@ fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> 
 }
 
 proptest! {
-    /// Identité : la transduction reconstruit les mêmes formes ⇒ même nœud.
+    /// Identité : la transduction reconstruit les mêmes formes en sortie.
     #[test]
     fn test_identite_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
-        let mut pool = nouveau_pool();
+        let mut entree = nouveau_pool();
+        let mut sortie = nouveau_pool();
         let anchor = Anchor(0);
-        let racine = dag_aleatoire(&mut pool, anchor, paires);
+        let racine = dag_aleatoire(&mut entree, anchor, paires);
         let mut runner = Transducteur::new(Identite);
-        let (resultat, _) = runner.run(&mut pool, anchor, racine).unwrap();
-        prop_assert_eq!(resultat, racine);
+        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+        prop_assert!(formes_egales(
+            &entree,
+            racine,
+            &sortie,
+            resultat,
+            &mut std::collections::HashMap::new()
+        ));
     }
 
     /// Comptage : la transduction (φ_aggr = somme) égale le comptage naïf.
     #[test]
     fn test_comptage_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
-        let mut pool = nouveau_pool();
+        let mut entree = nouveau_pool();
+        let mut sortie = nouveau_pool();
         let anchor = Anchor(0);
-        let racine = dag_aleatoire(&mut pool, anchor, paires);
-        let attendu = compte_naif(&pool, racine);
+        let racine = dag_aleatoire(&mut entree, anchor, paires);
+        let attendu = compte_naif(&entree, racine);
         let mut runner = Transducteur::new(CompteChemins);
-        let (resultat, compte) = runner.run(&mut pool, anchor, racine).unwrap();
-        prop_assert_eq!(resultat, racine);
+        let (resultat, compte) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+        prop_assert!(formes_egales(
+            &entree,
+            racine,
+            &sortie,
+            resultat,
+            &mut std::collections::HashMap::new()
+        ));
         prop_assert_eq!(compte, attendu);
         // Mémo saine : une seconde exécution ne change rien.
         let taille = runner.taille_memo();
-        let (r2, c2) = runner.run(&mut pool, anchor, racine).unwrap();
+        let (r2, c2) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
         prop_assert_eq!(r2, resultat);
         prop_assert_eq!(c2, compte);
         prop_assert_eq!(runner.taille_memo(), taille);
-        prop_assert!(taille <= pool.node_count());
+        prop_assert!(taille <= entree.node_count());
     }
 }
