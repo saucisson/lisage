@@ -74,7 +74,7 @@ proptest! {
     /// réduite (après R-collapse/R-default) partagent le même handle ; deux
     /// formes réduites distinctes ont des handles distincts.
     #[test]
-    fn test_c1_canonicite_par_handle(paires_a in prop::collection::vec((0u8..3, 0u32..4), 0..5), paires_b in prop::collection::vec((0u8..3, 0u32..4), 0..5), niveau in 0u8..4) {
+    fn test_c1_canonicite_par_handle(paires_a in prop::collection::vec((0u8..3, 0u32..2), 0..5), paires_b in prop::collection::vec((0u8..3, 0u32..2), 0..5), niveau in 0u8..4) {
         use lisage_algebra::reduction::{reduire, Reduction};
         let est_defaut = |node: NodeId| node == NodeId(0);
         let reduite = |paires: Vec<(u8, u32)>| -> Reduction<u64> {
@@ -91,15 +91,20 @@ proptest! {
         let reduite_b = reduite(paires_b);
         let mut arena = nouvelle_arena();
         let anchor = Anchor(0);
-        // le terminal false est interné en premier : c'est le D_δ (NodeId(0)),
+        // les cibles d'arcs doivent être des nœuds réels : on interne le
+        // terminal false (D_δ = NodeId(0)) puis le terminal true (NodeId(1)),
         // ce qui rend le prédicat est_defaut du test identique à celui de l'arena.
         let defaut = arena.terminal(anchor, false);
         prop_assert_eq!(defaut, NodeId(0));
+        let autre = arena.terminal(anchor, true);
+        prop_assert_eq!(autre, NodeId(1));
         let node_a = arena.intern(anchor, forme_a);
         let node_b = arena.intern(anchor, forme_b);
         // C1, unicité : même forme réduite ⇒ même handle (nœud partagé).
         if reduite_a == reduite_b {
             prop_assert_eq!(node_a, node_b, "même forme réduite ⇒ même handle (C1)");
+        } else {
+            prop_assert_ne!(node_a, node_b, "formes réduites distinctes ⇒ nœuds distincts (C1)");
         }
     }
 }

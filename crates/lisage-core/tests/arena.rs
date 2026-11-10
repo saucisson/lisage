@@ -8,7 +8,7 @@ use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
 };
 use lisage_core::arena::Arena;
-use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
+use lisage_core::observer::{NoOpObserver, Observer, ReductionRule, TraceEvent};
 
 struct MockKeys;
 
@@ -189,6 +189,48 @@ fn test_events_trace_narration() {
                 level: Some(Level(5))
             },
         ]
+    );
+}
+
+#[test]
+fn test_events_reduction_applied() {
+    let (mut arena, trace) = arena_avec_trace();
+    let anchor = Anchor(0);
+    let defaut = arena.terminal(anchor, false); // D_δ = NodeId(0)
+    let autre = arena.terminal(anchor, true);
+    let niveau = Level(3);
+    // R-collapse : tous les arcs mènent à D_δ et δ est explicite ⇒ Collapse(D_δ).
+    let cible = arena.intern(
+        anchor,
+        Form::Node {
+            level: niveau,
+            arcs: BTreeMap::from([(0, defaut), (1, defaut)]),
+        },
+    );
+    assert_eq!(cible, defaut);
+    // R-default : l'arc δ(ℓ) mène à D_δ, il est retiré, la forme est conservée.
+    let noeud = arena.intern(
+        anchor,
+        Form::Node {
+            level: niveau,
+            arcs: BTreeMap::from([(0, defaut), (1, autre)]),
+        },
+    );
+    assert_ne!(noeud, defaut);
+    let events = trace.events.lock().unwrap();
+    assert!(
+        events.contains(&TraceEvent::ReductionApplied {
+            rule: ReductionRule::Collapse,
+            level: niveau,
+        }),
+        "l'événement ReductionApplied{{Collapse}} doit être émis (trace épinglée)"
+    );
+    assert!(
+        events.contains(&TraceEvent::ReductionApplied {
+            rule: ReductionRule::Default,
+            level: niveau,
+        }),
+        "l'événement ReductionApplied{{Default}} doit être émis (trace épinglée)"
     );
 }
 

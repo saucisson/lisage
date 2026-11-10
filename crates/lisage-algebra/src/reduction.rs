@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::interface::{Level, NodeId};
+use crate::interface::NodeId;
 
 /// Résultat de la réduction d'une forme de nœud.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -104,6 +104,3 @@ pub fn reduire_inverse<Key: Ord + Clone>(
     }
     Reduction::Forme(arcs)
 }
-
-/// Niveau bidon pour les tests unitaires.
-pub const NIVEAU_TEST: Level = Level(0);
