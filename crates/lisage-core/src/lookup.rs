@@ -18,7 +18,7 @@ use lisage_algebra::interface::{Anchor, Controller, ControllerId, Form, Level, N
 use lisage_lang::value::Atom;
 
 use crate::schema::{Domaine, PRESENT, Schema, SchemaKeys};
-use crate::transduction::Transduction;
+use crate::transduction::{ContextePhiOut, Transduction};
 
 /// Base du namespace de fingerprints de la famille `lookup` (clé = base + valeur).
 const FINGERPRINT_BASE_LOOKUP: u64 = 3000;
@@ -148,6 +148,7 @@ impl Transduction for Lookup {
     /// cibles = terminaux `ε(Some(v))` du pool de sortie.
     type S = BTreeMap<u64, NodeId>;
     type Out = Option<u64>;
+    type M = ();
 
     fn fingerprint(&self) -> u64 {
         FINGERPRINT_BASE_LOOKUP + self.cle.0
@@ -194,11 +195,12 @@ impl Transduction for Lookup {
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        anchor: Anchor,
-        level: Level,
-        h: &Mode,
-        arcs: BTreeMap<u64, (NodeId, Self::S)>,
-    ) -> NodeId {
+        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
+        let anchor = ctx.anchor;
+        let level = ctx.level;
+        let h = ctx.h;
+        let arcs = ctx.arcs;
         // T-EXPAND (spec § 6.2) au niveau de présence de la clé cherchée :
         // si le fils `présent` n'est pas un nœud `val(k)` (niveau collapsé),
         // on ré-explicite le niveau valeur et on greffe `Some(v)` sur chaque
@@ -230,12 +232,15 @@ impl Transduction for Lookup {
                         .map(|(v, (n, _))| (v, n))
                         .collect();
                     arcs_sortie.insert(PRESENT, noeud_valeur);
-                    return pool.intern(
-                        anchor,
-                        Form::Node {
-                            level,
-                            arcs: arcs_sortie,
-                        },
+                    return (
+                        pool.intern(
+                            anchor,
+                            Form::Node {
+                                level,
+                                arcs: arcs_sortie,
+                            },
+                        ),
+                        crate::memoire::EffetMemoire::new(),
                     );
                 }
             }
@@ -243,7 +248,10 @@ impl Transduction for Lookup {
         // Restructuration standard : on ré-émet le nœud avec les fils
         // transduits (l'arc par défaut mène à D_δ = ε(None), implicite).
         let arcs = arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
-        pool.intern(anchor, Form::Node { level, arcs })
+        (
+            pool.intern(anchor, Form::Node { level, arcs }),
+            crate::memoire::EffetMemoire::new(),
+        )
     }
 
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(
