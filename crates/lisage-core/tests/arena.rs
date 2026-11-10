@@ -14,25 +14,30 @@ struct MockKeys;
 
 impl KeyAlgebra for MockKeys {
     type Key = u64;
-    fn normal_form(key: &Self::Key) -> Self::Key {
+    fn normal_form(&self, key: &Self::Key) -> Self::Key {
         *key
     }
-    fn cardinality(_level: Level) -> u64 {
+    fn cardinality(&self, _level: Level) -> u64 {
         2
     }
-    fn default(_level: Level) -> Option<Self::Key> {
+    fn default(&self, _level: Level) -> Option<Self::Key> {
         Some(0)
     }
 }
 
-struct MockController;
+struct MockController {
+    keys: MockKeys,
+}
 
 impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
     const FINGERPRINT: ControllerId = ControllerId(7);
-    fn default_payload(_level: Level) -> Option<Self::Payload> {
+    fn keys(&self) -> &Self::Keys {
+        &self.keys
+    }
+    fn default_payload(&self, _level: Level) -> Option<Self::Payload> {
         Some(false)
     }
 }
@@ -58,7 +63,10 @@ fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserve
             self.0.on_event(event);
         }
     }
-    (Arena::new(Box::new(Pont(copie))), observateur)
+    (
+        Arena::new(MockController { keys: MockKeys }, Box::new(Pont(copie))),
+        observateur,
+    )
 }
 
 #[test]
@@ -117,32 +125,42 @@ struct NormalizingKeys;
 
 impl KeyAlgebra for NormalizingKeys {
     type Key = u64;
-    fn normal_form(key: &Self::Key) -> Self::Key {
+    fn normal_form(&self, key: &Self::Key) -> Self::Key {
         key % 2
     }
-    fn cardinality(_level: Level) -> u64 {
+    fn cardinality(&self, _level: Level) -> u64 {
         2
     }
-    fn default(_level: Level) -> Option<Self::Key> {
+    fn default(&self, _level: Level) -> Option<Self::Key> {
         Some(0)
     }
 }
 
-struct NormalizingController;
+struct NormalizingController {
+    keys: NormalizingKeys,
+}
 
 impl Controller for NormalizingController {
     type Key = u64;
     type Payload = bool;
     type Keys = NormalizingKeys;
     const FINGERPRINT: ControllerId = ControllerId(8);
-    fn default_payload(_level: Level) -> Option<Self::Payload> {
+    fn keys(&self) -> &Self::Keys {
+        &self.keys
+    }
+    fn default_payload(&self, _level: Level) -> Option<Self::Payload> {
         Some(false)
     }
 }
 
 #[test]
 fn test_normalisation_cles_avant_hachage() {
-    let mut arena: Arena<NormalizingController> = Arena::new(Box::new(NoOpObserver));
+    let mut arena: Arena<NormalizingController> = Arena::new(
+        NormalizingController {
+            keys: NormalizingKeys,
+        },
+        Box::new(NoOpObserver),
+    );
     let anchor = Anchor(0);
     let terminal = arena.terminal(anchor, true);
     let via_0 = arena.intern(
@@ -236,7 +254,8 @@ fn test_events_reduction_applied() {
 
 #[test]
 fn test_noop_observer_par_defaut() {
-    let mut arena: Arena<MockController> = Arena::new(Box::new(NoOpObserver));
+    let mut arena: Arena<MockController> =
+        Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver));
     let node = arena.terminal(Anchor(0), true);
     assert_eq!(arena.node_count(), 1);
     assert!(matches!(arena.resolve(node), Ok(Form::Terminal(true))));

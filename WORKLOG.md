@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-3 (1/3) : algèbre de clés en méthodes d'instance — le schéma est une donnée runtime (feat/10)
+
+- **Issue**: #10 (M1-3 — Schchemas de référence, préparation).
+- **Done**: évolution de l'interface du cœur : `KeyAlgebra::{normal_form, cardinality, default}` et `Controller::default_payload` passent en méthodes d'instance, `Controller::keys()` est ajouté ; `Arena` détient désormais l'instance de contrôleur (`Arena::new(controleur, observer)`) au lieu d'un `PhantomData`. Motivation : les schémas de référence (M1-3) sont des données runtime (domaines finis par niveau), que des méthodes statiques ne peuvent pas voir. `Controller::collapse` reste statique (fonction pure). Mocks des tests mis à jour. Aucun changement de comportement : les 35 tests existants passent inchangés.
+- **Evidence**: `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo nextest run --all-targets` OK (35 tests, 2 ignorés rouges M1-7). Non exécuté : `make check` complet, `cargo audit`, CI réelle avant push.
+- **Judgement calls**: méthodes d'instance plutôt qu'encodage du schéma dans le type `Level` (évite un échappement dynamique non justifié) ; le refactor est découpé en PR séparée car le diff total de M1-3 dépasse la limite ~500 lignes par PR.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-2 : réductions R-collapse / R-default, confluence prouvée par PBT (feat/9)
 
 - **Issue**: #9 (M1-2 — Réductions, spec § 2.3).

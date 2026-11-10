@@ -62,18 +62,20 @@ impl std::fmt::Display for PoolError {
 impl std::error::Error for PoolError {}
 
 /// Algèbre de clés : contrat porté par le contrôleur, jamais par le pool.
+/// Méthodes d'instance depuis M1-3 : l'algèbre est paramétrée par le schéma
+/// du contrôleur (domaines finis des niveaux), une donnée runtime.
 pub trait KeyAlgebra: Send + Sync {
     /// Clé d'arc : valeur de décision d'un niveau.
     type Key: Clone + Ord + Hash + Debug + Send + Sync;
 
     /// Forme normale d'une clé (sinon le hash-consing violerait C1).
-    fn normal_form(key: &Self::Key) -> Self::Key;
+    fn normal_form(&self, key: &Self::Key) -> Self::Key;
 
     /// Cardinalité |Val(ℓ)|, qui entre dans l'agrégation des plis (A4).
-    fn cardinality(level: Level) -> u64;
+    fn cardinality(&self, level: Level) -> u64;
 
     /// Valeur par défaut δ(ℓ) du niveau, si le niveau en a une.
-    fn default(level: Level) -> Option<Self::Key>;
+    fn default(&self, level: Level) -> Option<Self::Key>;
 }
 
 /// Contrôleur étendu (proposition § 1.2) : instance des huit champs qui
@@ -88,9 +90,12 @@ pub trait Controller: Send + Sync {
     /// Empreinte posée dans tout handle et toute clé de cache.
     const FINGERPRINT: ControllerId;
 
+    /// Algèbre de clés de cette instance de contrôleur.
+    fn keys(&self) -> &Self::Keys;
+
     /// Payload du diagramme de défaut D_δ d'un niveau : l'arc δ(ℓ) implicite
     /// (R-default) dénote ce terminal. `None` : pas de défaut désigné.
-    fn default_payload(level: Level) -> Option<Self::Payload>;
+    fn default_payload(&self, level: Level) -> Option<Self::Payload>;
 
     /// R-collapse (spec § 2.3) : tous les arcs mènent à la même cible ⇒ la
     /// forme se réduit à cette cible. Pure, testée par PBT.
