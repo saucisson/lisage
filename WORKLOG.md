@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-0 : interface du cœur, traits + bornes Send/Sync (feat/6)
+
+- **Issue**: #6 (M1-0 — Interface du cœur, phase 1 : interface).
+- **Done**: contrats du cœur posés : `NodeId`/`Anchor`/`ControllerId`/`Handle`/`Level`/`Form` et traits `Pool`/`KeyAlgebra`/`Controller` dans `lisage-algebra::interface` (le port « stocker/récupérer un nœud par clé » vu par le niveau 2), `Observer` + `TraceEvent` + `NoOpObserver` et `CoreError` dans `lisage-core`, `LangError` (Result) dans `lisage-lang`. Bornes `Send`/`Sync` figées sur les quatre traits, vérifiées dans les sources (test de frontières étendu, lisage-bench) et à la compilation (test lisage-core avec mock). Politique d'erreurs codifiée (asserts internes core/algebra, erreurs typées aux frontières). ADR-0100 (draft, needs-human) + spike FFI CUDD/Sylvan (`docs/spike-ffi-cudd-sylvan.md`).
+- **Evidence**: `cargo fmt --all -- --check` OK, `cargo clippy --all-targets -- -D warnings` OK, `cargo nextest run --all-targets` OK (8 tests), `cargo doc --no-deps` OK. Non exécuté : `make check` complet (partie Python non relancée sur cette branche, inchangée), CI GitHub réelle, cargo audit/deny.
+- **Judgement calls**: les contrats vivent dans `lisage-algebra` et non `lisage-core` car le graphe du workspace (test de frontières) interdit `algebra → core` ; `core` implémente le port et ré-exporte les types (décision proposée dans l'ADR-0100 draft). Pas de crate de log ajoutée (liste d'escalation) : narration en doc-comments + tests. Le spike FFI conclut au témoin BDD interne pur Rust pour M1-8, le câblage CUDD/Sylvan reste un follow-up bloqué sur escalation (nouvelle dépendance).
+- **Escalations**: ADR-0100 est un draft `needs-human` (acceptation humaine requise) ; commentaire structuré posé sur l'issue #14 pour la future dépendance `cudd-sys`.
+
 ## 2026-11-10 - M0-5 : socle de bench, criterion + micro-bench factice (feat/5)
 
 - **Issue**: #5 (M0-5 — Socle de bench).

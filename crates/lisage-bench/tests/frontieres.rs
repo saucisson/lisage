@@ -80,6 +80,47 @@ fn test_frontieres_dependances_unidirectionnelles() {
     );
 }
 
+/// Traits d'interface dont la déclaration doit porter les bornes `Send`/`Sync`
+/// figées dès M1-0 (feuille de route § 10) : (fichier relatif à crates/, motif).
+const SIGNATURE_BOUNDS: &[(&str, &str)] = &[
+    (
+        "lisage-algebra/src/interface.rs",
+        "pub trait KeyAlgebra: Send + Sync",
+    ),
+    (
+        "lisage-algebra/src/interface.rs",
+        "pub trait Controller: Send + Sync",
+    ),
+    (
+        "lisage-algebra/src/interface.rs",
+        "pub trait Pool: Send + Sync",
+    ),
+    (
+        "lisage-core/src/observer.rs",
+        "pub trait Observer: Send + Sync",
+    ),
+];
+
+#[test]
+fn test_frontieres_signatures_send_sync() {
+    let mut failures = Vec::new();
+    for (relative_path, expected_declaration) in SIGNATURE_BOUNDS {
+        let path = Path::new(CRATES_DIR).join(relative_path);
+        let content = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("lecture de {}: {error}", path.display()));
+        if !content.contains(expected_declaration) {
+            failures.push(format!(
+                "{relative_path} doit déclarer `{expected_declaration}`"
+            ));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "Bornes Send/Sync manquantes sur les traits d'interface:\n{}",
+        failures.join("\n")
+    );
+}
+
 #[test]
 fn test_sept_crates_presentes() {
     let expected: BTreeMap<String, ()> = ALLOWED
