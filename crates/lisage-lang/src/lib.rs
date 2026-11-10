@@ -4,5 +4,8 @@
 //! `lang/` sans aucun diagramme de décision : voie A du triptyque.
 
 pub mod error;
+pub mod interpreter;
+pub mod value;
 
 pub use error::{KeyName, LangError};
+pub use value::{Atom, Value};

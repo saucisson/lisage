@@ -1,5 +1,7 @@
 //! Lisage bench — différentiel, property-based, MCC, événements non locaux.
 
+pub mod differentiel;
+
 /// Voie A : interprète de référence naïf (source de vérité).
 pub fn voie_a(x: u32) -> u32 {
     x + 1
