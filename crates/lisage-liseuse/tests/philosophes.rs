@@ -251,8 +251,7 @@ fn test_figure_svg_r5_exportee() {
     std::fs::create_dir_all(dossier).expect("création de bench-results");
     let chemin = format!("{dossier}/philosophes-n5.svg");
     // La figure commitée doit être à jour : un rendu qui diverge échoue ici.
-    if let Ok(commitee) = std::fs::read_to_string(&chemin) {
-        assert_eq!(svg, commitee, "bench-results/philosophes-n5.svg est à jour");
-    }
+    let commitee = std::fs::read_to_string(&chemin).expect("lecture de la figure commitée");
+    assert_eq!(svg, commitee, "bench-results/philosophes-n5.svg est à jour");
     std::fs::write(&chemin, &svg).expect("écriture de la figure");
 }
