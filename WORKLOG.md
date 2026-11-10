@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-10 : démo philosophes n=3,4,5 — R_n, comptage par pli, filter/exists, figure SVG (feat/16)
+
+- **Issue**: #16 (M1-10 — Démo philosophes, énoncé C8).
+- **Done**: `lisage-liseuse::philosophes` : modèle de l'anneau déroulé en intercalage (clés `2i` = pc_i, `2i+1` = left_i, domaine {0,1,2}), énumération de référence des états atteignables (mots circulaires sans deux `eat` adjacents), construction de R_n par union de maps compilées. Tests d'intégration : |R_3|=20, |R_4|=56, |R_5|=152 par pli `(ℕ,+,×)` == énumération (C8) ; `filter`/`exists` sur la projection « mangeurs » (clé i présente ssi cellule i mange) avec compte DD == référence ; les 7 formes vérifiées au niveau automate (5 cellules légales + 2 terminaux, chacune apparaissant dans R_n) ; figure SVG de R_5 exportée depuis la Liseuse (`bench-results/philosophes-n5.svg`, déterministe, commitée).
+- **Evidence**: `make check` OK (85 tests, 2 ignorés), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK.
+- **Judgement calls**: les « 7 formes » sont vérifiées au niveau automate (5 cellules légales + 2 terminaux) — la version « 7 nœuds du DD » exige l'encodage relatif (formes relatives, jalon M4-2), hors périmètre M1 ; `filter`/`exists` (prédicats de présence) appliqués à la projection « mangeurs » de R_n, la présence des clés de l'encodage intercalé ne discriminant pas ; la figure est écrite par le test dans `bench-results/` (déterministe, donc sans diff en CI).
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-9 : Liseuse v0 — trace JSONL versionnée + rendu SVG statique (feat/15)
 
 - **Issue**: #15 (M1-9 — Port d'instrumentation, énoncé Liseuse).
