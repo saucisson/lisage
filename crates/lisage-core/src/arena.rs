@@ -4,13 +4,11 @@
 //! unique. À la création du handle, les réductions du contrôleur s'appliquent
 //! (M1-2, spec § 2.3) : R-collapse et R-default.
 
-use std::collections::{BTreeMap, HashMap};
-use std::marker::PhantomData;
-
 use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 use lisage_algebra::reduction::{Reduction, reduire};
+use std::collections::{BTreeMap, HashMap};
 
 use crate::observer::{Observer, ReductionRule, TraceEvent};
 
@@ -18,22 +16,29 @@ use crate::observer::{Observer, ReductionRule, TraceEvent};
 type CleInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
 
 /// Arena : stockage canonique aveugle des formes, adressé par contenu.
+/// Détient l'instance de contrôleur : son algèbre de clés (paramétrée par le
+/// schéma, M1-3) décide des formes normales, cardinalités et défauts.
 pub struct Arena<C: Controller> {
     nodes: Vec<Form<C::Key, C::Payload>>,
     unique: HashMap<CleInterning<C::Key, C::Payload>, NodeId>,
     observer: Box<dyn Observer>,
-    controleur: PhantomData<C>,
+    controleur: C,
 }
 
 impl<C: Controller> Arena<C> {
-    /// Arena neuve avec l'observateur de trace donné.
-    pub fn new(observer: Box<dyn Observer>) -> Self {
+    /// Arena neuve avec le contrôleur et l'observateur de trace donnés.
+    pub fn new(controleur: C, observer: Box<dyn Observer>) -> Self {
         Arena {
             nodes: Vec::new(),
             unique: HashMap::new(),
             observer,
-            controleur: PhantomData,
+            controleur,
         }
+    }
+
+    /// Contrôleur propriétaire de cette arena.
+    pub fn controleur(&self) -> &C {
+        &self.controleur
     }
 
     /// Internement d'un terminal à payload.
@@ -50,7 +55,7 @@ impl<C: Controller> Arena<C> {
                 level,
                 arcs: arcs
                     .into_iter()
-                    .map(|(key, cible)| (C::Keys::normal_form(&key), cible))
+                    .map(|(key, cible)| (self.controleur.keys().normal_form(&key), cible))
                     .collect(),
             },
         }
@@ -64,9 +69,9 @@ impl<C: Controller> Arena<C> {
         level: Level,
         arcs: BTreeMap<C::Key, NodeId>,
     ) -> Result<Form<C::Key, C::Payload>, NodeId> {
-        let cle_defaut = C::Keys::default(level);
-        let cardinalite = C::Keys::cardinality(level);
-        let payload_defaut = C::default_payload(level);
+        let cle_defaut = self.controleur.keys().default(level);
+        let cardinalite = self.controleur.keys().cardinality(level);
+        let payload_defaut = self.controleur.default_payload(level);
         let est_defaut = |node: NodeId| -> bool {
             matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(payload))
         };

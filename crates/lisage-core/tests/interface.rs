@@ -14,25 +14,30 @@ struct MockKeys;
 
 impl KeyAlgebra for MockKeys {
     type Key = u64;
-    fn normal_form(key: &Self::Key) -> Self::Key {
+    fn normal_form(&self, key: &Self::Key) -> Self::Key {
         *key
     }
-    fn cardinality(_level: Level) -> u64 {
+    fn cardinality(&self, _level: Level) -> u64 {
         2
     }
-    fn default(_level: Level) -> Option<Self::Key> {
+    fn default(&self, _level: Level) -> Option<Self::Key> {
         Some(0)
     }
 }
 
-struct MockController;
+struct MockController {
+    keys: MockKeys,
+}
 
 impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
     const FINGERPRINT: ControllerId = ControllerId(1);
-    fn default_payload(_level: Level) -> Option<Self::Payload> {
+    fn keys(&self) -> &Self::Keys {
+        &self.keys
+    }
+    fn default_payload(&self, _level: Level) -> Option<Self::Payload> {
         Some(false)
     }
 }
