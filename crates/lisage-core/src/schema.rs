@@ -149,6 +149,13 @@ pub struct SchemaKeys {
     schema: Schema,
 }
 
+impl SchemaKeys {
+    /// Algèbre de clés pour le schéma donné.
+    pub fn new(schema: Schema) -> Self {
+        SchemaKeys { schema }
+    }
+}
+
 impl KeyAlgebra for SchemaKeys {
     type Key = u64;
 
@@ -197,9 +204,7 @@ pub struct ReferenceController {
 impl ReferenceController {
     /// Contrôleur pour le schéma donné.
     pub fn new(schema: Schema) -> Self {
-        let keys = SchemaKeys {
-            schema: schema.clone(),
-        };
+        let keys = SchemaKeys::new(schema.clone());
         ReferenceController { schema, keys }
     }
 

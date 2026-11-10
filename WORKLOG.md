@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-5 (2/2) : `lookup(k)` — modes cherche/extrait/stop, fragment de DD, T-EXPAND + greffe (feat/12b)
+
+- **Issue**: #12 (M1-5 — lookup, spec § 6).
+- **Done**: `lisage-core::lookup` : `LookupController` (pool de sortie à payload `Option<u64>`, D_δ = `ε(None)`, FINGERPRINT = ControllerId(2)) et la transduction `Lookup` — canal hérité `Mode::{Cherche, Extrait, Stop(v)}`, canal synthétisé = fragment de DD (`BTreeMap<u64, NodeId>`, arcs du niveau `val(k)` vers `ε(Some(v))`), `φ_out` avec T-EXPAND + greffe quand le niveau valeur de la clé a été collapsé (R-collapse), `SchemaKeys::new` public. Tests unitaires (clés présentes/absente, cas collapsé) + PBT différentiel voie A (interprète) vs voie DD dans lisage-bench.
+- **Evidence**: `make check` OK (56 tests, 2 ignorés rouges M1-7), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : `cargo audit`, CI réelle avant push.
+- **Judgement calls**: dans le cas collapsé, aucun `Stop` n'est émis — la valeur vit dans le DD ré-explicité (T-EXPAND), le fragment synthétisé reste vide (testé) ; la greffe a une mémo par valeur `v` (les terminaux greffés dépendent de `v`).
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-5 (1/2) : moteur de transductions généralisé — deux pools, payload de sortie `Out` (feat/12)
 
 - **Issue**: #12 (M1-5 — lookup, préparation du moteur).
