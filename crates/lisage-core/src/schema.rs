@@ -64,6 +64,9 @@ pub enum Schema {
     Set(Domaine),
     /// `Map(K, V)` : clés ordonnées vers un domaine de valeurs borné.
     Map(Vec<Atom>, Domaine),
+    /// `Seq(D, N)` : séquence d'au plus `N` éléments d'un domaine borné `D`
+    /// (M2-1, constructeur `list`). Le marqueur de fin est une clé requise.
+    Seq(Domaine, u32),
 }
 
 impl Schema {
@@ -73,6 +76,7 @@ impl Schema {
             Schema::Atom(_) => 1,
             Schema::Set(domaine) => domaine.taille() as u32,
             Schema::Map(liste_cles, _) => PAS_NIVEAU_MAP * liste_cles.len() as u32,
+            Schema::Seq(domaine, longueur_max) => domaine.taille() as u32 * longueur_max + 1,
         }
     }
 
@@ -177,6 +181,13 @@ impl KeyAlgebra for SchemaKeys {
                     domaine_valeurs.taille() as u64
                 }
             }
+            Schema::Seq(domaine, longueur_max) => {
+                if level.0 < *longueur_max {
+                    domaine.taille() as u64 + 1 // +1 pour le marqueur de fin
+                } else {
+                    CARDINALITE_PRESENCE
+                }
+            }
         }
     }
 
@@ -191,6 +202,7 @@ impl KeyAlgebra for SchemaKeys {
                     None
                 }
             }
+            Schema::Seq(_, _) => None, // marqueur de fin = clé requise, pas de défaut
         }
     }
 }
@@ -239,6 +251,7 @@ impl Controller for ReferenceController {
                     None
                 }
             }
+            Schema::Seq(_, _) => None,
         }
     }
 }
@@ -284,6 +297,10 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             valider_map(liste_cles, domaine_valeurs, map)?;
             compiler_map(pool, anchor, liste_cles, map, 0)
         }
+        (Schema::Seq(domaine, longueur_max), Value::Seq(elements)) => {
+            valider_seq(domaine, *longueur_max, elements)?;
+            compiler_seq(pool, anchor, domaine, *longueur_max, elements)
+        }
         (schema, valeur) => Err(SchemaError::TypeMismatch {
             attendu: forme_schema(schema),
             recu: forme_valeur(valeur),
@@ -326,6 +343,7 @@ fn forme_schema(schema: &Schema) -> &'static str {
         Schema::Atom(_) => "atome",
         Schema::Set(_) => "ensemble",
         Schema::Map(_, _) => "map",
+        Schema::Seq(_, _) => "séquence",
     }
 }
 
@@ -334,6 +352,7 @@ fn forme_valeur(valeur: &Value) -> &'static str {
         Value::Atom(_) => "atome",
         Value::Set(_) => "ensemble",
         Value::Map(_) => "map",
+        Value::Seq(_) => "séquence",
     }
 }
 
@@ -399,6 +418,89 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
     ))
 }
 
+/// Valide une séquence contre le schéma Seq (éléments dans le domaine,
+/// longueur bornée).
+fn valider_seq(
+    domaine: &Domaine,
+    longueur_max: u32,
+    elements: &[Value],
+) -> Result<(), SchemaError> {
+    if elements.len() > longueur_max as usize {
+        return Err(SchemaError::TypeMismatch {
+            attendu: "séquence de longueur bornée",
+            recu: "séquence trop longue",
+        });
+    }
+    for element in elements {
+        match element {
+            Value::Atom(atome) if domaine.contient(*atome) => {}
+            Value::Atom(atome) => return Err(SchemaError::HorsDomaine(*atome)),
+            autre => {
+                return Err(SchemaError::TypeMismatch {
+                    attendu: "élément atomique",
+                    recu: forme_valeur(autre),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Clé d'arc du marqueur de fin dans une séquence (valeur = taille du domaine).
+fn cle_fin(domaine: &Domaine) -> u64 {
+    domaine.taille() as u64
+}
+
+/// Compile une séquence par **positions** (balayage d'univers, M2-1) :
+/// chaque position `i` a un niveau de cardinalité `|D|+1` (valeurs du
+/// domaine + marqueur de fin). Le marqueur de fin mène au terminal true.
+fn compiler_seq<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    domaine: &Domaine,
+    longueur_max: u32,
+    elements: &[Value],
+) -> Result<NodeId, SchemaError> {
+    compiler_seq_position(pool, anchor, domaine, longueur_max, elements, 0)
+}
+
+fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    domaine: &Domaine,
+    longueur_max: u32,
+    elements: &[Value],
+    position: u32,
+) -> Result<NodeId, SchemaError> {
+    if position >= longueur_max {
+        // Niveau marqueur de fin : clé requise, présent = fin de séquence.
+        let terminal = pool.intern(anchor, Form::Terminal(true));
+        return Ok(pool.intern(
+            anchor,
+            Form::Node {
+                level: Level(longueur_max),
+                arcs: BTreeMap::from([(PRESENT, terminal)]),
+            },
+        ));
+    }
+    let suite = compiler_seq_position(pool, anchor, domaine, longueur_max, elements, position + 1)?;
+    let arc = if (position as usize) < elements.len() {
+        match &elements[position as usize] {
+            Value::Atom(atome) => atome.0,
+            _ => unreachable!("validé par valider_seq"),
+        }
+    } else {
+        cle_fin(domaine) // marqueur de fin
+    };
+    Ok(pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(position),
+            arcs: BTreeMap::from([(arc, suite)]),
+        },
+    ))
+}
+
 /// Décompile un diagramme en valeur (inverse de [`compiler`]) : utile pour
 /// les tests de round-trip et les diagnostics.
 pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
@@ -454,6 +556,66 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             let mut map = BTreeMap::new();
             decompiler_map(pool, liste_cles, noeud, &mut map)?;
             Ok(Value::Map(map))
+        }
+        Schema::Seq(domaine, longueur_max) => {
+            let mut elements = Vec::new();
+            decompiler_seq(pool, domaine, *longueur_max, noeud, &mut elements)?;
+            Ok(Value::Seq(elements))
+        }
+    }
+}
+
+fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
+    pool: &P,
+    domaine: &Domaine,
+    longueur_max: u32,
+    mut noeud: NodeId,
+    elements: &mut Vec<Value>,
+) -> Result<(), SchemaError> {
+    loop {
+        match pool.resolve(noeud)? {
+            Form::Terminal(true) => return Ok(()),
+            Form::Terminal(false) => {
+                return Err(SchemaError::NoeudInattendu {
+                    attendu: "terminal true ou nœud de position",
+                    noeud,
+                });
+            }
+            Form::Node { level, arcs } => {
+                if level.0 > longueur_max {
+                    return Err(SchemaError::NoeudInattendu {
+                        attendu: "niveau de position ou marqueur de fin",
+                        noeud,
+                    });
+                }
+                if level.0 == longueur_max {
+                    // Niveau marqueur de fin.
+                    if arcs.contains_key(&PRESENT) {
+                        return Ok(());
+                    }
+                    return Err(SchemaError::NoeudInattendu {
+                        attendu: "marqueur de fin présent",
+                        noeud,
+                    });
+                }
+                let Some((&arc, &suite)) = arcs.iter().next() else {
+                    return Err(SchemaError::NoeudInattendu {
+                        attendu: "arc de position",
+                        noeud,
+                    });
+                };
+                if arc == cle_fin(domaine) {
+                    // Marqueur de fin anticipé : la séquence s'arrête ici.
+                    noeud = suite;
+                    continue;
+                }
+                let atome = Atom(arc);
+                if !domaine.contient(atome) {
+                    return Err(SchemaError::HorsDomaine(atome));
+                }
+                elements.push(Value::Atom(atome));
+                noeud = suite;
+            }
         }
     }
 }

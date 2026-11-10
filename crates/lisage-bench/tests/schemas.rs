@@ -139,3 +139,37 @@ proptest! {
         }
     }
 }
+
+/// M2-1, T5 : propriété — pour toute séquence aléatoire sur un domaine borné,
+/// compiler puis décompiler redonne la séquence (round-trip), et deux
+/// séquences égales compilent vers le même nœud (canonicité).
+#[test]
+fn test_t5_seq_round_trip_propriete() {
+    use lisage_core::arena::Arena;
+    use lisage_core::observer::NoOpObserver;
+    use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler, decompiler};
+    use lisage_lang::value::{Atom, Value};
+    use proptest::prelude::*;
+
+    proptest!(|(domaine_taille in 1u64..=4,
+                 longueur_max in 1u32..=4,
+                 elements in prop::collection::vec(0u64..4, 0..5))| {
+        let domaine = Domaine::nouveau((0..domaine_taille).map(Atom).collect());
+        let schema = Schema::Seq(domaine.clone(), longueur_max);
+        let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
+        let anchor = lisage_algebra::interface::Anchor(0);
+        // Tronque à la longueur max et filtre dans le domaine.
+        let seq: Vec<Value> = elements.iter()
+            .take(longueur_max as usize)
+            .filter(|&&v| v < domaine_taille)
+            .map(|&v| Value::Atom(Atom(v)))
+            .collect();
+        let valeur = Value::Seq(seq.clone());
+        let racine = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
+        let retour = decompiler(&pool, &schema, racine).unwrap();
+        prop_assert_eq!(retour, valeur.clone(), "round-trip Seq");
+        // Canonicité.
+        let racine2 = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
+        prop_assert_eq!(racine, racine2, "canonicité Seq");
+    });
+}
