@@ -110,18 +110,84 @@ fn test_resolve_erreur_typee() {
     );
 }
 
+/// Algèbre de clés non identité : deux orthographes (0 et 2) ont la même
+/// forme normale — sert à prouver que la normalisation est appliquée avant
+/// le hachage (sinon C1 serait violé).
+struct NormalizingKeys;
+
+impl KeyAlgebra for NormalizingKeys {
+    type Key = u64;
+    fn normal_form(key: &Self::Key) -> Self::Key {
+        key % 2
+    }
+    fn cardinality(_level: Level) -> u64 {
+        2
+    }
+    fn default(_level: Level) -> Option<Self::Key> {
+        Some(0)
+    }
+}
+
+struct NormalizingController;
+
+impl Controller for NormalizingController {
+    type Key = u64;
+    type Payload = bool;
+    type Keys = NormalizingKeys;
+    const FINGERPRINT: ControllerId = ControllerId(8);
+    fn default_payload(_level: Level) -> Option<Self::Payload> {
+        Some(false)
+    }
+}
+
+#[test]
+fn test_normalisation_cles_avant_hachage() {
+    let mut arena: Arena<NormalizingController> = Arena::new(Box::new(NoOpObserver));
+    let anchor = Anchor(0);
+    let terminal = arena.terminal(anchor, true);
+    let via_0 = arena.intern(
+        anchor,
+        Form::Node {
+            level: Level(0),
+            arcs: BTreeMap::from([(0, terminal)]),
+        },
+    );
+    let via_2 = arena.intern(
+        anchor,
+        Form::Node {
+            level: Level(0),
+            arcs: BTreeMap::from([(2, terminal)]),
+        },
+    );
+    assert_eq!(
+        via_0, via_2,
+        "clés 0 et 2, même forme normale ⇒ même nœud (C1)"
+    );
+}
+
 #[test]
 fn test_events_trace_narration() {
     let (mut arena, trace) = arena_avec_trace();
     let anchor = Anchor(0);
     let node = arena.intern(anchor, Form::Terminal(true));
     arena.intern(anchor, Form::Terminal(true));
+    let noeud = arena.intern(
+        anchor,
+        Form::Node {
+            level: Level(5),
+            arcs: BTreeMap::from([(1, node)]),
+        },
+    );
     let events = trace.events.lock().unwrap();
     assert_eq!(
         events.as_slice(),
         &[
             TraceEvent::NodeCreated { node, level: None },
             TraceEvent::NodeShared { node },
+            TraceEvent::NodeCreated {
+                node: noeud,
+                level: Some(Level(5))
+            },
         ]
     );
 }
