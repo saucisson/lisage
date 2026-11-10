@@ -41,6 +41,44 @@ jobs:
       - name: pytest with coverage floor
         run: uv run pytest
 
+  rust-check:
+    name: rust quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: rustfmt check
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: nextest
+        run: cargo install cargo-nextest --locked && cargo nextest run --all-targets
+
+      - name: coverage
+        run: |
+          cargo install cargo-llvm-cov --locked
+          cargo llvm-cov --all-targets --lcov --output-path lcov.info
+
+      - name: audit
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+
+      - name: deny
+        run: |
+          cargo install cargo-deny --locked
+          cargo deny check
+
   security:
     name: security gates
     runs-on: ubuntu-latest
@@ -63,3 +101,8 @@ jobs:
           uv export --locked --no-emit-project --format requirements-txt \
             --output-file requirements.txt
           uvx pip-audit --requirement requirements.txt --strict
+
+      - name: cargo audit
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
