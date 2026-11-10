@@ -168,7 +168,10 @@ fn test_transduction_avec_memoire_ecrit() {
     // BLOCKING review : la lecture mémoire doit être observée. On exécute une
     // seconde fois : chaque nœud relit la valeur stockée à la première passe.
     let (r2, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
-    assert_eq!(r2, resultat, "mémo hit : même résultat");
+    assert_eq!(
+        r2, resultat,
+        "déterminisme : même résultat (la version bumpée invalide la mémo, le nœud est recalculé)"
+    );
     let total_lus = lus.load(std::sync::atomic::Ordering::SeqCst);
     assert!(
         total_lus > 0,
