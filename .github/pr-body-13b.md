@@ -4,6 +4,19 @@ M1-6 (2/2) : les opérations à canal hérité seul (spec § 4) dans `lisage-cor
 
 Closes #13
 
+## Split proposal on the ~500-line PR budget (ADR-0019)
+
+This PR adds 677 lines, above the ~500 budget. Proposed split, if the
+human wants a strict sub-500 PR:
+
+- **PR-B1** (`feat/13b-core`, ~340 lines): `crates/lisage-core/src/operations.rs`
+  + `lib.rs` — the three transductions (`Existe`, `Filtre`, `Image`) and helpers.
+- **PR-B2** (`feat/13b-tests`, ~340 lines): `crates/lisage-core/tests/operations.rs`
+  + `crates/lisage-bench/tests/operations.rs` — unit tests and differential PBTs.
+
+The single-PR form is kept because the tests are the acceptance evidence
+for the operations; the split above remains available on request.
+
 ## Acceptance criteria mapping
 
 | Criterion | Where it is satisfied | Evidence |
