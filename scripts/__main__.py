@@ -35,7 +35,7 @@ def main(*, command_line_arguments: Sequence[str]) -> int:
     load_environment_file()
     arguments = build_argument_parser().parse_args(command_line_arguments)
     runner: Callable[[argparse.Namespace], int] = arguments.runner
-    return runner(arguments)
+    return runner(arguments=arguments)
 
 
 if __name__ == "__main__":
