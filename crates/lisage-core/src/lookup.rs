@@ -20,6 +20,9 @@ use lisage_lang::value::Atom;
 use crate::schema::{Domaine, PRESENT, Schema, SchemaKeys};
 use crate::transduction::Transduction;
 
+/// Base du namespace de fingerprints de la famille `lookup` (clé = base + valeur).
+const FINGERPRINT_BASE_LOOKUP: u64 = 3000;
+
 /// Mode hérité de `lookup` (spec § 6.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Mode {
@@ -145,7 +148,7 @@ impl Transduction for Lookup {
     type Out = Option<u64>;
 
     fn fingerprint(&self) -> u64 {
-        3000 + self.cle.0
+        FINGERPRINT_BASE_LOOKUP + self.cle.0
     }
 
     fn h0(&self) -> Mode {
