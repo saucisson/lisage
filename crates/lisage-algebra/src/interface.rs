@@ -1,8 +1,6 @@
-//! Interface du cœur (M1-0) : contrats vus par le niveau 2 (`algebra`) du
-//! niveau 3 (`core`). Le pool est un stockage canonique aveugle : formes et
-//! handles, ni ordre ni sémantique. Bornes `Send`/`Sync` figées dès M1-0
-//! (feuille de route § 10) : exécution mono-thread, le retrofit coûterait
-//! plus cher que la décision.
+//! Interface du cœur (M1-0) : contrats vus par `algebra` du pool de `core`,
+//! stockage canonique aveugle (formes et handles). Bornes `Send`/`Sync`
+//! figées dès M1-0 (roadmap § 10).
 
 use std::collections::BTreeMap;
 use std::fmt::Debug;
@@ -34,9 +32,8 @@ pub struct Handle {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Level(pub u32);
 
-/// Forme d'un nœud : terminal à payload, ou nœud de niveau à arcs explicites
-/// (l'arc par défaut δ(ℓ) est stocké comme les autres ; R-default le rend
-/// implicite, il dénote alors le diagramme de défaut du contrôleur).
+/// Forme d'un nœud : terminal à payload, ou nœud à arcs explicites (l'arc
+/// par défaut δ(ℓ) est stocké comme les autres ; R-default le rend implicite).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Form<Key, Payload> {
     Terminal(Payload),
@@ -96,7 +93,7 @@ pub trait Controller: Send + Sync {
     fn default_payload(level: Level) -> Option<Self::Payload>;
 
     /// R-collapse (spec § 2.3) : tous les arcs mènent à la même cible ⇒ la
-    /// forme se réduit à cette cible. Fonction pure, testée par PBT.
+    /// forme se réduit à cette cible. Pure, testée par PBT.
     fn collapse(arcs: &BTreeMap<Self::Key, NodeId>) -> Option<NodeId> {
         let mut target: Option<NodeId> = None;
         for child in arcs.values() {
@@ -120,7 +117,7 @@ pub trait Pool: Send + Sync {
     const CONTROLLER: ControllerId;
 
     /// Interning hash-consé à clé (contrôleur, ancre, forme réduite) :
-    /// R-default puis R-collapse à la création, R-share par la table unique.
+    /// R-default puis R-collapse, R-share par la table unique.
     fn intern(&mut self, anchor: Anchor, form: Form<Self::Key, Self::Payload>) -> NodeId;
 
     /// Forme d'un nœud, ou erreur typée si l'identifiant est inconnu.
