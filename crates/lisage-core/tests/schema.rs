@@ -38,19 +38,19 @@ fn test_compilation_map_exemple_spec() {
         panic!("la racine doit être un nœud de présence");
     };
     assert_eq!(*level, Level(0));
-    let noeud_val_a = arcs[&PRESENT];
-    let Form::Node { level, arcs } = pool.resolve(noeud_val_a).unwrap() else {
+    let noeud_valeur_a = arcs[&PRESENT];
+    let Form::Node { level, arcs } = pool.resolve(noeud_valeur_a).unwrap() else {
         panic!("nœud de valeur attendu");
     };
     assert_eq!(*level, Level(1));
     assert_eq!(arcs.len(), 1);
-    let noeud_pres_b = arcs[&PRESENT];
-    let Form::Node { level, arcs } = pool.resolve(noeud_pres_b).unwrap() else {
+    let noeud_presence_b = arcs[&PRESENT];
+    let Form::Node { level, arcs } = pool.resolve(noeud_presence_b).unwrap() else {
         panic!("nœud de présence attendu");
     };
     assert_eq!(*level, Level(2));
-    let noeud_val_b = arcs[&PRESENT];
-    let Form::Node { level, arcs } = pool.resolve(noeud_val_b).unwrap() else {
+    let noeud_valeur_b = arcs[&PRESENT];
+    let Form::Node { level, arcs } = pool.resolve(noeud_valeur_b).unwrap() else {
         panic!("nœud de valeur attendu");
     };
     assert_eq!(*level, Level(3));
@@ -90,7 +90,7 @@ fn test_map_vide_et_cle_absente() {
     let map = Value::Map(BTreeMap::from([(atome(1), atome(0))]));
     let racine = compiler(&mut pool, anchor, &schema, &map).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    let noeud_val_b = pool.intern(
+    let noeud_valeur_b = pool.intern(
         anchor,
         Form::Node {
             level: Level(3),
@@ -101,7 +101,7 @@ fn test_map_vide_et_cle_absente() {
         pool.resolve(racine).unwrap(),
         &Form::Node {
             level: Level(2),
-            arcs: BTreeMap::from([(PRESENT, noeud_val_b)]),
+            arcs: BTreeMap::from([(PRESENT, noeud_valeur_b)]),
         }
     );
 }
@@ -123,4 +123,21 @@ fn test_erreurs_typees() {
     let hors = Value::Set(BTreeSet::from([atome(9)]));
     let erreur = compiler(&mut pool, anchor, &schema, &hors).unwrap_err();
     assert_eq!(erreur, SchemaError::HorsDomaine(Atom(9)));
+}
+
+/// Schéma Atom(D) : un seul niveau, Val = D.
+#[test]
+fn test_schema_atome() {
+    let schema = Schema::Atom(domaine(&[0, 1, 2]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let racine = compiler(&mut pool, anchor, &schema, &atome(2)).unwrap();
+    let terminal = pool.intern(anchor, Form::Terminal(true));
+    assert_eq!(
+        pool.resolve(racine).unwrap(),
+        &Form::Node {
+            level: Level(0),
+            arcs: BTreeMap::from([(2, terminal)]),
+        }
+    );
 }
