@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M0-4 : charte de test, triptyque A/B/C + proptest (feat/4)
+
+- **Issue**: #4 (M0-4 — Charte de test).
+- **Done**: triptyque A/B/C implémenté dans lisage-bench (voie_a = référence naïve, voie_b = DD ordre fixe, voie_c = Lisage+planner, toutes factices) ; proptest installé en dev-dependency ; convention `test_c<n>_*` ; test différentiel factice `test_c0_triptyque_accord` (proptest) + `test_c0_exemple_factice`.
+- **Evidence**: `cargo fmt --all -- --check` OK, `cargo clippy --all-targets -- -D warnings` OK, `cargo test --all-targets` OK (5 tests passés au total). Non exécuté : cargo nextest, CI GitHub réelle.
+- **Judgement calls**: les trois voies sont des stubs factices (x+1) en attendant l'implémentation réelle M1.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M0-2 : squelette du workspace, 7 crates + test de frontières (feat/2)
 
 - **Issue**: #2 (M0-2 — Squelette du workspace).
