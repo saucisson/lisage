@@ -8,6 +8,3 @@ repository.workspace = true
 
 [dependencies]
 lisage-lang = { path = "../lisage-lang" }
-
-[dev-dependencies]
-proptest = "1"
