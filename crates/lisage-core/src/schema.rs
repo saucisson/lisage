@@ -76,7 +76,7 @@ impl Schema {
             Schema::Atom(_) => 1,
             Schema::Set(domaine) => domaine.taille() as u32,
             Schema::Map(liste_cles, _) => PAS_NIVEAU_MAP * liste_cles.len() as u32,
-            Schema::Seq(domaine, longueur_max) => domaine.taille() as u32 * longueur_max + 1,
+            Schema::Seq(_, longueur_max) => longueur_max + 1,
         }
     }
 
