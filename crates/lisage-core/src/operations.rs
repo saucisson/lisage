@@ -24,7 +24,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use crate::error::CoreError;
 use crate::pli::{BoolOu, SemiAnneau};
 use crate::schema::{PAS_NIVEAU_MAP, PRESENT, Schema};
-use crate::transduction::{Transducteur, Transduction};
+use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
 /// Base du namespace de fingerprints de la famille garde/image.
 const FINGERPRINT_BASE_GARDE: u64 = 5000;
@@ -154,6 +154,7 @@ impl Transduction for Existe {
     type H = ClePresentes;
     type S = BoolOu;
     type Out = bool;
+    type M = ();
 
     fn fingerprint(&self) -> u64 {
         FINGERPRINT_BASE_GARDE + 1
@@ -182,13 +183,19 @@ impl Transduction for Existe {
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        anchor: Anchor,
-        level: Level,
-        _h: &ClePresentes,
-        arcs: BTreeMap<u64, (NodeId, BoolOu)>,
-    ) -> NodeId {
-        let arcs = arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
-        pool.intern(anchor, Form::Node { level, arcs })
+        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
+        let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs,
+                },
+            ),
+            crate::memoire::EffetMemoire::new(),
+        )
     }
 
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(
@@ -210,6 +217,7 @@ impl Transduction for Filtre {
     type H = ClePresentes;
     type S = ();
     type Out = bool;
+    type M = ();
 
     fn fingerprint(&self) -> u64 {
         FINGERPRINT_BASE_GARDE + 2
@@ -234,22 +242,32 @@ impl Transduction for Filtre {
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        anchor: Anchor,
-        level: Level,
-        _h: &ClePresentes,
-        arcs: BTreeMap<u64, (NodeId, ())>,
-    ) -> NodeId {
+        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
         // (A2) : si tous les fils mènent à ε(false), le nœud est ε(false)
         // (les nœuds produits par le runner sont toujours résolubles).
-        let tout_rejete = !arcs.is_empty()
-            && arcs
+        let tout_rejete = !ctx.arcs.is_empty()
+            && ctx
+                .arcs
                 .values()
                 .all(|(n, _)| matches!(pool.resolve(*n), Ok(Form::Terminal(false))));
         if tout_rejete {
-            return pool.intern(anchor, Form::Terminal(false));
+            return (
+                pool.intern(ctx.anchor, Form::Terminal(false)),
+                crate::memoire::EffetMemoire::new(),
+            );
         }
-        let arcs = arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
-        pool.intern(anchor, Form::Node { level, arcs })
+        let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs,
+                },
+            ),
+            crate::memoire::EffetMemoire::new(),
+        )
     }
 
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(
@@ -269,6 +287,7 @@ impl Transduction for Image {
     type H = ();
     type S = ();
     type Out = bool;
+    type M = ();
 
     fn fingerprint(&self) -> u64 {
         FINGERPRINT_BASE_GARDE + 3
@@ -285,17 +304,24 @@ impl Transduction for Image {
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        anchor: Anchor,
-        level: Level,
-        _h: &(),
-        arcs: BTreeMap<u64, (NodeId, ())>,
-    ) -> NodeId {
+        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
         // Réétiquetage : l'arc v devient f(v).
-        let arcs = arcs
+        let arcs = ctx
+            .arcs
             .into_iter()
             .map(|(v, (n, _))| ((self.fonction)(v), n))
             .collect();
-        pool.intern(anchor, Form::Node { level, arcs })
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs,
+                },
+            ),
+            crate::memoire::EffetMemoire::new(),
+        )
     }
 
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(

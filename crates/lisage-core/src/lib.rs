@@ -10,6 +10,7 @@ pub mod arena;
 pub mod bdd;
 pub mod error;
 pub mod lookup;
+pub mod memoire;
 pub mod observer;
 pub mod operations;
 pub mod pli;

@@ -28,7 +28,7 @@ use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, NodeId, Pool};
 
 use crate::error::CoreError;
 use crate::schema::{Schema, SchemaKeys};
-use crate::transduction::{Transducteur, Transduction};
+use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
 /// Semi-anneau de requête d'un pli (spec § 5) : `(S, ⊕, ×)` avec zéros et
 /// unités. `depuis_cardinalite` traduit `|Val(ℓ)|` dans `S` (A4).
@@ -158,6 +158,7 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
     type H = ();
     type S = S;
     type Out = bool;
+    type M = ();
 
     fn fingerprint(&self) -> u64 {
         S::FINGERPRINT
@@ -188,14 +189,20 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        anchor: Anchor,
-        level: Level,
-        _h: &(),
-        arcs: BTreeMap<u64, (NodeId, S)>,
-    ) -> NodeId {
+        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
         // Copie identité : le pli ne transforme pas le diagramme.
-        let arcs = arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
-        pool.intern(anchor, Form::Node { level, arcs })
+        let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs,
+                },
+            ),
+            crate::memoire::EffetMemoire::new(),
+        )
     }
 
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(

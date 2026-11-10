@@ -8,7 +8,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domaine, ReferenceController, Schema};
-use lisage_core::transduction::{Transducteur, Transduction};
+use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
 use lisage_lang::value::Atom;
 use proptest::prelude::*;
 
@@ -25,6 +25,7 @@ impl Transduction for Identite {
     type H = ();
     type S = ();
     type Out = bool;
+    type M = ();
 
     fn fingerprint(&self) -> u64 {
         2001
@@ -37,17 +38,17 @@ impl Transduction for Identite {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        anchor: Anchor,
-        level: Level,
-        _h: &(),
-        arcs: BTreeMap<u64, (NodeId, ())>,
-    ) -> NodeId {
-        pool.intern(
-            anchor,
-            Form::Node {
-                level,
-                arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
-            },
+        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memoire::EffetMemoire<Self::M>) {
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+                },
+            ),
+            lisage_core::memoire::EffetMemoire::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -67,6 +68,7 @@ impl Transduction for CompteChemins {
     type H = ();
     type S = u64;
     type Out = bool;
+    type M = ();
 
     fn fingerprint(&self) -> u64 {
         2002
@@ -81,17 +83,17 @@ impl Transduction for CompteChemins {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        anchor: Anchor,
-        level: Level,
-        _h: &(),
-        arcs: BTreeMap<u64, (NodeId, u64)>,
-    ) -> NodeId {
-        pool.intern(
-            anchor,
-            Form::Node {
-                level,
-                arcs: arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
-            },
+        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memoire::EffetMemoire<Self::M>) {
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+                },
+            ),
+            lisage_core::memoire::EffetMemoire::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(

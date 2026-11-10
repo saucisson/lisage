@@ -78,6 +78,20 @@ pub trait KeyAlgebra: Send + Sync {
     fn default(&self, level: Level) -> Option<Self::Key>;
 }
 
+/// Politique de stockage de la mémoire de niveau (M2-3, spec § 3.1) :
+/// déclarée par le contrôleur, elle décide quelles entrées de
+/// `M : (id(nœud), ℓ) ⇀ V` sont conservées entre deux visites d'un niveau.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum PolitiqueMemoire {
+    /// Pas de mémoire de niveau : les transductions à effet mémoire sont
+    /// rejetées (comportement par défaut, M1).
+    #[default]
+    Aucune,
+    /// Mémoire conservée par `(nœud, niveau)` : chaque visite d'un niveau
+    /// peut lire l'état stocké par une visite antérieure du même nœud.
+    ParNiveau,
+}
+
 /// Contrôleur étendu (proposition § 1.2) : instance des huit champs qui
 /// décident des réductions et de l'encodage. Le pool reste aveugle.
 pub trait Controller: Send + Sync {
@@ -101,6 +115,13 @@ pub trait Controller: Send + Sync {
     /// forme se réduit à cette cible. Pure, testée par PBT.
     fn collapse(arcs: &BTreeMap<Self::Key, NodeId>) -> Option<NodeId> {
         crate::reduction::collapse_arcs(arcs)
+    }
+
+    /// Politique de stockage de la mémoire de niveau (M2-3, T3) : déclarée
+    /// par le contrôleur. `Aucune` par défaut (M1) ; `ParNiveau` autorise
+    /// les transductions à effet mémoire.
+    fn politique_memoire(&self) -> PolitiqueMemoire {
+        PolitiqueMemoire::Aucune
     }
 }
 

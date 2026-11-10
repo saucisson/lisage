@@ -16,13 +16,33 @@ use std::hash::Hash;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::error::CoreError;
+use crate::memoire::{EffetMemoire, MemoireNiveau};
 
-/// Clé de la mémo : (fingerprint de l'opération, nœud, attribut hérité).
-type CleMemo<H> = (u64, NodeId, H);
+/// Clé de la mémo : (fingerprint de l'opération, nœud, attribut hérité,
+/// version de la mémoire de niveau) — lemme L1.
+type CleMemo<H> = (u64, NodeId, H, u64);
+
+/// Contexte de `φ_out` (T-NODE) : regroupe les paramètres de la
+/// restructuration (spec § 3.1 : `φ_out(ℓ, h, {v ↦ (D', s)}, M)`).
+pub struct ContextePhiOut<'a, H, S, M: Clone + Eq + Hash + Debug> {
+    /// Ancre de la racine.
+    pub anchor: Anchor,
+    /// Niveau du nœud en cours de restructuration.
+    pub level: Level,
+    /// Attribut hérité au nœud.
+    pub h: &'a H,
+    /// Fils déjà transduits : `{v ↦ (D', s)}`.
+    pub arcs: BTreeMap<u64, (NodeId, S)>,
+    /// Mémoire de niveau en lecture (M2-3).
+    pub memoire: &'a MemoireNiveau<M>,
+    /// Nœud d'entrée en cours de visite (clé de la mémoire de niveau).
+    pub noeud_entree: NodeId,
+}
 
 /// Transduction attribuée (spec § 3.1) : trois fonctions partielles du
-/// contrôleur + élément initial du canal hérité. Entrée : pool à payload
-/// `bool` (lecture ensembliste) ; sortie : pool à payload `Out`.
+/// contrôleur + élément initial du canal hérité + mémoire de niveau `M`
+/// (M2-3, T3). Entrée : pool à payload `bool` (lecture ensembliste) ;
+/// sortie : pool à payload `Out`.
 pub trait Transduction: Send + Sync {
     /// Attribut hérité (descendant).
     type H: Clone + PartialEq + Eq + Hash + Debug + Send + Sync;
@@ -30,9 +50,12 @@ pub trait Transduction: Send + Sync {
     type S: Clone + Debug + Send + Sync;
     /// Payload des terminaux du diagramme de sortie (`Δ_out`, spec § 3.2).
     type Out: Clone + Eq + Hash + Debug + Send + Sync;
+    /// Valeur stockée dans la mémoire de niveau `M : (id(nœud), ℓ) ⇀ M`
+    /// (M2-3). `()` pour les transductions sans mémoire (M1).
+    type M: Clone + Eq + Hash + Debug + Send + Sync;
 
     /// Fingerprint de l'opération (paramètres compris) : entre dans la clé
-    /// de mémo `(op, nœud, h)` (L3).
+    /// de mémo `(op, nœud, h, version(M))` (L1/L3).
     fn fingerprint(&self) -> u64;
 
     /// Élément initial du canal hérité.
@@ -53,15 +76,14 @@ pub trait Transduction: Send + Sync {
     ) -> Self::S;
 
     /// (T-NODE) restructuration : nœud résultat interné dans le pool de
-    /// sortie à partir des fils déjà transduits `{v ↦ (D', s)}` (A3).
+    /// sortie à partir des fils déjà transduits `{v ↦ (D', s)}` (A3), avec
+    /// lecture de la mémoire de niveau et production d'un effet mémoire
+    /// `μ` (M2-3, spec § 3.1 : `φ_out(ℓ, h, {v ↦ (D', s)}, M) ↦ (n', μ)`).
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        anchor: Anchor,
-        level: Level,
-        h: &Self::H,
-        arcs: BTreeMap<u64, (NodeId, Self::S)>,
-    ) -> NodeId;
+        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, EffetMemoire<Self::M>);
 
     /// (T-TERM) : nœud terminal résultat interné + attribut synthétisé.
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(
@@ -73,24 +95,32 @@ pub trait Transduction: Send + Sync {
     ) -> (NodeId, Self::S);
 }
 
-/// Runner d'une transduction avec sa computed table (mémo L1/L3).
+/// Runner d'une transduction avec sa computed table (mémo L1/L3) et sa
+/// mémoire de niveau (M2-3).
 pub struct Transducteur<T: Transduction> {
     transduction: T,
     memo: HashMap<CleMemo<T::H>, (NodeId, T::S)>,
+    memoire: MemoireNiveau<T::M>,
 }
 
 impl<T: Transduction> Transducteur<T> {
-    /// Runner neuf pour la transduction donnée.
+    /// Runner neuf pour la transduction donnée, mémoire vide (version 0).
     pub fn new(transduction: T) -> Self {
         Transducteur {
             transduction,
             memo: HashMap::new(),
+            memoire: MemoireNiveau::new(),
         }
     }
 
     /// Nombre d'entrées de la mémo (pour les tests : preuve des hits).
     pub fn taille_memo(&self) -> usize {
         self.memo.len()
+    }
+
+    /// Version courante de la mémoire de niveau (L1).
+    pub fn version_memoire(&self) -> u64 {
+        self.memoire.version()
     }
 
     /// Exécute la transduction à la racine, avec l'attribut initial `h0`.
@@ -123,7 +153,12 @@ impl<T: Transduction> Transducteur<T> {
         PIn: Pool<Key = u64, Payload = bool>,
         POut: Pool<Key = u64, Payload = T::Out>,
     {
-        let cle = (self.transduction.fingerprint(), noeud, h.clone());
+        let cle = (
+            self.transduction.fingerprint(),
+            noeud,
+            h.clone(),
+            self.memoire.version(),
+        );
         if let Some((resultat, s)) = self.memo.get(&cle) {
             return Ok((*resultat, s.clone()));
         }
@@ -146,9 +181,16 @@ impl<T: Transduction> Transducteur<T> {
                     s_arcs.insert(arc, (niveau_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
-                let noeud_resultat =
-                    self.transduction
-                        .phi_out(pool_sortie, anchor, level, &h, enfants);
+                let ctx = ContextePhiOut {
+                    anchor,
+                    level,
+                    h: &h,
+                    arcs: enfants,
+                    memoire: &self.memoire,
+                    noeud_entree: noeud,
+                };
+                let (noeud_resultat, effet) = self.transduction.phi_out(pool_sortie, ctx);
+                effet.appliquer(&mut self.memoire);
                 (noeud_resultat, s)
             }
         };
