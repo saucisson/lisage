@@ -7,7 +7,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{
-    ABSENT, Domaine, PRESENT, ReferenceController, Schema, SchemaError, compiler,
+    ABSENT, Domaine, PRESENT, ReferenceController, Schema, SchemaError, compiler, decompiler,
 };
 use lisage_lang::value::{Atom, Value};
 
@@ -140,4 +140,86 @@ fn test_schema_atome() {
             arcs: BTreeMap::from([(2, terminal)]),
         }
     );
+}
+
+/// L'ensemble vide compile vers le terminal d'acceptation ⊤ (chemin vide),
+/// et l'ensemble plein vers la chaîne complète des présences.
+#[test]
+fn test_ensemble_vide_et_plein() {
+    let schema = Schema::Set(domaine(&[0, 1]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let vide = Value::Set(BTreeSet::new());
+    let racine_vide = compiler(&mut pool, anchor, &schema, &vide).unwrap();
+    assert_eq!(pool.resolve(racine_vide).unwrap(), &Form::Terminal(true));
+    let plein = Value::Set(BTreeSet::from([atome(0), atome(1)]));
+    let racine_plein = compiler(&mut pool, anchor, &schema, &plein).unwrap();
+    let terminal = pool.intern(anchor, Form::Terminal(true));
+    let noeud_presence_b = pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(1),
+            arcs: BTreeMap::from([(PRESENT, terminal)]),
+        },
+    );
+    assert_eq!(
+        pool.resolve(racine_plein).unwrap(),
+        &Form::Node {
+            level: Level(0),
+            arcs: BTreeMap::from([(PRESENT, noeud_presence_b)]),
+        }
+    );
+}
+
+/// La validation d'une map distingue la clé hors domaine de la valeur hors
+/// domaine (l'erreur porte l'atome fautif).
+#[test]
+fn test_erreur_valeur_hors_domaine_map() {
+    let schema = Schema::Map(vec![Atom(0)], domaine(&[0, 1]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let map = Value::Map(BTreeMap::from([(atome(0), atome(9))]));
+    let erreur = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
+    assert_eq!(erreur, SchemaError::HorsDomaine(Atom(9)));
+    let map = Value::Map(BTreeMap::from([(atome(7), atome(0))]));
+    let erreur = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
+    assert_eq!(erreur, SchemaError::HorsDomaine(Atom(7)));
+}
+
+/// Round-trip : décompiler(compiler(v)) = v.
+#[test]
+fn test_round_trip() {
+    let schema = Schema::Map(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let map = Value::Map(BTreeMap::from([(atome(0), atome(1))]));
+    let racine = compiler(&mut pool, anchor, &schema, &map).unwrap();
+    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), map);
+
+    let schema = Schema::Set(domaine(&[0, 1, 2]));
+    let mut pool = arena(schema.clone());
+    let ensemble = Value::Set(BTreeSet::from([atome(0), atome(2)]));
+    let racine = compiler(&mut pool, anchor, &schema, &ensemble).unwrap();
+    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), ensemble);
+
+    let schema = Schema::Atom(domaine(&[0, 1]));
+    let mut pool = arena(schema.clone());
+    let racine = compiler(&mut pool, anchor, &schema, &atome(1)).unwrap();
+    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), atome(1));
+}
+
+/// C1 appliqué aux schémas : deux valeurs distinctes compilent vers des
+/// nœuds distincts ; la même valeur compile deux fois vers le même nœud.
+#[test]
+fn test_canonicite_compilation() {
+    let schema = Schema::Set(domaine(&[0, 1]));
+    let mut pool = arena(schema.clone());
+    let anchor = Anchor(0);
+    let a = Value::Set(BTreeSet::from([atome(0)]));
+    let b = Value::Set(BTreeSet::from([atome(1)]));
+    let racine_a1 = compiler(&mut pool, anchor, &schema, &a).unwrap();
+    let racine_a2 = compiler(&mut pool, anchor, &schema, &a).unwrap();
+    let racine_b = compiler(&mut pool, anchor, &schema, &b).unwrap();
+    assert_eq!(racine_a1, racine_a2);
+    assert_ne!(racine_a1, racine_b);
 }

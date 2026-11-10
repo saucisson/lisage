@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M1-3 (3/3) : décompileur (round-trip) + PBT des schémas, clôture de l'issue (feat/10c)
+
+- **Issue**: #10 (M1-3 — Schémas de référence, énoncé Σ).
+- **Done**: `decompiler` dans `lisage-core::schema` (inverse de `compiler`, gère le collapse du domaine à un élément) ; tests unitaires ajoutés (ensemble vide/plein, erreur valeur-vs-clé hors domaine d'une map, round-trip, canonicité C1) ; PBT dans lisage-bench (`schemas.rs`) : round-trip compile→décompile pour Atom/Set/Map aléatoires, et canonicité (valeurs distinctes ⇒ nœuds distincts, même valeur ⇒ même nœud).
+- **Evidence**: `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo nextest run --all-targets` OK (46 tests, 2 ignorés rouges M1-7). Non exécuté : `make check` complet, `cargo audit`, CI réelle avant push.
+- **Judgement calls**: le décompileur gère le cas terminal(true) pour un domaine atomique à un seul élément (R-collapse réduit le nœud au terminal).
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M1-3 (2/3) : module schéma — Atom/Set/Map bornés, compilation balayage d'univers (feat/10b)
 
 - **Issue**: #10 (M1-3 — Schémas de référence, énoncé Σ).
