@@ -48,8 +48,8 @@ One entry per commit or pull request:
 
 - **Issue**: #19 (M2-3 — Mémoire de niveau, énoncé T3).
 - **Done**: `MemoireNiveau<V>` dans `lisage-core::memoire` (clé `(NodeId, Level)`, version incrémentée à chaque écrit, L1) + `EffetMemoire<V>`. `PolitiqueMemoire` (enum `Aucune`/`ParNiveau`) ajouté au trait `Controller` dans lisage-algebra, méthode `politique_memoire()` (défaut `Aucune`). `Transduction` gagne le type associé `M` et `phi_out` reçoit un `ContextePhiOut` (regroupe anchor, level, h, arcs, mémoire, nœud_entrée) et retourne `(NodeId, EffetMemoire<M>)`. Le `Transducteur` porte la mémoire, inclut sa version dans la clé de mémo `(op, nœud, h, version(M))` (L1), applique l'effet après `phi_out`. Les 5 transductions existantes (Pli, Existe, Filtre, Image, Lookup) migrées avec `M = ()`. Tests : stockage/versioning mémoire, effet mémoire, transduction à mémoire qui écrit, politique du contrôleur.
-- **Evidence**: `make check` OK (99 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
-- **Judgement calls**: `ContextePhiOut` plutôt que 8 paramètres (clippy `too_many_arguments`) ; `M = ()` pour les transductions M1 sans mémoire ; la version de la mémoire entre dans la clé de mémo (L1) plutôt qu'une invalidation globale.
+- **Evidence**: `make check` OK (100 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK. Review PR #61 : 1 BLOCKING + 1 TO-FIX corrigés — la lecture mémoire est désormais assertée (compteur de valeurs lues > 0 en seconde passe) et la politique `Aucune` rejette les effets mémoire (`CoreError::MemoireNonAutorisee`, test dédié).
+- **Judgement calls**: `ContextePhiOut` plutôt que 8 paramètres (clippy `too_many_arguments`) ; `M = ()` pour les transductions M1 sans mémoire ; la version de la mémoire entre dans la clé de mémo (L1) ; la politique est appliquée par le runner (`Transducteur::avec_politique`), pas seulement déclarative.
 - **Escalations**: aucune.
 
 ## 2026-11-10 - M2-2 : Tag — union typée, niveau discriminant (C2) (feat/18)

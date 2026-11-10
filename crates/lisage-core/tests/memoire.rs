@@ -61,10 +61,13 @@ fn test_effet_memoire_appliquer() {
     assert_eq!(memoire.version(), 1, "effet vide : pas de bump");
 }
 
-/// Transduction qui écrit dans la mémoire de niveau à chaque visite d'un
-/// nœud : `M[id(n), ℓ] ← h` (l'attribut hérité = profondeur). Utilisée pour
-/// vérifier que φ_out reçoit la mémoire et que l'effet est appliqué.
-struct EcritMemoire;
+/// Transduction qui lit puis écrit dans la mémoire de niveau à chaque visite
+/// d'un nœud : `M[id(n), ℓ] ← h` (l'attribut hérité = profondeur). La valeur
+/// lue (si présente) est accumulée dans un compteur partagé pour prouver que
+/// φ_out observe bien l'état stocké par une visite antérieure.
+struct EcritMemoire {
+    lus: std::sync::Arc<std::sync::atomic::AtomicU64>,
+}
 
 impl Transduction for EcritMemoire {
     type H = u64;
@@ -90,8 +93,11 @@ impl Transduction for EcritMemoire {
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
     ) -> (NodeId, EffetMemoire<u64>) {
         // Lit la mémoire : si une valeur était déjà stockée à ce (nœud, niveau),
-        // elle est visible ici (test : la version a changé entre deux visites).
-        let _lu = ctx.memoire.lire(ctx.noeud_entree, ctx.level);
+        // elle est visible ici et comptabilisée (test : φ_out observe l'état
+        // stocké par une visite antérieure du même nœud).
+        if let Some(v) = ctx.memoire.lire(ctx.noeud_entree, ctx.level) {
+            self.lus.fetch_add(*v, std::sync::atomic::Ordering::SeqCst);
+        }
         // Écrit h dans la mémoire à (noeud_entree, level).
         let effet = EffetMemoire::une(ctx.noeud_entree, ctx.level, *ctx.h);
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
@@ -141,7 +147,11 @@ fn test_transduction_avec_memoire_ecrit() {
         },
     );
 
-    let mut runner = Transducteur::new(EcritMemoire);
+    let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let mut runner = Transducteur::avec_politique(
+        EcritMemoire { lus: lus.clone() },
+        PolitiqueMemoire::ParNiveau,
+    );
     assert_eq!(runner.version_memoire(), 0, "mémoire vide au départ");
     let (resultat, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
     assert_eq!(
@@ -154,6 +164,44 @@ fn test_transduction_avec_memoire_ecrit() {
         runner.version_memoire() >= 2,
         "version bumpée par les effets mémoire (L1), version = {}",
         runner.version_memoire()
+    );
+    // BLOCKING review : la lecture mémoire doit être observée. On exécute une
+    // seconde fois : chaque nœud relit la valeur stockée à la première passe.
+    let (r2, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    assert_eq!(r2, resultat, "mémo hit : même résultat");
+    let total_lus = lus.load(std::sync::atomic::Ordering::SeqCst);
+    assert!(
+        total_lus > 0,
+        "φ_out a observé l'état stocké par une visite antérieure (T3), total lu = {total_lus}"
+    );
+}
+
+/// M2-3 : la politique `Aucune` rejette les effets mémoire (TO-FIX review).
+#[test]
+fn test_politique_aucune_rejette_effet_memoire() {
+    let mut entree = pool();
+    let mut sortie = pool();
+    let anchor = Anchor(0);
+    let vrai = entree.intern(anchor, Form::Terminal(true));
+    let faux = entree.intern(anchor, Form::Terminal(false));
+    // Deux arcs vers des cibles distinctes : pas de R-collapse.
+    let a = entree.intern(
+        anchor,
+        Form::Node {
+            level: Level(0),
+            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+        },
+    );
+    let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    // Politique Aucune (défaut) : l'effet mémoire doit être rejeté.
+    let mut runner = Transducteur::new(EcritMemoire { lus: lus.clone() });
+    let resultat = runner.run(&entree, &mut sortie, anchor, a);
+    assert!(
+        matches!(
+            resultat,
+            Err(lisage_core::error::CoreError::MemoireNonAutorisee)
+        ),
+        "politique Aucune ⇒ effet mémoire rejeté, got {resultat:?}"
     );
 }
 
