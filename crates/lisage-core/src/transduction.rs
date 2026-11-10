@@ -139,7 +139,8 @@ impl<T: Transduction> Transducteur<T> {
                         self.run_avec(pool_entree, pool_sortie, anchor, cible, h_arc)?;
                     let niveau_cible = match pool_entree.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
-                        _ => None,
+                        Ok(Form::Terminal(_)) => None,
+                        Err(erreur) => return Err(erreur.into()),
                     };
                     enfants.insert(arc, (cible_resultat, s_arc.clone()));
                     s_arcs.insert(arc, (niveau_cible, s_arc));
