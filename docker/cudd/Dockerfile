@@ -8,7 +8,10 @@ RUN apt-get update -qq && apt-get install -y -qq \
 
 WORKDIR /opt/cudd
 
-RUN git clone --depth 1 --branch cudd-3.0.0 https://github.com/ivmai/cudd.git .
+# Pin by commit SHA (tag cudd-3.0.0 = fc30c18f8db2e7d03d13241038b61eb0056a734e)
+RUN git clone --depth 1 https://github.com/ivmai/cudd.git . \
+    && git fetch --depth 1 origin fc30c18f8db2e7d03d13241038b61eb0056a734e \
+    && git checkout fc30c18f8db2e7d03d13241038b61eb0056a734e
 
 RUN ./configure --enable-shared --enable-obj --disable-dependency-tracking \
     && make -j"$(nproc)" \

@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - Corrections review PR #57 (2 BLOCKING, 4 TO-FIX) — ADR-0102, PR body #14, assertions 7 formes + SVG, pin SHA CUDD
+
+- **Issue**: #16 (M1-10) et #14 (M1-8), revue de la PR #57.
+- **Done**: BLOCKING 1 — le body de la PR couvre désormais `Closes #14` avec mapping C6 local (ADR-0019). BLOCKING 2 — ADR-0102 créé pour le répertoire top-level `docker/` (témoins externes en conteneurs locaux, hors CI). TO-FIX 1 — nom de test corrigé (`test_sept_formes_contre_r_n`). TO-FIX 2 — assertion explicite que ⊥ n'est pas atteignable depuis R_n (contre-exemple). TO-FIX 3 — le test SVG compare le rendu au fichier commité `bench-results/philosophes-n5.svg`. TO-FIX 4 — CUDD pinné par SHA (`fc30c18f...`) dans le Dockerfile.
+- **Evidence**: `make check` OK (86 tests, 3 ignorés), CI verte sur le head. Non exécuté : re-review formelle (sera relancée après push).
+- **Judgement calls**: les 2 SUGGESTION (eprintln! dans cudd_local, test #[ignore] actuellement rouge) laissées en l'état — non bloquantes.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - Décision M1-8 : CUDD en conteneur Docker local, hors CI (réponse à #14)
 
 - **Issue**: #14 (M1-8 — Témoins BDD, énoncé C6), question escaladée `needs-human`.
