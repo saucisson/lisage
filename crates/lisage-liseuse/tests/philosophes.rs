@@ -141,11 +141,16 @@ fn test_sept_formes_contre_r_n() {
                 Form::Node { arcs, .. } => pile.extend(arcs.values().copied()),
             }
         }
-        // ⊤ est atteignable (R_n est non vide) ; ⊥ est le diagramme de
-        // défaut implicite (R-default), non nécessairement atteignable.
+        // ⊤ est atteignable (R_n est non vide) ; ⊥ ne l'est pas (tout chemin
+        // de R_n mène à l'acceptation). Les deux assertions sont des
+        // contre-exemples : elles échouent si la construction change.
         assert!(
             terminaux_vus.contains(&true),
             "n={n} : le terminal d'acceptation ⊤ est dans R_n"
+        );
+        assert!(
+            !terminaux_vus.contains(&false),
+            "n={n} : le terminal de rejet ⊥ n'est pas atteignable depuis R_n"
         );
 
         // Cardinal du DD == cardinal de l'énumération (test C8) : les deux
@@ -241,5 +246,9 @@ fn test_figure_svg_r5_exportee() {
     let dossier = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
     std::fs::create_dir_all(dossier).expect("création de bench-results");
     let chemin = format!("{dossier}/philosophes-n5.svg");
+    // La figure commitée doit être à jour : un rendu qui diverge échoue ici.
+    if let Ok(commitee) = std::fs::read_to_string(&chemin) {
+        assert_eq!(svg, commitee, "bench-results/philosophes-n5.svg est à jour");
+    }
     std::fs::write(&chemin, &svg).expect("écriture de la figure");
 }
