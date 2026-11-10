@@ -92,6 +92,7 @@ fn forme_schema(schema: &Schema) -> &'static str {
         Schema::Set(_) => "Set",
         Schema::Map(_, _) => "Map",
         Schema::Seq(_, _) => "Seq",
+        Schema::Tag(_, _) => "Tag",
     }
 }
 

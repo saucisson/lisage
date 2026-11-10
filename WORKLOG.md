@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M2-2 : Tag — union typée, niveau discriminant (C2) (feat/18)
+
+- **Issue**: #18 (M2-2 — Tag, énoncé C2).
+- **Done**: `Value::Tag(Atom, Box<Value>)` dans lisage-lang. `Schema::Tag(Vec<Atom>, Domaine)` dans lisage-core : niveau discriminant (un arc = un variant, clé requise) puis niveau valeur. Compilation + décompilation round-trip. Tests : round-trip sur 3 discriminants × 2 valeurs, canonicité + un seul arc utile (C2), erreur discriminant invalide.
+- **Evidence**: `make check` OK (95 tests, 3 ignorés), clippy OK, fmt OK.
+- **Judgement calls**: payload restreint à un atome (domaine borné) — les variants à payload structuré sont M5.
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M2-1 : Seq et compilation par positions (T5) (feat/17)
 
 - **Issue**: #17 (M2-1 — Seq et ses deux compilations, énoncé T5).
