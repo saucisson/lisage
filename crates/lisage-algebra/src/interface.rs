@@ -104,10 +104,7 @@ pub trait Controller: Send + Sync {
 
     /// R-collapse (spec § 2.3) : si tous les arcs d'un nœud mènent à la même
     /// cible, la forme se réduit à cette cible. Fonction pure, testée par PBT.
-    fn collapse<Key>(arcs: &BTreeMap<Key, NodeId>) -> Option<NodeId>
-    where
-        Key: Ord,
-    {
+    fn collapse(arcs: &BTreeMap<Self::Key, NodeId>) -> Option<NodeId> {
         let mut target: Option<NodeId> = None;
         for child in arcs.values() {
             match target {

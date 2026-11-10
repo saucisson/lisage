@@ -5,4 +5,4 @@
 
 pub mod error;
 
-pub use error::LangError;
+pub use error::{KeyName, LangError};
