@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - Budget PR relevé à ~1 000 lignes (fix/budget-pr-1000, ADR-0101)
+
+- **Issue**: aucune (décision humaine directe, 2026-11-10 : « la règle des 500 lignes semble avoir posé plusieurs fois problème. Augmente la limite à 1.000 lignes. »).
+- **Done**: la limite de taille des pull requests passe de ~500 à ~1 000 lignes changées dans tous les fichiers qui la portaient : `AGENTS.md`, `docs/review-checklist.md`, `docs/agents/developer.md`, `docs/agents/orchestration.md`, `docs/branching.md`, ADR-0019, `.vibe/prompts/night-issue.md`, `.vibe/prompts/night-auto.md`. ADR-0101 trace la décision (acceptée, décision humaine directe).
+- **Evidence**: `grep -rn "500"` sur les fichiers concernés : plus aucune occurrence. `make check` exécuté après le commit.
+- **Judgement calls**: la décision émane directement de l'humain (prioritaire sur AGENTS.md dans la hiérarchie des instructions) ; un ADR (0101) est inclus plutôt qu'un simple commentaire, la décision valant ADR.
+- **Escalations**: aucune (la décision humaine elle-même est l'autorisation).
+
 ## 2026-11-10 - M1-6 (2/2) : corrections de review PR #53 — erreurs typées aux frontières (feat/13b, 572edb5)
 
 - **Issue**: #13 (M1-6), revue de la PR #53 (1 BLOCKING, 1 TO-FIX, 2 SUGGESTION).
