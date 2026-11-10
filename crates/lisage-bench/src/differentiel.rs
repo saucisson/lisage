@@ -8,11 +8,12 @@
 
 use std::collections::BTreeSet;
 
+use lisage_lang::interpreter;
 use lisage_lang::value::Value;
 
-/// Voie A (référence) : factice dans ce commit (tests rouges écrits d'abord).
-pub fn voie_a_count(_ensemble: &BTreeSet<Value>) -> u64 {
-    0
+/// Voie A (référence) : comptage ensembliste explicite, source de vérité.
+pub fn voie_a_count(ensemble: &BTreeSet<Value>) -> u64 {
+    interpreter::count(ensemble)
 }
 
 /// Voie B (DD ordre fixe) : factice tant que le cœur M1-1..M1-6 n'existe pas.
