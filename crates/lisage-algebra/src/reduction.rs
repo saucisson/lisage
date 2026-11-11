@@ -140,7 +140,8 @@ pub fn reduire_dabs<Key: Ord + Clone>(
         None => arcs,
     };
     // (D-trans) : A = ∅ après absorption → D^déf (nœud transparent).
-    if arcs.is_empty() {
+    // Inactif sans clé de défaut : les arcs absents ne vaudraient pas D^déf.
+    if arcs.is_empty() && cle_defaut.is_some() {
         return match cible_defaut {
             Some(cible) => Reduction::Collapse(cible),
             None => Reduction::Forme(arcs),
