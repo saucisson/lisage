@@ -77,6 +77,16 @@ pub const LEGENDE_CANAUX: &[(CanalAttr, &str, &str)] = &[
 
 /// Hauteur réservée à la légende en pixels (une ligne par canal).
 const HAUTEUR_LEGENDE: u32 = 18;
+/// Largeur de la colonne de légende en pixels.
+const LARGEUR_LEGENDE: u32 = 220;
+/// Taille du pavé de couleur d'un canal en pixels.
+const TAILLE_PAVE_LEGENDE: u32 = 12;
+/// Décalage horizontal entre le pavé et son étiquette en pixels.
+const DECALAGE_ETIQUETTE_LEGENDE: u32 = 18;
+/// Décalage vertical du pavé par rapport à la ligne de texte en pixels.
+const DECALAGE_PAVE_LEGENDE: u32 = 10;
+/// Marge entre le diagramme et la colonne de légende en pixels.
+const MARGE_LEGENDE: u32 = 20;
 
 /// Rend la légende des canaux en fragment SVG (un pavé coloré + une étiquette
 /// par canal, auto-générée depuis [`LEGENDE_CANAUX`]).
@@ -85,12 +95,12 @@ pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
     for (index, (_canal, etiquette, couleur)) in LEGENDE_CANAUX.iter().enumerate() {
         let ligne_y = y + index as u32 * HAUTEUR_LEGENDE;
         svg.push_str(&format!(
-            "<rect x=\"{x}\" y=\"{}\" width=\"12\" height=\"12\" fill=\"{couleur}\"/>\n",
-            ligne_y - 10
+            "<rect x=\"{x}\" y=\"{}\" width=\"{TAILLE_PAVE_LEGENDE}\" height=\"{TAILLE_PAVE_LEGENDE}\" fill=\"{couleur}\"/>\n",
+            ligne_y - DECALAGE_PAVE_LEGENDE
         ));
         svg.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>\n",
-            x + 18,
+            x + DECALAGE_ETIQUETTE_LEGENDE,
             ligne_y,
             theme.police,
             theme.taille_legende,
@@ -114,7 +124,7 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     let (placement, nombre_niveaux) = placer(pool, racine);
     let largeur_diagramme =
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
-    let largeur_legende = if avec_legende { 220 } else { 0 };
+    let largeur_legende = if avec_legende { LARGEUR_LEGENDE } else { 0 };
     let largeur = largeur_diagramme + largeur_legende;
     let hauteur_legende = LEGENDE_CANAUX.len() as u32 * HAUTEUR_LEGENDE;
     let hauteur =
@@ -137,8 +147,8 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     if avec_legende {
         svg.push_str(&rendre_legende_svg(
             theme,
-            largeur_diagramme + 20,
-            MARGE_HAUT + 10,
+            largeur_diagramme + MARGE_LEGENDE,
+            MARGE_HAUT + DECALAGE_PAVE_LEGENDE,
         ));
     }
     svg.push_str("</svg>\n");
