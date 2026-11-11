@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, PolitiqueMemoire};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::compter;
+use lisage_core::pli::{compter, union};
 use lisage_core::saturate::{ParametresSaturation, PolitiqueSaturation, saturer};
 use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler, decompiler};
 use lisage_core::transduction::Transducteur;
@@ -23,11 +23,6 @@ fn schema_map() -> Schema {
         vec![Atom(0), Atom(1), Atom(2)],
         Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2), Atom(3)]),
     )
-}
-
-/// Domaine des valeurs du schéma de test.
-fn domaine() -> Domaine {
-    Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2), Atom(3)])
 }
 
 fn nouveau_pool(schema: &Schema) -> PoolRef {
@@ -91,7 +86,7 @@ fn test_transfert_a_vers_b_non_adjacent() {
     let mut pool = nouveau_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0), (2, 1)]);
 
-    let transfert = TransfertNonLocal::new(0, 1, domaine());
+    let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
@@ -111,7 +106,7 @@ fn test_transfert_sans_unite() {
     let mut pool = nouveau_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);
 
-    let transfert = TransfertNonLocal::new(0, 1, domaine());
+    let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
@@ -128,7 +123,7 @@ fn test_transfert_memoire_et_largeur() {
     let mut pool = nouveau_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0)]);
 
-    let transfert = TransfertNonLocal::new(0, 1, domaine());
+    let transfert = TransfertNonLocal::new(&schema, 0, 1);
     assert_eq!(transfert.largeur(), LARGEUR_TRANSFERT);
     let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
     let _ = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
@@ -152,7 +147,7 @@ fn test_transfert_destination_hors_domaine() {
     // m(a) = 2, m(b) = 3 = max du domaine {0,1,2,3}.
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 3)]);
 
-    let transfert = TransfertNonLocal::new(0, 1, domaine());
+    let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
@@ -178,7 +173,7 @@ fn test_transfert_sous_saturate_termine() {
     let mut pool = nouveau_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0)]);
 
-    let transfert = TransfertNonLocal::new(0, 1, Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
+    let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let niveaux: Vec<lisage_algebra::interface::Level> = (0..schema.nombre_niveaux())
         .map(lisage_algebra::interface::Level)
         .collect();
@@ -198,5 +193,57 @@ fn test_transfert_sous_saturate_termine() {
         cardinal(&pool, &schema, resultat.noeud),
         3,
         "famille des trois états atteints"
+    );
+}
+
+/// M2-5, régression : collision de clés au remap `v → v-1` sur un nœud
+/// `val(a)` multi-arcs (famille produite par union) — les deux sous-arbres
+/// doivent être **unionés**, pas écrasés. Famille {{a:0,b:0}, {a:1,b:0}} :
+/// le transfert donne {{a:0,b:0}, {a:0,b:1}} (cardinal 2, pas 1).
+#[test]
+fn test_transfert_collision_source_union() {
+    let schema = Schema::Map(
+        vec![Atom(0), Atom(1)],
+        Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]),
+    );
+    let keys = SchemaKeys::new(schema.clone());
+    let anchor = Anchor(0);
+    let mut pool = nouveau_pool(&schema);
+    let m1 = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 0)]);
+    let m2 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (1, 0)]);
+    let famille = union(&mut pool, &keys, anchor, m1, m2).unwrap();
+    assert_eq!(cardinal(&pool, &schema, famille), 2);
+
+    let transfert = TransfertNonLocal::new(&schema, 0, 1);
+    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
+    assert_eq!(
+        cardinal(&pool, &schema, resultat),
+        2,
+        "collision v→v-1 : les deux membres de la famille sont conservés"
+    );
+}
+
+/// M2-5, régression : collision au remap `u → u+1` sur un nœud `val(b)`
+/// multi-arcs — arc 2 → clé 3 et arc 3 (hors domaine, conservé) → clé 3.
+/// Famille {{a:1,b:2}, {a:2,b:3}} → {{a:0,b:3}, {a:1,b:3}} (cardinal 2).
+#[test]
+fn test_transfert_collision_destination_union() {
+    let schema = schema_map();
+    let keys = SchemaKeys::new(schema.clone());
+    let anchor = Anchor(0);
+    let mut pool = nouveau_pool(&schema);
+    let m1 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (1, 2)]);
+    let m2 = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 3)]);
+    let famille = union(&mut pool, &keys, anchor, m1, m2).unwrap();
+    assert_eq!(cardinal(&pool, &schema, famille), 2);
+
+    let transfert = TransfertNonLocal::new(&schema, 0, 1);
+    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
+    assert_eq!(
+        cardinal(&pool, &schema, resultat),
+        2,
+        "collision u→u+1 : les deux membres de la famille sont conservés"
     );
 }

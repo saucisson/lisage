@@ -90,11 +90,10 @@ proptest! {
         let mut pool = nouveau_pool(&schema);
         let initial = compiler_map(&mut pool, anchor, &schema, &entrees);
 
-        let domaine = Domaine::nouveau((0..TAILLE_DOMAINE).map(Atom).collect());
         let transfert = TransfertNonLocal::new(
+            &schema,
             usize::try_from(source).unwrap(),
             usize::try_from(destination).unwrap(),
-            domaine,
         );
         let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
         let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
