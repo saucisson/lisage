@@ -20,13 +20,13 @@ fn pgcd(mut a: u64, mut b: u64) -> u64 {
 }
 
 /// Rationnel exact, normalisé (dénominateur strictement positif) :
-/// arithmétique exacte par défaut (roadmap § 10, décision M5-4).
+/// arithmétique exacte par défaut (roadmap § 10, décision M5-4). Champs
+/// privés : seul [`Rationnel::nouveau`] construit, l'invariant `den > 0`
+/// ne peut pas être contourné par un littéral.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Rationnel {
-    /// Numérateur.
-    pub num: u64,
-    /// Dénominateur (> 0).
-    pub den: u64,
+    num: u64,
+    den: u64,
 }
 
 impl Rationnel {
@@ -48,6 +48,16 @@ impl Rationnel {
             num: valeur,
             den: 1,
         }
+    }
+
+    /// Numérateur (après normalisation).
+    pub fn num(&self) -> u64 {
+        self.num
+    }
+
+    /// Dénominateur (> 0).
+    pub fn den(&self) -> u64 {
+        self.den
     }
 
     /// Produit de deux rationnels (saturé en cas de dépassement).
@@ -87,18 +97,15 @@ impl std::fmt::Display for ErreurOracle {
 
 impl std::error::Error for ErreurOracle {}
 
-/// Paramètres d'entrée du modèle prédictif (M3-3). Construire par
-/// [`ParametresOracle::nouveau`] : la densité y est validée dans [0, 1].
+/// Paramètres d'entrée du modèle prédictif (M3-3). Champs privés : seul
+/// [`ParametresOracle::nouveau`] construit, la densité y est validée dans
+/// [0, 1] et ne peut pas être contournée par un littéral.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ParametresOracle {
-    /// Taille du domaine : nombre de clés balayées.
-    pub taille_domaine: u64,
-    /// Densité attendue : fraction des clés présentes, dans [0, 1].
-    pub densite_attendue: Rationnel,
-    /// Coût d'encodage : coût d'un niveau selon l'encodage du royaume.
-    pub cout_encodage: u64,
-    /// Nombre de requêtes aval prévues sur le diagramme.
-    pub requetes_aval: u64,
+    taille_domaine: u64,
+    densite_attendue: Rationnel,
+    cout_encodage: u64,
+    requetes_aval: u64,
 }
 
 impl ParametresOracle {
@@ -120,6 +127,26 @@ impl ParametresOracle {
             cout_encodage,
             requetes_aval,
         })
+    }
+
+    /// Taille du domaine : nombre de clés balayées.
+    pub fn taille_domaine(&self) -> u64 {
+        self.taille_domaine
+    }
+
+    /// Densité attendue (validée dans [0, 1]).
+    pub fn densite_attendue(&self) -> Rationnel {
+        self.densite_attendue
+    }
+
+    /// Coût d'encodage : coût d'un niveau selon l'encodage du royaume.
+    pub fn cout_encodage(&self) -> u64 {
+        self.cout_encodage
+    }
+
+    /// Nombre de requêtes aval prévues sur le diagramme.
+    pub fn requetes_aval(&self) -> u64 {
+        self.requetes_aval
     }
 }
 
