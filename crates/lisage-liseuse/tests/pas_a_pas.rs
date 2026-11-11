@@ -15,7 +15,7 @@ use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, comp
 use lisage_core::transduction::Transducteur;
 use lisage_core::{Anchor, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
-use lisage_liseuse::pas_a_pas::{DiffTrace, Scrubber, legende_canaux, rendre_svg_pas_a_pas};
+use lisage_liseuse::pas_a_pas::{DiffTrace, Scrubber, diff, legende_canaux, rendre_svg_pas_a_pas};
 use lisage_liseuse::trace::{TRACE_VERSION, serialiser_evenement};
 
 type PoolRef = Arena<ReferenceController>;
@@ -392,4 +392,68 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     // Déterminisme.
     let svg2 = rendre_svg_pas_a_pas(&pool, racine, &scrubber, &diff_vide);
     assert_eq!(svg, svg2, "rendu déterministe");
+}
+
+/// Propriété du scrubber (générateur LCG déterministe, sans proptest) :
+/// le replay est monotone par préfixe (l'état à k est inclus dans l'état à
+/// k+1 pour les nœuds et les compteurs) et le diff est antisymétrique
+/// (`diff(a→b).ajoutes == diff(b→a).fantomes` et inversement).
+#[test]
+fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
+    const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+    const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
+    const INCREMENT_LCG: u64 = 1442695040888963407;
+
+    let mut graine = GRAINE_LCG;
+    let mut suivant = move || {
+        graine = graine
+            .wrapping_mul(MULTIPLICATEUR_LCG)
+            .wrapping_add(INCREMENT_LCG);
+        graine >> 33
+    };
+
+    for _cas in 0..50 {
+        let longueur = 1 + (suivant() % 40) as usize;
+        let evenements: Vec<TraceEvent> = (0..longueur)
+            .map(|_| {
+                let noeud = NodeId(1 + (suivant() % 6) as u32);
+                match suivant() % 5 {
+                    0 => TraceEvent::NodeCreated {
+                        node: noeud,
+                        level: None,
+                    },
+                    1 => TraceEvent::Attr {
+                        canal: CanalAttr::Herite,
+                        noeud,
+                        valeur: "x".to_string(),
+                    },
+                    2 => TraceEvent::MemoHit { noeud },
+                    3 => TraceEvent::MemoMiss { noeud },
+                    _ => TraceEvent::Round {
+                        numero: 1 + (suivant() % 3) as u32,
+                    },
+                }
+            })
+            .collect();
+        let mut scrubber = Scrubber::new(evenements);
+        let mut precedent = scrubber.etat();
+        for position in 1..=scrubber.longueur() {
+            scrubber.aller_a(position);
+            let etat = scrubber.etat();
+            assert!(
+                precedent.noeuds.iter().all(|n| etat.noeuds.contains(n)),
+                "monotonie des nœuds à la position {position}"
+            );
+            assert!(precedent.memo_hits <= etat.memo_hits);
+            assert!(precedent.memo_misses <= etat.memo_misses);
+            assert!(precedent.rounds <= etat.rounds);
+            assert!(precedent.attributs.len() <= etat.attributs.len());
+            // Antisymétrie du diff entre positions k-1 et k.
+            let diff_avant = diff(&precedent, &etat);
+            let diff_arriere = diff(&etat, &precedent);
+            assert_eq!(diff_avant.ajoutes, diff_arriere.fantomes);
+            assert_eq!(diff_avant.fantomes, diff_arriere.ajoutes);
+            precedent = etat;
+        }
+    }
 }
