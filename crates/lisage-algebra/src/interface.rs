@@ -123,6 +123,16 @@ pub trait Controller: Send + Sync {
     fn politique_memoire(&self) -> PolitiqueMemoire {
         PolitiqueMemoire::Aucune
     }
+
+    /// Groupe de transformations de clés désigné par le contrôleur (M4-2,
+    /// spec § 2.4.5) : normalise les formes modulo G par section canonique
+    /// des orbites, l'argument vivant sur l'arc entrant. `None` par défaut
+    /// : pas de formes relatives (M1, encodage absolu).
+    fn groupe_cles(
+        &self,
+    ) -> Option<&dyn crate::relatif::GroupeCles<Cle = Self::Key, Argument = i64>> {
+        None
+    }
 }
 
 /// Pool : port « stocker / récupérer un nœud par clé », implémenté par
