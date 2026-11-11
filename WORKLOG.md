@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M3-3 : Oracle de rentabilité analytique — modèle prédictif (domaine, densité, coût d'encodage, requêtes aval) + garde-fou différentiel (C4) (feat/25)
+
+- **Issue**: #25 (M3-3 — Oracle de rentabilité analytique, énoncé C4).
+- **Done**: `lisage-plan::oracle` : `Rationnel` exact normalisé (pgcd, arithmétique exacte par défaut, roadmap § 10) ; `ParametresOracle { taille_domaine, densite_attendue, cout_encodage, requetes_aval }` ; `Oracle::predire` — modèle `taille = 1 + n·d` nœuds (chaîne du set aléatoire + terminal en balayage d'univers), `coût total = taille × coût_encodage × requêtes_aval` (saturé) ; `Oracle::garde_fou` — **garde-fou par différentiel** : verdict conforme si la mesure tient dans [prédit/2, 2 × prédit] (`BORNE_INFERIEURE`/`BORNE_SUPERIEURE`), hors bornes le modèle est falsifié (C4). 4 tests : rationnel, prédiction (densités 0, 1/2, 1), garde-fou (bornes incluses/exclues, ratio exact), propriété LCG (monotonie en densité et requêtes, conformité mesure = prédiction).
+- **Evidence**: `make check` OK (137 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
+- **Judgement calls**: le modèle prédit la taille d'un set aléatoire en balayage d'univers (chaîne de n·d nœuds) — c'est le premier modèle, volontairement simple et falsifiable par le garde-fou différentiel plutôt que précis ; la densité est un rationnel exact (pas de f64) conformément à la décision « exact par défaut » ; le facteur de conformité [1/2, 2] est une constante nommée, calibrée arbitrairement à ce stade (à mesurer sur le corpus MCC en M5-2).
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M3-2 : Conversions — réordonner = convertir en transpositions adjacentes à coût prévisible, contrat typé étendu aux encodages (royaumes) (C3) (feat/24)
 
 - **Issue**: #24 (M3-2 — Conversions, énoncé C3, spec § 2.4.3 / § 10 Q1).
