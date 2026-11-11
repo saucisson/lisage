@@ -98,6 +98,10 @@ fn test_pgf_autonome_avec_noeuds_et_arcs() {
     // Échappement LaTeX du titre.
     let pgf_echappe = rendre_pgf(&pool, racine, "100% _special_");
     assert!(pgf_echappe.contains("100\\% \\_special\\_"));
+    // Régression : le backslash doit être échappé en dernier, sinon les
+    // accolades de `\textbackslash{}` sont ré-échappées.
+    let pgf_backslash = rendre_pgf(&pool, racine, "a\\b");
+    assert!(pgf_backslash.contains("a\\textbackslash{}b"));
 }
 
 /// Le canal `CanalAttr` couvert par la légende est bien celui de l'observateur.
