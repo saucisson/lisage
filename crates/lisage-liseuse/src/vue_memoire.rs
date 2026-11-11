@@ -26,6 +26,26 @@ const COULEUR_BARRE_NEUTRE: &str = "#999";
 const COULEUR_BARRE_LISAGE: &str = "#2a7";
 /// Couleur du badge de multiplicité.
 const COULEUR_BADGE: &str = "#c60";
+/// Décalage vertical entre panneaux en pixels.
+const DECALAGE_PANNEAU: u32 = 24;
+/// Hauteur réservée au titre en pixels.
+const HAUTEUR_TITRE: u32 = 40;
+/// Marge basse en pixels.
+const MARGE_BAS: u32 = 20;
+/// Largeur du panneau de comparaison au-delà de la barre max, en pixels.
+const LARGEUR_PANNEAU: u32 = 120;
+/// Position verticale du premier panneau en pixels.
+const Y_PREMIER_PANNEAU: u32 = 44;
+/// Décalage horizontal du badge ×k dans une ligne de classe, en pixels.
+const DECALAGE_BADGE: u32 = 220;
+/// Hauteur intérieure d'une barre de comparaison en pixels.
+const HAUTEUR_BARRE_INTERIEURE: u32 = 14;
+/// Décalage horizontal des barres après le libellé, en pixels.
+const DECALAGE_BARRE: u32 = 60;
+/// Décalage vertical du rectangle de barre sous la ligne de texte, en pixels.
+const DECALAGE_TEXTE_BARRE: u32 = 12;
+/// Décalage horizontal de la valeur après la barre, en pixels.
+const DECALAGE_VALEUR: u32 = 6;
 
 /// Badge de multiplicité : un handle et combien de réplicas positionnels
 /// il représente (badge ×k affiché quand k > 1).
@@ -61,6 +81,16 @@ pub struct VuePool {
     pub vivants_principal: u64,
     /// Vivants du plan d'ombre.
     pub vivants_ombre: u64,
+}
+
+impl ClasseQuotient {
+    /// Badge de multiplicité de la classe (handle = « forme @ ancre »).
+    pub fn badge(&self) -> BadgeMultiplicite {
+        BadgeMultiplicite {
+            handle: format!("{} @ {}", self.forme, self.ancre),
+            multiplicite: self.multiplicite,
+        }
+    }
 }
 
 impl VuePool {
@@ -109,11 +139,11 @@ pub fn rendre_svg_vue_memoire(
     classes: &[ClasseQuotient],
     comparaison: &ComparaisonVue,
 ) -> String {
-    let hauteur_pools = pools.len() as u32 * HAUTEUR_LIGNE_POOL + 24;
-    let hauteur_classes = classes.len() as u32 * HAUTEUR_LIGNE_CLASSE + 24;
-    let hauteur_comparaison = 3 * HAUTEUR_BARRE + 24;
-    let hauteur = 40 + hauteur_pools + hauteur_classes + hauteur_comparaison + 20;
-    let largeur = MARGE_GAUCHE * 2 + LARGEUR_BARRE_MAX + 120;
+    let hauteur_pools = pools.len() as u32 * HAUTEUR_LIGNE_POOL + DECALAGE_PANNEAU;
+    let hauteur_classes = classes.len() as u32 * HAUTEUR_LIGNE_CLASSE + DECALAGE_PANNEAU;
+    let hauteur_comparaison = 3 * HAUTEUR_BARRE + DECALAGE_PANNEAU;
+    let hauteur = HAUTEUR_TITRE + hauteur_pools + hauteur_classes + hauteur_comparaison + MARGE_BAS;
+    let largeur = MARGE_GAUCHE * 2 + LARGEUR_BARRE_MAX + LARGEUR_PANNEAU;
     let mut svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
     );
@@ -121,26 +151,26 @@ pub fn rendre_svg_vue_memoire(
         "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"{TAILLE_TITRE}\">vue mémoire et quotient</text>\n"
     ));
     // Panneau des pools.
-    let mut y = 44u32;
+    let mut y = Y_PREMIER_PANNEAU;
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">pools (plan principal / ombre, GC)</text>\n"
     ));
     for pool in pools {
         y += HAUTEUR_LIGNE_POOL;
-        let m = &pool.metriques;
+        let metriques = &pool.metriques;
         svg.push_str(&format!(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{} : vivants={}/{} morts={} gc={} compactions={} hit={}%</text>\n",
             pool.nom,
             pool.vivants_principal,
             pool.vivants_ombre,
-            m.morts,
-            m.gc,
-            m.compactions,
-            m.taux_hit()
+            metriques.morts,
+            metriques.gc,
+            metriques.compactions,
+            metriques.taux_hit()
         ));
     }
     // Panneau des classes du quotient.
-    y += 24;
+    y += DECALAGE_PANNEAU;
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">classes du quotient (formes × ancres)</text>\n"
     ));
@@ -150,16 +180,17 @@ pub fn rendre_svg_vue_memoire(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{} @ {}</text>\n",
             classe.forme, classe.ancre
         ));
-        if classe.multiplicite > 1 {
+        let badge = classe.badge();
+        if badge.multiplicite > 1 {
             svg.push_str(&format!(
                 "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\" fill=\"{COULEUR_BADGE}\">×{}</text>\n",
-                MARGE_GAUCHE + 220,
-                classe.multiplicite
+                MARGE_GAUCHE + DECALAGE_BADGE,
+                badge.multiplicite
             ));
         }
     }
     // Barres de comparaison naïf/DD/Lisage.
-    y += 24;
+    y += DECALAGE_PANNEAU;
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">comparaison naïf / DD / Lisage (nœuds vivants)</text>\n"
     ));
@@ -175,13 +206,13 @@ pub fn rendre_svg_vue_memoire(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{libelle}</text>\n"
         ));
         svg.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{largeur}\" height=\"14\" fill=\"{couleur}\"/>\n",
-            MARGE_GAUCHE + 60,
-            y - 12
+            "<rect x=\"{}\" y=\"{}\" width=\"{largeur}\" height=\"{HAUTEUR_BARRE_INTERIEURE}\" fill=\"{couleur}\"/>\n",
+            MARGE_GAUCHE + DECALAGE_BARRE,
+            y - DECALAGE_TEXTE_BARRE
         ));
         svg.push_str(&format!(
             "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{compte}</text>\n",
-            MARGE_GAUCHE + 60 + largeur + 6
+            MARGE_GAUCHE + DECALAGE_BARRE + largeur + DECALAGE_VALEUR
         ));
     }
     svg.push_str("</svg>\n");
