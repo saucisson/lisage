@@ -63,12 +63,16 @@ impl Intervalle {
         self.borne_inf > self.borne_sup
     }
 
-    /// Nombre de points de l'intervalle (0 si vide).
+    /// Nombre de points de l'intervalle (0 si vide) ; saturé à `u64::MAX`
+    /// pour `Intervalle::nouveau(0, u64::MAX)` (le constructeur public
+    /// accepte toute paire de `u64`).
     pub fn taille(&self) -> u64 {
         if self.est_vide() {
             0
         } else {
-            self.borne_sup - self.borne_inf + 1
+            self.borne_sup
+                .saturating_sub(self.borne_inf)
+                .saturating_add(1)
         }
     }
 
