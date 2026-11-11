@@ -1,4 +1,6 @@
-//! Arena : pool hash-consé, implémentation du port `Pool` (M1-1).
+//! Arena : pool hash-consé bi-plan, implémentation du port `Pool` (M1-1,
+//! M4-1). Plans principal et d'ombre (spec § 10 Q7), GC mark-and-sweep avec
+//! compaction profilée, métriques de cache.
 //!
 //! Hash-consing à clé (contrôleur, ancre, forme) : R-share est la table
 //! unique. À la création du handle, les réductions du contrôleur s'appliquent
@@ -8,8 +10,9 @@ use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 use lisage_algebra::reduction::{Reduction, reduire};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+use crate::biplan::{EntreeNoeud, IndexNiveaux, MetriquesPool, Plan, StatsGc, seuil_atteint};
 use crate::observer::{Observer, ReductionRule, TraceEvent};
 
 /// Clé du hash-consing : (contrôleur, ancre, forme).
@@ -19,8 +22,13 @@ type CleInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
 /// Détient l'instance de contrôleur : son algèbre de clés (paramétrée par le
 /// schéma, M1-3) décide des formes normales, cardinalités et défauts.
 pub struct Arena<C: Controller> {
-    nodes: Vec<Form<C::Key, C::Payload>>,
+    nodes: Vec<EntreeNoeud<C::Key, C::Payload>>,
     unique: HashMap<CleInterning<C::Key, C::Payload>, NodeId>,
+    /// Index du plan d'ombre : niveau → nœuds vivants de ce niveau.
+    index_niveaux: IndexNiveaux,
+    metriques: MetriquesPool,
+    /// Table de remapping de la dernière compaction (vide sinon).
+    remap: Vec<Option<NodeId>>,
     observer: Box<dyn Observer>,
     controleur: C,
 }
@@ -31,6 +39,9 @@ impl<C: Controller> Arena<C> {
         Arena {
             nodes: Vec::new(),
             unique: HashMap::new(),
+            index_niveaux: IndexNiveaux::new(),
+            metriques: MetriquesPool::default(),
+            remap: Vec::new(),
             observer,
             controleur,
         }
@@ -41,9 +52,144 @@ impl<C: Controller> Arena<C> {
         &self.controleur
     }
 
-    /// Internement d'un terminal à payload.
+    /// Internement d'un terminal à payload (plan principal).
     pub fn terminal(&mut self, anchor: Anchor, payload: C::Payload) -> NodeId {
         self.intern(anchor, Form::Terminal(payload))
+    }
+
+    /// Internement dans un plan donné (principal par défaut via `intern`).
+    pub fn intern_plan(
+        &mut self,
+        anchor: Anchor,
+        form: Form<C::Key, C::Payload>,
+        plan: Plan,
+    ) -> NodeId {
+        let node = self.intern(anchor, form);
+        if let Some(entree) = self.nodes.get_mut(node.0 as usize) {
+            entree.plan = plan;
+        }
+        node
+    }
+
+    /// Plan d'un nœud vivant.
+    pub fn plan_de(&self, node: NodeId) -> Option<Plan> {
+        self.nodes
+            .get(node.0 as usize)?
+            .forme
+            .as_ref()
+            .map(|_| self.nodes[node.0 as usize].plan)
+    }
+
+    /// Nœuds vivants d'un niveau (index du plan d'ombre).
+    pub fn index_niveau(&self, level: Level) -> &BTreeSet<NodeId> {
+        static VIDE: std::sync::LazyLock<BTreeSet<NodeId>> =
+            std::sync::LazyLock::new(BTreeSet::new);
+        self.index_niveaux.get(&level).unwrap_or(&VIDE)
+    }
+
+    /// Métriques du pool (cache + GC).
+    pub fn metriques(&self) -> MetriquesPool {
+        self.metriques
+    }
+
+    /// Table de remapping de la dernière compaction : `remap[ancien] =
+    /// nouveau` (`None` si l'ancien nœud était une tombstone). Vide si la
+    /// dernière GC n'a pas compacté.
+    pub fn dernier_remap(&self) -> &[Option<NodeId>] {
+        &self.remap
+    }
+
+    /// Nombre de nœuds vivants.
+    pub fn vivants(&self) -> usize {
+        self.nodes.iter().filter(|e| e.forme.is_some()).count()
+    }
+
+    /// GC mark-and-sweep depuis les racines données : les nœuds non atteints
+    /// deviennent des tombstones (retirés de la table unique et de l'index) ;
+    /// si le seuil de morts est atteint, compaction profilée avec table de
+    /// remapping des `NodeId`.
+    pub fn gc(&mut self, racines: &[NodeId]) -> StatsGc {
+        let mut atteints = BTreeSet::new();
+        let mut pile: Vec<NodeId> = racines.to_vec();
+        while let Some(node) = pile.pop() {
+            if !atteints.insert(node) {
+                continue;
+            }
+            if let Some(EntreeNoeud {
+                forme: Some(Form::Node { arcs, .. }),
+                ..
+            }) = self.nodes.get(node.0 as usize)
+            {
+                pile.extend(arcs.values().copied());
+            }
+        }
+        let total = self.nodes.len() as u64;
+        let mut collectes = 0u64;
+        for (index, entree) in self.nodes.iter_mut().enumerate() {
+            if entree.forme.is_some() && !atteints.contains(&NodeId(index as u32)) {
+                entree.forme = None;
+                collectes += 1;
+            }
+        }
+        // Retrait des tombstones de la table unique et de l'index d'ombre.
+        self.unique
+            .retain(|_, node| self.nodes[node.0 as usize].forme.is_some());
+        for ensemble in self.index_niveaux.values_mut() {
+            ensemble.retain(|node| self.nodes[node.0 as usize].forme.is_some());
+        }
+        let vivants = total - collectes;
+        let compaction = seuil_atteint(collectes, total);
+        if compaction {
+            self.remap = self.compacter();
+        } else {
+            self.remap.clear();
+        }
+        self.metriques.gc += 1;
+        self.metriques.vivants = vivants;
+        self.metriques.morts += collectes;
+        if compaction {
+            self.metriques.compactions += 1;
+        }
+        let stats = StatsGc {
+            vivants,
+            collectes,
+            compaction,
+        };
+        self.observer.on_event(&TraceEvent::Gc {
+            vivants,
+            collectes,
+            compaction,
+        });
+        stats
+    }
+
+    /// Compaction : reconstruit le vecteur des nœuds sans tombstones et
+    /// remappe les `NodeId` (table de remapping retournée).
+    pub fn compacter(&mut self) -> Vec<Option<NodeId>> {
+        self.remap.clear();
+        let mut remap: Vec<Option<NodeId>> = Vec::with_capacity(self.nodes.len());
+        let mut nouveaux: Vec<EntreeNoeud<C::Key, C::Payload>> = Vec::new();
+        for entree in self.nodes.drain(..) {
+            if entree.forme.is_some() {
+                remap.push(Some(NodeId(nouveaux.len() as u32)));
+                nouveaux.push(entree);
+            } else {
+                remap.push(None);
+            }
+        }
+        self.nodes = nouveaux;
+        for node in self.unique.values_mut() {
+            if let Some(Some(nouveau)) = remap.get(node.0 as usize) {
+                *node = *nouveau;
+            }
+        }
+        for ensemble in self.index_niveaux.values_mut() {
+            *ensemble = ensemble
+                .iter()
+                .filter_map(|node| remap.get(node.0 as usize).copied().flatten())
+                .collect();
+        }
+        remap
     }
 
     /// Forme normalisée d'un nœud : les clés passent par la forme normale de
@@ -120,6 +266,7 @@ impl<C: Controller> Pool for Arena<C> {
         };
         let cle = (Self::CONTROLLER, anchor, forme.clone());
         if let Some(node) = self.unique.get(&cle) {
+            self.metriques.partages += 1;
             self.observer
                 .on_event(&TraceEvent::NodeShared { node: *node });
             return *node;
@@ -129,17 +276,25 @@ impl<C: Controller> Pool for Arena<C> {
             Form::Terminal(_) => None,
             Form::Node { level, .. } => Some(*level),
         };
-        self.nodes.push(forme);
+        self.nodes.push(EntreeNoeud {
+            plan: Plan::Principal,
+            forme: Some(forme),
+        });
+        if let Some(level) = level {
+            self.index_niveaux.entry(level).or_default().insert(node);
+        }
         self.unique.insert(cle, node);
+        self.metriques.creations += 1;
         self.observer
             .on_event(&TraceEvent::NodeCreated { node, level });
         node
     }
 
     fn resolve(&self, node: NodeId) -> Result<&Form<Self::Key, Self::Payload>, PoolError> {
-        self.nodes
-            .get(node.0 as usize)
-            .ok_or(PoolError::UnknownNode(node))
+        match self.nodes.get(node.0 as usize) {
+            Some(entree) => entree.forme.as_ref().ok_or(PoolError::UnknownNode(node)),
+            None => Err(PoolError::UnknownNode(node)),
+        }
     }
 
     fn handle(&self, node: NodeId, anchor: Anchor) -> Handle {

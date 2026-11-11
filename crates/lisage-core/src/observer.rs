@@ -57,6 +57,15 @@ pub enum TraceEvent {
         /// Nœud dont la visite a miss.
         noeud: NodeId,
     },
+    /// GC du pool bi-plan (M4-1) : vivants, collectés, compaction profilée.
+    Gc {
+        /// Nœuds vivants après collecte.
+        vivants: u64,
+        /// Nœuds collectés.
+        collectes: u64,
+        /// Compaction effectuée (seuil de morts atteint).
+        compaction: bool,
+    },
     /// Début d'un round de saturation (M2-6) : numéro de l'itération.
     Round {
         /// Numéro du round (1-based).

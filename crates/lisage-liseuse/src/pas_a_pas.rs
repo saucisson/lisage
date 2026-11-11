@@ -131,7 +131,9 @@ impl Scrubber {
                 TraceEvent::MemoHit { .. } => etat.memo_hits += 1,
                 TraceEvent::MemoMiss { .. } => etat.memo_misses += 1,
                 TraceEvent::Round { numero } => etat.rounds = etat.rounds.max(*numero),
-                TraceEvent::ReductionApplied { .. } | TraceEvent::DiagramBuilt { .. } => {}
+                TraceEvent::ReductionApplied { .. }
+                | TraceEvent::DiagramBuilt { .. }
+                | TraceEvent::Gc { .. } => {}
             }
         }
         etat

@@ -8,6 +8,7 @@
 
 pub mod arena;
 pub mod bdd;
+pub mod biplan;
 pub mod error;
 pub mod lookup;
 pub mod memoire;
