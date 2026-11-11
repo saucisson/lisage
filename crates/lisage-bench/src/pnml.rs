@@ -401,6 +401,10 @@ pub struct Arc {
     pub cible: NoeudId,
 }
 
+/// Document PNML brut, type distinct à la frontière (ADR-0006).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PnmlDocument(pub String);
+
 /// Réseau de Petri parsé depuis PNML.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReseauPetri {
@@ -411,8 +415,8 @@ pub struct ReseauPetri {
 
 impl ReseauPetri {
     /// Parse un document PNML complet.
-    pub fn depuis_pnml(document: &str) -> Result<ReseauPetri, PnmlError> {
-        let racine = parser_xml(document)?;
+    pub fn depuis_pnml(document: &PnmlDocument) -> Result<ReseauPetri, PnmlError> {
+        let racine = parser_xml(&document.0)?;
         let XmlNoeud::Element { nom, enfants, .. } = &racine else {
             return Err(PnmlError::ElementInattendu {
                 attendu: ELEMENT_PNML,
@@ -505,8 +509,17 @@ fn resoudre_arc(
     transitions: &[Transition],
     brut: &ArcBrut,
 ) -> Result<Arc, PnmlError> {
-    let source = resoudre_noeud(places, transitions, &brut.source)?;
-    let cible = resoudre_noeud(places, transitions, &brut.cible)?;
+    let source = resoudre_noeud(places, transitions, &brut.source);
+    let cible = resoudre_noeud(places, transitions, &brut.cible);
+    let (source, cible) = match (source, cible) {
+        (Some(source), Some(cible)) => (source, cible),
+        _ => {
+            return Err(PnmlError::ArcVersInconnu {
+                source: brut.source.clone(),
+                cible: brut.cible.clone(),
+            });
+        }
+    };
     let mal_oriente = matches!(
         (&source, &cible),
         (NoeudId::Place(_), NoeudId::Place(_)) | (NoeudId::Transition(_), NoeudId::Transition(_))
@@ -524,17 +537,14 @@ fn resoudre_noeud(
     places: &[Place],
     transitions: &[Transition],
     identifiant: &str,
-) -> Result<NoeudId, PnmlError> {
+) -> Option<NoeudId> {
     if places.iter().any(|p| p.identifiant.0 == identifiant) {
-        return Ok(NoeudId::Place(PlaceId(identifiant.to_string())));
+        return Some(NoeudId::Place(PlaceId(identifiant.to_string())));
     }
     if transitions.iter().any(|t| t.identifiant.0 == identifiant) {
-        return Ok(NoeudId::Transition(TransitionId(identifiant.to_string())));
+        return Some(NoeudId::Transition(TransitionId(identifiant.to_string())));
     }
-    Err(PnmlError::ArcVersInconnu {
-        source: identifiant.to_string(),
-        cible: identifiant.to_string(),
-    })
+    None
 }
 
 fn attribut_obligatoire(

@@ -6,8 +6,8 @@
 use std::collections::BTreeSet;
 
 use lisage_bench::pnml::{
-    PlaceId, PnmlError, ReseauPetri, TransitionId, espace_atteignable, est_sensibilisee,
-    marquage_depuis_value, marquage_initial, pas_semantique, tirer,
+    PlaceId, PnmlDocument, PnmlError, ReseauPetri, TransitionId, espace_atteignable,
+    est_sensibilisee, marquage_depuis_value, marquage_initial, pas_semantique, tirer,
 };
 use lisage_lang::value::Atom;
 use proptest::prelude::*;
@@ -43,7 +43,7 @@ const PNML_BOUCL: &str = r#"<pnml><net>
 
 #[test]
 fn test_parse_modele_joue() {
-    let reseau = ReseauPetri::depuis_pnml(PNML_JOUET).unwrap();
+    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
     assert_eq!(reseau.nb_places(), 3);
     assert_eq!(reseau.nb_transitions(), 2);
     assert_eq!(reseau.arcs.len(), 4);
@@ -60,7 +60,7 @@ fn test_parse_modele_joue() {
 
 #[test]
 fn test_marquage_initial_vers_value() {
-    let reseau = ReseauPetri::depuis_pnml(PNML_JOUET).unwrap();
+    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
     let valeur = marquage_initial(&reseau);
     let marquage = marquage_depuis_value(&valeur).unwrap();
     assert_eq!(marquage.get(&Atom(0)), Some(&Atom(1)));
@@ -70,7 +70,7 @@ fn test_marquage_initial_vers_value() {
 
 #[test]
 fn test_sensibilisation_et_tir() {
-    let reseau = ReseauPetri::depuis_pnml(PNML_JOUET).unwrap();
+    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
     let initial = marquage_depuis_value(&marquage_initial(&reseau)).unwrap();
     let t1 = TransitionId("t1".to_string());
     let t2 = TransitionId("t2".to_string());
@@ -85,7 +85,7 @@ fn test_sensibilisation_et_tir() {
 
 #[test]
 fn test_espace_atteignable_voie_a() {
-    let reseau = ReseauPetri::depuis_pnml(PNML_JOUET).unwrap();
+    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
     let espace = espace_atteignable(&reseau);
     // 3 marquages : initial, après t1, après t2.
     assert_eq!(espace.len(), 3);
@@ -95,7 +95,7 @@ fn test_espace_atteignable_voie_a() {
 
 #[test]
 fn test_pas_semantique_depuis_ensemble() {
-    let reseau = ReseauPetri::depuis_pnml(PNML_JOUET).unwrap();
+    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
     let initial = BTreeSet::from([marquage_initial(&reseau)]);
     let successeurs = pas_semantique(&reseau, &initial);
     assert_eq!(successeurs.len(), 2);
@@ -103,20 +103,23 @@ fn test_pas_semantique_depuis_ensemble() {
 
 #[test]
 fn test_boucle_espace_stable() {
-    let reseau = ReseauPetri::depuis_pnml(PNML_BOUCL).unwrap();
+    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_BOUCL.to_string())).unwrap();
     let espace = espace_atteignable(&reseau);
     assert_eq!(espace.len(), 1);
 }
 
 #[test]
 fn test_erreur_xml_mal_forme() {
-    let resultat = ReseauPetri::depuis_pnml("<pnml><net><place id=\"p0\">");
+    let resultat =
+        ReseauPetri::depuis_pnml(&PnmlDocument("<pnml><net><place id=\"p0\">".to_string()));
     assert!(matches!(resultat, Err(PnmlError::XmlMalForme { .. })));
 }
 
 #[test]
 fn test_erreur_attribut_manquant() {
-    let resultat = ReseauPetri::depuis_pnml("<pnml><net><place/></net></pnml>");
+    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(
+        "<pnml><net><place/></net></pnml>".to_string(),
+    ));
     assert!(matches!(
         resultat,
         Err(PnmlError::AttributManquant {
@@ -129,7 +132,7 @@ fn test_erreur_attribut_manquant() {
 #[test]
 fn test_erreur_arc_vers_inconnu() {
     let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t9\"/></net></pnml>";
-    let resultat = ReseauPetri::depuis_pnml(document);
+    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(resultat, Err(PnmlError::ArcVersInconnu { .. })));
 }
 
@@ -137,21 +140,21 @@ fn test_erreur_arc_vers_inconnu() {
 fn test_erreur_arc_mal_oriente() {
     // Deux transitions reliées : arc mal orienté, rejeté au parsing.
     let document = "<pnml><net><transition id=\"t1\"/><transition id=\"t2\"/><arc source=\"t1\" target=\"t2\"/></net></pnml>";
-    let resultat = ReseauPetri::depuis_pnml(document);
+    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(resultat, Err(PnmlError::ArcMalOriente { .. })));
 }
 
 #[test]
 fn test_erreur_poids_non_supporte() {
     let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t1\" weight=\"2\"/></net></pnml>";
-    let resultat = ReseauPetri::depuis_pnml(document);
+    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(resultat, Err(PnmlError::PoidsNonSupporte { .. })));
 }
 
 #[test]
 fn test_erreur_nombre_invalide() {
     let document = "<pnml><net><place id=\"p0\"><initialMarking><text>abc</text></initialMarking></place></net></pnml>";
-    let resultat = ReseauPetri::depuis_pnml(document);
+    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(
         resultat,
         Err(PnmlError::NombreInvalide {
@@ -206,7 +209,7 @@ proptest! {
             m
         };
         let document = reseau_aleatoire(nb_places, nb_transitions, marquages);
-        let reseau = ReseauPetri::depuis_pnml(&document).unwrap();
+        let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
         let espace = espace_atteignable(&reseau);
         prop_assert!(espace.contains(&marquage_initial(&reseau)));
         let successeurs = pas_semantique(&reseau, &espace);
@@ -229,13 +232,18 @@ proptest! {
             m
         };
         let document = reseau_aleatoire(nb_places, nb_transitions, marquages);
-        let reseau = ReseauPetri::depuis_pnml(&document).unwrap();
+        let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
         let initial = marquage_depuis_value(&marquage_initial(&reseau)).unwrap();
+        let total_avant: u64 = initial.values().map(|a| a.0).sum();
         for transition in &reseau.transitions {
             if est_sensibilisee(&reseau, &transition.identifiant, &initial) {
                 let suivant = tirer(&reseau, &transition.identifiant, &initial);
                 // Le marquage résultant a une entrée par place.
                 prop_assert_eq!(suivant.len(), nb_places);
+                // Invariant documenté : le tir déplace un jeton (poids 1
+                // en entrée et en sortie), le total est préservé.
+                let total_apres: u64 = suivant.values().map(|a| a.0).sum();
+                prop_assert_eq!(total_apres, total_avant);
             }
         }
     }
