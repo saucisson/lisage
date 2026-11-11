@@ -3,6 +3,7 @@
 pub mod differentiel;
 pub mod pnml;
 pub mod temoin_bdd;
+pub mod triptyque;
 
 /// Voie A : interprète de référence naïf (source de vérité).
 pub fn voie_a(x: u32) -> u32 {
