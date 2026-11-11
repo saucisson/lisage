@@ -29,6 +29,45 @@ const COULEUR_FICHE: &str = "#555";
 const COULEUR_CONVERSION: &str = "#e67e22";
 /// Couleur du texte.
 const COULEUR_TEXTE: &str = "#222";
+/// Fond de la fiche contrôleur.
+const FOND_FICHE: &str = "#f7f7f7";
+/// Fond des boîtes de niveau.
+const FOND_BOITE: &str = "#fff";
+/// Taille de police du titre de la vue.
+const TAILLE_TITRE: u32 = 14;
+/// Taille de police d'un nom de royaume / titre de fiche.
+const TAILLE_NOM: u32 = 13;
+/// Taille de police d'un champ de fiche.
+const TAILLE_CHAMP: u32 = 12;
+/// Taille de police d'un libellé de piste / conversion.
+const TAILLE_PISTE: u32 = 11;
+/// Décalage intérieur standard (marge dans un panneau).
+const DECALAGE: u32 = 8;
+/// Hauteur du bandeau de titre de la vue.
+const HAUTEUR_TITRE: u32 = 30;
+/// Espace après la piste d'un royaume.
+const ESPACE_APRES_PISTE: u32 = 16;
+/// Offset vertical du titre de fiche.
+const DECALAGE_TITRE_FICHE: u32 = 16;
+/// Offset vertical de la première ligne de champ.
+const DECALAGE_LIGNE_FICHE: u32 = 24;
+/// Offset vertical de la baseline d'une ligne de champ.
+const BASELINE_LIGNE_FICHE: u32 = 12;
+/// Offset horizontal d'une boîte dans la piste.
+const DECALAGE_BOITE: u32 = 4;
+/// Baseline du texte dans une boîte de niveau.
+const BASELINE_BOITE: u32 = 18;
+/// Centre vertical d'une boîte de niveau.
+const MILIEU_BOITE: u32 = 14;
+/// Offset horizontal de la flèche de conversion.
+const DECALAGE_FLECHE: u32 = 40;
+/// Offset horizontal de l'étiquette de conversion.
+const DECALAGE_ETIQUETTE: u32 = 48;
+/// Offset vertical de l'étiquette de conversion sous le milieu de la flèche.
+const DECALAGE_ETIQUETTE_Y: u32 = 4;
+/// Géométrie des marqueurs de flèche (taille, refX, refY).
+const MARQUEUR_TAILLE: u32 = 8;
+const MARQUEUR_REF_Y: u32 = 4;
 
 /// Fiche contrôleur : les huit champs de `C = (δ, Σ, décomposition + O, R,
 /// défauts, D^déf, encodage, attribution)`, en libellés neutres.
@@ -124,18 +163,19 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
     debug_assert_eq!(champs.len() as u32, NOMBRE_CHAMPS_FICHE);
     let hauteur = hauteur_fiche();
     svg.push_str(&format!(
-        "<rect x=\"{x}\" y=\"{y}\" width=\"{largeur}\" height=\"{hauteur}\" fill=\"#f7f7f7\" stroke=\"{COULEUR_FICHE}\"/>\n"
+        "<rect x=\"{x}\" y=\"{y}\" width=\"{largeur}\" height=\"{hauteur}\" fill=\"{FOND_FICHE}\" stroke=\"{COULEUR_FICHE}\"/>\n"
     ));
     svg.push_str(&format!(
-        "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"13\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">fiche contrôleur</text>\n",
-        x + 8,
-        y + 16
+        "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_NOM}\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">fiche contrôleur</text>\n",
+        x + DECALAGE,
+        y + DECALAGE_TITRE_FICHE
     ));
     for (index, (champ, valeur)) in champs.iter().enumerate() {
-        let ligne_y = y + 24 + index as u32 * HAUTEUR_LIGNE_FICHE + 12;
+        let ligne_y =
+            y + DECALAGE_LIGNE_FICHE + index as u32 * HAUTEUR_LIGNE_FICHE + BASELINE_LIGNE_FICHE;
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"{ligne_y}\" font-family=\"serif\" font-size=\"12\" fill=\"{COULEUR_TEXTE}\">{champ} = {}</text>\n",
-            x + 8,
+            "<text x=\"{}\" y=\"{ligne_y}\" font-family=\"serif\" font-size=\"{TAILLE_CHAMP}\" fill=\"{COULEUR_TEXTE}\">{champ} = {}</text>\n",
+            x + DECALAGE,
             echapper_xml(valeur)
         ));
     }
@@ -145,28 +185,28 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
 /// Rend une piste linéaire : les niveaux dans l'ordre de balayage, en
 /// boîtes reliées par des flèches.
 fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, largeur: u32) {
-    let y_boite = y + 8;
+    let y_boite = y + DECALAGE;
     let nombre = niveaux.len().max(1) as u32;
     let pas = largeur / nombre;
     for (index, libelle) in niveaux.iter().enumerate() {
-        let boite_x = x + index as u32 * pas + 4;
+        let boite_x = x + index as u32 * pas + DECALAGE_BOITE;
         let boite_largeur = pas.saturating_sub(8).min(LARGEUR_BOITE);
         svg.push_str(&format!(
-            "<rect x=\"{boite_x}\" y=\"{y_boite}\" width=\"{boite_largeur}\" height=\"{HAUTEUR_BOITE}\" fill=\"#fff\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n"
+            "<rect x=\"{boite_x}\" y=\"{y_boite}\" width=\"{boite_largeur}\" height=\"{HAUTEUR_BOITE}\" fill=\"{FOND_BOITE}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n"
         ));
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
+            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_PISTE}\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
             boite_x + boite_largeur / 2,
-            y_boite + 18,
+            y_boite + BASELINE_BOITE,
             echapper_xml(libelle)
         ));
         if index + 1 < niveaux.len() {
             svg.push_str(&format!(
                 "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\" marker-end=\"url(#fleche)\"/>\n",
                 boite_x + boite_largeur,
-                y_boite + 14,
-                x + (index as u32 + 1) * pas + 4,
-                y_boite + 14
+                y_boite + MILIEU_BOITE,
+                x + (index as u32 + 1) * pas + DECALAGE_BOITE,
+                y_boite + MILIEU_BOITE
             ));
         }
     }
@@ -177,12 +217,12 @@ fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, l
 fn rendre_arbre(svg: &mut String, noeud: &NoeudVtree, x: u32, y: u32, largeur: u32) -> u32 {
     let centre_x = x + largeur / 2;
     svg.push_str(&format!(
-        "<rect x=\"{}\" y=\"{y}\" width=\"{LARGEUR_BOITE}\" height=\"{HAUTEUR_BOITE}\" fill=\"#fff\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n",
+        "<rect x=\"{}\" y=\"{y}\" width=\"{LARGEUR_BOITE}\" height=\"{HAUTEUR_BOITE}\" fill=\"{FOND_BOITE}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n",
         centre_x - LARGEUR_BOITE / 2
     ));
     svg.push_str(&format!(
-        "<text x=\"{centre_x}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
-        y + 18,
+        "<text x=\"{centre_x}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_PISTE}\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
+        y + BASELINE_BOITE,
         echapper_xml(&noeud.libelle)
     ));
     if noeud.enfants.is_empty() {
@@ -197,7 +237,7 @@ fn rendre_arbre(svg: &mut String, noeud: &NoeudVtree, x: u32, y: u32, largeur: u
         let enfant_centre = enfant_x + pas / 2;
         svg.push_str(&format!(
             "<line x1=\"{centre_x}\" y1=\"{}\" x2=\"{enfant_centre}\" y2=\"{y_enfants}\" stroke=\"{COULEUR_PISTE}\"/>\n",
-            y + 28
+            y + HAUTEUR_BOITE
         ));
         let hauteur = rendre_arbre(svg, enfant, enfant_x, y_enfants, pas);
         hauteur_max = hauteur_max.max(hauteur);
@@ -243,17 +283,17 @@ struct PositionRoyaume {
 /// Calcule le layout complet : hauteur totale du SVG + position de chaque
 /// royaume (nom, fiche, piste).
 fn layout(royaumes: &[RoyaumeVue], nombre_conversions: usize) -> (u32, Vec<PositionRoyaume>) {
-    let mut hauteur = MARGE + 30;
+    let mut hauteur = MARGE + HAUTEUR_TITRE;
     let mut positions = Vec::new();
     for royaume in royaumes {
         let hauteur_piste = hauteur_piste(&royaume.piste);
         positions.push(PositionRoyaume {
             y_nom: hauteur,
-            y_fiche: hauteur + 8,
-            y_piste: hauteur + 8 + hauteur_fiche() + 8,
+            y_fiche: hauteur + DECALAGE,
+            y_piste: hauteur + DECALAGE + hauteur_fiche() + DECALAGE,
             hauteur_piste,
         });
-        hauteur += 8 + hauteur_fiche() + 8 + hauteur_piste + 16;
+        hauteur += DECALAGE + hauteur_fiche() + DECALAGE + hauteur_piste + ESPACE_APRES_PISTE;
     }
     hauteur += nombre_conversions as u32 * HAUTEUR_LIGNE_CONVERSION + MARGE;
     (hauteur, positions)
@@ -267,16 +307,16 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
     let largeur = LARGEUR_VUE - 2 * MARGE;
     let (hauteur, positions) = layout(royaumes, conversions.len());
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{LARGEUR_VUE}\" height=\"{hauteur}\" viewBox=\"0 0 {LARGEUR_VUE} {hauteur}\">\n<defs><marker id=\"fleche\" markerWidth=\"8\" markerHeight=\"8\" refX=\"8\" refY=\"4\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"8\" markerHeight=\"8\" refX=\"8\" refY=\"4\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{LARGEUR_VUE}\" height=\"{hauteur}\" viewBox=\"0 0 {LARGEUR_VUE} {hauteur}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
     );
     svg.push_str(&format!(
-        "<text x=\"{MARGE}\" y=\"22\" font-family=\"serif\" font-size=\"14\" fill=\"{COULEUR_TEXTE}\">vue ordre — {} royaume(x), {} conversion(s)</text>\n",
+        "<text x=\"{MARGE}\" y=\"{DECALAGE_TITRE_FICHE}\" font-family=\"serif\" font-size=\"{TAILLE_TITRE}\" fill=\"{COULEUR_TEXTE}\">vue ordre — {} royaume(x), {} conversion(s)</text>\n",
         royaumes.len(),
         conversions.len()
     ));
     for (royaume, position) in royaumes.iter().zip(&positions) {
         svg.push_str(&format!(
-            "<text x=\"{MARGE}\" y=\"{}\" font-family=\"serif\" font-size=\"13\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
+            "<text x=\"{MARGE}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_NOM}\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
             position.y_nom,
             echapper_xml(&royaume.nom)
         ));
@@ -295,13 +335,13 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
         let y2 = positions[index_cible].y_piste + positions[index_cible].hauteur_piste / 2;
         svg.push_str(&format!(
             "<line x1=\"{}\" y1=\"{y1}\" x2=\"{}\" y2=\"{y2}\" stroke=\"{COULEUR_CONVERSION}\" stroke-width=\"{EPAISSEUR_TRAIT}\" stroke-dasharray=\"{DASH_CONVERSION}\" marker-end=\"url(#fleche-conversion)\"/>\n",
-            LARGEUR_VUE - MARGE - 40,
+            LARGEUR_VUE - MARGE - DECALAGE_FLECHE,
             LARGEUR_VUE - MARGE
         ));
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" text-anchor=\"end\" fill=\"{COULEUR_CONVERSION}\">convert {} → {} (coût {})</text>\n",
-            LARGEUR_VUE - MARGE - 48,
-            (y1 + y2) / 2 + 4,
+            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_PISTE}\" text-anchor=\"end\" fill=\"{COULEUR_CONVERSION}\">convert {} → {} (coût {})</text>\n",
+            LARGEUR_VUE - MARGE - DECALAGE_ETIQUETTE,
+            (y1 + y2) / 2 + DECALAGE_ETIQUETTE_Y,
             echapper_xml(&conversion.source),
             echapper_xml(&conversion.cible),
             conversion.cout
@@ -358,10 +398,10 @@ mod tests {
         let (hauteur, positions) = layout(&royaumes, 1);
         assert_eq!(positions.len(), 2);
         for position in &positions {
-            assert_eq!(position.y_fiche, position.y_nom + 8);
+            assert_eq!(position.y_fiche, position.y_nom + DECALAGE);
             assert_eq!(
                 position.y_piste,
-                position.y_fiche + hauteur_fiche() + 8,
+                position.y_fiche + hauteur_fiche() + DECALAGE,
                 "piste posée après la fiche"
             );
             assert!(
