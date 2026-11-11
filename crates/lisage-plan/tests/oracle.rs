@@ -62,6 +62,9 @@ fn test_garde_fou_differentiel() {
         Rationnel::nouveau(3, 2)
     );
     assert!(BORNE_INFERIEURE.inferieur_ou_egal(&BORNE_SUPERIEURE));
+    // prédit = 0 (coût d'encodage ou requêtes nul) : conforme ssi mesure = 0.
+    assert!(Oracle::garde_fou(0, 0).est_conforme());
+    assert!(!Oracle::garde_fou(0, 1).est_conforme());
 }
 
 /// Propriété (LCG déterministe) : la prédiction est croissante en densité
@@ -84,8 +87,8 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
     for _cas in 0..50 {
         let taille_domaine = 1 + suivant() % 100;
         let densite = Rationnel::nouveau(suivant() % 101, 100);
-        let cout_encodage = 1 + suivant() % 10;
-        let requetes_aval = 1 + suivant() % 20;
+        let cout_encodage = suivant() % 10; // 0 possible : prédit peut être nul
+        let requetes_aval = suivant() % 20;
         let params = ParametresOracle {
             taille_domaine,
             densite_attendue: densite,

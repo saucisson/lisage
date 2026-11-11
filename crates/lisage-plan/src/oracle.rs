@@ -103,7 +103,7 @@ impl Oracle {
         let presents = (parametres.taille_domaine as u128)
             * (parametres.densite_attendue.num as u128)
             / (parametres.densite_attendue.den as u128);
-        let taille_predite = 1 + presents.min(u64::MAX as u128) as u64;
+        let taille_predite = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
         let cout_total_predit = taille_predite
             .saturating_mul(parametres.cout_encodage)
             .saturating_mul(parametres.requetes_aval);
@@ -135,15 +135,21 @@ impl VerdictGardeFou {
         VerdictGardeFou { predit, mesure }
     }
 
-    /// Ratio mesure/prédit en arithmétique exacte (`mesure/0` ⇒ saturé).
+    /// Ratio mesure/prédit en arithmétique exacte. Par convention de
+    /// [`Rationnel::nouveau`], `prédit == 0` donne le ratio 0/1 (et non une
+    /// valeur saturée) ; `est_conforme` ne passe pas par `ratio` et traite
+    /// `prédit == 0` directement.
     pub fn ratio(&self) -> Rationnel {
         Rationnel::nouveau(self.mesure, self.predit)
     }
 
-    /// Conforme si le ratio tient dans [BORNE_INFERIEURE, BORNE_SUPERIEURE]
-    /// — hors bornes, le modèle est falsifié (C4).
+    /// Conforme si la mesure tient dans [prédit/2, 2 × prédit] — comparaison
+    /// exacte sans division (produits croisés en u128), donc correcte aussi
+    /// pour `prédit == 0` (conforme ssi `mesure == 0`). Hors bornes, le
+    /// modèle est falsifié (C4).
     pub fn est_conforme(&self) -> bool {
-        let ratio = self.ratio();
-        ratio.inferieur_ou_egal(&BORNE_SUPERIEURE) && BORNE_INFERIEURE.inferieur_ou_egal(&ratio)
+        let predit = self.predit as u128;
+        let mesure = self.mesure as u128;
+        2 * mesure >= predit && mesure <= 2 * predit
     }
 }
