@@ -186,6 +186,7 @@ fn test_transfert_sous_saturate_termine() {
         anchor,
         initial,
         nombre_niveaux: schema.nombre_niveaux(),
+        observateur: None,
     };
     let resultat = saturer(&mut params).unwrap();
     assert_eq!(resultat.iterations, 3, "a:2,b:0 → a:1,b:1 → a:0,b:2 → fixe");

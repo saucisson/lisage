@@ -8,18 +8,18 @@ use std::collections::BTreeMap;
 use lisage_core::{Form, Level, NodeId, Pool};
 
 /// Largeur d'un nœud en pixels.
-const LARGEUR_NOEUD: u32 = 56;
+pub(crate) const LARGEUR_NOEUD: u32 = 56;
 /// Hauteur d'un niveau en pixels.
-const HAUTEUR_NIVEAU: u32 = 90;
+pub(crate) const HAUTEUR_NIVEAU: u32 = 90;
 /// Marge haute (titre) en pixels.
-const MARGE_HAUT: u32 = 40;
+pub(crate) const MARGE_HAUT: u32 = 40;
 /// Marge gauche en pixels.
-const MARGE_GAUCHE: u32 = 40;
+pub(crate) const MARGE_GAUCHE: u32 = 40;
 /// Demi-largeur d'un nœud.
-const DEMI_LARGEUR: u32 = LARGEUR_NOEUD / 2;
+pub(crate) const DEMI_LARGEUR: u32 = LARGEUR_NOEUD / 2;
 
 /// Échappement XML minimal.
-fn echapper_xml(texte: &str) -> String {
+pub(crate) fn echapper_xml(texte: &str) -> String {
     texte
         .replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -28,15 +28,15 @@ fn echapper_xml(texte: &str) -> String {
 }
 
 /// Position d'un nœud : `(x, y)` du centre.
-struct Placement {
-    x: u32,
-    y: u32,
+pub(crate) struct Placement {
+    pub(crate) x: u32,
+    pub(crate) y: u32,
 }
 
 /// Collecte les nœuds atteignables depuis `racine`, groupés par niveau, et
 /// calcule un placement déterministe (parcours en profondeur, x croissant
 /// par ordre de première visite dans chaque niveau).
-fn placer<P: Pool<Key = u64, Payload = bool>>(
+pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     racine: NodeId,
 ) -> (BTreeMap<NodeId, Placement>, u32) {

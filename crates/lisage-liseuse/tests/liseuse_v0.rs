@@ -87,18 +87,18 @@ fn test_serialiser_evenement_golden() {
             node: NodeId(3),
             level: Some(Level(2))
         }),
-        "{\"v\":1,\"type\":\"NodeCreated\",\"node\":3,\"level\":2}"
+        "{\"v\":2,\"type\":\"NodeCreated\",\"node\":3,\"level\":2}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::NodeShared { node: NodeId(7) }),
-        "{\"v\":1,\"type\":\"NodeShared\",\"node\":7}"
+        "{\"v\":2,\"type\":\"NodeShared\",\"node\":7}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Collapse,
             level: Level(1)
         }),
-        "{\"v\":1,\"type\":\"Reduction\",\"rule\":\"R-collapse\",\"level\":1}"
+        "{\"v\":2,\"type\":\"Reduction\",\"rule\":\"R-collapse\",\"level\":1}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::DiagramBuilt {
@@ -109,7 +109,7 @@ fn test_serialiser_evenement_golden() {
             },
             nodes: 5
         }),
-        "{\"v\":1,\"type\":\"DiagramBuilt\",\"controller\":1,\"anchor\":0,\"node\":4,\"nodes\":5}"
+        "{\"v\":2,\"type\":\"DiagramBuilt\",\"controller\":1,\"anchor\":0,\"node\":4,\"nodes\":5}"
     );
 }
 

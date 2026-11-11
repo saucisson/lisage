@@ -20,7 +20,8 @@ pub mod transduction;
 pub mod transfert;
 
 pub use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
+    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, PolitiqueMemoire,
+    Pool, PoolError,
 };
 
 /// Placeholder factice pour valider la CI (M0-1).

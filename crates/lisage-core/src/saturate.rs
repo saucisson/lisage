@@ -12,11 +12,12 @@
 //! Le merge de construction `⊕` est l'union idempotente (Bool, A5).
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::error::CoreError;
+use crate::observer::{Observer, TraceEvent};
 use crate::pli::union;
 use crate::schema::SchemaKeys;
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
@@ -61,6 +62,9 @@ pub struct ParametresSaturation<'a, T, P> {
     pub initial: NodeId,
     /// Nombre de niveaux du schéma (pour AutoDetectee : tous les niveaux).
     pub nombre_niveaux: u32,
+    /// Observateur de trace (M2-6) : reçoit un `Round` par itération et les
+    /// événements du runner d'étape. `None` = pas de trace.
+    pub observateur: Option<Arc<dyn Observer>>,
 }
 
 /// Résultat d'une saturation : nœud du point fixe + nombre d'itérations.
@@ -209,14 +213,24 @@ where
                 borne: BORNE_ITERATIONS,
             });
         }
+        if let Some(observateur) = &params.observateur {
+            observateur.on_event(&TraceEvent::Round { numero: iterations });
+        }
         let etape = RestreintAuxNiveaux::new(params.transduction.clone(), niveaux_actifs.clone());
         // Spec § 7 : les étapes de saturate peuvent produire un effet mémoire
         // (T3, M2-5) — politique ParNiveau. La mémoire vit le temps d'une
         // passe : le runner (et sa mémoire) est recréé à chaque itération.
-        let mut runner = Transducteur::avec_politique(
-            etape,
-            lisage_algebra::interface::PolitiqueMemoire::ParNiveau,
-        );
+        let mut runner = match &params.observateur {
+            Some(observateur) => Transducteur::avec_observateur(
+                etape,
+                lisage_algebra::interface::PolitiqueMemoire::ParNiveau,
+                Arc::clone(observateur),
+            ),
+            None => Transducteur::avec_politique(
+                etape,
+                lisage_algebra::interface::PolitiqueMemoire::ParNiveau,
+            ),
+        };
         let (image, _) = runner.run_meme_pool(params.pool, params.anchor, courant)?;
         let suivant = union(params.pool, params.keys, params.anchor, courant, image)?;
         if suivant == courant {

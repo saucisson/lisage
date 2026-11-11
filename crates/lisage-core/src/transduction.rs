@@ -12,11 +12,13 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::sync::Arc;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, PolitiqueMemoire, Pool};
 
 use crate::error::CoreError;
 use crate::memoire::{EffetMemoire, MemoireNiveau};
+use crate::observer::{CanalAttr, Observer, TraceEvent};
 
 /// Clé de la mémo : (fingerprint de l'opération, nœud, attribut hérité,
 /// version de la mémoire de niveau) — lemme L1.
@@ -102,11 +104,12 @@ pub struct Transducteur<T: Transduction> {
     memo: HashMap<CleMemo<T::H>, (NodeId, T::S)>,
     memoire: MemoireNiveau<T::M>,
     politique: PolitiqueMemoire,
+    observateur: Option<Arc<dyn Observer>>,
 }
 
 impl<T: Transduction> Transducteur<T> {
     /// Runner neuf pour la transduction donnée, mémoire vide (version 0),
-    /// politique `Aucune` (M1 : pas de mémoire de niveau).
+    /// politique `Aucune` (M1 : pas de mémoire de niveau), sans observateur.
     pub fn new(transduction: T) -> Self {
         Self::avec_politique(transduction, PolitiqueMemoire::Aucune)
     }
@@ -119,6 +122,30 @@ impl<T: Transduction> Transducteur<T> {
             memo: HashMap::new(),
             memoire: MemoireNiveau::new(),
             politique,
+            observateur: None,
+        }
+    }
+
+    /// Runner avec observateur de trace (M2-6) : émet `MemoHit`/`MemoMiss`
+    /// et les `Attr` des trois canaux pendant l'exécution.
+    pub fn avec_observateur(
+        transduction: T,
+        politique: PolitiqueMemoire,
+        observateur: Arc<dyn Observer>,
+    ) -> Self {
+        Transducteur {
+            transduction,
+            memo: HashMap::new(),
+            memoire: MemoireNiveau::new(),
+            politique,
+            observateur: Some(observateur),
+        }
+    }
+
+    /// Émet un événement sur l'observateur, s'il y en a un.
+    fn notifier(&self, evenement: TraceEvent) {
+        if let Some(observateur) = &self.observateur {
+            observateur.on_event(&evenement);
         }
     }
 
@@ -197,8 +224,10 @@ impl<T: Transduction> Transducteur<T> {
             self.memoire.version(),
         );
         if let Some((resultat, s)) = self.memo.get(&cle) {
+            self.notifier(TraceEvent::MemoHit { noeud });
             return Ok((*resultat, s.clone()));
         }
+        self.notifier(TraceEvent::MemoMiss { noeud });
         let forme = pool_entree.resolve(noeud)?.clone();
         let (resultat, s) = match forme {
             Form::Terminal(payload) => self.transduction.psi(pool_sortie, anchor, payload, &h),
@@ -207,6 +236,11 @@ impl<T: Transduction> Transducteur<T> {
                 let mut s_arcs = BTreeMap::new();
                 for (arc, cible) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
+                    self.notifier(TraceEvent::Attr {
+                        canal: CanalAttr::Herite,
+                        noeud,
+                        valeur: format!("{h_arc:?}"),
+                    });
                     let (cible_resultat, s_arc) =
                         self.run_avec(pool_entree, pool_sortie, anchor, cible, h_arc)?;
                     let niveau_cible = match pool_entree.resolve(cible) {
@@ -218,6 +252,11 @@ impl<T: Transduction> Transducteur<T> {
                     s_arcs.insert(arc, (niveau_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
+                self.notifier(TraceEvent::Attr {
+                    canal: CanalAttr::Synthétise,
+                    noeud,
+                    valeur: format!("{s:?}"),
+                });
                 let ctx = ContextePhiOut {
                     anchor,
                     level,
@@ -229,6 +268,13 @@ impl<T: Transduction> Transducteur<T> {
                 let (noeud_resultat, effet) = self.transduction.phi_out(pool_sortie, ctx);
                 if self.politique == PolitiqueMemoire::Aucune && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoireNonAutorisee);
+                }
+                if !effet.ecritures.is_empty() {
+                    self.notifier(TraceEvent::Attr {
+                        canal: CanalAttr::Memoire,
+                        noeud,
+                        valeur: format!("{:?}", effet.ecritures),
+                    });
                 }
                 effet.appliquer(&mut self.memoire);
                 (noeud_resultat, s)
@@ -256,8 +302,10 @@ impl<T: Transduction> Transducteur<T> {
             self.memoire.version(),
         );
         if let Some((resultat, s)) = self.memo.get(&cle) {
+            self.notifier(TraceEvent::MemoHit { noeud });
             return Ok((*resultat, s.clone()));
         }
+        self.notifier(TraceEvent::MemoMiss { noeud });
         let forme = pool.resolve(noeud)?.clone();
         let (resultat, s) = match forme {
             Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
@@ -266,6 +314,11 @@ impl<T: Transduction> Transducteur<T> {
                 let mut s_arcs = BTreeMap::new();
                 for (arc, cible) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
+                    self.notifier(TraceEvent::Attr {
+                        canal: CanalAttr::Herite,
+                        noeud,
+                        valeur: format!("{h_arc:?}"),
+                    });
                     let (cible_resultat, s_arc) =
                         self.run_avec_meme_pool(pool, anchor, cible, h_arc)?;
                     let niveau_cible = match pool.resolve(cible) {
@@ -277,6 +330,11 @@ impl<T: Transduction> Transducteur<T> {
                     s_arcs.insert(arc, (niveau_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
+                self.notifier(TraceEvent::Attr {
+                    canal: CanalAttr::Synthétise,
+                    noeud,
+                    valeur: format!("{s:?}"),
+                });
                 let ctx = ContextePhiOut {
                     anchor,
                     level,
@@ -288,6 +346,13 @@ impl<T: Transduction> Transducteur<T> {
                 let (noeud_resultat, effet) = self.transduction.phi_out(pool, ctx);
                 if self.politique == PolitiqueMemoire::Aucune && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoireNonAutorisee);
+                }
+                if !effet.ecritures.is_empty() {
+                    self.notifier(TraceEvent::Attr {
+                        canal: CanalAttr::Memoire,
+                        noeud,
+                        valeur: format!("{:?}", effet.ecritures),
+                    });
                 }
                 effet.appliquer(&mut self.memoire);
                 (noeud_resultat, s)
