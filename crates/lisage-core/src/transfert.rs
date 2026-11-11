@@ -186,7 +186,17 @@ impl TransfertNonLocal {
                     arcs: BTreeMap::from([(montant, suite)]),
                 },
             );
-            arcs.insert(PRESENT, (noeud_valeur, ()));
+            // Collision avec un arc PRESENT existant (famille) : union.
+            match arcs.remove(&PRESENT) {
+                Some((ancien, _)) => {
+                    let fusion = union(pool, &self.keys, anchor, ancien, noeud_valeur)
+                        .expect("union de sous-arcs d'un même pool");
+                    arcs.insert(PRESENT, (fusion, ()));
+                }
+                None => {
+                    arcs.insert(PRESENT, (noeud_valeur, ()));
+                }
+            }
         }
         arcs
     }

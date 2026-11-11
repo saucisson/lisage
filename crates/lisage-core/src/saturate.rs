@@ -210,8 +210,9 @@ where
             });
         }
         let etape = RestreintAuxNiveaux::new(params.transduction.clone(), niveaux_actifs.clone());
-        // Spec § 7 : la mémoire de niveau vit entre les itérations de
-        // saturate — les étapes à effet mémoire sont admises (T3, M2-5).
+        // Spec § 7 : les étapes de saturate peuvent produire un effet mémoire
+        // (T3, M2-5) — politique ParNiveau. La mémoire vit le temps d'une
+        // passe : le runner (et sa mémoire) est recréé à chaque itération.
         let mut runner = Transducteur::avec_politique(
             etape,
             lisage_algebra::interface::PolitiqueMemoire::ParNiveau,

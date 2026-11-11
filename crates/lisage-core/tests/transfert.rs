@@ -247,3 +247,29 @@ fn test_transfert_collision_destination_union() {
         "collision u→u+1 : les deux membres de la famille sont conservés"
     );
 }
+
+/// M2-5 : destination **absente** dans un membre d'une famille dont le nœud
+/// de présence est multi-arcs — l'arc ABSENT devient PRESENT avec la valeur
+/// transférée (unioné à l'arc PRESENT existant). Famille
+/// {{a:1,b:0,c:2}, {a:1,c:2}} → {a:0,b:1,c:2} (les deux membres coïncident).
+#[test]
+fn test_transfert_destination_absente_dans_famille() {
+    let schema = schema_map();
+    let keys = SchemaKeys::new(schema.clone());
+    let anchor = Anchor(0);
+    let mut pool = nouveau_pool(&schema);
+    let m1 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (1, 0), (2, 2)]);
+    let m2 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (2, 2)]);
+    let famille = union(&mut pool, &keys, anchor, m1, m2).unwrap();
+    assert_eq!(cardinal(&pool, &schema, famille), 2);
+
+    let transfert = TransfertNonLocal::new(&schema, 0, 1);
+    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
+
+    let attendu = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);
+    assert_eq!(
+        resultat, attendu,
+        "destination absente dans un membre : rendue présente avec l'unité transférée"
+    );
+}
