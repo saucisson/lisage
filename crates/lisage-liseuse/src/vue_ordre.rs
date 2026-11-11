@@ -121,7 +121,8 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
         ("encodage", &fiche.encodage),
         ("attribution", &fiche.attribution),
     ];
-    let hauteur = 24 + champs.len() as u32 * HAUTEUR_LIGNE_FICHE;
+    debug_assert_eq!(champs.len() as u32, NOMBRE_CHAMPS_FICHE);
+    let hauteur = hauteur_fiche();
     svg.push_str(&format!(
         "<rect x=\"{x}\" y=\"{y}\" width=\"{largeur}\" height=\"{hauteur}\" fill=\"#f7f7f7\" stroke=\"{COULEUR_FICHE}\"/>\n"
     ));
@@ -151,7 +152,7 @@ fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, l
         let boite_x = x + index as u32 * pas + 4;
         let boite_largeur = pas.saturating_sub(8).min(LARGEUR_BOITE);
         svg.push_str(&format!(
-            "<rect x=\"{boite_x}\" y=\"{y_boite}\" width=\"{boite_largeur}\" height=\"28\" fill=\"#fff\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"2\"/>\n"
+            "<rect x=\"{boite_x}\" y=\"{y_boite}\" width=\"{boite_largeur}\" height=\"{HAUTEUR_BOITE}\" fill=\"#fff\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n"
         ));
         svg.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
@@ -161,7 +162,7 @@ fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, l
         ));
         if index + 1 < niveaux.len() {
             svg.push_str(&format!(
-                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"2\" marker-end=\"url(#fleche)\"/>\n",
+                "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\" marker-end=\"url(#fleche)\"/>\n",
                 boite_x + boite_largeur,
                 y_boite + 14,
                 x + (index as u32 + 1) * pas + 4,
@@ -176,7 +177,7 @@ fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, l
 fn rendre_arbre(svg: &mut String, noeud: &NoeudVtree, x: u32, y: u32, largeur: u32) -> u32 {
     let centre_x = x + largeur / 2;
     svg.push_str(&format!(
-        "<rect x=\"{}\" y=\"{y}\" width=\"{LARGEUR_BOITE}\" height=\"28\" fill=\"#fff\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"2\"/>\n",
+        "<rect x=\"{}\" y=\"{y}\" width=\"{LARGEUR_BOITE}\" height=\"{HAUTEUR_BOITE}\" fill=\"#fff\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n",
         centre_x - LARGEUR_BOITE / 2
     ));
     svg.push_str(&format!(
@@ -215,20 +216,56 @@ fn rendre_piste(svg: &mut String, piste: &PisteOrdre, x: u32, y: u32, largeur: u
     }
 }
 
+/// Nombre de champs de la fiche contrôleur (C = huit champs).
+const NOMBRE_CHAMPS_FICHE: u32 = 8;
+/// Hauteur de la fiche contrôleur en pixels.
+const fn hauteur_fiche() -> u32 {
+    24 + NOMBRE_CHAMPS_FICHE * HAUTEUR_LIGNE_FICHE
+}
+/// Hauteur d'une ligne de conversion en pixels.
+const HAUTEUR_LIGNE_CONVERSION: u32 = 30;
+/// Hauteur d'une boîte de niveau en pixels.
+const HAUTEUR_BOITE: u32 = 28;
+/// Épaisseur des traits en pixels.
+const EPAISSEUR_TRAIT: u32 = 2;
+/// Pointillés des flèches de conversion.
+const DASH_CONVERSION: &str = "6 3";
+
+/// Position d'un royaume dans la vue (source de vérité unique du layout,
+/// utilisée par le rendu : les deux passes ne peuvent pas diverger).
+struct PositionRoyaume {
+    y_nom: u32,
+    y_fiche: u32,
+    y_piste: u32,
+    hauteur_piste: u32,
+}
+
+/// Calcule le layout complet : hauteur totale du SVG + position de chaque
+/// royaume (nom, fiche, piste).
+fn layout(royaumes: &[RoyaumeVue], nombre_conversions: usize) -> (u32, Vec<PositionRoyaume>) {
+    let mut hauteur = MARGE + 30;
+    let mut positions = Vec::new();
+    for royaume in royaumes {
+        let hauteur_piste = hauteur_piste(&royaume.piste);
+        positions.push(PositionRoyaume {
+            y_nom: hauteur,
+            y_fiche: hauteur + 8,
+            y_piste: hauteur + 8 + hauteur_fiche() + 8,
+            hauteur_piste,
+        });
+        hauteur += 8 + hauteur_fiche() + 8 + hauteur_piste + 16;
+    }
+    hauteur += nombre_conversions as u32 * HAUTEUR_LIGNE_CONVERSION + MARGE;
+    (hauteur, positions)
+}
+
 /// Rend la vue ordre en SVG statique : pour chaque royaume, sa fiche
 /// contrôleur puis sa piste d'ordre ; les conversions fléchées avec leur
-/// coût relient les pistes des royaumes source/cible.
+/// coût relient les pistes des royaumes source/cible (ancrées au milieu de
+/// la piste, quelle que soit sa hauteur).
 pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVue]) -> String {
     let largeur = LARGEUR_VUE - 2 * MARGE;
-    // Première passe : hauteur totale + position verticale de chaque piste.
-    let mut hauteur = MARGE + 30;
-    let mut pistes_y: Vec<(&str, u32)> = Vec::new();
-    for royaume in royaumes {
-        hauteur += 24 + 8 * HAUTEUR_LIGNE_FICHE + 8; // fiche
-        pistes_y.push((&royaume.nom, hauteur));
-        hauteur += hauteur_piste(&royaume.piste) + 16;
-    }
-    hauteur += conversions.len() as u32 * 30 + MARGE;
+    let (hauteur, positions) = layout(royaumes, conversions.len());
     let mut svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{LARGEUR_VUE}\" height=\"{hauteur}\" viewBox=\"0 0 {LARGEUR_VUE} {hauteur}\">\n<defs><marker id=\"fleche\" markerWidth=\"8\" markerHeight=\"8\" refX=\"8\" refY=\"4\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"8\" markerHeight=\"8\" refX=\"8\" refY=\"4\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
     );
@@ -237,27 +274,27 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
         royaumes.len(),
         conversions.len()
     ));
-    let mut y = MARGE + 30;
-    for royaume in royaumes {
+    for (royaume, position) in royaumes.iter().zip(&positions) {
         svg.push_str(&format!(
-            "<text x=\"{MARGE}\" y=\"{y}\" font-family=\"serif\" font-size=\"13\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
+            "<text x=\"{MARGE}\" y=\"{}\" font-family=\"serif\" font-size=\"13\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
+            position.y_nom,
             echapper_xml(&royaume.nom)
         ));
-        y += 8 + rendre_fiche(&mut svg, &royaume.fiche, MARGE, y + 8, largeur) + 8;
-        y += rendre_piste(&mut svg, &royaume.piste, MARGE, y, largeur) + 16;
+        rendre_fiche(&mut svg, &royaume.fiche, MARGE, position.y_fiche, largeur);
+        rendre_piste(&mut svg, &royaume.piste, MARGE, position.y_piste, largeur);
     }
     // Conversions fléchées entre pistes, avec le coût.
     for conversion in conversions {
-        let Some((_, y_source)) = pistes_y.iter().find(|(nom, _)| *nom == conversion.source) else {
+        let Some(index_source) = royaumes.iter().position(|r| r.nom == conversion.source) else {
             continue;
         };
-        let Some((_, y_cible)) = pistes_y.iter().find(|(nom, _)| *nom == conversion.cible) else {
+        let Some(index_cible) = royaumes.iter().position(|r| r.nom == conversion.cible) else {
             continue;
         };
-        let y1 = y_source + HAUTEUR_PISTE / 2;
-        let y2 = y_cible + HAUTEUR_PISTE / 2;
+        let y1 = positions[index_source].y_piste + positions[index_source].hauteur_piste / 2;
+        let y2 = positions[index_cible].y_piste + positions[index_cible].hauteur_piste / 2;
         svg.push_str(&format!(
-            "<line x1=\"{}\" y1=\"{y1}\" x2=\"{}\" y2=\"{y2}\" stroke=\"{COULEUR_CONVERSION}\" stroke-width=\"2\" stroke-dasharray=\"6 3\" marker-end=\"url(#fleche-conversion)\"/>\n",
+            "<line x1=\"{}\" y1=\"{y1}\" x2=\"{}\" y2=\"{y2}\" stroke=\"{COULEUR_CONVERSION}\" stroke-width=\"{EPAISSEUR_TRAIT}\" stroke-dasharray=\"{DASH_CONVERSION}\" marker-end=\"url(#fleche-conversion)\"/>\n",
             LARGEUR_VUE - MARGE - 40,
             LARGEUR_VUE - MARGE
         ));
@@ -272,4 +309,66 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
     }
     svg.push_str("</svg>\n");
     svg
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Le layout est cohérent : chaque piste est posée après sa fiche, et
+    /// la hauteur totale couvre toutes les pistes (pas de clipping).
+    #[test]
+    fn test_layout_coherent() {
+        let royaumes = vec![
+            RoyaumeVue {
+                nom: "a".to_string(),
+                fiche: FicheControleur {
+                    delta: String::new(),
+                    sigma: String::new(),
+                    decomposition_ordre: String::new(),
+                    regles: String::new(),
+                    defauts: String::new(),
+                    defaut_global: String::new(),
+                    encodage: String::new(),
+                    attribution: String::new(),
+                },
+                piste: PisteOrdre::Lineaire(vec!["x".to_string()]),
+            },
+            RoyaumeVue {
+                nom: "b".to_string(),
+                fiche: FicheControleur {
+                    delta: String::new(),
+                    sigma: String::new(),
+                    decomposition_ordre: String::new(),
+                    regles: String::new(),
+                    defauts: String::new(),
+                    defaut_global: String::new(),
+                    encodage: String::new(),
+                    attribution: String::new(),
+                },
+                piste: PisteOrdre::Arbre(NoeudVtree {
+                    libelle: "r".to_string(),
+                    enfants: vec![NoeudVtree {
+                        libelle: "e".to_string(),
+                        enfants: vec![],
+                    }],
+                }),
+            },
+        ];
+        let (hauteur, positions) = layout(&royaumes, 1);
+        assert_eq!(positions.len(), 2);
+        for position in &positions {
+            assert_eq!(position.y_fiche, position.y_nom + 8);
+            assert_eq!(
+                position.y_piste,
+                position.y_fiche + hauteur_fiche() + 8,
+                "piste posée après la fiche"
+            );
+            assert!(
+                position.y_piste + position.hauteur_piste <= hauteur,
+                "piste couverte par la hauteur totale"
+            );
+        }
+        assert!(positions[1].y_piste > positions[0].y_piste);
+    }
 }

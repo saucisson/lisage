@@ -145,3 +145,55 @@ fn test_vue_ordre_deterministe_et_conversion_inconnue_ignoree() {
     let svg2 = rendre_svg_vue_ordre(&royaumes, &conversions);
     assert_eq!(svg, svg2, "rendu déterministe");
 }
+
+/// M3-4 : une conversion fléchée s'ancre au milieu de la piste **quelle que
+/// soit sa hauteur** — y compris une piste en arbre (vtree), pas seulement
+/// une piste linéaire.
+#[test]
+fn test_conversion_ancree_dans_piste_arbre() {
+    let arbre = NoeudVtree {
+        libelle: "record".to_string(),
+        enfants: vec![
+            NoeudVtree {
+                libelle: "gauche".to_string(),
+                enfants: vec![NoeudVtree {
+                    libelle: "feuille".to_string(),
+                    enfants: vec![],
+                }],
+            },
+            NoeudVtree {
+                libelle: "droite".to_string(),
+                enfants: vec![],
+            },
+        ],
+    };
+    let royaumes = vec![
+        RoyaumeVue {
+            nom: "arbre".to_string(),
+            fiche: fiche_reference(),
+            piste: PisteOrdre::Arbre(arbre),
+        },
+        RoyaumeVue {
+            nom: "lineaire".to_string(),
+            fiche: fiche_bdd(),
+            piste: PisteOrdre::Lineaire(vec!["x0".to_string()]),
+        },
+    ];
+    let conversions = vec![ConversionVue {
+        source: "arbre".to_string(),
+        cible: "lineaire".to_string(),
+        cout: 7,
+    }];
+    let svg = rendre_svg_vue_ordre(&royaumes, &conversions);
+    assert!(svg.contains("convert arbre → lineaire (coût 7)"));
+    // La flèche part du milieu de la piste arbre (hauteur 3 niveaux) :
+    // son y1 est strictement sous la racine de l'arbre.
+    let y_racine = svg.find(">record<").expect("racine du vtree");
+    let y_fleche = svg
+        .find("stroke-dasharray=\"6 3\"")
+        .expect("flèche de conversion");
+    assert!(
+        y_fleche > y_racine,
+        "la flèche de conversion est ancrée dans la piste, pas sur la racine"
+    );
+}
