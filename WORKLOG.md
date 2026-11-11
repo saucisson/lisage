@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M3-1 : `Order<T>` valeur de première classe — π vérifiée, contraintes par type embarquées, alignement comme typage (C3) (feat/23)
+
+- **Issue**: #23 (M3-1 — Order<T> valeur de première classe, énoncé C3, spec § 10 Q1).
+- **Done**: `lisage-plan::ordre` (la crate « plan de représentation » était vide) : trait `TypeOrdre` (clés canoniques + contraintes du type), descripteurs concrets `DomaineAtomes` (Atom/Set) et `ClesMap` (Map, contrainte présence(k) < valeur(k)) ; `Order<T>` valeur de première classe — π = permutation des clés canoniques vérifiée à la construction (`ErreurOrdre::{PasUnePermutation, ContrainteViolee, OrdresNonAlignes}`, erreurs typées avec Display/Error), contraintes embarquées dans `Order<T>`, accesseurs `position`/`cle`/`permutation`/`contraintes`, `alignement` en valeur. Alignement comme typage : `MarqueOrdre<T>` (type zéro-taille portant l'`Order<T>`) + `Aligne<T, O, V>::composer` — deux opérandes ne se composent que sous la même marque `O`, imposé par le typage (les marques différentes ne compilent pas). 7 tests : canonique, permutation valide/rejetée, contrainte Map, alignement en valeur, composition typée, propriété (LCG) bijection de π.
+- **Evidence**: `make check` OK (128 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
+- **Judgement calls**: `Order<T>` vit dans `lisage-plan` (frontière : plan → lang + algebra, test `frontieres.rs`) et est générique sur un descripteur de type (`TypeOrdre`) plutôt que sur le schéma de `core` — le plan ne dépend pas du cœur ; les contraintes sont des paires (avant, après) déclarées par le type, vérifiées à la construction de π ; l'alignement « comme typage » est matérialisé par le paramètre de marque `O` sur `Aligne`, complété d'une vérification en valeur (`Order::alignement`) pour les ordres manipulés comme valeurs.
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M2-6 : Liseuse v1 — vue pas à pas, canaux colorés, MemoHit/MemoMiss, rounds, différentiel à fantômes (feat/22)
 
 - **Issue**: #22 (M2-6 — Liseuse v1 pas à pas, vue 3 du doc liseuse § 6).
