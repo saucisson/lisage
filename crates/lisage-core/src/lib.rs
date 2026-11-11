@@ -16,6 +16,7 @@ pub mod memoire;
 pub mod observer;
 pub mod operations;
 pub mod pli;
+pub mod region;
 pub mod saturate;
 pub mod schema;
 pub mod transduction;
