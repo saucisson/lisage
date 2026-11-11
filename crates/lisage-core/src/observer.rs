@@ -14,8 +14,20 @@ pub enum ReductionRule {
     Default,
 }
 
-/// Événements typés émis par le pool à la construction des diagrammes.
-/// C'est la trace que Liseuse sérialise et rend.
+/// Canal d'un attribut (vue 3 « pas à pas », canaux colorés — M2-6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum CanalAttr {
+    /// Attribut **hérité** (descendant, `φ_disp`) — rendu en bleu.
+    Herite,
+    /// Attribut **synthétisé** (remontant, `φ_aggr`) — rendu en orange.
+    Synthétise,
+    /// **Mémoire de niveau** (écriture par `φ_out`) — rendu en violet.
+    Memoire,
+}
+
+/// Événements typés émis par le pool à la construction des diagrammes et
+/// par le runner de transductions pendant l'exécution (M2-6). C'est la
+/// trace que Liseuse sérialise et rend.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum TraceEvent {
     /// Nœud créé dans le pool (après réductions).
@@ -26,6 +38,30 @@ pub enum TraceEvent {
     ReductionApplied { rule: ReductionRule, level: Level },
     /// Diagramme achevé : handle racine et taille du pool.
     DiagramBuilt { handle: Handle, nodes: usize },
+    /// Attribut circulant sur un canal (hérité/synthétisé/mémoire), M2-6.
+    Attr {
+        /// Canal de l'attribut.
+        canal: CanalAttr,
+        /// Nœud concerné.
+        noeud: NodeId,
+        /// Valeur (format `Debug`), affichée telle quelle.
+        valeur: String,
+    },
+    /// Mémo hit : le couple (op, nœud, h, version) était en computed table.
+    MemoHit {
+        /// Nœud dont la visite a hit.
+        noeud: NodeId,
+    },
+    /// Mémo miss : visite complète du sous-arbre.
+    MemoMiss {
+        /// Nœud dont la visite a miss.
+        noeud: NodeId,
+    },
+    /// Début d'un round de saturation (M2-6) : numéro de l'itération.
+    Round {
+        /// Numéro du round (1-based).
+        numero: u32,
+    },
 }
 
 /// Observateur de trace, no-op par défaut (Liseuse fournit le sien).

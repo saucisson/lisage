@@ -161,6 +161,7 @@ fn test_saturate_termine_et_point_fixe() {
         anchor,
         initial,
         nombre_niveaux: schema.nombre_niveaux(),
+        observateur: None,
     };
     let resultat = saturer(&mut params).unwrap();
     assert_eq!(
@@ -192,6 +193,7 @@ fn test_saturate_politiques_equivalentes() {
         anchor,
         initial: initial_s,
         nombre_niveaux: schema.nombre_niveaux(),
+        observateur: None,
     };
     let r_statique = saturer(&mut params).unwrap();
 
@@ -205,6 +207,7 @@ fn test_saturate_politiques_equivalentes() {
         anchor,
         initial: initial_a,
         nombre_niveaux: schema.nombre_niveaux(),
+        observateur: None,
     };
     let r_auto = saturer(&mut params).unwrap();
 
@@ -247,6 +250,7 @@ fn test_saturate_statique_restreint_les_niveaux() {
         anchor,
         initial: initial_s,
         nombre_niveaux: schema.nombre_niveaux(),
+        observateur: None,
     };
     let r_statique = saturer(&mut params).unwrap();
     assert_eq!(
@@ -273,6 +277,7 @@ fn test_saturate_statique_restreint_les_niveaux() {
         anchor,
         initial: initial_a,
         nombre_niveaux: schema.nombre_niveaux(),
+        observateur: None,
     };
     let r_auto = saturer(&mut params).unwrap();
     assert_eq!(
@@ -311,6 +316,7 @@ fn test_saturate_chaine_croissante_multi_iterations() {
         anchor,
         initial,
         nombre_niveaux: schema.nombre_niveaux(),
+        observateur: None,
     };
     let resultat = saturer(&mut params).unwrap();
     assert!(

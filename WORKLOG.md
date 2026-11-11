@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M2-6 : Liseuse v1 — vue pas à pas, canaux colorés, MemoHit/MemoMiss, rounds, différentiel à fantômes (feat/22)
+
+- **Issue**: #22 (M2-6 — Liseuse v1 pas à pas, vue 3 du doc liseuse § 6).
+- **Done**: nouveaux événements de trace v2 — `TraceEvent::{Attr{canal, nœud, valeur}, MemoHit, MemoMiss, Round}` avec `CanalAttr::{Herite, Synthétise, Memoire}` ; le `Transducteur` accepte un `Observer` (`avec_observateur`) et émet MemoHit/MemoMiss à la consultation mémoire, Attr hérité/synthétisé/mémoire aux points correspondants ; `saturer` émet un `Round` par itération et transmet l'observateur. Côté liseuse : `pas_a_pas.rs` avec `Scrubber` (replay déterministe de l'état à une position de la frise), `diff()` (différentiel avant/après), `rendre_svg_pas_a_pas` (frise timeline + canaux colorés + fantômes en pointillés + tableau de bord), `legende_canaux()`. Trace JSONL versionnée `TRACE_VERSION = 2`. 5 tests dédiés (sérialisation v2, émissions runner/saturate, scrubber, rendu SVG déterministe).
+- **Evidence**: `make check` OK (120 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
+- **Judgement calls**: le rendu pas à pas est un SVG statique embarqué (frise + canaux + fantômes) — le doc liseuse § 7 impose l'absence de JS/serveur, donc le « scrubber » est matérialisé par une position sur la frise rejouée côté Rust, pas par un widget interactif ; le runner n'observe pas le pool (les `NodeCreated` viennent de l'observer du pool, canal à part).
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M2-5 : Événements non locaux — transfert m(a)-=1; m(b)+=1 compilé en transduction à mémoire de niveau, surcoût poly(w) (T3) (feat/21)
 
 - **Issue**: #21 (M2-5 — Événements non locaux, énoncés T3, C1).

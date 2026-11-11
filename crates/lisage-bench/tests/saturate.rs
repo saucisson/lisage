@@ -127,6 +127,7 @@ proptest! {
             anchor,
             initial: noeud_initial,
             nombre_niveaux: schema.nombre_niveaux(),
+            observateur: None,
         };
         let premier = saturer(&mut params).unwrap();
 
@@ -148,6 +149,7 @@ proptest! {
             anchor,
             initial: premier.noeud,
             nombre_niveaux: schema.nombre_niveaux(),
+            observateur: None,
         };
         let second = saturer(&mut params).unwrap();
         prop_assert_eq!(second.iterations, 1, "point fixe : 1 itération");
