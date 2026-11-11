@@ -21,6 +21,8 @@ use lisage_lang::value::{Atom, Value};
 const ANCRE_TEST: Anchor = Anchor(0);
 /// `think`.
 const PENSE: u64 = 0;
+/// `hungry`.
+const AFFAME: u64 = 1;
 /// `eat`.
 const MANGE: u64 = 2;
 /// `g` : état intermédiaire du philosophe gaucher (position 0 seule).
@@ -35,6 +37,12 @@ const RATIO_GAUCHER: f64 = 1.2887;
 const TOLERANCE_RATIO: f64 = 0.01;
 /// Nombre de cellules légales de l'automate minimal (5 + 2 terminaux = 7 formes).
 const NB_CELLULES_LEGALES: usize = 5;
+/// Pas des clés de l'intercalage : clé `2i` = `pc_i`, clé `2i+1` = `left_i`.
+const PAS_CLE_INTERCALAGE: u64 = 2;
+/// Nœuds vivants du prototype plat (union de maps) par n — bord mesuré,
+/// croissant en n. Le 4n − 4 du fil rouge concerne le prototype plat de
+/// l'automate encodé (hors périmètre de ce banc).
+const BORD_PLAT: &[(u64, usize)] = &[(3, 206), (4, 646), (5, 1850), (6, 5198), (7, 14362)];
 
 type PoolRef = Arena<ReferenceController>;
 
@@ -60,11 +68,11 @@ impl Observer for RecordingObserver {
 /// gaucher).
 fn schema_anneau(n: u64, gaucher: bool) -> Schema {
     let domaine = if gaucher {
-        Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2), Atom(GAUCHER)])
+        Domaine::nouveau(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE), Atom(GAUCHER)])
     } else {
-        Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)])
+        Domaine::nouveau(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)])
     };
-    Schema::Map((0..2 * n).map(Atom).collect(), domaine)
+    Schema::Map((0..PAS_CLE_INTERCALAGE * n).map(Atom).collect(), domaine)
 }
 
 /// Fourchette `left_i` dérivée du mot `pc` (fil rouge § 3).
@@ -119,8 +127,11 @@ fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
             .flat_map(|i| {
                 let i = i as usize;
                 [
-                    (2 * i as u64, mot[i]),
-                    (2 * i as u64 + 1, fourchette(&mot, n as usize, i)),
+                    (PAS_CLE_INTERCALAGE * i as u64, mot[i]),
+                    (
+                        PAS_CLE_INTERCALAGE * i as u64 + 1,
+                        fourchette(&mot, n as usize, i),
+                    ),
                 ]
             })
             .map(|(cle, valeur)| (Value::Atom(Atom(cle)), Value::Atom(Atom(valeur))))
@@ -131,14 +142,13 @@ fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
     racine
 }
 
-/// Compte |R_n| par pli `(ℕ,+,×)`.
-fn compter_r_n(pool_entree: &PoolRef, n: u64, racine: NodeId) -> u64 {
-    let schema = schema_anneau(n, false);
+/// Compte |R_n| par pli `(ℕ,+,×)` sur le schéma donné.
+fn compter_r_n(pool_entree: &PoolRef, schema: &Schema, racine: NodeId) -> u64 {
     let mut sortie = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    compter(pool_entree, &mut sortie, ANCRE_TEST, &schema, racine).unwrap()
+    compter(pool_entree, &mut sortie, ANCRE_TEST, schema, racine).unwrap()
 }
 
 /// M4-4 : |R_n| par pli DD == énumération == valeurs du fil rouge
@@ -153,7 +163,7 @@ fn test_bench_cardinaux_r_n() {
             Box::new(NoOpObserver),
         );
         let racine = construire_r_n(&mut pool, n, false);
-        let compte = compter_r_n(&pool, n, racine);
+        let compte = compter_r_n(&pool, &schema, racine);
         let reference = mots_atteignables(n as usize, false).len() as u64;
         assert_eq!(compte, reference, "n={n} : pli DD == énumération");
         assert_eq!(compte, attendu, "n={n} : |R_{n}| = {attendu} (fil rouge)");
@@ -173,9 +183,10 @@ fn test_bench_gaucher_ratio_constant() {
             Box::new(NoOpObserver),
         );
         let racine = construire_r_n(&mut pool, n, true);
-        // Compte par énumération de référence (le pli sur le schéma gaucher
-        // suit la même famille ; on vérifie d'abord contre l'énumération).
+        // |R'_n| par pli DD == énumération de référence == fil rouge § 9.2.
+        let compte = compter_r_n(&pool, &schema, racine);
         let reference = mots_atteignables(n as usize, true).len() as u64;
+        assert_eq!(compte, reference, "n={n} : pli DD == énumération (gaucher)");
         assert_eq!(
             reference, attendu,
             "n={n} : |R'_{n}| = {attendu} (fil rouge § 9.2)"
@@ -187,9 +198,8 @@ fn test_bench_gaucher_ratio_constant() {
             Box::new(NoOpObserver),
         );
         let racine_reg = construire_r_n(&mut pool_reg, n, false);
-        let compte_reg = compter_r_n(&pool_reg, n, racine_reg);
-        let _ = racine;
-        let ratio = reference as f64 / compte_reg as f64;
+        let compte_reg = compter_r_n(&pool_reg, &schema_reg, racine_reg);
+        let ratio = compte as f64 / compte_reg as f64;
         ratios.push(ratio);
         assert!(
             (ratio - RATIO_GAUCHER).abs() < TOLERANCE_RATIO,
@@ -220,6 +230,7 @@ fn test_bench_sept_formes_o1_et_bord() {
     }
     let mut comptes_formes = Vec::new();
     let mut noeuds_plats = Vec::new();
+    let mut creations = 0u64;
     for &(n, _) in R_ATTENDUS {
         let schema = schema_anneau(n, false);
         let mut pool = Arena::new(
@@ -243,6 +254,7 @@ fn test_bench_sept_formes_o1_et_bord() {
         // Bord du prototype plat : nœuds vivants du pool (pas de GC ici,
         // le pic vivant = vivants après construction).
         noeuds_plats.push(pool.vivants());
+        creations += pool.metriques().creations;
         let _ = racine;
     }
     // O(1) : le nombre de formes ne dépend pas de n.
@@ -250,12 +262,16 @@ fn test_bench_sept_formes_o1_et_bord() {
         comptes_formes.windows(2).all(|w| w[0] == w[1]),
         "formes constantes en n: {comptes_formes:?}"
     );
-    // Le bord croît avec n (prototype plat 4n − 4) : falsification si plat.
+    // Le bord du prototype plat est épinglé exactement (falsification
+    // explicite) et croît avec n.
+    for (&(n, attendu), &mesure) in BORD_PLAT.iter().zip(&noeuds_plats) {
+        assert_eq!(mesure, attendu, "n={n} : bord plat = {attendu} vivants");
+    }
     assert!(
         noeuds_plats.windows(2).all(|w| w[1] > w[0]),
         "le prototype plat croît avec n: {noeuds_plats:?}"
     );
-    // Firings relevés (créations de nœuds pendant la construction).
+    // Firings = événements NodeCreated == compteur de créations du pool.
     let firings = *observateur.firings.lock().unwrap();
-    assert!(firings > 0, "firings comptés: {firings}");
+    assert_eq!(firings, creations, "firings == créations du hash-consing");
 }
