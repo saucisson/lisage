@@ -220,6 +220,7 @@ impl<C: Controller> Arena<C> {
     /// Retourne soit la cible du collapse, soit la forme réduite à interniser.
     fn reduit(
         &self,
+        anchor: Anchor,
         level: Level,
         arcs: BTreeMap<C::Key, NodeId>,
     ) -> Result<Form<C::Key, C::Payload>, NodeId> {
@@ -231,7 +232,14 @@ impl<C: Controller> Arena<C> {
         };
         // M4-3 : défaut généralisé (D-abs/D-trans) si le contrôleur l'active.
         let reduit = if self.controleur.absorption_generalisee() {
-            crate_reduction_dabs(arcs, cle_defaut, &est_defaut, cardinalite)
+            // NodeId de D^déf sous cette ancre, s'il est déjà interné (sert
+            // au D-trans sur forme vide A = ∅).
+            let defaut = payload_defaut.as_ref().and_then(|p| {
+                self.unique
+                    .get(&(Self::CONTROLLER, anchor, Form::Terminal(p.clone())))
+                    .copied()
+            });
+            crate_reduction_dabs(arcs, cle_defaut, &est_defaut, cardinalite, defaut)
         } else {
             reduire(arcs, cle_defaut, &est_defaut, cardinalite)
         };
@@ -256,7 +264,7 @@ impl<C: Controller> Pool for Arena<C> {
         let forme = match forme {
             Form::Node { level, arcs } => {
                 let taille_avant = arcs.len();
-                match self.reduit(level, arcs) {
+                match self.reduit(anchor, level, arcs) {
                     Err(cible) => {
                         self.observer.on_event(&TraceEvent::ReductionApplied {
                             rule: ReductionRule::Collapse,

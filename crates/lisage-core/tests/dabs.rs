@@ -222,6 +222,30 @@ fn test_sans_cle_defaut_pas_dabs() {
     );
 }
 
+/// M4-3 (D-trans) : une forme littéralement vide (A = ∅) avec un défaut
+/// désigné collapse en D^déf, même sans aucun arc pour le désigner.
+#[test]
+fn test_dtrans_forme_vide_litterale() {
+    let est_defaut = |node: NodeId| node == NOEUD_DEFAUT;
+    let resultat = reduire_dabs(
+        BTreeMap::new(),
+        Some(0),
+        &est_defaut,
+        CARDINALITE_MOCK,
+        Some(NOEUD_DEFAUT),
+    );
+    assert_eq!(resultat, Reduction::Collapse(NOEUD_DEFAUT));
+    // Sans D^déf désigné : la forme vide reste une forme vide.
+    let resultat = reduire_dabs(
+        BTreeMap::new(),
+        Some(0),
+        &est_defaut,
+        CARDINALITE_MOCK,
+        None,
+    );
+    assert_eq!(resultat, Reduction::Forme(BTreeMap::new()));
+}
+
 /// M4-3 (tier propriété, LCG) : confluence du défaut généralisé —
 /// `reduire_dabs ∘ reduire_dabs = reduire_dabs` (idempotence), aucune forme
 /// résultante ne conserve d'arc vers D^déf (quand δ existe), et un
@@ -248,7 +272,14 @@ fn test_propriete_dabs_confluence() {
             .collect();
         let cle_defaut = if suivant() % 2 == 0 { Some(0) } else { None };
 
-        let premier = reduire_dabs(arcs.clone(), cle_defaut, &est_defaut, CARDINALITE_MOCK);
+        let defaut = cle_defaut.map(|_| NOEUD_DEFAUT);
+        let premier = reduire_dabs(
+            arcs.clone(),
+            cle_defaut,
+            &est_defaut,
+            CARDINALITE_MOCK,
+            defaut,
+        );
         // Idempotence : une forme réduite est un point fixe (un Collapse
         // vise un nœud, pas une forme d'arcs — rien à re-réduire).
         if let Reduction::Forme(arcs_reduits) = &premier {
@@ -257,6 +288,7 @@ fn test_propriete_dabs_confluence() {
                 cle_defaut,
                 &est_defaut,
                 CARDINALITE_MOCK,
+                defaut,
             );
             assert_eq!(premier.clone(), second, "idempotence de reduire_dabs");
         }
