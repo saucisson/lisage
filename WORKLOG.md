@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - Backlog δ continu, fragment intervalles : algèbre de clés-régions 1D (Q9) (feat/83)
+
+- **Issue**: #83 (backlog § 9 de la feuille de route, question ouverte 9 de la spec — premier fragment « intervalles », la porte M5-4 étant levée).
+- **Done**: `lisage-core::region` (nouveau) : `Intervalle` (clé-région = intervalle fermé, construction normalisée — l'intervalle vide devient le canonique `VIDE`, l'égalité dérivée est l'égalité ensembliste), `RegionKeys` (`Val(ℓ) = [0, domaines[ℓ])`, `cardinality(ℓ)` = taille du domaine, `δ(ℓ)` = `VIDE`, l'« absent » continu miroir de `ABSENT`), `RegionController` (payload bool, `D_δ` = région vide → `false`, fingerprint `ControllerId(4)`). 6 tests dans `crates/lisage-core/tests/region.rs` : normalisation de l'intervalle vide, forme normale canonique et idempotente, cardinalité/défaut par niveau, **C1 relatif au pool** (deux écritures d'une même région partagent le nœud, régions distinctes non), propriété LCG (30 cas : idempotence + cohérence taille/est_vide/contient), différentiel contre énumération naïve (union d'intervalles en arcs disjoints, compte DD == |S|, R-default supprime l'arc `VIDE`). Hors fragment : intégrale au pli, DBM, instance-test DDD-différence.
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 231 tests, 3 ignorés — 6 nouveaux). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
+- **Judgement calls**: le fragment « intervalles » seul (pas les DBM ni l'intégrale) pour tenir dans un PR ; le module vit dans `lisage-core` comme `bdd.rs`/`schema.rs` (les algèbres de clés de référence y vivent), aucune dépendance ajoutée, aucun changement de frontière (test de frontières vert inchangé).
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M5-2 : voie C du triptyque câblée au planner — graphe ADR-0002 étendu `lisage-bench → lisage-plan` (décision humaine A) (feat/33c)
 
 - **Issue**: #33 (M5-2 — Corpus MCC ; triptyque A/B/C complet, énoncés C3/C4). Suite de la décision needs-human du 2026-11-11 (option A) : extension du graphe de dépendances pour autoriser `lisage-bench → lisage-plan`.
