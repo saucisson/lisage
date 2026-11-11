@@ -26,6 +26,9 @@ pub const SEUIL_COMPACTION_NUM: u64 = 1;
 /// Dénominateur du seuil de compaction.
 pub const SEUIL_COMPACTION_DEN: u64 = 4;
 
+/// Base de pourcentage pour `taux_hit` (retourné en pour cent, entier).
+pub const BASE_POURCENTAGE: u64 = 100;
+
 /// Métriques du pool : cache du hash-consing et compteurs de GC.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct MetriquesPool {
@@ -48,7 +51,7 @@ impl MetriquesPool {
     pub fn taux_hit(&self) -> u64 {
         let total = self.creations + self.partages;
         self.partages
-            .checked_mul(100)
+            .checked_mul(BASE_POURCENTAGE)
             .and_then(|p| p.checked_div(total))
             .unwrap_or(0)
     }

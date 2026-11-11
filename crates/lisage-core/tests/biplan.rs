@@ -331,7 +331,7 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         let taux = metriques.taux_hit();
         assert!(taux <= 100);
         let attendu = partages
-            .checked_mul(100)
+            .checked_mul(lisage_core::biplan::BASE_POURCENTAGE)
             .and_then(|p| p.checked_div(creations + partages))
             .unwrap_or(0);
         assert_eq!(taux, attendu);
@@ -361,4 +361,40 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         assert_eq!(metriques.morts, stats.collectes);
         assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     }
+}
+
+/// M4-1 (régression review) : un second GC sur le même pool sans
+/// compaction intermédiaire compte les vivants sur les entrées vivantes,
+/// pas sur le nombre de slots (qui inclut les tombstones du premier GC).
+#[test]
+fn test_gc_deux_fois_vivants_exacts() {
+    let mut pool = arena();
+    let (racine, _orphelin) = petit_diagramme(&mut pool);
+    // Chaîne de nœuds tous atteints depuis la racine : le premier GC ne
+    // collecte que l'orphelin et le terminal faux (2 morts sur un grand
+    // total), le seuil n'est pas atteint, les tombstones restent.
+    let mut courant = racine;
+    for i in 0..NB_ORPHELINS {
+        courant = pool.intern(
+            ANCRE_TEST,
+            Form::Node {
+                level: Level(NIVEAU_BASE_ORPHELINS + i as u32 + 100),
+                arcs: BTreeMap::from([(1, courant)]),
+            },
+        );
+    }
+    // Racines = racine + extrémité de chaîne : toute la chaîne est atteinte,
+    // seuls l'orphelin et le terminal faux sont collectés.
+    let premier = pool.gc(&[racine, courant]);
+    assert!(!premier.compaction, "peu de morts : pas de compaction");
+    assert!(pool.node_count() > pool.vivants(), "tombstones conservées");
+    // Second GC : les vivants ne doivent pas compter les tombstones du
+    // premier GC — vivants + collectes == entrées vivantes avant le GC.
+    let vivantes_avant = pool.vivants() as u64;
+    let stats = pool.gc(&[racine, courant]);
+    assert_eq!(stats.vivants, pool.vivants() as u64);
+    assert_eq!(stats.vivants + stats.collectes, vivantes_avant);
+    let metriques = pool.metriques();
+    assert_eq!(metriques.vivants, stats.vivants);
+    assert_eq!(metriques.gc, 2);
 }
