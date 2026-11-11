@@ -6,6 +6,7 @@
 //! d'interface du contrat pour que les crates qui ne dépendent pas
 //! d'`algebra` (Liseuse) puissent lire les diagrammes.
 
+pub mod add;
 pub mod arena;
 pub mod bdd;
 pub mod biplan;
