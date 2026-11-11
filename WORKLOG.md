@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M5-4 : ADD/MTBDD — merge non idempotent, table indexée par les poids, garde-fou de compatibilité (feat/35)
+
+- **Issue**: #35 (M5-4 — ADD/MTBDD ; merge non idempotent, table indexée par les poids, différentiel de compatibilité en garde-fou, question ouverte n° 8 de la spec § 10, énoncé C7).
+- **Done**: `lisage-core::add` (nouveau) : `AddController` (payload `u64` = poids sur les terminaux, `D_δ = terminal(0)` aux niveaux de présence, fingerprint distinct — la table unique est indexée par les poids via le handle) ; `compiler_pondere` (miroir de `schema::compiler` pour payload `u64`) ; `merge_add` (⊕ pointwise à la ADD, **non idempotent** : pas de raccourci `a == b`, `merge_add(a,a)` double les poids) ; `somme_poids` (pli pondéré avec expansion-comptage A4 et mémo, exact uniquement sur construction levée). 5 tests dans `crates/lisage-core/tests/add.rs` : table indexée par les poids (terminaux 1/2 distincts, merge → handle de 3), non-idempotence (`merge_add(a,a)` ≠ a, somme pondérée 2), somme pondérée == cardinal == |S| sur les deux constructions, garde-fou Q8 (doublon : somme pondérée 4 sur ADD vs cardinal 3 sur Bool — divergence explicite), propriété LCG (30 cas : somme pondérée == cardinal == |S|).
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 219 tests, 3 ignorés). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
+- **Judgement calls**: poids `u64` (semi-anneau `(ℕ,+,×)`) comme instance ADD de cette PR — la décision « rationnels exacts par défaut, `f64` en option de bench » de la feuille de route § 10 reste à prendre pour la lecture pondérée probabiliste ; `somme_poids` est un pli direct (mémo sur les nœuds) plutôt qu'une `Transduction` car le moteur de transductions lit son entrée en payload `bool` (M1-5) — la lecture pondérée est propre à la construction levée ; aucun changement à `union` (construction Bool) ni au moteur.
+- **Escalations**: aucune.
+
 ## 2026-11-11 - fix: review PR #77 — propriété vtree générée par LCG (non auto-référentielle), WORKLOG : comptage de tests corrigé (13 tests nouveaux, 214 au total) (fix/review-77)
 
 - **Issue**: #34 (M5-3 — SDD sententiels, C6).
