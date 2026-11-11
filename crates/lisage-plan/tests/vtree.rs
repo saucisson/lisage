@@ -81,22 +81,71 @@ fn test_vtree_variable_en_double_rejete() {
     );
 }
 
-/// Propriété : l'ordre canonique d'un vtree contient chaque variable
-/// exactement une fois, et toute contrainte gauche-droite y est satisfaite.
+/// Génère un vtree aléatoire sur `nombre_variables` variables, par LCG
+/// déterministe (mêmes constantes que les autres tests de propriété).
+fn vtree_aleatoire(graine: &mut u64, nombre_variables: u64) -> Vtree {
+    const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
+    const INCREMENT_LCG: u64 = 1442695040888963407;
+    fn construire(graine: &mut u64, variables: &[Atom]) -> Vtree {
+        if variables.len() == 1 {
+            return Vtree::feuille(variables[0]);
+        }
+        let point_coupe = (suivant(graine) % (variables.len() as u64 - 1)) as usize + 1;
+        Vtree::noeud(
+            construire(graine, &variables[..point_coupe]),
+            construire(graine, &variables[point_coupe..]),
+        )
+    }
+    fn suivant(graine: &mut u64) -> u64 {
+        *graine = graine
+            .wrapping_mul(MULTIPLICATEUR_LCG)
+            .wrapping_add(INCREMENT_LCG);
+        *graine
+    }
+    let variables: Vec<Atom> = (0..nombre_variables).map(Atom).collect();
+    construire(graine, &variables)
+}
+
+/// Vérifie structurellement (par parcours direct de l'arbre, indépendant de
+/// `contraintes_ordre`) que `sequence` place toute variable de gauche avant
+/// toute variable de droite à chaque nœud interne.
+fn verifier_gauche_avant_droite(vtree: &Vtree, sequence: &[Atom]) {
+    if let Vtree::Noeud { gauche, droite } = vtree {
+        for variable_gauche in gauche.ordre_plat() {
+            for variable_droite in droite.ordre_plat() {
+                let position_gauche = sequence.iter().position(|a| *a == variable_gauche).unwrap();
+                let position_droite = sequence.iter().position(|a| *a == variable_droite).unwrap();
+                assert!(position_gauche < position_droite);
+            }
+        }
+        verifier_gauche_avant_droite(gauche, sequence);
+        verifier_gauche_avant_droite(droite, sequence);
+    }
+}
+
+/// Propriété (cas générés par LCG) : pour tout vtree, l'ordre canonique est
+/// une permutation des variables et satisfait gauche-avant-droite à chaque
+/// nœud, vérifié par parcours direct de l'arbre.
 #[test]
 fn test_propriete_ordre_canonique_satisfait_contraintes() {
-    let vtree = Vtree::noeud(
-        Vtree::noeud(Vtree::feuille(Atom(3)), Vtree::feuille(Atom(1))),
-        Vtree::feuille(Atom(2)),
-    );
-    let ordre = Order::canonique(&vtree);
-    let sequence = ordre.sequence();
-    let mut triee = sequence.to_vec();
-    triee.sort();
-    assert_eq!(triee, vec![Atom(1), Atom(2), Atom(3)]);
-    for (avant, apres) in vtree.contraintes_ordre() {
-        let position_avant = ordre.position(&avant).unwrap();
-        let position_apres = ordre.position(&apres).unwrap();
-        assert!(position_avant < position_apres);
+    const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+    const NOMBRE_CAS: u64 = 50;
+    const BORNE_VARIABLES: u64 = 8;
+    let mut graine = GRAINE_LCG;
+    for _ in 0..NOMBRE_CAS {
+        graine = graine
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let nombre_variables = 2 + graine % (BORNE_VARIABLES - 1);
+        let vtree = vtree_aleatoire(&mut graine, nombre_variables);
+        assert!(vtree.valider().is_ok());
+        let ordre = Order::canonique(&vtree);
+        let sequence = ordre.sequence();
+        let mut triee = sequence.to_vec();
+        triee.sort();
+        let mut attendues: Vec<Atom> = (0..nombre_variables).map(Atom).collect();
+        attendues.sort();
+        assert_eq!(triee, attendues);
+        verifier_gauche_avant_droite(&vtree, sequence);
     }
 }
