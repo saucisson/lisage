@@ -50,14 +50,14 @@ fn test_vue_pool_depuis_metriques_gc() {
     let racine = ensemble(&mut pool, ANCRE_TEST, &schema, &[0, 1]);
     // Orphelin collecté par le GC.
     let _orphelin = ensemble(&mut pool, ANCRE_TEST, &schema, &[2]);
-    let stats = pool.gc(&[racine]);
+    let stats_gc = pool.gc(&[racine]);
     let metriques = pool.metriques();
-    let vue = VuePool::depuis_metriques("reference", metriques, stats.vivants, 0);
+    let vue = VuePool::depuis_metriques("reference", metriques, stats_gc.vivants, 0);
     assert_eq!(vue.nom, "reference");
     assert_eq!(vue.metriques.gc, 1);
-    assert_eq!(vue.metriques.vivants, stats.vivants);
-    assert_eq!(vue.metriques.morts, stats.collectes);
-    assert_eq!(vue.vivants_principal, stats.vivants);
+    assert_eq!(vue.metriques.vivants, stats_gc.vivants);
+    assert_eq!(vue.metriques.morts, stats_gc.collectes);
+    assert_eq!(vue.vivants_principal, stats_gc.vivants);
     assert_eq!(vue.vivants_ombre, 0);
 }
 
@@ -67,10 +67,10 @@ fn test_vue_pool_depuis_metriques_gc() {
 fn test_classes_quotient_formes_par_ancres() {
     let schema = schema_ensemble();
     let mut pool = pool_neuf(&schema);
-    let a = ensemble(&mut pool, ANCRE_TEST, &schema, &[0]);
-    let b = ensemble(&mut pool, ANCRE_TEST_2, &schema, &[0]);
+    let handle_ancre_0 = ensemble(&mut pool, ANCRE_TEST, &schema, &[0]);
+    let handle_ancre_1 = ensemble(&mut pool, ANCRE_TEST_2, &schema, &[0]);
     assert_ne!(
-        a, b,
+        handle_ancre_0, handle_ancre_1,
         "C1 : même forme, ancres différentes = handles distincts"
     );
     // Deux classes (forme {0}, ancre 0) et (forme {0}, ancre 1).
@@ -86,16 +86,22 @@ fn test_classes_quotient_formes_par_ancres() {
             multiplicite: 1,
         },
     ];
-    assert_eq!(classes.len(), 2);
-    // Badge de multiplicité : un handle partagé 3 fois.
+    // Les deux classes sont distinctes (C1) : formes × ancres.
+    assert_ne!(classes[0], classes[1]);
+    // Badge de multiplicité : un handle partagé 3 fois sous la même ancre.
     let partage = ensemble(&mut pool, ANCRE_TEST, &schema, &[0]);
-    assert_eq!(partage, a, "R-share : même handle sous la même ancre");
-    let badge = ClasseQuotient {
+    assert_eq!(
+        partage, handle_ancre_0,
+        "R-share : même handle sous la même ancre"
+    );
+    let classe = ClasseQuotient {
         forme: "{0}".to_string(),
         ancre: "ancre 0".to_string(),
         multiplicite: 3,
     };
-    assert!(badge.multiplicite > 1, "badge ×k affiché quand k > 1");
+    let badge = classe.badge();
+    assert_eq!(badge.multiplicite, classe.multiplicite);
+    assert_eq!(badge.handle, "{0} @ ancre 0");
 }
 
 /// M4-5 : rendu SVG de la vue mémoire et quotient — panneaux présents,
@@ -107,8 +113,8 @@ fn test_rendre_svg_vue_memoire() {
     let mut pool = pool_neuf(&schema);
     let racine = ensemble(&mut pool, ANCRE_TEST, &schema, &[0, 1]);
     let _orphelin = ensemble(&mut pool, ANCRE_TEST, &schema, &[2]);
-    let stats = pool.gc(&[racine]);
-    let vue_pool = VuePool::depuis_metriques("reference", pool.metriques(), stats.vivants, 0);
+    let stats_gc = pool.gc(&[racine]);
+    let vue_pool = VuePool::depuis_metriques("reference", pool.metriques(), stats_gc.vivants, 0);
     let classes = vec![
         ClasseQuotient {
             forme: "{0,1}".to_string(),
@@ -159,7 +165,7 @@ fn test_rendre_svg_vue_memoire() {
         &[VuePool::depuis_metriques(
             "reference",
             pool.metriques(),
-            stats.vivants,
+            stats_gc.vivants,
             0,
         )],
         &classes,
