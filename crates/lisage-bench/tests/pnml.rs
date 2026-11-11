@@ -44,8 +44,8 @@ const PNML_BOUCL: &str = r#"<pnml><net>
 #[test]
 fn test_parse_modele_joue() {
     let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
-    assert_eq!(reseau.nb_places(), 3);
-    assert_eq!(reseau.nb_transitions(), 2);
+    assert_eq!(reseau.nombre_places(), 3);
+    assert_eq!(reseau.nombre_transitions(), 2);
     assert_eq!(reseau.arcs.len(), 4);
     assert_eq!(reseau.places[0].identifiant, PlaceId("p0".to_string()));
     assert_eq!(reseau.places[0].nom.as_deref(), Some("source"));
@@ -152,6 +152,25 @@ fn test_erreur_poids_non_supporte() {
 }
 
 #[test]
+fn test_erreur_element_inattendu() {
+    // Racine autre que <pnml>.
+    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument("<foo/>".to_string()));
+    assert!(matches!(
+        resultat,
+        Err(PnmlError::ElementInattendu {
+            attendu: "pnml",
+            ..
+        })
+    ));
+    // <pnml> sans <net>.
+    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument("<pnml/>".to_string()));
+    assert!(matches!(
+        resultat,
+        Err(PnmlError::ElementInattendu { attendu: "net", .. })
+    ));
+}
+
+#[test]
 fn test_erreur_nombre_invalide() {
     let document = "<pnml><net><place id=\"p0\"><initialMarking><text>abc</text></initialMarking></place></net></pnml>";
     let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
@@ -168,23 +187,27 @@ fn test_erreur_nombre_invalide() {
 // Propriétés (ADR-0012) : réseaux générés, invariants sémantiques
 // ---------------------------------------------------------------------------
 
-/// Génère un document PNML aléatoire : `nb_places` places (marquage
-/// initial 0..=2), `nb_transitions` transitions, chaque transition
+/// Génère un document PNML aléatoire : `nombre_places` places (marquage
+/// initial 0..=2), `nombre_transitions` transitions, chaque transition
 /// reliée à une place entrante et une place sortante (éventuellement
 /// la même).
-fn reseau_aleatoire(nb_places: usize, nb_transitions: usize, marquages: Vec<u64>) -> String {
+fn reseau_aleatoire(
+    nombre_places: usize,
+    nombre_transitions: usize,
+    marquages: Vec<u64>,
+) -> String {
     let mut document = String::from("<pnml><net>");
     for (index, marquage) in marquages.iter().enumerate() {
         document.push_str(&format!(
             "<place id=\"p{index}\"><initialMarking><text>{marquage}</text></initialMarking></place>"
         ));
     }
-    for index in 0..nb_transitions {
+    for index in 0..nombre_transitions {
         document.push_str(&format!("<transition id=\"t{index}\"/>"));
     }
-    for index in 0..nb_transitions {
-        let entree = index % nb_places.max(1);
-        let sortie = (index + 1) % nb_places.max(1);
+    for index in 0..nombre_transitions {
+        let entree = index % nombre_places.max(1);
+        let sortie = (index + 1) % nombre_places.max(1);
         document.push_str(&format!(
             "<arc source=\"p{entree}\" target=\"t{index}\"/><arc source=\"t{index}\" target=\"p{sortie}\"/>"
         ));
@@ -198,17 +221,17 @@ proptest! {
     /// l'espace, et il contient le marquage initial.
     #[test]
     fn propriete_espace_atteignable_point_fixe(
-        nb_places in 1usize..=4,
-        nb_transitions in 1usize..=4,
+        nombre_places in 1usize..=4,
+        nombre_transitions in 1usize..=4,
         marquages in proptest::collection::vec(0u64..=2, 1..=4),
     ) {
         let marquages = {
             let mut m = marquages;
-            m.resize(nb_places, 0);
-            m.truncate(nb_places);
+            m.resize(nombre_places, 0);
+            m.truncate(nombre_places);
             m
         };
-        let document = reseau_aleatoire(nb_places, nb_transitions, marquages);
+        let document = reseau_aleatoire(nombre_places, nombre_transitions, marquages);
         let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
         let espace = espace_atteignable(&reseau);
         prop_assert!(espace.contains(&marquage_initial(&reseau)));
@@ -221,17 +244,17 @@ proptest! {
     /// (réseau en boucle) — invariant du tir.
     #[test]
     fn propriete_tir_sensibilise_produit_successeur_valide(
-        nb_places in 1usize..=4,
-        nb_transitions in 1usize..=4,
+        nombre_places in 1usize..=4,
+        nombre_transitions in 1usize..=4,
         marquages in proptest::collection::vec(1u64..=3, 1..=4),
     ) {
         let marquages = {
             let mut m = marquages;
-            m.resize(nb_places, 1);
-            m.truncate(nb_places);
+            m.resize(nombre_places, 1);
+            m.truncate(nombre_places);
             m
         };
-        let document = reseau_aleatoire(nb_places, nb_transitions, marquages);
+        let document = reseau_aleatoire(nombre_places, nombre_transitions, marquages);
         let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
         let initial = marquage_depuis_value(&marquage_initial(&reseau)).unwrap();
         let total_avant: u64 = initial.values().map(|a| a.0).sum();
@@ -239,7 +262,7 @@ proptest! {
             if est_sensibilisee(&reseau, &transition.identifiant, &initial) {
                 let suivant = tirer(&reseau, &transition.identifiant, &initial);
                 // Le marquage résultant a une entrée par place.
-                prop_assert_eq!(suivant.len(), nb_places);
+                prop_assert_eq!(suivant.len(), nombre_places);
                 // Invariant documenté : le tir déplace un jeton (poids 1
                 // en entrée et en sortie), le total est préservé.
                 let total_apres: u64 = suivant.values().map(|a| a.0).sum();
