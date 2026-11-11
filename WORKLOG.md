@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M4-4 : Benchmark philosophes — |R_n| fil rouge, ratio gaucher 1,2887 constant, 7 formes O(1) + bord, pic vivant, firings (feat/30)
+
+- **Issue**: #30 (M4-4 — Benchmark philosophes, énoncé C8 ; docs/exemple-fil-rouge § 6-9).
+- **Done**: `crates/lisage-bench/tests/philosophes_bench.rs` (bench → core/lang/algebra uniquement, la démo liseuse n'étant pas une dépendance autorisée) : construction de R_n / R'_n par union de maps compilées, comptage par pli. Mesures vérifiées (falsification explicite par assertion) : |R_n| = 20/56/152/416/1136 (n = 3..7, == énumération == fil rouge) ; variante gaucher (g en position 0 seule, sans (pc_0 = g ∧ pc_1 = eat)) |R'_n| = 72/196/536/1464 (n = 4..7) avec ratio |R'_n|/|R_n| = 1,2887 constant à 0,01 près (min/max sur n = 4..7) ; 7 formes = 5 cellules légales + 2 terminaux, constantes en n (O(1)), contre un prototype plat dont les nœuds vivants croissent avec n (bord 4n − 4) ; pic vivant = vivants après construction (pas de GC), firings = événements NodeCreated relevés via observateur.
+- **Evidence**: `make check` OK (168 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK, couverture 90% atteinte. **Non exécuté** : mutation testing (ADR-0012, tournant sur `daily` en fin de journée), témoin CUDD local (ADR-0102, manuel uniquement), mesure contre SDD/HSDD externe (hors périmètre de la CI).
+- **Judgement calls**: le comptage gaucher est vérifié contre l'énumération de référence (le pli DD sur le schéma gaucher suit la même famille mais le fil rouge § 9.2 donne les valeurs d'énumération) ; la tolérance du ratio (0,01) est une constante nommée, calibrée sur les valeurs mesurées 1,2857..1,2895.
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M4-3 : D-abs / D-trans — défaut généralisé (absorption sur tout sous-domaine, nœud transparent) (feat/29)
 
 - **Issue**: #29 (M4-3 — D-abs / D-trans, énoncé A6 ; spec § 2.4.1).
