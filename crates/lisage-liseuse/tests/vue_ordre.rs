@@ -6,6 +6,42 @@ use lisage_liseuse::vue_ordre::{
     ConversionVue, FicheControleur, NoeudVtree, PisteOrdre, RoyaumeVue, rendre_svg_vue_ordre,
 };
 
+/// Extrait un attribut numérique d'un élément SVG (ex. `y="42"` → 42).
+fn extraire_attribut(element: &str, attribut: &str) -> u32 {
+    // Espace initial : évite de matcher la fin de `font-family="..."`.
+    let pos = element
+        .find(&format!(" {attribut}=\""))
+        .unwrap_or_else(|| panic!("attribut {attribut} présent"));
+    let apres = &element[pos + attribut.len() + 3..];
+    let fin = apres.find('"').expect("fin de l'attribut");
+    apres[..fin].parse().expect("attribut entier")
+}
+
+/// Coordonnée `y` de l'élément texte portant `marqueur` (ex. `>record<`).
+fn y_texte(svg: &str, marqueur: &str) -> u32 {
+    let position = svg.find(marqueur).expect("marqueur présent");
+    let avant = &svg[..position];
+    let y_pos = avant.rfind(" y=\"").expect("attribut y avant le marqueur");
+    extraire_attribut(&avant[y_pos..], "y")
+}
+
+/// Coordonnée `x` de l'élément texte portant `marqueur`.
+fn x_texte(svg: &str, marqueur: &str) -> u32 {
+    let position = svg.find(marqueur).expect("marqueur présent");
+    let avant = &svg[..position];
+    let x_pos = avant.rfind(" x=\"").expect("attribut x avant le marqueur");
+    extraire_attribut(&avant[x_pos..], "x")
+}
+
+/// `y1` de la flèche de conversion (ligne en pointillés).
+fn y1_fleche_conversion(svg: &str) -> u32 {
+    let pos = svg
+        .find("stroke-dasharray=\"6 3\"")
+        .expect("flèche de conversion");
+    let debut = svg[..pos].rfind("<line").expect("élément line");
+    extraire_attribut(&svg[debut..pos], "y1")
+}
+
 /// Fiche contrôleur de l'instance de référence (huit champs remplis).
 fn fiche_reference() -> FicheControleur {
     FicheControleur {
@@ -68,11 +104,11 @@ fn test_vue_ordre_fiche_piste_lineaire_royaumes_et_conversion() {
     // Deux royaumes côte à côte.
     assert!(svg.contains("reference"));
     assert!(svg.contains("temoin-bdd"));
-    // Piste linéaire : les niveaux dans l'ordre.
-    let position_a = svg.find(">a<").expect("niveau a");
-    let position_b = svg.find(">b<").expect("niveau b");
-    let position_c = svg.find(">c<").expect("niveau c");
-    assert!(position_a < position_b && position_b < position_c);
+    // Piste linéaire : les niveaux dans l'ordre (x croissants).
+    let x_a = x_texte(&svg, ">a<");
+    let x_b = x_texte(&svg, ">b<");
+    let x_c = x_texte(&svg, ">c<");
+    assert!(x_a < x_b && x_b < x_c, "niveaux dans l'ordre de balayage");
     // Conversion fléchée avec coût.
     assert!(svg.contains("convert reference → temoin-bdd (coût 3)"));
     assert!(
@@ -120,10 +156,10 @@ fn test_vue_ordre_piste_arbre_vtree() {
             "nœud vtree: {libelle}"
         );
     }
-    // Le parent est au-dessus de ses enfants.
-    let y_record = svg.find(">record<").unwrap();
-    let y_cellule = svg.find(">cellule<").unwrap();
-    assert!(y_record < y_cellule);
+    // Le parent est au-dessus de ses enfants (y parsés, pas des offsets).
+    let y_record = y_texte(&svg, ">record<");
+    let y_cellule = y_texte(&svg, ">cellule<");
+    assert!(y_record < y_cellule, "parent au-dessus de l'enfant");
 }
 
 /// M3-4 : le rendu est déterministe et une conversion vers un royaume
@@ -186,14 +222,13 @@ fn test_conversion_ancree_dans_piste_arbre() {
     }];
     let svg = rendre_svg_vue_ordre(&royaumes, &conversions);
     assert!(svg.contains("convert arbre → lineaire (coût 7)"));
-    // La flèche part du milieu de la piste arbre (hauteur 3 niveaux) :
-    // son y1 est strictement sous la racine de l'arbre.
-    let y_racine = svg.find(">record<").expect("racine du vtree");
-    let y_fleche = svg
-        .find("stroke-dasharray=\"6 3\"")
-        .expect("flèche de conversion");
+    // La flèche part du milieu de la piste arbre (3 niveaux de 44 px, soit
+    // y_piste + 66) : y1 parsé, strictement sous la racine et son premier
+    // niveau — un ancrage sur la racine (y_piste + 28) échouerait ici.
+    let y_racine = y_texte(&svg, ">record<");
+    let y1 = y1_fleche_conversion(&svg);
     assert!(
-        y_fleche > y_racine,
-        "la flèche de conversion est ancrée dans la piste, pas sur la racine"
+        y1 > y_racine + 44,
+        "flèche ancrée au milieu de la piste (y1={y1}, racine={y_racine})"
     );
 }

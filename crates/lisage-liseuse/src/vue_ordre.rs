@@ -68,6 +68,21 @@ const DECALAGE_ETIQUETTE_Y: u32 = 4;
 /// Géométrie des marqueurs de flèche (taille, refX, refY).
 const MARQUEUR_TAILLE: u32 = 8;
 const MARQUEUR_REF_Y: u32 = 4;
+/// Nombre de champs de la fiche contrôleur (C = huit champs).
+const NOMBRE_CHAMPS_FICHE: u32 = 8;
+/// Hauteur d'une boîte de niveau en pixels.
+const HAUTEUR_BOITE: u32 = 28;
+/// Épaisseur des traits en pixels.
+const EPAISSEUR_TRAIT: u32 = 2;
+/// Hauteur d'une ligne de conversion en pixels.
+const HAUTEUR_LIGNE_CONVERSION: u32 = 30;
+/// Pointillés des flèches de conversion.
+const DASH_CONVERSION: &str = "6 3";
+
+/// Hauteur de la fiche contrôleur en pixels.
+const fn hauteur_fiche() -> u32 {
+    DECALAGE_LIGNE_FICHE + NOMBRE_CHAMPS_FICHE * HAUTEUR_LIGNE_FICHE
+}
 
 /// Fiche contrôleur : les huit champs de `C = (δ, Σ, décomposition + O, R,
 /// défauts, D^déf, encodage, attribution)`, en libellés neutres.
@@ -190,7 +205,7 @@ fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, l
     let pas = largeur / nombre;
     for (index, libelle) in niveaux.iter().enumerate() {
         let boite_x = x + index as u32 * pas + DECALAGE_BOITE;
-        let boite_largeur = pas.saturating_sub(8).min(LARGEUR_BOITE);
+        let boite_largeur = pas.saturating_sub(DECALAGE).min(LARGEUR_BOITE);
         svg.push_str(&format!(
             "<rect x=\"{boite_x}\" y=\"{y_boite}\" width=\"{boite_largeur}\" height=\"{HAUTEUR_BOITE}\" fill=\"{FOND_BOITE}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n"
         ));
@@ -256,21 +271,6 @@ fn rendre_piste(svg: &mut String, piste: &PisteOrdre, x: u32, y: u32, largeur: u
     }
 }
 
-/// Nombre de champs de la fiche contrôleur (C = huit champs).
-const NOMBRE_CHAMPS_FICHE: u32 = 8;
-/// Hauteur de la fiche contrôleur en pixels.
-const fn hauteur_fiche() -> u32 {
-    24 + NOMBRE_CHAMPS_FICHE * HAUTEUR_LIGNE_FICHE
-}
-/// Hauteur d'une ligne de conversion en pixels.
-const HAUTEUR_LIGNE_CONVERSION: u32 = 30;
-/// Hauteur d'une boîte de niveau en pixels.
-const HAUTEUR_BOITE: u32 = 28;
-/// Épaisseur des traits en pixels.
-const EPAISSEUR_TRAIT: u32 = 2;
-/// Pointillés des flèches de conversion.
-const DASH_CONVERSION: &str = "6 3";
-
 /// Position d'un royaume dans la vue (source de vérité unique du layout,
 /// utilisée par le rendu : les deux passes ne peuvent pas diverger).
 struct PositionRoyaume {
@@ -307,7 +307,7 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
     let largeur = LARGEUR_VUE - 2 * MARGE;
     let (hauteur, positions) = layout(royaumes, conversions.len());
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{LARGEUR_VUE}\" height=\"{hauteur}\" viewBox=\"0 0 {LARGEUR_VUE} {hauteur}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L8,4 L0,8 z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{LARGEUR_VUE}\" height=\"{hauteur}\" viewBox=\"0 0 {LARGEUR_VUE} {hauteur}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_TAILLE},{MARQUEUR_REF_Y} L0,{MARQUEUR_TAILLE} z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_TAILLE},{MARQUEUR_REF_Y} L0,{MARQUEUR_TAILLE} z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
     );
     svg.push_str(&format!(
         "<text x=\"{MARGE}\" y=\"{DECALAGE_TITRE_FICHE}\" font-family=\"serif\" font-size=\"{TAILLE_TITRE}\" fill=\"{COULEUR_TEXTE}\">vue ordre — {} royaume(x), {} conversion(s)</text>\n",
