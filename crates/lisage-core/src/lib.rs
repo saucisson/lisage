@@ -11,6 +11,7 @@ pub mod arena;
 pub mod bdd;
 pub mod biplan;
 pub mod dbm;
+pub mod ddd;
 pub mod error;
 pub mod lookup;
 pub mod memoire;

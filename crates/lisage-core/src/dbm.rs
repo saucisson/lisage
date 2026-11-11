@@ -102,6 +102,40 @@ impl Dbm {
         *self == INCOHERENT
     }
 
+    /// Intersection (meet) de deux régions : borne `x_i − x_j ≤ min(c, c')`
+    /// point par point, puis clôture canonique. L'intersection de deux
+    /// régions convexes est convexe : le meet de deux DBM clôturées est
+    /// déjà clôturé, la fermeture est idempotente. Toute région vide
+    /// donne [`INCOHERENT`].
+    pub fn intersection(&self, autre: &Dbm) -> Dbm {
+        if self.est_vide() || autre.est_vide() {
+            return INCOHERENT;
+        }
+        assert_eq!(
+            self.nombre_variables, autre.nombre_variables,
+            "intersection de régions de dimensions différentes (invariant interne)"
+        );
+        let n = self.nombre_variables;
+        let matrice: Vec<Vec<Option<i128>>> = self
+            .matrice
+            .iter()
+            .zip(&autre.matrice)
+            .map(|(ligne_a, ligne_b)| {
+                ligne_a
+                    .iter()
+                    .zip(ligne_b)
+                    .map(|(a, b)| match (a, b) {
+                        (Some(a), Some(b)) => Some((*a).min(*b)),
+                        (Some(a), None) => Some(*a),
+                        (None, Some(b)) => Some(*b),
+                        (None, None) => None,
+                    })
+                    .collect()
+            })
+            .collect();
+        Self::fermer(n, matrice)
+    }
+
     /// Le point `point[i] = x_i` appartient-il à la région ?
     pub fn contient(&self, point: &[u64]) -> bool {
         if self.est_vide() {
@@ -138,6 +172,58 @@ impl DbmKeys {
     /// Taille du domaine d'une variable, `Val(ℓ) = [0, taille)`.
     pub fn taille_domaine(&self) -> u64 {
         self.taille_domaine
+    }
+
+    /// Couverture : la famille de régions couvre-t-elle toute la boîte
+    /// bornée `[0, taille_domaine)^n` (n = dimension des régions) ?
+    ///
+    /// Contrat de clés déclaré côté contrôleur (feuille de route § 9 :
+    /// « forme normale, couverture, intersection »). Décidable par
+    /// balayage d'univers **seulement si l'univers est borné à régions
+    /// énumérables** (spec Q9) : sur le domaine continu, le balayage ne
+    /// compile pas et le royaume libre DDD est assumé — la couverture se
+    /// déclare alors par les arcs explicites du diagramme, elle ne se
+    /// calcule pas.
+    pub fn couverture(&self, regions: &[Dbm]) -> bool {
+        // La région vide ne couvre rien ; la dimension est celle des
+        // régions non vides (une famille de régions vides ne couvre pas).
+        let Some(n) = regions
+            .iter()
+            .find(|region| !region.est_vide())
+            .map(Dbm::nombre_variables)
+        else {
+            return false;
+        };
+        for region in regions {
+            if !region.est_vide() {
+                assert_eq!(
+                    region.nombre_variables(),
+                    n,
+                    "couverture d'une famille hétérogène (invariant interne)"
+                );
+            }
+        }
+        let taille = self.taille_domaine;
+        // Balayage d'univers de la boîte bornée (odomètre sur n variables).
+        let mut point = vec![0u64; n];
+        loop {
+            if !regions.iter().any(|region| region.contient(&point)) {
+                return false;
+            }
+            // Incrémentation odométrique.
+            let mut i = n;
+            loop {
+                if i == 0 {
+                    return true;
+                }
+                i -= 1;
+                point[i] += 1;
+                if point[i] < taille {
+                    break;
+                }
+                point[i] = 0;
+            }
+        }
     }
 }
 
