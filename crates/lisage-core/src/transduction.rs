@@ -170,8 +170,6 @@ impl<T: Transduction> Transducteur<T> {
         T: Transduction<Out = bool>,
     {
         let h = self.transduction.h0();
-        // On lit la forme d'abord, puis on écrit : le double borrow est
-        // évité en deux temps via une closure qui relâche la lecture.
         self.run_avec_meme_pool(pool, anchor, noeud, h)
     }
 
