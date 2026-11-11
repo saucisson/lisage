@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M3-4 : Liseuse vue ordre — fiche contrôleur (8 champs), piste linéaire / vtree, royaumes côte à côte, conversions fléchées avec coût (feat/26)
+
+- **Issue**: #26 (M3-4 — Liseuse : vue ordre, doc liseuse § 4 « Vue 1 »).
+- **Done**: `lisage-liseuse::vue_ordre` : `FicheControleur` (les huit champs de `C = (δ, Σ, décomposition+O, R, défauts, D^déf, encodage, attribution)`), `PisteOrdre::{Lineaire, Arbre}` (`NoeudVtree` pour le vtree), `RoyaumeVue` (fiche + piste), `ConversionVue` (source, cible, coût), et `rendre_svg_vue_ordre` — rendu SVG statique : fiche en panneau, piste horizontale de niveaux reliés par flèches (ou arbre récursif), royaumes superposés, conversions en flèches pointillées orange avec le coût. La liseuse rend une description neutre produite par le plan (elle ne dépend pas de `lisage-plan`, frontière `frontieres.rs`). 3 tests : fiche/piste/royaumes/conversion, vtree, déterminisme + conversion vers royaume inconnu ignorée.
+- **Evidence**: `make check` OK (141 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
+- **Judgement calls**: la vue ordre consomme une description neutre (`RoyaumeVue`/`ConversionVue`) plutôt que les types de `lisage-plan`, pour respecter la frontière de dépendances liseuse → {core, lang} ; le vtree est rendu par un layout récursif simple (répartition en largeur), le Sugiyama n'étant pas nécessaire puisque l'ordre est donné, pas calculé (doc § 5).
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M3-3 : Oracle de rentabilité analytique — modèle prédictif (domaine, densité, coût d'encodage, requêtes aval) + garde-fou différentiel (C4) (feat/25)
 
 - **Issue**: #25 (M3-3 — Oracle de rentabilité analytique, énoncé C4).
