@@ -1,11 +1,13 @@
-//! Benchmark philosophes (M4-4, énoncé C8) : mesure contre SDD/HSDD,
-//! docs/exemple-fil-rouge § 6-9. Prédictions falsifiables vérifiées ici :
+//! Benchmark philosophes (M4-4, énoncé C8) : mesures de référence du fil
+//! rouge (docs/exemple-fil-rouge § 6-9 ; la mesure contre SDD/HSDD externe
+//! est hors périmètre de la CI). Prédictions falsifiables vérifiées ici :
 //! |R_n| = 20/56/152/416/1136 (n = 3..7), variante gaucher |R'_n| =
 //! 72/196/536/1464 (n = 4..7) avec ratio |R'_n|/|R_n| = 1,2887 **constant**,
 //! 7 formes (5 cellules légales + 2 terminaux) indépendantes de n, et le
-//! bord du prototype plat qui croît avec n (4n − 4 vivants). Pic vivant,
-//! firings relevés via l'observateur. Toute mesure contraire fait échouer
-//! le test : c'est la falsification explicite.
+//! bord du prototype plat (union de maps) épinglé exactement, croissant en
+//! n. Pic vivant, firings et passes relevés via l'observateur. Toute
+//! mesure contraire fait échouer le test : c'est la falsification
+//! explicite.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -76,13 +78,13 @@ fn schema_anneau(n: u64, gaucher: bool) -> Schema {
 }
 
 /// Fourchette `left_i` dérivée du mot `pc` (fil rouge § 3).
-fn fourchette(pc: &[u64], n: usize, i: usize) -> u64 {
+fn fourchette(compteur_programme: &[u64], n: usize, i: usize) -> u64 {
     const LIBRE: u64 = 0;
     const TENUE: u64 = 1;
     const PRECEDENTE: u64 = 2;
-    if pc[i] == MANGE {
+    if compteur_programme[i] == MANGE {
         TENUE
-    } else if pc[(i + n - 1) % n] == MANGE {
+    } else if compteur_programme[(i + n - 1) % n] == MANGE {
         PRECEDENTE
     } else {
         LIBRE
@@ -274,4 +276,8 @@ fn test_bench_sept_formes_o1_et_bord() {
     // Firings = événements NodeCreated == compteur de créations du pool.
     let firings = *observateur.firings.lock().unwrap();
     assert_eq!(firings, creations, "firings == créations du hash-consing");
+    // Passes = événements Round : aucune saturation pendant la construction
+    // par union (la narration Round ne doit pas disparaître silencieusement).
+    let passes = *observateur.passes.lock().unwrap();
+    assert_eq!(passes, 0, "pas de round de saturation pendant l'union");
 }
