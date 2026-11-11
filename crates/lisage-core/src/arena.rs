@@ -58,6 +58,8 @@ impl<C: Controller> Arena<C> {
     }
 
     /// Internement dans un plan donné (principal par défaut via `intern`).
+    /// Sur un hit du hash-consing (forme déjà présente), le handle existant
+    /// est retourné et son plan est déplacé vers `plan`.
     pub fn intern_plan(
         &mut self,
         anchor: Anchor,
