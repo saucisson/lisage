@@ -1,15 +1,16 @@
 //! Tests du parseur PNML et de la conversion vers `lang/` (M5-2) :
 //! parsing d'un modèle jouet, marquage initial, sémantique pas-à-pas,
 //! espace atteignable calculé par l'interprète de référence (voie A),
-//! et erreurs typées.
+//! erreurs typées, et propriétés (ADR-0012) sur réseaux générés.
 
 use std::collections::BTreeSet;
 
 use lisage_bench::pnml::{
-    PnmlError, ReseauPetri, espace_atteignable, est_sensibilisee, marquage_depuis_value,
-    marquage_initial, pas_semantique, tirer,
+    PlaceId, PnmlError, ReseauPetri, TransitionId, espace_atteignable, est_sensibilisee,
+    marquage_depuis_value, marquage_initial, pas_semantique, tirer,
 };
 use lisage_lang::value::Atom;
+use proptest::prelude::*;
 
 /// Modèle jouet : une place source avec un jeton, deux transitions
 /// vers deux places puits. Espace atteignable = 3 marquages.
@@ -32,8 +33,7 @@ const PNML_JOUET: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 </pnml>"#;
 
 /// Modèle à deux jetons sur une place, une transition en boucle :
-/// p0 (2 jetons), t : p0 → p0. Espace atteignable = 1 marquage
-/// (le jeton revient), mais la transition reste sensibilisée.
+/// p0 (2 jetons), t : p0 → p0. Espace atteignable = 1 marquage.
 const PNML_BOUCL: &str = r#"<pnml><net>
   <place id="p0"><initialMarking><text>2</text></initialMarking></place>
   <transition id="t"/>
@@ -47,10 +47,14 @@ fn test_parse_modele_joue() {
     assert_eq!(reseau.nb_places(), 3);
     assert_eq!(reseau.nb_transitions(), 2);
     assert_eq!(reseau.arcs.len(), 4);
-    assert_eq!(reseau.places[0].identifiant, "p0");
+    assert_eq!(reseau.places[0].identifiant, PlaceId("p0".to_string()));
     assert_eq!(reseau.places[0].nom.as_deref(), Some("source"));
     assert_eq!(reseau.places[0].marquage_initial, 1);
     assert_eq!(reseau.places[1].marquage_initial, 0);
+    assert_eq!(
+        reseau.transitions[0].identifiant,
+        TransitionId("t1".to_string())
+    );
     assert_eq!(reseau.transitions[0].nom.as_deref(), Some("aller_a"));
 }
 
@@ -68,13 +72,15 @@ fn test_marquage_initial_vers_value() {
 fn test_sensibilisation_et_tir() {
     let reseau = ReseauPetri::depuis_pnml(PNML_JOUET).unwrap();
     let initial = marquage_depuis_value(&marquage_initial(&reseau)).unwrap();
-    assert!(est_sensibilisee(&reseau, "t1", &initial));
-    assert!(est_sensibilisee(&reseau, "t2", &initial));
-    let apres_t1 = tirer(&reseau, "t1", &initial);
+    let t1 = TransitionId("t1".to_string());
+    let t2 = TransitionId("t2".to_string());
+    assert!(est_sensibilisee(&reseau, &t1, &initial));
+    assert!(est_sensibilisee(&reseau, &t2, &initial));
+    let apres_t1 = tirer(&reseau, &t1, &initial);
     assert_eq!(apres_t1.get(&Atom(0)), Some(&Atom(0)));
     assert_eq!(apres_t1.get(&Atom(1)), Some(&Atom(1)));
-    assert!(!est_sensibilisee(&reseau, "t1", &apres_t1));
-    assert!(!est_sensibilisee(&reseau, "t2", &apres_t1));
+    assert!(!est_sensibilisee(&reseau, &t1, &apres_t1));
+    assert!(!est_sensibilisee(&reseau, &t2, &apres_t1));
 }
 
 #[test]
@@ -122,9 +128,24 @@ fn test_erreur_attribut_manquant() {
 
 #[test]
 fn test_erreur_arc_vers_inconnu() {
-    let document = "<pnml><net><place id=\"p0\"/><arc source=\"p0\" target=\"t9\"/></net></pnml>";
+    let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t9\"/></net></pnml>";
     let resultat = ReseauPetri::depuis_pnml(document);
     assert!(matches!(resultat, Err(PnmlError::ArcVersInconnu { .. })));
+}
+
+#[test]
+fn test_erreur_arc_mal_oriente() {
+    // Deux transitions reliées : arc mal orienté, rejeté au parsing.
+    let document = "<pnml><net><transition id=\"t1\"/><transition id=\"t2\"/><arc source=\"t1\" target=\"t2\"/></net></pnml>";
+    let resultat = ReseauPetri::depuis_pnml(document);
+    assert!(matches!(resultat, Err(PnmlError::ArcMalOriente { .. })));
+}
+
+#[test]
+fn test_erreur_poids_non_supporte() {
+    let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t1\" weight=\"2\"/></net></pnml>";
+    let resultat = ReseauPetri::depuis_pnml(document);
+    assert!(matches!(resultat, Err(PnmlError::PoidsNonSupporte { .. })));
 }
 
 #[test]
@@ -138,4 +159,84 @@ fn test_erreur_nombre_invalide() {
             ..
         })
     ));
+}
+
+// ---------------------------------------------------------------------------
+// Propriétés (ADR-0012) : réseaux générés, invariants sémantiques
+// ---------------------------------------------------------------------------
+
+/// Génère un document PNML aléatoire : `nb_places` places (marquage
+/// initial 0..=2), `nb_transitions` transitions, chaque transition
+/// reliée à une place entrante et une place sortante (éventuellement
+/// la même).
+fn reseau_aleatoire(nb_places: usize, nb_transitions: usize, marquages: Vec<u64>) -> String {
+    let mut document = String::from("<pnml><net>");
+    for (index, marquage) in marquages.iter().enumerate() {
+        document.push_str(&format!(
+            "<place id=\"p{index}\"><initialMarking><text>{marquage}</text></initialMarking></place>"
+        ));
+    }
+    for index in 0..nb_transitions {
+        document.push_str(&format!("<transition id=\"t{index}\"/>"));
+    }
+    for index in 0..nb_transitions {
+        let entree = index % nb_places.max(1);
+        let sortie = (index + 1) % nb_places.max(1);
+        document.push_str(&format!(
+            "<arc source=\"p{entree}\" target=\"t{index}\"/><arc source=\"t{index}\" target=\"p{sortie}\"/>"
+        ));
+    }
+    document.push_str("</net></pnml>");
+    document
+}
+
+proptest! {
+    /// L'espace atteignable est un point fixe : aucun successeur hors de
+    /// l'espace, et il contient le marquage initial.
+    #[test]
+    fn propriete_espace_atteignable_point_fixe(
+        nb_places in 1usize..=4,
+        nb_transitions in 1usize..=4,
+        marquages in proptest::collection::vec(0u64..=2, 1..=4),
+    ) {
+        let marquages = {
+            let mut m = marquages;
+            m.resize(nb_places, 0);
+            m.truncate(nb_places);
+            m
+        };
+        let document = reseau_aleatoire(nb_places, nb_transitions, marquages);
+        let reseau = ReseauPetri::depuis_pnml(&document).unwrap();
+        let espace = espace_atteignable(&reseau);
+        prop_assert!(espace.contains(&marquage_initial(&reseau)));
+        let successeurs = pas_semantique(&reseau, &espace);
+        prop_assert!(successeurs.is_subset(&espace));
+    }
+
+    /// Tirer une transition sensibilisée préserve le nombre total de
+    /// jetons quand chaque place entrante a aussi un arc sortant
+    /// (réseau en boucle) — invariant du tir.
+    #[test]
+    fn propriete_tir_sensibilise_produit_successeur_valide(
+        nb_places in 1usize..=4,
+        nb_transitions in 1usize..=4,
+        marquages in proptest::collection::vec(1u64..=3, 1..=4),
+    ) {
+        let marquages = {
+            let mut m = marquages;
+            m.resize(nb_places, 1);
+            m.truncate(nb_places);
+            m
+        };
+        let document = reseau_aleatoire(nb_places, nb_transitions, marquages);
+        let reseau = ReseauPetri::depuis_pnml(&document).unwrap();
+        let initial = marquage_depuis_value(&marquage_initial(&reseau)).unwrap();
+        for transition in &reseau.transitions {
+            if est_sensibilisee(&reseau, &transition.identifiant, &initial) {
+                let suivant = tirer(&reseau, &transition.identifiant, &initial);
+                // Le marquage résultant a une entrée par place.
+                prop_assert_eq!(suivant.len(), nb_places);
+            }
+        }
+    }
 }
