@@ -1,0 +1,147 @@
+//! Tests de M3-4 (vue 1 de la Liseuse, doc liseuse § 4) : fiche contrôleur
+//! (huit champs), ordre en piste linéaire ou arbre (vtree), royaumes côte à
+//! côte, conversions fléchées avec coût — rendu SVG statique déterministe.
+
+use lisage_liseuse::vue_ordre::{
+    ConversionVue, FicheControleur, NoeudVtree, PisteOrdre, RoyaumeVue, rendre_svg_vue_ordre,
+};
+
+/// Fiche contrôleur de l'instance de référence (huit champs remplis).
+fn fiche_reference() -> FicheControleur {
+    FicheControleur {
+        delta: "présence {absent, présent}".to_string(),
+        sigma: "Set(Atom(D))".to_string(),
+        decomposition_ordre: "balayage d'univers, O canonique".to_string(),
+        regles: "R-share, R-collapse, R-default".to_string(),
+        defauts: "δ(ℓ) = absent".to_string(),
+        defaut_global: "D_δ = terminal(false)".to_string(),
+        encodage: "balayage d'univers".to_string(),
+        attribution: "hérité / synthétisé / mémoire".to_string(),
+    }
+}
+
+/// Fiche du témoin BDD classique.
+fn fiche_bdd() -> FicheControleur {
+    FicheControleur {
+        encodage: "BDD classique".to_string(),
+        ..fiche_reference()
+    }
+}
+
+/// M3-4 : la vue ordre rend la fiche contrôleur (huit champs), la piste
+/// linéaire des niveaux dans l'ordre de balayage, et les royaumes côte à
+/// côte avec la conversion fléchée et son coût.
+#[test]
+fn test_vue_ordre_fiche_piste_lineaire_royaumes_et_conversion() {
+    let royaumes = vec![
+        RoyaumeVue {
+            nom: "reference".to_string(),
+            fiche: fiche_reference(),
+            piste: PisteOrdre::Lineaire(vec!["a".to_string(), "b".to_string(), "c".to_string()]),
+        },
+        RoyaumeVue {
+            nom: "temoin-bdd".to_string(),
+            fiche: fiche_bdd(),
+            piste: PisteOrdre::Lineaire(vec!["x0".to_string(), "x1".to_string()]),
+        },
+    ];
+    let conversions = vec![ConversionVue {
+        source: "reference".to_string(),
+        cible: "temoin-bdd".to_string(),
+        cout: 3,
+    }];
+    let svg = rendre_svg_vue_ordre(&royaumes, &conversions);
+
+    // Fiche contrôleur : les huit champs.
+    for champ in [
+        "δ =",
+        "Σ =",
+        "décomposition + O =",
+        "R =",
+        "défauts =",
+        "D^déf =",
+        "encodage =",
+        "attribution =",
+    ] {
+        assert!(svg.contains(champ), "champ de fiche présent: {champ}");
+    }
+    // Deux royaumes côte à côte.
+    assert!(svg.contains("reference"));
+    assert!(svg.contains("temoin-bdd"));
+    // Piste linéaire : les niveaux dans l'ordre.
+    let position_a = svg.find(">a<").expect("niveau a");
+    let position_b = svg.find(">b<").expect("niveau b");
+    let position_c = svg.find(">c<").expect("niveau c");
+    assert!(position_a < position_b && position_b < position_c);
+    // Conversion fléchée avec coût.
+    assert!(svg.contains("convert reference → temoin-bdd (coût 3)"));
+    assert!(
+        svg.contains("stroke-dasharray=\"6 3\""),
+        "flèche en pointillés"
+    );
+    // Échappement XML des libellés.
+    assert!(!svg.contains("<a>"), "pas de balise injectée");
+}
+
+/// M3-4 : un ordre structuré se rend en arbre (vtree), sans cas particulier.
+#[test]
+fn test_vue_ordre_piste_arbre_vtree() {
+    let arbre = NoeudVtree {
+        libelle: "record".to_string(),
+        enfants: vec![
+            NoeudVtree {
+                libelle: "machine".to_string(),
+                enfants: vec![
+                    NoeudVtree {
+                        libelle: "cellule".to_string(),
+                        enfants: vec![],
+                    },
+                    NoeudVtree {
+                        libelle: "état".to_string(),
+                        enfants: vec![],
+                    },
+                ],
+            },
+            NoeudVtree {
+                libelle: "convoyeur".to_string(),
+                enfants: vec![],
+            },
+        ],
+    };
+    let royaumes = vec![RoyaumeVue {
+        nom: "sdD".to_string(),
+        fiche: fiche_reference(),
+        piste: PisteOrdre::Arbre(arbre),
+    }];
+    let svg = rendre_svg_vue_ordre(&royaumes, &[]);
+    for libelle in ["record", "machine", "cellule", "état", "convoyeur"] {
+        assert!(
+            svg.contains(&format!(">{libelle}<")),
+            "nœud vtree: {libelle}"
+        );
+    }
+    // Le parent est au-dessus de ses enfants.
+    let y_record = svg.find(">record<").unwrap();
+    let y_cellule = svg.find(">cellule<").unwrap();
+    assert!(y_record < y_cellule);
+}
+
+/// M3-4 : le rendu est déterministe et une conversion vers un royaume
+/// inconnu est ignorée (pas de flèche).
+#[test]
+fn test_vue_ordre_deterministe_et_conversion_inconnue_ignoree() {
+    let royaumes = vec![RoyaumeVue {
+        nom: "r".to_string(),
+        fiche: fiche_reference(),
+        piste: PisteOrdre::Lineaire(vec!["n0".to_string()]),
+    }];
+    let conversions = vec![ConversionVue {
+        source: "r".to_string(),
+        cible: "inconnu".to_string(),
+        cout: 1,
+    }];
+    let svg = rendre_svg_vue_ordre(&royaumes, &conversions);
+    assert!(!svg.contains("convert r → inconnu"));
+    let svg2 = rendre_svg_vue_ordre(&royaumes, &conversions);
+    assert_eq!(svg, svg2, "rendu déterministe");
+}
