@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M5-2 : Parseur PNML + conversion vers lang/ (voie A du triptyque) (feat/33)
+
+- **Issue**: #33 (M5-2 — Corpus MCC ; pile d'import des formats du corpus : parsing PNML, conversion vers `lang/` — parseur de formats externes, énoncés C3/C4). Livré dans cette PR : le parseur PNML et la conversion sémantique ; la conteneurisation des modèles MCC 2011-2018 et le triptyque A/B/C complet restent pour les PR suivantes.
+- **Done**: `lisage-bench::pnml` (nouveau) : parseur XML minimal sans dépendance (éléments, attributs, texte, prologue/commentaires sautés), structures `ReseauPetri`/`Place`/`Transition`/`Arc`, erreur typée `PnmlError` (XML mal formé, élément inattendu, attribut manquant, nombre invalide, arc vers inconnu). Conversion vers `lang/` : `marquage_initial` → `Value::Map` (place = `Atom(index)`, jetons = `Atom(compte)`), `est_sensibilisee`, `tirer`, `pas_semantique`, `espace_atteignable` (point fixe `interpreter::saturate` = voie A). 10 tests dans `crates/lisage-bench/tests/pnml.rs` : parsing (noms, marquages), marquage initial ↔ Value, sensibilisation/tir, espace atteignable = 3 marquages sur le modèle jouet, boucle stable, pas sémantique, 4 erreurs typées.
+- **Evidence**: `make check` green (190 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK. **Non exécuté** : conteneurisation Docker des modèles MCC, CI GitHub (verte sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
+- **Judgement calls**: aucun nouveau crate ni dépendance (le XML est parsé à la main — un parseur XML en dépendance serait une escalation « new dependencies ») ; le sous-ensemble PNML supporté couvre place/transition/arc/initialMarking/name, suffisant pour les modèles PT-net de la MCC ; les poids d'arcs > 1 ne sont pas encore gérés (arc simple, poids 1).
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M5-1 : Langage de niveau 1 complet + fonctions d'ordre supérieur, aval runtime du planner (feat/32)
 
 - **Issue**: #32 (M5-1 — Niveau 1 complet ; le planner admet un aval runtime avec reordering dégradé en fallback ; feuille de route § 7, énoncé C3).

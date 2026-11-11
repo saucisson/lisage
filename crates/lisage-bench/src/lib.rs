@@ -1,6 +1,7 @@
 //! Lisage bench — différentiel, property-based, MCC, événements non locaux.
 
 pub mod differentiel;
+pub mod pnml;
 pub mod temoin_bdd;
 
 /// Voie A : interprète de référence naïf (source de vérité).
