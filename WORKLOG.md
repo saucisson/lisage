@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M2-5 : Événements non locaux — transfert m(a)-=1; m(b)+=1 compilé en transduction à mémoire de niveau, surcoût poly(w) (T3) (feat/21)
+
+- **Issue**: #21 (M2-5 — Événements non locaux, énoncés T3, C1).
+- **Done**: `lisage-core::transfert::TransfertNonLocal` : transition non locale de largeur w=4 (spec § 7, exemple `t : m(a) -= 1; m(b) += 1` sur Map à clés non adjacentes) compilée en transduction à mémoire de niveau — jeton hérité `EtatTransfert` de val(a) vers val(b), mémoire `M[(nœud, val(a))] ← décrément produit` (idempotence), écriture de la destination absente quand son nœud de présence existe. `saturer` admet les étapes à effet mémoire (politique `ParNiveau`, spec § 7). Surcoût poly(w) documenté : O(1) par nœud, O(w) entrées M par nœud. Tests : transfert non adjacent, sans unité, mémoire+largeur, terminaison sous saturate (3 itérations) ; PBT sémantique sur maps complètes aléatoires.
+- **Evidence**: `make check` OK (111 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
+- **Judgement calls**: destination absente et collapsée = explicitation d'axe (T-EXPAND), hors périmètre, documenté ; transfert restreint à source < destination (jeton descendant).
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M2-4 fix : review PR #62 — policies réelles par niveaux, record mono-pool, PBT point fixe (feat/20)
 
 - **Issue**: #20 (M2-4 — saturate, deux policies, énoncé T3) ; correctifs du rapport de revue de la PR #62 (2 BLOCKING, 2 TO-FIX, 1 SUGGESTION).

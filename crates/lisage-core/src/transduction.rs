@@ -138,6 +138,11 @@ impl<T: Transduction> Transducteur<T> {
         self.memoire.version()
     }
 
+    /// Accès à la mémoire de niveau (pour les tests : entrées produites).
+    pub fn memoire(&self) -> &MemoireNiveau<T::M> {
+        &self.memoire
+    }
+
     /// Exécute la transduction à la racine, avec l'attribut initial `h0`.
     /// L'entrée est lue dans `pool_entree` (payload `bool`), le résultat est
     /// écrit dans `pool_sortie` (payload `Out`).

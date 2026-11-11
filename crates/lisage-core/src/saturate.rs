@@ -210,7 +210,12 @@ where
             });
         }
         let etape = RestreintAuxNiveaux::new(params.transduction.clone(), niveaux_actifs.clone());
-        let mut runner = Transducteur::new(etape);
+        // Spec § 7 : la mémoire de niveau vit entre les itérations de
+        // saturate — les étapes à effet mémoire sont admises (T3, M2-5).
+        let mut runner = Transducteur::avec_politique(
+            etape,
+            lisage_algebra::interface::PolitiqueMemoire::ParNiveau,
+        );
         let (image, _) = runner.run_meme_pool(params.pool, params.anchor, courant)?;
         let suivant = union(params.pool, params.keys, params.anchor, courant, image)?;
         if suivant == courant {
