@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - Backlog δ continu, instance-test DDD-différence : contrat de clés (couverture, intersection) et bande sur deux horloges (Q9) (feat/ddd-difference)
+
+- **Issue**: aucune (les 7 issues ouvertes sont toutes livrées et mergées dans `daily` ; l'app GitHub ne peut pas créer d'issue — 403 — et la directive du matin appartient à l'humain). Fragment « instance-test DDD-différence » de la veine #83, nommé par la feuille de route § 9 et la spec § 10 Q9, repris sur instruction directe « Continue ».
+- **Done**: contrat de clés déclaré côté contrôleur, pool inchangé — `Dbm::intersection` (meet point par point des bornes puis clôture canonique ; région vide → `INCOHERENT`) et `DbmKeys::couverture` (balayage d'univers de la boîte bornée `[0, taille)^n`, décidable seulement sur univers borné à régions énumérables — sinon royaume libre DDD assumé, la couverture se déclare par les arcs explicites). Instance-test `lisage-core::ddd` : `compiler_bande` compile la bande `x − y ≤ 1 ∧ y − x ≤ 2` sur deux horloges en deux niveaux par régions explicites (aucun balayage à la construction), `evaluer` suit l'arc dont la région contient le point (arc absent = δ(ℓ) = absent continu), `compter_noeuds`. 6 tests dans `crates/lisage-core/tests/ddd.rs` : meet canonique (commutativité, idempotence, disjoint → `INCOHERENT`), couverture (partition couvre, moitié/famille vide/région vide ne couvrent pas), différentiel de la bande contre énumération naïve sur `[0,4)²` (4 nœuds contre 16 points), partage au pool de la racine (C1 relatif), propriété LCG sur l'intersection (30 cas), contrat de niveau (cardinalité, défaut).
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest : 244 tests, 3 ignorés — 6 nouveaux). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
+- **Judgement calls**: pas d'issue créée (403 de l'intégration, et la liste d'issues est posée par l'humain) — branche descriptive `feat/ddd-difference` au lieu de `feat/<n>` ; pas de nouveau contrôleur (fingerprint) : l'instance-test réutilise `DbmController` (fp 5), le contrat vit sur `Dbm`/`DbmKeys` ; la couverture est calculée par balayage sur boîte bornée uniquement, conformément à la réserve de la spec Q9.
+- **Escalations**: aucune.
+
 ## 2026-11-11 - Backlog δ continu, fragment DBM : régions convexes à clôture canonique (Q9) (feat/85)
 
 - **Issue**: #85 (backlog § 9, spec Q9, veine #83 — deuxième fragment « DBM » après les intervalles).
