@@ -12,6 +12,16 @@ use lisage_lang::value::{Atom, Value};
 
 /// Taille du domaine d'atomes du schéma de test.
 const TAILLE_DOMAINE: u64 = 4;
+/// Ancre de test.
+const ANCRE_TEST: Anchor = Anchor(0);
+/// Atomes du premier ensemble compilé (hit de cache ensuite).
+const ENSEMBLE_PARTAGE: [u64; 2] = [0, 1];
+/// Atomes de l'ensemble racine du scénario GC.
+const ENSEMBLE_RACINE: [u64; 3] = [0, 1, 2];
+/// Nombre d'ensembles orphelins du scénario GC.
+const NB_ORPHELINS: u64 = 8;
+/// Dernier atome du domaine, présent dans chaque orphelin.
+const ATOME_FIXE_ORPHELIN: u64 = 3;
 
 type PoolRef = Arena<ReferenceController>;
 
@@ -52,27 +62,25 @@ fn compiler_ensemble(
 fn test_metriques_cache_hash_consing() {
     let schema = schema_test();
     let mut pool = nouveau_pool(&schema);
-    let anchor = Anchor(0);
-
-    let premier = compiler_ensemble(&mut pool, anchor, &schema, &[0, 1]);
-    let m = pool.metriques();
-    let creations_apres_premier = m.creations;
+    let premier = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_PARTAGE);
+    let metriques = pool.metriques();
+    let creations_apres_premier = metriques.creations;
     assert!(creations_apres_premier > 0, "créations comptées");
-    assert_eq!(m.partages, 0, "pas encore de partage");
+    assert_eq!(metriques.partages, 0, "pas encore de partage");
 
     // Recompiler le même ensemble : R-share, aucun nouveau nœud créé.
-    let partage = compiler_ensemble(&mut pool, anchor, &schema, &[0, 1]);
+    let partage = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_PARTAGE);
     assert_eq!(partage, premier, "même forme = même handle");
-    let m = pool.metriques();
+    let metriques = pool.metriques();
     assert_eq!(
-        m.creations, creations_apres_premier,
+        metriques.creations, creations_apres_premier,
         "hit : pas de création"
     );
-    assert!(m.partages > 0, "partages comptés");
+    assert!(metriques.partages > 0, "partages comptés");
 
     // Taux de hit en pourcentage : partages * 100 / (créations + partages).
-    let taux = m.taux_hit();
-    let attendu = m.partages * 100 / (m.creations + m.partages);
+    let taux = metriques.taux_hit();
+    let attendu = metriques.partages * 100 / (metriques.creations + metriques.partages);
     assert_eq!(taux, attendu);
     assert!(taux > 0 && taux < 100, "taux de hit: {taux}");
 }
@@ -84,24 +92,27 @@ fn test_metriques_cache_hash_consing() {
 fn test_metriques_gc_et_compaction() {
     let schema = schema_test();
     let mut pool = nouveau_pool(&schema);
-    let anchor = Anchor(0);
-
-    let racine = compiler_ensemble(&mut pool, anchor, &schema, &[0, 1, 2]);
+    let racine = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_RACINE);
     // Orphelins : beaucoup de formes non atteintes depuis la racine.
-    for i in 0..8u64 {
-        compiler_ensemble(&mut pool, anchor, &schema, &[i % TAILLE_DOMAINE, 3]);
+    for i in 0..NB_ORPHELINS {
+        compiler_ensemble(
+            &mut pool,
+            ANCRE_TEST,
+            &schema,
+            &[i % TAILLE_DOMAINE, ATOME_FIXE_ORPHELIN],
+        );
     }
     let total = pool.node_count() as u64;
     let stats = pool.gc(&[racine]);
     assert!(stats.collectes > 0, "des orphelins sont collectés");
     assert_eq!(stats.vivants + stats.collectes, total);
 
-    let m = pool.metriques();
-    assert_eq!(m.gc, 1, "un seul GC effectué");
-    assert_eq!(m.vivants, stats.vivants);
-    assert_eq!(m.morts, stats.collectes);
+    let metriques = pool.metriques();
+    assert_eq!(metriques.gc, 1, "un seul GC effectué");
+    assert_eq!(metriques.vivants, stats.vivants);
+    assert_eq!(metriques.morts, stats.collectes);
     assert_eq!(
-        m.compactions,
+        metriques.compactions,
         if seuil_atteint(stats.collectes, total) {
             1
         } else {
@@ -109,6 +120,6 @@ fn test_metriques_gc_et_compaction() {
         },
         "compaction profilée cohérente avec le seuil"
     );
-    assert_eq!(m.compactions, if stats.compaction { 1 } else { 0 });
+    assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     assert_eq!(pool.vivants(), stats.vivants as usize);
 }

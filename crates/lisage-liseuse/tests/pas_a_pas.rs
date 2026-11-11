@@ -85,6 +85,14 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
         "{\"v\":2,\"type\":\"Round\",\"numero\":2}"
     );
     assert_eq!(
+        serialiser_evenement(&TraceEvent::Gc {
+            vivants: 12,
+            collectes: 5,
+            compaction: true,
+        }),
+        "{\"v\":2,\"type\":\"Gc\",\"vivants\":12,\"collectes\":5,\"compaction\":true}"
+    );
+    assert_eq!(
         serialiser_evenement(&TraceEvent::Attr {
             canal: CanalAttr::Memoire,
             noeud: NodeId(1),

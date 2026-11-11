@@ -12,6 +12,28 @@ use lisage_core::arena::Arena;
 use lisage_core::biplan::{Plan, SEUIL_COMPACTION_DEN, SEUIL_COMPACTION_NUM, seuil_atteint};
 use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
 
+/// Ancre de test (valeur arbitraire mais nommée).
+const ANCRE_TEST: Anchor = Anchor(0);
+/// Niveau du nœud racine du petit diagramme.
+const NIVEAU_RACINE: u32 = 1;
+/// Niveau du nœud orphelin du petit diagramme.
+const NIVEAU_ORPHELIN: u32 = 2;
+/// Nombre d'orphelins ajoutés pour dépasser le seuil de compaction.
+const NB_ORPHELINS: u64 = 20;
+/// Niveau de base des orphelins de la compaction profilée.
+const NIVEAU_BASE_ORPHELINS: u32 = 10;
+/// Niveau du nœud interné dans le plan d'ombre.
+const NIVEAU_OMBRE: u32 = 3;
+/// Niveau absent de l'index (test de l'ensemble vide).
+const NIVEAU_ABSENT: u32 = 9;
+
+/// Graine du LCG des tests de propriété (même constante que les autres suites).
+const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+/// Multiplicateur du LCG des tests de propriété.
+const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
+/// Incrément du LCG des tests de propriété.
+const INCREMENT_LCG: u64 = 1442695040888963407;
+
 struct MockKeys;
 
 impl KeyAlgebra for MockKeys {
@@ -63,19 +85,19 @@ fn arena() -> Arena<MockController> {
 /// Construit un petit diagramme : nœud niveau 1 avec deux arcs vers deux
 /// terminaux, plus un nœud orphelin niveau 2.
 fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
-    let faux = pool.terminal(Anchor(0), false);
-    let vrai = pool.terminal(Anchor(0), true);
+    let faux = pool.terminal(ANCRE_TEST, false);
+    let vrai = pool.terminal(ANCRE_TEST, true);
     let racine = pool.intern(
-        Anchor(0),
+        ANCRE_TEST,
         Form::Node {
-            level: Level(1),
+            level: Level(NIVEAU_RACINE),
             arcs: BTreeMap::from([(0, faux), (1, vrai)]),
         },
     );
     let orphelin = pool.intern(
-        Anchor(0),
+        ANCRE_TEST,
         Form::Node {
-            level: Level(2),
+            level: Level(NIVEAU_ORPHELIN),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
@@ -91,9 +113,9 @@ fn test_plans_et_index_ombre() {
     assert_eq!(pool.plan_de(racine), Some(Plan::Principal));
     // Un nœud interné dans le plan d'ombre y reste.
     let ombre = pool.intern_plan(
-        Anchor(0),
+        ANCRE_TEST,
         Form::Node {
-            level: Level(3),
+            level: Level(NIVEAU_OMBRE),
             arcs: BTreeMap::from([(1, racine)]),
         },
         Plan::Ombre,
@@ -101,9 +123,9 @@ fn test_plans_et_index_ombre() {
     assert_eq!(pool.plan_de(ombre), Some(Plan::Ombre));
     assert_eq!(pool.plan_de(orphelin), Some(Plan::Principal));
     // Index du plan d'ombre : niveau 1 contient la racine.
-    assert!(pool.index_niveau(Level(1)).contains(&racine));
-    assert!(pool.index_niveau(Level(3)).contains(&ombre));
-    assert!(pool.index_niveau(Level(9)).is_empty());
+    assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&racine));
+    assert!(pool.index_niveau(Level(NIVEAU_OMBRE)).contains(&ombre));
+    assert!(pool.index_niveau(Level(NIVEAU_ABSENT)).is_empty());
 }
 
 /// M4-1 : GC mark-and-sweep — seuls les nœuds atteints depuis les racines
@@ -129,14 +151,18 @@ fn test_gc_mark_sweep() {
         Err(PoolError::UnknownNode(orphelin)),
         "nœud collecté = tombstone"
     );
-    assert!(!pool.index_niveau(Level(2)).contains(&orphelin));
+    assert!(
+        !pool
+            .index_niveau(Level(NIVEAU_ORPHELIN))
+            .contains(&orphelin)
+    );
     // Ré-interner la forme de l'orphelin recrée un nœud (miss du cache).
-    let vrai = pool.terminal(Anchor(0), true);
-    let faux = pool.terminal(Anchor(0), false);
+    let vrai = pool.terminal(ANCRE_TEST, true);
+    let faux = pool.terminal(ANCRE_TEST, false);
     let recree = pool.intern(
-        Anchor(0),
+        ANCRE_TEST,
         Form::Node {
-            level: Level(2),
+            level: Level(NIVEAU_ORPHELIN),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
@@ -154,17 +180,20 @@ fn test_compaction_profilee() {
     let (racine, _orphelin) = petit_diagramme(&mut pool);
     // Beaucoup d'orphelins pour dépasser le seuil SEUIL_COMPACTION.
     let mut orphelins = Vec::new();
-    for i in 0..20u64 {
+    for i in 0..NB_ORPHELINS {
         orphelins.push(pool.intern(
-            Anchor(0),
+            ANCRE_TEST,
             Form::Node {
-                level: Level(10 + i as u32),
+                level: Level(NIVEAU_BASE_ORPHELINS + i as u32),
                 arcs: BTreeMap::from([(1, racine)]),
             },
         ));
     }
     let total = pool.node_count() as u64;
-    assert!(seuil_atteint(20, total), "seuil de compaction atteint");
+    assert!(
+        seuil_atteint(NB_ORPHELINS, total),
+        "seuil de compaction atteint"
+    );
     let stats = pool.gc(&[racine]);
     assert!(stats.compaction, "compaction profilée déclenchée");
     assert_eq!(pool.vivants(), 2);
@@ -175,7 +204,7 @@ fn test_compaction_profilee() {
     let nouveau = remap[racine.0 as usize].expect("racine vivante remappée");
     assert_ne!(nouveau, racine);
     assert!(pool.resolve(nouveau).is_ok());
-    assert!(pool.index_niveau(Level(1)).contains(&nouveau));
+    assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&nouveau));
     // Le seuil n'est pas atteint avec peu de morts.
     assert!(!seuil_atteint(1, 100));
     assert_eq!(SEUIL_COMPACTION_NUM, 1);
@@ -202,18 +231,26 @@ fn test_metriques_cache_et_evenement_gc() {
     let Form::Node { level, arcs } = pool.resolve(racine).unwrap().clone() else {
         panic!("la racine est un nœud");
     };
-    let partage = pool.intern(Anchor(0), Form::Node { level, arcs });
+    let partage = pool.intern(ANCRE_TEST, Form::Node { level, arcs });
     assert_eq!(partage, racine, "R-share : même handle");
-    let m = pool.metriques();
-    assert!(m.creations >= 4, "créations comptées: {}", m.creations);
-    assert!(m.partages >= 1, "partages comptés: {}", m.partages);
+    let metriques = pool.metriques();
+    assert!(
+        metriques.creations >= 4,
+        "créations comptées: {}",
+        metriques.creations
+    );
+    assert!(
+        metriques.partages >= 1,
+        "partages comptés: {}",
+        metriques.partages
+    );
     assert!(pool.metriques().taux_hit() > 0);
     let stats = pool.gc(&[racine]);
-    let m = pool.metriques();
-    assert_eq!(m.gc, 1);
-    assert_eq!(m.vivants, stats.vivants);
-    assert_eq!(m.morts, stats.collectes);
-    assert_eq!(m.compactions, if stats.compaction { 1 } else { 0 });
+    let metriques = pool.metriques();
+    assert_eq!(metriques.gc, 1);
+    assert_eq!(metriques.vivants, stats.vivants);
+    assert_eq!(metriques.morts, stats.collectes);
+    assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     // Événement Gc émis.
     let events = observateur.events.lock().unwrap();
     assert!(
@@ -228,4 +265,100 @@ fn test_metriques_cache_et_evenement_gc() {
         "événement Gc émis"
     );
     let _ = orphelin;
+}
+
+/// M4-1 : `intern_plan` sur un hit du hash-consing re-planne le nœud
+/// partagé (la forme existe déjà : le plan demandé écrase le plan
+/// courant du handle retourné).
+#[test]
+fn test_intern_plan_hit_cache_replanifie() {
+    let mut pool = arena();
+    let (racine, _orphelin) = petit_diagramme(&mut pool);
+    assert_eq!(pool.plan_de(racine), Some(Plan::Principal));
+    let Form::Node { level, arcs } = pool.resolve(racine).unwrap().clone() else {
+        panic!("la racine est un nœud");
+    };
+    // Hit du cache avec plan d'ombre : même handle, plan déplacé.
+    let meme = pool.intern_plan(ANCRE_TEST, Form::Node { level, arcs }, Plan::Ombre);
+    assert_eq!(meme, racine, "R-share : même handle");
+    assert_eq!(pool.plan_de(racine), Some(Plan::Ombre));
+}
+
+/// M4-1 (tier propriété, LCG) : invariants du seuil de compaction, du taux
+/// de hit et du GC — borne `morts × 4 == total` incluse, `taux_hit` borné,
+/// `vivants + collectes == total` sur scénarios aléatoires.
+#[test]
+fn test_propriete_seuil_taux_hit_et_invariant_gc() {
+    let mut graine = GRAINE_LCG;
+    let mut suivant = move || {
+        graine = graine
+            .wrapping_mul(MULTIPLICATEUR_LCG)
+            .wrapping_add(INCREMENT_LCG);
+        graine >> 33
+    };
+
+    // Seuil : la borne est incluse (morts × DEN == total × NUM → atteint),
+    // et un mort de moins ne l'atteint pas (pour total > 0).
+    for _ in 0..1000 {
+        let total = 1 + suivant() % 1000;
+        let morts = suivant() % (total + 1);
+        assert_eq!(
+            seuil_atteint(morts, total),
+            morts * SEUIL_COMPACTION_DEN >= total * SEUIL_COMPACTION_NUM
+        );
+        assert!(!seuil_atteint(0, 0), "total nul : pas de compaction");
+    }
+    // Borne exacte : le plus petit `morts` atteignant le seuil est
+    // `ceil(total × NUM / DEN)` ; un mort de moins ne l'atteint pas.
+    for total in 1..=64u64 {
+        let seuil = (total * SEUIL_COMPACTION_NUM).div_ceil(SEUIL_COMPACTION_DEN);
+        assert!(seuil_atteint(seuil, total), "borne atteinte: total={total}");
+        assert!(
+            !seuil_atteint(seuil - 1, total),
+            "un mort de moins sous la borne: total={total}"
+        );
+    }
+
+    // Taux de hit : 0 sans activité, sinon pourcentage borné dans [0, 100].
+    for _ in 0..1000 {
+        let creations = suivant() % 500;
+        let partages = suivant() % 500;
+        let metriques = lisage_core::biplan::MetriquesPool {
+            creations,
+            partages,
+            ..Default::default()
+        };
+        let taux = metriques.taux_hit();
+        assert!(taux <= 100);
+        let attendu = partages
+            .checked_mul(100)
+            .and_then(|p| p.checked_div(creations + partages))
+            .unwrap_or(0);
+        assert_eq!(taux, attendu);
+    }
+
+    // Invariant du GC : vivants + collectes == total, et les métriques
+    // reflètent le dernier GC.
+    for _ in 0..100 {
+        let mut pool = arena();
+        let (racine, _orphelin) = petit_diagramme(&mut pool);
+        let nb_orphelins = suivant() % 30;
+        for i in 0..nb_orphelins {
+            pool.intern(
+                ANCRE_TEST,
+                Form::Node {
+                    level: Level(NIVEAU_BASE_ORPHELINS + i as u32),
+                    arcs: BTreeMap::from([(1, racine)]),
+                },
+            );
+        }
+        let total = pool.node_count() as u64;
+        let stats = pool.gc(&[racine]);
+        assert_eq!(stats.vivants + stats.collectes, total);
+        assert_eq!(stats.vivants, pool.vivants() as u64);
+        let metriques = pool.metriques();
+        assert_eq!(metriques.vivants, stats.vivants);
+        assert_eq!(metriques.morts, stats.collectes);
+        assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
+    }
 }
