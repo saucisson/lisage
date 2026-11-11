@@ -10,9 +10,9 @@ use lisage_plan::oracle::{
 /// M3-3 : le rationnel est normalisé (pgcd) et l'arithmétique exacte.
 #[test]
 fn test_rationnel_normalise_et_exact() {
-    assert_eq!(Rationnel::nouveau(2, 4), Rationnel { num: 1, den: 2 });
+    assert_eq!(Rationnel::nouveau(2, 4), Rationnel::nouveau(1, 2));
     assert_eq!(Rationnel::nouveau(6, 3), Rationnel::entier(2));
-    assert_eq!(Rationnel::nouveau(5, 0), Rationnel { num: 0, den: 1 });
+    assert_eq!(Rationnel::nouveau(5, 0), Rationnel::nouveau(0, 1));
     let demi = Rationnel::nouveau(1, 2);
     let quart = Rationnel::nouveau(1, 4);
     assert_eq!(demi.multiplier(&quart), Rationnel::nouveau(1, 8));
@@ -45,15 +45,25 @@ fn test_prediction_taille_et_cout_total() {
     assert_eq!(prediction.cout_total_predit, 6 * 3 * 4);
 
     // Densité nulle : seul le terminal. Densité pleine : toute la chaîne.
-    let nul = Oracle::predire(&ParametresOracle {
-        densite_attendue: Rationnel::nouveau(0, 1),
-        ..params
-    });
+    let nul = Oracle::predire(
+        &ParametresOracle::nouveau(
+            params.taille_domaine(),
+            Rationnel::nouveau(0, 1),
+            params.cout_encodage(),
+            params.requetes_aval(),
+        )
+        .unwrap(),
+    );
     assert_eq!(nul.taille_predite, 1);
-    let plein = Oracle::predire(&ParametresOracle {
-        densite_attendue: Rationnel::entier(1),
-        ..params
-    });
+    let plein = Oracle::predire(
+        &ParametresOracle::nouveau(
+            params.taille_domaine(),
+            Rationnel::entier(1),
+            params.cout_encodage(),
+            params.requetes_aval(),
+        )
+        .unwrap(),
+    );
     assert_eq!(plein.taille_predite, 11);
 }
 
@@ -101,24 +111,31 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
         let densite = Rationnel::nouveau(suivant() % 101, 100);
         let cout_encodage = suivant() % 10; // 0 possible : prédit peut être nul
         let requetes_aval = suivant() % 20;
-        let params = ParametresOracle {
-            taille_domaine,
-            densite_attendue: densite,
-            cout_encodage,
-            requetes_aval,
-        };
+        let params =
+            ParametresOracle::nouveau(taille_domaine, densite, cout_encodage, requetes_aval)
+                .unwrap();
         let prediction = Oracle::predire(&params);
         // Croissance en densité.
-        let plus_dense = Oracle::predire(&ParametresOracle {
-            densite_attendue: Rationnel::entier(1),
-            ..params
-        });
+        let plus_dense = Oracle::predire(
+            &ParametresOracle::nouveau(
+                params.taille_domaine(),
+                Rationnel::entier(1),
+                params.cout_encodage(),
+                params.requetes_aval(),
+            )
+            .unwrap(),
+        );
         assert!(prediction.taille_predite <= plus_dense.taille_predite);
         // Croissance en requêtes aval.
-        let plus_de_requetes = Oracle::predire(&ParametresOracle {
-            requetes_aval: requetes_aval + 1,
-            ..params
-        });
+        let plus_de_requetes = Oracle::predire(
+            &ParametresOracle::nouveau(
+                params.taille_domaine(),
+                params.densite_attendue(),
+                params.cout_encodage(),
+                requetes_aval + 1,
+            )
+            .unwrap(),
+        );
         assert!(prediction.cout_total_predit <= plus_de_requetes.cout_total_predit);
         // Garde-fou conforme quand mesure = prédiction.
         assert!(
