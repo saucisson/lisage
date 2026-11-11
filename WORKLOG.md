@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M5-1 : Langage de niveau 1 complet + fonctions d'ordre supérieur, aval runtime du planner (feat/32)
+
+- **Issue**: #32 (M5-1 — Niveau 1 complet ; le planner admet un aval runtime avec reordering dégradé en fallback ; feuille de route § 7, énoncé C3).
+- **Done**: `lisage-lang::interpreter` : algèbre des ensembles `union`/`intersection`/`difference` sur `BTreeSet<Value>`, et HOF `composer` (f∘g), `appliquer` (f(x)), `iterer` (f^n(x)). `lisage-plan::ordre` : `StrategieAval::{OrdreRuntime, RepliCanonique}` et `Order::avec_aval_runtime(descripteur, pi_runtime)` — π runtime valide adopté tel quel, sinon repli sur l'ordre canonique (cause de l'erreur préservée en interne, stratégie retournée). 5 tests dans `crates/lisage-lang/tests/interpreter.rs` (union/inter/diff sur l'exemple spec, appliquer/composer, iterer, propriété LCG iterer == n applications manuelles, associativité de ∘) ; 3 tests dans `crates/lisage-plan/tests/ordre.rs` (π valide → OrdreRuntime, contrainte présence<valeur violée → RepliCanonique avec séquence canonique, π non-permutation → RepliCanonique). Totaux : 11 tests interpreter (lang), 10 tests ordre (plan).
+- **Evidence**: `make check` green (ruff, mypy, import-linter, pytest 34 passed + coverage 94.76%, cargo fmt --check, clippy -D warnings, cargo nextest). **Non exécuté**: CI GitHub (sera verte sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
+- **Judgement calls**: l'aval runtime ne propage pas l'erreur typée `ErreurOrdre` au caller — il retourne la `StrategieAval` (le repli est un fallback prévu, pas une erreur) ; la cause reste disponible via `Order::nouveau` pour qui veut diagnostiquer.
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M4-5 : Liseuse — vue mémoire et quotient (pools/GC, badges de multiplicité, classes du quotient, comparaison naïf/DD/Lisage) (feat/31)
 
 - **Issue**: #31 (M4-5 — Liseuse : vues mémoire et quotient ; doc liseuse § 5 « le pool en fond » et « le zoom sémantique »).

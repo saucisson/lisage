@@ -69,3 +69,51 @@ pub fn saturate(
         courant = suivant;
     }
 }
+
+/// Union de deux ensembles explicites (algèbre des ensembles, niveau 1).
+pub fn union(a: &BTreeSet<Value>, b: &BTreeSet<Value>) -> BTreeSet<Value> {
+    a.union(b).cloned().collect()
+}
+
+/// Intersection de deux ensembles explicites.
+pub fn intersection(a: &BTreeSet<Value>, b: &BTreeSet<Value>) -> BTreeSet<Value> {
+    a.intersection(b).cloned().collect()
+}
+
+/// Différence ensembliste `a \ b`.
+pub fn difference(a: &BTreeSet<Value>, b: &BTreeSet<Value>) -> BTreeSet<Value> {
+    a.difference(b).cloned().collect()
+}
+
+/// **Composition** de fonctions (HOF, M5-1) : `composer(f, g)(x) = f(g(x))`.
+pub fn composer<F, G, V>(f: F, g: G) -> impl Fn(&V) -> V
+where
+    F: Fn(&V) -> V,
+    G: Fn(&V) -> V,
+    V: Clone,
+{
+    move |x| f(&g(x))
+}
+
+/// **Application** (HOF) : `appliquer(f, x) = f(x)` — la fonction passée en
+/// argument, appliquée à la valeur.
+pub fn appliquer<F, V>(f: F, x: &V) -> V
+where
+    F: Fn(&V) -> V,
+    V: Clone,
+{
+    f(x)
+}
+
+/// **Itération** (HOF) : `iterer(f, n, x) = f^n(x)` — n applications de f.
+pub fn iterer<F, V>(f: &F, n: u64, x: V) -> V
+where
+    F: Fn(&V) -> V,
+    V: Clone,
+{
+    let mut courant = x;
+    for _ in 0..n {
+        courant = f(&courant);
+    }
+    courant
+}

@@ -4,7 +4,8 @@
 
 use lisage_lang::Atom;
 use lisage_plan::ordre::{
-    Aligne, CleMap, ClesMap, DomaineAtomes, ErreurOrdre, MarqueOrdre, Order, Phase, TypeOrdre,
+    Aligne, CleMap, ClesMap, DomaineAtomes, ErreurOrdre, MarqueOrdre, Order, Phase, StrategieAval,
+    TypeOrdre,
 };
 
 /// Marque portant l'ordre canonique sur un domaine d'atomes.
@@ -250,4 +251,80 @@ fn test_propriete_permutation_valide_bijection() {
     for (avant, apres) in canonique.contraintes() {
         assert!(canonique.position(avant) < canonique.position(apres));
     }
+}
+
+#[test]
+fn test_aval_runtime_ordre_valide_adopte() {
+    // π runtime valide (permutation respectant présence < valeur) :
+    // stratégie OrdreRuntime, séquence = π fournie.
+    let cles = ClesMap(vec![Atom(0), Atom(1)]);
+    let presence_0 = CleMap {
+        cle: Atom(0),
+        phase: Phase::Presence,
+    };
+    let valeur_0 = CleMap {
+        cle: Atom(0),
+        phase: Phase::Valeur,
+    };
+    let presence_1 = CleMap {
+        cle: Atom(1),
+        phase: Phase::Presence,
+    };
+    let valeur_1 = CleMap {
+        cle: Atom(1),
+        phase: Phase::Valeur,
+    };
+    let pi_runtime = vec![
+        presence_1,
+        valeur_1,
+        presence_0,
+        valeur_0,
+    ];
+    let (ordre, strategie) = Order::avec_aval_runtime(&cles, pi_runtime.clone());
+    assert_eq!(strategie, StrategieAval::OrdreRuntime);
+    assert_eq!(ordre.sequence(), pi_runtime.as_slice());
+}
+
+#[test]
+fn test_aval_runtime_contrainte_violee_repli_canonique() {
+    // π runtime qui viole présence < valeur pour la clé 0 :
+    // repli sur l'ordre canonique (reordering dégradé en fallback).
+    let cles = ClesMap(vec![Atom(0), Atom(1)]);
+    let presence_0 = CleMap {
+        cle: Atom(0),
+        phase: Phase::Presence,
+    };
+    let valeur_0 = CleMap {
+        cle: Atom(0),
+        phase: Phase::Valeur,
+    };
+    let presence_1 = CleMap {
+        cle: Atom(1),
+        phase: Phase::Presence,
+    };
+    let valeur_1 = CleMap {
+        cle: Atom(1),
+        phase: Phase::Valeur,
+    };
+    let pi_invalide = vec![
+        valeur_0,
+        presence_0,
+        presence_1,
+        valeur_1,
+    ];
+    let (ordre, strategie) = Order::avec_aval_runtime(&cles, pi_invalide);
+    assert_eq!(strategie, StrategieAval::RepliCanonique);
+    let canonique = Order::canonique(&cles);
+    assert_eq!(ordre.sequence(), canonique.sequence());
+    assert_eq!(ordre, canonique);
+}
+
+#[test]
+fn test_aval_runtime_pas_une_permutation_repli_canonique() {
+    // π runtime avec une clé en double / manquante : repli canonique aussi.
+    let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
+    let pi_invalide = vec![Atom(0), Atom(0), Atom(2)];
+    let (ordre, strategie) = Order::avec_aval_runtime(&domaine, pi_invalide);
+    assert_eq!(strategie, StrategieAval::RepliCanonique);
+    assert_eq!(ordre.sequence(), Order::canonique(&domaine).sequence());
 }
