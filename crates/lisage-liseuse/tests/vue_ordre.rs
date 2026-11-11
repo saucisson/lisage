@@ -9,10 +9,10 @@ use lisage_liseuse::vue_ordre::{
 /// Extrait un attribut numérique d'un élément SVG (ex. `y="42"` → 42).
 fn extraire_attribut(element: &str, attribut: &str) -> u32 {
     // Espace initial : évite de matcher la fin de `font-family="..."`.
-    let pos = element
+    let position_attribut = element
         .find(&format!(" {attribut}=\""))
         .unwrap_or_else(|| panic!("attribut {attribut} présent"));
-    let apres = &element[pos + attribut.len() + 3..];
+    let apres = &element[position_attribut + attribut.len() + 3..];
     let fin = apres.find('"').expect("fin de l'attribut");
     apres[..fin].parse().expect("attribut entier")
 }
@@ -73,7 +73,12 @@ fn test_vue_ordre_fiche_piste_lineaire_royaumes_et_conversion() {
         RoyaumeVue {
             nom: "reference".to_string(),
             fiche: fiche_reference(),
-            piste: PisteOrdre::Lineaire(vec!["a".to_string(), "b".to_string(), "c".to_string()]),
+            piste: PisteOrdre::Lineaire(vec![
+                "a".to_string(),
+                "b".to_string(),
+                "c".to_string(),
+                "<a>".to_string(),
+            ]),
         },
         RoyaumeVue {
             nom: "temoin-bdd".to_string(),
@@ -115,8 +120,9 @@ fn test_vue_ordre_fiche_piste_lineaire_royaumes_et_conversion() {
         svg.contains("stroke-dasharray=\"6 3\""),
         "flèche en pointillés"
     );
-    // Échappement XML des libellés.
-    assert!(!svg.contains("<a>"), "pas de balise injectée");
+    // Échappement XML des libellés : "<a>" rendu en &lt;a&gt;, jamais en balise.
+    assert!(svg.contains("&lt;a&gt;"), "libellé échappé en &lt;a&gt;");
+    assert!(!svg.contains("><a><"), "pas de balise injectée");
 }
 
 /// M3-4 : un ordre structuré se rend en arbre (vtree), sans cas particulier.
