@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - Backlog δ continu, fragment DBM : régions convexes à clôture canonique (Q9) (feat/85)
+
+- **Issue**: #85 (backlog § 9, spec Q9, veine #83 — deuxième fragment « DBM » après les intervalles).
+- **Done**: `lisage-core::dbm` (nouveau) : `Dbm` (clé-région = matrice de bornes de différences `x_i − x_j ≤ c`, bornes `i128` en interne pour une clôture sans débordement ; forme normale = clôture de Floyd-Warshall, région incohérente normalisée au canonique `INCOHERENT` = région vide), `DbmKeys` (`Val(ℓ) = [0, taille_domaine)`, `cardinality(ℓ)` = taille du domaine, `δ(ℓ)` = `INCOHERENT`), `DbmController` (payload bool, `D_δ` = région vide → `false`, fingerprint `ControllerId(5)`). 7 tests dans `crates/lisage-core/tests/dbm.rs` : clôture canonique (propagation transitive, contraintes redondantes), incohérence → `INCOHERENT`, `contient`, cardinalité/défaut, **C1 relatif au pool** (deux écritures d'une même région partagent le nœud), propriété LCG (30 cas : idempotence de la forme normale), différentiel d'appartenance contre énumération naïve sur la boîte `[0,4)²` (partition en deux régions DBM, R-default supprime l'arc vide). Hors fragment : intégrale au pli, instance-test DDD-différence.
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 238 tests, 3 ignorés — 7 nouveaux). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
+- **Judgement calls**: bornes `i128` en interne (la clôture somme des `i64` ne déborde pas) plutôt qu'un `checked_add` qui perdrait la canonicité ; domaine borné par variable (`cardinality(ℓ)` fini) — le « royaume libre DDD » non borné reste hors fragment ; module dans `lisage-core` comme `region.rs`, aucune dépendance, aucune frontière modifiée.
+- **Escalations**: aucune.
+
 ## 2026-11-11 - Backlog δ continu, fragment intervalles : algèbre de clés-régions 1D (Q9) (feat/83)
 
 - **Issue**: #83 (backlog § 9 de la feuille de route, question ouverte 9 de la spec — premier fragment « intervalles », la porte M5-4 étant levée).
