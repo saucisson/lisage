@@ -139,7 +139,10 @@ impl<C: Controller> Arena<C> {
         for ensemble in self.index_niveaux.values_mut() {
             ensemble.retain(|node| self.nodes[node.0 as usize].forme.is_some());
         }
-        let vivants = total - collectes;
+        // Vivants comptés sur les entrées réellement vivantes (et non
+        // dérivés du nombre de slots, qui inclut les tombstones d'un GC
+        // précédent sans compaction).
+        let vivants = self.nodes.iter().filter(|e| e.forme.is_some()).count() as u64;
         let compaction = seuil_atteint(collectes, total);
         if compaction {
             self.remap = self.compacter();
@@ -166,8 +169,11 @@ impl<C: Controller> Arena<C> {
     }
 
     /// Compaction : reconstruit le vecteur des nœuds sans tombstones et
-    /// remappe les `NodeId` (table de remapping retournée).
-    pub fn compacter(&mut self) -> Vec<Option<NodeId>> {
+    /// remappe les `NodeId` (table de remapping retournée). Réservée au
+    /// chemin `gc`, qui nettoie d'abord les tombstones de la table unique :
+    /// appel direct avec des tombstones laisserait des `NodeId` périmés
+    /// dans `unique`.
+    fn compacter(&mut self) -> Vec<Option<NodeId>> {
         self.remap.clear();
         let mut remap: Vec<Option<NodeId>> = Vec::with_capacity(self.nodes.len());
         let mut nouveaux: Vec<EntreeNoeud<C::Key, C::Payload>> = Vec::new();
