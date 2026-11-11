@@ -17,6 +17,7 @@ pub mod pli;
 pub mod saturate;
 pub mod schema;
 pub mod transduction;
+pub mod transfert;
 
 pub use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
