@@ -33,7 +33,8 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::memoire::{EffetMemoire, MemoireNiveau};
-use crate::schema::{ABSENT, Domaine, PRESENT, Schema};
+use crate::pli::union;
+use crate::schema::{ABSENT, Domaine, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::Atom;
 
@@ -61,24 +62,29 @@ pub struct TransfertNonLocal {
     index_source: usize,
     index_destination: usize,
     domaine: Domaine,
+    keys: SchemaKeys,
 }
 
 impl TransfertNonLocal {
     /// Transfert de la clé `index_source` vers la clé `index_destination`
-    /// (dans l'ordre des clés de la `Map`), sur le domaine des valeurs.
+    /// (dans l'ordre des clés de la `Map`) du schéma donné.
     ///
     /// # Panics
-    /// Si `index_source >= index_destination` (le jeton hérité ne remonte
-    /// pas).
-    pub fn new(index_source: usize, index_destination: usize, domaine: Domaine) -> Self {
+    /// Si le schéma n'est pas une `Map`, ou si `index_source >=
+    /// index_destination` (le jeton hérité ne remonte pas).
+    pub fn new(schema: &Schema, index_source: usize, index_destination: usize) -> Self {
         assert!(
             index_source < index_destination,
             "le transfert exige source < destination (jeton hérité descendant)"
         );
+        let Schema::Map(_, domaine) = schema else {
+            panic!("TransfertNonLocal exige un schéma Map");
+        };
         TransfertNonLocal {
             index_source,
             index_destination,
-            domaine,
+            domaine: domaine.clone(),
+            keys: SchemaKeys::new(schema.clone()),
         }
     }
 
@@ -97,12 +103,38 @@ impl TransfertNonLocal {
         Schema::niveau_valeur(self.index_destination)
     }
 
+    /// Insère l'arc remapé `cle ↦ (n, s)` dans `remap` ; en cas de collision
+    /// de clé (famille : deux arcs remapés vers la même cible), les deux
+    /// sous-arbres sont **unionés**, jamais écrasés.
+    fn inserer_remap<P: Pool<Key = u64, Payload = bool>>(
+        pool: &mut P,
+        keys: &SchemaKeys,
+        anchor: Anchor,
+        remap: &mut BTreeMap<u64, (NodeId, ())>,
+        cle: u64,
+        n: NodeId,
+        s: (),
+    ) {
+        match remap.remove(&cle) {
+            Some((ancien, _)) => {
+                let fusion = union(pool, keys, anchor, ancien, n)
+                    .expect("union de sous-arcs d'un même pool");
+                remap.insert(cle, (fusion, s));
+            }
+            None => {
+                remap.insert(cle, (n, s));
+            }
+        }
+    }
+
     /// Décrément de la source (niveau `val(a)`) : remap `v → v-1` si
     /// `v ≥ 1` (spec § 7 : `φ_disp(val(a), h, v) = v ≥ 1 ? h_transfert : stop`),
     /// et effet mémoire `M[id(n), val(a)] ← true` si un décrément a été
     /// produit (idempotence par `(nœud, niveau)`).
-    fn decremente_source(
+    fn decremente_source<P: Pool<Key = u64, Payload = bool>>(
         &self,
+        pool: &mut P,
+        anchor: Anchor,
         memoire: &MemoireNiveau<bool>,
         noeud_entree: NodeId,
         level: Level,
@@ -116,10 +148,10 @@ impl TransfertNonLocal {
         let mut decremente = false;
         for (v, (n, s)) in arcs {
             if v >= 1 {
-                remap.insert(v - 1, (n, s));
+                Self::inserer_remap(pool, &self.keys, anchor, &mut remap, v - 1, n, s);
                 decremente = true;
             } else {
-                remap.insert(v, (n, s));
+                Self::inserer_remap(pool, &self.keys, anchor, &mut remap, v, n, s);
             }
         }
         let effet = if decremente {
@@ -163,8 +195,10 @@ impl TransfertNonLocal {
     /// `u → u + montant` si la cible est dans le domaine ; sinon l'arc est
     /// conservé tel quel (sémantique **par arc** : le décrément de la source
     /// reste appliqué, épinglé par `test_transfert_destination_hors_domaine`).
-    fn pose_valeur_destination(
+    fn pose_valeur_destination<P: Pool<Key = u64, Payload = bool>>(
         &self,
+        pool: &mut P,
+        anchor: Anchor,
         h: &EtatTransfert,
         arcs: BTreeMap<u64, (NodeId, ())>,
     ) -> BTreeMap<u64, (NodeId, ())> {
@@ -176,9 +210,9 @@ impl TransfertNonLocal {
         for (u, (n, s)) in arcs {
             let cible = u + montant;
             if self.domaine.contient(Atom(cible)) {
-                remap.insert(cible, (n, s));
+                Self::inserer_remap(pool, &self.keys, anchor, &mut remap, cible, n, s);
             } else {
-                remap.insert(u, (n, s));
+                Self::inserer_remap(pool, &self.keys, anchor, &mut remap, u, n, s);
             }
         }
         remap
@@ -236,7 +270,7 @@ impl Transduction for TransfertNonLocal {
             noeud_entree,
         } = ctx;
         let (arcs, effet) = if level == self.niveau_source() {
-            self.decremente_source(memoire, noeud_entree, level, arcs)
+            self.decremente_source(pool, anchor, memoire, noeud_entree, level, arcs)
         } else if level == Schema::niveau_presence(self.index_destination)
             && matches!(h, EtatTransfert::Transfert(_))
         {
@@ -245,7 +279,10 @@ impl Transduction for TransfertNonLocal {
                 EffetMemoire::new(),
             )
         } else if level == self.niveau_destination() && matches!(h, EtatTransfert::Transfert(_)) {
-            (self.pose_valeur_destination(h, arcs), EffetMemoire::new())
+            (
+                self.pose_valeur_destination(pool, anchor, h, arcs),
+                EffetMemoire::new(),
+            )
         } else {
             (arcs, EffetMemoire::new())
         };
