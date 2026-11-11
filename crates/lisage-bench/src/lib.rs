@@ -2,6 +2,7 @@
 
 pub mod differentiel;
 pub mod pnml;
+pub mod sdd;
 pub mod temoin_bdd;
 pub mod triptyque;
 
