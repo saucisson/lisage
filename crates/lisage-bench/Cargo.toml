@@ -10,6 +10,7 @@ repository.workspace = true
 lisage-core = { path = "../lisage-core" }
 lisage-lang = { path = "../lisage-lang" }
 lisage-algebra = { path = "../lisage-algebra" }
+lisage-plan = { path = "../lisage-plan" }
 
 [dev-dependencies]
 proptest = "1"

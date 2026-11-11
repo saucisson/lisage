@@ -5,6 +5,7 @@
 use lisage_bench::pnml::{PnmlDocument, ReseauPetri};
 use lisage_bench::triptyque::{ErreurTriptyque, voie_a, voie_b, voie_c};
 use lisage_lang::value::Atom;
+use lisage_plan::ordre::StrategieAval;
 
 /// Boucle : p0 (2 jetons), t : p0 → p0. Espace atteignable = 1 marquage.
 const PNML_BOUCL: &str = r#"<pnml><net>
@@ -85,8 +86,11 @@ fn test_cardinal_identique_sur_les_trois_voies() {
         let reseau = reseau(pnml);
         let mesure_a = voie_a(&reseau);
         let mesure_b = voie_b(&reseau).unwrap();
-        let mesure_c_canonique = voie_c(&reseau, &ordre_canonique(reseau.nombre_places())).unwrap();
-        let mesure_c_inverse = voie_c(&reseau, &ordre_inverse(reseau.nombre_places())).unwrap();
+        let resultat_c_canonique =
+            voie_c(&reseau, &ordre_canonique(reseau.nombre_places())).unwrap();
+        let resultat_c_inverse = voie_c(&reseau, &ordre_inverse(reseau.nombre_places())).unwrap();
+        let mesure_c_canonique = resultat_c_canonique.mesure;
+        let mesure_c_inverse = resultat_c_inverse.mesure;
         assert_eq!(mesure_a.cardinal, cardinal_attendu, "voie A sur {pnml}");
         assert_eq!(mesure_b.cardinal, cardinal_attendu, "voie B sur {pnml}");
         assert_eq!(
@@ -110,6 +114,7 @@ fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
     assert!(
         voie_c(&reseau, &ordre_inverse(reseau.nombre_places()))
             .unwrap()
+            .mesure
             .noeuds_vivants
             > 0
     );
@@ -120,23 +125,33 @@ fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
 fn test_voie_c_canonique_egale_voie_b() {
     let reseau = reseau(PNML_CYCLE2);
     let mesure_b = voie_b(&reseau).unwrap();
-    let mesure_c = voie_c(&reseau, &ordre_canonique(reseau.nombre_places())).unwrap();
-    assert_eq!(mesure_b, mesure_c);
+    let resultat_c = voie_c(&reseau, &ordre_canonique(reseau.nombre_places())).unwrap();
+    assert_eq!(mesure_b, resultat_c.mesure);
+    assert_eq!(resultat_c.strategie, StrategieAval::OrdreRuntime);
 }
 
-/// π invalide rejeté : clé manquante, clé en double, clé étrangère.
+/// π invalide (clé manquante, en double, étrangère) : le planner se replie
+/// sur l'ordre canonique (RepliCanonique) et le cardinal reste exact.
 #[test]
-fn test_voie_c_ordre_invalide_rejete() {
+fn test_voie_c_ordre_invalide_repli_canonique() {
     let reseau = reseau(PNML_CHOIX);
     let cle_manquante = vec![Atom(0), Atom(1)];
     let cle_double = vec![Atom(0), Atom(0), Atom(2)];
     let cle_etrangere = vec![Atom(0), Atom(1), Atom(7)];
     for ordre in [cle_manquante, cle_double, cle_etrangere] {
-        assert_eq!(
-            voie_c(&reseau, &ordre).unwrap_err(),
-            ErreurTriptyque::OrdreInvalide
-        );
+        let resultat = voie_c(&reseau, &ordre).unwrap();
+        assert_eq!(resultat.strategie, StrategieAval::RepliCanonique);
+        assert_eq!(resultat.mesure.cardinal, 3);
     }
+}
+
+/// π valide (ordre inversé) : le planner adopte l'ordre runtime tel quel.
+#[test]
+fn test_voie_c_ordre_runtime_adopte() {
+    let reseau = reseau(PNML_CYCLE2);
+    let resultat = voie_c(&reseau, &ordre_inverse(reseau.nombre_places())).unwrap();
+    assert_eq!(resultat.strategie, StrategieAval::OrdreRuntime);
+    assert_eq!(resultat.mesure.cardinal, 6);
 }
 
 /// Réseau sans place : erreur typée sur les voies B et C.

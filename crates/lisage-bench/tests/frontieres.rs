@@ -7,7 +7,7 @@
 //!   lisage-plan      → lisage-lang, lisage-algebra
 //!   lisage-core      → lisage-lang, lisage-algebra
 //!   lisage-backend   → lisage-core, lisage-lang
-//!   lisage-bench     → lisage-core, lisage-lang, lisage-algebra
+//!   lisage-bench     → lisage-core, lisage-lang, lisage-algebra, lisage-plan
 //!   lisage-liseuse   → lisage-core, lisage-lang
 
 use std::collections::BTreeMap;
@@ -24,7 +24,12 @@ const ALLOWED: &[(&str, &[&str])] = &[
     ("lisage-backend", &["lisage-core", "lisage-lang"]),
     (
         "lisage-bench",
-        &["lisage-core", "lisage-lang", "lisage-algebra"],
+        &[
+            "lisage-core",
+            "lisage-lang",
+            "lisage-algebra",
+            "lisage-plan",
+        ],
     ),
     ("lisage-liseuse", &["lisage-core", "lisage-lang"]),
 ];
