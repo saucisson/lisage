@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-10 - M2-4 fix : review PR #62 — policies réelles par niveaux, record mono-pool, PBT point fixe (feat/20)
+
+- **Issue**: #20 (M2-4 — saturate, deux policies, énoncé T3) ; correctifs du rapport de revue de la PR #62 (2 BLOCKING, 2 TO-FIX, 1 SUGGESTION).
+- **Done**: (1) BLOCKING — la politique n'est plus ignorée : `RestreintAuxNiveaux<T>` restreint l'étape aux niveaux actifs (copie identité ailleurs) et enregistre les niveaux modifiés ; `AutoDetectee` retire de l'ensemble actif tout niveau non modifié par l'itération (stratégie Hamez documentée) ; `test_saturate_statique_restreint_les_niveaux` échoue si la politique est ignorée (Statique sans le niveau racine ⇒ point fixe = initial, AutoDetectee ⇒ singleton atteint). (2) BLOCKING — `test_saturate_chaine_croissante_multi_iterations` appelle `saturer` et assert `iterations >= 2`. (3) TO-FIX — `ParametresSaturation` record à pool unique `&mut P` (ADR-0003) + `Transducteur::run_meme_pool`. (4) TO-FIX — PBT `test_saturate_point_fixe_idempotent` (lisage-bench) : `saturer(τ, R)` termine en 1 itération avec le même nœud, cardinal croissant. (5) SUGGESTION — constantes nommées `FINGERPRINT_*`, `BORNE_ITERATIONS`, `TAILLE_DOMAINE`. Bonus : `CoreError::NonTerminaison { borne }` comme filet de sécurité (T2 garantit la terminaison sur schéma borné).
+- **Evidence**: `make check` OK (106 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
+- **Judgement calls**: les diagrammes dénotent des familles d'ensembles (style ZDD) — le point fixe de `X ⊕ {{a}}` est la famille `{X, {a}}` ; les tests comparent donc nœuds et cardinaux (`compter`), pas les valeurs décompilées (`decompiler` ne lit que les chaînes mono-arc du compilateur).
+- **Escalations**: aucune.
+
 ## 2026-11-10 - M2-4 : saturate, deux policies — point fixe croissant, Statique (Ciardo) / AutoDetectee (Hamez) (T2/T3) (feat/20)
 
 - **Issue**: #20 (M2-4 — saturate, deux policies, énoncé T3).

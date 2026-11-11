@@ -122,6 +122,12 @@ impl<T: Transduction> Transducteur<T> {
         }
     }
 
+    /// Accès à la transduction embarquée (pour inspecter l'état d'un
+    /// wrapper, ex. niveaux modifiés par `RestreintAuxNiveaux`).
+    pub fn transduction(&self) -> &T {
+        &self.transduction
+    }
+
     /// Nombre d'entrées de la mémo (pour les tests : preuve des hits).
     pub fn taille_memo(&self) -> usize {
         self.memo.len()
@@ -148,6 +154,25 @@ impl<T: Transduction> Transducteur<T> {
     {
         let h = self.transduction.h0();
         self.run_avec(pool_entree, pool_sortie, anchor, noeud, h)
+    }
+
+    /// Variante mono-pool : lit et écrit dans le même pool (payload `Out`
+    /// = `bool`). Utilisée par `saturate` (M2-4) où l'itération courante vit
+    /// dans le même pool que le résultat.
+    pub fn run_meme_pool<P>(
+        &mut self,
+        pool: &mut P,
+        anchor: Anchor,
+        noeud: NodeId,
+    ) -> Result<(NodeId, T::S), CoreError>
+    where
+        P: Pool<Key = u64, Payload = bool>,
+        T: Transduction<Out = bool>,
+    {
+        let h = self.transduction.h0();
+        // On lit la forme d'abord, puis on écrit : le double borrow est
+        // évité en deux temps via une closure qui relâche la lecture.
+        self.run_avec_meme_pool(pool, anchor, noeud, h)
     }
 
     fn run_avec<PIn, POut>(
@@ -199,6 +224,65 @@ impl<T: Transduction> Transducteur<T> {
                     noeud_entree: noeud,
                 };
                 let (noeud_resultat, effet) = self.transduction.phi_out(pool_sortie, ctx);
+                if self.politique == PolitiqueMemoire::Aucune && !effet.ecritures.is_empty() {
+                    return Err(CoreError::MemoireNonAutorisee);
+                }
+                effet.appliquer(&mut self.memoire);
+                (noeud_resultat, s)
+            }
+        };
+        self.memo.insert(cle, (resultat, s.clone()));
+        Ok((resultat, s))
+    }
+
+    fn run_avec_meme_pool<P>(
+        &mut self,
+        pool: &mut P,
+        anchor: Anchor,
+        noeud: NodeId,
+        h: T::H,
+    ) -> Result<(NodeId, T::S), CoreError>
+    where
+        P: Pool<Key = u64, Payload = bool>,
+        T: Transduction<Out = bool>,
+    {
+        let cle = (
+            self.transduction.fingerprint(),
+            noeud,
+            h.clone(),
+            self.memoire.version(),
+        );
+        if let Some((resultat, s)) = self.memo.get(&cle) {
+            return Ok((*resultat, s.clone()));
+        }
+        let forme = pool.resolve(noeud)?.clone();
+        let (resultat, s) = match forme {
+            Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
+            Form::Node { level, arcs } => {
+                let mut enfants = BTreeMap::new();
+                let mut s_arcs = BTreeMap::new();
+                for (arc, cible) in arcs {
+                    let h_arc = self.transduction.phi_disp(level, &h, arc);
+                    let (cible_resultat, s_arc) =
+                        self.run_avec_meme_pool(pool, anchor, cible, h_arc)?;
+                    let niveau_cible = match pool.resolve(cible) {
+                        Ok(Form::Node { level, .. }) => Some(*level),
+                        Ok(Form::Terminal(_)) => None,
+                        Err(erreur) => return Err(erreur.into()),
+                    };
+                    enfants.insert(arc, (cible_resultat, s_arc.clone()));
+                    s_arcs.insert(arc, (niveau_cible, s_arc));
+                }
+                let s = self.transduction.phi_aggr(level, &h, &s_arcs);
+                let ctx = ContextePhiOut {
+                    anchor,
+                    level,
+                    h: &h,
+                    arcs: enfants,
+                    memoire: &self.memoire,
+                    noeud_entree: noeud,
+                };
+                let (noeud_resultat, effet) = self.transduction.phi_out(pool, ctx);
                 if self.politique == PolitiqueMemoire::Aucune && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoireNonAutorisee);
                 }
