@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M5-2 : voie C du triptyque câblée au planner — graphe ADR-0002 étendu `lisage-bench → lisage-plan` (décision humaine A) (feat/33c)
+
+- **Issue**: #33 (M5-2 — Corpus MCC ; triptyque A/B/C complet, énoncés C3/C4). Suite de la décision needs-human du 2026-11-11 (option A) : extension du graphe de dépendances pour autoriser `lisage-bench → lisage-plan`.
+- **Done**: `frontieres.rs` et `Cargo.toml` de bench mis à jour (graphe : `lisage-bench → core, lang, algebra, plan` — acyclique, plan → {lang, algebra}). `triptyque::voie_c` soumet désormais π au planner : `Order::avec_aval_runtime(&ClesMap(cles), pi_runtime)` avec π construit présence-puis-valeur par clé ; la voie C retourne `ResultatVoieC { mesure, strategie }` (`StrategieAval::OrdreRuntime` si π valide, `RepliCanonique` sinon — l'ordre canonique est alors adopté et le cardinal reste exact). Tests mis à jour : π invalide → repli canonique + cardinal exact (plus de rejet), π valide inversé → ordre runtime adopté, cardinal identique A/B/C inchangé. 7 tests triptyque au total.
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 225 tests, 3 ignorés, dont le test de frontières qui valide le nouveau graphe). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow), conteneurisation des modèles MCC et publication des chiffres (reste de #33).
+- **Judgement calls**: la décision A a été prise par l'humain en session needs-human (2026-11-11) — le changement de fichier constitutionnel (test de frontières) est couvert par cette autorisation ; π runtime est traduit en `CleMap` présence-puis-valeur par clé, ce qui satisfait la contrainte du type tant que π est une permutation des clés de places.
+- **Escalations**: consommée (frontière bench→plan, option A). Restent ouvertes : conteneurisation du corpus MCC 2011-2018, publication des chiffres, surface du langage.
+
 ## 2026-11-11 - needs-human consommés : ADR-0021 accepté, ADR-0100 accepté (logging = événements DEBUG), semi-anneau probabiliste = rationnels exacts (fix/needs-human-adr-0021-0100)
 
 - **Issue**: aucun (session needs-human demandée par l'humain).

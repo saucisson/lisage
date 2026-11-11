@@ -5,13 +5,12 @@
 //! - **voie B** = DD à ordre fixe : ordre canonique des places, compilé
 //!   dans `lisage-core` (union des maps de marquage) ;
 //! - **voie C** = DD à ordre runtime : permutation π des clés de places
-//!   fournie à l'exécution, adoptée telle quelle si c'est une permutation.
+//!   fournie à l'exécution, soumise au planner `lisage-plan`
+//!   (`Order::avec_aval_runtime`) — adoptée telle quelle si valide, sinon
+//!   repli canonique signalé par la stratégie retournée.
 //!
-//! Le câblage de π au planner `lisage-plan` (`Order::avec_aval_runtime`)
-//! reste pour une PR suivante : la frontière ADR-0002 n'autorise pas
-//! `lisage-bench → lisage-plan` aujourd'hui. La falsification C3/C4 tient
-//! ici : cardinal identique sur les trois voies, et la voie C accepte un
-//! ordre runtime arbitraire (valide) sans changer le cardinal.
+//! La falsification C3/C4 tient ici : cardinal identique sur les trois
+//! voies, quelle que soit la stratégie d'aval adoptée par le planner.
 
 use std::collections::BTreeSet;
 
@@ -24,6 +23,7 @@ use lisage_core::schema::{
     Domaine, ReferenceController, Schema, SchemaError, SchemaKeys, compiler,
 };
 use lisage_lang::value::{Atom, Value};
+use lisage_plan::ordre::{CleMap, ClesMap, Order, Phase, StrategieAval};
 
 use crate::pnml::{self, ReseauPetri};
 
@@ -105,10 +105,59 @@ pub fn voie_b(reseau: &ReseauPetri) -> Result<MesureVoie, ErreurTriptyque> {
     voie_dd(reseau, &ordre_canonique)
 }
 
+/// Résultat de la voie C : la mesure du DD construit à l'ordre adopté, et
+/// la stratégie d'aval du planner (ordre runtime adopté, ou repli canonique).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ResultatVoieC {
+    /// Mesure du DD à l'ordre adopté par le planner.
+    pub mesure: MesureVoie,
+    /// Stratégie d'aval : `OrdreRuntime` si π était valide, `RepliCanonique`
+    /// sinon (ordre canonique adopté à la place).
+    pub strategie: StrategieAval,
+}
+
 /// Voie C : DD de l'espace atteignable à **ordre runtime** — π des clés de
-/// places fourni à l'exécution, adopté tel quel s'il est valide.
-pub fn voie_c(reseau: &ReseauPetri, ordre_runtime: &[Atom]) -> Result<MesureVoie, ErreurTriptyque> {
-    voie_dd(reseau, ordre_runtime)
+/// places soumis au planner `lisage-plan` (`Order::avec_aval_runtime` sur
+/// le descripteur `ClesMap`) ; l'ordre adopté (runtime ou canonique) sert
+/// à construire le schéma.
+pub fn voie_c(
+    reseau: &ReseauPetri,
+    ordre_runtime: &[Atom],
+) -> Result<ResultatVoieC, ErreurTriptyque> {
+    if reseau.nombre_places() == 0 {
+        return Err(ErreurTriptyque::SansPlace);
+    }
+    let cles: Vec<Atom> = (0..reseau.nombre_places())
+        .map(|index| Atom(index as u64))
+        .collect();
+    let descripteur = ClesMap(cles);
+    // π runtime : présence puis valeur pour chaque clé, dans l'ordre demandé.
+    let pi_runtime: Vec<CleMap> = ordre_runtime
+        .iter()
+        .flat_map(|cle| {
+            [
+                CleMap {
+                    cle: *cle,
+                    phase: Phase::Presence,
+                },
+                CleMap {
+                    cle: *cle,
+                    phase: Phase::Valeur,
+                },
+            ]
+        })
+        .collect();
+    let (ordre, strategie) = Order::avec_aval_runtime(&descripteur, pi_runtime);
+    let ordre_adopte: Vec<Atom> = ordre
+        .sequence()
+        .iter()
+        .filter_map(|cle_map| match cle_map.phase {
+            Phase::Presence => Some(cle_map.cle),
+            Phase::Valeur => None,
+        })
+        .collect();
+    let mesure = voie_dd(reseau, &ordre_adopte)?;
+    Ok(ResultatVoieC { mesure, strategie })
 }
 
 /// Construit le DD de l'espace atteignable dans l'ordre de clés donné,
