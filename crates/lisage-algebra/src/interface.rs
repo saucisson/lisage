@@ -124,6 +124,14 @@ pub trait Controller: Send + Sync {
         PolitiqueMemoire::Aucune
     }
 
+    /// Défaut généralisé (D-abs/D-trans, spec § 2.4.1, M4-3, énoncé A6) :
+    /// absorption des arcs vers D^déf sur **tout sous-domaine** (pas
+    /// seulement δ(ℓ)) et nœud transparent (A = ∅ ou toutes cibles ≡ D →
+    /// D). `false` par défaut : système § 2.3 (R-default sur δ(ℓ) seul).
+    fn absorption_generalisee(&self) -> bool {
+        false
+    }
+
     /// Groupe de transformations de clés désigné par le contrôleur (M4-2,
     /// spec § 2.4.5) : normalise les formes modulo G par section canonique
     /// des orbites, l'argument vivant sur l'arc entrant. `None` par défaut

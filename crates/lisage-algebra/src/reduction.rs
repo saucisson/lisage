@@ -105,3 +105,55 @@ pub fn reduire_inverse<Key: Ord + Clone>(
     }
     Reduction::Forme(arcs)
 }
+
+/// (D-abs) + (D-trans) — défaut généralisé (spec § 2.4.1, M4-3, énoncé A6).
+///
+/// - **(D-abs)** `ν(ℓ, A ⊎ {v ↦ D^déf | v ∈ R}) → ν(ℓ, A)` pour tout
+///   sous-domaine R ⊆ Val(ℓ) : toute clé dont la cible ≡ D^déf est
+///   absorbable, pas seulement l'arc étiqueté δ(ℓ) (R-default n'en est
+///   que le cas particulier R = {δ(ℓ)}). Ne s'applique que si le niveau a
+///   un défaut (sinon les arcs absents ne vaudraient pas D^déf).
+/// - **(D-trans)** `ν(ℓ, A)` avec A = ∅ ou toutes cibles ≡ D → D : nœud
+///   transparent, écarts composés.
+///
+/// La canonicité reste relative au contrat (contrôleur, ordre, ancre) :
+/// `≡ D^déf` se teste par `est_defaut` (le pool étant canonique, même
+/// forme = même nœud).
+pub fn reduire_dabs<Key: Ord + Clone>(
+    arcs: BTreeMap<Key, NodeId>,
+    cle_defaut: Option<Key>,
+    est_defaut: &dyn Fn(NodeId) -> bool,
+    cardinalite: u64,
+) -> Reduction<Key> {
+    // Cible de D^déf si au moins un arc y mène (sert au D-trans A = ∅).
+    let cible_defaut = arcs.values().find(|c| est_defaut(**c)).copied();
+    // (D-abs) : absorption sur tout sous-domaine, quand le niveau a un défaut.
+    let arcs: BTreeMap<Key, NodeId> = match &cle_defaut {
+        Some(_) => arcs
+            .into_iter()
+            .filter(|(_, cible)| !est_defaut(*cible))
+            .collect(),
+        None => arcs,
+    };
+    // (D-trans) : A = ∅ après absorption → D^déf (nœud transparent).
+    if arcs.is_empty() {
+        return match cible_defaut {
+            Some(cible) => Reduction::Collapse(cible),
+            None => Reduction::Forme(arcs),
+        };
+    }
+    // R-collapse / (D-trans) « toutes cibles ≡ D », même règle de
+    // couverture que `reduire` (confluence) : avec un défaut, le collapse
+    // ne vaut que si la cible est D^déf ou si seul l'arc δ est explicite ;
+    // sans défaut, toutes les valeurs doivent être explicites.
+    if let Some(cible) = collapse_arcs(&arcs) {
+        let couvre = match &cle_defaut {
+            None => arcs.len() as u64 >= cardinalite,
+            Some(cle) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(cle)),
+        };
+        if couvre {
+            return Reduction::Collapse(cible);
+        }
+    }
+    Reduction::Forme(arcs)
+}

@@ -9,7 +9,7 @@
 use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
-use lisage_algebra::reduction::{Reduction, reduire};
+use lisage_algebra::reduction::{Reduction, reduire, reduire_dabs as crate_reduction_dabs};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::biplan::{EntreeNoeud, IndexNiveaux, MetriquesPool, Plan, StatsGc, seuil_atteint};
@@ -229,7 +229,13 @@ impl<C: Controller> Arena<C> {
         let est_defaut = |node: NodeId| -> bool {
             matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(payload))
         };
-        match reduire(arcs, cle_defaut, &est_defaut, cardinalite) {
+        // M4-3 : défaut généralisé (D-abs/D-trans) si le contrôleur l'active.
+        let reduit = if self.controleur.absorption_generalisee() {
+            crate_reduction_dabs(arcs, cle_defaut, &est_defaut, cardinalite)
+        } else {
+            reduire(arcs, cle_defaut, &est_defaut, cardinalite)
+        };
+        match reduit {
             Reduction::Collapse(cible) => Err(cible),
             Reduction::Forme(arcs_reduits) => Ok(Form::Node {
                 level,
