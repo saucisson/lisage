@@ -87,6 +87,10 @@ const DECALAGE_ETIQUETTE_LEGENDE: u32 = 18;
 const DECALAGE_PAVE_LEGENDE: u32 = 10;
 /// Marge entre le diagramme et la colonne de légende en pixels.
 const MARGE_LEGENDE: u32 = 20;
+/// Ligne de base du titre en pixels.
+const BASELINE_TITRE: u32 = 26;
+/// Marge basse de la figure en pixels.
+const MARGE_BAS: u32 = 20;
 
 /// Rend la légende des canaux en fragment SVG (un pavé coloré + une étiquette
 /// par canal, auto-générée depuis [`LEGENDE_CANAUX`]).
@@ -127,8 +131,8 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     let largeur_legende = if avec_legende { LARGEUR_LEGENDE } else { 0 };
     let largeur = largeur_diagramme + largeur_legende;
     let hauteur_legende = LEGENDE_CANAUX.len() as u32 * HAUTEUR_LEGENDE;
-    let hauteur =
-        (MARGE_HAUT + (nombre_niveaux + 1) * HAUTEUR_NIVEAU + 20).max(hauteur_legende + MARGE_HAUT);
+    let hauteur = (MARGE_HAUT + (nombre_niveaux + 1) * HAUTEUR_NIVEAU + MARGE_BAS)
+        .max(hauteur_legende + MARGE_HAUT);
     let mut svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
     );
@@ -137,7 +141,7 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
         theme.fond
     ));
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"26\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>\n",
+        "<text x=\"{MARGE_GAUCHE}\" y=\"{BASELINE_TITRE}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>\n",
         theme.police,
         theme.taille_titre,
         theme.encre,
@@ -222,8 +226,12 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
 
 /// Échappement minimal pour TikZ (les caractères spéciaux LaTeX).
 fn echapper_pgf(texte: &str) -> String {
+    // Le backslash passe par un placeholder : échappé en premier il
+    // protégerait mal ses propres accolades, en dernier il ré-échapperait
+    // les backslashes insérés par les autres règles.
+    const PLACEHOLDER_BASCUL: char = '\u{0}';
     texte
-        .replace('\\', "\\textbackslash{}")
+        .replace('\\', PLACEHOLDER_BASCUL.to_string().as_str())
         .replace('{', "\\{")
         .replace('}', "\\}")
         .replace('$', "\\$")
@@ -232,4 +240,5 @@ fn echapper_pgf(texte: &str) -> String {
         .replace('%', "\\%")
         .replace('_', "\\_")
         .replace('^', "\\textasciicircum{}")
+        .replace(PLACEHOLDER_BASCUL, "\\textbackslash{}")
 }
