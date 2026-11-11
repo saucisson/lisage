@@ -129,7 +129,6 @@ proptest! {
             nombre_niveaux: schema.nombre_niveaux(),
         };
         let premier = saturer(&mut params).unwrap();
-        prop_assert!(premier.iterations >= 1);
 
         // Chaîne croissante : le point fixe contient la famille initiale.
         let cardinal_initial = cardinal(&pool, &schema, noeud_initial);

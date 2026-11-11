@@ -25,6 +25,11 @@ use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 /// sur schéma borné ; la borne ne sert qu'à détecter une régression).
 pub const BORNE_ITERATIONS: u32 = 1_000;
 
+/// Sel du fingerprint du wrapper [`RestreintAuxNiveaux`] : sépare
+/// domain-ement le fingerprint du wrapper de celui de la transduction
+/// interne.
+const SEL_FINGERPRINT_WRAPPER: u64 = 0x5A7A_0000_0000_0000;
+
 /// Politique de saturation (M2-4) : deux instances d'une même sémantique
 /// du point fixe. Les deux politiques produisent le même point fixe lorsque
 /// `Statique` déclare tous les niveaux ; seule la stratégie d'itération
@@ -116,7 +121,7 @@ impl<T: Transduction> Transduction for RestreintAuxNiveaux<T> {
     type M = T::M;
 
     fn fingerprint(&self) -> u64 {
-        self.inner.fingerprint() ^ 0x5A7A_0000_0000_0000
+        self.inner.fingerprint() ^ SEL_FINGERPRINT_WRAPPER
     }
     fn h0(&self) -> Self::H {
         self.inner.h0()
