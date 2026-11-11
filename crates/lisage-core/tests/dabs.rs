@@ -302,6 +302,14 @@ fn test_propriete_dabs_confluence() {
                 "aucun arc vers D^déf après D-abs"
             );
         }
+        // Inactivité sans δ(ℓ) : jamais de collapse sur forme vide, même
+        // avec D^déf désigné (les arcs absents ne vaudraient pas D^déf).
+        if cle_defaut.is_none()
+            && arcs.is_empty()
+            && let Reduction::Collapse(_) = &premier
+        {
+            panic!("collapse sur forme vide sans clé de défaut");
+        }
         // D-trans / R-collapse : un collapse n'a lieu que si la couverture
         // est satisfaite (mêmes règles que `reduire`) ou si A = ∅ après
         // absorption (alors la cible est D^déf).
