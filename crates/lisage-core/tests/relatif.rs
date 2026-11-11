@@ -89,6 +89,28 @@ fn test_ancre_relative_shift() {
     let depuis = AncreRelative::depuis_ancre(Anchor(7));
     assert_eq!(depuis.decalage, 0);
     assert_eq!(depuis.absolue(), 7);
+    // Saturation de la conversion en ancre absolue : un décalage négatif
+    // sous la position 0 clamp à 0 (pas de wrap), un dépassement haut
+    // clamp à u32::MAX.
+    assert_eq!(
+        AncreRelative::nouvelle(0).decalee(-1).vers_ancre(),
+        Anchor(0)
+    );
+    assert_eq!(
+        AncreRelative::nouvelle(u32::MAX).decalee(5).vers_ancre(),
+        Anchor(u32::MAX)
+    );
+}
+
+/// M4-2 : la lecture effective du shift est saturée dans ℕ (totale) :
+/// clé + argument négatif clamp à 0, dépassement haut clamp à u64::MAX.
+#[test]
+fn test_groupe_shift_saturation() {
+    let groupe = GroupeShift;
+    assert_eq!(groupe.appliquer(&0, &-5), 0, "clamp bas à 0");
+    assert_eq!(groupe.appliquer(&10, &-5), 5);
+    assert_eq!(groupe.appliquer(&u64::MAX, &1), u64::MAX, "clamp haut");
+    assert_eq!(groupe.appliquer(&u64::MAX, &-1), u64::MAX - 1);
 }
 
 /// M4-2 : ancres composées — enregistrement nommé de décalages, un par
