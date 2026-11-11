@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M5-5 : Liseuse — mode publication (SVG autonome + PGF/TikZ, thème serif, légende auto des canaux) (feat/36)
+
+- **Issue**: #36 (M5-5 — Liseuse : export figures ; mode publication : SVG/PGF propre à la mise en page article, thème serif, légendes auto depuis la légende des canaux, doc liseuse § 5).
+- **Done**: `lisage-liseuse::publication` (nouveau) : `Theme` (thème publication : serif, fond blanc, encre sombre, tailles nommées) ; `LEGENDE_CANAUX` (source de vérité unique canal → étiquette/couleur, calée sur `CanalAttr` : hérité bleu, synthétisé orange, mémoire violet) et `rendre_legende_svg` (légende auto-générée) ; `rendre_svg_publication` (SVG autonome : fond, titre échappé en serif, diagramme thémé, légende optionnelle) ; `rendre_pgf` (document TikZ `standalone` autonome, échelle nommée `ECHELLE_PGF_CM_PAR_PIXEL`, échappement LaTeX). Refactor minime de `svg.rs` : le corps du diagramme est extrait dans `dessiner_corps` (palette `Couleurs` en paramètre), partagé entre le rendu de débogage (`COULEURS_DEBUG`, inchangé) et le mode publication. 5 tests dans `crates/lisage-liseuse/tests/publication.rs` : thème serif + titre échappé + fond blanc, légende auto (3 canaux, couleurs et étiquettes), déterminisme, PGF autonome (structure, 2 nœuds/1 arc pour `{0}` sur `Set({0,1})`, échappement LaTeX), couverture des trois `CanalAttr`.
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 224 tests, 3 ignorés). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow), rendu visuel réel dans un navigateur/LaTeX.
+- **Judgement calls**: SVG autonome + PGF/TikZ livrés tous deux (l'issue dit « SVG/PGF ») ; la légende des canaux vit dans `publication.rs` (`LEGENDE_CANAUX`) plutôt que dans `core::observer` pour ne pas toucher au cœur — à rapprocher si le pas-à-pas se met à colorer depuis la même source ; le rendu de débogage `rendre_svg` garde ses couleurs d'origine (aucun changement de comportement existant).
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M5-4 : ADD/MTBDD — merge non idempotent, table indexée par les poids, garde-fou de compatibilité (feat/35)
 
 - **Issue**: #35 (M5-4 — ADD/MTBDD ; merge non idempotent, table indexée par les poids, différentiel de compatibilité en garde-fou, question ouverte n° 8 de la spec § 10, énoncé C7).
