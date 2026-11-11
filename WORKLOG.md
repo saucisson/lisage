@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M4-3 : D-abs / D-trans — défaut généralisé (absorption sur tout sous-domaine, nœud transparent) (feat/29)
+
+- **Issue**: #29 (M4-3 — D-abs / D-trans, énoncé A6 ; spec § 2.4.1).
+- **Done**: `lisage_algebra::reduction::reduire_dabs` : (D-abs) toute clé dont la cible ≡ D^déf est absorbable sur tout sous-domaine R ⊆ Val(ℓ) (R-default n'en est que le cas R = {δ(ℓ)}) ; (D-trans) A = ∅ après absorption ou toutes cibles ≡ D → collapse en D (nœud transparent). Ne s'applique que si le niveau a un défaut. `Controller::absorption_generalisee()` (défaut `false` = système § 2.3 inchangé) ; `Arena::reduit` choisit `reduire_dabs` quand le contrôleur l'active. D^déf reste désigné par le contrôleur (`default_payload`), jamais par la forme. 6 tests dans `crates/lisage-core/tests/dabs.rs` : absorption tout sous-domaine vs R-default seul, D-trans forme vide, couverture du collapse, pas d'absorption sans δ(ℓ), propriété LCG (idempotence, aucun arc vers D^déf après D-abs, collapse licite).
+- **Evidence**: `make check` OK (164 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK, couverture 90% atteinte. **Non exécuté** : mutation testing (ADR-0012, tournant sur `daily` en fin de journée), témoin CUDD local (ADR-0102, manuel uniquement).
+- **Judgement calls**: la règle de couverture du collapse (présence) est conservée telle quelle de § 2.3 pour préserver la confluence — D-trans ne collapse « toutes cibles ≡ D » que sous cette couverture ; D-abs est gardé inactif quand le niveau n'a pas de clé de défaut (les arcs absents ne vaudraient pas D^déf).
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M4-2 : Formes relatives — shift (ancre relative), ancres composées, groupe de transformations de clés (section min = 0), arc d'entrée (feat/28)
 
 - **Issue**: #28 (M4-2 — Formes relatives, énoncé C8 ; spec § 2.4.5).
