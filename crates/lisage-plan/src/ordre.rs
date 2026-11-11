@@ -158,7 +158,7 @@ impl<Cle: Debug> std::error::Error for ErreurOrdre<Cle> {}
 /// Ordre total sur les clés d'un type `T` — **valeur de première classe**
 /// (M3-1, C3) : la permutation π des clés canoniques, les contraintes du
 /// type étant embarquées et vérifiées à la construction.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Debug)]
 pub struct Order<T: TypeOrdre> {
     /// Clés canoniques du type (π = identité sur cette séquence).
     canoniques: Vec<T::Cle>,
@@ -168,6 +168,29 @@ pub struct Order<T: TypeOrdre> {
     contraintes: Vec<(T::Cle, T::Cle)>,
     marqueur: PhantomData<fn() -> T>,
 }
+
+// Implémentations manuelles : les derives ajouteraient des bornes sur `T`
+// lui-même, alors que seules les clés `T::Cle` participent aux comparaisons.
+impl<T: TypeOrdre> Clone for Order<T> {
+    fn clone(&self) -> Self {
+        Order {
+            canoniques: self.canoniques.clone(),
+            sequence: self.sequence.clone(),
+            contraintes: self.contraintes.clone(),
+            marqueur: PhantomData,
+        }
+    }
+}
+
+impl<T: TypeOrdre> PartialEq for Order<T> {
+    fn eq(&self, autre: &Self) -> bool {
+        self.canoniques == autre.canoniques
+            && self.sequence == autre.sequence
+            && self.contraintes == autre.contraintes
+    }
+}
+
+impl<T: TypeOrdre> Eq for Order<T> {}
 
 impl<T: TypeOrdre> Order<T> {
     /// Ordre canonique du type (π = identité).
@@ -227,6 +250,16 @@ impl<T: TypeOrdre> Order<T> {
     /// Nombre de clés de l'ordre.
     pub fn taille(&self) -> usize {
         self.sequence.len()
+    }
+
+    /// Séquence ordonnée des clés (π lui-même).
+    pub fn sequence(&self) -> &[T::Cle] {
+        &self.sequence
+    }
+
+    /// Clés canoniques du type (π = identité sur cette séquence).
+    pub fn canoniques(&self) -> &[T::Cle] {
+        &self.canoniques
     }
 
     /// π comme tableau : indice dans la séquence canonique → position dans π.

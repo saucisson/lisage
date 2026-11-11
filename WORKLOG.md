@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M3-2 : Conversions — réordonner = convertir en transpositions adjacentes à coût prévisible, contrat typé étendu aux encodages (royaumes) (C3) (feat/24)
+
+- **Issue**: #24 (M3-2 — Conversions, énoncé C3, spec § 2.4.3 / § 10 Q1).
+- **Done**: `lisage-plan::conversion` : `Conversion<T>` entre deux `Order<T>` du même type — compilée en transduction (séquence de transpositions adjacentes de niveaux, tri à bulles) à **coût prévisible** = nombre d'inversions (Kendall tau), calculé depuis les seuls ordres ; `ErreurConversion::{OrdresInconvertibles, RoyaumeIncompatible}`. `Encodage::{BalayageUnivers, Enumeration}` + `MarqueEncodage` + `Royaume<T, O, E, V>` : contrat typé étendu des ordres aux encodages — une valeur n'existe que dans un royaume typé (type, marque d'ordre, marque d'encodage), et `reordonner` exige une conversion compatible avec les marques source/cible (vérifié en valeur). `Order<T>` a gagné les accesseurs `sequence`/`canoniques` et des impls manuelles Clone/PartialEq/Eq (les derives auraient borné `T` au lieu de `T::Cle`). 5 tests : identité, transpositions exactes, ordres inconvertibles, royaume (contrat typé), propriété LCG (coût = inversions, transpositions appliquées à la cible = source).
+- **Evidence**: `make check` OK (133 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
+- **Judgement calls**: le coût prévisible est la distance de Kendall tau entre les deux π (nombre d'inversions = nombre de transpositions adjacentes), un coût déclarable depuis les ordres seuls, avant exécution — la transduction de réordonnancement n'est pas encore exécutée sur des diagrammes (c'est M3-3/M4) ; les conversions entre encodages (balayage ↔ énumération) sont déclarées comme marques de royaume, leur transduction de compilation arrivant avec le planner.
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M3-1 : `Order<T>` valeur de première classe — π vérifiée, contraintes par type embarquées, alignement comme typage (C3) (feat/23)
 
 - **Issue**: #23 (M3-1 — Order<T> valeur de première classe, énoncé C3, spec § 10 Q1).
