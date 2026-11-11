@@ -14,7 +14,7 @@ use lisage_algebra::interface::{
 };
 
 use crate::error::CoreError;
-use crate::schema::{ABSENT, Domaine, PRESENT, Schema, SchemaError, SchemaKeys};
+use crate::schema::{ABSENT, PAS_NIVEAU_MAP, PRESENT, Schema, SchemaError, SchemaKeys};
 use lisage_lang::value::{Atom, Value};
 
 /// Empreinte du contrôleur ADD (distincte de `ReferenceController`).
@@ -54,7 +54,7 @@ impl Controller for AddController {
     fn default_payload(&self, level: Level) -> Option<Self::Payload> {
         match &self.schema {
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(crate::schema::PAS_NIVEAU_MAP) {
+                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
                     Some(0)
                 } else {
                     None
@@ -93,8 +93,11 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
                 recu: "non atomique",
             });
         };
-        if !liste_cles.contains(atome_cle) || !domaine.contient(*atome_valeur) {
+        if !liste_cles.contains(atome_cle) {
             return Err(SchemaError::HorsDomaine(*atome_cle));
+        }
+        if !domaine.contient(*atome_valeur) {
+            return Err(SchemaError::HorsDomaine(*atome_valeur));
         }
     }
     Ok(compiler_map_pondere(
@@ -150,18 +153,18 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
 ) -> Result<NodeId, CoreError> {
     let (forme_a, forme_b) = (pool.resolve(a)?.clone(), pool.resolve(b)?.clone());
     match (forme_a, forme_b) {
-        (Form::Terminal(pa), Form::Terminal(pb)) => {
-            Ok(pool.intern(anchor, Form::Terminal(pa + pb)))
+        (Form::Terminal(poids_a), Form::Terminal(poids_b)) => {
+            Ok(pool.intern(anchor, Form::Terminal(poids_a + poids_b)))
         }
-        (Form::Node { level, arcs }, Form::Terminal(pb)) => {
-            if pb == 0 {
+        (Form::Node { level, arcs }, Form::Terminal(poids_b)) => {
+            if poids_b == 0 {
                 Ok(a)
             } else {
                 merge_avec_autre(pool, keys, anchor, level, arcs, b)
             }
         }
-        (Form::Terminal(pa), Form::Node { level, arcs }) => {
-            if pa == 0 {
+        (Form::Terminal(poids_a), Form::Node { level, arcs }) => {
+            if poids_a == 0 {
                 Ok(b)
             } else {
                 merge_avec_autre(pool, keys, anchor, level, arcs, a)
@@ -302,22 +305,17 @@ fn multiplicateur(
         None => nombre_niveaux,
     };
     let mut n = match keys.default(level) {
-        Some(defaut) if arc == defaut => level.0 + 2,
+        Some(defaut) if arc == defaut => level.0 + PAS_NIVEAU_MAP,
         _ => level.0 + 1,
     };
     let mut produit = 1u64;
     while n < borne {
         if keys.default(Level(n)).is_some() {
-            n += 2;
+            n += PAS_NIVEAU_MAP;
         } else {
             produit *= keys.cardinality(Level(n));
             n += 1;
         }
     }
     produit
-}
-
-/// Domaine `0..=max` pour un schéma de test.
-pub fn domaine_jetons(max: u64) -> Domaine {
-    Domaine::nouveau((0..=max).map(Atom).collect())
 }
