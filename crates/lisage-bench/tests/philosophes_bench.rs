@@ -133,7 +133,7 @@ fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
                 [
                     (PAS_CLE_INTERCALAGE * i as u64, mot[i]),
                     (
-                        PAS_CLE_INTERCALAGE * i as u64 + 1,
+                        PAS_CLE_INTERCALAGE * i as u64 + DECALAGE_CLE_GAUCHE,
                         fourchette(&mot, n as usize, i),
                     ),
                 ]
