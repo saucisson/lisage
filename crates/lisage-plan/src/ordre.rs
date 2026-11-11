@@ -155,6 +155,16 @@ impl<Cle: Debug> std::fmt::Display for ErreurOrdre<Cle> {
 
 impl<Cle: Debug> std::error::Error for ErreurOrdre<Cle> {}
 
+/// Stratégie adoptée par [`Order::avec_aval_runtime`] (M5-1, C3) : l'ordre
+/// runtime a été accepté, ou bien on s'est replié sur l'ordre canonique.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum StrategieAval {
+    /// π runtime valide : ordre adopté tel quel.
+    OrdreRuntime,
+    /// π runtime invalide : repli sur l'ordre canonique (dégradé).
+    RepliCanonique,
+}
+
 /// Ordre total sur les clés d'un type `T` — **valeur de première classe**
 /// (M3-1, C3) : la permutation π des clés canoniques, les contraintes du
 /// type étant embarquées et vérifiées à la construction.
@@ -235,6 +245,18 @@ impl<T: TypeOrdre> Order<T> {
             }
         }
         Ok(ordre)
+    }
+
+    /// Ordre avec **aval runtime** (M5-1, C3) : on tente d'adopter la
+    /// permutation π fournie à l'exécution ; si elle est invalide
+    /// (pas une permutation ou contrainte violée), on se **replie sur
+    /// l'ordre canonique** (reordering dégradé en fallback) et on le
+    /// signale par la stratégie retournée.
+    pub fn avec_aval_runtime(descripteur: &T, pi_runtime: Vec<T::Cle>) -> (Self, StrategieAval) {
+        match Order::nouveau(descripteur, pi_runtime) {
+            Ok(ordre) => (ordre, StrategieAval::OrdreRuntime),
+            Err(_cause) => (Order::canonique(descripteur), StrategieAval::RepliCanonique),
+        }
     }
 
     /// Position (0-based) d'une clé dans π.
