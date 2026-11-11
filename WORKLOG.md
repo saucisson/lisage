@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M5-2 : Triptyque A/B/C sur modèles PNML — voies B (DD ordre fixe) et C (DD ordre runtime) (feat/33b)
+
+- **Issue**: #33 (M5-2 — Corpus MCC ; triptyque A/B/C, énoncés C3/C4). Suite de la PR #75 (voie A livrée) : voies B et C du triptyque sur les modèles PNML. Restent pour les PR suivantes : le câblage de π au planner `lisage-plan` (frontière ADR-0002 : `lisage-bench → lisage-plan` non autorisé aujourd'hui), la conteneurisation des modèles MCC 2011-2018 et la publication des chiffres.
+- **Done**: `lisage-bench::triptyque` (nouveau) : `voie_a` (cardinal de l'espace atteignable explicite, `pnml::espace_atteignable`), `voie_b` (DD à ordre canonique des places : schéma `Map(K, 0..=max_jetons)` borné par l'espace atteignable, union des maps compilées, cardinal par pli `(ℕ,+,×)`, nœuds vivants après construction), `voie_c` (idem à ordre runtime π fourni à l'exécution, rejeté si π n'est pas une permutation des clés de places). Erreur typée `ErreurTriptyque` (`SansPlace`, `OrdreInvalide`, `Schema`, `Core` — causes préservées via `source`). 6 tests dans `crates/lisage-bench/tests/triptyque.rs` : cardinal identique A/B/C (canonique et inversé) sur 4 modèles jouets (boucle=1, transfert=2, choix=3, cycle 2 jetons=6), voie A sans DD vs B/C avec DD, voie C canonique == voie B, π invalide rejeté (clé manquante/doublée/étrangère), réseau sans place rejeté, déterminisme.
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 201 tests, 3 ignorés). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow), conteneurisation Docker des modèles MCC.
+- **Judgement calls**: aucune dépendance ajoutée — `lisage-plan` reste hors du graphe autorisé depuis `lisage-bench` (test `frontieres.rs`, ADR-0002), donc la voie C prend π en paramètre sans appeler le planner (câblage ultérieur, ou extension du graphe par le humain) ; le domaine des valeurs est borné par le max de jetons observé dans l'espace atteignable (les marquages de `pnml` couvrent toujours toutes les places, donc les arcs de présence sont tous présents).
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M5-2 : Parseur PNML + conversion vers lang/ (voie A du triptyque) (feat/33)
 
 - **Issue**: #33 (M5-2 — Corpus MCC ; pile d'import des formats du corpus : parsing PNML, conversion vers `lang/` — parseur de formats externes, énoncés C3/C4). Livré dans cette PR : le parseur PNML et la conversion sémantique ; la conteneurisation des modèles MCC 2011-2018 et le triptyque A/B/C complet restent pour les PR suivantes.
