@@ -90,6 +90,14 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
         ),
         TraceEvent::MemoHit { noeud } => ("MemoHit", format!("\"noeud\":{}", noeud.0)),
         TraceEvent::MemoMiss { noeud } => ("MemoMiss", format!("\"noeud\":{}", noeud.0)),
+        TraceEvent::Gc {
+            vivants,
+            collectes,
+            compaction,
+        } => (
+            "Gc",
+            format!("\"vivants\":{vivants},\"collectes\":{collectes},\"compaction\":{compaction}"),
+        ),
         TraceEvent::Round { numero } => ("Round", format!("\"numero\":{numero}")),
     };
     format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{champs}}}")
