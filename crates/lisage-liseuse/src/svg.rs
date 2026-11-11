@@ -79,18 +79,33 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
     (placement, nombre_niveaux)
 }
 
-/// Rend le sous-diagramme atteignable depuis `racine` en SVG statique.
-pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) -> String {
-    let (placement, nombre_niveaux) = placer(pool, racine);
-    let largeur =
-        MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
-    let hauteur = MARGE_HAUT + (nombre_niveaux + 1) * HAUTEUR_NIVEAU + 20;
-    let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
-    );
-    svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"14\">diagramme (niveaux = clés)</text>\n"
-    ));
+/// Palette de couleurs du rendu SVG.
+pub(crate) struct Couleurs {
+    pub(crate) encre: &'static str,
+    pub(crate) arete: &'static str,
+    pub(crate) etiquette: &'static str,
+    pub(crate) fond_noeud: &'static str,
+    pub(crate) fond_terminal: &'static str,
+}
+
+/// Couleurs par défaut du rendu de débogage.
+pub(crate) const COULEURS_DEBUG: Couleurs = Couleurs {
+    encre: "#333",
+    arete: "#555",
+    etiquette: "#777",
+    fond_noeud: "#fff",
+    fond_terminal: "#eee",
+};
+
+/// Dessine les arcs puis les nœuds du sous-diagramme atteignable depuis
+/// `racine`, avec le placement donné et la palette donnée.
+pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
+    pool: &P,
+    racine: NodeId,
+    placement: &BTreeMap<NodeId, Placement>,
+    couleurs: &Couleurs,
+) -> String {
+    let mut svg = String::new();
     // Arcs d'abord (sous les nœuds).
     let mut pile = vec![racine];
     let mut deja_vu = std::collections::BTreeSet::new();
@@ -98,36 +113,39 @@ pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) 
         if !deja_vu.insert(noeud) {
             continue;
         }
-        if let Ok(Form::Node { level, arcs }) = pool.resolve(noeud) {
+        if let Ok(Form::Node { arcs, .. }) = pool.resolve(noeud) {
             let depart = &placement[&noeud];
             for (cle, cible) in arcs {
                 let arrivee = &placement[cible];
                 svg.push_str(&format!(
-                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"#555\"/>\n",
+                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\"/>\n",
                     depart.x,
                     depart.y + 14,
                     arrivee.x,
-                    arrivee.y - 14
+                    arrivee.y - 14,
+                    couleurs.arete
                 ));
                 svg.push_str(&format!(
-                    "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" fill=\"#777\">{}</text>\n",
+                    "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" fill=\"{}\">{}</text>\n",
                     (depart.x + arrivee.x) / 2,
                     (depart.y + arrivee.y) / 2,
+                    couleurs.etiquette,
                     echapper_xml(&cle.to_string())
                 ));
                 pile.push(*cible);
             }
-            let _ = level;
         }
     }
     // Nœuds ensuite.
-    for (noeud, position) in &placement {
+    for (noeud, position) in placement {
         match pool.resolve(*noeud) {
             Ok(Form::Terminal(payload)) => {
                 svg.push_str(&format!(
-                    "<rect x=\"{}\" y=\"{}\" width=\"{LARGEUR_NOEUD}\" height=\"28\" fill=\"#eee\" stroke=\"#333\"/>\n",
+                    "<rect x=\"{}\" y=\"{}\" width=\"{LARGEUR_NOEUD}\" height=\"28\" fill=\"{}\" stroke=\"{}\"/>\n",
                     position.x - DEMI_LARGEUR,
-                    position.y - 14
+                    position.y - 14,
+                    couleurs.fond_terminal,
+                    couleurs.encre
                 ));
                 svg.push_str(&format!(
                     "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">{}</text>\n",
@@ -138,9 +156,11 @@ pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) 
             }
             Ok(Form::Node { level, .. }) => {
                 svg.push_str(&format!(
-                    "<rect x=\"{}\" y=\"{}\" width=\"{LARGEUR_NOEUD}\" height=\"28\" fill=\"#fff\" stroke=\"#333\"/>\n",
+                    "<rect x=\"{}\" y=\"{}\" width=\"{LARGEUR_NOEUD}\" height=\"28\" fill=\"{}\" stroke=\"{}\"/>\n",
                     position.x - DEMI_LARGEUR,
-                    position.y - 14
+                    position.y - 14,
+                    couleurs.fond_noeud,
+                    couleurs.encre
                 ));
                 svg.push_str(&format!(
                     "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">ℓ{} n{}</text>\n",
@@ -153,6 +173,22 @@ pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) 
             Err(_) => {}
         }
     }
+    svg
+}
+
+/// Rend le sous-diagramme atteignable depuis `racine` en SVG statique.
+pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) -> String {
+    let (placement, nombre_niveaux) = placer(pool, racine);
+    let largeur =
+        MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
+    let hauteur = MARGE_HAUT + (nombre_niveaux + 1) * HAUTEUR_NIVEAU + 20;
+    let mut svg = format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
+    );
+    svg.push_str(&format!(
+        "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"14\">diagramme (niveaux = clés)</text>\n"
+    ));
+    svg.push_str(&dessiner_corps(pool, racine, &placement, &COULEURS_DEBUG));
     svg.push_str("</svg>\n");
     svg
 }
