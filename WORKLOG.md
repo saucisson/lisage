@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - needs-human consommés : ADR-0021 accepté, ADR-0100 accepté (logging = événements DEBUG), semi-anneau probabiliste = rationnels exacts (fix/needs-human-adr-0021-0100)
+
+- **Issue**: aucun (session needs-human demandée par l'humain).
+- **Done**: (1) ADR-0021 passé de draft à **accepted** (décision humaine 2026-11-11, « accepter tel quel ») ; (2) ADR-0100 passé de draft/needs-human à **accepted**, décision 6 amendée : narration par **événements DEBUG structurés** à champs nommés épinglés par des tests — aucune dépendance de log ajoutée (escalation), émission via le canal `Observer` existant en attendant, migration progressive des modules en doc-comments ; (3) décision feuille de route § 10 (M5-4) confirmée : semi-anneau probabiliste en **rationnels exacts** par défaut, `f64` en option de bench (la livraison M5-4 reste en `(ℕ,+,×)` u64, la lecture pondérée probabiliste viendra en rationnels) ; (4) frontière ADR-0002 `lisage-bench → lisage-plan` : **non tranchée**, l'humain a demandé un exposé détaillé avant de décider — aucun changement de graphe, la voie C du triptyque garde π comme paramètre.
+- **Evidence**: `make check` green (lint, mypy, import-linter, pytest, rust-check : 224 tests, 3 ignorés). **Non exécuté** : CI GitHub, revue headless et merge (étapes suivantes du workflow).
+- **Judgement calls**: les deux ADR sont des fichiers constitutionnels — modifiés uniquement sur la réponse explicite de l'humain à la question needs-human posée en session ; la décision logging est enregistrée telle que répondue, sans ajouter de dépendance de log (qui resterait une escalation séparée).
+- **Escalations**: consommées : ADR-0021, ADR-0100 (décision 6), semi-anneau probabiliste. Restent ouvertes : frontière bench→plan (exposé fourni, décision en attente), conteneurisation du corpus MCC 2011-2018, surface du langage (API Rust vs DSL textuel).
+
 ## 2026-11-11 - M5-5 : Liseuse — mode publication (SVG autonome + PGF/TikZ, thème serif, légende auto des canaux) (feat/36)
 
 - **Issue**: #36 (M5-5 — Liseuse : export figures ; mode publication : SVG/PGF propre à la mise en page article, thème serif, légendes auto depuis la légende des canaux, doc liseuse § 5).

@@ -1,4 +1,4 @@
-# ADR-0100 — Interface du cœur de M1 (état : **draft**, needs-human)
+# ADR-0100 — Interface du cœur de M1 (état : **accepted** 2026-11-11, décision humaine reçue en session needs-human)
 
 > Brouillon rédigé dans la PR de M1-0 : un ADR projet se *draft* dans une PR
 > (numéroté à partir de 0100) ; seul l'humain l'accepte. La plage 0001-0099
@@ -25,8 +25,14 @@ bornes `Send`/`Sync`, politique d'erreurs (feuille de route § 10).
    exécution mono-thread en M1, parallélisme au-delà de M5.
 5. **Erreurs** : invariants internes `core`/`algebra` = `assert!` ;
    frontières = erreurs typées (`PoolError`, `CoreError`, `LangError`).
-6. **Logging** : aucune dépendance de log ajoutée (liste d'escalation) ;
-   narration en doc-comments + tests, en attendant un ADR dédié.
+6. **Logging** : narration par **événements DEBUG structurés** à champs
+   nommés, épinglés par des tests (décision humaine du 2026-11-11, session
+   needs-human — le contrat constitutionnel « logging replaces comments »
+   s'applique). Aucune dépendance de log ajoutée pour l'instant (liste
+   d'escalation) : tant qu'aucune crate de log n'est autorisée, l'émission
+   passe par le canal `Observer` existant. La migration des modules existants
+   (doc-comments + tests) vers les événements DEBUG est progressive, module
+   par module.
 
 ## Conséquences
 
