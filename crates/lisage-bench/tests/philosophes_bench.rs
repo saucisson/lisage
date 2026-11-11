@@ -41,6 +41,8 @@ const TOLERANCE_RATIO: f64 = 0.01;
 const NB_CELLULES_LEGALES: usize = 5;
 /// Pas des clés de l'intercalage : clé `2i` = `pc_i`, clé `2i+1` = `left_i`.
 const PAS_CLE_INTERCALAGE: u64 = 2;
+/// Décalage de la clé `left_i` après la clé `pc_i` dans l'intercalage.
+const DECALAGE_CLE_GAUCHE: u64 = 1;
 /// Nœuds vivants du prototype plat (union de maps) par n — bord mesuré,
 /// croissant en n. Le 4n − 4 du fil rouge concerne le prototype plat de
 /// l'automate encodé (hors périmètre de ce banc).
@@ -114,7 +116,7 @@ fn mots_atteignables(n: usize, gaucher: bool) -> Vec<Vec<u64>> {
                 mot[i] += 1;
                 break;
             }
-            mot[i] = 0;
+            mot[i] = PENSE;
         }
     }
 }
