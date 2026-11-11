@@ -7,3 +7,4 @@
 pub mod interface;
 pub mod reduction;
 pub mod relatif;
+pub mod vtree;
