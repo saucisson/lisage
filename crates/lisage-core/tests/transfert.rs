@@ -141,6 +141,29 @@ fn test_transfert_memoire_et_largeur() {
     );
 }
 
+/// M2-5, cas limite épinglé : destination au maximum du domaine — la pose
+/// est abandonnée (arc conservé) mais le décrément de la source reste
+/// appliqué (sémantique par arc, spec § 7 `φ_disp(val(a), h, v)`).
+#[test]
+fn test_transfert_destination_hors_domaine() {
+    let schema = schema_map();
+    let anchor = Anchor(0);
+    let mut pool = nouveau_pool(&schema);
+    // m(a) = 2, m(b) = 3 = max du domaine {0,1,2,3}.
+    let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 3)]);
+
+    let transfert = TransfertNonLocal::new(0, 1, domaine());
+    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+
+    let attendu = BTreeMap::from([(0, 1), (1, 3)]);
+    assert_eq!(
+        decompiler_map(&pool, &schema, resultat),
+        attendu,
+        "m(b) au max : pose abandonnée, décrément de m(a) appliqué"
+    );
+}
+
 /// M2-5 : sous `saturate`, le transfert itère jusqu'au point fixe
 /// ({a:2,b:0} → {a:1,b:1} → {a:0,b:2}) et termine (T2) — la famille
 /// croît de 1 membre par itération.

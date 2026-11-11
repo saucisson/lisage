@@ -10,6 +10,12 @@
 //! intermédiaires, et la mémoire de niveau `M` enregistre au nœud émetteur
 //! que le décrément a déjà été produit (idempotence par `(nœud, niveau)`).
 //!
+//! **Sémantique par arc** (spec § 7, `φ_disp(val(a), h, v) = v ≥ 1 ?
+//! h_transfert : stop`) : la source est décrémentée dès que `m(a) ≥ 1` ;
+//! la destination reçoit `m(b) + 1` si cette valeur est dans le domaine,
+//! sinon son arc est conservé (le décrément de la source reste appliqué —
+//! cas épinglé par `test_transfert_destination_hors_domaine`).
+//!
 //! **Surcoût poly(w) (T3)** : la transduction visite chaque nœud une fois
 //! (mémo L1) et fait un travail O(1) par nœud ; `H` est un état O(1) par
 //! niveau et `M` stocke au plus une entrée par `(nœud, niveau)` touché,
@@ -26,7 +32,7 @@ use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
-use crate::memoire::EffetMemoire;
+use crate::memoire::{EffetMemoire, MemoireNiveau};
 use crate::schema::{ABSENT, Domaine, PRESENT, Schema};
 use crate::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::Atom;
@@ -90,6 +96,93 @@ impl TransfertNonLocal {
     fn niveau_destination(&self) -> Level {
         Schema::niveau_valeur(self.index_destination)
     }
+
+    /// Décrément de la source (niveau `val(a)`) : remap `v → v-1` si
+    /// `v ≥ 1` (spec § 7 : `φ_disp(val(a), h, v) = v ≥ 1 ? h_transfert : stop`),
+    /// et effet mémoire `M[id(n), val(a)] ← true` si un décrément a été
+    /// produit (idempotence par `(nœud, niveau)`).
+    fn decremente_source(
+        &self,
+        memoire: &MemoireNiveau<bool>,
+        noeud_entree: NodeId,
+        level: Level,
+        arcs: BTreeMap<u64, (NodeId, ())>,
+    ) -> (BTreeMap<u64, (NodeId, ())>, EffetMemoire<bool>) {
+        // Déjà produit par ce nœud à cette visite ? (idempotence M).
+        if memoire.lire(noeud_entree, level) == Some(&true) {
+            return (arcs, EffetMemoire::new());
+        }
+        let mut remap = BTreeMap::new();
+        let mut decremente = false;
+        for (v, (n, s)) in arcs {
+            if v >= 1 {
+                remap.insert(v - 1, (n, s));
+                decremente = true;
+            } else {
+                remap.insert(v, (n, s));
+            }
+        }
+        let effet = if decremente {
+            EffetMemoire::une(noeud_entree, level, true)
+        } else {
+            EffetMemoire::new()
+        };
+        (remap, effet)
+    }
+
+    /// Pose de la destination **absente** (niveau `k_b?`) : l'arc `ABSENT`
+    /// devient `PRESENT` vers un nœud valeur neuf portant le montant
+    /// transféré (spec § 7 : `φ_disp(k_b?, h_transfert(w), ·) = h_pose(w+1)`).
+    fn pose_presence_destination<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        h: &EtatTransfert,
+        mut arcs: BTreeMap<u64, (NodeId, ())>,
+    ) -> BTreeMap<u64, (NodeId, ())> {
+        let EtatTransfert::Transfert(montant) = h else {
+            return arcs;
+        };
+        let montant = *montant;
+        if self.domaine.contient(Atom(montant))
+            && let Some((suite, _)) = arcs.remove(&ABSENT)
+        {
+            let noeud_valeur = pool.intern(
+                anchor,
+                Form::Node {
+                    level: self.niveau_destination(),
+                    arcs: BTreeMap::from([(montant, suite)]),
+                },
+            );
+            arcs.insert(PRESENT, (noeud_valeur, ()));
+        }
+        arcs
+    }
+
+    /// Pose sur la valeur de la destination (niveau `val(b)`) : remap
+    /// `u → u + montant` si la cible est dans le domaine ; sinon l'arc est
+    /// conservé tel quel (sémantique **par arc** : le décrément de la source
+    /// reste appliqué, épinglé par `test_transfert_destination_hors_domaine`).
+    fn pose_valeur_destination(
+        &self,
+        h: &EtatTransfert,
+        arcs: BTreeMap<u64, (NodeId, ())>,
+    ) -> BTreeMap<u64, (NodeId, ())> {
+        let EtatTransfert::Transfert(montant) = h else {
+            return arcs;
+        };
+        let montant = *montant;
+        let mut remap = BTreeMap::new();
+        for (u, (n, s)) in arcs {
+            let cible = u + montant;
+            if self.domaine.contient(Atom(cible)) {
+                remap.insert(cible, (n, s));
+            } else {
+                remap.insert(u, (n, s));
+            }
+        }
+        remap
+    }
 }
 
 impl Transduction for TransfertNonLocal {
@@ -134,74 +227,30 @@ impl Transduction for TransfertNonLocal {
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
     ) -> (NodeId, EffetMemoire<bool>) {
-        let mut arcs = ctx.arcs;
-        let mut effet = EffetMemoire::new();
-        if ctx.level == self.niveau_source() {
-            // Déjà produit par ce nœud à cette visite ? (idempotence M).
-            let deja_produit = ctx.memoire.lire(ctx.noeud_entree, ctx.level) == Some(&true);
-            if !deja_produit {
-                let mut remap = BTreeMap::new();
-                let mut decremente = false;
-                for (v, (n, s)) in arcs {
-                    if v >= 1 {
-                        remap.insert(v - 1, (n, s));
-                        decremente = true;
-                    } else {
-                        remap.insert(v, (n, s));
-                    }
-                }
-                if decremente {
-                    // M[id(n), val(a)] ← « décrément déjà produit ».
-                    effet = EffetMemoire::une(ctx.noeud_entree, ctx.level, true);
-                }
-                arcs = remap;
-            }
-        } else if ctx.level == Schema::niveau_presence(self.index_destination)
-            && let EtatTransfert::Transfert(montant) = ctx.h
+        let ContextePhiOut {
+            anchor,
+            level,
+            h,
+            arcs,
+            memoire,
+            noeud_entree,
+        } = ctx;
+        let (arcs, effet) = if level == self.niveau_source() {
+            self.decremente_source(memoire, noeud_entree, level, arcs)
+        } else if level == Schema::niveau_presence(self.index_destination)
+            && matches!(h, EtatTransfert::Transfert(_))
         {
-            // Clé destination absente : φ_disp(k_b?, h_transfert(w), ·) =
-            // h_pose(w+1) — on rend la clé présente avec la valeur transférée.
-            let montant = *montant;
-            if self.domaine.contient(Atom(montant))
-                && let Some((suite, _)) = arcs.remove(&ABSENT)
-            {
-                let noeud_valeur = pool.intern(
-                    ctx.anchor,
-                    Form::Node {
-                        level: self.niveau_destination(),
-                        arcs: BTreeMap::from([(montant, suite)]),
-                    },
-                );
-                arcs.insert(PRESENT, (noeud_valeur, ()));
-            }
-        } else if ctx.level == self.niveau_destination()
-            && let EtatTransfert::Transfert(montant) = ctx.h
-        {
-            // φ_out(val(b), h_transfert(w), …) : pose w+1 sur l'arc valeur.
-            let montant = *montant;
-            let mut remap = BTreeMap::new();
-            for (u, (n, s)) in arcs {
-                let cible = u + montant;
-                if self.domaine.contient(Atom(cible)) {
-                    remap.insert(cible, (n, s));
-                } else {
-                    // Hors domaine : le transfert est abandonné sur cet arc.
-                    remap.insert(u, (n, s));
-                }
-            }
-            arcs = remap;
-        }
+            (
+                self.pose_presence_destination(pool, anchor, h, arcs),
+                EffetMemoire::new(),
+            )
+        } else if level == self.niveau_destination() && matches!(h, EtatTransfert::Transfert(_)) {
+            (self.pose_valeur_destination(h, arcs), EffetMemoire::new())
+        } else {
+            (arcs, EffetMemoire::new())
+        };
         let arcs = arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
-        (
-            pool.intern(
-                ctx.anchor,
-                Form::Node {
-                    level: ctx.level,
-                    arcs,
-                },
-            ),
-            effet,
-        )
+        (pool.intern(anchor, Form::Node { level, arcs }), effet)
     }
 
     fn psi<P: Pool<Key = u64, Payload = bool>>(

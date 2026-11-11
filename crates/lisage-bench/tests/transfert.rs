@@ -73,9 +73,10 @@ fn decompiler_map(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> BTreeMap<u6
 }
 
 proptest! {
-    /// Sémantique du transfert non local (T3) sur map complète (toutes les
-    /// clés présentes) : `m(a) -= 1; m(b) += 1` si `m(a) ≥ 1` et `m(b) + 1`
-    /// dans le domaine. Les autres clés sont toujours inchangées.
+    /// Sémantique par arc du transfert non local (T3) sur map complète
+    /// (toutes les clés présentes) : `m(a) -= 1` si `m(a) ≥ 1` ; `m(b) += 1`
+    /// si de plus `m(b) + 1` est dans le domaine, sinon `m(b)` inchangé.
+    /// Les autres clés sont toujours inchangées.
     #[test]
     fn test_transfert_semantique(
         valeurs in prop::collection::vec(0u64..TAILLE_DOMAINE, NOMBRE_CLES as usize),
