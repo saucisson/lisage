@@ -22,6 +22,13 @@ pub enum CoreError {
     /// Effet mémoire produit alors que la politique du contrôleur est
     /// `Aucune` (M2-3, T3).
     MemoireNonAutorisee,
+    /// Boucle de point fixe (`saturate`, M2-4) dépassant la borne de
+    /// sécurité (T2 garantit la terminaison sur schéma borné ; dépasser la
+    /// borne signale une régression).
+    NonTerminaison {
+        /// Borne d'itérations dépassée.
+        borne: u32,
+    },
 }
 
 impl std::fmt::Display for CoreError {
@@ -40,6 +47,12 @@ impl std::fmt::Display for CoreError {
             }
             CoreError::MemoireNonAutorisee => {
                 write!(formatter, "effet mémoire produit avec la politique Aucune")
+            }
+            CoreError::NonTerminaison { borne } => {
+                write!(
+                    formatter,
+                    "saturation non terminée après {borne} itérations"
+                )
             }
         }
     }
