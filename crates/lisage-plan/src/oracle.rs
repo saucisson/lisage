@@ -68,17 +68,59 @@ pub const BORNE_INFERIEURE: Rationnel = Rationnel { num: 1, den: 2 };
 /// Borne supérieure de conformité du garde-fou : mesure ≤ 2 × prédit.
 pub const BORNE_SUPERIEURE: Rationnel = Rationnel { num: 2, den: 1 };
 
-/// Paramètres d'entrée du modèle prédictif (M3-3).
+/// Erreur typée de construction des paramètres de l'oracle.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ErreurOracle {
+    /// Densité attendue hors de [0, 1].
+    DensiteHorsBornes,
+}
+
+impl std::fmt::Display for ErreurOracle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ErreurOracle::DensiteHorsBornes => {
+                write!(formatter, "densité attendue hors de [0, 1]")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ErreurOracle {}
+
+/// Paramètres d'entrée du modèle prédictif (M3-3). Construire par
+/// [`ParametresOracle::nouveau`] : la densité y est validée dans [0, 1].
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ParametresOracle {
     /// Taille du domaine : nombre de clés balayées.
     pub taille_domaine: u64,
-    /// Densité attendue : fraction des clés présentes (0 à 1).
+    /// Densité attendue : fraction des clés présentes, dans [0, 1].
     pub densite_attendue: Rationnel,
     /// Coût d'encodage : coût d'un niveau selon l'encodage du royaume.
     pub cout_encodage: u64,
     /// Nombre de requêtes aval prévues sur le diagramme.
     pub requetes_aval: u64,
+}
+
+impl ParametresOracle {
+    /// Paramètres validés : la densité attendue doit tenir dans [0, 1].
+    pub fn nouveau(
+        taille_domaine: u64,
+        densite_attendue: Rationnel,
+        cout_encodage: u64,
+        requetes_aval: u64,
+    ) -> Result<Self, ErreurOracle> {
+        let zero = Rationnel::nouveau(0, 1);
+        let un = Rationnel::entier(1);
+        if !(zero.inferieur_ou_egal(&densite_attendue) && densite_attendue.inferieur_ou_egal(&un)) {
+            return Err(ErreurOracle::DensiteHorsBornes);
+        }
+        Ok(ParametresOracle {
+            taille_domaine,
+            densite_attendue,
+            cout_encodage,
+            requetes_aval,
+        })
+    }
 }
 
 /// Prédiction du modèle prédictif.
@@ -143,13 +185,16 @@ impl VerdictGardeFou {
         Rationnel::nouveau(self.mesure, self.predit)
     }
 
-    /// Conforme si la mesure tient dans [prédit/2, 2 × prédit] — comparaison
-    /// exacte sans division (produits croisés en u128), donc correcte aussi
-    /// pour `prédit == 0` (conforme ssi `mesure == 0`). Hors bornes, le
-    /// modèle est falsifié (C4).
+    /// Conforme si la mesure tient dans [BORNE_INFERIEURE × prédit,
+    /// BORNE_SUPERIEURE × prédit] — comparaison exacte sans division
+    /// (produits croisés en u128), donc correcte aussi pour `prédit == 0`
+    /// (conforme ssi `mesure == 0`). Hors bornes, le modèle est falsifié (C4).
     pub fn est_conforme(&self) -> bool {
         let predit = self.predit as u128;
         let mesure = self.mesure as u128;
-        2 * mesure >= predit && mesure <= 2 * predit
+        // BORNE_INFERIEURE <= mesure/prédit <=> min.num·prédit <= mesure·min.den
+        // mesure/prédit <= BORNE_SUPERIEURE <=> mesure·max.den <= max.num·prédit
+        (BORNE_INFERIEURE.num as u128) * predit <= mesure * (BORNE_INFERIEURE.den as u128)
+            && mesure * (BORNE_SUPERIEURE.den as u128) <= (BORNE_SUPERIEURE.num as u128) * predit
     }
 }

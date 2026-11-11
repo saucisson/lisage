@@ -3,7 +3,8 @@
 //! et garde-fou par différentiel (conforme dans [prédit/2, 2 × prédit]).
 
 use lisage_plan::oracle::{
-    BORNE_INFERIEURE, BORNE_SUPERIEURE, Oracle, ParametresOracle, Rationnel, VerdictGardeFou,
+    BORNE_INFERIEURE, BORNE_SUPERIEURE, ErreurOracle, Oracle, ParametresOracle, Rationnel,
+    VerdictGardeFou,
 };
 
 /// M3-3 : le rationnel est normalisé (pgcd) et l'arithmétique exacte.
@@ -19,15 +20,26 @@ fn test_rationnel_normalise_et_exact() {
     assert!(!Rationnel::nouveau(2, 3).inferieur_ou_egal(&Rationnel::nouveau(1, 2)));
 }
 
+/// M3-3 : la densité attendue est validée dans [0, 1] à la construction.
+#[test]
+fn test_parametres_densite_validee() {
+    assert!(ParametresOracle::nouveau(10, Rationnel::nouveau(1, 2), 3, 4).is_ok());
+    assert!(ParametresOracle::nouveau(10, Rationnel::nouveau(0, 1), 3, 4).is_ok());
+    assert!(ParametresOracle::nouveau(10, Rationnel::entier(1), 3, 4).is_ok());
+    assert_eq!(
+        ParametresOracle::nouveau(10, Rationnel::nouveau(2, 1), 3, 4).err(),
+        Some(ErreurOracle::DensiteHorsBornes)
+    );
+    assert_eq!(
+        ParametresOracle::nouveau(10, Rationnel::nouveau(3, 2), 3, 4).err(),
+        Some(ErreurOracle::DensiteHorsBornes)
+    );
+}
+
 /// M3-3 : le modèle prédit `1 + n·d` nœuds et le coût total correspondant.
 #[test]
 fn test_prediction_taille_et_cout_total() {
-    let params = ParametresOracle {
-        taille_domaine: 10,
-        densite_attendue: Rationnel::nouveau(1, 2),
-        cout_encodage: 3,
-        requetes_aval: 4,
-    };
+    let params = ParametresOracle::nouveau(10, Rationnel::nouveau(1, 2), 3, 4).unwrap();
     let prediction = Oracle::predire(&params);
     assert_eq!(prediction.taille_predite, 6, "1 + 10·(1/2) nœuds");
     assert_eq!(prediction.cout_total_predit, 6 * 3 * 4);
