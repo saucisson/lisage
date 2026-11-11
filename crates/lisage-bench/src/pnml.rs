@@ -3,18 +3,76 @@
 //! C'est un parseur de **format externe** (PNML, le standard d'échange
 //! des réseaux de Petri de la Model Checking Contest), pas du langage
 //! Lisage : il produit des [`Value`] du niveau 1, consommables par
-//! l'interprète de référence (voie A du triptyque). Aucun nouveau
-//! dépendance : le XML est parsé à la main, en lecture seule.
+//! l'interprète de référence (voie A du triptyque). Aucune dépendance
+//! externe : le XML est parsé à la main, en lecture seule.
 //!
 //! Sous-ensemble PNML supporté (suffisant pour les modèles MCC
 //! "place/transition" usuels) : `<pnml><net><place id><initialMarking>
-//! <text>n</text>`, `<transition id>`, `<arc id source target>`. Les
-//! annotations de nom (`<name><text>…</text></name>`) sont lues quand
-//! présentes.
+//! <text>n</text>`, `<transition id>`, `<arc id source target>` avec
+//! `source`/`target` référençant chacun une place et une transition
+//! (dans un sens ou dans l'autre). Les annotations de nom
+//! (`<name><text>…</text></name>`) sont lues quand présentes. Un arc
+//! portant un attribut `weight` autre que `1` est rejeté. Les entités
+//! XML (`&amp;` etc.) ne sont pas décodées — acceptable pour les
+//! modèles MCC PT-net.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_lang::value::{Atom, Value};
+
+// ---------------------------------------------------------------------------
+// Constantes du format
+// ---------------------------------------------------------------------------
+
+/// Élément racine PNML.
+const ELEMENT_PNML: &str = "pnml";
+/// Élément réseau.
+const ELEMENT_NET: &str = "net";
+/// Élément place.
+const ELEMENT_PLACE: &str = "place";
+/// Élément transition.
+const ELEMENT_TRANSITION: &str = "transition";
+/// Élément arc.
+const ELEMENT_ARC: &str = "arc";
+/// Attribut identifiant.
+const ATTRIBUT_ID: &str = "id";
+/// Attribut source d'arc.
+const ATTRIBUT_SOURCE: &str = "source";
+/// Attribut cible d'arc.
+const ATTRIBUT_TARGET: &str = "target";
+/// Attribut poids d'arc (sous-ensemble : poids 1 uniquement).
+const ATTRIBUT_WEIGHT: &str = "weight";
+/// Annotation de nom.
+const ELEMENT_NAME: &str = "name";
+/// Conteneur de texte PNML.
+const ELEMENT_TEXT: &str = "text";
+/// Marquage initial.
+const ELEMENT_MARQUAGE: &str = "initialMarking";
+/// Poids d'arc accepté (les poids > 1 sont hors sous-ensemble).
+const POIDS_ACCEPTE: &str = "1";
+
+// ---------------------------------------------------------------------------
+// Types distincts pour les identifiants de nœuds (ADR-0006)
+// ---------------------------------------------------------------------------
+
+/// Identifiant d'une place, type distinct à la frontière.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct PlaceId(pub String);
+
+/// Identifiant d'une transition, type distinct à la frontière.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct TransitionId(pub String);
+
+/// Extrémité d'un arc : toujours un nœud du réseau.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum NoeudId {
+    Place(PlaceId),
+    Transition(TransitionId),
+}
+
+// ---------------------------------------------------------------------------
+// Erreurs typées
+// ---------------------------------------------------------------------------
 
 /// Erreur typée du parseur PNML.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -36,8 +94,13 @@ pub enum PnmlError {
         element: &'static str,
         texte: String,
     },
-    /// Arc vers un nœud inexistant.
-    ArcVersInconnu { source: String, target: String },
+    /// Arc dont une extrémité n'existe pas dans le réseau.
+    ArcVersInconnu { source: String, cible: String },
+    /// Arc mal orienté : les deux extrémités sont des places, ou deux
+    /// transitions (un arc PNML relie une place et une transition).
+    ArcMalOriente { source: String, cible: String },
+    /// Poids d'arc hors sous-ensemble (seul le poids 1 est supporté).
+    PoidsNonSupporte { poids: String },
 }
 
 impl std::fmt::Display for PnmlError {
@@ -58,8 +121,20 @@ impl std::fmt::Display for PnmlError {
             PnmlError::NombreInvalide { element, texte } => {
                 write!(formatter, "nombre invalide dans <{element}>: {texte:?}")
             }
-            PnmlError::ArcVersInconnu { source, target } => {
-                write!(formatter, "arc de {source:?} vers {target:?} inconnu")
+            PnmlError::ArcVersInconnu { source, cible } => {
+                write!(formatter, "arc de {source:?} vers {cible:?} inconnu")
+            }
+            PnmlError::ArcMalOriente { source, cible } => {
+                write!(
+                    formatter,
+                    "arc mal orienté de {source:?} vers {cible:?} (place↔transition attendu)"
+                )
+            }
+            PnmlError::PoidsNonSupporte { poids } => {
+                write!(
+                    formatter,
+                    "poids d'arc {poids:?} non supporté (poids 1 uniquement)"
+                )
             }
         }
     }
@@ -68,7 +143,7 @@ impl std::fmt::Display for PnmlError {
 impl std::error::Error for PnmlError {}
 
 // ---------------------------------------------------------------------------
-// XML minimal (lecture seule)
+// XML minimal (lecture seule) — fonctions de taille bornée
 // ---------------------------------------------------------------------------
 
 /// Nœud XML : élément avec attributs et enfants, ou texte.
@@ -87,8 +162,6 @@ fn parser_xml(document: &str) -> Result<XmlNoeud, PnmlError> {
     let octets: Vec<char> = document.chars().collect();
     let mut position = 0;
     let racine = parser_element(&octets, &mut position)?;
-    // Sauter la prologue `<?xml …?>` déjà gérée ; ignorer le texte
-    // résiduel (espaces) après la racine.
     sauter_espaces(&octets, &mut position);
     if position != octets.len() {
         return Err(PnmlError::XmlMalForme {
@@ -105,101 +178,12 @@ fn sauter_espaces(octets: &[char], position: &mut usize) {
     }
 }
 
-fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNoeud, PnmlError> {
-    sauter_espaces(octets, position);
-    if *position >= octets.len() || octets[*position] != '<' {
-        return Err(PnmlError::XmlMalForme {
-            position: *position,
-            detail: "élément attendu".to_string(),
-        });
-    }
-    // Prologue ou commentaire : on les saute.
-    if *position + 1 < octets.len()
-        && (octets[*position + 1] == '?' || octets[*position + 1] == '!')
-    {
-        sauter_jusqua(octets, position, '>');
-        return parser_element(octets, position);
-    }
-    *position += 1; // '<'
-    let nom = lire_nom(octets, position)?;
-    let mut attributs = BTreeMap::new();
-    loop {
-        sauter_espaces(octets, position);
-        if *position >= octets.len() {
-            return Err(PnmlError::XmlMalForme {
-                position: *position,
-                detail: format!("balise <{nom}> non fermée"),
-            });
-        }
-        if octets[*position] == '/' {
-            *position += 1;
-            attendre(octets, position, '>')?;
-            return Ok(XmlNoeud::Element {
-                nom,
-                attributs,
-                enfants: Vec::new(),
-            });
-        }
-        if octets[*position] == '>' {
-            *position += 1;
-            break;
-        }
-        let cle = lire_nom(octets, position)?;
-        sauter_espaces(octets, position);
-        attendre(octets, position, '=')?;
-        sauter_espaces(octets, position);
-        let valeur = lire_chaine(octets, position)?;
-        attributs.insert(cle, valeur);
-    }
-    // Enfants jusqu'à la balise fermante.
-    let mut enfants = Vec::new();
-    loop {
-        sauter_espaces(octets, position);
-        if *position >= octets.len() {
-            return Err(PnmlError::XmlMalForme {
-                position: *position,
-                detail: format!("fin de document dans <{nom}>"),
-            });
-        }
-        if octets[*position] == '<' {
-            if *position + 1 < octets.len() && octets[*position + 1] == '/' {
-                *position += 2;
-                let nom_fermeture = lire_nom(octets, position)?;
-                if nom_fermeture != nom {
-                    return Err(PnmlError::XmlMalForme {
-                        position: *position,
-                        detail: format!("fermeture </{nom_fermeture}> pour <{nom}>"),
-                    });
-                }
-                attendre(octets, position, '>')?;
-                return Ok(XmlNoeud::Element {
-                    nom,
-                    attributs,
-                    enfants,
-                });
-            }
-            enfants.push(parser_element(octets, position)?);
-        } else {
-            let debut = *position;
-            while *position < octets.len() && octets[*position] != '<' {
-                *position += 1;
-            }
-            let texte: String = octets[debut..*position].iter().collect();
-            if !texte.trim().is_empty() {
-                enfants.push(XmlNoeud::Texte(texte.trim().to_string()));
-            }
-        }
-    }
-}
-
+/// Lit un nom XML (alphanumérique + `_ - : .`).
 fn lire_nom(octets: &[char], position: &mut usize) -> Result<String, PnmlError> {
     let debut = *position;
     while *position < octets.len()
         && (octets[*position].is_alphanumeric()
-            || octets[*position] == '_'
-            || octets[*position] == '-'
-            || octets[*position] == ':'
-            || octets[*position] == '.')
+            || matches!(octets[*position], '_' | '-' | ':' | '.'))
     {
         *position += 1;
     }
@@ -212,14 +196,20 @@ fn lire_nom(octets: &[char], position: &mut usize) -> Result<String, PnmlError> 
     Ok(octets[debut..*position].iter().collect())
 }
 
+/// Lit une chaîne entre guillemets simples ou doubles.
 fn lire_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlError> {
-    if *position >= octets.len() || (octets[*position] != '"' && octets[*position] != '\'') {
+    let Some(&delimiteur) = octets.get(*position) else {
+        return Err(PnmlError::XmlMalForme {
+            position: *position,
+            detail: "chaîne entre guillemets attendue".to_string(),
+        });
+    };
+    if delimiteur != '"' && delimiteur != '\'' {
         return Err(PnmlError::XmlMalForme {
             position: *position,
             detail: "chaîne entre guillemets attendue".to_string(),
         });
     }
-    let delimiteur = octets[*position];
     *position += 1;
     let debut = *position;
     while *position < octets.len() && octets[*position] != delimiteur {
@@ -237,22 +227,151 @@ fn lire_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlErro
 }
 
 fn attendre(octets: &[char], position: &mut usize, attendu: char) -> Result<(), PnmlError> {
-    if *position >= octets.len() || octets[*position] != attendu {
-        return Err(PnmlError::XmlMalForme {
+    match octets.get(*position) {
+        Some(&c) if c == attendu => {
+            *position += 1;
+            Ok(())
+        }
+        _ => Err(PnmlError::XmlMalForme {
             position: *position,
             detail: format!("'{attendu}' attendu"),
-        });
+        }),
     }
-    *position += 1;
-    Ok(())
 }
 
+/// Saute jusqu'au prochain `>` (prologue `<?…?>`, commentaires, CDATA
+/// tronqué — les entités ne sont pas décodées, voir la doc du module).
 fn sauter_jusqua(octets: &[char], position: &mut usize, cible: char) {
     while *position < octets.len() && octets[*position] != cible {
         *position += 1;
     }
     if *position < octets.len() {
         *position += 1;
+    }
+}
+
+/// Lit la balise ouvrante `<nom attr="v" …>` ou `<nom …/>`.
+/// Retourne `(nom, attributs, est_auto_fermante)`.
+fn lire_balise_ouvrante(
+    octets: &[char],
+    position: &mut usize,
+) -> Result<(String, BTreeMap<String, String>, bool), PnmlError> {
+    *position += 1; // '<'
+    let nom = lire_nom(octets, position)?;
+    let mut attributs = BTreeMap::new();
+    loop {
+        sauter_espaces(octets, position);
+        let Some(&c) = octets.get(*position) else {
+            return Err(PnmlError::XmlMalForme {
+                position: *position,
+                detail: format!("balise <{nom}> non fermée"),
+            });
+        };
+        match c {
+            '/' => {
+                *position += 1;
+                attendre(octets, position, '>')?;
+                return Ok((nom, attributs, true));
+            }
+            '>' => {
+                *position += 1;
+                return Ok((nom, attributs, false));
+            }
+            _ => {
+                let cle = lire_nom(octets, position)?;
+                sauter_espaces(octets, position);
+                attendre(octets, position, '=')?;
+                sauter_espaces(octets, position);
+                let valeur = lire_chaine(octets, position)?;
+                attributs.insert(cle, valeur);
+            }
+        }
+    }
+}
+
+/// Lit un tronçon de texte jusqu'au prochain '<'.
+fn lire_texte(octets: &[char], position: &mut usize) -> String {
+    let debut = *position;
+    while *position < octets.len() && octets[*position] != '<' {
+        *position += 1;
+    }
+    octets[debut..*position]
+        .iter()
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+/// Lit la balise fermante `</nom>` et vérifie la correspondance.
+fn lire_balise_fermante(octets: &[char], position: &mut usize, nom: &str) -> Result<(), PnmlError> {
+    *position += 2; // '</'
+    let nom_fermeture = lire_nom(octets, position)?;
+    if nom_fermeture != nom {
+        return Err(PnmlError::XmlMalForme {
+            position: *position,
+            detail: format!("fermeture </{nom_fermeture}> pour <{nom}>"),
+        });
+    }
+    attendre(octets, position, '>')
+}
+
+/// Parse un élément complet (récursif).
+fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNoeud, PnmlError> {
+    sauter_espaces(octets, position);
+    if octets.get(*position) != Some(&'<') {
+        return Err(PnmlError::XmlMalForme {
+            position: *position,
+            detail: "élément attendu".to_string(),
+        });
+    }
+    // Prologue ou commentaire : on saute, on relance.
+    if matches!(octets.get(*position + 1), Some('?') | Some('!')) {
+        sauter_jusqua(octets, position, '>');
+        return parser_element(octets, position);
+    }
+    let (nom, attributs, auto_fermante) = lire_balise_ouvrante(octets, position)?;
+    if auto_fermante {
+        return Ok(XmlNoeud::Element {
+            nom,
+            attributs,
+            enfants: Vec::new(),
+        });
+    }
+    let enfants = parser_enfants(octets, position, &nom)?;
+    Ok(XmlNoeud::Element {
+        nom,
+        attributs,
+        enfants,
+    })
+}
+
+/// Parse les enfants d'un élément jusqu'à sa balise fermante.
+fn parser_enfants(
+    octets: &[char],
+    position: &mut usize,
+    nom: &str,
+) -> Result<Vec<XmlNoeud>, PnmlError> {
+    let mut enfants = Vec::new();
+    loop {
+        sauter_espaces(octets, position);
+        let Some(&c) = octets.get(*position) else {
+            return Err(PnmlError::XmlMalForme {
+                position: *position,
+                detail: format!("fin de document dans <{nom}>"),
+            });
+        };
+        if c == '<' {
+            if octets.get(*position + 1) == Some(&'/') {
+                lire_balise_fermante(octets, position, nom)?;
+                return Ok(enfants);
+            }
+            enfants.push(parser_element(octets, position)?);
+        } else {
+            let texte = lire_texte(octets, position);
+            if !texte.is_empty() {
+                enfants.push(XmlNoeud::Texte(texte));
+            }
+        }
     }
 }
 
@@ -263,7 +382,7 @@ fn sauter_jusqua(octets: &[char], position: &mut usize, cible: char) {
 /// Place d'un réseau de Petri.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Place {
-    pub identifiant: String,
+    pub identifiant: PlaceId,
     pub nom: Option<String>,
     pub marquage_initial: u64,
 }
@@ -271,15 +390,15 @@ pub struct Place {
 /// Transition d'un réseau de Petri.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Transition {
-    pub identifiant: String,
+    pub identifiant: TransitionId,
     pub nom: Option<String>,
 }
 
-/// Arc orienté (poids 1, suffisant pour le sous-ensemble MCC visé).
+/// Arc orienté place↔transition (poids 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Arc {
-    pub source: String,
-    pub cible: String,
+    pub source: NoeudId,
+    pub cible: NoeudId,
 }
 
 /// Réseau de Petri parsé depuis PNML.
@@ -296,29 +415,29 @@ impl ReseauPetri {
         let racine = parser_xml(document)?;
         let XmlNoeud::Element { nom, enfants, .. } = &racine else {
             return Err(PnmlError::ElementInattendu {
-                attendu: "pnml",
+                attendu: ELEMENT_PNML,
                 trouve: "texte".to_string(),
             });
         };
-        if nom != "pnml" {
+        if nom != ELEMENT_PNML {
             return Err(PnmlError::ElementInattendu {
-                attendu: "pnml",
+                attendu: ELEMENT_PNML,
                 trouve: nom.clone(),
             });
         }
         let net = enfants
             .iter()
             .find_map(|enfant| match enfant {
-                XmlNoeud::Element { nom, enfants, .. } if nom == "net" => Some(enfants),
+                XmlNoeud::Element { nom, enfants, .. } if nom == ELEMENT_NET => Some(enfants),
                 _ => None,
             })
             .ok_or_else(|| PnmlError::ElementInattendu {
-                attendu: "net",
+                attendu: ELEMENT_NET,
                 trouve: "rien".to_string(),
             })?;
         let mut places = Vec::new();
         let mut transitions = Vec::new();
-        let mut arcs = Vec::new();
+        let mut arcs_bruts = Vec::new();
         for enfant in net {
             let XmlNoeud::Element {
                 nom,
@@ -329,28 +448,13 @@ impl ReseauPetri {
                 continue;
             };
             match nom.as_str() {
-                "place" => places.push(parser_place(attributs, enfants)?),
-                "transition" => transitions.push(parser_transition(attributs, enfants)?),
-                "arc" => arcs.push(parser_arc(attributs)?),
+                ELEMENT_PLACE => places.push(parser_place(attributs, enfants)?),
+                ELEMENT_TRANSITION => transitions.push(parser_transition(attributs, enfants)?),
+                ELEMENT_ARC => arcs_bruts.push(parser_arc(attributs)?),
                 _ => {}
             }
         }
-        // Vérification : tout arc pointe vers des nœuds existants.
-        let ids_places: BTreeSet<&str> = places.iter().map(|p| p.identifiant.as_str()).collect();
-        let ids_transitions: BTreeSet<&str> =
-            transitions.iter().map(|t| t.identifiant.as_str()).collect();
-        for arc in &arcs {
-            let source_existe = ids_places.contains(arc.source.as_str())
-                || ids_transitions.contains(arc.source.as_str());
-            let cible_existe = ids_places.contains(arc.cible.as_str())
-                || ids_transitions.contains(arc.cible.as_str());
-            if !source_existe || !cible_existe {
-                return Err(PnmlError::ArcVersInconnu {
-                    source: arc.source.clone(),
-                    target: arc.cible.clone(),
-                });
-            }
-        }
+        let arcs = resoudre_arcs(&places, &transitions, &arcs_bruts)?;
         Ok(ReseauPetri {
             places,
             transitions,
@@ -367,6 +471,70 @@ impl ReseauPetri {
     pub fn nb_transitions(&self) -> usize {
         self.transitions.len()
     }
+
+    /// Index d'une place d'après son identifiant.
+    pub fn index_place(&self, identifiant: &PlaceId) -> Option<usize> {
+        self.places
+            .iter()
+            .position(|p| &p.identifiant == identifiant)
+    }
+}
+
+/// Arc brut tel que parsé (identifiants encore non résolus).
+struct ArcBrut {
+    source: String,
+    cible: String,
+}
+
+/// Résout les identifiants d'arcs en [`NoeudId`] et vérifie que chaque
+/// arc relie une place et une transition dont les deux extrémités
+/// existent.
+fn resoudre_arcs(
+    places: &[Place],
+    transitions: &[Transition],
+    arcs_bruts: &[ArcBrut],
+) -> Result<Vec<Arc>, PnmlError> {
+    arcs_bruts
+        .iter()
+        .map(|brut| resoudre_arc(places, transitions, brut))
+        .collect()
+}
+
+fn resoudre_arc(
+    places: &[Place],
+    transitions: &[Transition],
+    brut: &ArcBrut,
+) -> Result<Arc, PnmlError> {
+    let source = resoudre_noeud(places, transitions, &brut.source)?;
+    let cible = resoudre_noeud(places, transitions, &brut.cible)?;
+    let mal_oriente = matches!(
+        (&source, &cible),
+        (NoeudId::Place(_), NoeudId::Place(_)) | (NoeudId::Transition(_), NoeudId::Transition(_))
+    );
+    if mal_oriente {
+        return Err(PnmlError::ArcMalOriente {
+            source: brut.source.clone(),
+            cible: brut.cible.clone(),
+        });
+    }
+    Ok(Arc { source, cible })
+}
+
+fn resoudre_noeud(
+    places: &[Place],
+    transitions: &[Transition],
+    identifiant: &str,
+) -> Result<NoeudId, PnmlError> {
+    if places.iter().any(|p| p.identifiant.0 == identifiant) {
+        return Ok(NoeudId::Place(PlaceId(identifiant.to_string())));
+    }
+    if transitions.iter().any(|t| t.identifiant.0 == identifiant) {
+        return Ok(NoeudId::Transition(TransitionId(identifiant.to_string())));
+    }
+    Err(PnmlError::ArcVersInconnu {
+        source: identifiant.to_string(),
+        cible: identifiant.to_string(),
+    })
 }
 
 fn attribut_obligatoire(
@@ -383,45 +551,50 @@ fn attribut_obligatoire(
         })
 }
 
-fn lire_nom_optionnel(enfants: &[XmlNoeud]) -> Option<String> {
-    enfants.iter().find_map(|enfant| match enfant {
-        XmlNoeud::Element { nom, enfants, .. } if nom == "name" => {
-            lire_texte_enfant(enfants, "text")
+/// Texte d'un élément `<name><text>…</text></name>` ou
+/// `<initialMarking><text>…</text></initialMarking>` : le texte est
+/// soit un enfant direct, soit dans un sous-élément `<text>`.
+fn lire_texte_enfant(enfants: &[XmlNoeud], element: &str) -> Option<String> {
+    for enfant in enfants {
+        let XmlNoeud::Element { nom, enfants, .. } = enfant else {
+            continue;
+        };
+        if nom != element {
+            continue;
         }
-        _ => None,
-    })
+        return enfants.iter().find_map(texte_direct_ou_dans_text);
+    }
+    None
 }
 
-fn lire_texte_enfant(enfants: &[XmlNoeud], element: &str) -> Option<String> {
-    enfants.iter().find_map(|enfant| match enfant {
-        XmlNoeud::Element { nom, enfants, .. } if nom == element => {
-            // Le texte est soit un enfant direct, soit dans <text>.
+fn texte_direct_ou_dans_text(noeud: &XmlNoeud) -> Option<String> {
+    match noeud {
+        XmlNoeud::Texte(texte) => Some(texte.clone()),
+        XmlNoeud::Element { nom, enfants, .. } if nom == ELEMENT_TEXT => {
             enfants.iter().find_map(|e| match e {
                 XmlNoeud::Texte(texte) => Some(texte.clone()),
-                XmlNoeud::Element { nom, enfants, .. } if nom == "text" => {
-                    enfants.iter().find_map(|t| match t {
-                        XmlNoeud::Texte(texte) => Some(texte.clone()),
-                        _ => None,
-                    })
-                }
                 _ => None,
             })
         }
         _ => None,
-    })
+    }
+}
+
+fn lire_nom_optionnel(enfants: &[XmlNoeud]) -> Option<String> {
+    lire_texte_enfant(enfants, ELEMENT_NAME)
 }
 
 fn parser_place(
     attributs: &BTreeMap<String, String>,
     enfants: &[XmlNoeud],
 ) -> Result<Place, PnmlError> {
-    let identifiant = attribut_obligatoire(attributs, "place", "id")?;
+    let identifiant = PlaceId(attribut_obligatoire(attributs, ELEMENT_PLACE, ATTRIBUT_ID)?);
     let nom = lire_nom_optionnel(enfants);
-    let marquage_initial = match lire_texte_enfant(enfants, "initialMarking") {
+    let marquage_initial = match lire_texte_enfant(enfants, ELEMENT_MARQUAGE) {
         Some(texte) => texte
             .parse::<u64>()
             .map_err(|_| PnmlError::NombreInvalide {
-                element: "initialMarking",
+                element: ELEMENT_MARQUAGE,
                 texte,
             })?,
         None => 0,
@@ -437,15 +610,26 @@ fn parser_transition(
     attributs: &BTreeMap<String, String>,
     enfants: &[XmlNoeud],
 ) -> Result<Transition, PnmlError> {
-    let identifiant = attribut_obligatoire(attributs, "transition", "id")?;
+    let identifiant = TransitionId(attribut_obligatoire(
+        attributs,
+        ELEMENT_TRANSITION,
+        ATTRIBUT_ID,
+    )?);
     let nom = lire_nom_optionnel(enfants);
     Ok(Transition { identifiant, nom })
 }
 
-fn parser_arc(attributs: &BTreeMap<String, String>) -> Result<Arc, PnmlError> {
-    let source = attribut_obligatoire(attributs, "arc", "source")?;
-    let cible = attribut_obligatoire(attributs, "arc", "target")?;
-    Ok(Arc { source, cible })
+fn parser_arc(attributs: &BTreeMap<String, String>) -> Result<ArcBrut, PnmlError> {
+    if let Some(poids) = attributs.get(ATTRIBUT_WEIGHT)
+        && poids != POIDS_ACCEPTE
+    {
+        return Err(PnmlError::PoidsNonSupporte {
+            poids: poids.clone(),
+        });
+    }
+    let source = attribut_obligatoire(attributs, ELEMENT_ARC, ATTRIBUT_SOURCE)?;
+    let cible = attribut_obligatoire(attributs, ELEMENT_ARC, ATTRIBUT_TARGET)?;
+    Ok(ArcBrut { source, cible })
 }
 
 // ---------------------------------------------------------------------------
@@ -488,35 +672,41 @@ pub fn marquage_depuis_value(valeur: &Value) -> Option<Marquage> {
     }
 }
 
-/// Arcs entrants d'une transition (place → transition).
-fn arcs_entrants<'a>(reseau: &'a ReseauPetri, transition: &str) -> Vec<&'a str> {
+/// Places entrantes d'une transition (arcs place → transition).
+fn places_entrantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> Vec<&'a PlaceId> {
     reseau
         .arcs
         .iter()
-        .filter(|arc| arc.cible == transition)
-        .map(|arc| arc.source.as_str())
+        .filter_map(|arc| match (&arc.source, &arc.cible) {
+            (NoeudId::Place(p), NoeudId::Transition(t)) if t == transition => Some(p),
+            _ => None,
+        })
         .collect()
 }
 
-/// Arcs sortants d'une transition (transition → place).
-fn arcs_sortants<'a>(reseau: &'a ReseauPetri, transition: &str) -> Vec<&'a str> {
+/// Places sortantes d'une transition (arcs transition → place).
+fn places_sortantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> Vec<&'a PlaceId> {
     reseau
         .arcs
         .iter()
-        .filter(|arc| arc.source == transition)
-        .map(|arc| arc.cible.as_str())
+        .filter_map(|arc| match (&arc.source, &arc.cible) {
+            (NoeudId::Transition(t), NoeudId::Place(p)) if t == transition => Some(p),
+            _ => None,
+        })
         .collect()
 }
 
 /// Une transition est sensibilisée si chaque place entrante a au moins
 /// un jeton.
-pub fn est_sensibilisee(reseau: &ReseauPetri, transition: &str, marquage: &Marquage) -> bool {
-    arcs_entrants(reseau, transition).iter().all(|place| {
-        let index = reseau
-            .places
-            .iter()
-            .position(|p| p.identifiant == *place)
-            .expect("place référencée par un arc existe");
+pub fn est_sensibilisee(
+    reseau: &ReseauPetri,
+    transition: &TransitionId,
+    marquage: &Marquage,
+) -> bool {
+    places_entrantes(reseau, transition).iter().all(|place| {
+        let Some(index) = reseau.index_place(place) else {
+            return false;
+        };
         marquage
             .get(&Atom(index as u64))
             .map(|jetons| jetons.0 >= 1)
@@ -526,35 +716,29 @@ pub fn est_sensibilisee(reseau: &ReseauPetri, transition: &str, marquage: &Marqu
 
 /// Tirez une transition : retire un jeton de chaque place entrante,
 /// ajoute un jeton à chaque place sortante.
-pub fn tirer(reseau: &ReseauPetri, transition: &str, marquage: &Marquage) -> Marquage {
+pub fn tirer(reseau: &ReseauPetri, transition: &TransitionId, marquage: &Marquage) -> Marquage {
     let mut resultat = marquage.clone();
-    for place in arcs_entrants(reseau, transition) {
-        let index = reseau
-            .places
-            .iter()
-            .position(|p| p.identifiant == place)
-            .expect("place référencée par un arc existe");
-        let cle = Atom(index as u64);
-        if let Some(jetons) = resultat.get_mut(&cle) {
-            jetons.0 = jetons.0.saturating_sub(1);
+    for place in places_entrantes(reseau, transition) {
+        if let Some(index) = reseau.index_place(place) {
+            let cle = Atom(index as u64);
+            if let Some(jetons) = resultat.get_mut(&cle) {
+                jetons.0 = jetons.0.saturating_sub(1);
+            }
         }
     }
-    for place in arcs_sortants(reseau, transition) {
-        let index = reseau
-            .places
-            .iter()
-            .position(|p| p.identifiant == place)
-            .expect("place référencée par un arc existe");
-        let cle = Atom(index as u64);
-        resultat
-            .entry(cle)
-            .and_modify(|jetons| jetons.0 += 1)
-            .or_insert(Atom(1));
+    for place in places_sortantes(reseau, transition) {
+        if let Some(index) = reseau.index_place(place) {
+            let cle = Atom(index as u64);
+            resultat
+                .entry(cle)
+                .and_modify(|jetons| jetons.0 += 1)
+                .or_insert(Atom(1));
+        }
     }
     resultat
 }
 
-/// Pas sémantique : tous les marquages successeurs de tous les
+/// Pas sémantique : tous les marquages successeurs de toutes les
 /// transitions sensibilisées, encodés en `Value::Map` (voie A).
 pub fn pas_semantique(reseau: &ReseauPetri, ensemble: &BTreeSet<Value>) -> BTreeSet<Value> {
     let mut successeurs = BTreeSet::new();
