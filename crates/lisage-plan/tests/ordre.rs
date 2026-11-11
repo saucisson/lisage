@@ -274,12 +274,7 @@ fn test_aval_runtime_ordre_valide_adopte() {
         cle: Atom(1),
         phase: Phase::Valeur,
     };
-    let pi_runtime = vec![
-        presence_1,
-        valeur_1,
-        presence_0,
-        valeur_0,
-    ];
+    let pi_runtime = vec![presence_1, valeur_1, presence_0, valeur_0];
     let (ordre, strategie) = Order::avec_aval_runtime(&cles, pi_runtime.clone());
     assert_eq!(strategie, StrategieAval::OrdreRuntime);
     assert_eq!(ordre.sequence(), pi_runtime.as_slice());
@@ -306,12 +301,7 @@ fn test_aval_runtime_contrainte_violee_repli_canonique() {
         cle: Atom(1),
         phase: Phase::Valeur,
     };
-    let pi_invalide = vec![
-        valeur_0,
-        presence_0,
-        presence_1,
-        valeur_1,
-    ];
+    let pi_invalide = vec![valeur_0, presence_0, presence_1, valeur_1];
     let (ordre, strategie) = Order::avec_aval_runtime(&cles, pi_invalide);
     assert_eq!(strategie, StrategieAval::RepliCanonique);
     let canonique = Order::canonique(&cles);
