@@ -241,7 +241,7 @@ fn attendre(octets: &[char], position: &mut usize, attendu: char) -> Result<(), 
 
 /// Saute jusqu'au prochain `>` (prologue `<?…?>`, commentaires, CDATA
 /// tronqué — les entités ne sont pas décodées, voir la doc du module).
-fn sauter_jusqua(octets: &[char], position: &mut usize, cible: char) {
+fn sauter_jusqu_a(octets: &[char], position: &mut usize, cible: char) {
     while *position < octets.len() && octets[*position] != cible {
         *position += 1;
     }
@@ -278,12 +278,12 @@ fn lire_balise_ouvrante(
                 return Ok((nom, attributs, false));
             }
             _ => {
-                let cle = lire_nom(octets, position)?;
+                let clef = lire_nom(octets, position)?;
                 sauter_espaces(octets, position);
                 attendre(octets, position, '=')?;
                 sauter_espaces(octets, position);
                 let valeur = lire_chaine(octets, position)?;
-                attributs.insert(cle, valeur);
+                attributs.insert(clef, valeur);
             }
         }
     }
@@ -326,7 +326,7 @@ fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNoeud, Pnm
     }
     // Prologue ou commentaire : on saute, on relance.
     if matches!(octets.get(*position + 1), Some('?') | Some('!')) {
-        sauter_jusqua(octets, position, '>');
+        sauter_jusqu_a(octets, position, '>');
         return parser_element(octets, position);
     }
     let (nom, attributs, auto_fermante) = lire_balise_ouvrante(octets, position)?;
@@ -467,12 +467,12 @@ impl ReseauPetri {
     }
 
     /// Nombre de places.
-    pub fn nb_places(&self) -> usize {
+    pub fn nombre_places(&self) -> usize {
         self.places.len()
     }
 
     /// Nombre de transitions.
-    pub fn nb_transitions(&self) -> usize {
+    pub fn nombre_transitions(&self) -> usize {
         self.transitions.len()
     }
 
@@ -673,7 +673,7 @@ pub fn marquage_depuis_value(valeur: &Value) -> Option<Marquage> {
     match valeur {
         Value::Map(map) => map
             .iter()
-            .map(|(cle, compte)| match (cle, compte) {
+            .map(|(clef, compte)| match (clef, compte) {
                 (Value::Atom(c), Value::Atom(n)) => Some((*c, *n)),
                 _ => None,
             })
@@ -730,17 +730,17 @@ pub fn tirer(reseau: &ReseauPetri, transition: &TransitionId, marquage: &Marquag
     let mut resultat = marquage.clone();
     for place in places_entrantes(reseau, transition) {
         if let Some(index) = reseau.index_place(place) {
-            let cle = Atom(index as u64);
-            if let Some(jetons) = resultat.get_mut(&cle) {
+            let clef = Atom(index as u64);
+            if let Some(jetons) = resultat.get_mut(&clef) {
                 jetons.0 = jetons.0.saturating_sub(1);
             }
         }
     }
     for place in places_sortantes(reseau, transition) {
         if let Some(index) = reseau.index_place(place) {
-            let cle = Atom(index as u64);
+            let clef = Atom(index as u64);
             resultat
-                .entry(cle)
+                .entry(clef)
                 .and_modify(|jetons| jetons.0 += 1)
                 .or_insert(Atom(1));
         }
@@ -761,7 +761,7 @@ pub fn pas_semantique(reseau: &ReseauPetri, ensemble: &BTreeSet<Value>) -> BTree
                 let suivant = tirer(reseau, &transition.identifiant, &marquage);
                 let map: BTreeMap<Value, Value> = suivant
                     .into_iter()
-                    .map(|(cle, compte)| (Value::Atom(cle), Value::Atom(compte)))
+                    .map(|(clef, compte)| (Value::Atom(clef), Value::Atom(compte)))
                     .collect();
                 successeurs.insert(Value::Map(map));
             }
