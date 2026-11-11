@@ -116,6 +116,9 @@ pub fn reduire_inverse<Key: Ord + Clone>(
 /// - **(D-trans)** `ν(ℓ, A)` avec A = ∅ ou toutes cibles ≡ D → D : nœud
 ///   transparent, écarts composés.
 ///
+/// `defaut` est le `NodeId` de D^déf désigné par le contrôleur quand il est
+/// connu (sert au D-trans sur forme vide A = ∅, où aucun arc ne le donne).
+///
 /// La canonicité reste relative au contrat (contrôleur, ordre, ancre) :
 /// `≡ D^déf` se teste par `est_defaut` (le pool étant canonique, même
 /// forme = même nœud).
@@ -124,9 +127,10 @@ pub fn reduire_dabs<Key: Ord + Clone>(
     cle_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
     cardinalite: u64,
+    defaut: Option<NodeId>,
 ) -> Reduction<Key> {
     // Cible de D^déf si au moins un arc y mène (sert au D-trans A = ∅).
-    let cible_defaut = arcs.values().find(|c| est_defaut(**c)).copied();
+    let cible_defaut = defaut.or(arcs.values().find(|c| est_defaut(**c)).copied());
     // (D-abs) : absorption sur tout sous-domaine, quand le niveau a un défaut.
     let arcs: BTreeMap<Key, NodeId> = match &cle_defaut {
         Some(_) => arcs
