@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-11 - M4-5 : Liseuse — vue mémoire et quotient (pools/GC, badges de multiplicité, classes du quotient, comparaison naïf/DD/Lisage) (feat/31)
+
+- **Issue**: #31 (M4-5 — Liseuse : vues mémoire et quotient ; doc liseuse § 5 « le pool en fond » et « le zoom sémantique »).
+- **Done**: `lisage-liseuse::vue_memoire` (nouveau) : `VuePool` (nom + `MetriquesPool` + vivants par plan, construit via `depuis_metriques`), `ClasseQuotient` (forme × ancre → multiplicité, C1 : même forme sous deux ancres = deux classes), `BadgeMultiplicite` (badge ×k quand k > 1), `ComparaisonVue` (naïf/DD/Lisage, nœuds vivants), et `rendre_svg_vue_memoire` — rendu SVG statique : panneau des pools (vivants principal/ombre, morts, gc, compactions, taux de hit), panneau des classes du quotient avec badges ×k, barres de comparaison proportionnelles (Lisage en couleur). 4 tests dans `crates/lisage-liseuse/tests/vue_memoire.rs` : vue pool après GC, classes du quotient C1, rendu SVG (contenus, badge ×6, largeur de barre parsée en coordonnée réelle, déterminisme), comparaison naïf/DD/Lisage + plan d'ombre.
+- **Evidence**: `make check` OK (172 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK, couverture 90% atteinte. **Non exécuté** : mutation testing (ADR-0012, tournant sur `daily` en fin de journée), témoin CUDD local (ADR-0102, manuel uniquement).
+- **Judgement calls**: la vue consomme directement les métriques de `lisage-core` (lisée → core autorisé par `frontieres.rs`), contrairement à la vue ordre qui consomme une description neutre de `lisage-plan` ; le zoom sémantique est rendu statique (classes du quotient avec multiplicités), la molette étant hors périmètre d'un rendu SVG statique.
+- **Escalations**: aucune.
+
 ## 2026-11-11 - M4-4 : Benchmark philosophes — |R_n| fil rouge, ratio gaucher 1,2887 constant, 7 formes O(1) + bord, pic vivant, firings (feat/30)
 
 - **Issue**: #30 (M4-4 — Benchmark philosophes, énoncé C8 ; docs/exemple-fil-rouge § 6-9).
