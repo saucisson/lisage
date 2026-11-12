@@ -117,6 +117,18 @@ pub trait Controller: Send + Sync {
         crate::reduction::collapse_arcs(arcs)
     }
 
+    /// R-collapse actif ? `false` commute la réduction (atelier didactique,
+    /// backlog § 9 : chaque réduction activée/désactivée une à une).
+    fn collapse_actif(&self) -> bool {
+        true
+    }
+
+    /// R-default actif ? `false` commute l'absorption de l'arc δ(ℓ) menant
+    /// à D_δ (atelier didactique, idem).
+    fn defaut_actif(&self) -> bool {
+        true
+    }
+
     /// Politique de stockage de la mémoire de niveau (M2-3, T3) : déclarée
     /// par le contrôleur. `Aucune` par défaut (M1) ; `ParNiveau` autorise
     /// les transductions à effet mémoire.
