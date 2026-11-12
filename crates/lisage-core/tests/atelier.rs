@@ -482,25 +482,30 @@ fn test_ancre_fenetre_glisse() {
     assert_eq!(ancre.base(), 0);
     assert_eq!(ancre.horizon(), 4);
     assert_eq!(ancre.fenetre_absolue(), (0, 4));
+    assert_eq!(
+        ancre.cle_entree(),
+        0,
+        "la base est l'argument de l'arc d'entrée"
+    );
     assert_eq!(ancre.etiquette(), "{base: 0, horizon: 4}");
     let glissee = ancre.glessee(2);
     assert_eq!(glissee.base(), 2);
     assert_eq!(glissee.horizon(), 4, "la glisse ne touche que la base");
     assert_eq!(glissee.fenetre_absolue(), (2, 6));
+    assert_eq!(glissee.cle_entree(), 2);
     assert_eq!(glissee.etiquette(), "{base: 2, horizon: 4}");
     // L'ancre d'origine est inchangée (la glisse produit une nouvelle ancre).
     assert_eq!(ancre.base(), 0);
 }
 
-/// La fenêtre lue sous deux ancres composées : mêmes nœuds, mêmes chemins
-/// (même forme partagée — le pool ne bouge pas), lectures absolues
-/// différentes — « l'ancre bouge, le pool jamais ». Pendant 50 glisses,
-/// ré-interner la forme ne crée aucun nœud.
+/// La fenêtre lue sous deux ancres composées : chaque ancre a sa racine
+/// (l'arc d'entrée porte sa base), mais les deux atteignent la même forme
+/// de fenêtre (`meme_forme`) — mêmes nœuds, mêmes chemins, lectures
+/// absolues différentes : « l'ancre bouge, le pool jamais ». Pendant 50
+/// glisses, seule la racine est créée à chaque pas, jamais la forme.
 #[test]
 fn test_glisse_pool_constant_lectures_differentes() {
-    use lisage_core::atelier::{
-        AncreFenetre, comparer_ancres_fenetre, construire_fenetre_relative,
-    };
+    use lisage_core::atelier::{AncreFenetre, comparer_ancres_fenetre, construire_fenetre_ancree};
 
     const TAILLE: u64 = 4;
     // (R-collapse commuté : une fenêtre toute-vraie collapserait sinon.)
@@ -516,7 +521,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
     .expect("nœuds internés");
     assert!(
         rapport.meme_forme,
-        "même forme partagée sous les deux ancres"
+        "les deux ancres atteignent la même forme de fenêtre"
     );
     assert_eq!(
         rapport.avant, rapport.apres,
@@ -526,27 +531,38 @@ fn test_glisse_pool_constant_lectures_differentes() {
     assert_eq!(rapport.avant.chemins, 4, "un chemin par clé de la fenêtre");
     assert_eq!(rapport.avant.taille_depliee, 6);
     assert_eq!(
-        rapport.noeuds_pool, 3,
-        "le pool ne bouge pas pendant la glisse"
+        rapport.noeuds_pool, 4,
+        "⊤ + fenêtre partagée + une racine par ancre"
     );
     assert_eq!(rapport.lecture_avant, (0, 4));
     assert_eq!(rapport.lecture_apres, (7, 11));
 
-    // 50 glisses : la forme ré-internée est toujours la même, le compte de
-    // nœuds du pool reste constant.
-    let racine = construire_fenetre_relative(&mut pool, ANCRE, TAILLE, 1);
+    // 50 glisses (bases 100..150, toutes neuves) : à chaque pas la base
+    // entre par l'arc d'entrée, la forme de fenêtre atteinte est toujours
+    // la même et le pool ne crée qu'une racine par glisse — jamais une
+    // copie de la fenêtre.
     let noeuds_avant = pool.node_count();
-    let ancre = AncreFenetre::nouvelle(0, TAILLE as i64);
-    for delta in 1..50 {
+    let (_, fenetre) =
+        construire_fenetre_ancree(&mut pool, ANCRE, TAILLE, &AncreFenetre::nouvelle(0, 4));
+    let ancre = AncreFenetre::nouvelle(100, TAILLE as i64);
+    for delta in 0..50 {
         let glissee = ancre.glessee(delta);
-        assert_eq!(glissee.fenetre_absolue(), (delta, delta + TAILLE as i64));
-        let meme = construire_fenetre_relative(&mut pool, ANCRE, TAILLE, 1);
-        assert_eq!(meme, racine, "forme relative partagée à chaque glisse");
+        assert_eq!(
+            glissee.fenetre_absolue(),
+            (100 + delta, 100 + delta + TAILLE as i64)
+        );
+        let (racine, fenetre_glissee) =
+            construire_fenetre_ancree(&mut pool, ANCRE, TAILLE, &glissee);
+        assert_eq!(
+            fenetre_glissee, fenetre,
+            "forme de fenêtre partagée à chaque glisse"
+        );
+        assert_ne!(racine, fenetre, "chaque base a sa racine propre");
     }
     assert_eq!(
         pool.node_count(),
-        noeuds_avant,
-        "le pool reste à O(1) formes pendant 50 glisses"
+        noeuds_avant + 50,
+        "une seule racine par glisse : la forme de fenêtre n'est jamais dupliquée"
     );
 }
 
@@ -627,7 +643,7 @@ fn test_narration_comparaison_ancres() {
                 canal: CanalAttr::Synthétise,
                 valeur,
                 ..
-            } if valeur == "ancre={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} noeuds=3 contre 3 lecture=[0..4) contre [2..6) pool=3"
+            } if valeur == "ancre={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} noeuds=3 contre 3 lecture=[0..4) contre [2..6) pool=4"
         )),
         "l'événement de narration porte la comparaison d'ancres"
     );
