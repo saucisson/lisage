@@ -237,6 +237,11 @@ pub fn compter_taille_depliee<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, 
     taille(pool, racine, &mut memo)
 }
 
+/// Niveau de la racine de la fenêtre glissante.
+const NIVEAU_RACINE: u32 = 0;
+/// Niveau du nœud fenêtre de la fenêtre glissante.
+const NIVEAU_FENETRE: u32 = 1;
+
 /// **Paramètre d'encodage** (atelier didactique, backlog § 9 : « jouer les
 /// paramètres du contrôleur — ordre, encodage absolu/relatif, royaume,
 /// ancre composée »).
@@ -274,7 +279,7 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
         let fenetre = pool.intern(
             anchor,
             Form::Node {
-                level: Level(1),
+                level: Level(NIVEAU_FENETRE),
                 arcs: (0..taille).map(|k| (base + k, vrai)).collect(),
             },
         );
@@ -283,7 +288,7 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
     pool.intern(
         anchor,
         Form::Node {
-            level: Level(0),
+            level: Level(NIVEAU_RACINE),
             arcs,
         },
     )
@@ -303,7 +308,7 @@ pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     let fenetre = pool.intern(
         anchor,
         Form::Node {
-            level: Level(1),
+            level: Level(NIVEAU_FENETRE),
             arcs: (0..taille).map(|k| (k, vrai)).collect(),
         },
     );
@@ -311,10 +316,25 @@ pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     pool.intern(
         anchor,
         Form::Node {
-            level: Level(0),
+            level: Level(NIVEAU_RACINE),
             arcs,
         },
     )
+}
+
+/// Construit la fenêtre glissante dans l'`encodage` demandé : point
+/// d'entrée unique du paramètre d'encodage.
+pub fn construire_fenetre<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    encodage: Encodage,
+    taille: u64,
+    nb_bases: u64,
+) -> NodeId {
+    match encodage {
+        Encodage::Absolu => construire_fenetre_absolue(pool, anchor, taille, nb_bases),
+        Encodage::Relatif => construire_fenetre_relative(pool, anchor, taille, nb_bases),
+    }
 }
 
 /// Compare les deux encodages de la fenêtre glissante sur `nb_bases` bases :
@@ -327,8 +347,8 @@ pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
     nb_bases: u64,
     observateur: Option<&dyn Observer>,
 ) -> Result<RapportComparaison, PoolError> {
-    let racine_absolue = construire_fenetre_absolue(pool, anchor, taille, nb_bases);
-    let racine_relative = construire_fenetre_relative(pool, anchor, taille, nb_bases);
+    let racine_absolue = construire_fenetre(pool, anchor, Encodage::Absolu, taille, nb_bases);
+    let racine_relative = construire_fenetre(pool, anchor, Encodage::Relatif, taille, nb_bases);
     let absolu = mesurer(pool, racine_absolue, observateur)?;
     let relatif = mesurer(pool, racine_relative, observateur)?;
     if let Some(obs) = observateur {
