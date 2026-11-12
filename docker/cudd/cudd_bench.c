@@ -185,6 +185,10 @@ static int charge_philosophes(int n, const char *chemin) {
     for (int i = 0; i < nombre_variables; i++) {
         variables[i] = Cudd_bddNewVar(manager);
     }
+    /* Bloc mesuré : lecture de l'entrée + construction + comptage (init du
+     * manager hors bloc, comme chez lisage). */
+    struct timespec debut, fin;
+    clock_gettime(CLOCK_MONOTONIC, &debut);
     FILE *fichier = fopen(chemin, "r");
     if (fichier == NULL) {
         fprintf(stderr, "philosophes : fichier %s illisible\n", chemin);
@@ -200,8 +204,6 @@ static int charge_philosophes(int n, const char *chemin) {
         Cudd_Quit(manager);
         return CODE_ECHEC;
     }
-    struct timespec debut, fin;
-    clock_gettime(CLOCK_MONOTONIC, &debut);
     DdNode *racine = NULL;
     int *phase = (int *)malloc((size_t)nombre_variables * sizeof(int));
     unsigned long nb_etats_lus = 0;
