@@ -10,7 +10,7 @@ use lisage_core::arena::Arena;
 use lisage_core::atelier::{
     AtelierController, Reductions, compter_chemins, compter_noeuds, compter_taille_depliee, mesurer,
 };
-use lisage_core::bdd::BddController;
+use lisage_core::bdd::{BddController, BddKeys, compiler_bdd};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
 
@@ -336,5 +336,137 @@ fn test_narration_comparaison_encodages() {
             } if valeur == "encodage=relatif_vs_absolu noeuds=3 contre 12"
         )),
         "l'événement de narration porte la comparaison d'encodages"
+    );
+}
+
+/// Table de vérité de f = (x₀ ∧ x₁) ∨ (x₂ ∧ x₃) sur 4 variables :
+/// `table[a]` = bit₀(a) ∧ bit₁(a) ∨ bit₂(a) ∧ bit₃(a).
+fn table_ou_deux_paires() -> Vec<bool> {
+    (0..16)
+        .map(|a| {
+            let bit = |v: u32| (a >> v) & 1 == 1;
+            (bit(0) && bit(1)) || (bit(2) && bit(3))
+        })
+        .collect()
+}
+
+/// Paramètre d'ordre (backlog § 9) : la même fonction compilée sous deux
+/// ordres a les mêmes chemins (2^n, un par affectation — même objet
+/// logique) et la même taille dépliée (l'arbre complet 2^{n+1}-1), mais
+/// des nœuds partagés différents — l'ordre change le diagramme, pas la
+/// fonction. (R-collapse commuté : sinon les chemins fusionneraient.)
+/// Ordre naturel [0,1,2,3] : 10 nœuds ; intercalé [0,2,1,3] : 12 nœuds.
+#[test]
+fn test_ordre_change_noeuds_pas_chemins() {
+    use lisage_core::atelier::{Ordre, comparer_ordres};
+
+    let table = table_ou_deux_paires();
+    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let rapport = comparer_ordres(
+        &mut pool,
+        ANCRE,
+        &table,
+        &Ordre::naturel(4),
+        &Ordre::personnalise(vec![0, 2, 1, 3]),
+        None,
+    )
+    .expect("nœuds internés");
+    assert_eq!(rapport.premier.noeuds_partages, 10, "ordre naturel");
+    assert_eq!(rapport.second.noeuds_partages, 12, "ordre intercalé");
+    // Même objet logique : 2^4 = 16 chemins et arbre déplié 2^5-1 = 31.
+    assert_eq!(rapport.premier.chemins, 16);
+    assert_eq!(rapport.second.chemins, 16);
+    assert_eq!(rapport.premier.taille_depliee, 31);
+    assert_eq!(rapport.second.taille_depliee, 31);
+}
+
+/// L'ordre naturel de l'atelier est exactement le `compiler_bdd` de
+/// référence (mêmes formes internées, même `NodeId` dans le même pool).
+#[test]
+fn test_ordre_naturel_equivaut_a_compiler_bdd() {
+    use lisage_core::atelier::{Ordre, compiler_bdd_ordre};
+
+    let table = table_ou_deux_paires();
+    let mut pool = pool_bdd(Reductions::TOUTES);
+    let via_atelier = compiler_bdd_ordre(&mut pool, ANCRE, &Ordre::naturel(4), &table);
+    let via_bdd = compiler_bdd(&mut pool, ANCRE, &BddKeys::new(4), &table);
+    assert_eq!(via_atelier, via_bdd);
+}
+
+/// Croissance didactique : sur 6 variables, f = (x₀∧x₁)∨(x₂∧x₃)∨(x₄∧x₅),
+/// l'ordre naturel groupe les paires (15 nœuds), l'ordre intercalé
+/// [0,2,4,1,3,5] les sépare (25 nœuds) — mêmes 64 chemins des deux côtés.
+#[test]
+fn test_ordre_intercale_croissance_six_variables() {
+    use lisage_core::atelier::{Ordre, comparer_ordres};
+
+    let table: Vec<bool> = (0..64)
+        .map(|a| {
+            let bit = |v: u32| (a >> v) & 1 == 1;
+            (bit(0) && bit(1)) || (bit(2) && bit(3)) || (bit(4) && bit(5))
+        })
+        .collect();
+    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let rapport = comparer_ordres(
+        &mut pool,
+        ANCRE,
+        &table,
+        &Ordre::naturel(6),
+        &Ordre::personnalise(vec![0, 2, 4, 1, 3, 5]),
+        None,
+    )
+    .expect("nœuds internés");
+    assert_eq!(rapport.premier.noeuds_partages, 15, "ordre naturel");
+    assert_eq!(rapport.second.noeuds_partages, 25, "ordre intercalé");
+    assert_eq!(rapport.premier.chemins, 64);
+    assert_eq!(rapport.second.chemins, 64);
+}
+
+/// Narration (ADR-0100) : la comparaison d'ordres émet un événement
+/// `Attr`/`Synthétise` portant les deux étiquettes d'ordre et les deux
+/// comptes de nœuds.
+#[test]
+fn test_narration_comparaison_ordres() {
+    use std::sync::{Arc, Mutex};
+
+    use lisage_core::atelier::{Ordre, comparer_ordres};
+    use lisage_core::observer::{CanalAttr, TraceEvent};
+
+    #[derive(Clone)]
+    struct Collecteur {
+        evenements: Arc<Mutex<Vec<TraceEvent>>>,
+    }
+    impl lisage_core::observer::Observer for Collecteur {
+        fn on_event(&self, event: &TraceEvent) {
+            self.evenements.lock().expect("mutex").push(event.clone());
+        }
+    }
+
+    let table = table_ou_deux_paires();
+    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let collecteur = Collecteur {
+        evenements: Arc::new(Mutex::new(Vec::new())),
+    };
+    let rapport = comparer_ordres(
+        &mut pool,
+        ANCRE,
+        &table,
+        &Ordre::naturel(4),
+        &Ordre::personnalise(vec![0, 2, 1, 3]),
+        Some(&collecteur),
+    )
+    .expect("nœuds internés");
+    assert_eq!(rapport.premier.noeuds_partages, 10);
+    let events = collecteur.evenements.lock().expect("mutex").clone();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            TraceEvent::Attr {
+                canal: CanalAttr::Synthétise,
+                valeur,
+                ..
+            } if valeur == "ordre=[0,1,2,3]_vs_[0,2,1,3] noeuds=10 contre 12"
+        )),
+        "l'événement de narration porte la comparaison d'ordres"
     );
 }

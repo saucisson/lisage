@@ -19,6 +19,14 @@
 //! R-share lui-même n'est pas commutable (c'est la table unique du pool) :
 //! sa désactivation se **mesure** par la taille dépliée, pas par un pool
 //! dégradé.
+//!
+//! Fragment 3 (paramètre d'ordre, backlog § 9) :
+//!
+//! - [`Ordre`] : permutation niveau → variable, jouée à la compilation ;
+//! - [`compiler_bdd_ordre`] / [`comparer_ordres`] : la même fonction booléenne
+//!   compilée sous deux ordres — mêmes chemins (2^n, un par affectation),
+//!   nœuds partagés différents : « le diagramme est une fonction du
+//!   contrôleur », l'ordre se voit à l'œil nu.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -362,4 +370,164 @@ pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
         });
     }
     Ok(RapportComparaison { absolu, relatif })
+}
+
+/// **Paramètre d'ordre** (atelier didactique, backlog § 9 : « jouer les
+/// paramètres du contrôleur — ordre, encodage absolu/relatif, royaume,
+/// ancre composée ») : permutation niveau → variable. Le niveau ℓ décide
+/// la variable `permutation[ℓ]` ; l'ordre naturel est l'identité.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Ordre {
+    /// `permutation[ℓ]` = variable décidée au niveau ℓ.
+    permutation: Vec<u32>,
+}
+
+impl Ordre {
+    /// Ordre naturel : le niveau ℓ décide la variable ℓ.
+    pub fn naturel(nombre_variables: u32) -> Self {
+        Ordre {
+            permutation: (0..nombre_variables).collect(),
+        }
+    }
+
+    /// Ordre inversé : le niveau ℓ décide la variable n-1-ℓ.
+    pub fn inverse(nombre_variables: u32) -> Self {
+        Ordre {
+            permutation: (0..nombre_variables).rev().collect(),
+        }
+    }
+
+    /// Ordre personnalisé : `permutation[ℓ]` = variable du niveau ℓ. Doit
+    /// être une permutation de `0..n` (sinon deux niveaux décideraient la
+    /// même variable et une variable serait sautée).
+    pub fn personnalise(permutation: Vec<u32>) -> Self {
+        let mut triee = permutation.clone();
+        triee.sort_unstable();
+        assert_eq!(
+            triee,
+            (0..permutation.len() as u32).collect::<Vec<_>>(),
+            "l'ordre est une permutation de 0..n (invariant interne)"
+        );
+        Ordre { permutation }
+    }
+
+    /// Nombre de variables.
+    pub fn nombre_variables(&self) -> u32 {
+        self.permutation.len() as u32
+    }
+
+    /// Variable décidée au niveau `niveau`.
+    pub fn variable_au_niveau(&self, niveau: u32) -> u32 {
+        self.permutation[niveau as usize]
+    }
+
+    /// Étiquette didactique `[v₀, v₁, …]` pour la narration.
+    pub fn etiquette(&self) -> String {
+        let variables: Vec<String> = self.permutation.iter().map(u32::to_string).collect();
+        format!("[{}]", variables.join(","))
+    }
+}
+
+/// Compile une table de vérité en BDD classique sous l'`ordre` donné :
+/// expansion de Shannon descendante, le niveau ℓ décide la variable
+/// `ordre.variable_au_niveau(ℓ)`. `table[a]` = valeur de la fonction sur
+/// l'affectation `a` (bit ℓ de `a` = variable ℓ) ; la longueur doit être
+/// `2^n`.
+pub fn compiler_bdd_ordre<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    ordre: &Ordre,
+    table: &[bool],
+) -> NodeId {
+    let nombre_variables = ordre.nombre_variables();
+    assert_eq!(
+        table.len(),
+        1usize << nombre_variables,
+        "table de vérité de taille 2^n (invariant interne)"
+    );
+    // Permute la table : bit ℓ de l'indice local = bit `ordre[ℓ]` de
+    // l'indice original, puis l'expansion de Shannon classique s'applique
+    // (au niveau ℓ on branche sur le bit ℓ de l'indice local).
+    let table_locale: Vec<bool> = (0..table.len())
+        .map(|indice| {
+            let mut original = 0usize;
+            for niveau in 0..nombre_variables {
+                original |= ((indice >> niveau) & 1) << ordre.variable_au_niveau(niveau) as usize;
+            }
+            table[original]
+        })
+        .collect();
+    shannon(pool, anchor, Level(NIVEAU_RACINE), &table_locale)
+}
+
+/// Expansion de Shannon descendante : `table` est indexée par les bits des
+/// variables restantes (bit ℓ de l'indice = variable du niveau ℓ) ; les
+/// positions paires (bit du niveau courant = 0) donnent l'arc 0, les
+/// impaires l'arc 1.
+fn shannon<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    level: Level,
+    table: &[bool],
+) -> NodeId {
+    if table.len() == 1 {
+        return pool.intern(anchor, Form::Terminal(table[0]));
+    }
+    let bas_table: Vec<bool> = table.iter().step_by(2).copied().collect();
+    let haut_table: Vec<bool> = table.iter().skip(1).step_by(2).copied().collect();
+    let bas = shannon(pool, anchor, Level(level.0 + 1), &bas_table);
+    let haut = shannon(pool, anchor, Level(level.0 + 1), &haut_table);
+    pool.intern(
+        anchor,
+        Form::Node {
+            level,
+            arcs: BTreeMap::from([(0, bas), (1, haut)]),
+        },
+    )
+}
+
+/// Comparaison didactique de deux ordres sur la même fonction booléenne.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct RapportComparaisonOrdres {
+    /// Métriques sous le premier ordre.
+    pub premier: RapportAtelier,
+    /// Métriques sous le second ordre.
+    pub second: RapportAtelier,
+}
+
+/// Compile la même table de vérité sous deux ordres et mesure : mêmes
+/// chemins (2^n, un par affectation — même objet logique), nœuds partagés
+/// différents — l'ordre change le diagramme, pas la fonction.
+/// `observateur` : narration ADR-0100.
+pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    table: &[bool],
+    ordre_premier: &Ordre,
+    ordre_second: &Ordre,
+    observateur: Option<&dyn Observer>,
+) -> Result<RapportComparaisonOrdres, PoolError> {
+    assert_eq!(
+        ordre_premier.nombre_variables(),
+        ordre_second.nombre_variables(),
+        "les deux ordres portent sur le même nombre de variables (invariant interne)"
+    );
+    let racine_premier = compiler_bdd_ordre(pool, anchor, ordre_premier, table);
+    let racine_second = compiler_bdd_ordre(pool, anchor, ordre_second, table);
+    let premier = mesurer(pool, racine_premier, observateur)?;
+    let second = mesurer(pool, racine_second, observateur)?;
+    if let Some(obs) = observateur {
+        obs.on_event(&TraceEvent::Attr {
+            canal: CanalAttr::Synthétise,
+            noeud: racine_second,
+            valeur: format!(
+                "ordre={}_vs_{} noeuds={} contre {}",
+                ordre_premier.etiquette(),
+                ordre_second.etiquette(),
+                premier.noeuds_partages,
+                second.noeuds_partages
+            ),
+        });
+    }
+    Ok(RapportComparaisonOrdres { premier, second })
 }
