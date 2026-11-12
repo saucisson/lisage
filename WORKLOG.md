@@ -44,6 +44,15 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-12 - Confrontation lisage/témoins 2/3 — témoin CUDD `cudd_bench` + protocole documenté (bench/confrontation-2-cudd)
+
+- **Issue**: aucune (suite de la pile, demande humaine ; 403 sur la création d'issue).
+- **Done**: `docker/cudd/cudd_bench.c` : les trois charges du protocole en BDD booléen CUDD (alea-lcg par expansion de Shannon comme `cudd_count.c` ; philosophes par union de cubes sur 4n variables — pc_i et left_i sur 2 bits, intercalés comme le schéma lisage ; fenêtre par union de cubes — b sur ⌈log₂ nb_bases⌉ bits, x sur ⌈log₂(nb_bases+taille-1)⌉ bits), gestion stricte `Cudd_Ref`/`Cudd_RecursiveDeref` (aucune constante complémentée référencée, racine vide = NULL), RSS par `ru_maxrss`, horloge `CLOCK_MONOTONIC`, une ligne JSON par exécution, codes 0/1/2. Le `Dockerfile` épingle l'image : construction + fumée (`alea-lcg 4` → 7, `fenetre 4 10` → 40). `docs/bench-confrontation-temoins-et-mesures.md` : périmètre et charges, témoins (SHA épinglés CUDD/Sylvan/libDDD/Meddly), protocole de mesure (bloc mesuré identique partout, init hors bloc, processus frais par répétition, médiane/étendue), équité mono/multi (Sylvan rapporté séparément, jamais une colonne mixte), vérification croisée (`verifie` seul comparé entre outils, `noeuds` jamais), reproduction, limites, feuille de route (Sylvan, libDDD, Meddly ; ZDD/SDD UCLA/DDD intervalles hors périmètre assumé).
+- **Evidence**: le C n'est **pas compilé ici** (pas de gcc ; ADR-0102 : les témoins se construisent sur la machine locale du propriétaire) — `docker build -t lisage-cudd:latest docker/cudd` est le premier geste de reproduction documenté, la fumée du Dockerfile fait échouer la construction si le témoin déraille. Signatures CUDD 3.0.0 vérifiées par relecture (`Cudd_bddComputeCube`, `Cudd_DagSize`, `Cudd_CountMinterm`, `ru_maxrss` en Ko sur Linux). Pins alignés sur le runner lisage (fragment 1 de la pile).
+- **Judgement calls**: encodage booléen de philosophes = 2 bits par valeur (4n variables), intercalé pc_i/left_i comme le schéma lisage ; fenêtre = bits explicites base/position, l'encodage du témoin est documenté dans son binaire, pas calqué sur celui de lisage ; temps CUDD mesuré par `CLOCK_MONOTONIC` autour du même bloc que lisage (lecture + construction + comptage, init du manager hors bloc).
+- **Escalations**: aucune.
+
+
 ## 2026-11-12 - Review PR #94 — ancre composée réellement appliquée au pool (les deux ancres entrent par l'arc d'entrée) (feat/atelier-ancre)
 
 - **Issue**: aucune (correction de la revue headless ADR-0010 de la PR #94).
