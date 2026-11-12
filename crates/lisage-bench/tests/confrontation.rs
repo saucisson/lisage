@@ -81,12 +81,18 @@ fn etats_etendus(nombre: usize) -> Vec<Vec<u64>> {
     }
 }
 
+/// Compteur de fichiers temporaires : un nom unique par appel (sous
+/// `cargo test`, les tests d'un même binaire tournent en threads d'un
+/// seul processus — le pid seul ne suffit pas).
+static COMPTEUR_FICHIERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// Écrit le fichier d'états étendus partagé (même format que l'orchestrateur
 /// Python : première ligne `n <n>`, puis un état par ligne) et rend son
 /// chemin.
 fn ecrire_fichier_etats(nombre: u64) -> PathBuf {
+    let numero = COMPTEUR_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let chemin = std::env::temp_dir().join(format!(
-        "confrontation-test-philosophes-{nombre}-{}.txt",
+        "confrontation-test-philosophes-{nombre}-{}-{numero}.txt",
         std::process::id()
     ));
     let etats = etats_etendus(nombre as usize);
@@ -173,8 +179,9 @@ fn test_philosophes_entrees_invalides() {
         "n 3\n0 0 0 0 0 7\n",
     ];
     for (numero, contenu) in cas.iter().enumerate() {
+        let uniq = COMPTEUR_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let chemin = std::env::temp_dir().join(format!(
-            "confrontation-test-invalide-{numero}-{}.txt",
+            "confrontation-test-invalide-{numero}-{}-{uniq}.txt",
             std::process::id()
         ));
         std::fs::write(&chemin, contenu).expect("fichier invalide écrit");
