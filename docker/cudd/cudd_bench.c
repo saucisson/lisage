@@ -144,7 +144,7 @@ static int charge_alea_lcg(int n) {
     clock_gettime(CLOCK_MONOTONIC, &debut);
     DdNode *fonction = construire_depuis_table(manager, variables, n, table, 0);
     unsigned long noeuds = (unsigned long)Cudd_DagSize(fonction);
-    unsigned long satisfait = (unsigned long)Cudd_CountMinterm(fonction, n);
+    unsigned long satisfait = (unsigned long)Cudd_CountMinterm(manager, fonction, n);
     clock_gettime(CLOCK_MONOTONIC, &fin);
     Cudd_RecursiveDeref(manager, fonction);
     free(table);
@@ -203,7 +203,7 @@ static int charge_philosophes(int n, const char *chemin) {
     struct timespec debut, fin;
     clock_gettime(CLOCK_MONOTONIC, &debut);
     DdNode *racine = NULL;
-    char *phase = (char *)malloc((size_t)nombre_variables);
+    int *phase = (int *)malloc((size_t)nombre_variables * sizeof(int));
     unsigned long nb_etats_lus = 0;
     while (1) {
         int valeur = 0;
@@ -224,11 +224,11 @@ static int charge_philosophes(int n, const char *chemin) {
             int bit_bas = valeur & 1;
             int bit_haut = (valeur >> 1) & 1;
             if (i % 2 == 0) {
-                phase[4 * philosophe] = (char)bit_bas;
-                phase[4 * philosophe + 1] = (char)bit_haut;
+                phase[4 * philosophe] = bit_bas;
+                phase[4 * philosophe + 1] = bit_haut;
             } else {
-                phase[4 * philosophe + 2] = (char)bit_bas;
-                phase[4 * philosophe + 3] = (char)bit_haut;
+                phase[4 * philosophe + 2] = bit_bas;
+                phase[4 * philosophe + 3] = bit_haut;
             }
         }
         if (!complet) {
@@ -264,7 +264,7 @@ static int charge_philosophes(int n, const char *chemin) {
         return CODE_ECHEC;
     }
     unsigned long noeuds = (unsigned long)Cudd_DagSize(racine);
-    unsigned long verifie = (unsigned long)Cudd_CountMinterm(racine, nombre_variables);
+    unsigned long verifie = (unsigned long)Cudd_CountMinterm(manager, racine, nombre_variables);
     clock_gettime(CLOCK_MONOTONIC, &fin);
     Cudd_RecursiveDeref(manager, racine);
     free(phase);
@@ -314,7 +314,7 @@ static int charge_fenetre(unsigned long taille, unsigned long nb_bases) {
         variables[i] = Cudd_bddNewVar(manager);
     }
     unsigned long attendu = nb_bases * taille;
-    char *phase = (char *)malloc((size_t)nombre_variables);
+    int *phase = (int *)malloc((size_t)nombre_variables * sizeof(int));
     struct timespec debut, fin;
     clock_gettime(CLOCK_MONOTONIC, &debut);
     DdNode *racine = NULL;
@@ -323,7 +323,7 @@ static int charge_fenetre(unsigned long taille, unsigned long nb_bases) {
             for (int bit = 0; bit < nombre_variables; bit++) {
                 unsigned long valeur = (bit < bits_base) ? base : position;
                 int bit_indice = (bit < bits_base) ? bit : bit - bits_base;
-                phase[bit] = (char)((valeur >> bit_indice) & 1);
+                phase[bit] = (int)((valeur >> bit_indice) & 1);
             }
             DdNode *cube = Cudd_bddComputeCube(manager, variables, phase, nombre_variables);
             if (cube == NULL) {
@@ -354,7 +354,7 @@ static int charge_fenetre(unsigned long taille, unsigned long nb_bases) {
         return CODE_ECHEC;
     }
     unsigned long noeuds = (unsigned long)Cudd_DagSize(racine);
-    unsigned long verifie = (unsigned long)Cudd_CountMinterm(racine, nombre_variables);
+    unsigned long verifie = (unsigned long)Cudd_CountMinterm(manager, racine, nombre_variables);
     clock_gettime(CLOCK_MONOTONIC, &fin);
     Cudd_RecursiveDeref(manager, racine);
     free(phase);

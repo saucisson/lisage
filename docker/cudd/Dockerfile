@@ -2,6 +2,11 @@ FROM ubuntu:24.04
 
 RUN apt-get update -qq && apt-get install -y -qq \
     build-essential \
+    autoconf \
+    automake \
+    libtool \
+    m4 \
+    perl \
     git \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
