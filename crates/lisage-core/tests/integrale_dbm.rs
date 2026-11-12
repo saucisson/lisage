@@ -62,7 +62,8 @@ impl Observer for Collecteur {
 }
 
 /// Aire analytique (doublée) : une DBM 2D est une bande −b ≤ x−y ≤ a, et
-/// l'aire de la bande ∩ [0, N]² vaut N² − f(a) − f(−b).
+/// l'aire de la bande ∩ [0, N]² vaut f(−b) − f(a), avec f(t) = aire de
+/// {x−y > t}.
 #[test]
 fn test_mesure_zone_analytique() {
     let keys = keys();
