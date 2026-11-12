@@ -2,15 +2,18 @@
 //! spec) : sur les clés-régions 1D, le pli discret (cardinal) devient
 //! intégrale de Lebesgue (mesure). Différentiel : mesure continue ==
 //! longueur analytique, et cardinal discret == comptage des points.
+//! Narration (ADR-0100) : les événements `Attr`/`Synthétise` émis par
+//! l'intégrale sont épinglés par un observateur collecteur.
 
 use std::collections::BTreeSet;
+use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{Anchor, Form, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::integrale::{
     compiler_union, integrale_constante, intersection, mesure_intervalle,
 };
-use lisage_core::observer::NoOpObserver;
+use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
 use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
 
 type PoolRegion = Arena<RegionController>;
@@ -23,6 +26,30 @@ fn pool() -> PoolRegion {
         RegionController::nouveau(RegionKeys::nouvelle(vec![TAILLE_DOMAINE])),
         Box::new(NoOpObserver),
     )
+}
+
+/// Observateur collecteur pour épingler les événements de narration.
+#[derive(Clone)]
+struct Collecteur {
+    evenements: Arc<Mutex<Vec<TraceEvent>>>,
+}
+
+impl Collecteur {
+    fn nouveau() -> Self {
+        Collecteur {
+            evenements: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn events(&self) -> Vec<TraceEvent> {
+        self.evenements.lock().expect("mutex").clone()
+    }
+}
+
+impl Observer for Collecteur {
+    fn on_event(&self, event: &TraceEvent) {
+        self.evenements.lock().expect("mutex").push(event.clone());
+    }
 }
 
 /// Région pleine de l'univers : [0, TAILLE_DOMAINE).
@@ -64,7 +91,7 @@ fn test_integrale_union_deux_intervalles() {
     let mut pool = pool();
     let intervalles = vec![Intervalle::nouveau(2, 5), Intervalle::nouveau(7, 9)];
     let racine = compiler_union(&mut pool, ANCRE, &intervalles);
-    let mesure = integrale_constante(&pool, racine, &region_pleine()).expect("nœud interné");
+    let mesure = integrale_constante(&pool, racine, &region_pleine(), None).expect("nœud interné");
     // Mesure continue : (5−2) + (9−7) = 3 + 2 = 5.
     assert_eq!(mesure, 5, "intégrale = somme des longueurs");
     // Cardinal discret : (5−2+1) + (9−7+1) = 4 + 3 = 7.
@@ -82,11 +109,11 @@ fn test_integrale_restreinte_a_une_region() {
     let racine = compiler_union(&mut pool, ANCRE, &intervalles);
     // Restriction à [5, 11] : mesure de [2,8] ∩ [5,11] = [5,8], longueur 3.
     let sous_region = Intervalle::nouveau(5, 11);
-    let mesure = integrale_constante(&pool, racine, &sous_region).expect("nœud interné");
+    let mesure = integrale_constante(&pool, racine, &sous_region, None).expect("nœud interné");
     assert_eq!(mesure, 3);
     // Restriction à une région disjointe : mesure nulle.
     let disjointe = Intervalle::nouveau(9, 11);
-    let mesure_nulle = integrale_constante(&pool, racine, &disjointe).expect("nœud interné");
+    let mesure_nulle = integrale_constante(&pool, racine, &disjointe, None).expect("nœud interné");
     assert_eq!(mesure_nulle, 0);
 }
 
@@ -99,14 +126,49 @@ fn test_integrale_terminaux() {
     let faux = pool.intern(ANCRE, Form::Terminal(false));
     let pleine = region_pleine();
     assert_eq!(
-        integrale_constante(&pool, vrai, &pleine).expect("nœud interné"),
+        integrale_constante(&pool, vrai, &pleine, None).expect("nœud interné"),
         TAILLE_DOMAINE - 1,
         "⊤ rend la mesure de la région pleine"
     );
     assert_eq!(
-        integrale_constante(&pool, faux, &pleine).expect("nœud interné"),
+        integrale_constante(&pool, faux, &pleine, None).expect("nœud interné"),
         0,
         "⊥ rend 0"
+    );
+}
+
+/// Narration (ADR-0100 décision 6) : l'intégrale émet un événement
+/// `Attr`/`Synthétise` par nœud visité, avec la mesure calculée —
+/// épinglé par l'observateur collecteur.
+#[test]
+fn test_narration_evenements_attr_synthétise() {
+    let mut pool = pool();
+    let intervalles = vec![Intervalle::nouveau(2, 5), Intervalle::nouveau(7, 9)];
+    let racine = compiler_union(&mut pool, ANCRE, &intervalles);
+    let collecteur = Collecteur::nouveau();
+    let mesure = integrale_constante(&pool, racine, &region_pleine(), Some(&collecteur))
+        .expect("nœud interné");
+    assert_eq!(mesure, 5);
+    let events = collecteur.events();
+    // Au moins un événement Attr/Synthétise émis, avec la mesure finale.
+    let attrs: Vec<&TraceEvent> = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                TraceEvent::Attr {
+                    canal: CanalAttr::Synthétise,
+                    ..
+                }
+            )
+        })
+        .collect();
+    assert!(!attrs.is_empty(), "au moins un événement Attr/Synthétise");
+    assert!(
+        attrs
+            .iter()
+            .any(|e| matches!(e, TraceEvent::Attr { valeur, .. } if valeur == "mesure=5")),
+        "l'événement final porte la mesure totale 5"
     );
 }
 
@@ -146,7 +208,8 @@ fn test_propriete_integrale_contre_cardinal_lcg() {
         }
         let mut pool = pool();
         let racine = compiler_union(&mut pool, ANCRE, &intervalles);
-        let mesure = integrale_constante(&pool, racine, &region_pleine()).expect("nœud interné");
+        let mesure =
+            integrale_constante(&pool, racine, &region_pleine(), None).expect("nœud interné");
         // Mesure analytique : somme des (fin − début) des intervalles.
         let mesure_attendue: u64 = intervalles
             .iter()
