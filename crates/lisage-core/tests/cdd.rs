@@ -7,7 +7,7 @@
 //! différentiel d'appartenance contre énumération naïve sur une petite
 //! boîte, et partage au pool (C1 relatif à la forme normale de l'union).
 
-use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, Pool};
+use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::cdd::{
     Cdd, CddController, CddKeys, VIDE, compiler_union_horloges, compter_noeuds, evaluer,
@@ -127,7 +127,9 @@ fn test_union_horloges_differentiel_contre_enumeration() {
     let mut pool = pool();
     let racine = compiler_union_horloges(&mut pool, ANCRE);
     // Trois nœuds : true, false, la racine — contre 16 points.
-    assert_eq!(compter_noeuds(&pool, racine), 3);
+    assert_eq!(compter_noeuds(&pool, racine).expect("nœud interné"), 3);
+    // Un NodeId non interné est une erreur propagée, pas une feuille muette.
+    assert!(compter_noeuds(&pool, NodeId(u32::MAX)).is_err());
     for x in 0..TAILLE_DOMAINE {
         for y in 0..TAILLE_DOMAINE {
             let point = [x, y];
