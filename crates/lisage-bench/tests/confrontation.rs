@@ -147,6 +147,19 @@ fn test_philosophes_fil_rouge_epingle() {
     }
 }
 
+/// Charge `philosophes` : borne supérieure sur n (garde anti-débordement
+/// du schéma intercalé) — erreur typée, pas de panic.
+#[test]
+fn test_philosophes_borne_refusee() {
+    let chemin = ecrire_fichier_etats(3);
+    let parametres = vec!["33".to_string(), chemin.display().to_string()];
+    let erreur = executer(&Charge::Philosophes, &parametres, None).expect_err("borne refusée");
+    assert!(matches!(
+        erreur,
+        ErreurConfrontation::ParametresInvalides { charge, .. } if charge == "philosophes"
+    ));
+}
+
 /// Charge `philosophes` : fichier invalide (vide, première ligne non
 /// conforme, longueur d'état incohérente, valeur hors domaine) → erreur
 /// typée, jamais avalée.
