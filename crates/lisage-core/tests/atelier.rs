@@ -51,7 +51,7 @@ fn test_collapse_commute() {
         },
     );
     assert_eq!(racine_avec, faux, "R-collapse : le nœud se réduit à ⊥");
-    let rapport = mesurer(&avec, racine_avec).expect("nœud interné");
+    let rapport = mesurer(&avec, racine_avec, None).expect("nœud interné");
     assert_eq!(rapport.noeuds_partages, 1);
     assert_eq!(rapport.chemins, 1);
 
@@ -65,7 +65,7 @@ fn test_collapse_commute() {
         },
     );
     assert_ne!(racine_sans, faux, "sans R-collapse : le nœud est conservé");
-    let rapport = mesurer(&sans, racine_sans).expect("nœud interné");
+    let rapport = mesurer(&sans, racine_sans, None).expect("nœud interné");
     assert_eq!(rapport.noeuds_partages, 2, "nœud + terminal ⊥");
     assert_eq!(rapport.chemins, 2, "deux chemins vers ⊥");
 }
@@ -88,7 +88,7 @@ fn test_defaut_commute() {
         panic!("la racine est un nœud");
     };
     assert_eq!(arcs.len(), 1, "R-default : l'arc VIDE vers ⊥ est absorbé");
-    let rapport = mesurer(&avec, racine_avec).expect("nœud interné");
+    let rapport = mesurer(&avec, racine_avec, None).expect("nœud interné");
     assert_eq!(rapport.noeuds_partages, 2, "nœud + ⊤");
     assert_eq!(rapport.chemins, 1);
 
@@ -106,7 +106,7 @@ fn test_defaut_commute() {
         panic!("la racine est un nœud");
     };
     assert_eq!(arcs.len(), 2, "sans R-default : l'arc VIDE est conservé");
-    let rapport = mesurer(&sans, racine_sans).expect("nœud interné");
+    let rapport = mesurer(&sans, racine_sans, None).expect("nœud interné");
     assert_eq!(rapport.noeuds_partages, 3, "nœud + ⊤ + ⊥");
     assert_eq!(rapport.chemins, 2);
 }
@@ -144,7 +144,7 @@ fn test_chemins_contre_noeuds() {
     assert!(compter_noeuds(&pool, NodeId(u32::MAX)).is_err());
     assert!(compter_chemins(&pool, NodeId(u32::MAX)).is_err());
     assert!(compter_taille_depliee(&pool, NodeId(u32::MAX)).is_err());
-    assert!(mesurer(&pool, NodeId(u32::MAX)).is_err());
+    assert!(mesurer(&pool, NodeId(u32::MAX), None).is_err());
 }
 
 /// Propriété (LCG) : sur des BDD aléatoires, désactiver les réductions ne
@@ -195,8 +195,8 @@ fn test_propriete_commutation_lcg() {
         let racine_avec = arbre(&mut avec, 3, amorce);
         let mut sans = pool_bdd(Reductions::AUCUNE);
         let racine_sans = arbre(&mut sans, 3, amorce);
-        let rapport_avec = mesurer(&avec, racine_avec).expect("nœud interné");
-        let rapport_sans = mesurer(&sans, racine_sans).expect("nœud interné");
+        let rapport_avec = mesurer(&avec, racine_avec, None).expect("nœud interné");
+        let rapport_sans = mesurer(&sans, racine_sans, None).expect("nœud interné");
         assert!(rapport_avec.chemins >= 1, "au moins un chemin");
         assert!(
             rapport_sans.noeuds_partages >= rapport_avec.noeuds_partages,
@@ -207,4 +207,59 @@ fn test_propriete_commutation_lcg() {
             "sans réduction : chemins ≥ (même forme)"
         );
     }
+}
+
+/// Narration (ADR-0100 décision 6) : `mesurer` émet un événement
+/// `Attr`/`Synthétise` portant le rapport complet — épinglé par un
+/// observateur collecteur.
+#[test]
+fn test_narration_mesurer() {
+    use std::sync::{Arc, Mutex};
+
+    use lisage_core::observer::{CanalAttr, TraceEvent};
+
+    #[derive(Clone)]
+    struct Collecteur {
+        evenements: Arc<Mutex<Vec<TraceEvent>>>,
+    }
+    impl lisage_core::observer::Observer for Collecteur {
+        fn on_event(&self, event: &TraceEvent) {
+            self.evenements.lock().expect("mutex").push(event.clone());
+        }
+    }
+
+    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let vrai = pool.intern(ANCRE, Form::Terminal(true));
+    let faux = pool.intern(ANCRE, Form::Terminal(false));
+    let n1 = pool.intern(
+        ANCRE,
+        Form::Node {
+            level: Level(1),
+            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+        },
+    );
+    let racine = pool.intern(
+        ANCRE,
+        Form::Node {
+            level: Level(0),
+            arcs: BTreeMap::from([(0, n1), (1, n1)]),
+        },
+    );
+    let collecteur = Collecteur {
+        evenements: Arc::new(Mutex::new(Vec::new())),
+    };
+    let rapport = mesurer(&pool, racine, Some(&collecteur)).expect("nœud interné");
+    assert_eq!(rapport.noeuds_partages, 4);
+    let events = collecteur.evenements.lock().expect("mutex").clone();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            TraceEvent::Attr {
+                canal: CanalAttr::Synthétise,
+                valeur,
+                ..
+            } if valeur == "noeuds_partages=4 chemins=4 taille_depliee=7"
+        )),
+        "l'événement de narration porte le rapport complet"
+    );
 }

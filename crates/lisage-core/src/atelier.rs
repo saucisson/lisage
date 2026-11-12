@@ -13,8 +13,8 @@
 //!   (nombre de chemins racine → terminal) et la **taille dépliée** (somme
 //!   des longueurs de chemins = nombre de nœuds du DAG déplié, ce que
 //!   coûterait l'absence de hash-consing). Exemple fil rouge : R₃ tient en
-//!   33 nœuds partagés contre une taille dépliée de 140 (20 états × 7
-//!   niveaux), les 20 chemins étant un par état atteignable.
+//!   33 nœuds partagés contre une taille dépliée de 126, les 20 chemins
+//!   étant un par état atteignable.
 //!
 //! R-share lui-même n'est pas commutable (c'est la table unique du pool) :
 //! sa désactivation se **mesure** par la taille dépliée, pas par un pool
@@ -26,6 +26,8 @@ use lisage_algebra::interface::{
     Controller, ControllerId, Form, Level, NodeId, PolitiqueMemoire, Pool, PoolError,
 };
 use lisage_algebra::relatif::GroupeCles;
+
+use crate::observer::{CanalAttr, Observer, TraceEvent};
 
 /// Commutateurs des réductions côté contrôleur (R-share exclu : mesuré).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -137,13 +139,29 @@ pub struct RapportAtelier {
 
 /// Mesure un diagramme : nœuds partagés, chemins et taille dépliée. Propage
 /// l'erreur du pool (un `NodeId` inconnu est une erreur, pas une valeur
-/// muette).
-pub fn mesurer<P: Pool>(pool: &P, racine: NodeId) -> Result<RapportAtelier, PoolError> {
-    Ok(RapportAtelier {
+/// muette). `observateur` : canal de narration (ADR-0100) — un événement
+/// `Attr`/`Synthétise` porte le rapport complet.
+pub fn mesurer<P: Pool>(
+    pool: &P,
+    racine: NodeId,
+    observateur: Option<&dyn Observer>,
+) -> Result<RapportAtelier, PoolError> {
+    let rapport = RapportAtelier {
         noeuds_partages: compter_noeuds(pool, racine)?,
         chemins: compter_chemins(pool, racine)?,
         taille_depliee: compter_taille_depliee(pool, racine)?,
-    })
+    };
+    if let Some(obs) = observateur {
+        obs.on_event(&TraceEvent::Attr {
+            canal: CanalAttr::Synthétise,
+            noeud: racine,
+            valeur: format!(
+                "noeuds_partages={} chemins={} taille_depliee={}",
+                rapport.noeuds_partages, rapport.chemins, rapport.taille_depliee
+            ),
+        });
+    }
+    Ok(rapport)
 }
 
 /// Compte les nœuds distincts atteignables depuis `racine`, terminaux compris.
@@ -161,8 +179,9 @@ pub fn compter_noeuds<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolErro
     Ok(visite.len() as u64)
 }
 
-/// Compte les chemins racine → terminal du DAG (mémoïsé par nœud, saturé) :
-/// la taille du diagramme déplié sans R-share.
+/// Compte les chemins racine → terminal du DAG (mémoïsé par nœud, saturé).
+/// Ce n'est pas la taille dépliée : celle-ci est la somme des longueurs de
+/// chemins, calculée par [`compter_taille_depliee`].
 pub fn compter_chemins<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolError> {
     fn chemins<P: Pool>(
         pool: &P,

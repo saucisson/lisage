@@ -21,7 +21,7 @@ fn mesurer_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
         Box::new(NoOpObserver),
     );
     let racine = construire_r_n(&mut pool, ANCRE, n);
-    let rapport = mesurer(&pool, racine).expect("nœud interné");
+    let rapport = mesurer(&pool, racine, None).expect("nœud interné");
     (
         rapport.noeuds_partages,
         rapport.chemins,
@@ -68,7 +68,7 @@ fn test_enveloppe_transparente_quand_tout_actif() {
     let schema = schema_anneau(3);
     let mut reference = pool_neuf(&schema);
     let racine_ref = construire_r_n(&mut reference, ANCRE, 3);
-    let rapport_ref = mesurer(&reference, racine_ref).expect("nœud interné");
+    let rapport_ref = mesurer(&reference, racine_ref, None).expect("nœud interné");
     let (noeuds, chemins, taille) = mesurer_r_n(3, Reductions::TOUTES);
     assert_eq!(rapport_ref.noeuds_partages, noeuds);
     assert_eq!(rapport_ref.chemins, chemins);
