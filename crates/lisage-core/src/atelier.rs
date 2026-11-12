@@ -27,13 +27,22 @@
 //!   compilée sous deux ordres — mêmes chemins (2^n, un par affectation),
 //!   nœuds partagés différents : « le diagramme est une fonction du
 //!   contrôleur », l'ordre se voit à l'œil nu.
+//!
+//! Fragment 4 (paramètre d'ancre composée, backlog § 9, fil rouge fenêtre
+//! glissante) :
+//!
+//! - [`AncreFenetre`] : l'ancre composée `{base, horizon}` du protocole
+//!   SWP — deux décalages nommés, la glisse est le déplacement de la base ;
+//! - [`comparer_ancres_fenetre`] : la même forme relative lue sous deux
+//!   ancres — mêmes nœuds, mêmes chemins, le pool ne bouge pas, seules
+//!   les lectures absolues diffèrent : « l'ancre bouge, le pool jamais ».
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Level, NodeId, PolitiqueMemoire, Pool, PoolError,
 };
-use lisage_algebra::relatif::GroupeCles;
+use lisage_algebra::relatif::{AncreComposee, Fragment, GroupeCles};
 
 use crate::observer::{CanalAttr, Observer, TraceEvent};
 
@@ -530,4 +539,137 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
         });
     }
     Ok(RapportComparaisonOrdres { premier, second })
+}
+
+/// Fragment nommé « base » de l'ancre composée de la fenêtre glissante
+/// (position de séquence, fil rouge SWP).
+pub fn fragment_base() -> Fragment {
+    Fragment("base".to_string())
+}
+
+/// Fragment nommé « horizon » de l'ancre composée de la fenêtre glissante
+/// (taille de la fenêtre, fil rouge SWP).
+pub fn fragment_horizon() -> Fragment {
+    Fragment("horizon".to_string())
+}
+
+/// **Paramètre d'ancre composée** (atelier didactique, backlog § 9 :
+/// « jouer les paramètres du contrôleur — ordre, encodage absolu/relatif,
+/// royaume, ancre composée » ; fil rouge fenêtre glissante § 4-5) :
+/// l'ancre de la fenêtre est un enregistrement nommé de deux décalages,
+/// `{base, horizon}`. La **glisse** est le déplacement de la base ; l'ancre
+/// reste dans le handle (C1 inchangé), le pool reste aveugle.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct AncreFenetre {
+    inner: AncreComposee,
+}
+
+impl AncreFenetre {
+    /// Ancre `{base, horizon}` : les deux décalages nommés du protocole SWP.
+    pub fn nouvelle(base: i64, horizon: i64) -> Self {
+        AncreFenetre {
+            inner: AncreComposee::nouveau()
+                .avec(fragment_base(), base)
+                .avec(fragment_horizon(), horizon),
+        }
+    }
+
+    /// Décalage de la base (position de séquence).
+    pub fn base(&self) -> i64 {
+        self.inner.decalage(&fragment_base())
+    }
+
+    /// Décalage de l'horizon (taille de la fenêtre).
+    pub fn horizon(&self) -> i64 {
+        self.inner.decalage(&fragment_horizon())
+    }
+
+    /// Nouvelle ancre, base déplacée de `delta` : la glisse de la fenêtre.
+    pub fn glessee(&self, delta: i64) -> Self {
+        AncreFenetre {
+            inner: self.inner.decalee(&fragment_base(), delta),
+        }
+    }
+
+    /// Lecture absolue de la fenêtre : l'intervalle `[base, base + horizon)`.
+    pub fn fenetre_absolue(&self) -> (i64, i64) {
+        let base = self.base();
+        (base, base + self.horizon())
+    }
+
+    /// Étiquette didactique `{base: b, horizon: k}` pour la narration.
+    pub fn etiquette(&self) -> String {
+        format!("{{base: {}, horizon: {}}}", self.base(), self.horizon())
+    }
+}
+
+/// Comparaison didactique de deux ancres composées sur la même fenêtre.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct RapportComparaisonAncres {
+    /// Métriques de la fenêtre lue sous la première ancre.
+    pub avant: RapportAtelier,
+    /// Métriques de la fenêtre lue sous la seconde ancre.
+    pub apres: RapportAtelier,
+    /// Vrai si les deux lectures partagent la même forme (`NodeId`) :
+    /// le pool n'a pas bougé pendant la glisse.
+    pub meme_forme: bool,
+    /// Compte de nœuds du pool, constant pendant la glisse.
+    pub noeuds_pool: u64,
+    /// Lecture absolue `[base, base + horizon)` sous la première ancre.
+    pub lecture_avant: (i64, i64),
+    /// Lecture absolue `[base, base + horizon)` sous la seconde ancre.
+    pub lecture_apres: (i64, i64),
+}
+
+/// Compare la fenêtre glissante lue sous deux ancres composées : la forme
+/// relative (clés `0..taille-1`, section min = 0) est partagée — mêmes
+/// nœuds, mêmes chemins, le pool ne bouge pas — seules les lectures
+/// absolues diffèrent. C'est la glisse du protocole SWP : « l'ancre bouge,
+/// le pool jamais ». `observateur` : narration ADR-0100.
+pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    taille: u64,
+    ancre_avant: &AncreFenetre,
+    ancre_apres: &AncreFenetre,
+    observateur: Option<&dyn Observer>,
+) -> Result<RapportComparaisonAncres, PoolError> {
+    // La forme relative de la fenêtre, internée une fois : l'ancre composée
+    // vit dans le handle, pas dans la clé d'interning (C1, pool aveugle).
+    let racine = construire_fenetre_relative(pool, anchor, taille, 1);
+    let noeuds_pool = pool.node_count() as u64;
+    // La glisse : ré-interner la même forme sous la seconde ancre redonne
+    // le même nœud — le pool n'a pas créé un seul nœud.
+    let apres_glisse = construire_fenetre_relative(pool, anchor, taille, 1);
+    let meme_forme = racine == apres_glisse;
+    let avant = mesurer(pool, racine, observateur)?;
+    let apres = mesurer(pool, apres_glisse, observateur)?;
+    if let Some(obs) = observateur {
+        let (debut_avant, fin_avant) = ancre_avant.fenetre_absolue();
+        let (debut_apres, fin_apres) = ancre_apres.fenetre_absolue();
+        obs.on_event(&TraceEvent::Attr {
+            canal: CanalAttr::Synthétise,
+            noeud: racine,
+            valeur: format!(
+                "ancre={}_vs_{} noeuds={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
+                ancre_avant.etiquette(),
+                ancre_apres.etiquette(),
+                avant.noeuds_partages,
+                apres.noeuds_partages,
+                debut_avant,
+                fin_avant,
+                debut_apres,
+                fin_apres,
+                noeuds_pool,
+            ),
+        });
+    }
+    Ok(RapportComparaisonAncres {
+        avant,
+        apres,
+        meme_forme,
+        noeuds_pool,
+        lecture_avant: ancre_avant.fenetre_absolue(),
+        lecture_apres: ancre_apres.fenetre_absolue(),
+    })
 }

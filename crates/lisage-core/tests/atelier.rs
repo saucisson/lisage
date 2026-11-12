@@ -470,3 +470,165 @@ fn test_narration_comparaison_ordres() {
         "l'événement de narration porte la comparaison d'ordres"
     );
 }
+
+/// Paramètre d'ancre composée (backlog § 9, fil rouge SWP) : la glisse est
+/// le déplacement de la base dans l'ancre `{base, horizon}` ; l'horizon ne
+/// bouge pas et la lecture absolue de la fenêtre avance.
+#[test]
+fn test_ancre_fenetre_glisse() {
+    use lisage_core::atelier::AncreFenetre;
+
+    let ancre = AncreFenetre::nouvelle(0, 4);
+    assert_eq!(ancre.base(), 0);
+    assert_eq!(ancre.horizon(), 4);
+    assert_eq!(ancre.fenetre_absolue(), (0, 4));
+    assert_eq!(ancre.etiquette(), "{base: 0, horizon: 4}");
+    let glissee = ancre.glessee(2);
+    assert_eq!(glissee.base(), 2);
+    assert_eq!(glissee.horizon(), 4, "la glisse ne touche que la base");
+    assert_eq!(glissee.fenetre_absolue(), (2, 6));
+    assert_eq!(glissee.etiquette(), "{base: 2, horizon: 4}");
+    // L'ancre d'origine est inchangée (la glisse produit une nouvelle ancre).
+    assert_eq!(ancre.base(), 0);
+}
+
+/// La fenêtre lue sous deux ancres composées : mêmes nœuds, mêmes chemins
+/// (même forme partagée — le pool ne bouge pas), lectures absolues
+/// différentes — « l'ancre bouge, le pool jamais ». Pendant 50 glisses,
+/// ré-interner la forme ne crée aucun nœud.
+#[test]
+fn test_glisse_pool_constant_lectures_differentes() {
+    use lisage_core::atelier::{
+        AncreFenetre, comparer_ancres_fenetre, construire_fenetre_relative,
+    };
+
+    const TAILLE: u64 = 4;
+    // (R-collapse commuté : une fenêtre toute-vraie collapserait sinon.)
+    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let rapport = comparer_ancres_fenetre(
+        &mut pool,
+        ANCRE,
+        TAILLE,
+        &AncreFenetre::nouvelle(0, 4),
+        &AncreFenetre::nouvelle(7, 4),
+        None,
+    )
+    .expect("nœuds internés");
+    assert!(
+        rapport.meme_forme,
+        "même forme partagée sous les deux ancres"
+    );
+    assert_eq!(
+        rapport.avant, rapport.apres,
+        "mêmes métriques des deux côtés"
+    );
+    assert_eq!(rapport.avant.noeuds_partages, 3, "racine + fenêtre + ⊤");
+    assert_eq!(rapport.avant.chemins, 4, "un chemin par clé de la fenêtre");
+    assert_eq!(rapport.avant.taille_depliee, 6);
+    assert_eq!(
+        rapport.noeuds_pool, 3,
+        "le pool ne bouge pas pendant la glisse"
+    );
+    assert_eq!(rapport.lecture_avant, (0, 4));
+    assert_eq!(rapport.lecture_apres, (7, 11));
+
+    // 50 glisses : la forme ré-internée est toujours la même, le compte de
+    // nœuds du pool reste constant.
+    let racine = construire_fenetre_relative(&mut pool, ANCRE, TAILLE, 1);
+    let noeuds_avant = pool.node_count();
+    let ancre = AncreFenetre::nouvelle(0, TAILLE as i64);
+    for delta in 1..50 {
+        let glissee = ancre.glessee(delta);
+        assert_eq!(glissee.fenetre_absolue(), (delta, delta + TAILLE as i64));
+        let meme = construire_fenetre_relative(&mut pool, ANCRE, TAILLE, 1);
+        assert_eq!(meme, racine, "forme relative partagée à chaque glisse");
+    }
+    assert_eq!(
+        pool.node_count(),
+        noeuds_avant,
+        "le pool reste à O(1) formes pendant 50 glisses"
+    );
+}
+
+/// Propriété (LCG) : la glisse compose — glisser de `a` puis de `b` égale
+/// glisser de `a + b` — et l'horizon est invariant (30 cas).
+#[test]
+fn test_propriete_glisse_composition_lcg() {
+    use lisage_core::atelier::AncreFenetre;
+
+    const GRAINE_LCG: u64 = 0x5EED_2026_1112_4E11;
+    const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
+    const INCREMENT_LCG: u64 = 1442695040888963407;
+    const NOMBRE_CAS: u64 = 30;
+    let mut graine = GRAINE_LCG;
+    let mut suivant = || {
+        graine = graine
+            .wrapping_mul(MULTIPLICATEUR_LCG)
+            .wrapping_add(INCREMENT_LCG);
+        graine
+    };
+    for _ in 0..NOMBRE_CAS {
+        let a = suivant() as i64 % 1000;
+        let b = suivant() as i64 % 1000;
+        let horizon = suivant() as i64 % 16 + 1;
+        let ancre = AncreFenetre::nouvelle(0, horizon);
+        assert_eq!(
+            ancre.glessee(a).glessee(b),
+            ancre.glessee(a + b),
+            "la glisse compose : f(a)∘f(b) = f(a+b)"
+        );
+        assert_eq!(
+            ancre.glessee(a).horizon(),
+            horizon,
+            "l'horizon est invariant"
+        );
+    }
+}
+
+/// Narration (ADR-0100) : la comparaison d'ancres composées émet un
+/// événement `Attr`/`Synthétise` portant les deux étiquettes, les deux
+/// comptes de nœuds et les deux lectures absolues.
+#[test]
+fn test_narration_comparaison_ancres() {
+    use std::sync::{Arc, Mutex};
+
+    use lisage_core::atelier::{AncreFenetre, comparer_ancres_fenetre};
+    use lisage_core::observer::{CanalAttr, TraceEvent};
+
+    #[derive(Clone)]
+    struct Collecteur {
+        evenements: Arc<Mutex<Vec<TraceEvent>>>,
+    }
+    impl lisage_core::observer::Observer for Collecteur {
+        fn on_event(&self, event: &TraceEvent) {
+            self.evenements.lock().expect("mutex").push(event.clone());
+        }
+    }
+
+    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let collecteur = Collecteur {
+        evenements: Arc::new(Mutex::new(Vec::new())),
+    };
+    let rapport = comparer_ancres_fenetre(
+        &mut pool,
+        ANCRE,
+        4,
+        &AncreFenetre::nouvelle(0, 4),
+        &AncreFenetre::nouvelle(2, 4),
+        Some(&collecteur),
+    )
+    .expect("nœuds internés");
+    assert_eq!(rapport.avant.noeuds_partages, 3);
+    let events = collecteur.evenements.lock().expect("mutex").clone();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            TraceEvent::Attr {
+                canal: CanalAttr::Synthétise,
+                valeur,
+                ..
+            } if valeur == "ancre={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} noeuds=3 contre 3 lecture=[0..4) contre [2..6) pool=3"
+        )),
+        "l'événement de narration porte la comparaison d'ancres"
+    );
+}
