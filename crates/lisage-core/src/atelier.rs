@@ -32,10 +32,12 @@
 //! glissante) :
 //!
 //! - [`AncreFenetre`] : l'ancre composée `{base, horizon}` du protocole
-//!   SWP — deux décalages nommés, la glisse est le déplacement de la base ;
-//! - [`comparer_ancres_fenetre`] : la même forme relative lue sous deux
-//!   ancres — mêmes nœuds, mêmes chemins, le pool ne bouge pas, seules
-//!   les lectures absolues diffèrent : « l'ancre bouge, le pool jamais ».
+//!   SWP — deux décalages nommés, la glisse est le déplacement de la base,
+//!   portée par l'arc d'entrée ;
+//! - [`construire_fenetre_ancree`] / [`comparer_ancres_fenetre`] : la
+//!   fenêtre lue sous deux ancres — chaque ancre a sa racine, la forme
+//!   relative de la fenêtre est partagée (`meme_forme`), seules les
+//!   lectures absolues diffèrent : « l'ancre bouge, le pool jamais ».
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -311,6 +313,23 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
     )
 }
 
+/// Interne la forme relative de la fenêtre (clés `0..taille-1`, section
+/// min = 0), partagée par toutes les bases.
+fn interner_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    taille: u64,
+) -> NodeId {
+    let vrai = pool.intern(anchor, Form::Terminal(true));
+    pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(NIVEAU_FENETRE),
+            arcs: (0..taille).map(|k| (k, vrai)).collect(),
+        },
+    )
+}
+
 /// Construit la même fenêtre glissante en encodage **relatif** (M4-2,
 /// section min = 0) : une seule forme `{0..taille-1}` partagée par toutes les
 /// bases (l'argument de position vit sur l'arc d'entrée). Le nombre de
@@ -321,14 +340,7 @@ pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     taille: u64,
     nb_bases: u64,
 ) -> NodeId {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
-    let fenetre = pool.intern(
-        anchor,
-        Form::Node {
-            level: Level(NIVEAU_FENETRE),
-            arcs: (0..taille).map(|k| (k, vrai)).collect(),
-        },
-    );
+    let fenetre = interner_fenetre_relative(pool, anchor, taille);
     let arcs = (0..nb_bases).map(|base| (base, fenetre)).collect();
     pool.intern(
         anchor,
@@ -597,10 +609,39 @@ impl AncreFenetre {
         (base, base + self.horizon())
     }
 
+    /// Clé de l'arc d'entrée : la base de l'ancre, saturée dans `u64`.
+    /// C'est l'argument de position (spec § 2.4.5 : l'arc entrant porte
+    /// l'argument) — il vit sur l'arc, jamais dans la clé d'interning.
+    pub fn cle_entree(&self) -> u64 {
+        self.base().max(0) as u64
+    }
+
     /// Étiquette didactique `{base: b, horizon: k}` pour la narration.
     pub fn etiquette(&self) -> String {
         format!("{{base: {}, horizon: {}}}", self.base(), self.horizon())
     }
+}
+
+/// Construit la fenêtre glissante lue sous l'`ancre` composée : la base de
+/// l'ancre est l'argument de l'arc d'entrée (clé `cle_entree`), la forme de
+/// la fenêtre reste relative (clés `0..taille-1`, section min = 0) et
+/// partagée. Retourne `(racine, fenêtre)` : la racine propre à cette base,
+/// la forme de fenêtre atteinte par son arc d'entrée.
+pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    taille: u64,
+    ancre: &AncreFenetre,
+) -> (NodeId, NodeId) {
+    let fenetre = interner_fenetre_relative(pool, anchor, taille);
+    let racine = pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(NIVEAU_RACINE),
+            arcs: BTreeMap::from([(ancre.cle_entree(), fenetre)]),
+        },
+    );
+    (racine, fenetre)
 }
 
 /// Comparaison didactique de deux ancres composées sur la même fenêtre.
@@ -610,10 +651,11 @@ pub struct RapportComparaisonAncres {
     pub avant: RapportAtelier,
     /// Métriques de la fenêtre lue sous la seconde ancre.
     pub apres: RapportAtelier,
-    /// Vrai si les deux lectures partagent la même forme (`NodeId`) :
-    /// le pool n'a pas bougé pendant la glisse.
+    /// Vrai si les deux lectures atteignent la même forme de fenêtre
+    /// (`NodeId`) : déplacer la base ne duplique pas la forme.
     pub meme_forme: bool,
-    /// Compte de nœuds du pool, constant pendant la glisse.
+    /// Compte de nœuds du pool après les deux lectures (une racine par
+    /// ancre, une seule forme de fenêtre).
     pub noeuds_pool: u64,
     /// Lecture absolue `[base, base + horizon)` sous la première ancre.
     pub lecture_avant: (i64, i64),
@@ -621,11 +663,13 @@ pub struct RapportComparaisonAncres {
     pub lecture_apres: (i64, i64),
 }
 
-/// Compare la fenêtre glissante lue sous deux ancres composées : la forme
-/// relative (clés `0..taille-1`, section min = 0) est partagée — mêmes
-/// nœuds, mêmes chemins, le pool ne bouge pas — seules les lectures
-/// absolues diffèrent. C'est la glisse du protocole SWP : « l'ancre bouge,
-/// le pool jamais ». `observateur` : narration ADR-0100.
+/// Compare la fenêtre glissante lue sous deux ancres composées : chaque
+/// ancre construit sa propre racine (l'arc d'entrée porte sa base), mais la
+/// forme relative de la fenêtre (clés `0..taille-1`, section min = 0) est
+/// partagée — `meme_forme` vrai, mêmes nœuds, mêmes chemins — seules les
+/// lectures absolues diffèrent. C'est la glisse du protocole SWP :
+/// « l'ancre bouge, le pool jamais » : déplacer la base ne duplique pas la
+/// forme de la fenêtre. `observateur` : narration ADR-0100.
 pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -634,22 +678,22 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
     ancre_apres: &AncreFenetre,
     observateur: Option<&dyn Observer>,
 ) -> Result<RapportComparaisonAncres, PoolError> {
-    // La forme relative de la fenêtre, internée une fois : l'ancre composée
-    // vit dans le handle, pas dans la clé d'interning (C1, pool aveugle).
-    let racine = construire_fenetre_relative(pool, anchor, taille, 1);
+    // Chaque ancre entre dans le pool par son arc d'entrée (sa base) ; la
+    // forme de fenêtre atteinte des deux côtés doit être le même nœud.
+    let (racine_avant, fenetre_avant) =
+        construire_fenetre_ancree(pool, anchor, taille, ancre_avant);
+    let (racine_apres, fenetre_apres) =
+        construire_fenetre_ancree(pool, anchor, taille, ancre_apres);
     let noeuds_pool = pool.node_count() as u64;
-    // La glisse : ré-interner la même forme sous la seconde ancre redonne
-    // le même nœud — le pool n'a pas créé un seul nœud.
-    let apres_glisse = construire_fenetre_relative(pool, anchor, taille, 1);
-    let meme_forme = racine == apres_glisse;
-    let avant = mesurer(pool, racine, observateur)?;
-    let apres = mesurer(pool, apres_glisse, observateur)?;
+    let meme_forme = fenetre_avant == fenetre_apres;
+    let avant = mesurer(pool, racine_avant, observateur)?;
+    let apres = mesurer(pool, racine_apres, observateur)?;
     if let Some(obs) = observateur {
         let (debut_avant, fin_avant) = ancre_avant.fenetre_absolue();
         let (debut_apres, fin_apres) = ancre_apres.fenetre_absolue();
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthétise,
-            noeud: racine,
+            noeud: racine_apres,
             valeur: format!(
                 "ancre={}_vs_{} noeuds={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
                 ancre_avant.etiquette(),

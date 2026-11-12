@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-12 - Review PR #94 — ancre composée réellement appliquée au pool (les deux ancres entrent par l'arc d'entrée) (feat/atelier-ancre)
+
+- **Issue**: aucune (correction de la revue headless ADR-0010 de la PR #94).
+- **Done**: les 2 BLOCKING de la revue portaient sur le fait que les deux paramètres `AncreFenetre` n'atteignaient jamais le pool (`meme_forme` trivialement vrai, aucun test ne capterait une régression rendant l'interning dépendant de l'ancre). Correction : nouvelle `AncreFenetre::cle_entree()` (la base, saturée dans `u64`, = l'argument de l'arc d'entrée, spec § 2.4.5) et nouvelle `construire_fenetre_ancree(pool, anchor, taille, ancre) -> (racine, fenêtre)` — chaque ancre construit sa racine propre avec sa base comme clé d'arc d'entrée, la forme de fenêtre restant relative et partagée (`interner_fenetre_relative` extrait de `construire_fenetre_relative`). `comparer_ancres_fenetre` appelle maintenant deux fois `construire_fenetre_ancree` avec les deux ancres et pose `meme_forme = fenetre_avant == fenetre_apres` — une vraie assertion : une régression dupliquant la forme par base la ferait échouer. Test renforcé : 50 glisses (bases 100..150 neuves) où chaque glisse crée exactement une racine (`node_count` = avant + 50) et atteint toujours la même forme de fenêtre. Correction en cours de route : `cle_entree` saturée par `max(0)` (`u64::MAX as i64` déborde en -1, panic `clamp` attrapé par les tests).
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest : 285 tests, 3 ignorés). **Non exécuté** : re-revue headless ADR-0010 (relance ci-dessous), CI GitHub sur le nouveau head, merge.
+- **Judgement calls**: la base de l'ancre composée est passée au pool comme clé de l'arc d'entrée (et non comme ancre d'interning) — c'est le modèle M4-2 (section min = 0, l'argument vit sur l'arc, le pool reste aveugle à l'ancre composée) ; `construire_fenetre_ancree` retourne le couple `(racine, fenêtre)` pour rendre `meme_forme` vérifiable sans résoudre la racine.
+- **Escalations**: aucune.
+
 ## 2026-11-12 - Atelier didactique, fragment 4 — paramètre ancre composée sur la fenêtre glissante (backlog § 9) (feat/atelier-ancre)
 
 - **Issue**: aucune (quatrième fragment de l'atelier didactique, choisi par instruction directe « Continue » ; l'app GitHub ne peut pas créer d'issue — 403).
