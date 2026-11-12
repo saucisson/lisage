@@ -44,6 +44,15 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-12 - Confrontation lisage/témoins 3/3 — orchestrateur `make bench-confrontation` (bench/confrontation-3-orchestrateur)
+
+- **Issue**: aucune (fin de la pile, demande humaine ; 403 sur la création d'issue).
+- **Done**: `scripts/confrontation.py` (sous-commande `bench-confrontation`, ADR-0021) : génère le fichier d'états étendus partagé (épingles |R_n| vérifiées à la génération, l'orchestrateur refuse de mesurer sur une entrée cassée), exécute chaque case (outil × charge × répétition) dans un **processus frais** — lisage via cargo, témoins via `docker run` avec le scratch monté sous `/confrontation` —, vérifie les épingles connues (|R_n|, poids LCG n=4/n=12, taille × nb_bases) puis la **cohérence inter-outils** (tous les `verifie` d'une même charge/paramètres doivent être égaux, y compris entre encodages lisage, sinon le bench s'arrête), agrège par médiane/étendue et écrit `.confrontation/<run>/` : `mesures.jsonl`, `rapport.md`, `scratch/` (git-ignoré). Cible `make bench-confrontation` (variables `CONFRONTATION_OUTILS/CHARGES/REPETITIONS`), câblage `scripts/__main__.py`. 13 tests pytest (`scripts/tests/test_confrontation.py`) : pins de génération et dérivation des fourchettes, format du fichier partagé, parse/erreurs de ligne JSON, axe encodage de la grille lisage, commandes cargo/docker, cohérence inter-outils, épingles, médianes par groupe, rendu du rapport.
+- **Evidence**: py_compile vert ; les 13 tests scripts passent en simulation sous Python 3.12 (bac à sable isolé, pytest absent de l'environnement d'écriture — shim `pytest.raises`) ; deux vrais bugs y ont été pris avant la poussée (déballage `sorted(incoherences)`, `key=ordre_rapport` positionnel). **Non exécuté ici** : ruff/mypy strict/pytest réels (pas d'uv), le bench complet (images des témoins et mesures tournent sur la machine locale du propriétaire, ADR-0102) ; `make check` attendu en local/CI.
+- **Judgement calls**: stdlib uniquement (subprocess/json/statistics/argparse), l'orchestrateur ne mesure rien lui-même — le temps vient des runners, il agrège ; `verifie` comparé entre outils et encodages, `noeuds` jamais (granularités différentes, documenté) ; états énumérés en ordre lexicographique (l'ordre d'union ne change aucun dénombrement, tous les outils lisent le même fichier) ; mêmes pins codés des deux côtés (Rust et Python) pour que la dérive de l'un soit attrapée par l'autre.
+- **Escalations**: aucune.
+
+
 ## 2026-11-12 - Review PR #94 — ancre composée réellement appliquée au pool (les deux ancres entrent par l'arc d'entrée) (feat/atelier-ancre)
 
 - **Issue**: aucune (correction de la revue headless ADR-0010 de la PR #94).

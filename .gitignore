@@ -30,6 +30,8 @@ htmlcov/
 # Unattended loop trace (ADR-0017) - verbose worklists, anti-spin decisions.
 .night/
 
+# Confrontation bench runs (ADR-0102) - raw lines, reports, shared state files.
+.confrontation/
 # uv lock is COMMITTED (ADR-0001) - never ignore it.
 
 # Editors and OS

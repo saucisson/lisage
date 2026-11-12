@@ -11,7 +11,8 @@ DAY_TAG := daily-$(shell date +%F)
 .PHONY: help install lint format typecheck imports test check security build \
         rust-lint rust-format rust-test rust-check rust-audit rust-deny \
         day-start day-report smoke-test mutate notify review merge-pr pr claim \
-        claim-pr update-pr wait-ci night review-bundle sync-daily clean
+        claim-pr update-pr wait-ci night review-bundle sync-daily clean \
+        bench-confrontation
 
 help: ## List available targets with their description.
 	@grep --extended-regexp '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -111,6 +112,14 @@ night: ## Run the unattended loop: ISSUES="12,13,14", MILESTONES="3,4", or auto-
 
 review-bundle: ## Print the reviewer bundle against origin/daily (ADR-0010).
 	$(PYTHON) -m scripts review-bundle --base-ref origin/daily
+
+CONFRONTATION_OUTILS ?= lisage,cudd
+CONFRONTATION_CHARGES ?= alea-lcg,philosophes,fenetre
+CONFRONTATION_REPETITIONS ?= 5
+
+bench-confrontation: ## Bench lisage against the DD witnesses, local Docker (ADR-0102).
+	$(PYTHON) -m scripts bench-confrontation --outils "$(CONFRONTATION_OUTILS)" \
+		--charges "$(CONFRONTATION_CHARGES)" --repetitions $(CONFRONTATION_REPETITIONS)
 
 clean: ## Remove caches, build outputs and mutation cache.
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .mutmut-cache htmlcov \
