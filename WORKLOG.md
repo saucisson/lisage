@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-12 - Atelier didactique, fragment 3 — paramètre d'ordre sur la compilation BDD (backlog § 9) (feat/atelier-ordre)
+
+- **Issue**: aucune (troisième fragment de l'atelier didactique, choisi par instruction directe « Suite de l'atelier » ; l'app GitHub ne peut pas créer d'issue — 403).
+- **Done**: dans `lisage-core::atelier` : `Ordre` (permutation niveau → variable : `naturel`, `inverse`, `personnalise` avec assertion de permutation), `compiler_bdd_ordre` (la table de vérité est permutée pour que le bit ℓ de l'indice local = bit `ordre[ℓ]` de l'indice original, puis expansion de Shannon classique — l'ordre naturel redonne exactement le `compiler_bdd` de référence, même `NodeId`), et `comparer_ordres` → `RapportComparaisonOrdres { premier, second }` avec narration ADR-0100 (`ordre=[0,1,2,3]_vs_[0,2,1,3] noeuds=… contre …`). C'est le « le diagramme est une fonction du contrôleur » pour le paramètre d'ordre : mêmes chemins (2^n) et même taille dépliée (2^{n+1}-1) des deux côtés, nœuds partagés différents. 4 tests : f = (x₀∧x₁)∨(x₂∧x₃) sur 4 variables → naturel 10 nœuds contre intercalé [0,2,1,3] 12 (16 chemins, taille dépliée 31 des deux côtés) ; 6 variables → 15 contre 25 (64 chemins) ; équivalence ordre naturel = `compiler_bdd` ; narration épinglée. Note : les tests commutent R-collapse (`sans_collapse`) car sinon les chemins fusionnent (7 au lieu de 16) et l'invariant « mêmes chemins » ne se lit plus.
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest : 281 tests, 3 ignorés — 4 nouveaux). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
+- **Judgement calls**: pas d'issue créée (403, directive humaine) — branche descriptive `feat/atelier-ordre` ; `Ordre` et la compilation vivent dans `atelier.rs` (fragment autonome, comme les fragments 1-2) plutôt que dans `bdd.rs`, la compilation sous ordre n'étant pour l'instant qu'un banc didactique ; la comparaison se fait dans un même pool (les deux ordres sont des lectures de la même table, pas des contrôleurs différents).
+- **Escalations**: aucune.
+
 ## 2026-11-12 - Atelier didactique, fragment 2 — paramètre encodage absolu/relatif sur la fenêtre glissante (backlog § 9) (feat/atelier-encodage)
 
 - **Issue**: aucune (deuxième fragment de l'atelier didactique, choisi par instruction directe « Continue » ; l'app GitHub ne peut pas créer d'issue — 403).
