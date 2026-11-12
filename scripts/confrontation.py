@@ -158,8 +158,7 @@ def etat_philosophes_valide(*, mot: Sequence[int]) -> bool:
     """True when no two adjacent philosophers eat (circularly)."""
     nombre = len(mot)
     return all(
-        not (mot[index] == MANGE and mot[(index + 1) % nombre] == MANGE)
-        for index in range(nombre)
+        not (mot[index] == MANGE and mot[(index + 1) % nombre] == MANGE) for index in range(nombre)
     )
 
 
@@ -197,9 +196,7 @@ def generer_etats_etendus(*, nombre_philosophes: int) -> list[list[int]]:
     return etats
 
 
-def serialiser_fichier_etats(
-    *, nombre_philosophes: int, etats: Sequence[Sequence[int]]
-) -> str:
+def serialiser_fichier_etats(*, nombre_philosophes: int, etats: Sequence[Sequence[int]]) -> str:
     """Render the shared extended-state file: ``n <n>`` then one state per line."""
     lignes = [f"n {nombre_philosophes}"]
     lignes.extend(" ".join(str(valeur) for valeur in etat) for etat in etats)
@@ -379,8 +376,7 @@ def verifier_coherence(*, mesures: Sequence[Mesure]) -> None:
     if incoherences:
         for (charge, parametres), valeurs in sorted(incoherences.items()):
             print(
-                f"Error: {charge} {dict(parametres)} disagrees on verifie: "
-                f"{sorted(valeurs)}.",
+                f"Error: {charge} {dict(parametres)} disagrees on verifie: {sorted(valeurs)}.",
                 file=sys.stderr,
             )
         raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
@@ -420,9 +416,7 @@ def verifier_epingles(*, mesures: Sequence[Mesure]) -> None:
 
 def agreger(*, mesures: Sequence[Mesure]) -> list[Agrege]:
     """Median over repetitions per (tool, charge, parameters, encoding)."""
-    groupes: dict[
-        tuple[str, str, tuple[tuple[str, str], ...], str | None], list[Mesure]
-    ] = {}
+    groupes: dict[tuple[str, str, tuple[tuple[str, str], ...], str | None], list[Mesure]] = {}
     for mesure in mesures:
         cle = (mesure.outil, mesure.charge, cle_parametres(mesure=mesure), mesure.encodage)
         groupes.setdefault(cle, []).append(mesure)
@@ -512,8 +506,7 @@ def parse_liste_charges(*, brute: str) -> tuple[str, ...]:
     inconnues = [charge for charge in charges if charge not in DEFAULT_CHARGES]
     if inconnues:
         print(
-            f"Error: unknown charge(s) {inconnues};"
-            f" known charges: {list(DEFAULT_CHARGES)}.",
+            f"Error: unknown charge(s) {inconnues}; known charges: {list(DEFAULT_CHARGES)}.",
             file=sys.stderr,
         )
         raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
@@ -564,9 +557,7 @@ def runner(*, arguments: argparse.Namespace) -> int:
                 return str(fichiers_etats[nombre])
             return f"{DOCKER_SCRATCH_MOUNT}/{fichiers_etats[nombre].name}"
 
-        cas_total.extend(
-            construire_cas(outil=outil, charges=charges, chemin_etats=chemin_etats)
-        )
+        cas_total.extend(construire_cas(outil=outil, charges=charges, chemin_etats=chemin_etats))
 
     mesures: list[Mesure] = []
     total = len(cas_total) * arguments.repetitions
@@ -617,10 +608,7 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
     subparser.add_argument(
         "--charges",
         default=",".join(DEFAULT_CHARGES),
-        help=(
-            "comma-separated charges among"
-            f" {list(DEFAULT_CHARGES)} (default: %(default)s)"
-        ),
+        help=(f"comma-separated charges among {list(DEFAULT_CHARGES)} (default: %(default)s)"),
     )
     subparser.add_argument(
         "--repetitions",

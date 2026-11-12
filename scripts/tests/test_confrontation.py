@@ -67,9 +67,7 @@ def test_generation_derive_les_fourchettes() -> None:
     # No state with two circularly adjacent eaters.
     for etat in etats:
         mot = etat[0::2]
-        assert all(
-            not (mot[index] == 2 and mot[(index + 1) % 3] == 2) for index in range(3)
-        )
+        assert all(not (mot[index] == 2 and mot[(index + 1) % 3] == 2) for index in range(3))
 
 
 def test_serialisation_du_fichier_partage() -> None:
@@ -184,11 +182,20 @@ def test_coherence_passerait_sur_des_outils_d_accord() -> None:
     mesures = [
         mesure_de(outil=LISAGE_TOOL_NAME, verifie=7),
         mesure_de(outil=CUDD_TOOL_NAME, verifie=7),
-        mesure_de(outil=LISAGE_TOOL_NAME, variante="mdd", charge=FENETRE_CHARGE,
-                  parametres={"taille": "4", "nb_bases": "10"}, encodage="absolu",
-                  verifie=40),
-        mesure_de(outil=CUDD_TOOL_NAME, charge=FENETRE_CHARGE,
-                  parametres={"taille": "4", "nb_bases": "10"}, verifie=40),
+        mesure_de(
+            outil=LISAGE_TOOL_NAME,
+            variante="mdd",
+            charge=FENETRE_CHARGE,
+            parametres={"taille": "4", "nb_bases": "10"},
+            encodage="absolu",
+            verifie=40,
+        ),
+        mesure_de(
+            outil=CUDD_TOOL_NAME,
+            charge=FENETRE_CHARGE,
+            parametres={"taille": "4", "nb_bases": "10"},
+            verifie=40,
+        ),
     ]
     verifier_coherence(mesures=mesures)  # no exception
     with pytest.raises(SystemExit):
@@ -200,28 +207,32 @@ def test_epingles_refusent_les_valeurs_a_la_derive() -> None:
     verifier_epingles(mesures=[mesure_de(verifie=7)])  # alea-lcg n=4 pin
     verifier_epingles(
         mesures=[
-            mesure_de(variante="mdd", charge=PHILOSOPHES_CHARGE,
-                      parametres={"n": "3"}, verifie=20)
+            mesure_de(variante="mdd", charge=PHILOSOPHES_CHARGE, parametres={"n": "3"}, verifie=20)
         ]
     )
     verifier_epingles(
         mesures=[
-            mesure_de(variante="mdd", charge=FENETRE_CHARGE,
-                      parametres={"taille": "4", "nb_bases": "10"}, verifie=40)
+            mesure_de(
+                variante="mdd",
+                charge=FENETRE_CHARGE,
+                parametres={"taille": "4", "nb_bases": "10"},
+                verifie=40,
+            )
         ]
     )
     with pytest.raises(SystemExit):
         verifier_epingles(mesures=[mesure_de(verifie=8)])
     with pytest.raises(SystemExit):
         verifier_epingles(
-            mesures=[mesure_de(charge=PHILOSOPHES_CHARGE, parametres={"n": "3"},
-                              verifie=21)]
+            mesures=[mesure_de(charge=PHILOSOPHES_CHARGE, parametres={"n": "3"}, verifie=21)]
         )
     with pytest.raises(SystemExit):
         verifier_epingles(
-            mesures=[mesure_de(charge=FENETRE_CHARGE,
-                              parametres={"taille": "4", "nb_bases": "10"},
-                              verifie=39)]
+            mesures=[
+                mesure_de(
+                    charge=FENETRE_CHARGE, parametres={"taille": "4", "nb_bases": "10"}, verifie=39
+                )
+            ]
         )
 
 
@@ -233,17 +244,23 @@ def test_agregation_est_mediane_par_groupe() -> None:
         mesure_de(temps_ms=2.0),
         mesure_de(outil=CUDD_TOOL_NAME, temps_ms=10.0),
         mesure_de(outil=CUDD_TOOL_NAME, temps_ms=4.0),
-        mesure_de(variante="mdd", charge=FENETRE_CHARGE,
-                  parametres={"taille": "4", "nb_bases": "10"}, encodage="absolu",
-                  temps_ms=5.0),
-        mesure_de(variante="mdd", charge=FENETRE_CHARGE,
-                  parametres={"taille": "4", "nb_bases": "10"}, encodage="relatif",
-                  temps_ms=6.0),
+        mesure_de(
+            variante="mdd",
+            charge=FENETRE_CHARGE,
+            parametres={"taille": "4", "nb_bases": "10"},
+            encodage="absolu",
+            temps_ms=5.0,
+        ),
+        mesure_de(
+            variante="mdd",
+            charge=FENETRE_CHARGE,
+            parametres={"taille": "4", "nb_bases": "10"},
+            encodage="relatif",
+            temps_ms=6.0,
+        ),
     ]
     agreges = agreger(mesures=mesures)
-    par_encodage = {
-        (agrege.outil, agrege.encodage): agrege for agrege in agreges
-    }
+    par_encodage = {(agrege.outil, agrege.encodage): agrege for agrege in agreges}
     assert par_encodage[(LISAGE_TOOL_NAME, None)].temps_median_ms == 2.0
     assert par_encodage[(CUDD_TOOL_NAME, None)].temps_median_ms == 7.0
     assert par_encodage[(LISAGE_TOOL_NAME, "absolu")].temps_median_ms == 5.0
@@ -256,12 +273,20 @@ def test_rapport_rend_une_table_par_charge() -> None:
         mesures=[
             mesure_de(temps_ms=1.0),
             mesure_de(outil=CUDD_TOOL_NAME, temps_ms=2.0),
-            mesure_de(variante="mdd", charge=FENETRE_CHARGE,
-                      parametres={"taille": "4", "nb_bases": "10"}, encodage="absolu",
-                      verifie=40),
-            mesure_de(variante="mdd", charge=FENETRE_CHARGE,
-                      parametres={"taille": "4", "nb_bases": "10"}, encodage="relatif",
-                      verifie=40),
+            mesure_de(
+                variante="mdd",
+                charge=FENETRE_CHARGE,
+                parametres={"taille": "4", "nb_bases": "10"},
+                encodage="absolu",
+                verifie=40,
+            ),
+            mesure_de(
+                variante="mdd",
+                charge=FENETRE_CHARGE,
+                parametres={"taille": "4", "nb_bases": "10"},
+                encodage="relatif",
+                verifie=40,
+            ),
         ]
     )
     rapport = rendre_rapport(agreges=agreges, repetitions=5)
