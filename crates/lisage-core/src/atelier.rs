@@ -20,10 +20,10 @@
 //! sa désactivation se **mesure** par la taille dépliée, pas par un pool
 //! dégradé.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use lisage_algebra::interface::{
-    Controller, ControllerId, Form, Level, NodeId, PolitiqueMemoire, Pool, PoolError,
+    Anchor, Controller, ControllerId, Form, Level, NodeId, PolitiqueMemoire, Pool, PoolError,
 };
 use lisage_algebra::relatif::GroupeCles;
 
@@ -235,4 +235,111 @@ pub fn compter_taille_depliee<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, 
     }
     let mut memo = HashMap::new();
     taille(pool, racine, &mut memo)
+}
+
+/// **Paramètre d'encodage** (atelier didactique, backlog § 9 : « jouer les
+/// paramètres du contrôleur — ordre, encodage absolu/relatif, royaume,
+/// ancre composée »).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Encodage {
+    /// Clés absolues : chaque fenêtre a ses propres clés, un nœud par base.
+    Absolu,
+    /// Clés relatives (section min = 0, M4-2) : une seule forme partagée,
+    /// l'argument de position vit sur l'arc d'entrée.
+    Relatif,
+}
+
+/// Comparaison didactique des deux encodages sur le même objet logique.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct RapportComparaison {
+    /// Métriques de l'encodage absolu.
+    pub absolu: RapportAtelier,
+    /// Métriques de l'encodage relatif.
+    pub relatif: RapportAtelier,
+}
+
+/// Construit la **fenêtre glissante** en encodage absolu : pour chaque base
+/// `b ∈ [0, nb_bases)`, une fenêtre propre `{b..b+taille-1}` (un nœud par
+/// base), toutes reliées à la racine. Le nombre de nœuds croît avec
+/// `nb_bases` — c'est le « l'infini de la fenêtre » du prototype plat.
+pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    taille: u64,
+    nb_bases: u64,
+) -> NodeId {
+    let vrai = pool.intern(anchor, Form::Terminal(true));
+    let mut arcs = BTreeMap::new();
+    for base in 0..nb_bases {
+        let fenetre = pool.intern(
+            anchor,
+            Form::Node {
+                level: Level(1),
+                arcs: (0..taille).map(|k| (base + k, vrai)).collect(),
+            },
+        );
+        arcs.insert(base, fenetre);
+    }
+    pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(0),
+            arcs,
+        },
+    )
+}
+
+/// Construit la même fenêtre glissante en encodage **relatif** (M4-2,
+/// section min = 0) : une seule forme `{0..taille-1}` partagée par toutes les
+/// bases (l'argument de position vit sur l'arc d'entrée). Le nombre de
+/// nœuds est constant — c'est le « 4 contre l'infini » de la fenêtre.
+pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    taille: u64,
+    nb_bases: u64,
+) -> NodeId {
+    let vrai = pool.intern(anchor, Form::Terminal(true));
+    let fenetre = pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(1),
+            arcs: (0..taille).map(|k| (k, vrai)).collect(),
+        },
+    );
+    let arcs = (0..nb_bases).map(|base| (base, fenetre)).collect();
+    pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(0),
+            arcs,
+        },
+    )
+}
+
+/// Compare les deux encodages de la fenêtre glissante sur `nb_bases` bases :
+/// mêmes chemins (même objet logique), nœuds partagés différents — le partage
+/// relatif se voit à l'œil nu. `observateur` : narration ADR-0100.
+pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    taille: u64,
+    nb_bases: u64,
+    observateur: Option<&dyn Observer>,
+) -> Result<RapportComparaison, PoolError> {
+    let racine_absolue = construire_fenetre_absolue(pool, anchor, taille, nb_bases);
+    let racine_relative = construire_fenetre_relative(pool, anchor, taille, nb_bases);
+    let absolu = mesurer(pool, racine_absolue, observateur)?;
+    let relatif = mesurer(pool, racine_relative, observateur)?;
+    if let Some(obs) = observateur {
+        obs.on_event(&TraceEvent::Attr {
+            canal: CanalAttr::Synthétise,
+            noeud: racine_relative,
+            valeur: format!(
+                "encodage=relatif_vs_absolu noeuds={} contre {}",
+                relatif.noeuds_partages, absolu.noeuds_partages
+            ),
+        });
+    }
+    Ok(RapportComparaison { absolu, relatif })
 }

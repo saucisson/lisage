@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-12 - Atelier didactique, fragment 2 — paramètre encodage absolu/relatif sur la fenêtre glissante (backlog § 9) (feat/atelier-encodage)
+
+- **Issue**: aucune (deuxième fragment de l'atelier didactique, choisi par instruction directe « Continue » ; l'app GitHub ne peut pas créer d'issue — 403).
+- **Done**: dans `lisage-core::atelier` : `Encodage` (Absolu/Relatif), `construire_fenetre_absolue` (un nœud par base, clés absolues), `construire_fenetre_relative` (une seule forme partagée `{0..taille-1}`, section min = 0, argument sur l'arc d'entrée — instance M4-2), et `comparer_encodages_fenetre` → `RapportComparaison { absolu, relatif }` avec narration ADR-0100 (`encodage=relatif_vs_absolu noeuds=… contre …`). C'est le « 4 contre l'infini de la fenêtre » de la feuille de route § 9, mesuré : mêmes chemins (même objet logique), nœuds partagés différents. 2 tests : 10 bases → absolu 12 nœuds contre relatif 3 (chemins 40 des deux côtés, taille dépliée 51) ; 100 bases → relatif constant à 3, absolu 102 ; narration épinglée. Note : les tests commutent R-collapse (`sans_collapse`) car une fenêtre toute-vraie collapserait en ⊤ sinon.
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest : 277 tests, 3 ignorés — 2 nouveaux). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
+- **Judgement calls**: pas d'issue créée (403, directive humaine) — branche descriptive `feat/atelier-encodage` ; la comparaison se fait dans un même pool (les deux encodages sont des écritures de clés, pas des contrôleurs différents — cohérent avec M4-2 où le pool est aveugle au groupe) ; `Encodage` posé comme enum mais la comparaison porte sur la fenêtre glissante (instance vérifiée M4-2), les autres paramètres du contrôleur (ordre, royaume, ancre composée) restent des fragments ultérieurs.
+- **Escalations**: aucune.
+
 ## 2026-11-12 - Atelier didactique, fragment 1 — tableau de bord des réductions (backlog § 9, demande du 10 nov. 2026) (feat/atelier-reductions)
 
 - **Issue**: aucune (l'atelier didactique est un candidat du backlog § 9, débloqué depuis M3-4, choisi par instruction directe du propriétaire ; l'app GitHub ne peut pas créer d'issue — 403). Les 7 issues fantômes (#32–36, #83, #85) ont été fermées sur instruction du propriétaire avec un commentaire citant la PR mergée — le jalon M5 affiche désormais 0 issue ouverte.
