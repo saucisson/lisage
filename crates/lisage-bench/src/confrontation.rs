@@ -429,16 +429,9 @@ fn charge_philosophes(
             detail: format!("n doit être dans 1..={PHILOSOPHES_MAXIMAUX}"),
         });
     }
-    // Bloc mesuré : lecture de l'entrée + construction + comptage (init
-    // des bibliothèques hors bloc chez les témoins ; ici le pool est une
-    // arène vide, sa création O(1) reste dans le bloc).
-    let debut = Instant::now();
-    let contenu =
-        std::fs::read_to_string(chemin).map_err(|erreur| ErreurConfrontation::EntreeInvalide {
-            detail: format!("fichier d'états {chemin} illisible : {erreur}"),
-        })?;
-    let etats = lire_etats(nombre_philosophes, &contenu)?;
-    let attendu = etats.len() as u64;
+    // Init hors bloc mesuré (schéma, clés, arènes) — comme l'init du manager
+    // chez les témoins. Bloc mesuré : lecture de l'entrée + construction +
+    // comptage.
     let schema = Schema::Map(
         (0..PAS_CLE_INTERCALAGE * nombre_philosophes)
             .map(Atom)
@@ -454,6 +447,13 @@ fn charge_philosophes(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
+    let debut = Instant::now();
+    let contenu =
+        std::fs::read_to_string(chemin).map_err(|erreur| ErreurConfrontation::EntreeInvalide {
+            detail: format!("fichier d'états {chemin} illisible : {erreur}"),
+        })?;
+    let etats = lire_etats(nombre_philosophes, &contenu)?;
+    let attendu = etats.len() as u64;
     let mut racine = pool.intern(ANCRE_MESURE, Form::Terminal(false));
     for etat in &etats {
         let map: BTreeMap<Value, Value> = etat

@@ -11,20 +11,19 @@ use lisage_bench::confrontation::{Charge, executer, serialiser_ligne};
 /// Code de sortie : usage incorrect.
 const CODE_USAGE: u8 = 2;
 
+/// Ligne d'usage des charges, écrite telle quelle sur stderr.
+const USAGE_CHARGES: &str = "charges: alea-lcg <n> | philosophes <n> <chemin> | fenetre <taille> <nb_bases> [absolu|relatif]";
+
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let Some((nom_charge, parametres)) = arguments.split_first() else {
         eprintln!("usage: confrontation <charge> [paramètres…]");
-        eprintln!(
-            "charges: alea-lcg <n> | philosophes <n> <chemin> | fenetre <taille> <nb_bases> [absolu|relatif]"
-        );
+        eprintln!("{USAGE_CHARGES}");
         return ExitCode::from(CODE_USAGE);
     };
     let Some(charge) = Charge::depuis_nom(nom_charge) else {
         eprintln!("charge inconnue: {nom_charge}");
-        eprintln!(
-            "charges: alea-lcg <n> | philosophes <n> <chemin> | fenetre <taille> <nb_bases> [absolu|relatif]"
-        );
+        eprintln!("{USAGE_CHARGES}");
         return ExitCode::from(CODE_USAGE);
     };
     match executer(&charge, parametres, None) {
