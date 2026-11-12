@@ -10,9 +10,9 @@
 //!   lit les hooks `collapse_actif` / `defaut_actif` à l'interning) ;
 //! - [`mesurer`] : trois métriques didactiques — les **nœuds partagés**
 //!   (R-share actif, compte de handles atteignables), les **chemins**
-//!   (nombre de chemins racine → terminal) et la **taille dépliée** (somme
-//!   des longueurs de chemins = nombre de nœuds du DAG déplié, ce que
-//!   coûterait l'absence de hash-consing). Exemple fil rouge : R₃ tient en
+//!   (nombre de chemins racine → terminal) et la **taille dépliée** (nombre
+//!   de nœuds de l'arbre déplié, chaque arc dupliquant le sous-arbre cible :
+//!   ce que coûterait l'absence de hash-consing). Exemple fil rouge : R₃ tient en
 //!   33 nœuds partagés contre une taille dépliée de 126, les 20 chemins
 //!   étant un par état atteignable.
 //!
@@ -132,8 +132,8 @@ pub struct RapportAtelier {
     pub noeuds_partages: u64,
     /// Chemins racine → terminal dans le DAG.
     pub chemins: u64,
-    /// Somme des longueurs des chemins = nœuds du DAG déplié (coût de
-    /// l'absence de hash-consing).
+    /// Nœuds de l'arbre déplié (chaque arc dupliquant le sous-arbre cible) :
+    /// le coût de l'absence de hash-consing.
     pub taille_depliee: u64,
 }
 
@@ -208,9 +208,9 @@ pub fn compter_chemins<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolErr
     chemins(pool, racine, &mut memo)
 }
 
-/// Somme des longueurs des chemins racine → terminal (mémoïsée par nœud,
-/// saturée) : le nombre de nœuds du DAG déplié, c'est-à-dire ce que coûterait
-/// l'absence de R-share (un nœud par position de chemin).
+/// Nombre de nœuds de l'arbre déplié (mémoïsé par nœud, saturé) : chaque
+/// arc duplique le sous-arbre de sa cible, ce que coûterait l'absence de
+/// R-share.
 pub fn compter_taille_depliee<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolError> {
     fn taille<P: Pool>(
         pool: &P,
