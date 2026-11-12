@@ -232,19 +232,24 @@ pub fn evaluer<P: Pool<Key = Cdd, Payload = bool>>(
     }
 }
 
-/// Compte les nœuds distincts atteignables depuis `racine`, terminaux compris.
-pub fn compter_noeuds<P: Pool<Key = Cdd, Payload = bool>>(pool: &P, racine: NodeId) -> u64 {
+/// Compte les nœuds distincts atteignables depuis `racine`, terminaux
+/// compris. Propage l'erreur du pool : un `NodeId` non interné est une
+/// erreur, pas une feuille silencieuse.
+pub fn compter_noeuds<P: Pool<Key = Cdd, Payload = bool>>(
+    pool: &P,
+    racine: NodeId,
+) -> Result<u64, PoolError> {
     let mut visite = BTreeSet::new();
     let mut pile = vec![racine];
     while let Some(noeud) = pile.pop() {
         if !visite.insert(noeud) {
             continue;
         }
-        if let Ok(Form::Node { arcs, .. }) = pool.resolve(noeud) {
+        if let Form::Node { arcs, .. } = pool.resolve(noeud)? {
             pile.extend(arcs.values().copied());
         }
     }
-    visite.len() as u64
+    Ok(visite.len() as u64)
 }
 
 /// Instance-test : la région non convexe `{x − y ≤ 0} ∪ {x − y ≥ 2}` sur deux
