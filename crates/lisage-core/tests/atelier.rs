@@ -263,3 +263,78 @@ fn test_narration_mesurer() {
         "l'événement de narration porte le rapport complet"
     );
 }
+
+/// Fenêtre glissante, encodage absolu contre relatif (paramètre du
+/// contrôleur, backlog § 9) : mêmes chemins (même objet logique), mais
+/// l'absolu crée un nœud par base tandis que le relatif partage une seule
+/// forme — le « 4 contre l'infini » de la fenêtre, mesuré.
+#[test]
+fn test_fenetre_absolu_croit_relatif_constant() {
+    use lisage_core::atelier::comparer_encodages_fenetre;
+
+    const TAILLE: u64 = 4;
+    // 10 bases : absolu = racine + 10 fenêtres + ⊤ = 12 nœuds ; relatif = 3.
+    // (R-collapse commuté : une fenêtre toute-vraie collapserait sinon.)
+    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let rapport =
+        comparer_encodages_fenetre(&mut pool, ANCRE, TAILLE, 10, None).expect("nœuds internés");
+    assert_eq!(rapport.absolu.noeuds_partages, 12);
+    assert_eq!(rapport.relatif.noeuds_partages, 3);
+    // Même objet logique : mêmes chemins (10 bases × 4 clés) et même
+    // taille dépliée (racine + 10 × (fenêtre + ⊤)).
+    assert_eq!(rapport.absolu.chemins, 40);
+    assert_eq!(rapport.relatif.chemins, 40);
+    assert_eq!(rapport.absolu.taille_depliee, 51);
+    assert_eq!(rapport.relatif.taille_depliee, 51);
+
+    // 100 bases : le relatif reste à 3 nœuds (constant), l'absolu passe à 102.
+    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let rapport =
+        comparer_encodages_fenetre(&mut pool, ANCRE, TAILLE, 100, None).expect("nœuds internés");
+    assert_eq!(rapport.relatif.noeuds_partages, 3, "le relatif est O(1)");
+    assert_eq!(
+        rapport.absolu.noeuds_partages, 102,
+        "l'absolu croît avec les bases"
+    );
+    assert_eq!(rapport.relatif.chemins, 400);
+}
+
+/// Narration (ADR-0100) : la comparaison d'encodages émet un événement
+/// `Attr`/`Synthétise` portant les deux comptes de nœuds.
+#[test]
+fn test_narration_comparaison_encodages() {
+    use std::sync::{Arc, Mutex};
+
+    use lisage_core::atelier::comparer_encodages_fenetre;
+    use lisage_core::observer::{CanalAttr, TraceEvent};
+
+    #[derive(Clone)]
+    struct Collecteur {
+        evenements: Arc<Mutex<Vec<TraceEvent>>>,
+    }
+    impl lisage_core::observer::Observer for Collecteur {
+        fn on_event(&self, event: &TraceEvent) {
+            self.evenements.lock().expect("mutex").push(event.clone());
+        }
+    }
+
+    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let collecteur = Collecteur {
+        evenements: Arc::new(Mutex::new(Vec::new())),
+    };
+    let rapport = comparer_encodages_fenetre(&mut pool, ANCRE, 4, 10, Some(&collecteur))
+        .expect("nœuds internés");
+    assert_eq!(rapport.relatif.noeuds_partages, 3);
+    let events = collecteur.evenements.lock().expect("mutex").clone();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            TraceEvent::Attr {
+                canal: CanalAttr::Synthétise,
+                valeur,
+                ..
+            } if valeur == "encodage=relatif_vs_absolu noeuds=3 contre 12"
+        )),
+        "l'événement de narration porte la comparaison d'encodages"
+    );
+}
