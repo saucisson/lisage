@@ -1,5 +1,6 @@
 //! Lisage bench — différentiel, property-based, MCC, événements non locaux.
 
+pub mod confrontation;
 pub mod differentiel;
 pub mod pnml;
 pub mod sdd;
