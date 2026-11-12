@@ -12,11 +12,16 @@
 //! Sur un diagramme à un seul niveau, c'est la somme des longueurs des
 //! intervalles menant à `⊤` — le différentiel contre le pli cardinal
 //! (somme des tailles) montre le passage count → mesure.
+//!
+//! Narration (ADR-0100 décision 6) : chaque appel récursif émet un
+//! événement `Attr` (canal `Synthétise`) vers l'observateur optionnel,
+//! avec la mesure calculée ; le test épingle ces événements.
 
 use std::collections::{BTreeMap, HashMap};
 
 use lisage_algebra::interface::{Form, NodeId, Pool, PoolError};
 
+use crate::observer::{CanalAttr, Observer, TraceEvent};
 use crate::region::Intervalle;
 
 /// Mesure de Lebesgue d'un intervalle dans l'interprétation continue :
@@ -47,22 +52,34 @@ pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
 /// Intégrale de la densité constante 1 sur l'ensemble dénoté par le
 /// diagramme à clés-régions 1D, restreint à la `region` courante
 /// (interprétation continue : mesure de Lebesgue, en `u64` saturé).
+///
+/// `observateur` : canal de narration (ADR-0100) — chaque nœud visité émet
+/// un événement `Attr`/`Synthétise` avec la mesure calculée.
 pub fn integrale_constante<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &P,
     racine: NodeId,
     region: &Intervalle,
+    observateur: Option<&dyn Observer>,
 ) -> Result<u64, PoolError> {
     let mut memo: HashMap<(NodeId, Intervalle), u64> = HashMap::new();
-    integrale(pool, racine, region, &mut memo)
+    integrale(pool, racine, region, observateur, &mut memo)
 }
 
 fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &P,
     noeud: NodeId,
     region: &Intervalle,
+    observateur: Option<&dyn Observer>,
     memo: &mut HashMap<(NodeId, Intervalle), u64>,
 ) -> Result<u64, PoolError> {
     if let Some(total) = memo.get(&(noeud, *region)) {
+        if let Some(obs) = observateur {
+            obs.on_event(&TraceEvent::Attr {
+                canal: CanalAttr::Synthétise,
+                noeud,
+                valeur: format!("mesure_memo={total}"),
+            });
+        }
         return Ok(*total);
     }
     let total = match pool.resolve(noeud)?.clone() {
@@ -75,12 +92,19 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
                 if sous_region.est_vide() {
                     continue;
                 }
-                let contribution = integrale(pool, *cible, &sous_region, memo)?;
+                let contribution = integrale(pool, *cible, &sous_region, observateur, memo)?;
                 somme = somme.saturating_add(contribution);
             }
             somme
         }
     };
+    if let Some(obs) = observateur {
+        obs.on_event(&TraceEvent::Attr {
+            canal: CanalAttr::Synthétise,
+            noeud,
+            valeur: format!("mesure={total}"),
+        });
+    }
     memo.insert((noeud, *region), total);
     Ok(total)
 }
@@ -88,12 +112,22 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
 /// Construit un diagramme à un seul niveau dénotant l'union des
 /// `intervalles` donnés (arcs vers `⊤`), le complémentaire allant vers
 /// `⊥` — instance-test de l'intégrale : la mesure de l'union est la somme
-/// des longueurs (intervalles disjoints).
+/// des longueurs. **Précondition** : les intervalles sont deux à deux
+/// disjoints (assertion de debug) — sinon l'intégrale sommerait les
+/// longueurs individuelles et sur-compterait la mesure de l'union.
 pub fn compiler_union<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &mut P,
     anchor: lisage_algebra::interface::Anchor,
     intervalles: &[Intervalle],
 ) -> NodeId {
+    debug_assert!(
+        intervalles.windows(2).all(|pair| {
+            let a = &pair[0];
+            let b = &pair[1];
+            a.est_vide() || b.est_vide() || a.borne_sup() < b.borne_inf()
+        }),
+        "compiler_union exige des intervalles disjoints (précondition)"
+    );
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let arcs: BTreeMap<Intervalle, NodeId> = intervalles
         .iter()

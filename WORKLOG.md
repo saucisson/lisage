@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-12 - Backlog δ continu, intégrale au pli — mesure de Lebesgue sur DDD intervalles 1D (Q9) (feat/integrale-pli, PR #88)
+
+- **Issue**: aucune (quatrième fragment de la veine δ continu, précondition M5-4 levée ; la directive du matin appartient à l'humain).
+- **Done**: `lisage-core::integrale` (nouveau) : sur les clés-régions 1D, le pli discret (cardinal) devient intégrale de Lebesgue — `mesure_intervalle([a,b]) = b−a` (point isolé de mesure nulle), `integrale_constante(pool, racine, région, observateur)` avec la région courante comme contexte et mémo sur `(nœud, région)`, `intersection` des intervalles, `compiler_union` (instance-test, précondition disjoints assertée en debug). Narration ADR-0100 : chaque nœud visité émet un `TraceEvent::Attr`/`Synthétise` avec la mesure, épinglé par un observateur collecteur. 6 tests : mesure continue, intersection, union deux intervalles (count 7 vs mesure 5), restriction à une sous-région, terminaux, propriété LCG 30 cas + test de narration.
+- **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest : 250 tests, 3 ignorés — 6 nouveaux). CI GitHub verte sur la PR #88 (run 43171883782, 2m52s). Revue headless ADR-0010 : 2 BLOCKING corrigés (narration DEBUG + entrée WORKLOG), 1 SUGGESTION traitée (debug_assert disjoints). **Non exécuté** : revue de suivi formelle après correction.
+- **Judgement calls**: narration via le variant `Attr`/`Synthétise` existant plutôt qu'un nouveau variant `TraceEvent` (évite de toucher à la sérialisation liseuse) ; observateur passé en `Option<&dyn Observer>` (None = pas de narration, comme le runner de transductions) ; mesure en `u64` saturé (pas de rationnel — les longueurs d'intervalles sont entières).
+- **Escalations**: aucune.
+
 ## 2026-11-11 - Backlog δ continu, instance-test DDD-différence : contrat de clés (couverture, intersection) et bande sur deux horloges (Q9) (feat/ddd-difference)
 
 - **Issue**: aucune (les 7 issues ouvertes sont toutes livrées et mergées dans `daily` ; l'app GitHub ne peut pas créer d'issue — 403 — et la directive du matin appartient à l'humain). Fragment « instance-test DDD-différence » de la veine #83, nommé par la feuille de route § 9 et la spec § 10 Q9, repris sur instruction directe « Continue ».
