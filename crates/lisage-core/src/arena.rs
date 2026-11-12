@@ -9,7 +9,9 @@
 use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
-use lisage_algebra::reduction::{Reduction, reduire, reduire_dabs as crate_reduction_dabs};
+use lisage_algebra::reduction::{
+    Reduction, reduire, reduire_dabs as crate_reduction_dabs, reduire_sans_collapse,
+};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::biplan::{EntreeNoeud, IndexNiveaux, MetriquesPool, Plan, StatsGc, seuil_atteint};
@@ -224,14 +226,28 @@ impl<C: Controller> Arena<C> {
         level: Level,
         arcs: BTreeMap<C::Key, NodeId>,
     ) -> Result<Form<C::Key, C::Payload>, NodeId> {
-        let cle_defaut = self.controleur.keys().default(level);
+        // Atelier didactique (backlog § 9) : le contrôleur peut commuter
+        // R-default et R-collapse une à une.
+        let defaut_actif = self.controleur.defaut_actif();
+        let cle_defaut = if defaut_actif {
+            self.controleur.keys().default(level)
+        } else {
+            None
+        };
         let cardinalite = self.controleur.keys().cardinality(level);
-        let payload_defaut = self.controleur.default_payload(level);
+        let payload_defaut = if defaut_actif {
+            self.controleur.default_payload(level)
+        } else {
+            None
+        };
         let est_defaut = |node: NodeId| -> bool {
-            matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(payload))
+            defaut_actif
+                && matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(payload))
         };
         // M4-3 : défaut généralisé (D-abs/D-trans) si le contrôleur l'active.
-        let reduit = if self.controleur.absorption_generalisee() {
+        let reduit = if !self.controleur.collapse_actif() {
+            reduire_sans_collapse(arcs, cle_defaut, &est_defaut)
+        } else if self.controleur.absorption_generalisee() {
             // NodeId de D^déf sous cette ancre, s'il est déjà interné (sert
             // au D-trans sur forme vide A = ∅).
             let defaut = payload_defaut.as_ref().and_then(|p| {

@@ -8,6 +8,7 @@
 
 pub mod add;
 pub mod arena;
+pub mod atelier;
 pub mod bdd;
 pub mod biplan;
 pub mod cdd;

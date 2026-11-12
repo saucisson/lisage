@@ -82,8 +82,13 @@ pub fn mots_atteignables(n: usize) -> Vec<Vec<u64>> {
 }
 
 /// Construit R_n dans le pool : union des maps compilées, une par état
-/// atteignable.
-pub fn construire_r_n(pool: &mut Arena<ReferenceController>, anchor: Anchor, n: u64) -> NodeId {
+/// atteignable. Générique sur le pool : l'atelier didactique enveloppe le
+/// contrôleur (`AtelierController`) pour commuter les réductions.
+pub fn construire_r_n<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    n: u64,
+) -> NodeId {
     let schema = schema_anneau(n);
     let keys = SchemaKeys::new(schema.clone());
     let mut racine = pool.intern(anchor, Form::Terminal(false));

@@ -67,6 +67,23 @@ pub fn reduire<Key: Ord + Clone>(
     Reduction::Forme(arcs)
 }
 
+/// R-default **seul** (sans R-collapse) : l'arc δ(ℓ) explicite menant à
+/// D_δ est supprimé, la forme n'est jamais collapsée. Sert à commuter
+/// R-collapse indépendamment (atelier didactique, backlog § 9).
+pub fn reduire_sans_collapse<Key: Ord + Clone>(
+    arcs: BTreeMap<Key, NodeId>,
+    cle_defaut: Option<Key>,
+    est_defaut: &dyn Fn(NodeId) -> bool,
+) -> Reduction<Key> {
+    let mut arcs = arcs;
+    if let Some(cle) = &cle_defaut
+        && arcs.get(cle).is_some_and(|cible| est_defaut(*cible))
+    {
+        arcs.remove(cle);
+    }
+    Reduction::Forme(arcs)
+}
+
 /// Ordre inverse (R-default d'abord, puis R-collapse) — la PBT de confluence
 /// vérifie que les deux ordres donnent le même résultat.
 pub fn reduire_inverse<Key: Ord + Clone>(
