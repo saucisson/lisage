@@ -10,6 +10,7 @@ pub mod add;
 pub mod arena;
 pub mod bdd;
 pub mod biplan;
+pub mod cdd;
 pub mod dbm;
 pub mod ddd;
 pub mod error;
