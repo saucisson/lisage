@@ -13,6 +13,7 @@ pub mod biplan;
 pub mod dbm;
 pub mod ddd;
 pub mod error;
+pub mod integrale;
 pub mod lookup;
 pub mod memoire;
 pub mod observer;
