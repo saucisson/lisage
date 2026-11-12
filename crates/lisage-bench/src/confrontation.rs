@@ -31,7 +31,7 @@ use lisage_core::bdd::{
     BddController, BddKeys, compiler_bdd, compter_noeuds as compter_noeuds_bdd,
 };
 use lisage_core::error::CoreError;
-use lisage_core::observer::NoOpObserver;
+use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
 use lisage_core::pli::{compter as compter_pli, union};
 use lisage_core::schema::{
     Domaine, ReferenceController, Schema, SchemaError, SchemaKeys, compiler,
@@ -57,19 +57,80 @@ pub const INCREMENT_LCG: u64 = 1_442_695_040_888_963_407;
 /// la table de vérité est `2^n` entrées en mémoire).
 const VARIABLES_MAXIMALES_ALEA: u32 = 24;
 
+/// Outil mesuré par ce runner (fixe : le binaire ne mesure que lisage ; les
+/// témoins externes ont leur propre binaire avec leur propre nom).
+pub const OUTIL: &str = "lisage";
+
+/// Charge de la confrontation (ensemble fermé, ADR-0006).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Charge {
+    /// Table de vérité LCG déterministe, BDD par expansion de Shannon.
+    AleaLcg,
+    /// R_n du fil rouge, union de maps sur le schéma intercalé.
+    Philosophes,
+    /// Fenêtre glissante, encodage absolu ou relatif.
+    Fenetre,
+}
+
+impl Charge {
+    /// Analyse le nom de charge (bord du binaire) ; `None` si inconnu.
+    pub fn depuis_nom(nom: &str) -> Option<Charge> {
+        match nom {
+            "alea-lcg" => Some(Charge::AleaLcg),
+            "philosophes" => Some(Charge::Philosophes),
+            "fenetre" => Some(Charge::Fenetre),
+            _ => None,
+        }
+    }
+
+    /// Étiquette du protocole JSON.
+    pub fn etiquette(&self) -> &'static str {
+        match self {
+            Charge::AleaLcg => "alea-lcg",
+            Charge::Philosophes => "philosophes",
+            Charge::Fenetre => "fenetre",
+        }
+    }
+}
+
+/// Variante de diagramme mesurée (ensemble fermé).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Variante {
+    /// BDD booléen.
+    Bdd,
+    /// MDD (schéma à domaines finis).
+    Mdd,
+}
+
+impl Variante {
+    /// Étiquette du protocole JSON.
+    pub fn etiquette(&self) -> &'static str {
+        match self {
+            Variante::Bdd => "bdd",
+            Variante::Mdd => "mdd",
+        }
+    }
+}
+
+/// Étiquette JSON d'un encodage de fenêtre.
+fn etiquette_encodage(encodage: &Encodage) -> &'static str {
+    match encodage {
+        Encodage::Absolu => "absolu",
+        Encodage::Relatif => "relatif",
+    }
+}
+
 /// Une mesure de confrontation : le résultat d'une charge exécutée une fois.
 #[derive(Clone, PartialEq, Debug)]
 pub struct MesureConfrontation {
-    /// Outil mesuré : `lisage`, `cudd`, `sylvan`, `libddd`, `meddly`.
-    pub outil: String,
-    /// Variante de diagramme mesurée : `bdd`, `mdd`, `ddd`, `sdd`.
-    pub variante: String,
-    /// Charge exécutée : `alea-lcg`, `philosophes`, `fenetre`.
-    pub charge: String,
+    /// Variante de diagramme mesurée.
+    pub variante: Variante,
+    /// Charge exécutée.
+    pub charge: Charge,
     /// Paramètres de la charge, dans un ordre stable (sérialisés en objet).
     pub parametres: Vec<(String, String)>,
-    /// Encodage de la charge `fenetre` uniquement (`absolu`/`relatif`).
-    pub encodage: Option<String>,
+    /// Encodage de la charge `fenetre` uniquement.
+    pub encodage: Option<Encodage>,
     /// Temps du bloc mesuré, en millisecondes.
     pub temps_ms: f64,
     /// RSS maximale du processus, en kilo-octets (`VmHWM`).
@@ -86,11 +147,6 @@ pub struct MesureConfrontation {
 /// Erreur typée du harnais de confrontation.
 #[derive(Clone, PartialEq, Debug)]
 pub enum ErreurConfrontation {
-    /// La charge demandée n'existe pas.
-    ChargeInconnue {
-        /// Le nom reçu.
-        charge: String,
-    },
     /// Paramètres invalides pour la charge (nombre, type, bornes).
     ParametresInvalides {
         /// La charge concernée.
@@ -127,9 +183,6 @@ pub enum ErreurConfrontation {
 impl std::fmt::Display for ErreurConfrontation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurConfrontation::ChargeInconnue { charge } => {
-                write!(formatter, "charge inconnue: {charge}")
-            }
             ErreurConfrontation::ParametresInvalides { charge, detail } => {
                 write!(formatter, "paramètres invalides pour {charge}: {detail}")
             }
@@ -212,9 +265,9 @@ pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
     ligne.push('{');
     ligne.push_str(&format!(
         "\"outil\":\"{}\",\"variante\":\"{}\",\"charge\":\"{}\"",
-        echapper_json(&mesure.outil),
-        echapper_json(&mesure.variante),
-        echapper_json(&mesure.charge)
+        echapper_json(OUTIL),
+        mesure.variante.etiquette(),
+        mesure.charge.etiquette()
     ));
     ligne.push_str(",\"parametres\":{");
     for (indice, (cle, valeur)) in mesure.parametres.iter().enumerate() {
@@ -229,7 +282,10 @@ pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
     }
     ligne.push('}');
     if let Some(encodage) = &mesure.encodage {
-        ligne.push_str(&format!(",\"encodage\":\"{}\"", echapper_json(encodage)));
+        ligne.push_str(&format!(
+            ",\"encodage\":\"{}\"",
+            etiquette_encodage(encodage)
+        ));
     }
     ligne.push_str(&format!(
         ",\"temps_ms\":{:.3},\"rss_max_ko\":{},\"noeuds\":{},\"verifie\":{}",
@@ -283,10 +339,13 @@ fn table_lcg(nombre_variables: u32) -> Vec<bool> {
 /// déterministe, construction par expansion de Shannon. La falsification
 /// interne C6 est exécutée : le compte de nœuds de l'arène doit être celui
 /// du témoin mini-BDD indépendant, et l'évaluation doit suivre la table.
-fn charge_alea_lcg(nombre_variables: u32) -> Result<MesureConfrontation, ErreurConfrontation> {
+fn charge_alea_lcg(
+    nombre_variables: u32,
+    observateur: Option<&dyn Observer>,
+) -> Result<MesureConfrontation, ErreurConfrontation> {
     if nombre_variables == 0 || nombre_variables > VARIABLES_MAXIMALES_ALEA {
         return Err(ErreurConfrontation::ParametresInvalides {
-            charge: "alea-lcg",
+            charge: Charge::AleaLcg.etiquette(),
             detail: format!("n doit être dans 1..={VARIABLES_MAXIMALES_ALEA}"),
         });
     }
@@ -315,10 +374,21 @@ fn charge_alea_lcg(nombre_variables: u32) -> Result<MesureConfrontation, ErreurC
             obtenu: temoin.evaluer(racine_temoin, 0) as u64,
         });
     }
+    if let Some(obs) = observateur {
+        obs.on_event(&TraceEvent::Attr {
+            canal: CanalAttr::Synthétise,
+            noeud: racine,
+            valeur: format!(
+                "charge={} noeuds={} verifie={}",
+                Charge::AleaLcg.etiquette(),
+                noeuds,
+                satisfait_attendu
+            ),
+        });
+    }
     Ok(MesureConfrontation {
-        outil: "lisage".to_string(),
-        variante: "bdd".to_string(),
-        charge: "alea-lcg".to_string(),
+        variante: Variante::Bdd,
+        charge: Charge::AleaLcg,
         parametres: vec![("n".to_string(), nombre_variables.to_string())],
         encodage: None,
         temps_ms: duree.as_secs_f64() * 1_000.0,
@@ -341,7 +411,12 @@ type EtatEtendu = Vec<u64>;
 fn charge_philosophes(
     nombre_philosophes: u64,
     chemin: &str,
+    observateur: Option<&dyn Observer>,
 ) -> Result<MesureConfrontation, ErreurConfrontation> {
+    // Bloc mesuré : lecture de l'entrée + construction + comptage (init
+    // des bibliothèques hors bloc chez les témoins ; ici le pool est une
+    // arène vide, sa création O(1) reste dans le bloc).
+    let debut = Instant::now();
     let contenu =
         std::fs::read_to_string(chemin).map_err(|erreur| ErreurConfrontation::EntreeInvalide {
             detail: format!("fichier d'états {chemin} illisible : {erreur}"),
@@ -363,7 +438,6 @@ fn charge_philosophes(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let debut = Instant::now();
     let mut racine = pool.intern(ANCRE_MESURE, Form::Terminal(false));
     for etat in &etats {
         let map: BTreeMap<Value, Value> = etat
@@ -383,10 +457,21 @@ fn charge_philosophes(
             obtenu: verifie,
         });
     }
+    if let Some(obs) = observateur {
+        obs.on_event(&TraceEvent::Attr {
+            canal: CanalAttr::Synthétise,
+            noeud: racine,
+            valeur: format!(
+                "charge={} noeuds={} verifie={}",
+                Charge::Philosophes.etiquette(),
+                noeuds,
+                verifie
+            ),
+        });
+    }
     Ok(MesureConfrontation {
-        outil: "lisage".to_string(),
-        variante: "mdd".to_string(),
-        charge: "philosophes".to_string(),
+        variante: Variante::Mdd,
+        charge: Charge::Philosophes,
         parametres: vec![("n".to_string(), nombre_philosophes.to_string())],
         encodage: None,
         temps_ms: duree.as_secs_f64() * 1_000.0,
@@ -468,10 +553,11 @@ fn charge_fenetre(
     taille: u64,
     nb_bases: u64,
     encodage: Encodage,
+    observateur: Option<&dyn Observer>,
 ) -> Result<MesureConfrontation, ErreurConfrontation> {
     if taille == 0 || nb_bases == 0 {
         return Err(ErreurConfrontation::ParametresInvalides {
-            charge: "fenetre",
+            charge: Charge::Fenetre.etiquette(),
             detail: "taille et nb_bases doivent être ≥ 1".to_string(),
         });
     }
@@ -480,10 +566,6 @@ fn charge_fenetre(
         AtelierController::nouveau(BddController::new(2), Reductions::sans_collapse()),
         Box::new(NoOpObserver),
     );
-    let nom_encodage = match encodage {
-        Encodage::Absolu => "absolu",
-        Encodage::Relatif => "relatif",
-    };
     let debut = Instant::now();
     let racine = construire_fenetre(&mut pool, ANCRE_MESURE, encodage, taille, nb_bases);
     let verifie = compter_chemins(&pool, racine)?;
@@ -495,15 +577,27 @@ fn charge_fenetre(
             obtenu: verifie,
         });
     }
+    if let Some(obs) = observateur {
+        obs.on_event(&TraceEvent::Attr {
+            canal: CanalAttr::Synthétise,
+            noeud: racine,
+            valeur: format!(
+                "charge={} encodage={} noeuds={} verifie={}",
+                Charge::Fenetre.etiquette(),
+                etiquette_encodage(&encodage),
+                noeuds,
+                verifie
+            ),
+        });
+    }
     Ok(MesureConfrontation {
-        outil: "lisage".to_string(),
-        variante: "mdd".to_string(),
-        charge: "fenetre".to_string(),
+        variante: Variante::Mdd,
+        charge: Charge::Fenetre,
         parametres: vec![
             ("taille".to_string(), taille.to_string()),
             ("nb_bases".to_string(), nb_bases.to_string()),
         ],
-        encodage: Some(nom_encodage.to_string()),
+        encodage: Some(encodage),
         temps_ms: duree.as_secs_f64() * 1_000.0,
         rss_max_ko: rss_max_ko()?,
         noeuds,
@@ -511,34 +605,37 @@ fn charge_fenetre(
     })
 }
 
-/// Exécute une charge une fois et rend la mesure. Arguments :
+/// Exécute une charge une fois et rend la mesure. Paramètres :
 /// `alea-lcg <n>`, `philosophes <n> <chemin>`,
 /// `fenetre <taille> <nb_bases> [absolu|relatif]` (absolu par défaut).
+/// `observateur` : canal de narration (ADR-0100) — un événement
+/// `Attr`/`Synthétise` porte le récapitulatif de la charge.
 pub fn executer(
-    charge: &str,
+    charge: &Charge,
     parametres: &[String],
+    observateur: Option<&dyn Observer>,
 ) -> Result<MesureConfrontation, ErreurConfrontation> {
     match charge {
-        "alea-lcg" => {
+        Charge::AleaLcg => {
             let seul =
                 parametres
                     .first()
                     .ok_or_else(|| ErreurConfrontation::ParametresInvalides {
-                        charge: "alea-lcg",
+                        charge: Charge::AleaLcg.etiquette(),
                         detail: "attendu : alea-lcg <n>".to_string(),
                     })?;
             let nombre_variables =
                 seul.parse::<u32>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: "alea-lcg",
+                        charge: Charge::AleaLcg.etiquette(),
                         detail: format!("n illisible : {seul}"),
                     })?;
-            charge_alea_lcg(nombre_variables)
+            charge_alea_lcg(nombre_variables, observateur)
         }
-        "philosophes" => {
+        Charge::Philosophes => {
             let (premier, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErreurConfrontation::ParametresInvalides {
-                    charge: "philosophes",
+                    charge: Charge::Philosophes.etiquette(),
                     detail: "attendu : philosophes <n> <chemin>".to_string(),
                 }
             })?;
@@ -546,15 +643,15 @@ pub fn executer(
                 premier
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: "philosophes",
+                        charge: Charge::Philosophes.etiquette(),
                         detail: format!("n illisible : {premier}"),
                     })?;
-            charge_philosophes(nombre_philosophes, second)
+            charge_philosophes(nombre_philosophes, second, observateur)
         }
-        "fenetre" => {
+        Charge::Fenetre => {
             let (premier, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErreurConfrontation::ParametresInvalides {
-                    charge: "fenetre",
+                    charge: Charge::Fenetre.etiquette(),
                     detail: "attendu : fenetre <taille> <nb_bases> [absolu|relatif]".to_string(),
                 }
             })?;
@@ -562,14 +659,14 @@ pub fn executer(
                 premier
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: "fenetre",
+                        charge: Charge::Fenetre.etiquette(),
                         detail: format!("taille illisible : {premier}"),
                     })?;
             let nb_bases =
                 second
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: "fenetre",
+                        charge: Charge::Fenetre.etiquette(),
                         detail: format!("nb_bases illisible : {second}"),
                     })?;
             let encodage = match parametres.get(2).map(String::as_str) {
@@ -577,15 +674,12 @@ pub fn executer(
                 Some("relatif") => Encodage::Relatif,
                 Some(autre) => {
                     return Err(ErreurConfrontation::ParametresInvalides {
-                        charge: "fenetre",
+                        charge: Charge::Fenetre.etiquette(),
                         detail: format!("encodage inconnu : {autre}"),
                     });
                 }
             };
-            charge_fenetre(taille, nb_bases, encodage)
+            charge_fenetre(taille, nb_bases, encodage, observateur)
         }
-        autre => Err(ErreurConfrontation::ChargeInconnue {
-            charge: autre.to_string(),
-        }),
     }
 }
