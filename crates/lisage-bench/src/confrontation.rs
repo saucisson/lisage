@@ -42,8 +42,13 @@ use lisage_lang::value::{Atom, Value};
 const ANCRE_MESURE: Anchor = Anchor(0);
 /// `think`.
 const PENSE: u64 = 0;
+/// `affamé` (valeur intermédiaire du domaine des pc).
+const AFFAME: u64 = 1;
 /// `eat` (valeur interdite sur deux voisins circulairement).
 const MANGE: u64 = 2;
+/// Nombre de variables BDD du contrôleur de la charge `fenetre` (la
+/// fenêtre glissante est lue sur 2 niveaux : racine + fenêtre).
+const VARIABLES_BDD_FENETRE: u32 = 2;
 /// Pas des clés de l'intercalage : clé `2i` = `pc_i`, clé `2i+1` = `left_i`.
 const PAS_CLE_INTERCALAGE: u64 = 2;
 /// Graine du LCG de la table de vérité déterministe (même LCG que la ligne
@@ -438,7 +443,7 @@ fn charge_philosophes(
         (0..PAS_CLE_INTERCALAGE * nombre_philosophes)
             .map(Atom)
             .collect(),
-        Domaine::nouveau(vec![Atom(PENSE), Atom(1), Atom(MANGE)]),
+        Domaine::nouveau(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)]),
     );
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = Arena::new(
@@ -574,7 +579,10 @@ fn charge_fenetre(
     }
     let attendu = taille.saturating_mul(nb_bases);
     let mut pool = Arena::new(
-        AtelierController::nouveau(BddController::new(2), Reductions::sans_collapse()),
+        AtelierController::nouveau(
+            BddController::new(VARIABLES_BDD_FENETRE),
+            Reductions::sans_collapse(),
+        ),
         Box::new(NoOpObserver),
     );
     let debut = Instant::now();

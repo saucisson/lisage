@@ -295,16 +295,45 @@ fn test_narration_charge_epinglee() {
         "charge=alea-lcg noeuds={} verifie={}",
         mesure.noeuds, SATISFACTIONS_LCG_N4
     );
+    // Les trois charges émettent leur récapitulatif : philosophes et
+    // fenetre sont épinglés ici aussi (une régression qui les perdrait
+    // ferait échouer ce test).
+    let chemin = ecrire_fichier_etats(3);
+    let mesure_philo = executer(
+        &Charge::Philosophes,
+        &["3".to_string(), chemin.display().to_string()],
+        Some(&collecteur),
+    )
+    .expect("charge philosophes exécutée");
+    let mesure_fenetre = executer(
+        &Charge::Fenetre,
+        &["4".to_string(), "10".to_string(), "relatif".to_string()],
+        Some(&collecteur),
+    )
+    .expect("charge fenetre exécutée");
+    let attendus = [
+        attendu,
+        format!(
+            "charge=philosophes noeuds={} verifie={}",
+            mesure_philo.noeuds, mesure_philo.verifie
+        ),
+        format!(
+            "charge=fenetre encodage=relatif noeuds={} verifie={}",
+            mesure_fenetre.noeuds, mesure_fenetre.verifie
+        ),
+    ];
     let events = collecteur.evenements.lock().expect("mutex").clone();
-    assert!(
-        events.iter().any(|e| matches!(
-            e,
-            TraceEvent::Attr {
-                canal: CanalAttr::Synthétise,
-                valeur,
-                ..
-            } if *valeur == attendu
-        )),
-        "l'événement de narration porte le récapitulatif de la charge"
-    );
+    for attendu in &attendus {
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                TraceEvent::Attr {
+                    canal: CanalAttr::Synthétise,
+                    valeur,
+                    ..
+                } if valeur == attendu
+            )),
+            "l'événement de narration porte le récapitulatif : {attendu}"
+        );
+    }
 }
