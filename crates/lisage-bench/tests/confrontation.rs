@@ -7,8 +7,9 @@
 use std::path::PathBuf;
 
 use lisage_bench::confrontation::{
-    ErreurConfrontation, MesureConfrontation, executer, serialiser_ligne,
+    Charge, ErreurConfrontation, MesureConfrontation, OUTIL, Variante, executer, serialiser_ligne,
 };
+use lisage_core::atelier::Encodage;
 
 /// `think`.
 const PENSE: u64 = 0;
@@ -105,10 +106,10 @@ fn ecrire_fichier_etats(nombre: u64) -> PathBuf {
 #[test]
 fn test_alea_lcg_satisfactions_epinglees() {
     for (n, satisfait) in [(4, SATISFACTIONS_LCG_N4), (12, SATISFACTIONS_LCG_N12)] {
-        let mesure = executer("alea-lcg", &[n.to_string()]).expect("charge exécutée");
-        assert_eq!(mesure.outil, "lisage");
-        assert_eq!(mesure.variante, "bdd");
-        assert_eq!(mesure.charge, "alea-lcg");
+        let mesure = executer(&Charge::AleaLcg, &[n.to_string()], None).expect("charge exécutée");
+        assert_eq!(OUTIL, "lisage");
+        assert_eq!(mesure.variante, Variante::Bdd);
+        assert_eq!(mesure.charge, Charge::AleaLcg);
         assert_eq!(mesure.verifie, satisfait, "n={n} : satisfactions épinglées");
         assert!(mesure.noeuds > 0, "n={n} : diagramme non vide");
         assert!(mesure.temps_ms.is_finite(), "n={n} : temps mesuré");
@@ -120,7 +121,8 @@ fn test_alea_lcg_satisfactions_epinglees() {
 #[test]
 fn test_alea_lcg_bornes_refusees() {
     for n in [0, 25] {
-        let erreur = executer("alea-lcg", &[n.to_string()]).expect_err("bornes refusées");
+        let erreur =
+            executer(&Charge::AleaLcg, &[n.to_string()], None).expect_err("bornes refusées");
         assert!(matches!(
             erreur,
             ErreurConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
@@ -135,9 +137,9 @@ fn test_philosophes_fil_rouge_epingle() {
     for &(nombre, attendu) in R_ATTENDUS {
         let chemin = ecrire_fichier_etats(nombre);
         let parametres = vec![nombre.to_string(), chemin.display().to_string()];
-        let mesure = executer("philosophes", &parametres).expect("charge exécutée");
+        let mesure = executer(&Charge::Philosophes, &parametres, None).expect("charge exécutée");
         assert_eq!(mesure.verifie, attendu, "n={nombre} : |R_n| épinglé");
-        assert_eq!(mesure.variante, "mdd");
+        assert_eq!(mesure.variante, Variante::Mdd);
         if nombre == 3 {
             assert_eq!(mesure.noeuds, NOEUDS_R3, "R_3 : 33 nœuds partagés");
         }
@@ -164,7 +166,7 @@ fn test_philosophes_entrees_invalides() {
         ));
         std::fs::write(&chemin, contenu).expect("fichier invalide écrit");
         let parametres = vec!["3".to_string(), chemin.display().to_string()];
-        let erreur = executer("philosophes", &parametres);
+        let erreur = executer(&Charge::Philosophes, &parametres, None);
         assert!(erreur.is_err(), "entrée invalide rejetée : {contenu:?}");
         assert!(
             matches!(erreur, Err(ErreurConfrontation::EntreeInvalide { .. })),
@@ -178,29 +180,29 @@ fn test_philosophes_entrees_invalides() {
 /// l'œil nu (atelier didactique, fragment 2).
 #[test]
 fn test_fenetre_encodages_epingles() {
-    let absolu = executer("fenetre", &["4".to_string(), "10".to_string()]).expect("absolu");
+    let absolu =
+        executer(&Charge::Fenetre, &["4".to_string(), "10".to_string()], None).expect("absolu");
     let relatif = executer(
-        "fenetre",
+        &Charge::Fenetre,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
+        None,
     )
     .expect("relatif");
     assert_eq!(absolu.verifie, CHEMINS_FENETRE);
     assert_eq!(relatif.verifie, CHEMINS_FENETRE);
     assert_eq!(absolu.noeuds, NOEUDS_FENETRE_ABSOLUE);
     assert_eq!(relatif.noeuds, NOEUDS_FENETRE_RELATIVE);
-    assert_eq!(absolu.encodage.as_deref(), Some("absolu"));
-    assert_eq!(relatif.encodage.as_deref(), Some("relatif"));
+    assert_eq!(absolu.encodage, Some(Encodage::Absolu));
+    assert_eq!(relatif.encodage, Some(Encodage::Relatif));
 }
 
-/// Charge inconnue et paramètres manquants : erreurs typées.
+/// Charge inconnue (bord du binaire : analyse en enum, `None`) et
+/// paramètres manquants : erreurs typées.
 #[test]
 fn test_charges_inconnues_refusees() {
-    let erreur = executer("inexistante", &[]).expect_err("charge inconnue");
-    assert!(matches!(
-        erreur,
-        ErreurConfrontation::ChargeInconnue { ref charge } if charge == "inexistante"
-    ));
-    let erreur = executer("alea-lcg", &[]).expect_err("paramètres manquants");
+    assert_eq!(Charge::depuis_nom("inexistante"), None);
+    assert_eq!(Charge::depuis_nom("alea-lcg"), Some(Charge::AleaLcg));
+    let erreur = executer(&Charge::AleaLcg, &[], None).expect_err("paramètres manquants");
     assert!(matches!(
         erreur,
         ErreurConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
@@ -212,14 +214,13 @@ fn test_charges_inconnues_refusees() {
 #[test]
 fn test_serialisation_ligne_epinglee() {
     let mesure = MesureConfrontation {
-        outil: "lisage".to_string(),
-        variante: "mdd".to_string(),
-        charge: "fenetre".to_string(),
+        variante: Variante::Mdd,
+        charge: Charge::Fenetre,
         parametres: vec![
             ("taille".to_string(), "4".to_string()),
             ("nb_bases".to_string(), "10".to_string()),
         ],
-        encodage: Some("relatif".to_string()),
+        encodage: Some(Encodage::Relatif),
         temps_ms: 1.25,
         rss_max_ko: 4096,
         noeuds: 3,
@@ -251,4 +252,46 @@ fn test_etats_etendus_coherents_avec_fil_rouge() {
             etat.len() == 2 * nombre as usize && etat.iter().all(|valeur| *valeur <= MANGE)
         }));
     }
+}
+
+/// Narration (ADR-0100 décision 6) : chaque charge émet un événement
+/// `Attr`/`Synthétise` portant le récapitulatif — épinglé par un
+/// observateur collecteur.
+#[test]
+fn test_narration_charge_epinglee() {
+    use std::sync::{Arc, Mutex};
+
+    use lisage_core::observer::{CanalAttr, Observer, TraceEvent};
+
+    #[derive(Clone)]
+    struct Collecteur {
+        evenements: Arc<Mutex<Vec<TraceEvent>>>,
+    }
+    impl Observer for Collecteur {
+        fn on_event(&self, event: &TraceEvent) {
+            self.evenements.lock().expect("mutex").push(event.clone());
+        }
+    }
+
+    let collecteur = Collecteur {
+        evenements: Arc::new(Mutex::new(Vec::new())),
+    };
+    let mesure =
+        executer(&Charge::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("charge exécutée");
+    let attendu = format!(
+        "charge=alea-lcg noeuds={} verifie={}",
+        mesure.noeuds, SATISFACTIONS_LCG_N4
+    );
+    let events = collecteur.evenements.lock().expect("mutex").clone();
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            TraceEvent::Attr {
+                canal: CanalAttr::Synthétise,
+                valeur,
+                ..
+            } if *valeur == attendu
+        )),
+        "l'événement de narration porte le récapitulatif de la charge"
+    );
 }

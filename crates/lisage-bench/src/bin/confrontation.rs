@@ -6,21 +6,28 @@
 
 use std::process::ExitCode;
 
-use lisage_bench::confrontation::{executer, serialiser_ligne};
+use lisage_bench::confrontation::{Charge, executer, serialiser_ligne};
 
 /// Code de sortie : usage incorrect.
 const CODE_USAGE: u8 = 2;
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let Some((charge, parametres)) = arguments.split_first() else {
+    let Some((nom_charge, parametres)) = arguments.split_first() else {
         eprintln!("usage: confrontation <charge> [paramètres…]");
         eprintln!(
             "charges: alea-lcg <n> | philosophes <n> <chemin> | fenetre <taille> <nb_bases> [absolu|relatif]"
         );
         return ExitCode::from(CODE_USAGE);
     };
-    match executer(charge, parametres) {
+    let Some(charge) = Charge::depuis_nom(nom_charge) else {
+        eprintln!("charge inconnue: {nom_charge}");
+        eprintln!(
+            "charges: alea-lcg <n> | philosophes <n> <chemin> | fenetre <taille> <nb_bases> [absolu|relatif]"
+        );
+        return ExitCode::from(CODE_USAGE);
+    };
+    match executer(&charge, parametres, None) {
         Ok(mesure) => {
             println!("{}", serialiser_ligne(&mesure));
             ExitCode::SUCCESS
