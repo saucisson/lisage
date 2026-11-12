@@ -10,8 +10,10 @@
 //! au canonique [`INCOHERENT`], la région vide — l'« absent » continu δ(ℓ).
 //!
 //! Les bornes sont stockées en `i128` en interne : la clôture somme des
-//! bornes `i64` ne peut pas déborder. Le pli sur dimension continue
-//! (intégrale, semi-anneau à mesures) reste hors de ce fragment.
+//! bornes `i64` ne peut pas déborder. La mesure de Lebesgue 2D (aire de la
+//! zone ∩ boîte, [`DbmKeys::mesure_zone`]) et l'intégrale au pli sur clés
+//! DBM (`crate::integrale::integrale_dbm_constante`) complètent ce fragment
+//! côté mesure ; le semi-anneau à densités polynomiales reste hors fragment.
 
 use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};
 
@@ -95,6 +97,11 @@ impl Dbm {
     /// Nombre de variables de la région.
     pub fn nombre_variables(&self) -> usize {
         self.nombre_variables
+    }
+
+    /// Matrice des bornes `matrice[i][j]` = `Some(c)` pour `x_i − x_j ≤ c`.
+    pub fn matrice(&self) -> &[Vec<Option<i128>>] {
+        &self.matrice
     }
 
     /// La région est-elle vide (incohérente) ?
@@ -184,6 +191,57 @@ impl DbmKeys {
     /// compile pas et le royaume libre DDD est assumé — la couverture se
     /// déclare alors par les arcs explicites du diagramme, elle ne se
     /// calcule pas.
+    /// **Mesure de Lebesgue** de la zone intersectée à la boîte
+    /// `[0, taille_domaine)²`, rendue **doublée** (aire × 2, exacte en
+    /// `i128` : l'aire peut être demi-entière). Réservé aux zones **2D** :
+    /// une DBM à 2 variables est une bande `−b ≤ x − y ≤ a` (les seules
+    /// contraintes hors diagonale sont `matrice[0][1]` et `matrice[1][0]`),
+    /// et l'aire de la bande ∩ carré `[0, N]²` vaut `f(−b) − f(a)` avec
+    /// `f(t)` = aire de `{x − y > t}` : 0 si `t ≥ N`, `N²` si `t ≤ −N`,
+    /// `(N − t)²/2` si `0 ≤ t < N`, `N² − (N + t)²/2` si `−N < t < 0`.
+    /// Zone vide → 0. (Spec Q9 (ii) :
+    /// « régions polyédriques » — le cas 2D exact ; n > 2 hors fragment.)
+    pub fn mesure_zone(&self, zone: &Dbm) -> i128 {
+        if zone.est_vide() {
+            return 0;
+        }
+        assert_eq!(
+            zone.nombre_variables(),
+            2,
+            "mesure exacte réservée aux zones 2D (invariant interne)"
+        );
+        let n = i128::from(self.taille_domaine);
+        // Aire doublée de {x − y > t} dans le carré [0, N]² : triangle de
+        // côtés N − t si t ≥ 0, carré moins triangle de côtés N + t si
+        // t < 0.
+        let au_dessus = |t: i128| -> i128 {
+            if t >= n {
+                0
+            } else if t <= -n {
+                2 * n * n
+            } else if t >= 0 {
+                (n - t) * (n - t)
+            } else {
+                2 * n * n - (n + t) * (n + t)
+            }
+        };
+        let a = zone.matrice()[0][1];
+        let b = zone.matrice()[1][0];
+        // Aire de la bande −b ≤ x−y ≤ a = {x−y > −b} moins {x−y > a}.
+        let aire_doublee = match b {
+            None => 2 * n * n,
+            Some(b) => au_dessus(-b),
+        } - match a {
+            None => 0,
+            Some(a) => au_dessus(a),
+        };
+        debug_assert!(
+            aire_doublee >= 0,
+            "aire négative : zone non clôturée (invariant interne)"
+        );
+        aire_doublee.max(0)
+    }
+
     pub fn couverture(&self, regions: &[Dbm]) -> bool {
         // La région vide ne couvre rien ; la dimension est celle des
         // régions non vides (une famille de régions vides ne couvre pas).

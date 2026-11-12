@@ -13,6 +13,13 @@
 //! intervalles menant à `⊤` — le différentiel contre le pli cardinal
 //! (somme des tailles) montre le passage count → mesure.
 //!
+//! Variante **DBM** (spec Q9 (ii), « régions polyédriques ») : sur les
+//! clés-régions DBM à 2 variables, la mesure de Lebesgue est l'**aire** de
+//! la zone ∩ boîte (`DbmKeys::mesure_zone`, rendue doublée en `i128`), et
+//! l'intégrale de densité constante 1 sur le diagramme est l'aire de
+//! l'ensemble dénoté — `intégrale(nœud, région) = Σ_{arcs Z → fils}
+//! intégrale(fils, région ∩ Z)`.
+//!
 //! Narration (ADR-0100 décision 6) : chaque appel récursif émet un
 //! événement `Attr` (canal `Synthétise`) vers l'observateur optionnel,
 //! avec la mesure calculée ; le test épingle ces événements.
@@ -21,6 +28,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use lisage_algebra::interface::{Form, NodeId, Pool, PoolError};
 
+use crate::dbm::{Dbm, DbmKeys};
 use crate::observer::{CanalAttr, Observer, TraceEvent};
 use crate::region::Intervalle;
 
@@ -106,6 +114,70 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
         });
     }
     memo.insert((noeud, *region), total);
+    Ok(total)
+}
+
+/// Intégrale de la densité constante 1 sur l'ensemble dénoté par le
+/// diagramme à clés-régions DBM (2 variables), restreint à la `region`
+/// courante, intersectée à la boîte bornée de `keys`. La mesure est
+/// l'aire **doublée** (`i128`, exacte) — voir [`DbmKeys::mesure_zone`].
+///
+/// `observateur` : canal de narration (ADR-0100) — chaque nœud visité émet
+/// un événement `Attr`/`Synthétise` avec la mesure calculée.
+pub fn integrale_dbm_constante<P: Pool<Key = Dbm, Payload = bool>>(
+    pool: &P,
+    racine: NodeId,
+    region: &Dbm,
+    keys: &DbmKeys,
+    observateur: Option<&dyn Observer>,
+) -> Result<i128, PoolError> {
+    let mut memo: HashMap<(NodeId, Dbm), i128> = HashMap::new();
+    integrale_dbm(pool, racine, region, keys, observateur, &mut memo)
+}
+
+fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
+    pool: &P,
+    noeud: NodeId,
+    region: &Dbm,
+    keys: &DbmKeys,
+    observateur: Option<&dyn Observer>,
+    memo: &mut HashMap<(NodeId, Dbm), i128>,
+) -> Result<i128, PoolError> {
+    if let Some(total) = memo.get(&(noeud, region.clone())) {
+        if let Some(obs) = observateur {
+            obs.on_event(&TraceEvent::Attr {
+                canal: CanalAttr::Synthétise,
+                noeud,
+                valeur: format!("mesure_memo={total}"),
+            });
+        }
+        return Ok(*total);
+    }
+    let total = match pool.resolve(noeud)?.clone() {
+        Form::Terminal(true) => keys.mesure_zone(region),
+        Form::Terminal(false) => 0,
+        Form::Node { arcs, .. } => {
+            let mut somme = 0i128;
+            for (zone, cible) in &arcs {
+                let sous_region = region.intersection(zone);
+                if sous_region.est_vide() {
+                    continue;
+                }
+                let contribution =
+                    integrale_dbm(pool, *cible, &sous_region, keys, observateur, memo)?;
+                somme += contribution;
+            }
+            somme
+        }
+    };
+    if let Some(obs) = observateur {
+        obs.on_event(&TraceEvent::Attr {
+            canal: CanalAttr::Synthétise,
+            noeud,
+            valeur: format!("mesure={total}"),
+        });
+    }
+    memo.insert((noeud, region.clone()), total);
     Ok(total)
 }
 
