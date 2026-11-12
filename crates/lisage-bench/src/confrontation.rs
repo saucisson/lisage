@@ -56,6 +56,11 @@ pub const INCREMENT_LCG: u64 = 1_442_695_040_888_963_407;
 /// Nombre maximal de variables acceptées par la charge `alea-lcg` (garde :
 /// la table de vérité est `2^n` entrées en mémoire).
 const VARIABLES_MAXIMALES_ALEA: u32 = 24;
+/// Nombre maximal de philosophes accepté par la charge `philosophes` (garde :
+/// le schéma intercalé a `2n` clés, R_n croît vite — le banc mesure n ≤ 7).
+const PHILOSOPHES_MAXIMAUX: u64 = 32;
+/// Conversion secondes → millisecondes du bloc mesuré.
+const MILLIS_PAR_SECONDE: f64 = 1_000.0;
 
 /// Outil mesuré par ce runner (fixe : le binaire ne mesure que lisage ; les
 /// témoins externes ont leur propre binaire avec leur propre nom).
@@ -374,8 +379,8 @@ fn charge_alea_lcg(
             obtenu: temoin.evaluer(racine_temoin, 0) as u64,
         });
     }
-    if let Some(obs) = observateur {
-        obs.on_event(&TraceEvent::Attr {
+    if let Some(observateur) = observateur {
+        observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthétise,
             noeud: racine,
             valeur: format!(
@@ -391,7 +396,7 @@ fn charge_alea_lcg(
         charge: Charge::AleaLcg,
         parametres: vec![("n".to_string(), nombre_variables.to_string())],
         encodage: None,
-        temps_ms: duree.as_secs_f64() * 1_000.0,
+        temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
         noeuds,
         verifie: satisfait_attendu,
@@ -413,6 +418,12 @@ fn charge_philosophes(
     chemin: &str,
     observateur: Option<&dyn Observer>,
 ) -> Result<MesureConfrontation, ErreurConfrontation> {
+    if nombre_philosophes == 0 || nombre_philosophes > PHILOSOPHES_MAXIMAUX {
+        return Err(ErreurConfrontation::ParametresInvalides {
+            charge: Charge::Philosophes.etiquette(),
+            detail: format!("n doit être dans 1..={PHILOSOPHES_MAXIMAUX}"),
+        });
+    }
     // Bloc mesuré : lecture de l'entrée + construction + comptage (init
     // des bibliothèques hors bloc chez les témoins ; ici le pool est une
     // arène vide, sa création O(1) reste dans le bloc).
@@ -457,8 +468,8 @@ fn charge_philosophes(
             obtenu: verifie,
         });
     }
-    if let Some(obs) = observateur {
-        obs.on_event(&TraceEvent::Attr {
+    if let Some(observateur) = observateur {
+        observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthétise,
             noeud: racine,
             valeur: format!(
@@ -474,7 +485,7 @@ fn charge_philosophes(
         charge: Charge::Philosophes,
         parametres: vec![("n".to_string(), nombre_philosophes.to_string())],
         encodage: None,
-        temps_ms: duree.as_secs_f64() * 1_000.0,
+        temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
         noeuds,
         verifie,
@@ -577,8 +588,8 @@ fn charge_fenetre(
             obtenu: verifie,
         });
     }
-    if let Some(obs) = observateur {
-        obs.on_event(&TraceEvent::Attr {
+    if let Some(observateur) = observateur {
+        observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthétise,
             noeud: racine,
             valeur: format!(
@@ -598,7 +609,7 @@ fn charge_fenetre(
             ("nb_bases".to_string(), nb_bases.to_string()),
         ],
         encodage: Some(encodage),
-        temps_ms: duree.as_secs_f64() * 1_000.0,
+        temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
         noeuds,
         verifie,
