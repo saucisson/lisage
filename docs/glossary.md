@@ -365,7 +365,6 @@ speaks one vocabulary.
 | singleton | singleton | |
 | partition | partition | |
 | classe d'équivalence | equivalence class | |
-| fonction | function | |
 | application | map / apply | |
 | antécédent | preimage | |
 | bijection | bijection | |
@@ -407,7 +406,6 @@ speaks one vocabulary.
 | un / deux / trois | one / two / three | |
 | pair / impair | even / odd | |
 | maximum / minimum | maximum / minimum | |
-| borne | bound | |
 | plafond (math) | ceiling | |
 | plancher (math) | floor | |
 | arrondi | rounding | |
@@ -420,10 +418,8 @@ speaks one vocabulary.
 | norme | norm | |
 | produit scalaire | dot product | |
 | produit vectoriel | cross product | |
-| déterminant | determinant | |
 | transposée | transpose | |
 | inverse (matrice) | inverse | |
-| rang | rank | |
 | diagonale | diagonal | |
 | symétrique | symmetric | |
 | définie positive | positive definite | |
