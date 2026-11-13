@@ -15,7 +15,7 @@ speaks one vocabulary.
 | fenêtre (absolue / relative) | window (absolute / relative) | |
 | forme (relative / absolue / dépliée) | form (relative / absolute / unfolded) | |
 | taille dépliée | unfolded size | |
-| jalon | milestone | GitHub milestones are `jalon/*` labels |
+| jalon | milestone | `jalon/M6` GitHub labels keep their scheme (labels, not prose) |
 | atelier didactique | didactic workshop | the teaching playground (`atelier.rs`) |
 | pool bi-plan | two-plane pool | the shared node store (`biplan.rs`) |
 | témoin BDD | BDD witness | external reference implementation |
@@ -41,6 +41,11 @@ speaks one vocabulary.
 | étiquette | label | |
 | observateur | observer | |
 | erreur (typée) | (typed) error | |
+| pool | pool | the shared node store |
+| algèbre de clés | key algebra | the `KeyAlgebra` contract |
+| contrôleur | controller | the `Controller` contract |
+| handle | handle | opaque reference to a diagram (`Handle`) |
+| identifiant de nœud | node id | `NodeId` |
 | mesure / métriques | measurement / metrics | |
 | borne (inf / sup) | (lower / upper) bound | |
 | seuil | threshold | |
@@ -217,8 +222,6 @@ speaks one vocabulary.
 | avertissement | warning | |
 | information | info | |
 | débogage / debug | debug | |
-| trace | trace | |
-| erreur | error | |
 | niveau de log | log level | |
 | secret | secret | |
 | jeton (auth) | token | |
@@ -241,7 +244,6 @@ speaks one vocabulary.
 | rôle | role | |
 | politique | policy | |
 | règle | rule | |
-| seuil | threshold | |
 | quota | quota | |
 | budget | budget | |
 | plafond | ceiling | |
@@ -309,8 +311,6 @@ speaks one vocabulary.
 | table de hachage | hash table | |
 | ensemble (hash) | hash set | |
 | file double | deque | |
-| pile | stack | |
-| file | queue | |
 | bit | bit | |
 | octet | byte | |
 | entier | integer | |
@@ -325,7 +325,6 @@ speaks one vocabulary.
 | scalaire | scalar | |
 | tenseur | tensor | |
 | algèbre | algebra | |
-| anneau | ring | |
 | corps | field | |
 | groupe | group | |
 | monoïde | monoid | |
@@ -336,9 +335,7 @@ speaks one vocabulary.
 | endomorphisme | endomorphism | |
 | homomorphisme | homomorphism | |
 | noyau | kernel | |
-| image | image | |
 | rang | rank | |
-| trace | trace | |
 | déterminant | determinant | |
 | valeur propre | eigenvalue | |
 | vecteur propre | eigenvector | |
@@ -368,10 +365,8 @@ speaks one vocabulary.
 | singleton | singleton | |
 | partition | partition | |
 | classe d'équivalence | equivalence class | |
-| quotient | quotient | |
 | fonction | function | |
 | application | map / apply | |
-| image | image | |
 | antécédent | preimage | |
 | bijection | bijection | |
 | injection | injection | |
@@ -429,7 +424,6 @@ speaks one vocabulary.
 | transposée | transpose | |
 | inverse (matrice) | inverse | |
 | rang | rank | |
-| trace | trace | |
 | diagonale | diagonal | |
 | symétrique | symmetric | |
 | définie positive | positive definite | |
