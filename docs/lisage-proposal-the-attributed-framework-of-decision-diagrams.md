@@ -12,7 +12,7 @@ Three consequences define the framework:
 
 1. **Attribution**: the missing piece of DDD homomorphisms is a bidirectional information channel (inherited/synthesized) + a level memory. It is the operational foundation, not an extension.
 2. **Typing**: a DD is typed `DD⟨X, Y⟩` (decision domain, codomain); set, relation, function and partition are instances of the same object.
-3. **Order is a compiled resource**: expallowed relative canonicity; reordering demoted to the rank of a conversion with predictable cost; the representation plan is reasoned about over chains of operations, not over isolated diagrams.
+3. **Order is a compiled resource**: explicit relative canonicity; reordering demoted to the rank of a conversion with predictable cost; the representation plan is reasoned about over chains of operations, not over isolated diagrams.
 
 The formula that positions Lisage relative to the generalization/unification program:
 
@@ -55,7 +55,7 @@ Extended controller C = ( atom schema δ       // bounded / pointed / open / str
                                               //   of semirings) ; the controller fixes the
                                               //   compatibilities
                                               // + construction merge : the ⊕ of writes,
-                                              //   declared by the instance (A5 de la spec) :
+                                              //   declared by the instance (A5 of the spec) :
                                               //   Bool idempotent today, and hash-consing
                                               //   IS this choice ; ADD/weighted in a milestone
                      )
@@ -149,16 +149,16 @@ Two corollaries worked out from the very start of the project (not "later"):
 ### 3.1 `Order<T>` as a first-class value
 
 ```
-Order<T>  ::=  atom(δ, π)              // permutation par type et contexte
+Order<T>  ::=  atom(δ, π)              // permutation by type and context
             | seq(O, tail)             // position × reste
             | set(O)                   // canonical order of elements
             | map(O_key, O_val)
-            | tag(l → O)               // discriminant avant payload
+            | tag(l → O)               // discriminant before payload
 combinateurs : project / interleave / refine / coarsen
 conversions  : DD⟨T, Y⟩ @ O₁  →convert→  DD⟨T, Y⟩ @ O₂   // first-level node, predictable cost
 ```
 
-- **Type-wise permutations π** are integrated *and constrained*: π lives in `Order<T>` and **alignment becomes a typing** — two operands compose only under a common order, which the compiler must *introduce expallowedly* (convert, or the module's canonical order, or specialization of the operation for the pair (O₁,O₂)).
+- **Type-wise permutations π** are integrated *and constrained*: π lives in `Order<T>` and **alignment becomes a typing** — two operands compose only under a common order, which the compiler must *introduce explicitly* (convert, or the module's canonical order, or specialization of the operation for the pair (O₁,O₂)).
 - Dynamic reordering is not removed but **demoted**: a measured fallback of the planner, never a default mechanism. The cost of a conversion is predicted before being paid (Sølvsten & van de Pol brick: prediction of the memory needs of operations).
 
 ### 3.2 What the design notes left open and what must be decided
@@ -252,7 +252,7 @@ lisage/
 │                 attributed transductions (semirings),
 │                 reductions (quotients), fingerprints, canonicity,
 │                 instance library (BDD, ZDD, MTBDD, MDD, DDD,
-│                 HSDD, sentential SDDs…) et reference instance seq/set/map/tag
+│                 HSDD, sentential SDDs…) and reference instance seq/set/map/tag
 ├── plan/         profitability oracle, representation plan, conversions
 ├── core/         level 3: multi-controller pool (forms, handles), IDs,
 │                 GC, two-plane, placement, co-localization

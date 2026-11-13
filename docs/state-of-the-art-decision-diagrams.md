@@ -74,7 +74,7 @@ It is precisely this matrix that a unified framework must cover: polyDD tackled 
 
 Hamez's research program (LIP6/UPMC thesis: *Efficient Generation of Large State Spaces*, 2009):
 
-1. **HSDD + Automatic Saturation** — Hamez, Thierry-Mieg & Kordon, ATPN 2008 ([DOI](https://doi.org/10.1007/978-3-540-68746-7_16)): formal definition of hierarchical SDDs, extension of homomorphisms to the hierarchy, and above all **automatic saturation**: the DDD fixpoint iterator is replaced by a strategy that *dynamically* detects the nodes to saturate, without requiring the user to provide an expallowed variable hierarchy or firing order (cf. Ciardo's "manual" saturation, § 3).
+1. **HSDD + Automatic Saturation** — Hamez, Thierry-Mieg & Kordon, ATPN 2008 ([DOI](https://doi.org/10.1007/978-3-540-68746-7_16)): formal definition of hierarchical SDDs, extension of homomorphisms to the hierarchy, and above all **automatic saturation**: the DDD fixpoint iterator is replaced by a strategy that *dynamically* detects the nodes to saturate, without requiring the user to provide an explicit variable hierarchy or firing order (cf. Ciardo's "manual" saturation, § 3).
 2. **HSDD & Regular Models** — Thierry-Mieg, Poitrenaud, Hamez & Kordon, ATVA 2008 ([DOI](https://doi.org/10.1007/978-3-642-00768-2_1)): use of the hierarchy to encode **regular models** (repeated blocks, symmetries); the structure of the model is mirrored in the structure of the DD.
 3. **Journal version** — Hamez, Thierry-Mieg & Kordon, *Building Efficient Model Checkers using Hierarchical Set Decision Diagrams and Automatic Saturation*, Fundamenta Informaticae 2009 ([DOI](https://doi.org/10.3233/fi-2009-137)): the reference presentation.
 4. **Synthesis/controllability** — Zhang, Berard, Kordon & Thierry-Mieg, IFAC 2010 ([DOI](https://doi.org/10.3182/20100830-3-de-4013.00047)): beyond reachability, use of HSDDs for **controller synthesis**.
@@ -82,14 +82,14 @@ Hamez's research program (LIP6/UPMC thesis: *Efficient Generation of Large State
 
 Worth noting: Hamez co-authored *Specification of Decision Diagram Operations* (2010): the bridge between his program and parametrizable semantics already existed, the two theses being conducted in parallel in the same laboratory (LIP6/UPMC, 2009).
 
-### 4.4 ΣDD/MSDD then polyDD: expallowed Σ
+### 4.4 ΣDD/MSDD then polyDD: explicit Σ
 
 The Geneva extension (Buchs, Hostettler): **ΣDD** and **MSDD** (2009), term algebras and multisets, direct precursors of "Σ = the grammar of variables" (proposition, § 1.2). **polyDD** (ACSD 2010) is its culmination: the parametrizable semantics that generalizes the whole family, DDD included.
 
 **Lesson for unification**, in two points:
 
 1. Automatic saturation demonstrates that **the exploration strategy can be computed from the DD structure and the homomorphisms**, not imposed by the model. In a unified framework, "saturation" should become a parametrizable evaluation mode (a fixpoint semantics), of which Ciardo's version (static variable order, § 3) and Hamez's (dynamic detection) are two instances.
-2. The family's trajectory reads constructor by constructor: DDD repetition (free order), SDD the set edge (**set**, edge valuation), HSDD hierarchy (**record**, nesting; IPN folding the regularity of **list**), ΣDD the expallowed algebra (Σ itself). Lisage merely names the field that this family explored piece by piece; it is the originating line of the framework, and its most demanding completeness test.
+2. The family's trajectory reads constructor by constructor: DDD repetition (free order), SDD the set edge (**set**, edge valuation), HSDD hierarchy (**record**, nesting; IPN folding the regularity of **list**), ΣDD the explicit algebra (Σ itself). Lisage merely names the field that this family explored piece by piece; it is the originating line of the framework, and its most demanding completeness test.
 
 ---
 

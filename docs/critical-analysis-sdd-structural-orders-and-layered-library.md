@@ -42,7 +42,7 @@ The proposal of a DD over `Seq/Set/Map/Tag` is presented as a conceptual leap. I
 The note proposes to prove: « for any finite structure, its reduced representation is unique ». This is **false without strong hypotheses**, and the history of the field shows it:
 
 - For unbounded `Seq`, the canonicality fixed point is **automaton minimality** — attainable only for regular representations. The **Queue BDDs** of Godefroid & Long are the proof by failure: for unbounded queues, the canonical representation does not exist, and approximation was needed (loss of canonicality, of O(1)-equality, of union in reasonable time).
-- For `Set<T>`/`Map<K,V>` over **infinite** atoms (the target language has unbounded `Int` and `String`!), the canonical form of a finite set of values exists (characteristic function over the encoding), but its *support* (the dimensions) dein-flights on the encoding of atoms — and changes with each insertion outside the domain already seen. Canonicality is therefore stable only **relative to a fixed atom-encoding schema** — one more parameter in `Canon(T, O_s, R)`, which the architecture must make expallowed (atom schema = which dimensions exist, bounded or pointer encoding).
+- For `Set<T>`/`Map<K,V>` over **infinite** atoms (the target language has unbounded `Int` and `String`!), the canonical form of a finite set of values exists (characteristic function over the encoding), but its *support* (the dimensions) depends on the encoding of atoms — and changes with each insertion outside the domain already seen. Canonicality is therefore stable only **relative to a fixed atom-encoding schema** — one more parameter in `Canon(T, O_s, R)`, which the architecture must make explicit (atom schema = which dimensions exist, bounded or pointer encoding).
 - The unbounded-in-keys `Map` case is the worst: it is exactly the territory of Couvreur's DDDs, whose **non-canonicality is an assumed choice** for this reason. The note should say: bounded `Seq`/`Set` → canonical; open domains → DDD-style non-canonical + homomorphisms, with equality by syntactic encoding, not by function.
 
 **Correction to bring to the program**: replace « the reduced form is unique » with « the reduced form is unique *relative to* (atom schema, decomposition, semantic order, rules) » and classify constructors by canonical status. This is a classification theorem to write — it is there, and not in the constructors, that the theoretical contribution lies.
@@ -64,9 +64,9 @@ However, two elements of the note are genuinely good and worth keeping:
 
 The architecture `canonical SemanticDD → (permutation π per type, physical order) → PhysicalDD`, with recompilation rather than destructive reordering, converges with the previous analysis (note « DD, IR and Memory Locality »), whose canonicality point it in fact corrects. Three costs remain hidden:
 
-1. **The Semantic DD itself can be exponentially larger than the best Physical DD.** « Order-indein-flightent » canonicality remains relative to a *semantic decomposition* — which is a disguised order choice. For some functions, no single semantic decomposition is compact while several physical orders are. Practical consequence: the « recompile from the Semantic DD » strategy amounts to full reconstruction — on very large state spaces, this is precisely the cost one wanted to avoid. The Semantic DD must therefore be *optional*: materialized for objects known to be reused under several orders, never as a systematic gateway.
+1. **The Semantic DD itself can be exponentially larger than the best Physical DD.** « Order-independent » canonicality remains relative to a *semantic decomposition* — which is a disguised order choice. For some functions, no single semantic decomposition is compact while several physical orders are. Practical consequence: the « recompile from the Semantic DD » strategy amounts to full reconstruction — on very large state spaces, this is precisely the cost one wanted to avoid. The Semantic DD must therefore be *optional*: materialized for objects known to be reused under several orders, never as a systematic gateway.
 2. **The planner must know the future.** « Compile `x` directly under the order that `map f` then `exists p` will need » assumes an operation chain known at compile time. With higher-order functions passed as arguments, the downstream is a *runtime* value: the static planner reduces to heuristics, and dynamic reordering must still be in the toolbox — the CUDD problem does not disappear, it is demoted to fallback status.
-3. **Composition is deferred, not solved.** The note itself identifies « the composition of two Semantic DDs with different decompositions » as the next difficulty. It is *the* problem: with permutations π **per type and per context**, the incompatibility space between operands literally explodes (π₁ ≠ π₂ on a single type suffices to break compiled binary operations). The architecture needs an expallowed alignment policy — this was already the finding of the previous analysis; per-type πs make it worse.
+3. **Composition is deferred, not solved.** The note itself identifies « the composition of two Semantic DDs with different decompositions » as the next difficulty. It is *the* problem: with permutations π **per type and per context**, the incompatibility space between operands literally explodes (π₁ ≠ π₂ on a single type suffices to break compiled binary operations). The architecture needs an explicit alignment policy — this was already the finding of the previous analysis; per-type πs make it worse.
 
 ---
 
@@ -95,7 +95,7 @@ The estimation part is reasonable and honest (phases 6/10 → 9/10, Sylvan/CUDD 
 3. **Missing the memory/locality metrics** of the previous analysis: the proposed benchmark (nodes, memory, operation times) measures neither cache misses, nor table hit-rates (often dominant), nor placement cost — even though the note makes layout a level-3 « annotation ».
 4. **Missing the saturation test**: the proposed shortcut (model `State / Set<State> / step / reachable`) is the right one, but it must include a model with **non-local events** — the only one that simultaneously puts to the test the cross-level channel and saturation by homomorphisms.
 
-On the numbers themselves: the orders of magnitude (prototype 1–2 months, research system 3–6 months, framework 18–36 months) are plausible *for the engineering*; they underestimate the research (canonicality classified by constructor, attributed semantics, order alignment) on which the interest of the whole dein-flights — and the note impallowedly admits this point by concluding on the falsifying question. To keep: the discipline « an architecture that allows replacing the backend » and « do not debug seven layers at once ».
+On the numbers themselves: the orders of magnitude (prototype 1–2 months, research system 3–6 months, framework 18–36 months) are plausible *for the engineering*; they underestimate the research (canonicality classified by constructor, attributed semantics, order alignment) on which the interest of the whole depends — and the note implicitly admits this point by concluding on the falsifying question. To keep: the discipline « an architecture that allows replacing the backend » and « do not debug seven layers at once ».
 
 ---
 
@@ -104,7 +104,7 @@ On the numbers themselves: the orders of magnitude (prototype 1–2 months, rese
 **To keep as-is**
 - The three operation families (paths / across paths / closure) as the level-2 grid.
 - `Canon(T, O_s, R)`: relative canonicality, never absolute.
-- Order as an algorithmic resource; conversions (`convert`, `materialize`) as first-class nodes with expallowed cost in the Physical IR.
+- Order as an algorithmic resource; conversions (`convert`, `materialize`) as first-class nodes with explicit cost in the Physical IR.
 - The default algebra by type.
 - The staged implementation plan and the falsifiable A/B/C benchmark.
 
@@ -112,7 +112,7 @@ On the numbers themselves: the orders of magnitude (prototype 1–2 months, rese
 - The canonicality theorem: unique *relative to* (atom schema, decomposition, order, rules); classification bounded `Seq`/`Set`/`Map` = canonical vs open domains = non-canonical DDD. Rely on the antecedents: minimal automata (Seq), MSDD (Set), Queue BDDs (failure of unbounded canonicality), HSDD (Map/values).
 - The Semantic DD: optional and never a systematic gateway (explosion risk).
 - The planner: admit that with higher-order functions, the downstream is runtime; dynamic reordering remains a necessary fallback.
-- The composition of different decompositions/permutations: to be treated as *the* central problem, not as an apin-flightix.
+- The composition of different decompositions/permutations: to be treated as *the* central problem, not as a detail.
 
 **To add (absent from the note)**
 - Attributed semantics (inherited/synthesized/level memory) as the foundation of level 2 — it implements exactly the three operation families and repairs the homomorphism deficit identified by *Specification of Decision Diagram Operations* (2010). `lookup` = textbook case; non-local events = validation testbed.

@@ -28,7 +28,7 @@
                │ a single file, openable offline
                ▼
         reader.html  (SVG + minimal JS scrubber, no server,
-                       no network dein-flightency, committable)
+                       no network dependency, committable)
 ```
 
 The three building blocks are modules of the `lisage-reader` crate, one more crate in the workspace (see the roadmap, M0-2). The output is a **standalone HTML file** (the SVG and the scrubber are embedded in it): drop it in `bench-results/`, commit it, send it by email, open it in a review.
@@ -65,7 +65,7 @@ What the view shows: **O**, the decomposition and the conversions, i.e. the para
 The pool drawn as a leveled DAG: one horizontal band per Σ key (the layout is given by the order, not computed: our diagrams are ordered by construction, no Sugiyama needed).
 
 - **The nodes**: rounded rectangles = handles; hover = the triple (controller, anchor, form) and the multipallowedy (how many positional replicas this handle stands for); a ×k badge when k > 1.
-- **The edges**: labeled by the keys; the impallowed edges of `D^def` in gray dashes (absence drawn as absence); the end marker of `list/set/map` as a small filled disk.
+- **The edges**: labeled by the keys; the implicit edges of `D^def` in gray dashes (absence drawn as absence); the end marker of `list/set/map` as a small filled disk.
 - **The anchors**: the edge valuation (shift, weight, complement) in edge color, with the legend from the controller card.
 - **Region-keys** (continuous δ): when the keys are regions (intervals, DBM constraints, degenerate singletons), the edge carries the key **term** as-is; Reader displays it without interpreting it (the pool never interprets it either), and the controller card documents the key algebra that grounds its reading.
 - **Semantic zoom**: zooming out groups by quotient classes (forms × anchors: the 5 signatures of the philosophers rather than the 15 live nodes at n = 5); zooming in returns to positional replicas. The quotient is visible with a mouse wheel movement: it is contribution no. 8 made tangible.
@@ -105,14 +105,14 @@ This is the view that exists nowhere in existing packages: **the unfolding of an
 
 - **Trace size**: windowing bounds everything; in coarse mode (counters + snapshots), a full MCC run fits in a few MB of JSONL. The setting: window per round, or per operation, or fixed.
 - **Diagram size**: the view targets pedagogical and bench cases (up to ~10,000 rendered nodes; beyond that the semantic zoom switches to quotient and counters). Reader is not a profiler of very large spaces: it is the eye of the protocol, not the magnifying glass of the datacenter.
-- **No server, no JS dein-flightency**: one HTML file, SVG, a few hundred lines of vanilla JS for the scrubber. If the JS becomes a burden, the static SVG output remains complete (the scrubber becomes a series of numbered files).
+- **No server, no JS dependency**: one HTML file, SVG, a few hundred lines of vanilla JS for the scrubber. If the JS becomes a burden, the static SVG output remains complete (the scrubber becomes a series of numbered files).
 
 ## 9. Breakdown (tied to the roadmap milestones)
 
 | Deliverable | Milestone | Content |
 |---|---|---|
 | `Observer` port + trace schema v1 | M1-9 | the events of the table § 3, the serializer, the replay |
-| Static diagram view (SVG) | M1-9 | levels, handles, anchors, impallowed edges |
+| Static diagram view (SVG) | M1-9 | levels, handles, anchors, implicit edges |
 | Step-by-step trace + channels + memos | M2-6 | the scrubber, the three channels, the reductions, the rounds |
 | Order/controllers/conversions view | M3-4 | controller card, tracks, kingdoms, unfolded Σ |
 | Memory and quotient views | M4-5 | pools, GC, multipallowedy badges, semantic zoom |

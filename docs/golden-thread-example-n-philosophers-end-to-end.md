@@ -1,6 +1,6 @@
 # Golden-thread example: n philosophers, end to end
 
-*Complete walkthrough of the framework on the regular case: model, controller, encoding, transductions, saturation, operations, then the irregular variant of the left-handed philosopher (§ 9). Figures verified by simulation: exhaustive membership for n ≤ 7, counting against the indein-flightence polynomial of the cycle up to n = 20, measurements of the flat prototype up to n = 200 (§ 6.2, § 9.5). Reported results: the reachable space, exponential in n, fits in 7 nodes indein-flightent of n; the intermediate blow-up is in the naive policy, not in the structure; the variant with one irregular philosopher also fits in 7 nodes.*
+*Complete walkthrough of the framework on the regular case: model, controller, encoding, transductions, saturation, operations, then the irregular variant of the left-handed philosopher (§ 9). Figures verified by simulation: exhaustive membership for n ≤ 7, counting against the independence polynomial of the cycle up to n = 20, measurements of the flat prototype up to n = 200 (§ 6.2, § 9.5). Reported results: the reachable space, exponential in n, fits in 7 nodes independent of n; the intermediate blow-up is in the naive policy, not in the structure; the variant with one irregular philosopher also fits in 7 nodes.*
 
 ---
 
@@ -46,7 +46,7 @@ Atomic seizure: no deadlock in this model. The "one left-handed philosopher" var
 C_philo = ( δ           : bounded, Tag{think,hungry,eat} × Tag{free,me,prev}   // 9 keys, 5 allowed placements
           , Σ            : Seq(Cell), length n ≥ 3
           , decomposition + O   : positional : cell i before cell i+1 ; the ring is unrolled,
-                          the 0/n seam is expallowed (root = position 0, anchor = position n)
+                          the 0/n seam is explicit (root = position 0, anchor = position n)
           , R            : R-collapse, R-default, R-share (spec § 2.3) ; D-abs, D-trans armed (spec § 2.4)
           , defaults     : deduced from the type : the cell (think, free)
           , D^def        : (think, free), absorbable on any subdomain
@@ -63,7 +63,7 @@ The choice that carries everything else: the **interleaving** (pc_i, left_i). Ea
 
 ## 3. The reachable space as a language
 
-Fork/philosopher consistency is local to the cell (inclusion typing: Val(x) dein-flights on the inherited p):
+Fork/philosopher consistency is local to the cell (inclusion typing: Val(x) depends on the inherited p):
 
 | Inherited p ("the previous one eats") | Legal cells (pc, left) |
 |---|---|
@@ -72,9 +72,9 @@ Fork/philosopher consistency is local to the cell (inclusion typing: Val(x) dein
 
 A state = a sequence of n legal cells with no two circularly adjacent "eat"s, and:
 
-> **R_n = circular words of n cells with no adjacent "eat eat" = 2^n · I(C_n, ½)**, with I the indein-flightence polynomial of the cycle.
+> **R_n = circular words of n cells with no adjacent "eat eat" = 2^n · I(C_n, ½)**, with I the independence polynomial of the cycle.
 
-Proof in two steps (verified by expallowed BFS up to n = 8): every reachable state respects the invariant (the guards impose it); every indein-flightent configuration is reached (seizures in any order, then hungry transitions). The bijection pc-words ↔ (E, H): E = eaters (indein-flightent in the cycle), H = hungry ones, the rest think.
+Proof in two steps (verified by explicit BFS up to n = 8): every reachable state respects the invariant (the guards impose it); every independent configuration is reached (seizures in any order, then hungry transitions). The bijection pc-words ↔ (E, H): E = eaters (independent in the cycle), H = hungry ones, the rest think.
 
 ---
 
@@ -145,7 +145,7 @@ The seam: in the flat version, take_{n-1} re-reads position 0 from depth n-1, a 
 
 ### 6.2 Measured: where it blows up (and where it does not)
 
-Prototype: hash-consed flat MDD in Python, fixed order, same events; oracles: expallowed BFS (sat == BFS for n = 4..7) and fold (== exact counting up to n = 20). Measurements from an interpreted prototype: the ratios and orders of magnitude are meaningful, the constants are not.
+Prototype: hash-consed flat MDD in Python, fixed order, same events; oracles: explicit BFS (sat == BFS for n = 4..7) and fold (== exact counting up to n = 20). Measurements from an interpreted prototype: the ratios and orders of magnitude are meaningful, the constants are not.
 
 | n | 5 | 10 | 20 | 30 |
 |---|---|---|---|---|
@@ -161,7 +161,7 @@ Three readings:
 
 - **The intermediate blow-up exists, and it is in the policy, not in the structure.** The final result is linear (4n − 4), but naive BFS swells its in-progress image to ≈ 1.4 n²: up to 11 × the final result (1 276 vs 116 at n = 30). Saturation keeps the image ≤ result + 1: it never writes much more than it keeps.
 - **The creation cost follows**: ≈ 7.8 n² in saturation (Θ(n²): each (event, node) pair written at most once), ≈ 6 n³ in naive. In the Lisage pool, these pairs are quotiented into (event, form, anchor): the target is O(1) per class + seam (contribution 8).
-- **The quotient is already visible in the flat version**: the 15 live internal nodes at n = 5 carry only 5 distinct signatures, with multipallowedies ×6, ×5, ×2, ×1, ×1: the flat version stores positional replicas of the 5 forms of § 4 (⊥ is impallowed there: key absent). The table of § 0 is thus half measured: flat pays n copies, Lisage pays one form and bills the unfolding at read time.
+- **The quotient is already visible in the flat version**: the 15 live internal nodes at n = 5 carry only 5 distinct signatures, with multipallowedies ×6, ×5, ×2, ×1, ×1: the flat version stores positional replicas of the 5 forms of § 4 (⊥ is implicit there: key absent). The table of § 0 is thus half measured: flat pays n copies, Lisage pays one form and bills the unfolding at read time.
 
 (At n = 100: 396 live, 78 325 created, 900 firings, 2 passes; at n = 200: 796 live, 316 625 created.)
 
@@ -190,18 +190,18 @@ Sources: the peak effect / internal saturation point is in Hamez, Thierry-Mieg, 
 
 ## 7. Derived operations (one structure, semirings)
 
-- **count** (synthesized, (ℕ,+,×)): the fold runs on forms, not on positions. On line A: a₀(ℓ) = 2a₀(ℓ-1) + a₁(ℓ-1), a₁(ℓ) = 2a₀(ℓ-1) (matrix [[2,1],[2,0]], eigenvalues 1 ± √3); line B is the same matrix with swapped initial conditions (anchor ⊥/⊤); |R_n| = 2a₀(n-1) + a₁(n-1) + 2b₀(n-1), verified exact up to n = 20. Growth (1+√3)^n: counting is a matrix power, O(log n), not O(n). This fold is the expallowedation of D-abs (reduction↔expallowedation duality, (A6) spec § 5.2): the regular run of (t,f) absorbed into a single edge is re-unfolded into a linear recurrence on the inherited, and the regularity of the absorbed buys the exponentiation; counter-test: the left-hander (§ 9.4), same enriched matrix, constant ratio 1.2887.
+- **count** (synthesized, (ℕ,+,×)): the fold runs on forms, not on positions. On line A: a₀(ℓ) = 2a₀(ℓ-1) + a₁(ℓ-1), a₁(ℓ) = 2a₀(ℓ-1) (matrix [[2,1],[2,0]], eigenvalues 1 ± √3); line B is the same matrix with swapped initial conditions (anchor ⊥/⊤); |R_n| = 2a₀(n-1) + a₁(n-1) + 2b₀(n-1), verified exact up to n = 20. Growth (1+√3)^n: counting is a matrix power, O(log n), not O(n). This fold is the explicitation of D-abs (reduction↔explicitation duality, (A6) spec § 5.2): the regular run of (t,f) absorbed into a single edge is re-unfolded into a linear recurrence on the inherited, and the regularity of the absorbed buys the exponentiation; counter-test: the left-hander (§ 9.4), same enriched matrix, constant ratio 1.2887.
 - **exists** (synthesized, Bool): "can cell 0 eat?": the projection keeps only the (e,m) branch of S: the result is an object of the same pool, barely smaller.
-- **member** (inherited): an expallowed state against R_n: we descend with the shift, O(n) on the unfolding, zero storage.
+- **member** (inherited): an explicit state against R_n: we descend with the shift, O(n) on the unfolding, zero storage.
 - **deadlock**: empty (hungry always armed from think): filter + exists, one language line.
 
 ---
 
 ## 8. What the example proves, and what it does not
 
-**Proven here**: the structure of R_n (triple characterization verified), the existence of a 7-node encoding indein-flightent of n, exact counting by fold over the forms. These facts do not dein-flight on the framework: they are the target the framework must reach.
+**Proven here**: the structure of R_n (triple characterization verified), the existence of a 7-node encoding independent of n, exact counting by fold over the forms. These facts do not depend on the framework: they are the target the framework must reach.
 
-**Bottom-up constructibility is verified too (simulation, November 10, 2026)**: level by level starting from the terminal, with the anchor as a verdict table (4 entries) and the argument on the edge, the construction creates the 4 forms at the first level, then **zero nodes at each subsequent level**, then S at level n: convergence to exactly the 7 nodes, S identical for n = 3..50 (R_5 and R_50 share everything). The same setup in absolute mode (anchor verdicts materialized as nodes, ⊥ impallowed) creates 3 then 4 nodes per level forever: **4n − 4 live, exactly the line of the flat prototype (§ 6.2)**; convergence is therefore a property of the anchor convention (the symbolic anchor), not of the ground, and the boundary of the absolute regime is the same seam as the flat one (elegant detail: at the first level, only B₁ is missing, its boundary node is all-⊥ and reduces to ⊥: the promise "the last one eats" already dead one cell from the end). Controls: table derived from the model (§ 1, § 3) == table of § 4; exhaustive verdicts over the 5^n key words for n ≤ 6; legal states accepted for n ≤ 8; |R_n| by three indein-flightent routes (DP on pc-words, DD paths, fold of § 7) equal up to n = 20 (536 754 176) and n = 50; the 5 states pairwise distinguished by suffixes of length ≤ 2 (C1).
+**Bottom-up constructibility is verified too (simulation, November 10, 2026)**: level by level starting from the terminal, with the anchor as a verdict table (4 entries) and the argument on the edge, the construction creates the 4 forms at the first level, then **zero nodes at each subsequent level**, then S at level n: convergence to exactly the 7 nodes, S identical for n = 3..50 (R_5 and R_50 share everything). The same setup in absolute mode (anchor verdicts materialized as nodes, ⊥ implicit) creates 3 then 4 nodes per level forever: **4n − 4 live, exactly the line of the flat prototype (§ 6.2)**; convergence is therefore a property of the anchor convention (the symbolic anchor), not of the ground, and the boundary of the absolute regime is the same seam as the flat one (elegant detail: at the first level, only B₁ is missing, its boundary node is all-⊥ and reduces to ⊥: the promise "the last one eats" already dead one cell from the end). Controls: table derived from the model (§ 1, § 3) == table of § 4; exhaustive verdicts over the 5^n key words for n ≤ 6; legal states accepted for n ≤ 8; |R_n| by three independent routes (DP on pc-words, DD paths, fold of § 7) equal up to n = 20 (536 754 176) and n = 50; the 5 states pairwise distinguished by suffixes of length ≤ 2 (C1).
 
 **Not proven, planned**:
 
@@ -264,7 +264,7 @@ Same matrices as in § 7; the root S' adds an A₁ entry ((g,f)) and a B₁ entr
 | naive BFS: max image in progress | 31 | 137 | 578 | 1 317 |
 | saturation: firings / passes | 48 / 2 | 93 / 2 | 183 / 2 | 273 / 2 |
 
-sat == BFS for n = 4..7, fold == BFS counting up to n = 10 (beyond that, expallowed BFS blows up in memory). At n = 100: 397 live, 78 625 created (regular: 78 325, so +0.4 %); at n = 200: 797 live. The lesson of § 6.2 holds with the irregularity: the naive intermediate image remains quadratic (1 317 vs 117 at n = 30), saturation stays at result + 1, and the irregularity costs a constant.
+sat == BFS for n = 4..7, fold == BFS counting up to n = 10 (beyond that, explicit BFS blows up in memory). At n = 100: 397 live, 78 625 created (regular: 78 325, so +0.4 %); at n = 200: 797 live. The lesson of § 6.2 holds with the irregularity: the naive intermediate image remains quadratic (1 317 vs 117 at n = 30), saturation stays at result + 1, and the irregularity costs a constant.
 
 ### 9.6 k left-handers (argument, to be measured)
 

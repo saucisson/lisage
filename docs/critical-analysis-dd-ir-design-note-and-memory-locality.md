@@ -6,7 +6,7 @@
 
 ## 1. What holds — and holds well
 
-1. **The representation locality / execution locality distinction** is correct and rarely made expallowed. Most placement work concerns itself with the former and observes the latter empirically.
+1. **The representation locality / execution locality distinction** is correct and rarely made explicit. Most placement work concerns itself with the former and observes the latter empirically.
 2. **The separation into four dimensions** (semantic order, physical variable order, memory layout, execution order) is a good grammar of analysis. Important caveat, however: see § 4.7 — it is a good *specification discipline*, but not a factorization theorem.
 3. **The methodological caution** (existing backend, reference interpreter, differential tests, property-based testing, fuzzing) is the right strategy for a prototype. Nothing to object to on the substance.
 4. **The final conclusion** — "it is the objects used together by the dominant operations that should guide placement" — is the right question, correctly formulated.
@@ -15,7 +15,7 @@ The core of the problem is not in these points. It lies in three blind spots: a 
 
 ---
 
-## 2. The language project: the cost model is the subject, it is relegated to an apin-flightix
+## 2. The language project: the cost model is the subject, it is relegated to a detail
 
 ### 2.1 "Transparent exploitation": a hard research problem, not a feature
 
@@ -23,17 +23,17 @@ Lane 1 (`map`/`filter` "detects" that a value lends itself to a DD representatio
 
 ### 2.2 The major blind spot: composing operands of different orders
 
-The document says (§ 3.2) that "the encoding may dein-flight on the type and the context", but never confronts the consequence: if two symbolic values built in different contexts (hence different orders) are combined, inter-order `apply` is catastrophic — the operation on two DDs with incompatible orders can blow up exponentially in intermediate size, or require a costly permutation first. A function compiled to DD is a *closed* object whose variable order is part of the calling contract. The "physical plan" must therefore include an **order alignment policy** as a first-class primitive (reorder the smaller operand? maintain a canonical global order for the module? pay the permute?), otherwise the language composes incompatible representations. This is the only real conceptual problem the note does not see, and it is linked to the order/operations entanglement (§ 4).
+The document says (§ 3.2) that "the encoding may depend on the type and the context", but never confronts the consequence: if two symbolic values built in different contexts (hence different orders) are combined, inter-order `apply` is catastrophic — the operation on two DDs with incompatible orders can blow up exponentially in intermediate size, or require a costly permutation first. A function compiled to DD is a *closed* object whose variable order is part of the calling contract. The "physical plan" must therefore include an **order alignment policy** as a first-class primitive (reorder the smaller operand? maintain a canonical global order for the module? pay the permute?), otherwise the language composes incompatible representations. This is the only real conceptual problem the note does not see, and it is linked to the order/operations entanglement (§ 4).
 
 ### 2.3 Lane 2 is sound
 
-The "expallowedly symbolic" lane (`exists`, `forall`, queries) is on the contrary well posed: quantification is a natural *semantic abstraction*, and the compiler freely chooses the encoding underneath. This is the level at which the two lanes should in fact meet: the compiler can reuse the symbolic lane as a specialization target for the transparent lane, the cost model deciding on the conversion.
+The "explicitly symbolic" lane (`exists`, `forall`, queries) is on the contrary well posed: quantification is a natural *semantic abstraction*, and the compiler freely chooses the encoding underneath. This is the level at which the two lanes should in fact meet: the compiler can reuse the symbolic lane as a specialization target for the transparent lane, the cost model deciding on the conversion.
 
 ---
 
 ## 3. Semantic IR / Physical IR: the "mathematical canonicity" is poorly posed
 
-### 3.1 There is no encoding-indein-flightent canonical form
+### 3.1 There is no encoding-independent canonical form
 
 § 2.1 presents the Semantic DD as "mathematical canonical form, even if not materialized". Yet in the entire literature (Bryant, Darwiche, the polyDD controllers), canonicity is *always relative to a triple*: (variable order, reduction rules, default convention). A "conceptual" semantic order is itself a choice — simply a different choice. The semantic level cannot be canonical; it can only be **defined up to equivalence** (the class of all physical representations of the same function). This is in fact a more useful definition: the Semantic DD is an equivalence class, and the physical plan is a choice function within this class. Formulated this way, the Semantic/Physical distinction becomes clean.
 
@@ -44,7 +44,7 @@ The idea of a single IR with annotations is defensible (it is roughly the LLVM s
 - **conversions** between representations are *semantic* operations (they change the object, not just its cost) → first-class nodes of the IR;
 - **hints** (traversal plan, placement) are semantically *unobservable* metadata → annotations.
 
-The note brushes against this distinction ("expallowed nodes indicating conversions or costs") but treats it as a detail. This is the most important architectural point of the document and it should be settled before any prototype.
+The note brushes against this distinction ("explicit nodes indicating conversions or costs") but treats it as a detail. This is the most important architectural point of the document and it should be settled before any prototype.
 
 ### 3.3 The list of reductions mixes three different natures
 

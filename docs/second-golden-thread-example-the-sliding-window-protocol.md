@@ -10,7 +10,7 @@
 |---|---|---|
 | Expallowed enumeration | infinite: the base is unbounded; 2^{k+1} − 1 states per base, any base | nothing to decide: impossible |
 | Flat MDD, base bounded to B | also constant (the predicate is trivial there) | the bound B, the ISN, the window k: each triple is one more compiled model, and the slide moves the base to the bottom of the domain |
-| **Lisage folded + composed anchor** | **4 nodes (EN_VOL, LIBRE, ⊤, ⊥), for any base, any window k, any ISN** | **nothing: no bounded domain, no recompilation** |
+| **Lisage folded + composed anchor** | **4 nodes (IN_FLIGHT, FREE, ⊤, ⊥), for any base, any window k, any ISN** | **nothing: no bounded domain, no recompilation** |
 
 The slogan of the second example: **safety is a typing, infinity is the default, the window slides because the anchor slides.**
 
@@ -66,20 +66,20 @@ Verified by exhaustive BFS (k = 1..5, base ≤ 4): the reachable set equals the 
 ## 4. The representation: 2 forms, 2 terminals, 2 absorbed runs, 1 composed anchor
 
 ```
-window head : hash-equal to EN_VOL (C1 merges the input into the first node :
+window head : hash-equal to IN_FLIGHT (C1 merges the input into the first node :
                   no seam, the keys in-flight, acknowledged, free are all placed there)
-  EN_VOL : in-flight → EN_VOL   acknowledged → EN_VOL   free → LIBRE    // in the sent prefix
-  LIBRE  : free → LIBRE                                     // the loop ; in-flight, acknowledged : not placed
-  at the horizon (shift = k) : EN_VOL → ⊤, LIBRE → ⊤             // the two legal ends
+  IN_FLIGHT : in-flight → IN_FLIGHT   acknowledged → IN_FLIGHT   free → FREE    // in the sent prefix
+  FREE  : free → FREE                                     // the loop ; in-flight, acknowledged : not placed
+  at the horizon (shift = k) : IN_FLIGHT → ⊤, FREE → ⊤             // the two legal ends
 ```
 
 Reading of the mechanisms:
 
 - **Handle**: (C_swp, form, {base : b, horizon : k}). The anchor is composed: two named shifts, one per fragment (the base, the horizon).
 - **The settled run: the canonical instance of M4-2**. The input edge carries the argument b, the length of the run: the first window node is at position b, the minimum of the non-settled keys, the canonical section min = 0. The normalization that spec § 2.4.5 stated as a canonical instance has here its living model.
-- **The free run: the future is the default**. The LIBRE loop is absorbed: a run of any length, including infinite, reads as the single edge. The infinite sequence never exists materially; open question 10 (the coinductive) is not open for all that: here infinity is the default, not an object.
-- **The ISN and Wireshark**. TCP draws its ISN at random (0 to 2³²−1 during the SYN); Wireshark by default converts all numbers into relative numbers starting at 0 (official wiki). The most widespread tool on the planet performs the canonical section min = 0 by default, for readability. Lisage gives the theory and exploits it: the pool is indein-flightent of the ISN, the ISN lives on the input edge.
-- **Minimality**: 2 forms, neither more nor less: the minimal automaton of (in-flight|acknowledged)*free*. EN_VOL ≠ LIBRE: the suffix [in-flight] (length 1) distinguishes them. The head merges with EN_VOL: the settled behind the base and the in-flight in the window are the same inherited, there is no seam promise (the counterpoint of the philosophers, where S was irreducible).
+- **The free run: the future is the default**. The FREE loop is absorbed: a run of any length, including infinite, reads as the single edge. The infinite sequence never exists materially; open question 10 (the coinductive) is not open for all that: here infinity is the default, not an object.
+- **The ISN and Wireshark**. TCP draws its ISN at random (0 to 2³²−1 during the SYN); Wireshark by default converts all numbers into relative numbers starting at 0 (official wiki). The most widespread tool on the planet performs the canonical section min = 0 by default, for readability. Lisage gives the theory and exploits it: the pool is independent of the ISN, the ISN lives on the input edge.
+- **Minimality**: 2 forms, neither more nor less: the minimal automaton of (in-flight|acknowledged)*free*. IN_FLIGHT ≠ FREE: the suffix [in-flight] (length 1) distinguishes them. The head merges with IN_FLIGHT: the settled behind the base and the in-flight in the window are the same inherited, there is no seam promise (the counterpoint of the philosophers, where S was irreducible).
 - **The pool**: 4 nodes (2 forms + 2 terminals), for any base, any window, any ISN. And the **absolute** DD collapses entirely into ⊤ (verified): the reachability predicate is trivial over the typed domain. All the content of the protocol lives in the controller: typing, anchors, arguments. The philosophers showed a rich pool and a simple controller; here the exact opposite.
 
 ---
@@ -89,7 +89,7 @@ Reading of the mechanisms:
 | Transduction | Width | Lisage mechanics |
 |---|---|---|
 | send | 1 cell | the send frontier advances: a single class, not k: the guard reads on the inherited (beyond = 0), the position does not exist |
-| ack(i) | 1 cell | k classes: the descent follows the shift i; the backbone stays EN_VOL (in-flight and acknowledged are the same form): the image of the path is the same handle |
+| ack(i) | 1 cell | k classes: the descent follows the shift i; the backbone stays IN_FLIGHT (in-flight and acknowledged are the same form): the image of the path is the same handle |
 | slide | 1 cell + the anchor | **the anchor shift**: {base : b} → {base : b+1}; the pool does not move |
 
 Verified trace (k = 4): the anchor moves, the pool never.
@@ -117,7 +117,7 @@ The well-typed set is already closed under the three events: verified exhaustive
 ## 7. Derived operations
 
 - **count** (synthesized, (ℕ,+,×)) : 2^{k+1} − 1 per base (verified by three lanes up to k = 24 : 2²⁵ − 1 = 33 554 431 ; by BFS up to k = 5). The fold : n_E(ℓ) = 2n_E(ℓ−1) + n_L(ℓ−1), n_L(ℓ) = n_L(ℓ−1), the matrix [[2,1],[0,1]] : the simplest in the bestiary, eigenvalues 2 and 1. Growth 2 per cell, the simplest of growths, carried by the simplest of forms.
-- **member** (inherited) : O(k) on the expallowed window, O(1) on the two absorbed runs: the length of the run is compared to the argument, not traversed.
+- **member** (inherited) : O(k) on the explicit window, O(1) on the two absorbed runs: the length of the run is compared to the argument, not traversed.
 - **exists** : "is the window full?": the inherited at the last window level, one reading, no unfolding.
 - **deadlock** : empty (above).
 
@@ -125,7 +125,7 @@ The well-typed set is already closed under the three events: verified exhaustive
 
 ## 8. What the example proves, and what it does not prove
 
-**Verified (simulation, November 10, 2026)**: the language (BFS == well-typed == DD verdict, exhaustive over the 3^k window words for k ≤ 8); the 4 nodes (bottom-up construction from the horizon: the 2 forms at the first level, zero creation at each following level, the head merges with EN_VOL, the same pool for k = 1..50); the fold (three lanes); the closure (zero exit, zero blocking); the trace of the moving anchor.
+**Verified (simulation, November 10, 2026)**: the language (BFS == well-typed == DD verdict, exhaustive over the 3^k window words for k ≤ 8); the 4 nodes (bottom-up construction from the horizon: the 2 forms at the first level, zero creation at each following level, the head merges with IN_FLIGHT, the same pool for k = 1..50); the fold (three lanes); the closure (zero exit, zero blocking); the trace of the moving anchor.
 
 **What it shows that the philosophers did not show**: (1) the **composed anchor** {base, horizon}; (2) the **living argument**: the base moves (slide), the ISN varies (canonical section): the canonical instance of M4-2 in real conditions, with an industrial precedent (Wireshark); (3) **two absorbed runs**, one of them infinite, without opening the coinductive; (4) the **typing relative to the argument** (in-flight, acknowledged not placed ahead of the send frontier: clause iv of the algebra contract of spec § 2.4.5); (5) a **controller that carries everything**: the pool is the smallest possible, safety reads on the declared keys.
 
