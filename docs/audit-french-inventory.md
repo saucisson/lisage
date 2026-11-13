@@ -9,7 +9,7 @@ Scope: `docs/`, root Markdown files, `crates/`, `tools/`, `scripts/`,
 `.github/`, manifests and assets. Excluded: `.git/`, `.venv/`,
 `target/`, `.review/`, `.confrontation/`, lock files.
 
-Files scanned: 275
+Files scanned: 347 (see the `find` command in the Reproducibility section); 191 files carry at least one French signal (per-file table below).
 
 ## Totals by category
 
@@ -219,9 +219,29 @@ Files scanned: 275
 
 ## Reproducibility
 
+All counts are produced by the three grep pipelines below, run from the
+repository root. Exclusions (`.git/`, `.venv/`, `target/`, `.review/`,
+`.confrontation/`, lock files) are applied with the same `grep -vE`
+filter on every pipeline. `grep -c` counts matching lines per file;
+`grep -v ':0$'` keeps only files with at least one match; the totals
+are the column sums of the per-file table.
+
 ```sh
-# Accented characters (primary signal):
-grep -rIlP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇœæ]' --include='*.md' --include='*.rs' --include='*.py' . | grep -vE '^\./(\.venv|target|\.git|\.review|\.confrontation)/'
-# Per-file accented line counts:
-grep -rIcP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇœæ]' --include='*.md' --include='*.rs' --include='*.py' . | grep -v ':0$' | grep -vE '^\./(\.venv|target|\.git|\.review|\.confrontation)/' | sort -t: -k2 -rn
+EXCLUDE='^\./(\.git|\.venv|target|\.review|\.confrontation)/'
+
+# Signal 1 - accented characters (primary, unambiguous French signal),
+# per-file matching-line counts over every text file:
+grep -rIcP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇœæ]' . \
+  | grep -vE "$EXCLUDE" | grep -v ':0$' | sort -t: -k2 -rn
+
+# Signal 2 - French stop-words in prose (secondary signal):
+grep -rIcE '\b(le|la|les|un|une|des|du|de|et|est|en|dans|pour|par|sur|avec|sans|sous|que|qui|quoi|dont|ou|au|aux|ce|cet|cette|ces|son|sa|ses|leur|leurs|notre|votre|il|elle|ils|elles|nous|vous|etre|avoir|fait|faire|plus|moins|tres|tout|tous|toute|toutes|autre|autres|meme|ici|cela|ne|pas|si|mais|ou|donc|or|ni|car|afin|lors|lorsque|bien|des|dès|deja|encore|chaque|entre|parmi|selon|contre|chez|vers|depuis|jusqu)\b' . \
+  | grep -vE "$EXCLUDE" | grep -v ':0$' | sort -t: -k2 -rn
+
+# Signal 3 - French snake_case identifier fragments, Rust sources only:
+grep -rIcE '\b[a-z_]*(_)(fenetre|temoin|construire|mesurer|reduire|reduction|pli|atelier|arene|schema|transduction|transfert|memoire|observateur|biplan|forme|racine|feuille|jalon|charge|erreur|noeud|table|chemin|glisser|ancre|entree|sortie|appel|cle|base|arc|paire|ensemble|saturer|integrale|compter|compteur|taille|niveau|valeur|ordre|tri|niveau|borne|seuil|paquet|morceau|visiter|parcours|premier|dernier|suivant|precedent|profondeur|largeur|etiquette|marquer|enfant|parent|branche|produit|somme|quotient|intervalle|couleur|legende|vue|region|transition|etat|attribut|variable|compte|mesure|domaine|cardinal|cible|hauteur|poids|poids|exemple|nombre|diff|destination|source|texte|nom|point|piste|terminal|lire|contre|disperser|decompiler|compiler|construire|compter|filtrer|trier|valider|comparer|convertir|serialiser|extraire|empiler|depiler|iterer|tester|epingle|rejeter|notifier|dessiner|ecrire|ouvrir|fermer|decouper|fusionner|coller|parcourir|visiter|mesurer|reduire|saturer|normaliser|canoniser|compter|construire|fabriquer|extraire|disperser|appliquer|resoudre|verifier|exporter|importer|publier|reproduire|mesurer|estimer|evaluer|calculer|analyser|synthetiser|observer|marquer|etiqueter|compter|compter|mesurer|reduire|plier|deplier|glisser|ancrer|fenetrer|temoigner|confronter|differentiel|trier|ordonner|filtrer|projeter|compiler|decompiler|transferer|memoriser|observer|visualiser|lire|ecrire|afficher|imprimer|exporter|importer|serialiser|deserialiser)\b' crates/ \
+  | grep -v ':0$' | sort -t: -k2 -rn
+
+# Files scanned (denominator of the report):
+find . -type f | grep -vE "$EXCLUDE" | grep -vE '\./(Cargo\.lock|uv\.lock)$' | wc -l
 ```
