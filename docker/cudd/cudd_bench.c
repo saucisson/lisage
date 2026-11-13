@@ -123,6 +123,16 @@ static int charge_alea_lcg(int n) {
         fprintf(stderr, "alea-lcg : table non allouée\n");
         return CODE_ECHEC;
     }
+    DdManager *manager = Cudd_Init(n, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
+    if (manager == NULL) {
+        fprintf(stderr, "alea-lcg : manager CUDD indisponible\n");
+        free(table);
+        return CODE_ECHEC;
+    }
+    /* Bloc mesuré : génération de l'entrée (la table) + construction +
+     * comptage — init du manager hors bloc, comme chez lisage. */
+    struct timespec debut, fin;
+    clock_gettime(CLOCK_MONOTONIC, &debut);
     unsigned long etat = GRAINE_LCG;
     unsigned long poids = 0;
     for (unsigned long indice = 0; indice < taille; indice++) {
@@ -130,18 +140,10 @@ static int charge_alea_lcg(int n) {
         table[indice] = (unsigned char)(etat >> 63);
         poids += table[indice];
     }
-    DdManager *manager = Cudd_Init(n, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
-    if (manager == NULL) {
-        fprintf(stderr, "alea-lcg : manager CUDD indisponible\n");
-        free(table);
-        return CODE_ECHEC;
-    }
     DdNode **variables = (DdNode **)malloc((size_t)n * sizeof(DdNode *));
     for (int i = 0; i < n; i++) {
         variables[i] = Cudd_bddNewVar(manager);
     }
-    struct timespec debut, fin;
-    clock_gettime(CLOCK_MONOTONIC, &debut);
     DdNode *fonction = construire_depuis_table(manager, variables, n, table, 0);
     unsigned long noeuds = (unsigned long)Cudd_DagSize(fonction);
     unsigned long satisfait = (unsigned long)Cudd_CountMinterm(manager, fonction, n);
@@ -207,24 +209,57 @@ static int charge_philosophes(int n, const char *chemin) {
     DdNode *racine = NULL;
     int *phase = (int *)malloc((size_t)nombre_variables * sizeof(int));
     unsigned long nb_etats_lus = 0;
-    while (1) {
-        int valeur = 0;
-        int complet = 1;
-        for (int i = 0; i < 2 * n; i++) {
-            if (fscanf(fichier, "%d", &valeur) != 1) {
-                complet = 0;
+    int ligne_invalide = 0;
+    char ligne[4096];
+    while (fgets(ligne, sizeof(ligne), fichier) != NULL) {
+        /* Ligne vide : ignorée. Toute autre ligne doit contenir exactement
+         * 2n valeurs dans {0,1,2} — un fichier tronqué ou corrompu fait
+         * échouer la charge (code 1), jamais une mesure partielle. */
+        char *p = ligne;
+        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+            p++;
+        }
+        if (*p == '\0') {
+            continue;
+        }
+        int valeurs[2 * 64];
+        int compte = 0;
+        char *curseur = ligne;
+        while (compte < 2 * n) {
+            char *fin = NULL;
+            long valeur = strtol(curseur, &fin, 10);
+            if (fin == curseur) {
                 break;
             }
             if (valeur < 0 || valeur > 2) {
-                fprintf(stderr, "philosophes : valeur %d hors du domaine {0,1,2}\n", valeur);
-                complet = 0;
+                fprintf(stderr, "philosophes : valeur %ld hors du domaine {0,1,2}\n", valeur);
+                ligne_invalide = 1;
                 break;
             }
+            valeurs[compte++] = (int)valeur;
+            curseur = fin;
+        }
+        if (ligne_invalide || compte != 2 * n) {
+            fprintf(stderr, "philosophes : ligne mal formée (%d valeurs, %d attendues)\n",
+                    compte, 2 * n);
+            ligne_invalide = 1;
+            break;
+        }
+        /* Rien d'autre que des espaces après les 2n valeurs. */
+        while (*curseur == ' ' || *curseur == '\t' || *curseur == '\n' || *curseur == '\r') {
+            curseur++;
+        }
+        if (*curseur != '\0') {
+            fprintf(stderr, "philosophes : contenu superflu en fin de ligne\n");
+            ligne_invalide = 1;
+            break;
+        }
+        for (int i = 0; i < 2 * n; i++) {
             /* Clé intercalée i : pc_(i/2) si i pair, left_(i/2) si i
              * impair ; chaque valeur sur 2 bits. */
             int philosophe = i / 2;
-            int bit_bas = valeur & 1;
-            int bit_haut = (valeur >> 1) & 1;
+            int bit_bas = valeurs[i] & 1;
+            int bit_haut = (valeurs[i] >> 1) & 1;
             if (i % 2 == 0) {
                 phase[4 * philosophe] = bit_bas;
                 phase[4 * philosophe + 1] = bit_haut;
@@ -233,12 +268,10 @@ static int charge_philosophes(int n, const char *chemin) {
                 phase[4 * philosophe + 3] = bit_haut;
             }
         }
-        if (!complet) {
-            break;
-        }
         DdNode *cube = Cudd_bddComputeCube(manager, variables, phase, nombre_variables);
         if (cube == NULL) {
             fprintf(stderr, "philosophes : cube indisponible\n");
+            ligne_invalide = 1;
             break;
         }
         Cudd_Ref(cube);
@@ -248,6 +281,8 @@ static int charge_philosophes(int n, const char *chemin) {
             DdNode *suivant = Cudd_bddOr(manager, racine, cube);
             if (suivant == NULL) {
                 fprintf(stderr, "philosophes : union indisponible\n");
+                Cudd_RecursiveDeref(manager, cube);
+                ligne_invalide = 1;
                 break;
             }
             Cudd_Ref(suivant);
@@ -257,8 +292,11 @@ static int charge_philosophes(int n, const char *chemin) {
         }
         nb_etats_lus++;
     }
-    if (racine == NULL) {
-        fprintf(stderr, "philosophes : aucun état lu\n");
+    if (ligne_invalide || racine == NULL) {
+        fprintf(stderr, "philosophes : entrée invalide ou aucun état lu\n");
+        if (racine != NULL) {
+            Cudd_RecursiveDeref(manager, racine);
+        }
         free(phase);
         free(variables);
         fclose(fichier);
