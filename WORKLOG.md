@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-13 - M6-4 docs/agents + docs/decisions in English (issue #107)
+
+- **Issue**: #107 (M6-4, milestone M6).
+- **Done**: `docs/agents/*.md` and `docs/decisions/*.md` were already English except `adr-0100-interface-coeur-m1.md` (fully French) — translated to English and renamed to `adr-0100-core-interface-m1.md` via `git mv`; four stray French words fixed in adr-0019/adr-0101/adr-0102. Accent grep over `docs/agents` + `docs/decisions` now returns 0; stop-word scan shows only false positives (the English word "or").
+- **Evidence**: `grep -rnP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇœæ]' docs/agents docs/decisions` returns nothing. `make check` not run: docs-only change. No references to the old ADR filename existed outside the M6-0 audit inventory.
+- **Judgement calls**: this PR touches constitutional files (`docs/decisions/`), so it is labeled `needs-human` and is NOT merged by the agent — the merge driver refuses it; the human merges.
+- **Escalations**: `needs-human` label on the PR (constitutional files on the escalation list, ADR-0010).
+
 ## 2026-11-13 - Confrontation — horloge alea-lcg avant la génération de la table (fix/confrontation-alea-horloge)
 
 - **Issue**: aucune (asymétrie signalée à la revue de PR #95/#96 : le témoin CUDD démarre son horloge avant la génération de la table LCG, le runner lisage démarrait la sienne après).
