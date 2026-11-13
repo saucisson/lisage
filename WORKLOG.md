@@ -44,7 +44,9 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
-## 2026-11-12 - Confrontation lisage/témoins 2/3 — témoin CUDD `cudd_bench` + protocole documenté (bench/confrontation-2-cudd)
+## 2026-11-12 - Confrontation lisage/témoins 2/3 — témoin CUDD `cudd_bench` + protocole documenté (bench/confrontation-2-cudd, reprise PR #101)
+
+- **Note de session (2026-11-13)**: le bench complet a tourné en local contre ce témoin (`make bench-confrontation`, 155 mesures, cohérence `verifie` inter-outils OK) — rapport dans `.confrontation/20261113-001607/rapport.md` (git-ignoré).
 
 - **Issue**: aucune (suite de la pile, demande humaine ; 403 sur la création d'issue).
 - **Done**: `docker/cudd/cudd_bench.c` : les trois charges du protocole en BDD booléen CUDD (alea-lcg par expansion de Shannon comme `cudd_count.c` ; philosophes par union de cubes sur 4n variables — pc_i et left_i sur 2 bits, intercalés comme le schéma lisage ; fenêtre par union de cubes — b sur ⌈log₂ nb_bases⌉ bits, x sur ⌈log₂(nb_bases+taille-1)⌉ bits), gestion stricte `Cudd_Ref`/`Cudd_RecursiveDeref` (aucune constante complémentée référencée, racine vide = NULL), RSS par `ru_maxrss`, horloge `CLOCK_MONOTONIC`, une ligne JSON par exécution, codes 0/1/2. Le `Dockerfile` épingle l'image : construction + fumée (`alea-lcg 4` → 7, `fenetre 4 10` → 40). `docs/bench-confrontation-temoins-et-mesures.md` : périmètre et charges, témoins (SHA épinglés CUDD/Sylvan/libDDD/Meddly), protocole de mesure (bloc mesuré identique partout, init hors bloc, processus frais par répétition, médiane/étendue), équité mono/multi (Sylvan rapporté séparément, jamais une colonne mixte), vérification croisée (`verifie` seul comparé entre outils, `noeuds` jamais), reproduction, limites, feuille de route (Sylvan, libDDD, Meddly ; ZDD/SDD UCLA/DDD intervalles hors périmètre assumé).
