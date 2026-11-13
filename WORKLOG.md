@@ -44,7 +44,9 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
-## 2026-11-12 - Confrontation lisage/témoins 3/3 — orchestrateur `make bench-confrontation` (bench/confrontation-3-orchestrateur)
+## 2026-11-12 - Confrontation lisage/témoins 3/3 — orchestrateur `make bench-confrontation` (bench/confrontation-3-orchestrateur, reprise PR #102)
+
+- **Note de session (2026-11-13)**: `make bench-confrontation` exécuté en local (outils lisage,cudd ; 5 répétitions ; 155 mesures) — cohérence inter-outils OK, rapport dans `.confrontation/20261113-001607/rapport.md` (git-ignoré).
 
 - **Issue**: aucune (fin de la pile, demande humaine ; 403 sur la création d'issue).
 - **Done**: `scripts/confrontation.py` (sous-commande `bench-confrontation`, ADR-0021) : génère le fichier d'états étendus partagé (épingles |R_n| vérifiées à la génération, l'orchestrateur refuse de mesurer sur une entrée cassée), exécute chaque case (outil × charge × répétition) dans un **processus frais** — lisage via cargo, témoins via `docker run` avec le scratch monté sous `/confrontation` —, vérifie les épingles connues (|R_n|, poids LCG n=4/n=12, taille × nb_bases) puis la **cohérence inter-outils** (tous les `verifie` d'une même charge/paramètres doivent être égaux, y compris entre encodages lisage, sinon le bench s'arrête), agrège par médiane/étendue et écrit `.confrontation/<run>/` : `mesures.jsonl`, `rapport.md`, `scratch/` (git-ignoré). Cible `make bench-confrontation` (variables `CONFRONTATION_OUTILS/CHARGES/REPETITIONS`), câblage `scripts/__main__.py`. 13 tests pytest (`scripts/tests/test_confrontation.py`) : pins de génération et dérivation des fourchettes, format du fichier partagé, parse/erreurs de ligne JSON, axe encodage de la grille lisage, commandes cargo/docker, cohérence inter-outils, épingles, médianes par groupe, rendu du rapport.
