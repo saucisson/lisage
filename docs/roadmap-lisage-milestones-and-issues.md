@@ -1,219 +1,219 @@
-# Feuille de route : jalons et issues
+# Roadmap: milestones and issues
 
-Base de départ : le dépôt GitHub **saucisson/project-template**, adapté à Rust. Le dépôt projet (suggestion de nom : `lisage`) accueillera le code **et** les documents produits pendant la conversation (importés dans `docs/`, issue M0-3). Les jalons reprennent et affinent le séquencement de la proposition (§ 8) ; l'outillage de visualisation (**Liseuse**, décrit dans le canvas dédié) est intégré à chaque jalon plutôt qu'ajouté à la fin : c'est l'instrument de vérification des énoncés (C1, minimalité par handle) et de production des figures.
+Starting point: the GitHub repository **saucisson/project-template**, adapted for Rust. The project repository (suggested name: `lisage`) will host both the code **and** the documents produced during the conversation (imported into `docs/`, issue M0-3). The milestones take up and refine the sequencing of the proposal (§ 8); the visualization tool (**Reader**, described in the dedicated canvas) is integrated into each milestone rather than added at the end: it is the instrument for verifying the statements (C1, minimality per handle) and for producing figures.
 
-## 1. Conventions de dépôt
+## 1. Repository conventions
 
-**Adaptation du template vers Rust** (ce qui change, tout le reste est conservé) :
+**Adapting the template to Rust** (what changes; everything else is kept):
 
-| Élément du template | Adaptation Rust |
+| Template element | Rust adaptation |
 |---|---|
-| `ruff` + `mypy` (pre-commit, CI) | `rustfmt` + `clippy -D warnings` (+ `cargo-deny` pour les licences/avertissements) |
-| `.python-version` | `rust-toolchain.toml` (channel stable épinglé) |
-| `pyproject.toml` | `Cargo.toml` workspace + `deny.toml` |
-| pre-commit | conservé : `gitleaks`, `rustfmt`, `clippy`, fin de fichier, marqueurs de conflit |
-| release-please | conservé tel quel (versionnement par tags) |
-| CI GitHub Actions + `.gitlab-ci.yml` | mêmes étapes : fmt → clippy → test (`cargo-nextest`) → coverage (`llvm-cov`) → audit (`cargo-audit`) |
-| `AGENTS.md`, `.vibe/`, `tools/notify` | conservés (sessions Vibe, notifications) |
+| `ruff` + `mypy` (pre-commit, CI) | `rustfmt` + `clippy -D warnings` (+ `cargo-deny` for licenses/warnings) |
+| `.python-version` | `rust-toolchain.toml` (pinned stable channel) |
+| `pyproject.toml` | workspace `Cargo.toml` + `deny.toml` |
+| pre-commit | kept: `gitleaks`, `rustfmt`, `clippy`, end-of-file, conflict markers |
+| release-please | kept as-is (tag-based versioning) |
+| GitHub Actions CI + `.gitlab-ci.yml` | same steps: fmt → clippy → test (`cargo-nextest`) → coverage (`llvm-cov`) → audit (`cargo-audit`) |
+| `AGENTS.md`, `.vibe/`, `tools/notify` | kept (Vibe sessions, notifications) |
 
-**Workspace cargo, une crate par couche** (proposition § 8) :
+**Cargo workspace, one crate per layer** (proposal § 8):
 
 ```
 lisage/
 ├── crates/
-│   ├── lisage-lang/      niveau 1 : types, interprète de référence (syntaxe concrète : décision de surface, § 10)
-│   ├── lisage-algebra/   niveau 2 : contrôleur étendu, transductions, réductions
-│   ├── lisage-plan/      oracle de rentabilité, conversions, plan de représentation
+│   ├── lisage-lang/      level 1: types, reference interpreter (concrete syntax: surface decision, § 10)
+│   ├── lisage-algebra/   level 2: extended controller, transductions, reductions
+│   ├── lisage-plan/      profitability oracle, conversions, representation plan
 │   ├── lisage-core/      niveau 3 : pool, handles, GC, bi-plan, placement
-│   ├── lisage-backend/   témoins : sylvan | cudd, mode dégradé
-│   ├── lisage-bench/     différentiel, property-based, MCC, événements non locaux
+│   ├── lisage-backend/   witnesses: sylvan | cudd, degraded mode
+│   ├── lisage-bench/     differential, property-based, MCC, non-local events
 │   └── lisage-liseuse/   le visualiseur (trace, index, rendu SVG/HTML)
-├── docs/                 les documents de la conversation (voir M0-3)
-└── bench-results/        sorties de bench, figures exportées
+├── docs/                 the conversation documents (see M0-3)
+└── bench-results/        bench outputs, exported figures
 ```
 
-**Labels** : `area/core`, `area/algebra`, `area/lang`, `area/plan`, `area/bench`, `area/liseuse`, `area/docs`, `area/infra` ; `type/feat`, `type/test`, `type/doc`, `type/spike` ; `jalon/M0` … `jalon/M5` ; et un label par énoncé falsifiable : `C1`…`C8`, `T1`…`T5`, `A5`, `L3`, `A6`. Chaque issue cite ses énoncés dans le corps ; chaque PR ferme par `Closes #n` (convention du template).
+**Labels**: `area/core`, `area/algebra`, `area/lang`, `area/plan`, `area/bench`, `area/liseuse`, `area/docs`, `area/infra` ; `type/feat`, `type/test`, `type/doc`, `type/spike` ; `jalon/M0` … `jalon/M5` ; and one label per falsifiable statement: `C1`…`C8`, `T1`…`T5`, `A5`, `L3`, `A6`. Each issue cites its statements in the body; each PR closes with `Closes #n` (template convention).
 
-**Miroir des documents** : les canvases restent la source de vérité pendant la rédaction ; `docs/` en est le miroir versionné (import initial en M0-3, resynchronisation à chaque jalon). Cible : `docs/proposition.md`, `docs/specification.md`, `docs/etat-de-lart.md`, `docs/exemple-philosophes.md`, `docs/analyses-critiques/{dd-ir-localite,sigmadd-structurels}.md`, `docs/liseuse.md`, `docs/roadmap.md` (ce document).
+**Document mirror**: the canvases remain the source of truth during drafting; `docs/` is its versioned mirror (initial import in M0-3, resynchronization at each milestone). Target: `docs/lisage-proposal-the-attributed-framework-of-decision-diagrams.md`, `docs/specification-computing-attributed-transductions-reference-instance.md`, `docs/state-of-the-art-decision-diagrams.md`, `docs/golden-thread-example-n-philosophers-end-to-end.md`, `docs/critical-analysis-dd-ir-design-note-and-memory-locality.md`, `docs/critical-analysis-sdd-structural-orders-and-layered-library.md`, `docs/reader-visualizer-of-diagram-orders-and-operations.md`, `docs/roadmap-lisage-milestones-and-issues.md` (this document).
 
-**Modèle d'exécution : agent, revue humaine, discussion juste-à-temps.** Le code est écrit par un agent (Vibe Code), la conception s'élucide dans la conversation, l'humain révise. Trois conséquences sur le plan. (1) **Les estimations quittent les semaines-homme** : la production de code, de tests et de documentation s'effondre ; l'horloge réelle devient triple : disponibilité de la revue humaine (le chemin critique), temps machine des benches (PBT longs, corpus MCC), et cadence d'élucidation des points ouverts dans la discussion. Le risque scientifique (C1, unfold, T5) ne se comprime pas : la falsification prend le temps qu'elle prend. L'unité de plan est donc le **cycle** (une session de travail de l'agent close par une revue humaine), et les chiffres de § 8 restent indicatifs jusqu'à la calibration du premier jalon. (2) **Escalade juste-à-temps** : l'agent ne bloque jamais sur un point non tranché (§ 10 ci-dessous, questions ouvertes de la spec) ; il l'escalade dans la discussion, la réponse devient un ADR ou une ligne de spec, et le travail reprend. (3) **Discipline d'ordre par jalon : interface → tests → implémentation.** Phase 1, l'interface : traits, types, bounds, politique d'erreurs, ADR ; une frontière compilée et documentée est le contrat idéal pour un agent (le test de frontières de M0-2 l'ancre dès le départ). Phase 2, les tests : l'interprète de référence d'abord (l'oracle, volontairement naïf et sans DD), puis les propriétés par énoncé (PBT rouge) et le harnais différentiel. Phase 3, l'implémentation : rendre vert, énoncé par énoncé. La discipline vaut **par jalon**, pas pour le projet entier : figer l'interface de M3 avant les leçons de M1 serait un retour à la cascade ; l'ordre s'applique à l'unité de travail, juste-à-temps.
+**Execution model: agent, human review, just-in-time discussion.** The code is written by an agent (Vibe Code), the design is clarified in the conversation, the human reviews. Three consequences for the plan. (1) **Estimates leave man-weeks**: the production of code, tests and documentation collapses; the real clock becomes threefold: availability of human review (the critical path), bench machine time (long PBTs, MCC corpus), and the pace of clarifying the open points in the discussion. Scientific risk (C1, unfold, T5) does not compress: falsification takes the time it takes. The planning unit is therefore the **cycle** (one agent work session closed by a human review), and the figures of § 8 remain indicative until the calibration of the first milestone. (2) **Just-in-time escalation**: the agent never blocks on an unresolved point (§ 10 below, open questions of the spec); it escalates it in the discussion, the answer becomes an ADR or a spec line, and work resumes. (3) **Per-milestone ordering discipline: interface → tests → implementation.** Phase 1, the interface: traits, types, bounds, error policy, ADR; a compiled and documented boundary is the ideal contract for an agent (the boundary test of M0-2 anchors it from the start). Phase 2, tests: the reference interpreter first (the oracle, deliberately naive and without DD), then the properties per statement (red PBT) and the differential harness. Phase 3, implementation: make it green, statement by statement. The discipline holds **per milestone**, not for the whole project: freezing the M3 interface before the lessons of M1 would be a return to waterfall; the order applies to the unit of work, just-in-time.
 
-## 2. M0 : mise en place (un cycle)
+## 2. M0: setup (one cycle)
 
-| Issue | Titre | Contenu | Critère d'acceptation |
+| Issue | Title | Content | Acceptance criterion |
 |---|---|---|---|
-| M0-1 | Dépôt depuis project-template | Import du template, purge du Python (ruff/mypy/.python-version), réglage Rust (toolchain, pre-commit, release-please) | CI verte sur les étapes fmt/clippy/nextest/coverage/audit, avec un test factice |
-| M0-2 | Squelette du workspace | Les 7 crates, vides mais aux frontières déclarées (dépendances unidirectionnelles dans `Cargo.toml`, commentées du critère de couches de la proposition § 8) | `cargo nextest` et `clippy -D warnings` passent ; une dépendance interdite est rejetée par un test de frontières |
-| M0-3 | Import des documents | Les documents de la conversation dans `docs/`, liens relatifs vérifiés, un README par document (statut : travail en cours) | `docs/` complet, aucune ancre cassée |
-| M0-4 | Charte de test | Triptyque A/B/C décrit (naïf / DD ordre fixe / Lisage+planner), interprète de référence précisé comme source de vérité, `proptest` installé, convention de nommage `test_c<n>_*` par énoncé | Un premier test différentiel factice passe dans les trois voies |
-| M0-5 | Socle de bench | `criterion` branché ; harness MCC conteneurisé à vide (le corpus arrive en M5, l'outillage non) | Un micro-bench tourne en CI et refuse les régressions de temps |
+| M0-1 | Repository from project-template | Template import, Python purge (ruff/mypy/.python-version), Rust setup (toolchain, pre-commit, release-please) | Green CI on the fmt/clippy/nextest/coverage/audit steps, with a dummy test |
+| M0-2 | Workspace skeleton | The 7 crates, empty but with declared boundaries (unidirectional dependencies in `Cargo.toml`, commented with the layering criterion of proposal § 8) | `cargo nextest` and `clippy -D warnings` pass; a forbidden dependency is rejected by a boundary test |
+| M0-3 | Document import | The conversation documents in `docs/`, relative links checked, one README per document (status: work in progress) | `docs/` complete, no broken anchors |
+| M0-4 | Test charter | Triptych A/B/C described (naive / fixed-order DD / Lisage+planner), reference interpreter specified as the source of truth, `proptest` installed, naming convention `test_c<n>_*` per statement | A first dummy differential test passes in all three lanes |
+| M0-5 | Bench foundation | `criterion` wired in; containerized MCC harness empty (the corpus arrives in M5, the tooling does not) | A micro-bench runs in CI and rejects time regressions |
 
-## 3. M1 : le cœur vérifiable (jalon 1 de la proposition, 4 à 6 cycles)
+## 3. M1: the verifiable core (milestone 1 of the proposal, 4 to 6 cycles)
 
-**Résumé** : `core/` minimal, instance de référence `Atom borné + Set + Map`, transductions hérité + synthétisé, `lookup` comme opération-test, `map/filter/exists/fold`, différentiel contre l'interprète de référence, témoins Sylvan/CUDD sur l'instance BDD classique. Liseuse v0 : trace + vue diagramme statique. Ordre d'exécution (discipline du modèle d'exécution, § 1) : **interface** (M1-0), **tests** (M1-7, l'oracle, puis les PBT rouges par énoncé), **implémentation** (M1-1 à M1-6 rendus verts), fermeture (M1-8 à M1-10).
+**Summary**: `core/` minimal, reference instance `bounded Atom + Set + Map`, inherited + synthesized transductions, `lookup` as a test operation, `map/filter/exists/fold`, differential against the reference interpreter, Sylvan/CUDD witnesses on the classic BDD instance. Reader v0: trace + static diagram view. Execution order (discipline of the execution model, § 1): **interface** (M1-0), **tests** (M1-7, the oracle, then the red PBTs per statement), **implementation** (M1-1 to M1-6 made green), closure (M1-8 to M1-10).
 
-| Issue | Titre | Contenu | Énoncés |
+| Issue | Title | Content | Statements |
 |---|---|---|---|
-| M1-0 | Interface du cœur (phase 1 : interface) | Les traits d'interface : pool, algèbre de clés, contrôleur étendu, `Observer` ; `NodeId`/`Handle` ; bounds `Send`/`Sync` (§ 10) ; politique d'erreurs ; ADR 0001+ ; test de frontières étendu aux signatures ; spike FFI CUDD/Sylvan en parallèle (§ 10, avant toute dépendance du différentiel) | compile, `cargo doc`, frontières vertes | contrat |
-| M1-7 | Interprète de référence (phase 2 : tests) | La vérité, en pur `lang/` sans DD ; différentiel A/B/C branché dès le premier commit ; les PBT par énoncé écrits **rouges** avant l'implémentation | falsifiable |
-| M1-1 | Arena + handles | `arena`, `NodeId`, hash-consing à clé (contrôleur, ancre, forme) ; la table des handles se clé sur la forme réduite pour cette lecture | C1 |
-| M1-2 | Réductions § 2.3 | R-share, R-collapse, R-default ; confluence testée par PBT (`reduce∘reduce = reduce`, commutation des quotients) | C1 |
-| M1-3 | Schémas de référence | `Atom(D)` borné, `Set(T)`, `Map(K,V)` bornés ; compilation balayage d'univers (un niveau de présence par clé, δ = absent, sans marqueur) | Σ |
-| M1-4 | Transductions hérité/synthétisé | Les deux canaux, l'agrégation `φ_aggr`, les fingerprints de mémo (op, nœud) | L3 |
-| M1-5 | `lookup` | L'opération-test : synthétisé = fragment de DD (pas un scalaire), clé portée vers le bas, comparaison en contexte | spec § 5 |
-| M1-6 | Pli et semi-anneaux | `map/filter/exists/fold` ; comptage = pli sur (ℕ, +, ×) ; merge de construction déclaré (hash-consing = choix Bool) | A5, C7 |
-| M1-8 | Témoins BDD | Configuration du contrôleur en BDD classique ; différentiel contre CUDD/Sylvan (reproduction à l'identique), lignes de base de bench | C6 |
-| M1-9 | Port d'instrumentation | Trait `Observer` (no-op par défaut) dans `core/` ; événements typés ; sérialiseur de trace JSONL versionné ; Liseuse v0 : rendu SVG statique du diagramme, niveaux = clés | Liseuse |
-| M1-10 | Démo philosophes | n = 3, 4, 5 en `map/filter/exists` + saturation via `fold` ; figure exportée depuis Liseuse ; les 7 formes attendues visibles et vérifiées | C8 |
+| M1-0 | Core interface (phase 1: interface) | The interface traits: pool, key algebra, extended controller, `Observer`; `NodeId`/`Handle`; `Send`/`Sync` bounds (§ 10); error policy; ADR 0001+; boundary test extended to signatures; CUDD/Sylvan FFI spike in parallel (§ 10, before any dependency of the differential) | compile, `cargo doc`, green boundaries | contract |
+| M1-7 | Reference interpreter (phase 2: tests) | The truth, in pure `lang/` without DD; A/B/C differential wired from the first commit; the PBTs per statement written **red** before the implementation | falsifiable |
+| M1-1 | Arena + handles | `arena`, `NodeId`, hash-consing by key (controller, anchor, form); the handle table is keyed on the reduced form for this read | C1 |
+| M1-2 | Reductions § 2.3 | R-share, R-collapse, R-default; confluence tested by PBT (`reduce∘reduce = reduce`, commutation of quotients) | C1 |
+| M1-3 | Reference schemas | `Atom(D)` bounded, `Set(T)`, `Map(K,V)` bounded; universe-sweep compilation (one presence level per key, δ = absent, without marker) | Σ |
+| M1-4 | Inherited/synthesized transductions | The two channels, the `φ_aggr` aggregation, memo fingerprints (op, node) | L3 |
+| M1-5 | `lookup` | The test operation: synthesized = DD fragment (not a scalar), key carried downward, comparison in context | spec § 5 |
+| M1-6 | Fold and semirings | `map/filter/exists/fold`; counting = fold over (ℕ, +, ×); declared construction merge (hash-consing = Bool choice) | A5, C7 |
+| M1-8 | BDD witnesses | Controller configuration in classic BDD; differential against CUDD/Sylvan (identical reproduction), bench baselines | C6 |
+| M1-9 | Instrumentation port | `Observer` trait (no-op by default) in `core/`; typed events; versioned JSONL trace serializer; Reader v0: static SVG rendering of the diagram, levels = keys | Reader |
+| M1-10 | Philosophers demo | n = 3, 4, 5 in `map/filter/exists` + saturation via `fold`; figure exported from Reader; the 7 expected forms visible and verified | C8 |
 
-**Critères de sortie du jalon** : différentiel nul contre l'interprète sur l'instance de référence ; C1 tenu (unicité des handles, vérifiée par PBT) ; la vue diagramme de Liseuse montre les 7 formes des philosophes et leurs multiplicités.
+**Milestone exit criteria**: null differential against the interpreter on the reference instance; C1 holds (uniqueness of handles, verified by PBT); the Reader diagram view shows the 7 forms of the philosophers and their multipallowedies.
 
-## 4. M2 : expressivité (jalon 2)
+## 4. M2: expressiveness (milestone 2)
 
-**Résumé** : `Seq`/`Tag`, mémoire de niveau, `saturate` avec les deux policies, événements non locaux. Liseuse v1 : la trace pas à pas.
+**Summary**: `Seq`/`Tag`, level memory, `saturate` with both policies, non-local events. Reader v1: the step-by-step trace.
 
-| Issue | Titre | Contenu | Énoncés |
+| Issue | Title | Content | Statements |
 |---|---|---|---|
-| M2-1 | `Seq` et ses deux compilations | Répétition + marqueur de fin (clé requise) ; compilation par positions et par énumération d'éléments ; T5 durci pour l'énumération (borné par la longueur, pas par l'univers) | T5 |
-| M2-2 | `Tag` | L'union typée : niveau à un arc utile, discriminant | C2 |
-| M2-3 | Mémoire de niveau | État stocké entre deux visites d'un même niveau ; politique de stockage déclarée par le contrôleur | T3 |
-| M2-4 | `saturate`, deux policies | Statique par niveaux (à la Ciardo) et auto-détectée (à la Hamez), comme deux instances d'une même sémantique du point fixe | T3 |
-| M2-5 | Événements non locaux | Compilation des transitions de largeur w en transductions à mémoire de niveau, surcoût poly(w) | T3, C1 |
-| M2-6 | Liseuse v1 : pas à pas | Scrubber sur la trace ; canaux colorés (hérité, synthétisé, mémoire) ; `MemoHit`/`MemoMiss` ; rounds de saturation ; différenciel avant/après avec fantômes | Liseuse |
+| M2-1 | `Seq` and its two compilations | Repetition + end marker (key required); compilation by positions and by element enumeration; T5 hardened for enumeration (bounded by length, not by the universe) | T5 |
+| M2-2 | `Tag` | The typed union: one level per useful edge, discriminant | C2 |
+| M2-3 | Level memory | State stored between two visits of the same level; storage policy declared by the controller | T3 |
+| M2-4 | `saturate`, two policies | Static by levels (Ciardo-style) and auto-detected (Hamez-style), as two instances of the same fixpoint semantics | T3 |
+| M2-5 | Non-local events | Compilation of width-w transitions into level-memory transductions, poly(w) overhead | T3, C1 |
+| M2-6 | Reader v1: step-by-step | Scrubber on the trace; colored channels (inherited, synthesized, memory); `MemoHit`/`MemoMiss`; saturation rounds; before/after differential with ghosts | Reader |
 
-## 5. M3 : l'ordre et le plan (jalon 3)
+## 5. M3: order and plan (milestone 3)
 
-**Résumé** : `Order<T>` complet, conversions à coût prédictible, oracle de rentabilité analytique. Liseuse : la vue ordre et royaumes.
+**Summary**: complete `Order<T>`, conversions with predictable cost, analytical profitability oracle. Reader: the order view and kingdoms.
 
-| Issue | Titre | Contenu | Énoncés |
+| Issue | Title | Content | Statements |
 |---|---|---|---|
-| M3-1 | `Order<T>` valeur de première classe | Ordres typés, π par type contraintes dans `Order<T>`, alignement comme typage (deux opérandes ne se composent que sous un ordre commun) | C3 |
-| M3-2 | Conversions | Réordonner = convertir, transductions à coût prédictible ; contrat typé étendu des ordres aux encodages (royaumes de contrôleurs) | C3 |
-| M3-3 | Oracle de rentabilité analytique | Premier modèle prédictif : taille du domaine, densité attendue, coût d'encodage, nombre de requêtes aval ; garde-fou par différentiel | C4 |
-| M3-4 | Liseuse : vue ordre | O comme piste linéaire ou arbre (vtree), fiche contrôleur (les huit champs), royaumes côte à côte, conversions fléchées avec coût | Liseuse |
+| M3-1 | `Order<T>` as a first-class value | Typed orders, π per type constraints in `Order<T>`, alignment as typing (two operands compose only under a common order) | C3 |
+| M3-2 | Conversions | Reordering = converting, transductions with predictable cost; typed contract extended from orders to encodings (controller kingdoms) | C3 |
+| M3-3 | Analytical profitability oracle | First predictive model: domain size, expected density, encoding cost, number of downstream queries; guardrail via differential | C4 |
+| M3-4 | Reader: order view | O as a linear track or tree (vtree), controller card (the eight fields), kingdoms side by side, arrowed conversions with cost | Reader |
 
-## 6. M4 : localité et partage (jalon 4)
+## 6. M4: locality and sharing (milestone 4)
 
-**Résumé** : pool bi-plan, co-localisation des attributs, métriques cache ; activation des formes relatives (shift) et du défaut généralisé (D-abs) ; mesure des philosophes contre l'encodage SDD hiérarchique. Liseuse : les vues mémoire et quotients.
+**Summary**: two-plane pool, attribute co-location, cache metrics; activation of relative forms (shift) and of the generalized default (D-abs); measurement of the philosophers against the hierarchical SDD encoding. Reader: the memory and quotient views.
 
-| Issue | Titre | Contenu | Énoncés |
+| Issue | Title | Content | Statements |
 |---|---|---|---|
-| M4-1 | Pool bi-plan | Plans principal et d'ombre, GC, compaction profilée ; métriques cache dans `bench/` | C5 |
-| M4-2 | Formes relatives | Activation du shift (encodage relatif, ancre) prévu par le schéma core dès M1 ; plus les deux extensions de la spec 2.4.5 : ancres composées (décalages nommés par fragment) et transformations de clés désignées par le contrôleur (groupe d'action + section canonique des orbites ; instance canonique : normalisation min = 0, argument n sur l'arc entrant ; applications : compteurs non bornés, couleurs, régions convexes ; l'instance canonique a désormais son modèle-test : la fenêtre glissante, canvas exemple-fenetre-glissante-lisage : la base de séquence = l'argument sur l'arc, la glisse = le déplacement d'ancre, l'ISN = la section canonique, Wireshark en précédent industriel) | C8 |
-| M4-3 | D-abs / D-trans | Défaut généralisé : absorption sur tout sous-domaine, D^déf désigné par contrôleur | A6 |
-| M4-4 | Benchmark philosophes | Mesure contre SDD/HSDD : 7 nœuds attendus, O(1) + bord, ratio gaucher 1,2887 constant, pic vivant, passes, firings ; falsification explicite si la mesure dit autre chose | C8 |
-| M4-5 | Liseuse : vues mémoire et quotient | Pools, GC, badges de multiplicité (replicas), classes du quotient (formes × ancres), mode comparaison naïf/DD/Lisage | Liseuse |
+| M4-1 | Two-plane pool | Main and shadow planes, GC, profiled compaction; cache metrics in `bench/` | C5 |
+| M4-2 | Relative forms | Activation of the shift (relative encoding, anchor) planned by the core schema from M1 on; plus the two extensions of spec 2.4.5: composed anchors (offsets named per fragment) and key transformations designated by the controller (action group + canonical section of the orbits; canonical instance: min = 0 normalization, argument n on the incoming edge; applications: unbounded counters, colors, convex regions; the canonical instance now has its test model: the sliding window, canvas second-golden-thread-example-the-sliding-window-protocol: the sequence base = the argument on the edge, the slide = the anchor displacement, the ISN = the canonical section, Wireshark as industrial precedent) | C8 |
+| M4-3 | D-abs / D-trans | Generalized default: absorption over any subdomain, D^def designated by the controller | A6 |
+| M4-4 | Philosophers benchmark | Measurement against SDD/HSDD: 7 expected nodes, O(1) + edge, constant left-handed ratio 1.2887, live peak, passes, firings; expallowed falsification if the measurement says otherwise | C8 |
+| M4-5 | Reader: memory and quotient views | Pools, GC, multipallowedy badges (replicas), quotient classes (forms × anchors), naive/DD/Lisage comparison mode | Reader |
 
-## 7. M5 : échelle et complétude (jalon 5)
+## 7. M5: scale and completeness (milestone 5)
 
-**Résumé** : langage complet, fonctions d'ordre supérieur, corpus MCC, oracle appris, installation des SDD sententiels, instance ADD/MTBDD. Liseuse : export figures articles.
+**Summary**: complete language, higher-order functions, MCC corpus, learned oracle, installation of sentential SDDs, ADD/MTBDD instance. Reader: article figure export.
 
-| Issue | Titre | Contenu | Énoncés |
+| Issue | Title | Content | Statements |
 |---|---|---|---|
-| M5-1 | Langage complet + HOF | Niveau 1 complet ; le planner admet un aval runtime (reordering dégradé en fallback) | C3 |
-| M5-2 | Corpus MCC | Modèles MCC 2011-2018 conteneurisés ; pile d'import des formats du corpus (parsing PNML, conversion vers `lang/` : un parseur de *formats externes*, pas du langage Lisage) ; triptyque A/B/C complet ; publication des chiffres | C3, C4 |
-| M5-3 | SDD sententiels | Test de complétude : installation sans extension ad hoc (vtree = ordre structuré, tour de contrôleurs comme motif d'instance) | C6 |
-| M5-4 | ADD/MTBDD | Merge non idempotent, table indexée par les poids ; différentiel de compatibilité en garde-fou (question ouverte n° 8 de la spec) | C7 |
-| M5-5 | Liseuse : export figures | Mode publication : SVG/PGF propre à la mise en page article, thème serif, légendes auto depuis la légende des canaux | Liseuse |
+| M5-1 | Complete language + HOF | Level 1 complete; the planner admits a runtime downstream (degraded reordering as fallback) | C3 |
+| M5-2 | MCC corpus | Containerized MCC 2011-2018 models; import stack for the corpus formats (PNML parsing, conversion to `lang/`: a parser of *external formats*, not of the Lisage language); complete A/B/C triptych; publication of the numbers | C3, C4 |
+| M5-3 | Sentential SDDs | Completeness test: installation without ad hoc extension (vtree = structured order, tower of controllers as instance pattern) | C6 |
+| M5-4 | ADD/MTBDD | Non-idempotent merge, table indexed by weights; compatibility differential as guardrail (open question no. 8 of the spec) | C7 |
+| M5-5 | Reader: figure export | Publication mode: SVG/PGF clean for article layout, serif theme, auto captions from the channel legend | Reader |
 
-## 8. Synthèse
+## 8. Synthesis
 
-| Jalon | Cycles de revue (indicatif) | Énoncés visés | Liseuse |
+| Milestone | Review cycles (indicative) | Targeted statements | Reader |
 |---|---|---|---|
-| M0 | 1 | aucun (socle) | aucun |
-| M1 | 4 à 6 | C1, L3, A5, C7 (départ), C6 (départ) | v0 : trace + diagramme statique |
-| M2 | 2 à 3 | T3, T5, C2 | v1 : trace pas à pas |
-| M3 | 1 à 2 | C3, C4 | vue ordre/royaumes |
-| M4 | 2 à 3 | C5, C8, A6 | vues mémoire/quotient |
-| M5 | 3 à 5 | C3, C4, C6, C7 (complétude) | export figures |
+| M0 | 1 | none (foundation) | none |
+| M1 | 4 to 6 | C1, L3, A5, C7 (start), C6 (start) | v0: trace + static diagram |
+| M2 | 2 to 3 | T3, T5, C2 | v1: step-by-step trace |
+| M3 | 1 to 2 | C3, C4 | order/kingdoms view |
+| M4 | 2 to 3 | C5, C8, A6 | memory/quotient views |
+| M5 | 3 to 5 | C3, C4, C6, C7 (completeness) | figure export |
 
-Un **cycle** = une session de travail de l'agent close par une revue humaine. La compression par rapport aux semaines-homme d'origine vient du mode d'exécution (§ 1), mais elle ne s'achète ni sur les horloges réelles (disponibilité de la revue, temps machine des benches, cadence d'élucidation dans la discussion), ni sur le risque scientifique (C1, unfold, T5). Chiffres à recalibrer après M1 sur les cycles réellement consommés.
+A **cycle** = one agent work session closed by a human review. The compression compared to the original man-weeks comes from the execution mode (§ 1), but it is bought neither on the real clocks (availability of review, bench machine time, pace of clarification in the discussion), nor on scientific risk (C1, unfold, T5). Figures to be recalibrated after M1 on the cycles actually consumed.
 
-Le fil directeur : **chaque jalon termine par une figure ou une mesure publiée depuis Liseuse**. L'outil n'est pas un luxe pédagogique ; c'est le moyen de voir C1 (deux formes identiques sous ancres différentes ne fusionnent pas), le travail de saturation (rounds, firings) et le partage (multiplicités, O(1) + bord), qui sont les trois choses que le texte affirme et que le lecteur d'un article voudra voir.
+The golden thread: **each milestone ends with a figure or a measurement published from Reader**. The tool is not a pedagogical luxury; it is the means to see C1 (two identical forms under different anchors do not merge), the saturation work (rounds, firings) and the sharing (multipallowedies, O(1) + edge), which are the three things the text asserts and that the reader of an article will want to see.
 
-## 9. Backlog (candidats d'extension, hors M0-M5)
+## 9. Backlog (extension candidates, outside M0-M5)
 
-- **δ continu** (question ouverte 9 de la spec) : algèbres de clés-régions, intervalles puis DBM ; instance-test : DDD-différence / CDD. Le contrat de clés (forme normale, couverture, intersection) se déclare côté contrôleur ; le pool ne change pas. Le pli devient intégrale : à ne lancer qu'après l'instance ADD/MTBDD (M5-4), les deux questions touchant au même champ attribution.
-- **Coinductif** (candidat question ouverte 10, cf. état de l'art § 10) : nœud de cycle + quotient par bisimulation, hors C1. À ne rouvrir que si un cas d'usage le demande.
-- **DSL textuel + outillage éditeur** (si la surface est textuelle, décision § 10) : workstream propre, à lancer après M5-1 : spécification de la syntaxe concrète (données : déclarations record/union/list/set/map ; opérations : transductions, plis), parseur (`lalrpop` ou `chumsky`), serveur LSP (`tower-lsp`), linter (diagnostics = typage et admissibilité, spec § 3, déjà spécifiés), complétion (résolution de noms + types), coloration et extension VS Code (grammaire tree-sitter, TextMate en v0). Outiller une syntaxe avant sa stabilisation, c'est payer la dette deux fois ; rien dans M0-M5 n'exige la surface textuelle (les jalons se pilotent par l'API). Le parseur PNML de M5-2 est indépendant et n'attend pas celui-ci.
-- **L'atelier didactique (l'éditeur graphique des chemins)** (demande du 10 novembre 2026) : partir d'un modèle et de **chemins de son espace d'états** (un petit modèle entier, ou des traces tirées d'un grand), affichés nus, puis **activer/désactiver chaque réduction une à une** (hash-consing, merge, collapse de l'absent, forme relative/ancre, shift, pli) et **jouer les paramètres du contrôleur** (ordre, encodage absolu/relatif, royaume, ancre composée) : le diagramme et son compte de nœuds se recalculent sous l'œil, l'espace d'états se rétracte en direct. Le but est didactique : rendre manipulable la thèse « le diagramme est une fonction du contrôleur », chaque réduction payée visible une à une (les 7 contre 4n − 4 des philosophes, le 4 contre l'infini de la fenêtre, le gaucher 1,2887 à l'œil nu). C'est la navette à échelle humaine : l'humain tient le rôle du LLM (hypothèses d'ordre, d'ancrage), le moteur dispose et mesure ; c'est aussi le socle des démonstrations (table Rennes, Fête de la Science, MOOC, marque-page du tissage, anneau 3). Dépendances : aucune pièce nouvelle (l'API du cœur, le port `Observer` de Liseuse, un front web autonome) ; contrairement à Liseuse (lecture seule, elle rejoue des traces), l'atelier **écrit** le contrôleur et redemande : il se lance donc après M3-4 (l'ordre et la fiche contrôleur existent), les deux exemples fil rouge servant de bancs étalons.
+- **Continuous δ** (open question 9 of the spec): region-key algebras, then intervals and DBMs; test instance: DDD-difference / CDD. The key contract (normal form, coverage, intersection) is declared on the controller side; the pool does not change. The fold becomes an integral: to be launched only after the ADD/MTBDD instance (M5-4), the two questions touching the same attribution field.
+- **Coinductive** (candidate open question 10, cf. state of the art § 10): cycle node + quotient by bisimulation, outside C1. To be reopened only if a use case demands it.
+- **Textual DSL + editor tooling** (if the surface is textual, decision § 10): its own workstream, to be launched after M5-1: concrete syntax specification (data: record/union/list/set/map declarations; operations: transductions, folds), parser (`lalrpop` or `chumsky`), LSP server (`tower-lsp`), linter (diagnostics = typing and admissibility, spec § 3, already specified), completion (name resolution + types), highlighting and VS Code extension (tree-sitter grammar, TextMate in v0). Tooling a syntax before it stabilizes is paying the debt twice; nothing in M0-M5 requires the textual surface (the milestones are driven through the API). The PNML parser of M5-2 is independent and does not wait for this one.
+- **The didactic workshop (the graphical editor of paths)** (request of 10 November 2026): starting from a model and **paths of its state space** (a small whole model, or traces drawn from a large one), displayed bare, then **enable/disable each reduction one by one** (hash-consing, merge, collapse of the absent, relative form/anchor, shift, fold) and **play with the controller parameters** (order, absolute/relative encoding, kingdom, composed anchor): the diagram and its node count recompute live, the state space shrinks in real time. The goal is didactic: to make tangible the thesis "the diagram is a function of the controller", each paid reduction visible one by one (the 7 against 4n − 4 of the philosophers, the 4 against the infinity of the window, the left-handed ratio 1.2887 with the naked eye). It is the shuttle at human scale: the human plays the role of the LLM (order, anchoring hypotheses), the engine arranges and measures; it is also the foundation of demonstrations (Rennes table, Fete de la Science, MOOC, bookmark of the weaving, ring 3). Dependencies: no new parts (the core API, the Reader's `Observer` port, a standalone web front); unlike the Reader (read-only, it replays traces), the workshop **writes** the controller and re-asks: it is therefore launched after M3-4 (the order and the controller card exist), the two golden-thread examples serving as calibration benches.
 
-### Pistes inter-projets (séance d'ouverture, 10 novembre 2026)
+### Inter-project tracks (opening session, 10 November 2026)
 
-Huit directions qui croisent Lisage, petrichor et layered-data, classées par proximité avec le plan courant. Chacune branche au moins deux projets et réutilise une pièce déjà prévue ; aucune ne touche au pool.
+Eight directions crossing Lisage, petrichor and layered-data, ranked by proximity to the current plan. Each branches at least two projects and reuses a part already planned; none touches the pool.
 
-- **Le cartomancien** : l'oracle lit le modèle. Le LLM (la lecture sémantique de petrichor) parcourt noms et structure du réseau et propose une configuration de contrôleur (ordre, encodage, compilations Set/Map, royaume) ; l'oracle analytique mesure, le LLM devine, le différentiel corrige (M3-3, C3, C4). Falsifiable : le LLM ne prédit pas mieux que le seuil heuristique, exactement la clause C4. Attaque de front le problème historique de l'ordonnancement des variables.
-- **La navette** : le LLM propose, le diagramme dispose. Le LLM émet des hypothèses (symétries, familles de réplicas, invariants), le moteur les vérifie par évaluation, et les symétries prouvées activent le shift (C8, M4-2). La correction ne quitte jamais le moteur : le LLM est générateur d'hypothèses à confiance nulle. Boucle : deviner, vérifier, exploiter, mesurer dans Liseuse.
-- **Le métier à contrôleurs** : chaque couche de layered-data porte son contrat de compilation vers le pool ; le contrôleur se déduit du formalisme. La tour de contrôleurs (motif d'instance de la proposition) devient un théorème des couches, et l'installation des SDD sententiels (M5-3) en est le test exécutable : écrire la couche SDD, dériver le contrôleur, zéro extension *ad hoc*.
-- **L'envers du tissu** : les contre-exemples racontés. Le point fixe contient le contre-exemple ; extraire un chemin tiré minimal (re-explicitation d'un seul chemin, le prix de A6 payé sur une seule branche), puis le LLM le raconte dans le vocabulaire du modélisateur (noms, intentions). Le diagnostic assisté complète les analyses statiques de petrichor par le récit dynamique.
-- **Le velours** : la veine δ continu racontée en produit : réseaux temporels (clés DBM, clôture convexe connue), pli en intégrale (question ouverte 9), stochastique (semi-anneaux de densités). Cible QEST+FORMATS, strictement après M5-4, conformément au backlog.
-- **La broderie quantique** : au-delà du merge non idempotent de M5-4, des semi-anneaux d'amplitudes complexes ; l'état de l'art a les témoins (LIMDD, Q-Sylvan). Piste longue, à ne lancer que si un cas d'usage arrive.
-- **Le faussaire** : un LLM qui forge des modèles plausibles et méchants (fausses symétries, réplicas presque parfaits, noms menteurs) pour falsifier l'oracle à échelle (C4) et éprouver la lecture sémantique de petrichor contre des noms qui mentent. Source de familles de benches au-delà de MCC ; tournoi oracle contre faussaire comme métrique.
-- **La remontée** : de l'espace d'états vers le modèle. La synthèse de réseaux (théorie des régions) assistée par LLM : navette appliquée à l'envers, le réseau synthétisé s'écrit en couches layered-data et se vérifie par différentiel contre l'espace d'origine.
+- **The cartomancer**: the oracle reads the model. The LLM (petrichor's semantic reading) goes through the names and structure of the network and proposes a controller configuration (order, encoding, Set/Map compilations, kingdom); the analytical oracle measures, the LLM guesses, the differential corrects (M3-3, C3, C4). Falsifiable: the LLM does not predict better than the heuristic threshold, exactly clause C4. It attacks head-on the historical problem of variable ordering.
+- **The shuttle**: the LLM proposes, the diagram arranges. The LLM emits hypotheses (symmetries, replica families, invariants), the engine verifies them by evaluation, and proven symmetries activate the shift (C8, M4-2). The correction never leaves the engine: the LLM is a hypothesis generator with zero confidence. Loop: guess, verify, exploit, measure in Reader.
+- **The controller loom**: each layer of layered-data carries its compilation contract towards the pool; the controller is derived from the formalism. The tower of controllers (instance pattern of the proposition) becomes a theorem of the layers, and the installation of sentential SDDs (M5-3) is its executable test: write the SDD layer, derive the controller, zero *ad hoc* extension.
+- **The reverse of the fabric**: counter-examples told. The fixpoint contains the counter-example; extract a minimal drawn path (re-expallowedation of a single path, the price of A6 paid on a single branch), then the LLM tells it in the modeler's vocabulary (names, intentions). Assisted diagnosis complements petrichor's static analyses with the dynamic narrative.
+- **The velvet**: the continuous δ vein told as a product: temporal networks (DBM keys, known convex closure), fold as integral (open question 9), stochastic (semirings of densities). Target QEST+FORMATS, strictly after M5-4, per the backlog.
+- **Quantum embroidery**: beyond the non-idempotent merge of M5-4, semirings of complex amplitudes; the state of the art has the witnesses (LIMDD, Q-Sylvan). A long track, to be launched only if a use case arrives.
+- **The forger**: an LLM that forges plausible and nasty models (false symmetries, almost perfect replicas, lying names) to falsify the oracle at scale (C4) and test petrichor's semantic reading against lying names. A source of bench families beyond MCC; an oracle-vs-forger tournament as a metric.
+- **The ascent**: from the state space to the model. LLM-assisted network synthesis (region theory): the shuttle applied in reverse, the synthesized network is written in layered-data layers and verified by differential against the original space.
 
-### Panorama élargi (horizons, 10 novembre 2026)
+### Extended panorama (horizons, 10 November 2026)
 
-Hors du trio, par anneaux. Rien ne touche au sprint Rennes : ce sont des horizons, pas du plan.
+Outside the trio, by rings. Nothing touches the Rennes sprint: these are horizons, not plan.
 
-**Anneau 1, d'autres étoffes sur le même métier** (domaines d'application) :
-- **Process mining** : journaux d'événements → réseaux → espaces d'états, conformance checking sémantique (petrichor lit les noms d'activités) ; le CFP de Petri Nets liste explicitement process discovery et conformance checking ; passerelle industrielle immédiate.
-- **Biologie à règles** (Kappa, réseaux métaboliques) : l'explosion combinatoire des règles est l'explosion d'états dans sa forme pure ; les familles de réplicas de la navette sont les symétries d'agents ; semi-anneaux stochastiques ; communauté CMSB.
-- **EDA** : le berceau historique des DD (équivalence formelle, vérification de propriétés) ; rouvert comme domaine d'application, pas comme venue (l'arbitrage § 11 tient).
-- **Planification et jeux symboliques** : MDP/POMDP à facteurs (lignée SPUDD : ADD sur facteurs), résolution symbolique de jeux ; le semi-anneau probabiliste de M5 est la porte.
+**Ring 1, other fabrics on the same loom** (application domains):
+- **Process mining**: event logs → networks → state spaces, semantic conformance checking (petrichor reads the activity names); the Petri Nets CFP expallowedly lists process discovery and conformance checking; an immediate industrial gateway.
+- **Rule-based biology** (Kappa, metabolic networks): the combinatorial explosion of rules is the state explosion in its pure form; the shuttle's replica families are the agent symmetries; stochastic semirings; the CMSB community.
+- **EDA**: the historical cradle of DDs (formal equivalence, property checking); reopened as an application domain, not as a venue (the arbitration of § 11 stands).
+- **Planning and symbolic games**: factored MDP/POMDP (SPUDD lineage: ADD on factors), symbolic game solving; the probabilistic semiring of M5 is the door.
 
-**Anneau 2, d'autres métiers qui tissent pareil** (ponts interdisciplinaires) :
-- **Circuits probabilistes** : PSDD et model counting pondéré sont déjà dans le plan (M5-3) ; l'horizon est la communauté des tractable probabilistic models (UAI, NeurIPS) : un moteur, des semi-anneaux.
-- **Bases de données factorisées** : la factorisation d'Olteanu (évaluation de requêtes sur décompositions) rime structurellement avec vtree et contrôleur (d-tree ≈ ordre structuré) ; le planner de M3 est un planificateur de factorisation ; communauté PODS/SIGMOD. La rime la plus profonde et la moins vue.
-- **E-graphes et equality saturation** : l'egg de la communauté PLDI (en Rust) est le cousin structurel du pool saturé à hash-consing ; la saturation de réécriture et la saturation de Ciardo sont deux saturations ; terrain commun à creuser.
-- **Grammaires attribuées et transducteurs d'arbres** : la maison théorique du cadre (hérité/synthétisé = attribute grammars cycliques et partagées) ; et sa conséquence la plus académique : **le cœur certifié**, C1/L3/A5 mécanisés en Lean ou vérifiés en Creusot/Kani, une bibliothèque DD certifiée n'existe pas encore.
+**Ring 2, other trades that weave the same way** (interdisciplinary bridges):
+- **Probabilistic circuits**: PSDD and weighted model counting are already in the plan (M5-3); the horizon is the tractable probabilistic models community (UAI, NeurIPS): one engine, semirings.
+- **Factorized databases**: Olteanu's factorization (query evaluation on decompositions) rhymes structurally with vtree and the controller (d-tree ≈ structured order); the planner of M3 is a factorization planner; the PODS/SIGMOD community. The deepest and least seen rhyme.
+- **E-graphs and equality saturation**: the PLDI community's egg (in Rust) is the structural cousin of the hash-consing saturated pool; rewrite saturation and Ciardo saturation are two saturations; common ground to explore.
+- **Attributed grammars and tree transducers**: the theoretical home of the framework (inherited/synthesized = cyclic and shared attribute grammars); and its most academic consequence: **the certified core**, C1/L3/A5 mechanized in Lean or verified in Creusot/Kani — a certified DD library does not exist yet.
 
-**Anneau 3, la fabrique et la ville** (industrie et société) :
-- **L'auditeur symbolique** : la traçabilité event-sourced de Liseuse + le récit du LLM = rapports de vérification explicables pour la certification (DO-178C, IEC 61508) ; le contre-exemple raconté devient pièce d'audit.
-- **Jumeaux numériques et MBSE** : les formalismes en couches comme formalisation vivante de SysML ; simulation et analyse de sûreté des contrôleurs industriels sur le même moteur.
-- **Le tissage des espaces d'états** (précisé le 10 novembre 2026 ; remplace l'entrée « musée Jacquard »). Un tissu réel, pas une métaphore : le carton perforé est une structure de décision, et la chaîne/trame sont déjà la grille de lecture du cadre (hérité/synthétisé). Protocole : **chaîne** = variables dans l'ordre O (l'intercalage record), **trame** = états, **point** = valuation (satin ou son inversé selon 1/0), **état inatteignable** = absence dans la trame, **forme partagée** = motif répété, **gaucher** = faille du motif (l'asymétrie 1,2887 visible à l'œil nu). Trois objets des philosophes, à 10 trames/cm : n = 3, 152 états : un marque-page de 15 cm ; n = 4, 23 168 états : une bannière de 23 m ; n = 5, 536 754 176 états : **537 km d'étoffe explicite**, plus que Paris-Lyon à vol d'oiseau, alors que la même information tient en 7 motifs, une serviette. La paire « 537 km contre une serviette » rend C8 physique : l'explosion d'états est une étoffe interminable, le partage est un jeu de cartons. Réalisabilité : les métiers jacquard numériques des écoles d'art textile se pilotent par simple fichier image ; le pipeline est Lisage calcule, Liseuse exporte le carton (un renderer bitmap de plus après l'export SVG/PGF de M5-5), le métier tisse (à 1 fil par variable le tissu est un ruban ; pour une étoffe large, chaque variable devient une bande). Services en ligne relevés le 10 novembre 2026 : trois familles. (1) Grand public tissé depuis image (jacquard réel, pas impression) : WOVNS et Jacquard Works (tissu au mètre, MOQ 50 m : la bannière n = 4 de 23 m rentre dedans), FiberArt, WovenPhotos, PictureWeave ; Prodigi expose la couverture jacquard en API print-on-demand, donc le pipeline Liseuse → carton → objet tissé peut être automatisé de bout en bout. Limite : ces services tissent des pixels (luminosité → point), pas des armures. (2) Labs de commissionnement : TextielLab Tilburg (métiers jacquard, appels à projets ouverts, collaboration à distance documentée ; le contrôle de l'armure, donc la valuation 1/0 fil par fil et la faille du gaucher, vit à ce niveau), ateliers indépendants (portraits jacquard sur commande). (3) Outillage libre : AdaCAD (CAD jacquard open source, Unstable Design Lab), export TC2 documenté ; intégrable à Liseuse comme une cible de rendu de plus. Partenaires à sonder : une école de tissage lyonnaise, le Musée des Tissus, Le 19M ; l'objet peut voyager : marque-page sur la table de démonstration à l'exposition d'outils, Fête de la Science, MOOC en habillage. Post-sprint par construction : sa seule dépendance d'ingénierie est un renderer.
+**Ring 3, the factory and the city** (industry and society):
+- **The symbolic auditor**: the event-sourced traceability of Reader + the LLM's narrative = explainable verification reports for certification (DO-178C, IEC 61508); the told counter-example becomes an audit artifact.
+- **Digital twins and MBSE**: layered formalisms as a living formalization of SysML; simulation and safety analysis of industrial controllers on the same engine.
+- **The weaving of state spaces** (specified on 10 November 2026; replaces the "Jacquard museum" entry). A real fabric, not a metaphor: the punched card is a decision structure, and the warp/weft are already the reading grid of the framework (inherited/synthesized). Protocol: **warp** = variables in order O (the record interleaving), **weft** = states, **point** = valuation (satin or its inverse depending on 1/0), **unreachable state** = absence in the weft, **shared form** = repeated pattern, **left-handed** = flaw of the pattern (the 1.2887 asymmetry visible to the naked eye). Three objects of the philosophers, at 10 wefts/cm: n = 3, 152 states: a 15 cm bookmark; n = 4, 23,168 states: a 23 m banner; n = 5, 536,754,176 states: **537 km of expallowed fabric**, more than Paris-Lyon as the crow flies, while the same information fits in 7 patterns, a napkin. The pair "537 km against a napkin" makes C8 physical: the state explosion is an endless fabric, sharing is a game of cards. Feasibility: the digital jacquard looms of textile art schools are driven by a simple image file; the pipeline is Lisage computes, Reader exports the card (one more bitmap renderer after the SVG/PGF export of M5-5), the loom weaves (at 1 thread per variable the fabric is a ribbon; for a wide fabric, each variable becomes a band). Online services surveyed on 10 November 2026: three families. (1) Public weaving from image (real jacquard, not printing): WOVNS and Jacquard Works (fabric by the meter, MOQ 50 m: the n = 4 banner of 23 m fits in it), FiberArt, WovenPhotos, PictureWeave; Prodigi exposes the jacquard cover via a print-on-demand API, so the Reader → card → woven object pipeline can be automated end to end. Limit: these services weave pixels (brightness → point), not weaves. (2) Commissioning labs: TextielLab Tilburg (jacquard looms, open calls for projects, documented remote collaboration; weave control, hence the 1/0 valuation thread by thread and the left-handed flaw, lives at this level), independent workshops (jacquard portraits on commission). (3) Free tooling: AdaCAD (open-source jacquard CAD, Unstable Design Lab), documented TC2 export; integrable into Reader as one more rendering target. Partners to probe: a Lyon weaving school, the Musee des Tissus, Le 19M; the object can travel: bookmark on the demo table at the tool exhibition, Fete de la Science, MOOC in dress. Post-sprint by construction: its only engineering dependency is a renderer.
 
-**Anneau 4, le miroir** (la méthode elle-même) :
-- **Le protocole saucisson comme objet de recherche** : développement piloté par agents (dev + relecteur autonomes, humain à la frontière du jour) est une méthodologie neuve dont ce projet est l'expérience : mesurer, publier (communautés AI4SE, ICSE-SEIP), et la construire de Lisage par Lisage, réflexivement.
+**Ring 4, the mirror** (the method itself):
+- **The saucisson protocol as a research object**: agent-driven development (autonomous dev + reviewer agents, human at the day boundary) is a new methodology of which this project is the experiment: measure, publish (AI4SE, ICSE-SEIP communities), and build it from Lisage by Lisage, reflexively.
 
-## 10. Audit de complétude : points à élucider pendant le développement (2026-11-10)
+## 10. Completeness audit: points to clarify during development (2026-11-10)
 
-Verdict de l'audit : M0 et M1 sont spécifiés jusqu'au niveau de l'issue (énoncés, critères de sortie, différentiel), les questions ouvertes 1-9 de la spec sont toutes affectées (Q1 → M3, Q2 → M2 à mesurer, Q3 → M1 admissibilité, Q4 → M1-3 vérification, Q5 → M2-1, Q6 → M4-2, Q7 → M4-3, Q8 → M5-4, Q9 → backlog). Restent sept décisions d'**ingénierie** non tranchées, absentes des documents ; aucune ne bloque M0, chacune est affectée au jalon où la mesurer est possible.
+Audit verdict: M0 and M1 are specified down to the issue level (statements, exit criteria, differential); open questions 1-9 of the spec are all assigned (Q1 → M3, Q2 → M2 to be measured, Q3 → M1 admissibility, Q4 → M1-3 verification, Q5 → M2-1, Q6 → M4-2, Q7 → M4-3, Q8 → M5-4, Q9 → backlog). Seven **engineering** decisions remain unresolved, absent from the documents; none blocks M0, and each is assigned to the milestone where measuring it is possible.
 
-| Point | Question ouverte | Jalon | Décision proposée |
+| Point | Open question | Milestone | Proposed decision |
 |---|---|---|---|
-| Concurrence de l'interface | bounds `Send`/`Sync` du pool et du computed-cache : les figer dans les signatures dès M1-0 (phase d'interface), l'exécution restant mono-thread | M1-0 | figer maintenant (le rétrofit d'une interface mono-thread coûte plus cher que la décision) ; parallélisme effectif repoussé au-delà de M5, Sylvan multi-cœur servant de témoin |
-| Clé absente dans `lookup` | spec Q3 : l'`Option` du résultat comme algèbre de défauts, greffon constant sur continuations | M1-5 | rendre le cas explicite dans l'issue (arc absent collapsable, à intégrer à l'admissibilité § 3.3) |
-| FFI CUDD/Sylvan | liaisons C/C++ (compilation, conteneurs CI, plateformes) : risque technique n° 1 de M1-8. Pourquoi des liaisons : l'interprète de référence ne voit que la sémantique, jamais la forme ; la « reproduction à l'identique » (C6) se mesure en nombre de nœuds contre une bibliothèque indépendante (un mini-BDD maison partagerait les malentendus du même auteur), et Sylvan ajoute un second témoin indépendant portant saturation et LDD. Le hors-processus ne supprime pas le risque : il faut toujours compiler les bibliothèques ; l'in-process achète le PBT différentiel (fonction aléatoire → deux constructions → comptes comparés sur place). Les baselines externes conditionnent les mesures publiées (M4-4, M5-2) | M1 | spike dédié dès la première semaine (la vraie question est le build en CI) ; séquencement possible : CUDD seul en M1, Sylvan à M2 quand la saturation (M2-4, à la Hamez) l'exige |
-| Politique d'erreurs | invariants internes (`core/`, `algebra/`) = asserts ; erreurs du niveau `lang/` = `Result` | M0-4 puis M1-0 | deux lignes dans la charte de test, reprises comme types dans l'interface du cœur |
-| Persistance | format de dump versionné des diagrammes ; les handles sont-ils stables hors session ? | M4 | à spécifier avec le pool bi-plan (M4-1), le format de trace JSONL de Liseuse n'étant pas un format de persistance |
-| Arithmétique du semi-anneau probabiliste | rationnels exacts vs `f64` : A5 (pli exact sur construction levée) exige la décision | M5-4 | exact par défaut (rationnels), `f64` en option de bench ; le garde-fou est déjà écrit |
-| ADR | figer les choix structurels de M1 (arena, `NodeId`, encodage des formes, Arc vs borrow) | M1-0 | convention `docs/adr/` dès le premier PR de la phase d'interface, importée dans M0-3 avec les documents |
-| Surface du langage | le squelette de `lisage-lang/` annonçait un « parser » qu'aucune issue M0-M5 ne livre ; la syntaxe concrète n'est spécifiée nulle part, et l'outillage éditeur (LSP, linter, complétion, coloration VS Code) est absent de tous les jalons | M5-1 | trancher : API hébergée Rust (lint et complétion gratuits via rust-analyzer) ou DSL textuel (outillage en backlog) ; ni l'un ni l'autre ne bloque M0-M5, pilotables par l'API |
+| Interface concurrency | `Send`/`Sync` bounds of the pool and the computed-cache: freeze them in the signatures from M1-0 (interface phase), execution remaining single-threaded | M1-0 | freeze now (retrofitting a single-threaded interface costs more than the decision); effective parallelism pushed beyond M5, multi-core Sylvan serving as witness |
+| Missing key in `lookup` | spec Q3: the `Option` of the result as default algebra, constant graft on continuations | M1-5 | make the case expallowed in the issue (collapsable absent edge, to be integrated into admissibility § 3.3) |
+| FFI CUDD/Sylvan | C/C++ bindings (compilation, CI containers, platforms): technical risk no. 1 of M1-8. Why bindings: the reference interpreter only sees the semantics, never the form; "identical reproduction" (C6) is measured in node count against an independent library (a homemade mini-BDD would share the same author's misunderstandings), and Sylvan adds a second independent witness carrying saturation and LDD. Out-of-process does not remove the risk: the libraries still have to be compiled; in-process buys the differential PBT (random function → two constructions → counts compared on the spot). External baselines condition the published measurements (M4-4, M5-2) | M1 | dedicated spike from the first week (the real question is the CI build); possible sequencing: CUDD alone in M1, Sylvan in M2 when saturation (M2-4, Hamez-style) requires it |
+| Error policy | internal invariants (`core/`, `algebra/`) = asserts; errors of the `lang/` level = `Result` | M0-4 then M1-0 | two lines in the test charter, taken up as types in the core interface |
+| Persistence | versioned dump format of diagrams; are handles stable across sessions? | M4 | to be specified with the two-plane pool (M4-1), the Reader's JSONL trace format not being a persistence format |
+| Arithmetic of the probabilistic semiring | exact rationals vs `f64`: A5 (exact fold on lifted construction) requires the decision | M5-4 | exact by default (rationals), `f64` as a bench option; the guardrail is already written |
+| ADR | freeze the structural choices of M1 (arena, `NodeId`, form encoding, Arc vs borrow) | M1-0 | `docs/adr/` convention from the first PR of the interface phase, imported in M0-3 with the documents |
+| Language surface | the `lisage-lang/` skeleton announced a "parser" that no M0-M5 issue delivers; the concrete syntax is specified nowhere, and the editor tooling (LSP, linter, completion, VS Code highlighting) is absent from all milestones | M5-1 | decide: hosted Rust API (free lint and completion via rust-analyzer) or textual DSL (tooling in the backlog); neither blocks M0-M5, drivable through the API |
 
-Les deux candidats gelés du backlog (δ continu, coinductif) ne bloquent rien par construction : le premier attend l'instance ADD/MTBDD (M5-4), le second un cas d'usage. Les conjectures (C1 minimalité, unfold) ne sont pas des manques : falsifiables par design, elles sont ce que M1 est construit pour tester.
+The two frozen backlog candidates (continuous δ, coinductive) block nothing by construction: the first waits for the ADD/MTBDD instance (M5-4), the second for a use case. The conjectures (C1 minimality, unfold) are not gaps: falsifiable by design, they are what M1 is built to test.
 
-## 11. Plan de publication (stratégie relevée le 10 novembre 2026)
+## 11. Publication plan (strategy noted on 10 November 2026)
 
-Chaque jalon se termine par une figure ou une mesure publiée depuis Liseuse : le plan de publication épouse donc les jalons, un article par groupe de contributions falsifiées avec succès. Règle : ne soumettre que ce que le différentiel a déjà validé ; la date limite ne justifie jamais de soumettre un énoncé non testé.
+Each milestone ends with a figure or a measurement published from Reader: the publication plan therefore follows the milestones, one article per group of successfully falsified contributions. Rule: submit only what the differential has already validated; the deadline never justifies submitting an untested statement.
 
-| Article | Matériau (jalon) | Contributions | Venue cible | Timing réaliste |
+| Article | Material (milestone) | Contributions | Target venue | Realistic timing |
 |---|---|---|---|---|
-| **PR : le cadre appliqué aux réseaux de Petri (sprint Rennes)** | M0-M1 + le slice saturation de M2 : transductions attribuées, C1, saturation statique par niveaux, philosophes en 7 formes, différentiel CUDD, figures Liseuse v0 ; la chaîne des trois projets (layered-data : formalismes en couches ; petrichor : l'outil réseaux de Petri ; Lisage : le moteur) | C1, T3 (policy statique), C8 (compacité philosophes, sans la part O(1) + bord qui attend M4) | **Petri Nets 2027** (Rennes : résumé 15 janvier, article 22 janvier 2027) ; repli : tool paper (10 p. + exposition d'outils) | janvier 2027 |
-| **P0 : la grille de lecture** | sans code : la grande famille (§ 4 de l'état de l'art) + le bestiaire, toute famille = (contrôleur, ancre, forme) | la lecture unifiante, avant falsification | **SYNASC** (track BDD, soumission ~juin, niche et barrière d'entrée naturelles) ; **JFLA 2028** (octobre 2027, en français, pour Σ et le langage) ; version longue en survey après P1 | SYNASC 2027 |
-| **P1 : le cœur** | M1-M2 : transductions attribuées (hérité/synthétisé/mémoire), C1, semi-anneaux (A5, L3), `lookup`, différentiel CUDD/Sylvan, figures Liseuse | C1, C2, C7 | **TACAS** (l'audience de la lignée DDD/SDD, fondations + outil) ; repli **ATVA** (~avril) ; **CAV** si l'angle classification de canonicité domine | TACAS 2028 (soumission ~fin octobre 2027) |
-| **P2 : localité et saturation** | M4 : shift, D-abs, O(1) + bord, philosophes (7 nœuds, gaucher 1,2887), contre SDD/HSDD | C5, C8 | **Petri Nets 2028** (théorie 20 p., outils 10 p. + exposition : Liseuse y entre comme tool paper) ; **ACSD 2028** (la maison de polyDD 2010) | soumission ~janvier 2028 |
-| **P3 : complétude et échelle** | M5 : SDD sententiels sans extension *ad hoc*, oracle sur le corpus MCC, merge ADD/MTBDD | C3, C4, C6, C7 | **CAV** (l'article drapeau de la thèse de complétude) ; les chiffres MCC ont aussi leur public à Petri Nets (le concours y vit) | CAV 2029 (janvier 2029) |
-| **Journal** | extension de P1 + P3 | toutes | **STTT** (la maison de CESRBDD) ou **FMSD** (la maison de la génération précédente) | 2029 |
-| **Veine δ continu** | backlog, après M5-4 | question ouverte 9 | **QEST+FORMATS** (conjoints, veine temps et stochastique) ; **HSCC** si le fragment hybride s'ouvre | seulement si le backlog s'ouvre |
+| **PR: the framework applied to Petri nets (Rennes sprint)** | M0-M1 + the saturation slice of M2: attributed transductions, C1, static level-by-level saturation, philosophers in 7 forms, CUDD differential, Reader v0 figures; the chain of the three projects (layered-data: layered formalisms; petrichor: the Petri net tool; Lisage: the engine) | C1, T3 (static policy), C8 (philosophers compactness, without the O(1) + edge part which waits for M4) | **Petri Nets 2027** (Rennes: abstract 15 January, paper 22 January 2027); fallback: tool paper (10 p. + tool exhibition) | January 2027 |
+| **P0: the reading grid** | no code: the great family (§ 4 of the state of the art) + the bestiary, every family = (controller, anchor, form) | the unifying reading, before falsification | **SYNASC** (BDD track, submission ~June, natural niche and entry barrier); **JFLA 2028** (October 2027, in French, for Σ and the language); long version as a survey after P1 | SYNASC 2027 |
+| **P1: the core** | M1-M2: attributed transductions (inherited/synthesized/memory), C1, semirings (A5, L3), `lookup`, CUDD/Sylvan differential, Reader figures | C1, C2, C7 | **TACAS** (the audience of the DDD/SDD lineage, foundations + tool); fallback **ATVA** (~April); **CAV** if the canonicity classification angle dominates | TACAS 2028 (submission ~end of October 2027) |
+| **P2: locality and saturation** | M4: shift, D-abs, O(1) + edge, philosophers (7 nodes, left-handed 1.2887), against SDD/HSDD | C5, C8 | **Petri Nets 2028** (theory 20 p., tools 10 p. + exhibition: Reader enters as a tool paper); **ACSD 2028** (the home of polyDD 2010) | submission ~January 2028 |
+| **P3: completeness and scale** | M5: sentential SDDs without *ad hoc* extension, oracle on the MCC corpus, ADD/MTBDD merge | C3, C4, C6, C7 | **CAV** (the flagship paper of the completeness thesis); the MCC numbers also have their audience at Petri Nets (the competition lives there) | CAV 2029 (January 2029) |
+| **Journal** | extension of P1 + P3 | all | **STTT** (the home of CESRBDD) or **FMSD** (the home of the previous generation) | 2029 |
+| **Continuous δ vein** | backlog, after M5-4 | open question 9 | **QEST+FORMATS** (joint, time and stochastic vein); **HSCC** if the hybrid fragment opens | only if the backlog opens |
 
-Dates relevées le 10 novembre 2026, à revérifier à chaque soumission : TACAS 2027 a fermé le 29 octobre 2026 ; CAV 2027 ferme le 20 janvier 2027 (trop tôt pour du code : viable seulement pour une position sans implémentation) ; JFLA 2027 a fermé le 16 octobre 2026 (Dinard) ; Petri Nets 2027 (Rennes, Inria) : résumés 15 janvier, articles 22 janvier 2027 : **la cible du sprint Rennes, ci-dessous** ; HSCC 2027 a fermé le 5 novembre 2026. Révision du 10 novembre 2026 : le « trop tôt pour du code » était calibré sur un rythme humain ; sur la preuve des dépôts récents (`layered-data` complet en quelques jours, `petrichor` scaffoldé le 7 novembre et déjà 65 commits), la première fenêtre avec du code devient Petri Nets 2027, TACAS 2028 restant la cible de l'article de fondations et P0 (SYNASC 2027, ~juin) installant la grille de lecture entre les deux.
+Dates noted on 10 November 2026, to be rechecked at each submission: TACAS 2027 closed on 29 October 2026; CAV 2027 closes on 20 January 2027 (too early for code: viable only for a position without implementation); JFLA 2027 closed on 16 October 2026 (Dinard); Petri Nets 2027 (Rennes, Inria): abstracts 15 January, papers 22 January 2027: **the target of the Rennes sprint, below**; HSCC 2027 closed on 5 November 2026. Revision of 10 November 2026: the "too early for code" was calibrated on a human pace; on the evidence of recent deposits (`layered-data` complete in a few days, `petrichor` scaffolded on 7 November and already 65 commits), the first window with code becomes Petri Nets 2027, TACAS 2028 remaining the target of the foundations paper, and P0 (SYNASC 2027, ~June) installing the reading grid between the two.
 
-### Le sprint Rennes (décision du 10 novembre 2026)
+### The Rennes sprint (decision of 10 November 2026)
 
-Trois projets engagés : **layered-data** (les formalismes en couches : le réseau de Petri dérivé du socle des hypergraphes, les philosophes comme instance ; déjà livré), **petrichor** (l'outil réseaux de Petri : modèles, arcs, tirages ; jeune, actif), **Lisage** (le moteur d'espaces d'états par DD attribués ; à construire : M0-M1 + le slice saturation de M2). L'article régulier (20 p. LNCS) : les transductions attribuées appliquées aux réseaux de Petri, saturation statique par niveaux, la compacité des philosophes (7 formes), le partage C1 visible dans Liseuse, différentiel CUDD. **Anti-collision des claims** : PR porte l'application (T3 statique, compacité philosophes) ; P1 garde les fondations (C1, C2, C7, `lookup`) ; P2 garde la localité complète (shift, D-abs, O(1) + bord, gaucher), qui attend M4.
+Three projects committed: **layered-data** (the layered formalisms: the Petri net derived from the hypergraph foundation, the philosophers as an instance; already delivered), **petrichor** (the Petri net tool: models, edges, runs; young, active), **Lisage** (the state-space engine via attributed DDs; to be built: M0-M1 + the saturation slice of M2). The regular paper (20 p. LNCS): attributed transductions applied to Petri nets, static level-by-level saturation, the compactness of the philosophers (7 forms), the C1 sharing visible in Reader, CUDD differential. **Anti-collision of claims**: PR carries the application (T3 static, philosophers compactness); P1 keeps the foundations (C1, C2, C7, `lookup`); P2 keeps the full locality (shift, D-abs, O(1) + edge, left-handed), which waits for M4.
 
-Séquence (cycles d'agent, revue humaine au fil de l'eau) : semaines 1-2 : M0 + M1-0 (interface) + interprète de référence + PBT rouges + spike CUDD ; semaines 3-5 : cœur M1 (arena, handles, réductions, transductions hérité/synthétisé, `lookup`, pli), différentiel CUDD vert sur l'instance BDD, C1/L3/A5 tenus ; semaines 6-7 : saturation statique + philosophes n = 3 à 5 via l'intercalage record ; semaine 8 : Liseuse v0, gel des mesures, résumé (15 janvier) ; semaines 9-10 : rédaction depuis les documents, revue, soumission (22 janvier).
+Sequence (agent cycles, human review on the fly): weeks 1-2: M0 + M1-0 (interface) + reference interpreter + red PBTs + CUDD spike; weeks 3-5: M1 core (arena, handles, reductions, inherited/synthesized transductions, `lookup`, fold), green CUDD differential on the BDD instance, C1/L3/A5 hold; weeks 6-7: static saturation + philosophers n = 3 to 5 via the record interleaving; week 8: Reader v0, measurement freeze, abstract (15 January); weeks 9-10: writing from the documents, review, submission (22 January).
 
-Périmètre découpé pour tenir : CUDD seul témoin (Sylvan attend M2-M4) ; philosophes seulement, pas de MCC, pas de `Seq`, pas d'événements non locaux au-delà de l'intercalage, pas de SDD sententiels, pas d'ADD, pas d'oracle (M3-M5 intacts). **Garde-fou (notre règle de soumission) : si le 15 janvier le différentiel n'est pas vert, l'article régulier se retire au profit du tool paper** (10 p. + démonstration à l'exposition d'outils), qui n'exige que la démo philosophes vivante et un accès libre pour les relecteurs. Le calendrier plie ; les énoncés ne plient pas.
+Scope cut to hold: CUDD as sole witness (Sylvan waits for M2-M4); philosophers only, no MCC, no `Seq`, no non-local events beyond the interleaving, no sentential SDDs, no ADD, no oracle (M3-M5 intact). **Guardrail (our submission rule): if on 15 January the differential is not green, the regular paper withdraws in favor of the tool paper** (10 p. + demo at the tool exhibition), which requires only the live philosophers demo and free access for the reviewers. The schedule bends; the statements do not bend.
 
-Communautés, pour arbitrer : TACAS/CAV/ATVA = vérification orientée outils, là où vit la lignée DDD/SDD ; Petri Nets/ACSD = la maison saturation et la lignée polyDD/HSDD ; SYNASC = la niche BDD ; STTT/FMSD = les journaux qui ont publié CESRBDD et la génération précédente ; JFLA/GDR GPL = le public francophone langages et génie logiciel. DAC/ICCAD/DATE : écartés (audience EDA, style différent), à rouvrir seulement si l'angle compilation de connaissances (PSDD) domine un jour l'agenda.
+Communities, to arbitrate: TACAS/CAV/ATVA = tool-oriented verification, where the DDD/SDD lineage lives; Petri Nets/ACSD = the saturation home and the polyDD/HSDD lineage; SYNASC = the BDD niche; STTT/FMSD = the journals that published CESRBDD and the previous generation; JFLA/GDR GPL = the French-speaking languages and software engineering community. DAC/ICCAD/DATE: set aside (EDA audience, different style), to be reopened only if the knowledge compilation angle (PSDD) ever dominates the agenda.
