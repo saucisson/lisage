@@ -44,6 +44,23 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-13 - docs: memory track specification (arc storage port + class arenas), in English
+
+- **Issue**: none (track issues MEM-1 to MEM-19, #117-#135, milestones MEM-A to MEM-D).
+- **Done**: adds `docs/memory-track-arc-store-and-class-arenas.md`, the English
+  version of the memory-track descriptive document (scope, technical
+  specification, invariants, conventions, milestones MEM-A..MEM-D, labels,
+  issues MEM-1..MEM-19, risks). GitHub side: milestones #9-#12, labels
+  `piste/memoire`, `type/perf`, `garde/c1`, issues #117-#135.
+- **Evidence**: document committed on branch `feat/mem-track-spec` (from
+  `daily`); GitHub objects verified via API after creation. `make check` not
+  run: docs-only change, no code touched.
+- **Judgement calls**: the descriptive document is integrated in English per
+  the request, even though track convention keeps `docs/` in French (the
+  English-code charter of MEM-2 concerns code, not docs); the file lives in
+  `docs/` next to the other working documents.
+- **Escalations**: none.
+
 ## 2026-11-12 - Confrontation lisage/témoins 1/3 — runner lisage `confrontation` : une charge, un processus, une ligne JSON (bench/confrontation-1-socle)
 
 - **Issue**: aucune (demande humaine : mesurer lisage en temps/mémoire face aux autres outils de diagrammes de décision, BDD/ZDD/MDD/DDD/SDD ; l'app GitHub ne peut pas créer d'issue — 403).
