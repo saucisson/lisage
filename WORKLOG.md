@@ -44,6 +44,26 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-13 - docs: parallelism + Loupe & Sonde work specs, in English
+
+- **Issue**: none (track issues P0-1..SP-2 #136-#154 and D1-1..D6-3 #155-#176; milestones P0-P4 #13-#17, D1-D6 #18-#23).
+- **Done**: adds `docs/parallelism-work-spec.md` and
+  `docs/debug-tooling-loupe-and-sonde-spec.md`, the English versions of the
+  two work specifications (context, scope, conventions, invariants
+  INV1-INV10 / PAR-1..PAR-6, milestones, labels, issues, risks, exit
+  criteria). GitHub side: 11 milestones, 23 labels (`jalon/P0`-`jalon/P4`,
+  `PAR-1`-`PAR-6`, `debug-outillage`, `trace-v3`, `index-miroir`, `loupe`,
+  `sonde`, `ecrans`, `oracle`, `perf`, `ci-gates`, `adr`, `tests-pbt`,
+  `docs`), 41 issues.
+- **Evidence**: documents committed on branch `feat/specs-parallel-debug`
+  (from `daily`); GitHub objects verified via API after creation. `make
+  check` not run: docs-only change, no code touched.
+- **Judgement calls**: both specs integrated in English per the request,
+  although repository convention keeps `docs/` in French; SP-1/SP-2 filed
+  without milestone (conditional spikes, human decision required before
+  code).
+- **Escalations**: none.
+
 ## 2026-11-12 - Confrontation lisage/témoins 1/3 — runner lisage `confrontation` : une charge, un processus, une ligne JSON (bench/confrontation-1-socle)
 
 - **Issue**: aucune (demande humaine : mesurer lisage en temps/mémoire face aux autres outils de diagrammes de décision, BDD/ZDD/MDD/DDD/SDD ; l'app GitHub ne peut pas créer d'issue — 403).
