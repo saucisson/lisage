@@ -1,11 +1,11 @@
 # ADR-0102: Local Docker witnesses for external BDD libraries (CUDD)
 
-- Status: accepted (décision humaine directe, 2026-11-10)
+- Status: accepted (direct human decision, 2026-11-10)
 - Date: 2026-11-10
 
 ## Context
 
-M1-8 (issue #14, énoncé C6) requires a differential test against a real
+M1-8 (issue #14, statement C6) requires a differential test against a real
 external BDD library (CUDD) to measure node counts independently. Adding
 `cudd-sys` as a Rust dependency would mean compiling C/C++ in CI on all
 platforms — the #1 technical risk identified in the roadmap. The human
