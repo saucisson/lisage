@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-13 - Confrontation — horloge alea-lcg avant la génération de la table (fix/confrontation-alea-horloge)
+
+- **Issue**: aucune (asymétrie signalée à la revue de PR #95/#96 : le témoin CUDD démarre son horloge avant la génération de la table LCG, le runner lisage démarrait la sienne après).
+- **Done**: dans `charge_alea_lcg`, `Instant::now()` déplacé avant `table_lcg(...)` — le bloc mesuré couvre désormais génération de la table + construction + comptage, comme chez le témoin C (`cudd_bench.c`). L'init (schéma/arène) reste hors bloc des deux côtés.
+- **Evidence**: `cargo nextest run -p lisage-bench` : 76 tests passés, 3 ignorés. **Non exécuté ici**: `make check` complet et CI GitHub (aucun run CI créé sur les heads poussés depuis 23h52 — blocage externe, voir rapport de session).
+- **Judgement calls**: aucun.
+- **Escalations**: aucune.
+
 ## 2026-11-12 - Confrontation lisage/témoins 1/3 — runner lisage `confrontation` : une charge, un processus, une ligne JSON (bench/confrontation-1-socle)
 
 - **Issue**: aucune (demande humaine : mesurer lisage en temps/mémoire face aux autres outils de diagrammes de décision, BDD/ZDD/MDD/DDD/SDD ; l'app GitHub ne peut pas créer d'issue — 403).
