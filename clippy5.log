@@ -1,6 +1,0 @@
-    Checking lisage-bench v0.1.0 (/tmp/lisage-m6/crates/lisage-bench)
-    Checking lisage-reader v0.1.0 (/tmp/lisage-m6/crates/lisage-reader)
-    Checking lisage-backend v0.1.0 (/tmp/lisage-m6/crates/lisage-backend)
-    Checking lisage-core v0.1.0 (/tmp/lisage-m6/crates/lisage-core)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.24s
-CLIPPY_EXIT=0
