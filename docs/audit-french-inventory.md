@@ -9,7 +9,7 @@ Scope: `docs/`, root Markdown files, `crates/`, `tools/`, `scripts/`,
 `.github/`, manifests and assets. Excluded: `.git/`, `.venv/`,
 `target/`, `.review/`, `.confrontation/`, `.hypothesis/`, lock files.
 
-Files scanned: 323 (see the `find` command in the Reproducibility section); 191 files carry at least one French signal (per-file table below).
+Files scanned: 323 (see the `find` command in the Reproducibility section); 190 files carry at least one French signal (per-file table below).
 
 ## Totals by category
 
@@ -23,7 +23,7 @@ Files scanned: 323 (see the `find` command in the Reproducibility section); 191 
 
 ## Per-file detail (files with any signal, sorted by accented-line count)
 
-The French-ident column is measured on `crates/` only (signal 3 greps Rust sources); tools/ and scripts/ rows show 0 because they are not scanned by that pipeline.
+The report itself (`docs/audit-french-inventory.md`) is excluded from its own table: it does not exist at the audited commit. The French-ident column is measured on `crates/` only (signal 3 greps Rust sources); tools/ and scripts/ rows show 0 because they are not scanned by that pipeline.
 
 | File | Category | Accented lines | Stop-word lines | French-ident lines (crates/ only) | Total lines |
 |---|---|---|---|---|---|
@@ -144,7 +144,6 @@ The French-ident column is measured on `crates/` only (signal 3 greps Rust sourc
 | .github/pr-body-15.md | Documentation (root + docs/ + .github/) | 11 | 9 | 0 | 40 |
 | crates/lisage-lang/src/value.rs | Code (crates/, tools/, scripts/) | 7 | 3 | 4 | 22 |
 | .github/pr-body-12b.md | Documentation (root + docs/ + .github/) | 9 | 7 | 0 | 53 |
-| docs/audit-french-inventory.md | Documentation (root + docs/ + .github/) | 9 | 12 | 0 | 251 |
 | .github/pr-body-13b.md | Documentation (root + docs/ + .github/) | 8 | 5 | 0 | 50 |
 | docs/les-7-formes-des-philosophes-diagramme-svg.svg | Other | 7 | 7 | 0 | 90 |
 | crates/lisage-algebra/src/lib.rs | Code (crates/, tools/, scripts/) | 3 | 2 | 3 | 11 |
