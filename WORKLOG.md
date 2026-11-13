@@ -48,7 +48,7 @@ One entry per commit or pull request:
 
 - **Issue**: aucune (asymétrie signalée à la revue de PR #95/#96 : le témoin CUDD démarre son horloge avant la génération de la table LCG, le runner lisage démarrait la sienne après).
 - **Done**: dans `charge_alea_lcg`, `Instant::now()` déplacé avant `table_lcg(...)` — le bloc mesuré couvre désormais génération de la table + construction + comptage, comme chez le témoin C (`cudd_bench.c`). L'init (schéma/arène) reste hors bloc des deux côtés.
-- **Evidence**: `cargo nextest run -p lisage-bench` : 76 tests passés, 3 ignorés. **Non exécuté ici**: `make check` complet et CI GitHub (aucun run CI créé sur les heads poussés depuis 23h52 — blocage externe, voir rapport de session).
+- **Evidence**: `make check` green (ruff, mypy strict, contrats, pytest 47 passed + coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest 285 tests passés, 3 ignorés). CI GitHub verte sur le head de la PR (#98).
 - **Judgement calls**: aucun.
 - **Escalations**: aucune.
 

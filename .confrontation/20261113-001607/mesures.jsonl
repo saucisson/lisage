@@ -1,0 +1,155 @@
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.053, "rss_max_ko": 2284, "noeuds": 9, "verifie": 7}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.041, "rss_max_ko": 2276, "noeuds": 9, "verifie": 7}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.039, "rss_max_ko": 2304, "noeuds": 9, "verifie": 7}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.039, "rss_max_ko": 2304, "noeuds": 9, "verifie": 7}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.041, "rss_max_ko": 2276, "noeuds": 9, "verifie": 7}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.185, "rss_max_ko": 2308, "noeuds": 74, "verifie": 137}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.182, "rss_max_ko": 2344, "noeuds": 74, "verifie": 137}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.215, "rss_max_ko": 2348, "noeuds": 74, "verifie": 137}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.186, "rss_max_ko": 2320, "noeuds": 74, "verifie": 137}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.185, "rss_max_ko": 2300, "noeuds": 74, "verifie": 137}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 2.301, "rss_max_ko": 2684, "noeuds": 727, "verifie": 2074}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 2.618, "rss_max_ko": 2680, "noeuds": 727, "verifie": 2074}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 2.225, "rss_max_ko": 2684, "noeuds": 727, "verifie": 2074}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 2.243, "rss_max_ko": 2680, "noeuds": 727, "verifie": 2074}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 2.271, "rss_max_ko": 2668, "noeuds": 727, "verifie": 2074}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 36.079, "rss_max_ko": 7020, "noeuds": 8313, "verifie": 32698}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 36.174, "rss_max_ko": 7020, "noeuds": 8313, "verifie": 32698}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 37.159, "rss_max_ko": 7036, "noeuds": 8313, "verifie": 32698}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 36.429, "rss_max_ko": 7004, "noeuds": 8313, "verifie": 32698}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 36.152, "rss_max_ko": 7044, "noeuds": 8313, "verifie": 32698}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 571.756, "rss_max_ko": 56216, "noeuds": 106760, "verifie": 523228}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 574.435, "rss_max_ko": 56212, "noeuds": 106760, "verifie": 523228}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 588.076, "rss_max_ko": 56216, "noeuds": 106760, "verifie": 523228}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 574.903, "rss_max_ko": 56212, "noeuds": 106760, "verifie": 523228}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 589.797, "rss_max_ko": 56180, "noeuds": 106760, "verifie": 523228}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 9954.819, "rss_max_ko": 639320, "noeuds": 1071698, "verifie": 8386976}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 9964.891, "rss_max_ko": 639312, "noeuds": 1071698, "verifie": 8386976}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 9627.771, "rss_max_ko": 639284, "noeuds": 1071698, "verifie": 8386976}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 9719.843, "rss_max_ko": 639324, "noeuds": 1071698, "verifie": 8386976}
+{"outil": "lisage", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 10537.391, "rss_max_ko": 639304, "noeuds": 1071698, "verifie": 8386976}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.419, "rss_max_ko": 2424, "noeuds": 33, "verifie": 20}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.453, "rss_max_ko": 2396, "noeuds": 33, "verifie": 20}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.427, "rss_max_ko": 2416, "noeuds": 33, "verifie": 20}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.489, "rss_max_ko": 2396, "noeuds": 33, "verifie": 20}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.383, "rss_max_ko": 2432, "noeuds": 33, "verifie": 20}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 1.1, "rss_max_ko": 2616, "noeuds": 53, "verifie": 56}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 1.174, "rss_max_ko": 2600, "noeuds": 53, "verifie": 56}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 1.193, "rss_max_ko": 2628, "noeuds": 53, "verifie": 56}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 1.098, "rss_max_ko": 2628, "noeuds": 53, "verifie": 56}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 1.079, "rss_max_ko": 2636, "noeuds": 53, "verifie": 56}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 3.404, "rss_max_ko": 3308, "noeuds": 73, "verifie": 152}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 3.358, "rss_max_ko": 3344, "noeuds": 73, "verifie": 152}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 3.362, "rss_max_ko": 3308, "noeuds": 73, "verifie": 152}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 3.444, "rss_max_ko": 3356, "noeuds": 73, "verifie": 152}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 3.574, "rss_max_ko": 3308, "noeuds": 73, "verifie": 152}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 11.469, "rss_max_ko": 4800, "noeuds": 93, "verifie": 416}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 10.826, "rss_max_ko": 4768, "noeuds": 93, "verifie": 416}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 14.218, "rss_max_ko": 4792, "noeuds": 93, "verifie": 416}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 10.567, "rss_max_ko": 4800, "noeuds": 93, "verifie": 416}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 10.698, "rss_max_ko": 4804, "noeuds": 93, "verifie": 416}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 39.793, "rss_max_ko": 10416, "noeuds": 113, "verifie": 1136}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 39.338, "rss_max_ko": 10428, "noeuds": 113, "verifie": 1136}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 42.398, "rss_max_ko": 10416, "noeuds": 113, "verifie": 1136}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 39.545, "rss_max_ko": 10400, "noeuds": 113, "verifie": 1136}
+{"outil": "lisage", "variante": "mdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 41.992, "rss_max_ko": 10412, "noeuds": 113, "verifie": 1136}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.037, "rss_max_ko": 2260, "noeuds": 12, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.036, "rss_max_ko": 2260, "noeuds": 12, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.037, "rss_max_ko": 2304, "noeuds": 12, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.038, "rss_max_ko": 2268, "noeuds": 12, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.037, "rss_max_ko": 2260, "noeuds": 12, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.021, "rss_max_ko": 2280, "noeuds": 3, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.028, "rss_max_ko": 2264, "noeuds": 3, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.026, "rss_max_ko": 2280, "noeuds": 3, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.025, "rss_max_ko": 2256, "noeuds": 3, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.023, "rss_max_ko": 2288, "noeuds": 3, "verifie": 40}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.037, "rss_max_ko": 2304, "noeuds": 12, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.043, "rss_max_ko": 2300, "noeuds": 12, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.041, "rss_max_ko": 2300, "noeuds": 12, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.038, "rss_max_ko": 2304, "noeuds": 12, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.037, "rss_max_ko": 2296, "noeuds": 12, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.026, "rss_max_ko": 2268, "noeuds": 3, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.025, "rss_max_ko": 2300, "noeuds": 3, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.025, "rss_max_ko": 2276, "noeuds": 3, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.025, "rss_max_ko": 2300, "noeuds": 3, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.026, "rss_max_ko": 2300, "noeuds": 3, "verifie": 80}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.055, "rss_max_ko": 2292, "noeuds": 12, "verifie": 160}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.055, "rss_max_ko": 2276, "noeuds": 12, "verifie": 160}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.052, "rss_max_ko": 2308, "noeuds": 12, "verifie": 160}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.055, "rss_max_ko": 2268, "noeuds": 12, "verifie": 160}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "absolu", "temps_ms": 0.056, "rss_max_ko": 2284, "noeuds": 12, "verifie": 160}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.028, "rss_max_ko": 2272, "noeuds": 3, "verifie": 160}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.027, "rss_max_ko": 2260, "noeuds": 3, "verifie": 160}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.025, "rss_max_ko": 2296, "noeuds": 3, "verifie": 160}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.027, "rss_max_ko": 2272, "noeuds": 3, "verifie": 160}
+{"outil": "lisage", "variante": "mdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": "relatif", "temps_ms": 0.029, "rss_max_ko": 2260, "noeuds": 3, "verifie": 160}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.167, "rss_max_ko": 14360, "noeuds": 8, "verifie": 7}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.066, "rss_max_ko": 14324, "noeuds": 8, "verifie": 7}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.711, "rss_max_ko": 14492, "noeuds": 8, "verifie": 7}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.071, "rss_max_ko": 14572, "noeuds": 8, "verifie": 7}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.179, "rss_max_ko": 14436, "noeuds": 8, "verifie": 7}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.21, "rss_max_ko": 14548, "noeuds": 69, "verifie": 137}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.089, "rss_max_ko": 14308, "noeuds": 69, "verifie": 137}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.101, "rss_max_ko": 14584, "noeuds": 69, "verifie": 137}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.101, "rss_max_ko": 14620, "noeuds": 69, "verifie": 137}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "8"}, "encodage": null, "temps_ms": 0.097, "rss_max_ko": 14480, "noeuds": 69, "verifie": 137}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 0.409, "rss_max_ko": 14484, "noeuds": 637, "verifie": 2074}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 0.373, "rss_max_ko": 14424, "noeuds": 637, "verifie": 2074}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 0.381, "rss_max_ko": 14632, "noeuds": 637, "verifie": 2074}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 0.383, "rss_max_ko": 14628, "noeuds": 637, "verifie": 2074}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "12"}, "encodage": null, "temps_ms": 0.392, "rss_max_ko": 14344, "noeuds": 637, "verifie": 2074}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 5.64, "rss_max_ko": 15228, "noeuds": 8058, "verifie": 32698}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 5.622, "rss_max_ko": 15180, "noeuds": 8058, "verifie": 32698}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 5.616, "rss_max_ko": 15352, "noeuds": 8058, "verifie": 32698}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 6.073, "rss_max_ko": 15400, "noeuds": 8058, "verifie": 32698}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "16"}, "encodage": null, "temps_ms": 5.13, "rss_max_ko": 15400, "noeuds": 8058, "verifie": 32698}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 114.35, "rss_max_ko": 23128, "noeuds": 93949, "verifie": 523228}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 102.966, "rss_max_ko": 23232, "noeuds": 93949, "verifie": 523228}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 111.009, "rss_max_ko": 23004, "noeuds": 93949, "verifie": 523228}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 114.103, "rss_max_ko": 23140, "noeuds": 93949, "verifie": 523228}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "20"}, "encodage": null, "temps_ms": 115.706, "rss_max_ko": 23120, "noeuds": 93949, "verifie": 523228}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 2244.81, "rss_max_ko": 142024, "noeuds": 1081280, "verifie": 8386976}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 2225.777, "rss_max_ko": 141748, "noeuds": 1081280, "verifie": 8386976}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 2079.962, "rss_max_ko": 141852, "noeuds": 1081280, "verifie": 8386976}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 2025.067, "rss_max_ko": 141984, "noeuds": 1081280, "verifie": 8386976}
+{"outil": "cudd", "variante": "bdd", "charge": "alea-lcg", "parametres": {"n": "24"}, "encodage": null, "temps_ms": 2051.045, "rss_max_ko": 142124, "noeuds": 1081280, "verifie": 8386976}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.179, "rss_max_ko": 14736, "noeuds": 29, "verifie": 20}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.191, "rss_max_ko": 14832, "noeuds": 29, "verifie": 20}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.159, "rss_max_ko": 14688, "noeuds": 29, "verifie": 20}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.164, "rss_max_ko": 14832, "noeuds": 29, "verifie": 20}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "3"}, "encodage": null, "temps_ms": 0.181, "rss_max_ko": 14700, "noeuds": 29, "verifie": 20}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.412, "rss_max_ko": 14812, "noeuds": 49, "verifie": 56}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.26, "rss_max_ko": 14732, "noeuds": 49, "verifie": 56}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.261, "rss_max_ko": 14688, "noeuds": 49, "verifie": 56}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.293, "rss_max_ko": 14712, "noeuds": 49, "verifie": 56}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "4"}, "encodage": null, "temps_ms": 0.298, "rss_max_ko": 14760, "noeuds": 49, "verifie": 56}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 0.841, "rss_max_ko": 14712, "noeuds": 69, "verifie": 152}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 0.6, "rss_max_ko": 14740, "noeuds": 69, "verifie": 152}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 0.56, "rss_max_ko": 14968, "noeuds": 69, "verifie": 152}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 0.556, "rss_max_ko": 14816, "noeuds": 69, "verifie": 152}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "5"}, "encodage": null, "temps_ms": 0.577, "rss_max_ko": 14960, "noeuds": 69, "verifie": 152}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 1.521, "rss_max_ko": 14884, "noeuds": 89, "verifie": 416}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 1.464, "rss_max_ko": 14880, "noeuds": 89, "verifie": 416}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 1.644, "rss_max_ko": 14968, "noeuds": 89, "verifie": 416}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 1.549, "rss_max_ko": 14968, "noeuds": 89, "verifie": 416}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "6"}, "encodage": null, "temps_ms": 1.458, "rss_max_ko": 14988, "noeuds": 89, "verifie": 416}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 5.606, "rss_max_ko": 15200, "noeuds": 109, "verifie": 1136}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 4.876, "rss_max_ko": 15212, "noeuds": 109, "verifie": 1136}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 5.187, "rss_max_ko": 15080, "noeuds": 109, "verifie": 1136}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 5.515, "rss_max_ko": 15160, "noeuds": 109, "verifie": 1136}
+{"outil": "cudd", "variante": "bdd", "charge": "philosophes", "parametres": {"n": "7"}, "encodage": null, "temps_ms": 5.167, "rss_max_ko": 15264, "noeuds": 109, "verifie": 1136}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.105, "rss_max_ko": 14708, "noeuds": 29, "verifie": 40}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.111, "rss_max_ko": 14484, "noeuds": 29, "verifie": 40}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.098, "rss_max_ko": 14284, "noeuds": 29, "verifie": 40}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.096, "rss_max_ko": 14484, "noeuds": 29, "verifie": 40}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "4", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.155, "rss_max_ko": 14328, "noeuds": 29, "verifie": 40}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.147, "rss_max_ko": 14460, "noeuds": 30, "verifie": 80}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.148, "rss_max_ko": 14460, "noeuds": 30, "verifie": 80}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.194, "rss_max_ko": 14632, "noeuds": 30, "verifie": 80}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.25, "rss_max_ko": 14580, "noeuds": 30, "verifie": 80}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "8", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.142, "rss_max_ko": 14580, "noeuds": 30, "verifie": 80}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.251, "rss_max_ko": 14532, "noeuds": 28, "verifie": 160}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.276, "rss_max_ko": 14628, "noeuds": 28, "verifie": 160}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.251, "rss_max_ko": 14484, "noeuds": 28, "verifie": 160}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.229, "rss_max_ko": 14448, "noeuds": 28, "verifie": 160}
+{"outil": "cudd", "variante": "bdd", "charge": "fenetre", "parametres": {"taille": "16", "nb_bases": "10"}, "encodage": null, "temps_ms": 0.273, "rss_max_ko": 14424, "noeuds": 28, "verifie": 160}
