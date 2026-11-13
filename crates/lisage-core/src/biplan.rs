@@ -1,84 +1,84 @@
-//! Pool bi-plan (M4-1, énoncé C5) : plans **principal** et **d'ombre**, GC
-//! mark-and-sweep, compaction **profilée** (seuil de morts), et métriques
-//! de cache (créations/partages du hash-consing, vivants/morts du GC).
+//! Two-plane pool (M4-1, statement C5): **main** and **shadow** planes, GC
+//! mark-and-sweep, **profiled** compaction (dead threshold), and
+//! cache metrics (hash-consing creations/sharings, GC live/dead).
 //!
-//! Le plan d'ombre porte l'index niveau → formes (spec § 10 Q7 : « l'index
-//! niveau → formes vit dans le plan d'ombre »), le plan principal porte les
-//! nœuds du diagramme. Le stockage reste partagé (C1) ; seul le parcours
-//! distingue les plans.
+//! The shadow plane carries the level → forms index (spec § 10 Q7: "the
+//! level → forms index lives in the shadow plane"), the main plane carries the
+//! nodes of the diagram. Storage stays shared (C1); only the traversal
+//! distinguishes the planes.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_algebra::interface::{Level, NodeId};
 
-/// Plan d'un nœud du pool bi-plan.
+/// Plane of a node of the two-plane pool.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Plan {
-    /// Plan principal : les nœuds du diagramme.
-    Principal,
-    /// Plan d'ombre : l'index niveau → formes et les nœuds auxiliaires.
-    Ombre,
+    /// Main plane: the nodes of the diagram.
+    Main,
+    /// Shadow plane: the level → forms index and the auxiliary nodes.
+    Shadow,
 }
 
-/// Seuil de compaction profilée : on compacte quand la proportion de
-/// tombstones atteint 1/4 des slots (morts × 4 ≥ total).
-pub const SEUIL_COMPACTION_NUM: u64 = 1;
-/// Dénominateur du seuil de compaction.
-pub const SEUIL_COMPACTION_DEN: u64 = 4;
+/// Profiled compaction threshold: we compact when the proportion of
+/// tombstones reach 1/4 of the slots (dead × 4 ≥ total).
+pub const THRESHOLD_COMPACTION_NUM: u64 = 1;
+/// Denominator of the compaction threshold.
+pub const THRESHOLD_COMPACTION_DEN: u64 = 4;
 
-/// Base de pourcentage pour `taux_hit` (retourné en pour cent, entier).
+/// Percentage base for `rate_hit` (returned in percent, integer).
 pub const BASE_POURCENTAGE: u64 = 100;
 
-/// Métriques du pool : cache du hash-consing et compteurs de GC.
+/// Pool metrics: hash-consing cache and GC counters.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub struct MetriquesPool {
-    /// Nœuds créés (miss du hash-consing).
+pub struct MetricsPool {
+    /// Nodes created (hash-consing miss).
     pub creations: u64,
-    /// Nœuds partagés (hit du hash-consing, R-share).
-    pub partages: u64,
-    /// Nœuds vivants après le dernier GC.
-    pub vivants: u64,
-    /// Nœuds collectés au total.
-    pub morts: u64,
-    /// Nombre de GC exécutés.
+    /// Nodes shared (hash-consing hit, R-share).
+    pub shared: u64,
+    /// Nodes alive after the last GC.
+    pub live: u64,
+    /// Nodes collected in total.
+    pub dead: u64,
+    /// Number of GCs executed.
     pub gc: u64,
-    /// Nombre de compactions exécutées.
+    /// Number of compactions executed.
     pub compactions: u64,
 }
 
-impl MetriquesPool {
-    /// Taux de hit du cache = partages / (créations + partages) ; 0 si vide.
-    pub fn taux_hit(&self) -> u64 {
-        let total = self.creations + self.partages;
-        self.partages
+impl MetricsPool {
+    /// Cache hit rate = sharings / (creations + sharings); 0 if empty.
+    pub fn rate_hit(&self) -> u64 {
+        let total = self.creations + self.shared;
+        self.shared
             .checked_mul(BASE_POURCENTAGE)
             .and_then(|p| p.checked_div(total))
             .unwrap_or(0)
     }
 }
 
-/// Statistiques d'un GC : vivants, collectés, compaction effectuée.
+/// Statistics of a GC: live, collected, compaction performed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StatsGc {
-    /// Nœuds vivants (atteints depuis les racines).
-    pub vivants: u64,
-    /// Nœuds collectés (tombstones posées).
-    pub collectes: u64,
-    /// Compaction effectuée (seuil de morts atteint).
+    /// Live nodes (reached from the roots).
+    pub live: u64,
+    /// Collected nodes (tombstones set).
+    pub collected: u64,
+    /// Compaction performed (dead threshold reached).
     pub compaction: bool,
 }
 
-/// Entrée du pool bi-plan : plan + forme (tombstone après GC).
+/// Entry of the two-plane pool: plane + form (tombstone after GC).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub(crate) struct EntreeNoeud<Key, Payload> {
+pub(crate) struct InputNode<Key, Payload> {
     pub plan: Plan,
-    pub forme: Option<lisage_algebra::interface::Form<Key, Payload>>,
+    pub form: Option<lisage_algebra::interface::Form<Key, Payload>>,
 }
 
-/// Index du plan d'ombre : niveau → nœuds vivants de ce niveau.
-pub(crate) type IndexNiveaux = BTreeMap<Level, BTreeSet<NodeId>>;
+/// Index of the shadow plane: level → live nodes of this level.
+pub(crate) type IndexLevels = BTreeMap<Level, BTreeSet<NodeId>>;
 
-/// Décide si le seuil de compaction profilée est atteint.
-pub fn seuil_atteint(morts: u64, total: u64) -> bool {
-    morts * SEUIL_COMPACTION_DEN >= total * SEUIL_COMPACTION_NUM && total > 0
+/// Decides whether the profiled compaction threshold is reached.
+pub fn threshold_reached(dead: u64, total: u64) -> bool {
+    dead * THRESHOLD_COMPACTION_DEN >= total * THRESHOLD_COMPACTION_NUM && total > 0
 }

@@ -1,28 +1,28 @@
-//! Tests des opérations à canal hérité seul (M1-6, spec § 4) : `exists`
-//! (pli `(Bool,∨,∧)`), `filter` (garde), `map` (réétiquetage d'atomes).
+//! Tests of the inherited-channel-only operations (M1-6, spec § 4): `exists`
+//! (fold `(Bool,∨,∧)`), `filter` (guard), `map` (atom relabeling).
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::error::CoreError;
+use lisage_core::fold::union;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::operations::{ClePresentes, existe, filtrer, image};
-use lisage_core::pli::union;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::operations::{KeyPresent, exists, filter, image};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiled};
 use lisage_lang::value::{Atom, Value};
 
 type PoolRef = Arena<ReferenceController>;
 
-fn atome(valeur: u64) -> Value {
-    Value::Atom(Atom(valeur))
+fn atom(value: u64) -> Value {
+    Value::Atom(Atom(value))
 }
 
-fn map_de(paires: &[(u64, u64)]) -> Value {
+fn map_of(pairs: &[(u64, u64)]) -> Value {
     Value::Map(
-        paires
+        pairs
             .iter()
-            .map(|(cle, valeur)| (atome(*cle), atome(*valeur)))
+            .map(|(key, value)| (atom(*key), atom(*value)))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }
@@ -34,178 +34,168 @@ fn pool(schema: &Schema) -> PoolRef {
     )
 }
 
-fn compiler_ensemble(
+fn compile_set(
     pool: &mut PoolRef,
     anchor: Anchor,
     schema: &Schema,
-    ensemble: &BTreeSet<Value>,
+    set: &BTreeSet<Value>,
 ) -> NodeId {
     let keys = SchemaKeys::new(schema.clone());
-    let mut resultat = pool.intern(anchor, Form::Terminal(false));
-    for membre in ensemble {
-        let n = compiler(pool, anchor, schema, membre).unwrap();
-        resultat = union(pool, &keys, anchor, resultat, n).unwrap();
+    let mut result = pool.intern(anchor, Form::Terminal(false));
+    for membre in set {
+        let n = compiled(pool, anchor, schema, membre).unwrap();
+        result = union(pool, &keys, anchor, result, n).unwrap();
     }
-    resultat
+    result
 }
 
 fn schema_map() -> Schema {
-    Schema::Map(
-        vec![Atom(0), Atom(1)],
-        Domaine::nouveau(vec![Atom(0), Atom(1)]),
-    )
+    Schema::Map(vec![Atom(0), Atom(1)], Domain::new(vec![Atom(0), Atom(1)]))
 }
 
-/// Prédicat de présence : `p(m) = présent(a)`.
-fn predicat_exemple_spec(cles: &ClePresentes) -> bool {
-    cles.contains(&0)
+/// Presence predicate: `p(m) = present(a)`.
+fn predicate_example_spec(keys: &KeyPresent) -> bool {
+    keys.contains(&0)
 }
 
-/// `exists(p)` : pli sur `(Bool, ∨, ∧)`, verdict résolu au terminal.
+/// `exists(p)`: fold over `(Bool, ∨, ∧)`, verdict resolved at the terminal.
 #[test]
-fn test_existe_predicat_exemple_spec() {
+fn test_exists_predicate_example_spec() {
     let schema = schema_map();
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let set = BTreeSet::from([map_of(&[(0, 1)]), map_of(&[(1, 0)])]);
+    let root = compile_set(&mut input, anchor, &schema, &set);
 
-    let verdict = existe(
-        &entree,
-        &mut sortie,
+    let verdict = exists(
+        &input,
+        &mut output,
         anchor,
         &schema,
-        racine,
-        Box::new(predicat_exemple_spec),
+        root,
+        Box::new(predicate_example_spec),
     )
     .unwrap();
-    assert!(verdict, "a↦1 satisfait p (présent(a))");
+    assert!(verdict, "a↦1 satisfies p (present(a))");
 
-    let aucun = existe(
-        &entree,
-        &mut sortie,
+    let none = exists(
+        &input,
+        &mut output,
         anchor,
         &schema,
-        racine,
-        Box::new(|cles: &ClePresentes| cles.contains(&0) && cles.contains(&1)),
+        root,
+        Box::new(|keys: &KeyPresent| keys.contains(&0) && keys.contains(&1)),
     )
     .unwrap();
-    assert!(!aucun, "aucun membre n'a a et b présents");
+    assert!(!none, "no member has both a and b present");
 }
 
-/// `filter(p)` : garde, le diagramme de sortie est l'ensemble filtré
-/// (canonique : même ensemble ⇒ même nœud, C1).
+/// `filter(p)`: guard, the output diagram is the filtered set
+/// (canonical: same set ⇒ same node, C1).
 #[test]
-fn test_filtre_garde() {
+fn test_filter_keeps() {
     let schema = schema_map();
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let set = BTreeSet::from([map_of(&[(0, 1)]), map_of(&[(1, 0)])]);
+    let root = compile_set(&mut input, anchor, &schema, &set);
 
-    // Garde « clé 0 présente ».
-    let filtre = filtrer(
-        &entree,
-        &mut sortie,
+    // Keeps "key 0 present".
+    let filter = filter(
+        &input,
+        &mut output,
         anchor,
         &schema,
-        racine,
-        Box::new(|cles: &ClePresentes| cles.contains(&0)),
+        root,
+        Box::new(|keys: &KeyPresent| keys.contains(&0)),
     )
     .unwrap();
-    let attendu = compiler_ensemble(
-        &mut sortie,
+    let expected = compile_set(
+        &mut output,
         anchor,
         &schema,
-        &BTreeSet::from([map_de(&[(0, 1)])]),
+        &BTreeSet::from([map_of(&[(0, 1)])]),
     );
-    assert_eq!(filtre, attendu, "C1 : même ensemble filtré ⇒ même nœud");
+    assert_eq!(filter, expected, "C1: same filtered set ⇒ same node");
 }
 
-/// `map(f)` : réétiquetage des atomes d'un ensemble (schéma `Atom`).
+/// `map(f)`: relabeling of the atoms of a set (schema `Atom`).
 #[test]
-fn test_image_reetiquetage_atomes() {
-    let schema = Schema::Atom(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+fn test_image_relabeling_atoms() {
+    let schema = Schema::Atom(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([atome(0), atome(2)]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let set = BTreeSet::from([atom(0), atom(2)]);
+    let root = compile_set(&mut input, anchor, &schema, &set);
 
     // f(v) = (v + 1) mod 3 : {0, 2} ↦ {1, 0}.
-    let image = image(
-        &entree,
-        &mut sortie,
-        anchor,
-        racine,
-        Box::new(|v| (v + 1) % 3),
-    )
-    .unwrap();
-    let attendu = compiler_ensemble(
-        &mut sortie,
+    let image = image(&input, &mut output, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
+    let expected = compile_set(
+        &mut output,
         anchor,
         &schema,
-        &BTreeSet::from([atome(1), atome(0)]),
+        &BTreeSet::from([atom(1), atom(0)]),
     );
-    assert_eq!(image, attendu, "C1 : même image ⇒ même nœud");
+    assert_eq!(image, expected, "C1: same image ⇒ same node");
 }
 
-/// `exists` sur un schéma non-Map : erreur typée `SchemaInattendu`, pas de
-/// panique à la frontière publique.
+/// `exists` on a not-Map schema: typed error `SchemaUnexpected`, no
+/// panic at the public boundary.
 #[test]
-fn test_existe_schema_non_map_erreur_typee() {
-    let schema = Schema::Atom(Domaine::nouveau(vec![Atom(0)]));
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+fn test_exists_schema_not_map_error_typed() {
+    let schema = Schema::Atom(Domain::new(vec![Atom(0)]));
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let racine = entree.intern(anchor, Form::Terminal(false));
+    let root = input.intern(anchor, Form::Terminal(false));
 
-    let resultat = existe(
-        &entree,
-        &mut sortie,
+    let result = exists(
+        &input,
+        &mut output,
         anchor,
         &schema,
-        racine,
-        Box::new(|_: &ClePresentes| true),
+        root,
+        Box::new(|_: &KeyPresent| true),
     );
     assert_eq!(
-        resultat.unwrap_err(),
-        CoreError::SchemaInattendu {
-            attendu: "Map",
+        result.unwrap_err(),
+        CoreError::SchemaUnexpected {
+            expected: "Map",
             recu: "Atom"
         }
     );
 }
 
-/// `filter` sur un nœud dont le niveau dépasse le schéma : erreur typée
-/// `NiveauHorsSchema` (au lieu d'un indice hors limites).
+/// `filter` on a node whose level exceeds the schema: typed error
+/// `LevelOutSchema` (instead of an out-of-bounds index).
 #[test]
-fn test_filtre_niveau_hors_schema_erreur_typee() {
+fn test_filter_level_out_schema_error_typed() {
     let schema = schema_map();
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let terminal_faux = entree.intern(anchor, Form::Terminal(false));
-    let terminal_vrai = entree.intern(anchor, Form::Terminal(true));
-    // Niveau 4 hors du schéma (2 clés ⇒ niveaux 0..3) ; arcs distincts pour
-    // éviter tout collapse à l'internage.
-    let malforme = entree.intern(
+    let terminal_false = input.intern(anchor, Form::Terminal(false));
+    let terminal_true = input.intern(anchor, Form::Terminal(true));
+    // Level 4 outside the schema (2 keys ⇒ levels 0..3); distinct edges to
+    // avoid any collapse at interning.
+    let malforme = input.intern(
         anchor,
         Form::Node {
             level: Level(4),
-            arcs: BTreeMap::from([(0, terminal_faux), (1, terminal_vrai)]),
+            edges: BTreeMap::from([(0, terminal_false), (1, terminal_true)]),
         },
     );
 
-    let resultat = filtrer(
-        &entree,
-        &mut sortie,
+    let result = filter(
+        &input,
+        &mut output,
         anchor,
         &schema,
         malforme,
-        Box::new(|_: &ClePresentes| true),
+        Box::new(|_: &KeyPresent| true),
     );
-    assert_eq!(resultat.unwrap_err(), CoreError::NiveauHorsSchema(Level(4)));
+    assert_eq!(result.unwrap_err(), CoreError::LevelOutSchema(Level(4)));
 }

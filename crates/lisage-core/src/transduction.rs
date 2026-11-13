@@ -1,93 +1,93 @@
-//! Moteur de transductions attribuées (M1-4, spec § 3.1, énoncé L3) :
-//! les deux canaux — attribut **hérité** `H` (descendant, `φ_disp`) et
-//! **synthétisé** `S` (remontant, `φ_aggr`) — et la mémo à fingerprint
-//! `(op, nœud, h)` (lemme L1). Règles T-TERM/T-NODE.
+//! Attributed transduction engine (M1-4, spec § 3.1, statement L3):
+//! the two channels — **inherited** attribute `H` (top-down, `φ_disp`) and
+//! **synthesized** `S` (bottom-up, `φ_aggr`) — and the fingerprint memo
+//! `(op, node, h)` (lemma L1). Rules T-TERM/T-NODE.
 //!
-//! Depuis M1-5 (#12), la transduction lit son entrée dans un pool à
-//! payload `bool` et écrit dans un pool à payload `Out` quelconque
-//! (`Δ_out` peut différer de `Δ_in`, spec § 3.2) : `psi` et `φ_out` écrivent
-//! eux-mêmes (spec : « φ_out est la seule règle qui écrit le diagramme »),
-//! toujours par interning (A3 : résultat canonique par construction).
+//! Since M1-5 (#12), the transduction reads its input from a pool with
+//! payload `bool` and writes to a pool with any payload `Out`
+//! (`Δ_out` may differ from `Δ_in`, spec § 3.2): `psi` and `φ_out` write
+//! themselves (spec: "φ_out is the only rule that writes the diagram"),
+//! always by interning (A3: canonical result by construction).
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use lisage_algebra::interface::{Anchor, Form, Level, NodeId, PolitiqueMemoire, Pool};
+use lisage_algebra::interface::{Anchor, Form, Level, NodeId, PolicyMemory, Pool};
 
 use crate::error::CoreError;
-use crate::memoire::{EffetMemoire, MemoireNiveau};
-use crate::observer::{CanalAttr, Observer, TraceEvent};
+use crate::memory::{EffectMemory, MemoryLevel};
+use crate::observer::{ChannelAttribute, Observer, TraceEvent};
 
-/// Clé de la mémo : (fingerprint de l'opération, nœud, attribut hérité,
-/// version de la mémoire de niveau) — lemme L1.
-type CleMemo<H> = (u64, NodeId, H, u64);
+/// Memo key: (fingerprint of the operation, node, inherited attribute,
+/// level memory version) — lemma L1.
+type KeyMemo<H> = (u64, NodeId, H, u64);
 
-/// Contexte de `φ_out` (T-NODE) : regroupe les paramètres de la
+/// Context of `φ_out` (T-NODE): groups the parameters of the
 /// restructuration (spec § 3.1 : `φ_out(ℓ, h, {v ↦ (D', s)}, M)`).
-pub struct ContextePhiOut<'a, H, S, M: Clone + Eq + Hash + Debug> {
-    /// Ancre de la racine.
+pub struct ContextPhiOut<'a, H, S, M: Clone + Eq + Hash + Debug> {
+    /// Anchor of the root.
     pub anchor: Anchor,
-    /// Niveau du nœud en cours de restructuration.
+    /// Level of the node being restructured.
     pub level: Level,
-    /// Attribut hérité au nœud.
+    /// Inherited attribute at the node.
     pub h: &'a H,
-    /// Fils déjà transduits : `{v ↦ (D', s)}`.
-    pub arcs: BTreeMap<u64, (NodeId, S)>,
-    /// Mémoire de niveau en lecture (M2-3).
-    pub memoire: &'a MemoireNiveau<M>,
-    /// Nœud d'entrée en cours de visite (clé de la mémoire de niveau).
-    pub noeud_entree: NodeId,
+    /// Already transduced children: `{v ↦ (D', s)}`.
+    pub edges: BTreeMap<u64, (NodeId, S)>,
+    /// Level memory in read (M2-3).
+    pub memory: &'a MemoryLevel<M>,
+    /// Input node being visitd (key of the level memory).
+    pub node_input: NodeId,
 }
 
-/// Transduction attribuée (spec § 3.1) : trois fonctions partielles du
-/// contrôleur + élément initial du canal hérité + mémoire de niveau `M`
-/// (M2-3, T3). Entrée : pool à payload `bool` (lecture ensembliste) ;
-/// sortie : pool à payload `Out`.
+/// Attributed transduction (spec § 3.1): three partial functions of the
+/// controller + initial element of the inherited channel + level memory `M`
+/// (M2-3, T3). Input: pool with payload `bool` (set reading);
+/// output: pool with payload `Out`.
 pub trait Transduction: Send + Sync {
-    /// Attribut hérité (descendant).
+    /// Inherited attribute (top-down).
     type H: Clone + PartialEq + Eq + Hash + Debug + Send + Sync;
-    /// Attribut synthétisé (remontant).
+    /// Synthesized attribute (bottom-up).
     type S: Clone + Debug + Send + Sync;
-    /// Payload des terminaux du diagramme de sortie (`Δ_out`, spec § 3.2).
+    /// Payload of the terminals of the output diagram (`Δ_out`, spec § 3.2).
     type Out: Clone + Eq + Hash + Debug + Send + Sync;
-    /// Valeur stockée dans la mémoire de niveau `M : (id(nœud), ℓ) ⇀ M`
-    /// (M2-3). `()` pour les transductions sans mémoire (M1).
+    /// Value stored in the level memory `M : (id(node), ℓ) ⇀ M`
+    /// (M2-3). `()` for transductions without memory (M1).
     type M: Clone + Eq + Hash + Debug + Send + Sync;
 
-    /// Fingerprint de l'opération (paramètres compris) : entre dans la clé
-    /// de mémo `(op, nœud, h, version(M))` (L1/L3).
+    /// Fingerprint of the operation (parameters included): enters the
+    /// memo key `(op, node, h, version(M))` (L1/L3).
     fn fingerprint(&self) -> u64;
 
-    /// Élément initial du canal hérité.
+    /// Initial element of the inherited channel.
     fn h0(&self) -> Self::H;
 
-    /// (T-NODE) dispatch : attribut hérité le long de l'arc `v` du niveau `ℓ`.
-    fn phi_disp(&self, level: Level, h: &Self::H, arc: u64) -> Self::H;
+    /// (T-NODE) dispatch: inherited attribute along edge `v` of level `ℓ`.
+    fn phi_dispatch(&self, level: Level, h: &Self::H, edge: u64) -> Self::H;
 
-    /// (T-NODE) synthèse : agrégation des attributs des fils. Chaque arc
-    /// porte le **niveau du fils** (`None` si le fils est un terminal) :
-    /// nécessaire à l'expansion-comptage A4 (les niveaux sautés entre `ℓ`
-    /// et le fils ont été collapsés, leur cardinalité entre dans le pli).
-    fn phi_aggr(
+    /// (T-NODE) synthesis: aggregation of the children attributes. Each edge
+    /// carries the **level of the child** (`None` if the child is a terminal):
+    /// needed for the A4 counting expansion (the levels skipped between `ℓ`
+    /// and the child have been collapsed, their cardinality enters the fold).
+    fn phi_aggregate(
         &self,
         level: Level,
         h: &Self::H,
-        arcs: &BTreeMap<u64, (Option<Level>, Self::S)>,
+        edges: &BTreeMap<u64, (Option<Level>, Self::S)>,
     ) -> Self::S;
 
-    /// (T-NODE) restructuration : nœud résultat interné dans le pool de
-    /// sortie à partir des fils déjà transduits `{v ↦ (D', s)}` (A3), avec
-    /// lecture de la mémoire de niveau et production d'un effet mémoire
+    /// (T-NODE) restructuring: result node interned in the output pool
+    /// from the already transduced children `{v ↦ (D', s)}` (A3), with
+    /// reading of the level memory and production of a memory effect
     /// `μ` (M2-3, spec § 3.1 : `φ_out(ℓ, h, {v ↦ (D', s)}, M) ↦ (n', μ)`).
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, EffetMemoire<Self::M>);
+        ctx: ContextPhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, EffectMemory<Self::M>);
 
-    /// (T-TERM) : nœud terminal résultat interné + attribut synthétisé.
+    /// (T-TERM): interned result terminal node + synthesized attribute.
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
@@ -97,268 +97,268 @@ pub trait Transduction: Send + Sync {
     ) -> (NodeId, Self::S);
 }
 
-/// Runner d'une transduction avec sa computed table (mémo L1/L3) et sa
-/// mémoire de niveau (M2-3).
-pub struct Transducteur<T: Transduction> {
+/// Runner of a transduction with its computed table (memo L1/L3) and its
+/// level memory (M2-3).
+pub struct Transducer<T: Transduction> {
     transduction: T,
-    memo: HashMap<CleMemo<T::H>, (NodeId, T::S)>,
-    memoire: MemoireNiveau<T::M>,
-    politique: PolitiqueMemoire,
-    observateur: Option<Arc<dyn Observer>>,
+    memo: HashMap<KeyMemo<T::H>, (NodeId, T::S)>,
+    memory: MemoryLevel<T::M>,
+    policy: PolicyMemory,
+    observer: Option<Arc<dyn Observer>>,
 }
 
-impl<T: Transduction> Transducteur<T> {
-    /// Runner neuf pour la transduction donnée, mémoire vide (version 0),
-    /// politique `Aucune` (M1 : pas de mémoire de niveau), sans observateur.
+impl<T: Transduction> Transducer<T> {
+    /// New runner for the given transduction, empty memory (version 0),
+    /// policy `No` (M1: no level memory), without observer.
     pub fn new(transduction: T) -> Self {
-        Self::avec_politique(transduction, PolitiqueMemoire::Aucune)
+        Self::with_policy(transduction, PolicyMemory::No)
     }
 
-    /// Runner avec une politique de stockage de la mémoire de niveau
-    /// déclarée par le contrôleur (M2-3, T3).
-    pub fn avec_politique(transduction: T, politique: PolitiqueMemoire) -> Self {
-        Transducteur {
+    /// Runner with a level memory storage policy
+    /// declared by the controller (M2-3, T3).
+    pub fn with_policy(transduction: T, policy: PolicyMemory) -> Self {
+        Transducer {
             transduction,
             memo: HashMap::new(),
-            memoire: MemoireNiveau::new(),
-            politique,
-            observateur: None,
+            memory: MemoryLevel::new(),
+            policy,
+            observer: None,
         }
     }
 
-    /// Runner avec observateur de trace (M2-6) : émet `MemoHit`/`MemoMiss`
-    /// et les `Attr` des trois canaux pendant l'exécution.
-    pub fn avec_observateur(
+    /// Runner with trace observer (M2-6): emits `MemoHit`/`MemoMiss`
+    /// and the `Attribute`s of the three channels during execution.
+    pub fn with_observer(
         transduction: T,
-        politique: PolitiqueMemoire,
-        observateur: Arc<dyn Observer>,
+        policy: PolicyMemory,
+        observer: Arc<dyn Observer>,
     ) -> Self {
-        Transducteur {
+        Transducer {
             transduction,
             memo: HashMap::new(),
-            memoire: MemoireNiveau::new(),
-            politique,
-            observateur: Some(observateur),
+            memory: MemoryLevel::new(),
+            policy,
+            observer: Some(observer),
         }
     }
 
-    /// Émet un événement sur l'observateur, s'il y en a un.
-    fn notifier(&self, evenement: TraceEvent) {
-        if let Some(observateur) = &self.observateur {
-            observateur.on_event(&evenement);
+    /// Emits an event on the observer, if there is one.
+    fn notifier(&self, event: TraceEvent) {
+        if let Some(observer) = &self.observer {
+            observer.on_event(&event);
         }
     }
 
-    /// Accès à la transduction embarquée (pour inspecter l'état d'un
-    /// wrapper, ex. niveaux modifiés par `RestreintAuxNiveaux`).
+    /// Access to the embedded transduction (to inspect the state of a
+    /// wrapper, e.g. levels modified by `RestrictedAuxLevels`).
     pub fn transduction(&self) -> &T {
         &self.transduction
     }
 
-    /// Nombre d'entrées de la mémo (pour les tests : preuve des hits).
-    pub fn taille_memo(&self) -> usize {
+    /// Number of memo entries (for tests: proof of hits).
+    pub fn size_memo(&self) -> usize {
         self.memo.len()
     }
 
-    /// Version courante de la mémoire de niveau (L1).
-    pub fn version_memoire(&self) -> u64 {
-        self.memoire.version()
+    /// Current version of the level memory (L1).
+    pub fn version_memory(&self) -> u64 {
+        self.memory.version()
     }
 
-    /// Accès à la mémoire de niveau (pour les tests : entrées produites).
-    pub fn memoire(&self) -> &MemoireNiveau<T::M> {
-        &self.memoire
+    /// Access to the level memory (for tests: entries produced).
+    pub fn memory(&self) -> &MemoryLevel<T::M> {
+        &self.memory
     }
 
-    /// Exécute la transduction à la racine, avec l'attribut initial `h0`.
-    /// L'entrée est lue dans `pool_entree` (payload `bool`), le résultat est
-    /// écrit dans `pool_sortie` (payload `Out`).
+    /// Runs the transduction at the root, with initial attribute `h0`.
+    /// The input is read from `pool_input` (payload `bool`), the result is
+    /// written to `pool_output` (payload `Out`).
     pub fn run<PIn, POut>(
         &mut self,
-        pool_entree: &PIn,
-        pool_sortie: &mut POut,
+        pool_input: &PIn,
+        pool_output: &mut POut,
         anchor: Anchor,
-        noeud: NodeId,
+        node: NodeId,
     ) -> Result<(NodeId, T::S), CoreError>
     where
         PIn: Pool<Key = u64, Payload = bool>,
         POut: Pool<Key = u64, Payload = T::Out>,
     {
         let h = self.transduction.h0();
-        self.run_avec(pool_entree, pool_sortie, anchor, noeud, h)
+        self.run_with(pool_input, pool_output, anchor, node, h)
     }
 
-    /// Variante mono-pool : lit et écrit dans le même pool (payload `Out`
-    /// = `bool`). Utilisée par `saturate` (M2-4) où l'itération courante vit
-    /// dans le même pool que le résultat.
-    pub fn run_meme_pool<P>(
+    /// Single-pool variant: reads and writes in the same pool (payload `Out`
+    /// = `bool`). Used by `saturate` (M2-4) where the current iteration lives
+    /// in the same pool as the result.
+    pub fn run_same_pool<P>(
         &mut self,
         pool: &mut P,
         anchor: Anchor,
-        noeud: NodeId,
+        node: NodeId,
     ) -> Result<(NodeId, T::S), CoreError>
     where
         P: Pool<Key = u64, Payload = bool>,
         T: Transduction<Out = bool>,
     {
         let h = self.transduction.h0();
-        self.run_avec_meme_pool(pool, anchor, noeud, h)
+        self.run_with_same_pool(pool, anchor, node, h)
     }
 
-    fn run_avec<PIn, POut>(
+    fn run_with<PIn, POut>(
         &mut self,
-        pool_entree: &PIn,
-        pool_sortie: &mut POut,
+        pool_input: &PIn,
+        pool_output: &mut POut,
         anchor: Anchor,
-        noeud: NodeId,
+        node: NodeId,
         h: T::H,
     ) -> Result<(NodeId, T::S), CoreError>
     where
         PIn: Pool<Key = u64, Payload = bool>,
         POut: Pool<Key = u64, Payload = T::Out>,
     {
-        let cle = (
+        let key = (
             self.transduction.fingerprint(),
-            noeud,
+            node,
             h.clone(),
-            self.memoire.version(),
+            self.memory.version(),
         );
-        if let Some((resultat, s)) = self.memo.get(&cle) {
-            self.notifier(TraceEvent::MemoHit { noeud });
-            return Ok((*resultat, s.clone()));
+        if let Some((result, s)) = self.memo.get(&key) {
+            self.notifier(TraceEvent::MemoHit { node });
+            return Ok((*result, s.clone()));
         }
-        self.notifier(TraceEvent::MemoMiss { noeud });
-        let forme = pool_entree.resolve(noeud)?.clone();
-        let (resultat, s) = match forme {
-            Form::Terminal(payload) => self.transduction.psi(pool_sortie, anchor, payload, &h),
-            Form::Node { level, arcs } => {
-                let mut enfants = BTreeMap::new();
-                let mut s_arcs = BTreeMap::new();
-                for (arc, cible) in arcs {
-                    let h_arc = self.transduction.phi_disp(level, &h, arc);
-                    self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Herite,
-                        noeud,
-                        valeur: format!("{h_arc:?}"),
+        self.notifier(TraceEvent::MemoMiss { node });
+        let form = pool_input.resolve(node)?.clone();
+        let (result, s) = match form {
+            Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
+            Form::Node { level, edges } => {
+                let mut children = BTreeMap::new();
+                let mut s_edges = BTreeMap::new();
+                for (edge, target) in edges {
+                    let h_edge = self.transduction.phi_dispatch(level, &h, edge);
+                    self.notifier(TraceEvent::Attribute {
+                        channel: ChannelAttribute::Inherited,
+                        node,
+                        value: format!("{h_edge:?}"),
                     });
-                    let (cible_resultat, s_arc) =
-                        self.run_avec(pool_entree, pool_sortie, anchor, cible, h_arc)?;
-                    let niveau_cible = match pool_entree.resolve(cible) {
+                    let (target_result, s_edge) =
+                        self.run_with(pool_input, pool_output, anchor, target, h_edge)?;
+                    let level_target = match pool_input.resolve(target) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
-                        Err(erreur) => return Err(erreur.into()),
+                        Err(error) => return Err(error.into()),
                     };
-                    enfants.insert(arc, (cible_resultat, s_arc.clone()));
-                    s_arcs.insert(arc, (niveau_cible, s_arc));
+                    children.insert(edge, (target_result, s_edge.clone()));
+                    s_edges.insert(edge, (level_target, s_edge));
                 }
-                let s = self.transduction.phi_aggr(level, &h, &s_arcs);
-                self.notifier(TraceEvent::Attr {
-                    canal: CanalAttr::Synthétise,
-                    noeud,
-                    valeur: format!("{s:?}"),
+                let s = self.transduction.phi_aggregate(level, &h, &s_edges);
+                self.notifier(TraceEvent::Attribute {
+                    channel: ChannelAttribute::Synthesize,
+                    node,
+                    value: format!("{s:?}"),
                 });
-                let ctx = ContextePhiOut {
+                let ctx = ContextPhiOut {
                     anchor,
                     level,
                     h: &h,
-                    arcs: enfants,
-                    memoire: &self.memoire,
-                    noeud_entree: noeud,
+                    edges: children,
+                    memory: &self.memory,
+                    node_input: node,
                 };
-                let (noeud_resultat, effet) = self.transduction.phi_out(pool_sortie, ctx);
-                if self.politique == PolitiqueMemoire::Aucune && !effet.ecritures.is_empty() {
-                    return Err(CoreError::MemoireNonAutorisee);
+                let (node_result, effect) = self.transduction.phi_out(pool_output, ctx);
+                if self.policy == PolicyMemory::No && !effect.ecritures.is_empty() {
+                    return Err(CoreError::MemoryNotAutorisee);
                 }
-                if !effet.ecritures.is_empty() {
-                    self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Memoire,
-                        noeud,
-                        valeur: format!("{:?}", effet.ecritures),
+                if !effect.ecritures.is_empty() {
+                    self.notifier(TraceEvent::Attribute {
+                        channel: ChannelAttribute::Memory,
+                        node,
+                        value: format!("{:?}", effect.ecritures),
                     });
                 }
-                effet.appliquer(&mut self.memoire);
-                (noeud_resultat, s)
+                effect.apply(&mut self.memory);
+                (node_result, s)
             }
         };
-        self.memo.insert(cle, (resultat, s.clone()));
-        Ok((resultat, s))
+        self.memo.insert(key, (result, s.clone()));
+        Ok((result, s))
     }
 
-    fn run_avec_meme_pool<P>(
+    fn run_with_same_pool<P>(
         &mut self,
         pool: &mut P,
         anchor: Anchor,
-        noeud: NodeId,
+        node: NodeId,
         h: T::H,
     ) -> Result<(NodeId, T::S), CoreError>
     where
         P: Pool<Key = u64, Payload = bool>,
         T: Transduction<Out = bool>,
     {
-        let cle = (
+        let key = (
             self.transduction.fingerprint(),
-            noeud,
+            node,
             h.clone(),
-            self.memoire.version(),
+            self.memory.version(),
         );
-        if let Some((resultat, s)) = self.memo.get(&cle) {
-            self.notifier(TraceEvent::MemoHit { noeud });
-            return Ok((*resultat, s.clone()));
+        if let Some((result, s)) = self.memo.get(&key) {
+            self.notifier(TraceEvent::MemoHit { node });
+            return Ok((*result, s.clone()));
         }
-        self.notifier(TraceEvent::MemoMiss { noeud });
-        let forme = pool.resolve(noeud)?.clone();
-        let (resultat, s) = match forme {
+        self.notifier(TraceEvent::MemoMiss { node });
+        let form = pool.resolve(node)?.clone();
+        let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
-            Form::Node { level, arcs } => {
-                let mut enfants = BTreeMap::new();
-                let mut s_arcs = BTreeMap::new();
-                for (arc, cible) in arcs {
-                    let h_arc = self.transduction.phi_disp(level, &h, arc);
-                    self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Herite,
-                        noeud,
-                        valeur: format!("{h_arc:?}"),
+            Form::Node { level, edges } => {
+                let mut children = BTreeMap::new();
+                let mut s_edges = BTreeMap::new();
+                for (edge, target) in edges {
+                    let h_edge = self.transduction.phi_dispatch(level, &h, edge);
+                    self.notifier(TraceEvent::Attribute {
+                        channel: ChannelAttribute::Inherited,
+                        node,
+                        value: format!("{h_edge:?}"),
                     });
-                    let (cible_resultat, s_arc) =
-                        self.run_avec_meme_pool(pool, anchor, cible, h_arc)?;
-                    let niveau_cible = match pool.resolve(cible) {
+                    let (target_result, s_edge) =
+                        self.run_with_same_pool(pool, anchor, target, h_edge)?;
+                    let level_target = match pool.resolve(target) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
-                        Err(erreur) => return Err(erreur.into()),
+                        Err(error) => return Err(error.into()),
                     };
-                    enfants.insert(arc, (cible_resultat, s_arc.clone()));
-                    s_arcs.insert(arc, (niveau_cible, s_arc));
+                    children.insert(edge, (target_result, s_edge.clone()));
+                    s_edges.insert(edge, (level_target, s_edge));
                 }
-                let s = self.transduction.phi_aggr(level, &h, &s_arcs);
-                self.notifier(TraceEvent::Attr {
-                    canal: CanalAttr::Synthétise,
-                    noeud,
-                    valeur: format!("{s:?}"),
+                let s = self.transduction.phi_aggregate(level, &h, &s_edges);
+                self.notifier(TraceEvent::Attribute {
+                    channel: ChannelAttribute::Synthesize,
+                    node,
+                    value: format!("{s:?}"),
                 });
-                let ctx = ContextePhiOut {
+                let ctx = ContextPhiOut {
                     anchor,
                     level,
                     h: &h,
-                    arcs: enfants,
-                    memoire: &self.memoire,
-                    noeud_entree: noeud,
+                    edges: children,
+                    memory: &self.memory,
+                    node_input: node,
                 };
-                let (noeud_resultat, effet) = self.transduction.phi_out(pool, ctx);
-                if self.politique == PolitiqueMemoire::Aucune && !effet.ecritures.is_empty() {
-                    return Err(CoreError::MemoireNonAutorisee);
+                let (node_result, effect) = self.transduction.phi_out(pool, ctx);
+                if self.policy == PolicyMemory::No && !effect.ecritures.is_empty() {
+                    return Err(CoreError::MemoryNotAutorisee);
                 }
-                if !effet.ecritures.is_empty() {
-                    self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Memoire,
-                        noeud,
-                        valeur: format!("{:?}", effet.ecritures),
+                if !effect.ecritures.is_empty() {
+                    self.notifier(TraceEvent::Attribute {
+                        channel: ChannelAttribute::Memory,
+                        node,
+                        value: format!("{:?}", effect.ecritures),
                     });
                 }
-                effet.appliquer(&mut self.memoire);
-                (noeud_resultat, s)
+                effect.apply(&mut self.memory);
+                (node_result, s)
             }
         };
-        self.memo.insert(cle, (resultat, s.clone()));
-        Ok((resultat, s))
+        self.memo.insert(key, (result, s.clone()));
+        Ok((result, s))
     }
 }

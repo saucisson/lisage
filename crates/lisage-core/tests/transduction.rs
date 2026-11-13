@@ -1,5 +1,5 @@
-//! Tests du moteur de transductions (M1-4, spec § 3.1, L3) : les deux
-//! canaux (hérité/synthétisé), l'agrégation φ_aggr et la mémo (op, nœud, h).
+//! Transduction engine tests (M1-4, spec § 3.1, L3): the two
+//! channels (inherited/synthesized), the φ_aggr aggregation and the memo (op, node, h).
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -7,21 +7,21 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler};
-use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiled};
+use lisage_core::transduction::{ContextPhiOut, Transducer, Transduction};
 use lisage_lang::value::{Atom, Value};
 
 type PoolRef = Arena<ReferenceController>;
 
 fn pool() -> PoolRef {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
-/// Transduction identité avec canal hérité = profondeur : H = u64.
-struct IdentiteProfondeur;
+/// Identity transduction with inherited channel = depth: H = u64.
+struct IdentityDepth;
 
-impl Transduction for IdentiteProfondeur {
+impl Transduction for IdentityDepth {
     type H = u64;
     type S = u64;
     type Out = bool;
@@ -33,26 +33,31 @@ impl Transduction for IdentiteProfondeur {
     fn h0(&self) -> u64 {
         0
     }
-    fn phi_disp(&self, _level: Level, h: &u64, _arc: u64) -> u64 {
+    fn phi_dispatch(&self, _level: Level, h: &u64, _edge: u64) -> u64 {
         h + 1
     }
-    fn phi_aggr(&self, _level: Level, _h: &u64, arcs: &BTreeMap<u64, (Option<Level>, u64)>) -> u64 {
-        arcs.values().map(|(_, s)| *s).max().unwrap_or(0)
+    fn phi_aggregate(
+        &self,
+        _level: Level,
+        _h: &u64,
+        edges: &BTreeMap<u64, (Option<Level>, u64)>,
+    ) -> u64 {
+        edges.values().map(|(_, s)| *s).max().unwrap_or(0)
     }
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<Self::M>) {
+        ctx: ContextPhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
                 Form::Node {
                     level: ctx.level,
-                    arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+                    edges: ctx.edges.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -66,12 +71,12 @@ impl Transduction for IdentiteProfondeur {
     }
 }
 
-/// Transduction comptage des chemins acceptants (canal synthétisé seul).
-struct CompteChemins {
-    appels: std::sync::Arc<AtomicU64>,
+/// Counting transduction of accepting paths (synthesized channel only).
+struct CountPaths {
+    calls: std::sync::Arc<AtomicU64>,
 }
 
-impl Transduction for CompteChemins {
+impl Transduction for CountPaths {
     type H = ();
     type S = u64;
     type Out = bool;
@@ -81,27 +86,32 @@ impl Transduction for CompteChemins {
         1002
     }
     fn h0(&self) {}
-    fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
+    fn phi_dispatch(&self, _level: Level, h: &(), _edge: u64) {
         let _ = h;
     }
-    fn phi_aggr(&self, _level: Level, _h: &(), arcs: &BTreeMap<u64, (Option<Level>, u64)>) -> u64 {
-        arcs.values().map(|(_, s)| *s).sum()
+    fn phi_aggregate(
+        &self,
+        _level: Level,
+        _h: &(),
+        edges: &BTreeMap<u64, (Option<Level>, u64)>,
+    ) -> u64 {
+        edges.values().map(|(_, s)| *s).sum()
     }
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<Self::M>) {
-        self.appels.fetch_add(1, Ordering::SeqCst);
+        ctx: ContextPhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
+        self.calls.fetch_add(1, Ordering::SeqCst);
         (
             pool.intern(
                 ctx.anchor,
                 Form::Node {
                     level: ctx.level,
-                    arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+                    edges: ctx.edges.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -118,10 +128,10 @@ impl Transduction for CompteChemins {
     }
 }
 
-/// Identité sans canal hérité, pour comparer les fingerprints de mémo.
-struct Identite;
+/// Identity without inherited channel, to compare memo fingerprints.
+struct Identity;
 
-impl Transduction for Identite {
+impl Transduction for Identity {
     type H = ();
     type S = ();
     type Out = bool;
@@ -131,24 +141,24 @@ impl Transduction for Identite {
         1003
     }
     fn h0(&self) {}
-    fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
+    fn phi_dispatch(&self, _level: Level, h: &(), _edge: u64) {
         let _ = h;
     }
-    fn phi_aggr(&self, _level: Level, _h: &(), _arcs: &BTreeMap<u64, (Option<Level>, ())>) {}
+    fn phi_aggregate(&self, _level: Level, _h: &(), _edges: &BTreeMap<u64, (Option<Level>, ())>) {}
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<Self::M>) {
+        ctx: ContextPhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
                 Form::Node {
                     level: ctx.level,
-                    arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+                    edges: ctx.edges.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -162,129 +172,126 @@ impl Transduction for Identite {
     }
 }
 
-/// Construit un petit DAG dans le pool d'entrée : b = ν(1, {0 ↦ a, 1 ↦ ⊤}),
+/// Builds a small DAG in the input pool: b = ν(1, {0 ↦ a, 1 ↦ ⊤}),
 /// a = ν(0, {0 ↦ ⊤, 1 ↦ ⊥}).
 fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
-    let faux = pool.intern(anchor, Form::Terminal(false));
+    let true_node = pool.intern(anchor, Form::Terminal(true));
+    let false_node = pool.intern(anchor, Form::Terminal(false));
     let a = pool.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+            edges: BTreeMap::from([(0, true_node), (1, false_node)]),
         },
     );
     let b = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(0, a), (1, vrai)]),
+            edges: BTreeMap::from([(0, a), (1, true_node)]),
         },
     );
     (a, b)
 }
 
-/// Canal hérité : la transduction identité reconstruit les mêmes formes ;
-/// la profondeur remontée vaut la hauteur du DAG.
+/// Inherited channel: the identity transduction rebuilds the same forms;
+/// the bottom-up depth equals the height of the DAG.
 #[test]
-fn test_canal_herite_identite_et_profondeur() {
-    let mut entree = pool();
-    let mut sortie = pool();
+fn test_channel_inherited_identity_and_depth() {
+    let mut input = pool();
+    let mut output = pool();
     let anchor = Anchor(0);
-    let (_, b) = dag(&mut entree, anchor);
-    let mut runner = Transducteur::new(IdentiteProfondeur);
-    let (resultat, profondeur) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    let (_, b) = dag(&mut input, anchor);
+    let mut runner = Transducer::new(IdentityDepth);
+    let (result, depth) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
-        sortie.resolve(resultat).unwrap(),
-        entree.resolve(b).unwrap(),
-        "identité ⇒ mêmes formes"
+        output.resolve(result).unwrap(),
+        input.resolve(b).unwrap(),
+        "identity ⇒ same forms"
     );
-    assert_eq!(profondeur, 2, "profondeur max atteinte = hauteur du DAG");
+    assert_eq!(depth, 2, "max depth reached = height of the DAG");
 }
 
-/// Canal synthétisé : φ_aggr somme les poids des fils ; le comptage vaut le
-/// nombre de chemins acceptants (2 dans le DAG : 0·0 et 1).
+/// Synthesized channel: φ_aggr sums the weights of the children; the count is the
+/// number of accepting paths (2 in the DAG: 0·0 and 1).
 #[test]
-fn test_canal_synthetise_comptage() {
-    let mut entree = pool();
-    let mut sortie = pool();
+fn test_channel_synthetise_counting() {
+    let mut input = pool();
+    let mut output = pool();
     let anchor = Anchor(0);
-    let (_, b) = dag(&mut entree, anchor);
-    let appels = std::sync::Arc::new(AtomicU64::new(0));
-    let compte = CompteChemins {
-        appels: appels.clone(),
+    let (_, b) = dag(&mut input, anchor);
+    let calls = std::sync::Arc::new(AtomicU64::new(0));
+    let count = CountPaths {
+        calls: calls.clone(),
     };
-    let mut runner = Transducteur::new(compte);
-    let (resultat, compte_chemins) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    let mut runner = Transducer::new(count);
+    let (result, count_paths) = runner.run(&input, &mut output, anchor, b).unwrap();
+    assert_eq!(output.resolve(result).unwrap(), input.resolve(b).unwrap());
+    assert_eq!(count_paths, 2, "two paths lead to ⊤");
     assert_eq!(
-        sortie.resolve(resultat).unwrap(),
-        entree.resolve(b).unwrap()
-    );
-    assert_eq!(compte_chemins, 2, "deux chemins mènent à ⊤");
-    assert_eq!(
-        appels.load(Ordering::SeqCst),
+        calls.load(Ordering::SeqCst),
         2,
-        "φ_out appelé une fois par nœud non terminal"
+        "φ_out called once per not-terminal node"
     );
 }
 
-/// Mémo (op, nœud, h) : une seconde exécution ne recalcule rien (hit mémo),
-/// et deux opérations de fingerprints distincts ont des entrées séparées.
+/// Memo (op, node, h): a second run recomputes nothing (memo hit),
+/// and two operations with distinct fingerprints have separate entries.
 #[test]
-fn test_memo_fingerprint_op_noeud() {
-    let mut entree = pool();
-    let mut sortie = pool();
+fn test_memo_fingerprint_op_node() {
+    let mut input = pool();
+    let mut output = pool();
     let anchor = Anchor(0);
-    let (_, b) = dag(&mut entree, anchor);
-    let mut runner = Transducteur::new(Identite);
-    let (r1, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
-    let taille_apres_1 = runner.taille_memo();
-    let (r2, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    let (_, b) = dag(&mut input, anchor);
+    let mut runner = Transducer::new(Identity);
+    let (r1, _) = runner.run(&input, &mut output, anchor, b).unwrap();
+    let size_after_1 = runner.size_memo();
+    let (r2, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(r1, r2);
     assert_eq!(
-        runner.taille_memo(),
-        taille_apres_1,
-        "seconde exécution : que des hits mémo"
+        runner.size_memo(),
+        size_after_1,
+        "second run: only memo hits"
     );
-    // 4 paires (nœud, h) distinctes : b, a, ⊤, ⊥.
-    assert_eq!(taille_apres_1, 4);
+    // 4 distinct (node, h) pairs: b, a, ⊤, ⊥.
+    assert_eq!(size_after_1, 4);
 
-    // Une autre opération (fingerprint différent) sur le même nœud : mémo
-    // séparée. Avec H = profondeur, ⊤ est visité à deux h distincts (1 via
-    // l'arc 1 de b, 2 via l'arc 0 de a) : 5 entrées (b, a, ⊤×2, ⊥).
-    let mut autre = Transducteur::new(IdentiteProfondeur);
-    let (r3, _) = autre.run(&entree, &mut sortie, anchor, b).unwrap();
-    assert_eq!(sortie.resolve(r3).unwrap(), entree.resolve(b).unwrap());
+    // Another operation (different fingerprint) on the same node: separate
+    // memo. With H = depth, ⊤ is visitd at two distinct h (1 via
+    // edge 1 of b, 2 via edge 0 of a): 5 entries (b, a, ⊤×2, ⊥).
+    let mut other = Transducer::new(IdentityDepth);
+    let (r3, _) = other.run(&input, &mut output, anchor, b).unwrap();
+    assert_eq!(output.resolve(r3).unwrap(), input.resolve(b).unwrap());
     assert_eq!(
-        autre.taille_memo(),
+        other.size_memo(),
         5,
-        "mémo propre à l'opération et à h : clé (op, nœud, h)"
+        "memo specific to the operation and to h: key (op, node, h)"
     );
 }
 
-/// La transduction s'applique aussi à un diagramme compilé depuis une valeur
-/// (schéma M1-3) : identité sur un ensemble compilé.
+/// The transduction also applies to a diagram compiled from a value
+/// (schema M1-3): identity on a compiled set.
 #[test]
-fn test_transduction_sur_diagramme_compile() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
-    let mut entree = Arena::new(
+fn test_transduction_on_diagram_compiled() {
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
+    let mut input = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
     let anchor = Anchor(0);
-    let ensemble = Value::Set(std::collections::BTreeSet::from([
+    let set = Value::Set(std::collections::BTreeSet::from([
         Value::Atom(Atom(0)),
         Value::Atom(Atom(1)),
     ]));
-    let racine = compiler(&mut entree, anchor, &schema, &ensemble).unwrap();
-    let mut runner = Transducteur::new(Identite);
-    let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+    let root = compiled(&mut input, anchor, &schema, &set).unwrap();
+    let mut runner = Transducer::new(Identity);
+    let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
     assert_eq!(
-        sortie.resolve(resultat).unwrap(),
-        entree.resolve(racine).unwrap()
+        output.resolve(result).unwrap(),
+        input.resolve(root).unwrap()
     );
 }

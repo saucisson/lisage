@@ -1,0 +1,30 @@
+warning: the `level:` in this pattern is redundant
+   --> crates/lisage-core/src/add.rs:278:34
+    |
+278 |                     Form::Node { level: level, .. } => Some(level),
+    |                                  ^^^^^^^^^^^^ help: use shorthand field pattern: `level`
+    |
+    = note: `#[warn(non_shorthand_field_patterns)]` on by default
+
+warning: `lisage-core` (lib) generated 1 warning (run `cargo fix --lib -p lisage-core` to apply 1 suggestion)
+   Compiling lisage-reader v0.1.0 (/tmp/lisage-m6/crates/lisage-reader)
+   Compiling lisage-bench v0.1.0 (/tmp/lisage-m6/crates/lisage-bench)
+   Compiling lisage-core v0.1.0 (/tmp/lisage-m6/crates/lisage-core)
+error[E0308]: mismatched types
+   --> crates/lisage-core/tests/pli.rs:150:46
+    |
+150 |         union(&mut input, &keys, anchor, m0, false).unwrap(),
+    |         -----                                ^^^^^ expected `NodeId`, found `bool`
+    |         |
+    |         arguments to this function are incorrect
+    |
+note: function defined here
+   --> crates/lisage-core/src/fold.rs:245:8
+    |
+245 | pub fn union<P: Pool<Key = u64, Payload = bool>>(
+    |        ^^^^^
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `lisage-core` (test "pli") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+EXIT=101

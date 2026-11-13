@@ -1,0 +1,147 @@
+    Checking lisage-lang v0.1.0 (/tmp/lisage-m6/crates/lisage-lang)
+    Checking lisage-algebra v0.1.0 (/tmp/lisage-m6/crates/lisage-algebra)
+    Checking lisage-core v0.1.0 (/tmp/lisage-m6/crates/lisage-core)
+    Checking lisage-plan v0.1.0 (/tmp/lisage-m6/crates/lisage-plan)
+warning: the `level:` in this pattern is redundant
+   --> crates/lisage-core/src/add.rs:278:34
+    |
+278 |                     Form::Node { level: level, .. } => Some(level),
+    |                                  ^^^^^^^^^^^^ help: use shorthand field pattern: `level`
+    |
+    = note: `#[warn(non_shorthand_field_patterns)]` on by default
+
+warning: `lisage-core` (lib) generated 1 warning (run `cargo clippy --fix --lib -p lisage-core -- ` to apply 1 suggestion)
+    Checking lisage-bench v0.1.0 (/tmp/lisage-m6/crates/lisage-bench)
+    Checking lisage-reader v0.1.0 (/tmp/lisage-m6/crates/lisage-reader)
+warning: `lisage-core` (lib test) generated 1 warning (1 duplicate)
+warning: redundant field names in struct initialization
+   --> crates/lisage-reader/tests/step_by_step.rs:432:25
+    |
+432 |                         node: node,
+    |                         ^^^^^^^^^^ help: replace it with: `node`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+    = note: `#[warn(clippy::redundant_field_names)]` on by default
+
+warning: `lisage-reader` (test "step_by_step") generated 1 warning (run `cargo clippy --fix --test "step_by_step" -p lisage-reader -- ` to apply 1 suggestion)
+warning: redundant field names in struct initialization
+  --> crates/lisage-core/tests/region.rs:68:9
+   |
+68 |         level: level,
+   |         ^^^^^^^^^^^^ help: replace it with: `level`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+   = note: `#[warn(clippy::redundant_field_names)]` on by default
+
+warning: redundant field names in struct initialization
+  --> crates/lisage-core/tests/region.rs:72:9
+   |
+72 |         level: level,
+   |         ^^^^^^^^^^^^ help: replace it with: `level`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: redundant field names in struct initialization
+  --> crates/lisage-core/tests/region.rs:81:9
+   |
+81 |         level: level,
+   |         ^^^^^^^^^^^^ help: replace it with: `level`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: redundant field names in struct initialization
+  --> crates/lisage-core/tests/region.rs:85:9
+   |
+85 |         level: level,
+   |         ^^^^^^^^^^^^ help: replace it with: `level`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: redundant field names in struct initialization
+  --> crates/lisage-core/tests/region.rs:94:9
+   |
+94 |         level: level,
+   |         ^^^^^^^^^^^^ help: replace it with: `level`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: `lisage-core` (test "region") generated 5 warnings (run `cargo clippy --fix --test "region" -p lisage-core -- ` to apply 5 suggestions)
+warning: redundant field names in struct initialization
+   --> crates/lisage-core/tests/arena.rs:221:13
+    |
+221 |             level: level,
+    |             ^^^^^^^^^^^^ help: replace it with: `level`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+    = note: `#[warn(clippy::redundant_field_names)]` on by default
+
+warning: redundant field names in struct initialization
+   --> crates/lisage-core/tests/arena.rs:230:13
+    |
+230 |             level: level,
+    |             ^^^^^^^^^^^^ help: replace it with: `level`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: redundant field names in struct initialization
+   --> crates/lisage-core/tests/arena.rs:239:13
+    |
+239 |             level: level,
+    |             ^^^^^^^^^^^^ help: replace it with: `level`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: redundant field names in struct initialization
+   --> crates/lisage-core/tests/arena.rs:246:13
+    |
+246 |             level: level,
+    |             ^^^^^^^^^^^^ help: replace it with: `level`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: `lisage-core` (test "arena") generated 4 warnings (run `cargo clippy --fix --test "arena" -p lisage-core -- ` to apply 4 suggestions)
+warning: redundant field names in struct initialization
+  --> crates/lisage-core/tests/dbm.rs:80:9
+   |
+80 |         level: level,
+   |         ^^^^^^^^^^^^ help: replace it with: `level`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+   = note: `#[warn(clippy::redundant_field_names)]` on by default
+
+warning: redundant field names in struct initialization
+  --> crates/lisage-core/tests/dbm.rs:84:9
+   |
+84 |         level: level,
+   |         ^^^^^^^^^^^^ help: replace it with: `level`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: redundant field names in struct initialization
+  --> crates/lisage-core/tests/dbm.rs:93:9
+   |
+93 |         level: level,
+   |         ^^^^^^^^^^^^ help: replace it with: `level`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: redundant field names in struct initialization
+  --> crates/lisage-core/tests/dbm.rs:97:9
+   |
+97 |         level: level,
+   |         ^^^^^^^^^^^^ help: replace it with: `level`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+warning: redundant field names in struct initialization
+   --> crates/lisage-core/tests/dbm.rs:106:9
+    |
+106 |         level: level,
+    |         ^^^^^^^^^^^^ help: replace it with: `level`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#redundant_field_names
+
+    Checking lisage-backend v0.1.0 (/tmp/lisage-m6/crates/lisage-backend)
+warning: `lisage-core` (test "dbm") generated 5 warnings (run `cargo clippy --fix --test "dbm" -p lisage-core -- ` to apply 5 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.40s
+EXIT=0

@@ -1,21 +1,21 @@
-//! Test de frontières (M0-2) : vérifie que les dépendances entre crates
-//! respectent le graphe unidirectionnel de la proposition § 8.
+//! Boundary test (M0-2): checks that the dependencies between crates
+//! respect the unidirectional graph of proposal § 8.
 //!
-//! Graphe autorisé :
+//! Allowed graph:
 //!   lisage-lang      → (rien)
 //!   lisage-algebra   → lisage-lang
 //!   lisage-plan      → lisage-lang, lisage-algebra
 //!   lisage-core      → lisage-lang, lisage-algebra
 //!   lisage-backend   → lisage-core, lisage-lang
 //!   lisage-bench     → lisage-core, lisage-lang, lisage-algebra, lisage-plan
-//!   lisage-liseuse   → lisage-core, lisage-lang
+//!   lisage-reader   → lisage-core, lisage-lang
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
 const CRATES_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
 
-/// Graphe des dépendances autorisées (crate → dépendances internes permises).
+/// Graph of allowed dependencies (crate → allowed internal dependencies).
 const ALLOWED: &[(&str, &[&str])] = &[
     ("lisage-lang", &[]),
     ("lisage-algebra", &["lisage-lang"]),
@@ -31,13 +31,13 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "lisage-plan",
         ],
     ),
-    ("lisage-liseuse", &["lisage-core", "lisage-lang"]),
+    ("lisage-reader", &["lisage-core", "lisage-lang"]),
 ];
 
 fn parse_dependencies(crate_name: &str) -> Vec<String> {
     let manifest = Path::new(CRATES_DIR).join(crate_name).join("Cargo.toml");
     let content = std::fs::read_to_string(&manifest)
-        .unwrap_or_else(|error| panic!("lecture de {}: {error}", manifest.display()));
+        .unwrap_or_else(|error| panic!("reading {}: {error}", manifest.display()));
     let mut dependencies = Vec::new();
     let mut in_deps = false;
     for line in content.lines() {
@@ -59,34 +59,34 @@ fn parse_dependencies(crate_name: &str) -> Vec<String> {
 }
 
 #[test]
-fn test_frontieres_dependances_unidirectionnelles() {
+fn test_boundaries_dependencies_unidirectional() {
     let mut failures = Vec::new();
     for (crate_name, allowed) in ALLOWED {
         let actual = parse_dependencies(crate_name);
         for dep in &actual {
             if !allowed.contains(&dep.as_str()) {
                 failures.push(format!(
-                    "{crate_name} dépend de {dep}, non autorisé (attendu: {allowed:?})"
+                    "{crate_name} depends on {dep}, not allowed (expected: {allowed:?})"
                 ));
             }
         }
         for expected in *allowed {
             if !actual.iter().any(|d| d == expected) {
                 failures.push(format!(
-                    "{crate_name} devrait dépendre de {expected} (dépendances: {actual:?})"
+                    "{crate_name} should depend on {expected} (dependencies: {actual:?})"
                 ));
             }
         }
     }
     assert!(
         failures.is_empty(),
-        "Violations de frontières:\n{}",
+        "Boundary violations:\n{}",
         failures.join("\n")
     );
 }
 
-/// Traits d'interface dont la déclaration doit porter les bornes `Send`/`Sync`
-/// figées dès M1-0 (feuille de route § 10) : (fichier relatif à crates/, motif).
+/// Interface traits whose declaration must carry the `Send`/`Sync` bounds
+/// pinned from M1-0 (roadmap § 10): (file relative to crates/, pattern).
 const SIGNATURE_BOUNDS: &[(&str, &str)] = &[
     (
         "lisage-algebra/src/interface.rs",
@@ -107,27 +107,27 @@ const SIGNATURE_BOUNDS: &[(&str, &str)] = &[
 ];
 
 #[test]
-fn test_frontieres_signatures_send_sync() {
+fn test_boundaries_signatures_send_sync() {
     let mut failures = Vec::new();
     for (relative_path, expected_declaration) in SIGNATURE_BOUNDS {
         let path = Path::new(CRATES_DIR).join(relative_path);
         let content = std::fs::read_to_string(&path)
-            .unwrap_or_else(|error| panic!("lecture de {}: {error}", path.display()));
+            .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
         if !content.contains(expected_declaration) {
             failures.push(format!(
-                "{relative_path} doit déclarer `{expected_declaration}`"
+                "{relative_path} must declared `{expected_declaration}`"
             ));
         }
     }
     assert!(
         failures.is_empty(),
-        "Bornes Send/Sync manquantes sur les traits d'interface:\n{}",
+        "Missing Send/Sync bounds on the interface traits:\n{}",
         failures.join("\n")
     );
 }
 
 #[test]
-fn test_sept_crates_presentes() {
+fn test_seven_crates_present() {
     let expected: BTreeMap<String, ()> = ALLOWED
         .iter()
         .map(|(name, _)| (name.to_string(), ()))
@@ -144,5 +144,5 @@ fn test_sept_crates_presentes() {
             found.insert(name.to_string(), ());
         }
     }
-    assert_eq!(found, expected, "Les 7 crates lisage-* doivent exister");
+    assert_eq!(found, expected, "The 7 lisage-* crates must exist");
 }

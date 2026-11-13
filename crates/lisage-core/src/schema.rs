@@ -1,13 +1,13 @@
-//! Schémas de référence (M1-3, spec § 1 et § 2.1) : `Atom(D)` borné,
-//! `Set(T)`, `Map(K, V)` bornés, compilation **balayage d'univers** (un
-//! niveau de présence par clé, δ = absent, sans marqueur).
+//! Reference schemas (M1-3, spec § 1 and § 2.1): bounded `Atom(D)`,
+//! `Set(T)`, `Map(K, V)`, **universe sweep** compilation (one presence
+//! level per key, δ = absent, no marker).
 //!
-//! Niveaux : `Atom(D)` = un niveau `Val = D` ; `Set(D)` = un niveau de
-//! présence par élément (`Val = {absent, présent}`, δ = absent) ; `Map(K,V)`
-//! = par clé `k_i` un niveau présence `2i` (δ = absent) puis un niveau valeur
-//! `2i+1` (`Val = V`, δ = ⊥). Compilation : seul l'arc choisi est interné,
-//! l'autre mène au défaut porteur D_δ = terminal(false) sur les présences
-//! (R-collapse saute les absents, style ZDD).
+//! Levels: `Atom(D)` = one level `Val = D` ; `Set(D)` = one presence
+//! level per element (`Val = {absent, present}`, δ = absent); `Map(K,V)`
+//! = per key `k_i` a presence level `2i` (δ = absent) then a value level
+//! `2i+1` (`Val = V`, δ = ⊥). Compilation: only the chosen edge is interned,
+//! the other leads to the carrier default D_δ = terminal(false) on presences
+//! (R-collapse skips the absent, ZDD style).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,125 +16,125 @@ use lisage_algebra::interface::{
 };
 use lisage_lang::value::{Atom, Value};
 
-/// Clé d'arc de présence : absent (défaut δ) ou présent.
+/// Presence edge key: absent (default δ) or present.
 pub const ABSENT: u64 = 0;
-/// Clé d'arc de présence : présent.
+/// Presence edge key: present.
 pub const PRESENT: u64 = 1;
-/// Cardinalité d'un niveau de présence : {absent, présent}.
+/// Cardinality of a presence level: {absent, present}.
 pub const CARDINALITE_PRESENCE: u64 = 2;
-/// Pas entre les niveaux d'une map : présence de la clé `i` au niveau `2i`,
-/// valeur au niveau `2i+1`.
-pub const PAS_NIVEAU_MAP: u32 = 2;
+/// Spacing between the levels of a map: presence of key `i` at level `2i`,
+/// value at level `2i+1`.
+pub const PAS_LEVEL_MAP: u32 = 2;
 
-/// Domaine d'atomes borné : énumération finie, avec défaut éventuel.
+/// Bounded atom domain: finite enumeration, with optional default.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Domaine {
-    /// Valeurs du domaine, dans l'ordre canonique.
-    pub valeurs: Vec<Atom>,
-    /// Défaut δ du domaine, si déclaré.
-    pub defaut: Option<Atom>,
+pub struct Domain {
+    /// Domain values, in canonical order.
+    pub values: Vec<Atom>,
+    /// Default δ of the domain, if declared.
+    pub default: Option<Atom>,
 }
 
-impl Domaine {
-    /// Domaine sans défaut.
-    pub fn nouveau(valeurs: Vec<Atom>) -> Self {
-        Domaine {
-            valeurs,
-            defaut: None,
+impl Domain {
+    /// Domain without default.
+    pub fn new(values: Vec<Atom>) -> Self {
+        Domain {
+            values,
+            default: None,
         }
     }
 
-    /// Le domaine contient-il cet atome ?
-    pub fn contient(&self, atome: Atom) -> bool {
-        self.valeurs.contains(&atome)
+    /// Does the domain contain this atom?
+    pub fn contains(&self, atom: Atom) -> bool {
+        self.values.contains(&atom)
     }
 
-    /// Nombre de valeurs du domaine.
-    pub fn taille(&self) -> usize {
-        self.valeurs.len()
+    /// Number of domain values.
+    pub fn size(&self) -> usize {
+        self.values.len()
     }
 }
 
-/// Schéma de référence (algèbre de types Σ bornée, spec § 1).
+/// Reference schema (bounded type algebra Σ, spec § 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Schema {
-    /// `Atom(D)` : domaine borné d'atomes.
-    Atom(Domaine),
-    /// `Set(Atom(D))` : ensemble d'atomes d'un domaine borné.
-    Set(Domaine),
-    /// `Map(K, V)` : clés ordonnées vers un domaine de valeurs borné.
-    Map(Vec<Atom>, Domaine),
-    /// `Seq(D, N)` : séquence d'au plus `N` éléments d'un domaine borné `D`
-    /// (M2-1, constructeur `list`). Le marqueur de fin est une clé requise.
-    Seq(Domaine, u32),
-    /// `Tag(K, V)` : union typée — niveau discriminant (clés `K`) puis niveau
-    /// valeur `V` (M2-2). Un seul arc utile par nœud (C2).
-    Tag(Vec<Atom>, Domaine),
+    /// `Atom(D)`: bounded domain of atoms.
+    Atom(Domain),
+    /// `Set(Atom(D))`: set of atoms from a bounded domain.
+    Set(Domain),
+    /// `Map(K, V)`: ordered keys to a bounded value domain.
+    Map(Vec<Atom>, Domain),
+    /// `Seq(D, N)`: sequence of at most `N` elements of a bounded domain `D`
+    /// (M2-1, `list` constructor). The end marker is a required key.
+    Seq(Domain, u32),
+    /// `Tag(K, V)`: typed union — discriminant level (keys `K`) then value
+    /// level `V` (M2-2). A single useful edge per node (C2).
+    Tag(Vec<Atom>, Domain),
 }
 
 impl Schema {
-    /// Nombre de niveaux du balayage d'univers.
-    pub fn nombre_niveaux(&self) -> u32 {
+    /// Number of levels of the universe sweep.
+    pub fn number_levels(&self) -> u32 {
         match self {
             Schema::Atom(_) => 1,
-            Schema::Set(domaine) => domaine.taille() as u32,
-            Schema::Map(liste_cles, _) => PAS_NIVEAU_MAP * liste_cles.len() as u32,
-            Schema::Seq(_, longueur_max) => longueur_max + 1,
-            Schema::Tag(liste, _) => PAS_NIVEAU_MAP * liste.len() as u32,
+            Schema::Set(domain) => domain.size() as u32,
+            Schema::Map(list_keys, _) => PAS_LEVEL_MAP * list_keys.len() as u32,
+            Schema::Seq(_, length_max) => length_max + 1,
+            Schema::Tag(list, _) => PAS_LEVEL_MAP * list.len() as u32,
         }
     }
 
-    /// Niveau de présence de la i-ème clé d'une map.
-    pub fn niveau_presence(index: usize) -> Level {
-        Level(PAS_NIVEAU_MAP * index as u32)
+    /// Presence level of the i-th key of a map.
+    pub fn level_presence(index: usize) -> Level {
+        Level(PAS_LEVEL_MAP * index as u32)
     }
 
-    /// Niveau valeur de la i-ème clé d'une map.
-    pub fn niveau_valeur(index: usize) -> Level {
-        Level(PAS_NIVEAU_MAP * index as u32 + 1)
+    /// Value level of the i-th key of a map.
+    pub fn level_value(index: usize) -> Level {
+        Level(PAS_LEVEL_MAP * index as u32 + 1)
     }
 }
 
-/// Erreur typée de compilation/décompilation d'un schéma.
+/// Typed error of schema compilation/decompilation.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum SchemaError {
-    /// La valeur ne correspond pas au schéma (forme de Σ différente).
+    /// The value does not match the schema (different Σ form).
     TypeMismatch {
-        /// Forme attendue par le schéma.
-        attendu: &'static str,
-        /// Forme reçue.
+        /// Form expected by the schema.
+        expected: &'static str,
+        /// Form received.
         recu: &'static str,
     },
-    /// Atome hors du domaine déclaré par le schéma.
-    HorsDomaine(Atom),
-    /// Nœud du diagramme incompatible avec le schéma (décompilation).
-    NoeudInattendu {
-        /// Forme attendue à cette position.
-        attendu: &'static str,
-        /// Nœud rencontré.
-        noeud: NodeId,
+    /// Atom outside the domain declared by the schema.
+    OutDomain(Atom),
+    /// Diagram node incompatible with the schema (decompilation).
+    NodeUnexpected {
+        /// Form expected at this position.
+        expected: &'static str,
+        /// Node encountered.
+        node: NodeId,
     },
-    /// Erreur remontée du port pool.
+    /// Error forwarded from the pool port.
     Pool(PoolError),
 }
 
 impl std::fmt::Display for SchemaError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SchemaError::TypeMismatch { attendu, recu } => {
+            SchemaError::TypeMismatch { expected, recu } => {
                 write!(
                     formatter,
-                    "type incompatible: attendu {attendu}, reçu {recu}"
+                    "incompatible type: expected {expected}, received {recu}"
                 )
             }
-            SchemaError::HorsDomaine(atome) => write!(formatter, "atome hors domaine: {atome:?}"),
-            SchemaError::NoeudInattendu { attendu, noeud } => {
+            SchemaError::OutDomain(atom) => write!(formatter, "atom outside domain: {atom:?}"),
+            SchemaError::NodeUnexpected { expected, node } => {
                 write!(
                     formatter,
-                    "nœud inattendu: attendu {attendu}, nœud {noeud:?}"
+                    "unexpected node: expected {expected}, node {node:?}"
                 )
             }
-            SchemaError::Pool(error) => write!(formatter, "erreur du pool: {error}"),
+            SchemaError::Pool(error) => write!(formatter, "pool error: {error}"),
         }
     }
 }
@@ -154,14 +154,14 @@ impl From<PoolError> for SchemaError {
     }
 }
 
-/// Algèbre de clés d'un schéma : `Val(ℓ)` et δ(ℓ) par niveau du balayage.
+/// Key algebra of a schema: `Val(ℓ)` and δ(ℓ) per level of the sweep.
 #[derive(Clone)]
 pub struct SchemaKeys {
     schema: Schema,
 }
 
 impl SchemaKeys {
-    /// Algèbre de clés pour le schéma donné.
+    /// Key algebra for the given schema.
     pub fn new(schema: Schema) -> Self {
         SchemaKeys { schema }
     }
@@ -176,27 +176,27 @@ impl KeyAlgebra for SchemaKeys {
 
     fn cardinality(&self, level: Level) -> u64 {
         match &self.schema {
-            Schema::Atom(domaine) => domaine.taille() as u64,
+            Schema::Atom(domain) => domain.size() as u64,
             Schema::Set(_) => CARDINALITE_PRESENCE,
-            Schema::Map(_, domaine_valeurs) => {
-                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+            Schema::Map(_, domain_values) => {
+                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
                     CARDINALITE_PRESENCE
                 } else {
-                    domaine_valeurs.taille() as u64
+                    domain_values.size() as u64
                 }
             }
-            Schema::Seq(domaine, longueur_max) => {
-                if level.0 < *longueur_max {
-                    domaine.taille() as u64 + 1 // +1 pour le marqueur de fin
+            Schema::Seq(domain, length_max) => {
+                if level.0 < *length_max {
+                    domain.size() as u64 + 1 // +1 for the end marker
                 } else {
                     CARDINALITE_PRESENCE
                 }
             }
-            Schema::Tag(liste, domaine_valeurs) => {
-                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
-                    liste.len() as u64
+            Schema::Tag(list, domain_values) => {
+                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
+                    list.len() as u64
                 } else {
-                    domaine_valeurs.taille() as u64
+                    domain_values.size() as u64
                 }
             }
         }
@@ -204,38 +204,38 @@ impl KeyAlgebra for SchemaKeys {
 
     fn default(&self, level: Level) -> Option<Self::Key> {
         match &self.schema {
-            Schema::Atom(domaine) => domaine.defaut.map(|atome| atome.0),
+            Schema::Atom(domain) => domain.default.map(|atom| atom.0),
             Schema::Set(_) => Some(ABSENT),
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
                     Some(ABSENT)
                 } else {
                     None
                 }
             }
-            Schema::Seq(_, _) => None, // marqueur de fin = clé requise, pas de défaut
-            Schema::Tag(_, _) => None, // discriminant = clé requise
+            Schema::Seq(_, _) => None, // end marker = required key, no default
+            Schema::Tag(_, _) => None, // discriminant = required key
         }
     }
 }
 
-/// Contrôleur de l'instance de référence : porte le schéma, désigne D_δ =
-/// terminal(false) (l'ensemble vide) pour les niveaux de présence et les
-/// domaines d'atomes avec défaut ; δ = ⊥ (pas de défaut) pour les niveaux
-/// valeur (spec § 2.1).
+/// Controller of the reference instance: carries the schema, designates D_δ =
+/// terminal(false) (the empty set) for presence levels and atom domains
+/// with default; δ = ⊥ (no default) for the levels
+/// value (spec § 2.1).
 pub struct ReferenceController {
     schema: Schema,
     keys: SchemaKeys,
 }
 
 impl ReferenceController {
-    /// Contrôleur pour le schéma donné.
+    /// Controller for the given schema.
     pub fn new(schema: Schema) -> Self {
         let keys = SchemaKeys::new(schema.clone());
         ReferenceController { schema, keys }
     }
 
-    /// Schéma de cette instance.
+    /// Schema of this instance.
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
@@ -254,10 +254,10 @@ impl Controller for ReferenceController {
 
     fn default_payload(&self, level: Level) -> Option<Self::Payload> {
         match &self.schema {
-            Schema::Atom(domaine) => domaine.defaut.map(|_| false),
+            Schema::Atom(domain) => domain.default.map(|_| false),
             Schema::Set(_) => Some(false),
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
                     Some(false)
                 } else {
                     None
@@ -269,161 +269,161 @@ impl Controller for ReferenceController {
     }
 }
 
-/// Compile une valeur en diagramme (balayage d'univers) ; le terminal
-/// d'acceptation a pour payload `true` (lecture ensembliste).
-pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
+/// Compiles a value into a diagram (universe sweep); the acceptance
+/// terminal has payload `true` (set-theoretic read).
+pub fn compiled<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     schema: &Schema,
-    valeur: &Value,
+    value: &Value,
 ) -> Result<NodeId, SchemaError> {
-    match (schema, valeur) {
-        (Schema::Atom(domaine), Value::Atom(atome)) => {
-            if !domaine.contient(*atome) {
-                return Err(SchemaError::HorsDomaine(*atome));
+    match (schema, value) {
+        (Schema::Atom(domain), Value::Atom(atom)) => {
+            if !domain.contains(*atom) {
+                return Err(SchemaError::OutDomain(*atom));
             }
             let terminal = pool.intern(anchor, Form::Terminal(true));
             Ok(pool.intern(
                 anchor,
                 Form::Node {
                     level: Level(0),
-                    arcs: BTreeMap::from([(atome.0, terminal)]),
+                    edges: BTreeMap::from([(atom.0, terminal)]),
                 },
             ))
         }
-        (Schema::Set(domaine), Value::Set(elements)) => {
+        (Schema::Set(domain), Value::Set(elements)) => {
             for element in elements {
                 match element {
-                    Value::Atom(atome) if domaine.contient(*atome) => {}
-                    Value::Atom(atome) => return Err(SchemaError::HorsDomaine(*atome)),
-                    autre => {
+                    Value::Atom(atom) if domain.contains(*atom) => {}
+                    Value::Atom(atom) => return Err(SchemaError::OutDomain(*atom)),
+                    other => {
                         return Err(SchemaError::TypeMismatch {
-                            attendu: "ensemble d'atomes",
-                            recu: forme_valeur(autre),
+                            expected: "set of atoms",
+                            recu: form_value(other),
                         });
                     }
                 }
             }
-            compiler_ensemble(pool, anchor, domaine, elements, 0)
+            compile_set(pool, anchor, domain, elements, 0)
         }
-        (Schema::Map(liste_cles, domaine_valeurs), Value::Map(map)) => {
-            valider_map(liste_cles, domaine_valeurs, map)?;
-            compiler_map(pool, anchor, liste_cles, map, 0)
+        (Schema::Map(list_keys, domain_values), Value::Map(map)) => {
+            validate_map(list_keys, domain_values, map)?;
+            compile_map(pool, anchor, list_keys, map, 0)
         }
-        (Schema::Seq(domaine, longueur_max), Value::Seq(elements)) => {
-            valider_seq(domaine, *longueur_max, elements)?;
-            compiler_seq(pool, anchor, domaine, *longueur_max, elements)
+        (Schema::Seq(domain, length_max), Value::Seq(elements)) => {
+            validate_seq(domain, *length_max, elements)?;
+            compile_seq(pool, anchor, domain, *length_max, elements)
         }
-        (Schema::Tag(liste, domaine_valeurs), Value::Tag(discriminant, payload)) => {
-            valider_tag(liste, domaine_valeurs, *discriminant, payload)?;
-            compiler_tag(pool, anchor, liste, domaine_valeurs, *discriminant, payload)
+        (Schema::Tag(list, domain_values), Value::Tag(discriminant, payload)) => {
+            validate_tag(list, domain_values, *discriminant, payload)?;
+            compile_tag(pool, anchor, list, domain_values, *discriminant, payload)
         }
-        (schema, valeur) => Err(SchemaError::TypeMismatch {
-            attendu: forme_schema(schema),
-            recu: forme_valeur(valeur),
+        (schema, value) => Err(SchemaError::TypeMismatch {
+            expected: form_schema(schema),
+            recu: form_value(value),
         }),
     }
 }
 
-/// Valide les clés et valeurs d'une map contre le schéma (erreurs typées,
-/// l'atome fautif est celui rapporté).
-fn valider_map(
-    liste_cles: &[Atom],
-    domaine_valeurs: &Domaine,
+/// Validates the keys and values of a map against the schema (typed errors,
+/// the offending atom is the one reported).
+fn validate_map(
+    list_keys: &[Atom],
+    domain_values: &Domain,
     map: &BTreeMap<Value, Value>,
 ) -> Result<(), SchemaError> {
-    for (cle, valeur) in map {
-        let Value::Atom(atome_cle) = cle else {
+    for (key, value) in map {
+        let Value::Atom(atom_key) = key else {
             return Err(SchemaError::TypeMismatch {
-                attendu: "clé atomique",
-                recu: forme_valeur(cle),
+                expected: "atomic key",
+                recu: form_value(key),
             });
         };
-        if !liste_cles.contains(atome_cle) {
-            return Err(SchemaError::HorsDomaine(*atome_cle));
+        if !list_keys.contains(atom_key) {
+            return Err(SchemaError::OutDomain(*atom_key));
         }
-        let Value::Atom(atome_valeur) = valeur else {
+        let Value::Atom(atom_value) = value else {
             return Err(SchemaError::TypeMismatch {
-                attendu: "valeur atomique",
-                recu: forme_valeur(valeur),
+                expected: "atomic value",
+                recu: form_value(value),
             });
         };
-        if !domaine_valeurs.contient(*atome_valeur) {
-            return Err(SchemaError::HorsDomaine(*atome_valeur));
+        if !domain_values.contains(*atom_value) {
+            return Err(SchemaError::OutDomain(*atom_value));
         }
     }
     Ok(())
 }
 
-fn forme_schema(schema: &Schema) -> &'static str {
+fn form_schema(schema: &Schema) -> &'static str {
     match schema {
-        Schema::Atom(_) => "atome",
-        Schema::Set(_) => "ensemble",
+        Schema::Atom(_) => "atom",
+        Schema::Set(_) => "set",
         Schema::Map(_, _) => "map",
-        Schema::Seq(_, _) => "séquence",
-        Schema::Tag(_, _) => "union typée",
+        Schema::Seq(_, _) => "sequence",
+        Schema::Tag(_, _) => "typed union",
     }
 }
 
-fn forme_valeur(valeur: &Value) -> &'static str {
-    match valeur {
-        Value::Atom(_) => "atome",
-        Value::Set(_) => "ensemble",
+fn form_value(value: &Value) -> &'static str {
+    match value {
+        Value::Atom(_) => "atom",
+        Value::Set(_) => "set",
         Value::Map(_) => "map",
-        Value::Seq(_) => "séquence",
-        Value::Tag(_, _) => "union typée",
+        Value::Seq(_) => "sequence",
+        Value::Tag(_, _) => "typed union",
     }
 }
 
-fn compiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
+fn compile_set<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    domaine: &Domaine,
+    domain: &Domain,
     elements: &BTreeSet<Value>,
     index: usize,
 ) -> Result<NodeId, SchemaError> {
-    if index == domaine.taille() {
+    if index == domain.size() {
         return Ok(pool.intern(anchor, Form::Terminal(true)));
     }
-    let suite = compiler_ensemble(pool, anchor, domaine, elements, index + 1)?;
-    let present = elements.contains(&Value::Atom(domaine.valeurs[index]));
-    let arc = if present { PRESENT } else { ABSENT };
+    let suite = compile_set(pool, anchor, domain, elements, index + 1)?;
+    let present = elements.contains(&Value::Atom(domain.values[index]));
+    let edge = if present { PRESENT } else { ABSENT };
     Ok(pool.intern(
         anchor,
         Form::Node {
             level: Level(index as u32),
-            arcs: BTreeMap::from([(arc, suite)]),
+            edges: BTreeMap::from([(edge, suite)]),
         },
     ))
 }
 
-fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
+fn compile_map<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    liste_cles: &[Atom],
+    list_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
     index: usize,
 ) -> Result<NodeId, SchemaError> {
-    if index == liste_cles.len() {
+    if index == list_keys.len() {
         return Ok(pool.intern(anchor, Form::Terminal(true)));
     }
-    let suite = compiler_map(pool, anchor, liste_cles, map, index + 1)?;
-    let cle = Value::Atom(liste_cles[index]);
-    let arcs = match map.get(&cle) {
-        Some(Value::Atom(valeur)) => {
-            let noeud_valeur = pool.intern(
+    let suite = compile_map(pool, anchor, list_keys, map, index + 1)?;
+    let key = Value::Atom(list_keys[index]);
+    let edges = match map.get(&key) {
+        Some(Value::Atom(value)) => {
+            let node_value = pool.intern(
                 anchor,
                 Form::Node {
-                    level: Schema::niveau_valeur(index),
-                    arcs: BTreeMap::from([(valeur.0, suite)]),
+                    level: Schema::level_value(index),
+                    edges: BTreeMap::from([(value.0, suite)]),
                 },
             );
-            BTreeMap::from([(PRESENT, noeud_valeur)])
+            BTreeMap::from([(PRESENT, node_value)])
         }
-        Some(autre) => {
+        Some(other) => {
             return Err(SchemaError::TypeMismatch {
-                attendu: "valeur atomique",
-                recu: forme_valeur(autre),
+                expected: "atomic value",
+                recu: form_value(other),
             });
         }
         None => BTreeMap::from([(ABSENT, suite)]),
@@ -431,33 +431,29 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
     Ok(pool.intern(
         anchor,
         Form::Node {
-            level: Schema::niveau_presence(index),
-            arcs,
+            level: Schema::level_presence(index),
+            edges,
         },
     ))
 }
 
-/// Valide une séquence contre le schéma Seq (éléments dans le domaine,
-/// longueur bornée).
-fn valider_seq(
-    domaine: &Domaine,
-    longueur_max: u32,
-    elements: &[Value],
-) -> Result<(), SchemaError> {
-    if elements.len() > longueur_max as usize {
+/// Validates a sequence against the Seq schema (elements in the domain,
+/// bounded length).
+fn validate_seq(domain: &Domain, length_max: u32, elements: &[Value]) -> Result<(), SchemaError> {
+    if elements.len() > length_max as usize {
         return Err(SchemaError::TypeMismatch {
-            attendu: "séquence de longueur bornée",
-            recu: "séquence trop longue",
+            expected: "sequence of bounded length",
+            recu: "sequence too long",
         });
     }
     for element in elements {
         match element {
-            Value::Atom(atome) if domaine.contient(*atome) => {}
-            Value::Atom(atome) => return Err(SchemaError::HorsDomaine(*atome)),
-            autre => {
+            Value::Atom(atom) if domain.contains(*atom) => {}
+            Value::Atom(atom) => return Err(SchemaError::OutDomain(*atom)),
+            other => {
                 return Err(SchemaError::TypeMismatch {
-                    attendu: "élément atomique",
-                    recu: forme_valeur(autre),
+                    expected: "atomic element",
+                    recu: form_value(other),
                 });
             }
         }
@@ -465,327 +461,327 @@ fn valider_seq(
     Ok(())
 }
 
-/// Clé d'arc du marqueur de fin dans une séquence (valeur = taille du domaine).
-fn cle_fin(domaine: &Domaine) -> u64 {
-    domaine.taille() as u64
+/// Arc key of the end marker in a sequence (value = size of the domain).
+fn key_end(domain: &Domain) -> u64 {
+    domain.size() as u64
 }
 
-/// Compile une séquence par **positions** (balayage d'univers, M2-1) :
-/// chaque position `i` a un niveau de cardinalité `|D|+1` (valeurs du
-/// domaine + marqueur de fin). Le marqueur de fin mène au terminal true.
-fn compiler_seq<P: Pool<Key = u64, Payload = bool>>(
+/// Compiles a sequence by **positions** (universe sweep, M2-1):
+/// each position `i` has a level of cardinality `|D|+1` (values of the
+/// domain + end marker). The end marker leads to terminal true.
+fn compile_seq<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    domaine: &Domaine,
-    longueur_max: u32,
+    domain: &Domain,
+    length_max: u32,
     elements: &[Value],
 ) -> Result<NodeId, SchemaError> {
-    compiler_seq_position(pool, anchor, domaine, longueur_max, elements, 0)
+    compile_seq_position(pool, anchor, domain, length_max, elements, 0)
 }
 
-fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
+fn compile_seq_position<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    domaine: &Domaine,
-    longueur_max: u32,
+    domain: &Domain,
+    length_max: u32,
     elements: &[Value],
     position: u32,
 ) -> Result<NodeId, SchemaError> {
-    if position >= longueur_max {
-        // Niveau marqueur de fin : clé requise, présent = fin de séquence.
+    if position >= length_max {
+        // End marker level: required key, present = end of sequence.
         let terminal = pool.intern(anchor, Form::Terminal(true));
         return Ok(pool.intern(
             anchor,
             Form::Node {
-                level: Level(longueur_max),
-                arcs: BTreeMap::from([(PRESENT, terminal)]),
+                level: Level(length_max),
+                edges: BTreeMap::from([(PRESENT, terminal)]),
             },
         ));
     }
-    let suite = compiler_seq_position(pool, anchor, domaine, longueur_max, elements, position + 1)?;
-    let arc = if (position as usize) < elements.len() {
+    let suite = compile_seq_position(pool, anchor, domain, length_max, elements, position + 1)?;
+    let edge = if (position as usize) < elements.len() {
         match &elements[position as usize] {
-            Value::Atom(atome) => atome.0,
-            _ => unreachable!("validé par valider_seq"),
+            Value::Atom(atom) => atom.0,
+            _ => unreachable!("validated by validate_seq"),
         }
     } else {
-        cle_fin(domaine) // marqueur de fin
+        key_end(domain) // end marker
     };
     Ok(pool.intern(
         anchor,
         Form::Node {
             level: Level(position),
-            arcs: BTreeMap::from([(arc, suite)]),
+            edges: BTreeMap::from([(edge, suite)]),
         },
     ))
 }
 
-/// Valide un tag contre le schéma (discriminant dans la liste, payload dans le domaine).
-fn valider_tag(
-    liste: &[Atom],
-    domaine_valeurs: &Domaine,
+/// Validates a tag against the schema (discriminant in the list, payload in the domain).
+fn validate_tag(
+    list: &[Atom],
+    domain_values: &Domain,
     discriminant: Atom,
     payload: &Value,
 ) -> Result<(), SchemaError> {
-    if !liste.contains(&discriminant) {
-        return Err(SchemaError::HorsDomaine(discriminant));
+    if !list.contains(&discriminant) {
+        return Err(SchemaError::OutDomain(discriminant));
     }
     match payload {
-        Value::Atom(atome) if domaine_valeurs.contient(*atome) => Ok(()),
-        Value::Atom(atome) => Err(SchemaError::HorsDomaine(*atome)),
-        autre => Err(SchemaError::TypeMismatch {
-            attendu: "payload atomique",
-            recu: forme_valeur(autre),
+        Value::Atom(atom) if domain_values.contains(*atom) => Ok(()),
+        Value::Atom(atom) => Err(SchemaError::OutDomain(*atom)),
+        other => Err(SchemaError::TypeMismatch {
+            expected: "atomic payload",
+            recu: form_value(other),
         }),
     }
 }
 
-/// Compile un tag : niveau discriminant (un arc = un variant) puis niveau
-/// valeur. Un seul arc utile par nœud (C2).
-fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
+/// Compiles a tag: discriminant level (one edge = one variant) then level
+/// value. A single useful edge per node (C2).
+fn compile_tag<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    liste: &[Atom],
-    domaine_valeurs: &Domaine,
+    list: &[Atom],
+    domain_values: &Domain,
     discriminant: Atom,
     payload: &Value,
 ) -> Result<NodeId, SchemaError> {
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    let Value::Atom(atome_valeur) = payload else {
+    let Value::Atom(atom_value) = payload else {
         return Err(SchemaError::TypeMismatch {
-            attendu: "payload atomique",
-            recu: forme_valeur(payload),
+            expected: "atomic payload",
+            recu: form_value(payload),
         });
     };
-    let noeud_valeur = pool.intern(
+    let node_value = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(atome_valeur.0, terminal)]),
+            edges: BTreeMap::from([(atom_value.0, terminal)]),
         },
     );
-    let index = liste.iter().position(|a| *a == discriminant).unwrap();
-    let _ = domaine_valeurs;
+    let index = list.iter().position(|a| *a == discriminant).unwrap();
+    let _ = domain_values;
     Ok(pool.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(index as u64, noeud_valeur)]),
+            edges: BTreeMap::from([(index as u64, node_value)]),
         },
     ))
 }
 
-/// Décompile un diagramme en valeur (inverse de [`compiler`]) : utile pour
-/// les tests de round-trip et les diagnostics.
-pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
+/// Decompiles a diagram into a value (inverse of [`compiled`]): useful for
+/// the round-trip tests and the diagnostics.
+pub fn decompile<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     schema: &Schema,
-    noeud: NodeId,
+    node: NodeId,
 ) -> Result<Value, SchemaError> {
     match schema {
-        Schema::Atom(domaine) => {
-            // Domaine à un seul élément : R-collapse réduit le nœud atomique
-            // au terminal d'acceptation.
-            if matches!(pool.resolve(noeud), Ok(Form::Terminal(true))) {
-                return match domaine.valeurs.first() {
-                    Some(atome) if domaine.taille() == 1 => Ok(Value::Atom(*atome)),
-                    _ => Err(SchemaError::NoeudInattendu {
-                        attendu: "nœud de niveau atomique",
-                        noeud,
+        Schema::Atom(domain) => {
+            // Single-element domain: R-collapse reduces the atom node
+            // to the acceptance terminal.
+            if matches!(pool.resolve(node), Ok(Form::Terminal(true))) {
+                return match domain.values.first() {
+                    Some(atom) if domain.size() == 1 => Ok(Value::Atom(*atom)),
+                    _ => Err(SchemaError::NodeUnexpected {
+                        expected: "atom-level node",
+                        node,
                     }),
                 };
             }
-            let Form::Node { level, arcs } = pool.resolve(noeud)? else {
-                return Err(SchemaError::NoeudInattendu {
-                    attendu: "nœud de niveau atomique",
-                    noeud,
+            let Form::Node { level, edges } = pool.resolve(node)? else {
+                return Err(SchemaError::NodeUnexpected {
+                    expected: "atom-level node",
+                    node,
                 });
             };
             if *level != Level(0) {
-                return Err(SchemaError::NoeudInattendu {
-                    attendu: "niveau 0",
-                    noeud,
+                return Err(SchemaError::NodeUnexpected {
+                    expected: "level 0",
+                    node,
                 });
             }
-            for (cle, cible) in arcs {
-                if matches!(pool.resolve(*cible), Ok(Form::Terminal(true))) {
-                    let atome = Atom(*cle);
-                    if domaine.contient(atome) {
-                        return Ok(Value::Atom(atome));
+            for (key, target) in edges {
+                if matches!(pool.resolve(*target), Ok(Form::Terminal(true))) {
+                    let atom = Atom(*key);
+                    if domain.contains(atom) {
+                        return Ok(Value::Atom(atom));
                     }
-                    return Err(SchemaError::HorsDomaine(atome));
+                    return Err(SchemaError::OutDomain(atom));
                 }
             }
-            Err(SchemaError::NoeudInattendu {
-                attendu: "arc vers terminal true",
-                noeud,
+            Err(SchemaError::NodeUnexpected {
+                expected: "edge to terminal true",
+                node,
             })
         }
-        Schema::Set(domaine) => {
+        Schema::Set(domain) => {
             let mut elements = BTreeSet::new();
-            decompiler_ensemble(pool, domaine, noeud, &mut elements)?;
+            decompile_set(pool, domain, node, &mut elements)?;
             Ok(Value::Set(elements))
         }
-        Schema::Map(liste_cles, _) => {
+        Schema::Map(list_keys, _) => {
             let mut map = BTreeMap::new();
-            decompiler_map(pool, liste_cles, noeud, &mut map)?;
+            decompile_map(pool, list_keys, node, &mut map)?;
             Ok(Value::Map(map))
         }
-        Schema::Seq(domaine, longueur_max) => {
+        Schema::Seq(domain, length_max) => {
             let mut elements = Vec::new();
-            decompiler_seq(pool, domaine, *longueur_max, noeud, &mut elements)?;
+            decompile_seq(pool, domain, *length_max, node, &mut elements)?;
             Ok(Value::Seq(elements))
         }
-        Schema::Tag(liste, domaine_valeurs) => decompiler_tag(pool, liste, domaine_valeurs, noeud),
+        Schema::Tag(list, domain_values) => decompile_tag(pool, list, domain_values, node),
     }
 }
 
-fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
+fn decompile_tag<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    liste: &[Atom],
-    domaine_valeurs: &Domaine,
-    noeud: NodeId,
+    list: &[Atom],
+    domain_values: &Domain,
+    node: NodeId,
 ) -> Result<Value, SchemaError> {
-    let Form::Node { level, arcs } = pool.resolve(noeud)? else {
-        return Err(SchemaError::NoeudInattendu {
-            attendu: "nœud discriminant",
-            noeud,
+    let Form::Node { level, edges } = pool.resolve(node)? else {
+        return Err(SchemaError::NodeUnexpected {
+            expected: "discriminant node",
+            node,
         });
     };
     if *level != Level(0) {
-        return Err(SchemaError::NoeudInattendu {
-            attendu: "niveau discriminant (0)",
-            noeud,
+        return Err(SchemaError::NodeUnexpected {
+            expected: "discriminant level (0)",
+            node,
         });
     }
-    let Some((&index, &noeud_valeur)) = arcs.iter().next() else {
-        return Err(SchemaError::NoeudInattendu {
-            attendu: "arc discriminant",
-            noeud,
+    let Some((&index, &node_value)) = edges.iter().next() else {
+        return Err(SchemaError::NodeUnexpected {
+            expected: "discriminant edge",
+            node,
         });
     };
-    let discriminant = *liste
+    let discriminant = *list
         .get(index as usize)
-        .ok_or(SchemaError::NoeudInattendu {
-            attendu: "index de discriminant valide",
-            noeud,
+        .ok_or(SchemaError::NodeUnexpected {
+            expected: "valid discriminant index",
+            node,
         })?;
     let Form::Node {
-        level: niveau_valeur,
-        arcs: arcs_valeur,
-    } = pool.resolve(noeud_valeur)?
+        level: level_value,
+        edges: edges_value,
+    } = pool.resolve(node_value)?
     else {
-        return Err(SchemaError::NoeudInattendu {
-            attendu: "nœud valeur",
-            noeud: noeud_valeur,
+        return Err(SchemaError::NodeUnexpected {
+            expected: "value node",
+            node: node_value,
         });
     };
-    if *niveau_valeur != Level(1) {
-        return Err(SchemaError::NoeudInattendu {
-            attendu: "niveau valeur (1)",
-            noeud: noeud_valeur,
+    if *level_value != Level(1) {
+        return Err(SchemaError::NodeUnexpected {
+            expected: "value level (1)",
+            node: node_value,
         });
     }
-    let Some((&valeur, _)) = arcs_valeur.iter().next() else {
-        return Err(SchemaError::NoeudInattendu {
-            attendu: "arc valeur",
-            noeud: noeud_valeur,
+    let Some((&value, _)) = edges_value.iter().next() else {
+        return Err(SchemaError::NodeUnexpected {
+            expected: "value edge",
+            node: node_value,
         });
     };
-    let atome = Atom(valeur);
-    if !domaine_valeurs.contient(atome) {
-        return Err(SchemaError::HorsDomaine(atome));
+    let atom = Atom(value);
+    if !domain_values.contains(atom) {
+        return Err(SchemaError::OutDomain(atom));
     }
-    Ok(Value::Tag(discriminant, Box::new(Value::Atom(atome))))
+    Ok(Value::Tag(discriminant, Box::new(Value::Atom(atom))))
 }
 
-fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
+fn decompile_seq<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    domaine: &Domaine,
-    longueur_max: u32,
-    mut noeud: NodeId,
+    domain: &Domain,
+    length_max: u32,
+    mut node: NodeId,
     elements: &mut Vec<Value>,
 ) -> Result<(), SchemaError> {
     loop {
-        match pool.resolve(noeud)? {
+        match pool.resolve(node)? {
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
-                return Err(SchemaError::NoeudInattendu {
-                    attendu: "terminal true ou nœud de position",
-                    noeud,
+                return Err(SchemaError::NodeUnexpected {
+                    expected: "terminal true or position node",
+                    node,
                 });
             }
-            Form::Node { level, arcs } => {
-                if level.0 > longueur_max {
-                    return Err(SchemaError::NoeudInattendu {
-                        attendu: "niveau de position ou marqueur de fin",
-                        noeud,
+            Form::Node { level, edges } => {
+                if level.0 > length_max {
+                    return Err(SchemaError::NodeUnexpected {
+                        expected: "position level or end marker",
+                        node,
                     });
                 }
-                if level.0 == longueur_max {
-                    // Niveau marqueur de fin.
-                    if arcs.contains_key(&PRESENT) {
+                if level.0 == length_max {
+                    // End marker level.
+                    if edges.contains_key(&PRESENT) {
                         return Ok(());
                     }
-                    return Err(SchemaError::NoeudInattendu {
-                        attendu: "marqueur de fin présent",
-                        noeud,
+                    return Err(SchemaError::NodeUnexpected {
+                        expected: "end marker present",
+                        node,
                     });
                 }
-                let Some((&arc, &suite)) = arcs.iter().next() else {
-                    return Err(SchemaError::NoeudInattendu {
-                        attendu: "arc de position",
-                        noeud,
+                let Some((&edge, &suite)) = edges.iter().next() else {
+                    return Err(SchemaError::NodeUnexpected {
+                        expected: "position edge",
+                        node,
                     });
                 };
-                if arc == cle_fin(domaine) {
-                    // Marqueur de fin anticipé : la séquence s'arrête ici.
-                    noeud = suite;
+                if edge == key_end(domain) {
+                    // Early end marker: the sequence stops here.
+                    node = suite;
                     continue;
                 }
-                let atome = Atom(arc);
-                if !domaine.contient(atome) {
-                    return Err(SchemaError::HorsDomaine(atome));
+                let atom = Atom(edge);
+                if !domain.contains(atom) {
+                    return Err(SchemaError::OutDomain(atom));
                 }
-                elements.push(Value::Atom(atome));
-                noeud = suite;
+                elements.push(Value::Atom(atom));
+                node = suite;
             }
         }
     }
 }
 
-fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
+fn decompile_set<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    domaine: &Domaine,
-    mut noeud: NodeId,
+    domain: &Domain,
+    mut node: NodeId,
     elements: &mut BTreeSet<Value>,
 ) -> Result<(), SchemaError> {
     loop {
-        match pool.resolve(noeud)? {
+        match pool.resolve(node)? {
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
-                return Err(SchemaError::NoeudInattendu {
-                    attendu: "terminal true (ensemble vide) ou nœud de présence",
-                    noeud,
+                return Err(SchemaError::NodeUnexpected {
+                    expected: "terminal true (empty set) or presence node",
+                    node,
                 });
             }
-            Form::Node { level, arcs } => {
+            Form::Node { level, edges } => {
                 let index = level.0 as usize;
-                if index >= domaine.taille() {
-                    return Err(SchemaError::NoeudInattendu {
-                        attendu: "niveau de présence du domaine",
-                        noeud,
+                if index >= domain.size() {
+                    return Err(SchemaError::NodeUnexpected {
+                        expected: "domain presence level",
+                        node,
                     });
                 }
-                if let Some(&suite) = arcs.get(&PRESENT) {
-                    elements.insert(Value::Atom(domaine.valeurs[index]));
-                    noeud = suite;
-                } else if let Some(&suite) = arcs.get(&ABSENT) {
-                    noeud = suite;
+                if let Some(&suite) = edges.get(&PRESENT) {
+                    elements.insert(Value::Atom(domain.values[index]));
+                    node = suite;
+                } else if let Some(&suite) = edges.get(&ABSENT) {
+                    node = suite;
                 } else {
-                    return Err(SchemaError::NoeudInattendu {
-                        attendu: "arc de présence",
-                        noeud,
+                    return Err(SchemaError::NodeUnexpected {
+                        expected: "presence edge",
+                        node,
                     });
                 }
             }
@@ -793,66 +789,66 @@ fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
     }
 }
 
-fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
+fn decompile_map<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    liste_cles: &[Atom],
-    mut noeud: NodeId,
+    list_keys: &[Atom],
+    mut node: NodeId,
     map: &mut BTreeMap<Value, Value>,
 ) -> Result<(), SchemaError> {
     loop {
-        match pool.resolve(noeud)? {
+        match pool.resolve(node)? {
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
-                return Err(SchemaError::NoeudInattendu {
-                    attendu: "terminal true (map vide) ou nœud de présence",
-                    noeud,
+                return Err(SchemaError::NodeUnexpected {
+                    expected: "terminal true (empty map) or presence node",
+                    node,
                 });
             }
-            Form::Node { level, arcs } => {
-                if !level.0.is_multiple_of(PAS_NIVEAU_MAP) {
-                    return Err(SchemaError::NoeudInattendu {
-                        attendu: "niveau de présence",
-                        noeud,
+            Form::Node { level, edges } => {
+                if !level.0.is_multiple_of(PAS_LEVEL_MAP) {
+                    return Err(SchemaError::NodeUnexpected {
+                        expected: "presence level",
+                        node,
                     });
                 }
-                let index = (level.0 / PAS_NIVEAU_MAP) as usize;
-                if index >= liste_cles.len() {
-                    return Err(SchemaError::NoeudInattendu {
-                        attendu: "niveau de présence d'une clé",
-                        noeud,
+                let index = (level.0 / PAS_LEVEL_MAP) as usize;
+                if index >= list_keys.len() {
+                    return Err(SchemaError::NodeUnexpected {
+                        expected: "presence level of a key",
+                        node,
                     });
                 }
-                if let Some(&noeud_valeur) = arcs.get(&PRESENT) {
+                if let Some(&node_value) = edges.get(&PRESENT) {
                     let Form::Node {
-                        level: niveau_valeur,
-                        arcs: arcs_valeur,
-                    } = pool.resolve(noeud_valeur)?
+                        level: level_value,
+                        edges: edges_value,
+                    } = pool.resolve(node_value)?
                     else {
-                        return Err(SchemaError::NoeudInattendu {
-                            attendu: "nœud de niveau valeur",
-                            noeud: noeud_valeur,
+                        return Err(SchemaError::NodeUnexpected {
+                            expected: "value-level node",
+                            node: node_value,
                         });
                     };
-                    if *niveau_valeur != Schema::niveau_valeur(index) {
-                        return Err(SchemaError::NoeudInattendu {
-                            attendu: "niveau valeur de la clé",
-                            noeud: noeud_valeur,
+                    if *level_value != Schema::level_value(index) {
+                        return Err(SchemaError::NodeUnexpected {
+                            expected: "value level of the key",
+                            node: node_value,
                         });
                     }
-                    let Some((&valeur, &suite)) = arcs_valeur.iter().next() else {
-                        return Err(SchemaError::NoeudInattendu {
-                            attendu: "arc de valeur",
-                            noeud: noeud_valeur,
+                    let Some((&value, &suite)) = edges_value.iter().next() else {
+                        return Err(SchemaError::NodeUnexpected {
+                            expected: "value edge",
+                            node: node_value,
                         });
                     };
-                    map.insert(Value::Atom(liste_cles[index]), Value::Atom(Atom(valeur)));
-                    noeud = suite;
-                } else if let Some(&suite) = arcs.get(&ABSENT) {
-                    noeud = suite;
+                    map.insert(Value::Atom(list_keys[index]), Value::Atom(Atom(value)));
+                    node = suite;
+                } else if let Some(&suite) = edges.get(&ABSENT) {
+                    node = suite;
                 } else {
-                    return Err(SchemaError::NoeudInattendu {
-                        attendu: "arc de présence",
-                        noeud,
+                    return Err(SchemaError::NodeUnexpected {
+                        expected: "presence edge",
+                        node,
                     });
                 }
             }

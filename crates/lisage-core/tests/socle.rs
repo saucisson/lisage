@@ -1,6 +1,6 @@
-use lisage_core::socle;
+use lisage_core::base;
 
 #[test]
-fn test_socle_factice() {
-    assert_eq!(socle(), 42);
+fn test_base_mock() {
+    assert_eq!(base(), 42);
 }

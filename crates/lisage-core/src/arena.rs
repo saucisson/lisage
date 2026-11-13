@@ -1,67 +1,67 @@
-//! Arena : pool hash-consé bi-plan, implémentation du port `Pool` (M1-1,
-//! M4-1). Plans principal et d'ombre (spec § 10 Q7), GC mark-and-sweep avec
-//! compaction profilée, métriques de cache.
+//! Arena: two-plane hash-consed pool, implementation of the `Pool` port
+//! (M1-1, M4-1). Main and shadow planes (spec § 10 Q7), mark-and-sweep GC
+//! with profiled compaction, cache metrics.
 //!
-//! Hash-consing à clé (contrôleur, ancre, forme) : R-share est la table
-//! unique. À la création du handle, les réductions du contrôleur s'appliquent
-//! (M1-2, spec § 2.3) : R-collapse et R-default.
+//! Hash-consing keyed by (controller, anchor, form): R-share is the unique
+//! table. At handle creation, the controller's reductions apply
+//! (M1-2, spec § 2.3): R-collapse and R-default.
 
 use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 use lisage_algebra::reduction::{
-    Reduction, reduire, reduire_dabs as crate_reduction_dabs, reduire_sans_collapse,
+    Reduction, reduce, reduce_dabs as crate_reduction_dabs, reduce_without_collapse,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::biplan::{EntreeNoeud, IndexNiveaux, MetriquesPool, Plan, StatsGc, seuil_atteint};
+use crate::biplan::{IndexLevels, InputNode, MetricsPool, Plan, StatsGc, threshold_reached};
 use crate::observer::{Observer, ReductionRule, TraceEvent};
 
-/// Clé du hash-consing : (contrôleur, ancre, forme).
-type CleInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
+/// Hash-consing key: (controller, anchor, form).
+type KeyInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
 
-/// Arena : stockage canonique aveugle des formes, adressé par contenu.
-/// Détient l'instance de contrôleur : son algèbre de clés (paramétrée par le
-/// schéma, M1-3) décide des formes normales, cardinalités et défauts.
+/// Arena: blind canonical storage of forms, addressed by content.
+/// Holds the controller instance: its key algebra (parameterized by the
+/// schema, M1-3) decides normal forms, cardinalities and defaults.
 pub struct Arena<C: Controller> {
-    nodes: Vec<EntreeNoeud<C::Key, C::Payload>>,
-    unique: HashMap<CleInterning<C::Key, C::Payload>, NodeId>,
-    /// Index du plan d'ombre : niveau → nœuds vivants de ce niveau.
-    index_niveaux: IndexNiveaux,
-    metriques: MetriquesPool,
-    /// Table de remapping de la dernière compaction (vide sinon).
+    nodes: Vec<InputNode<C::Key, C::Payload>>,
+    unique: HashMap<KeyInterning<C::Key, C::Payload>, NodeId>,
+    /// Shadow plane index: level → live nodes of that level.
+    index_levels: IndexLevels,
+    metrics: MetricsPool,
+    /// Remapping table of the last compaction (empty otherwise).
     remap: Vec<Option<NodeId>>,
     observer: Box<dyn Observer>,
-    controleur: C,
+    controller: C,
 }
 
 impl<C: Controller> Arena<C> {
-    /// Arena neuve avec le contrôleur et l'observateur de trace donnés.
-    pub fn new(controleur: C, observer: Box<dyn Observer>) -> Self {
+    /// New arena with the given controller and trace observer.
+    pub fn new(controller: C, observer: Box<dyn Observer>) -> Self {
         Arena {
             nodes: Vec::new(),
             unique: HashMap::new(),
-            index_niveaux: IndexNiveaux::new(),
-            metriques: MetriquesPool::default(),
+            index_levels: IndexLevels::new(),
+            metrics: MetricsPool::default(),
             remap: Vec::new(),
             observer,
-            controleur,
+            controller,
         }
     }
 
-    /// Contrôleur propriétaire de cette arena.
-    pub fn controleur(&self) -> &C {
-        &self.controleur
+    /// Controller owning this arena.
+    pub fn controller(&self) -> &C {
+        &self.controller
     }
 
-    /// Internement d'un terminal à payload (plan principal).
+    /// Interning of a terminal with payload (main plane).
     pub fn terminal(&mut self, anchor: Anchor, payload: C::Payload) -> NodeId {
         self.intern(anchor, Form::Terminal(payload))
     }
 
-    /// Internement dans un plan donné (principal par défaut via `intern`).
-    /// Sur un hit du hash-consing (forme déjà présente), le handle existant
-    /// est retourné et son plan est déplacé vers `plan`.
+    /// Interning into a given plane (main by default via `intern`).
+    /// On a hash-consing hit (form already present), the existing handle
+    /// is returned and its plane is moved to `plan`.
     pub fn intern_plan(
         &mut self,
         anchor: Anchor,
@@ -69,132 +69,132 @@ impl<C: Controller> Arena<C> {
         plan: Plan,
     ) -> NodeId {
         let node = self.intern(anchor, form);
-        if let Some(entree) = self.nodes.get_mut(node.0 as usize) {
-            entree.plan = plan;
+        if let Some(input) = self.nodes.get_mut(node.0 as usize) {
+            input.plan = plan;
         }
         node
     }
 
-    /// Plan d'un nœud vivant.
-    pub fn plan_de(&self, node: NodeId) -> Option<Plan> {
+    /// Plane of a live node.
+    pub fn plan_of(&self, node: NodeId) -> Option<Plan> {
         self.nodes
             .get(node.0 as usize)?
-            .forme
+            .form
             .as_ref()
             .map(|_| self.nodes[node.0 as usize].plan)
     }
 
-    /// Nœuds vivants d'un niveau (index du plan d'ombre).
-    pub fn index_niveau(&self, level: Level) -> &BTreeSet<NodeId> {
-        static VIDE: std::sync::LazyLock<BTreeSet<NodeId>> =
+    /// Live nodes of a level (shadow plane index).
+    pub fn index_level(&self, level: Level) -> &BTreeSet<NodeId> {
+        static EMPTY: std::sync::LazyLock<BTreeSet<NodeId>> =
             std::sync::LazyLock::new(BTreeSet::new);
-        self.index_niveaux.get(&level).unwrap_or(&VIDE)
+        self.index_levels.get(&level).unwrap_or(&EMPTY)
     }
 
-    /// Métriques du pool (cache + GC).
-    pub fn metriques(&self) -> MetriquesPool {
-        self.metriques
+    /// Pool metrics (cache + GC).
+    pub fn metrics(&self) -> MetricsPool {
+        self.metrics
     }
 
-    /// Table de remapping de la dernière compaction : `remap[ancien] =
-    /// nouveau` (`None` si l'ancien nœud était une tombstone). Vide si la
-    /// dernière GC n'a pas compacté.
-    pub fn dernier_remap(&self) -> &[Option<NodeId>] {
+    /// Remapping table of the last compaction: `remap[old] = new`
+    /// (`None` if the old node was a tombstone). Empty if the last GC
+    /// did not compact.
+    pub fn last_remap(&self) -> &[Option<NodeId>] {
         &self.remap
     }
 
-    /// Nombre de nœuds vivants.
-    pub fn vivants(&self) -> usize {
-        self.nodes.iter().filter(|e| e.forme.is_some()).count()
+    /// Number of live nodes.
+    pub fn live(&self) -> usize {
+        self.nodes.iter().filter(|e| e.form.is_some()).count()
     }
 
-    /// GC mark-and-sweep depuis les racines données : les nœuds non atteints
-    /// deviennent des tombstones (retirés de la table unique et de l'index) ;
-    /// si le seuil de morts est atteint, compaction profilée avec table de
-    /// remapping des `NodeId`.
-    pub fn gc(&mut self, racines: &[NodeId]) -> StatsGc {
+    /// Mark-and-sweep GC from the given roots: unreachable nodes become
+    /// tombstones (removed from the unique table and the index); if the
+    /// dead threshold is reached, profiled compaction with a `NodeId`
+    /// remapping table.
+    pub fn gc(&mut self, roots: &[NodeId]) -> StatsGc {
         let mut atteints = BTreeSet::new();
-        let mut pile: Vec<NodeId> = racines.to_vec();
-        while let Some(node) = pile.pop() {
+        let mut stack: Vec<NodeId> = roots.to_vec();
+        while let Some(node) = stack.pop() {
             if !atteints.insert(node) {
                 continue;
             }
-            if let Some(EntreeNoeud {
-                forme: Some(Form::Node { arcs, .. }),
+            if let Some(InputNode {
+                form: Some(Form::Node { edges, .. }),
                 ..
             }) = self.nodes.get(node.0 as usize)
             {
-                pile.extend(arcs.values().copied());
+                stack.extend(edges.values().copied());
             }
         }
         let total = self.nodes.len() as u64;
-        let mut collectes = 0u64;
-        for (index, entree) in self.nodes.iter_mut().enumerate() {
-            if entree.forme.is_some() && !atteints.contains(&NodeId(index as u32)) {
-                entree.forme = None;
-                collectes += 1;
+        let mut collected = 0u64;
+        for (index, input) in self.nodes.iter_mut().enumerate() {
+            if input.form.is_some() && !atteints.contains(&NodeId(index as u32)) {
+                input.form = None;
+                collected += 1;
             }
         }
-        // Retrait des tombstones de la table unique et de l'index d'ombre.
+        // Removal of tombstones from the unique table and the shadow index.
         self.unique
-            .retain(|_, node| self.nodes[node.0 as usize].forme.is_some());
-        for ensemble in self.index_niveaux.values_mut() {
-            ensemble.retain(|node| self.nodes[node.0 as usize].forme.is_some());
+            .retain(|_, node| self.nodes[node.0 as usize].form.is_some());
+        for set in self.index_levels.values_mut() {
+            set.retain(|node| self.nodes[node.0 as usize].form.is_some());
         }
-        // Vivants comptés sur les entrées réellement vivantes (et non
-        // dérivés du nombre de slots, qui inclut les tombstones d'un GC
-        // précédent sans compaction).
-        let vivants = self.nodes.iter().filter(|e| e.forme.is_some()).count() as u64;
-        let compaction = seuil_atteint(collectes, total);
+        // Live counted on entries actually alive (and not derived from the
+        // number of slots, which includes tombstones from a previous GC
+        // without compaction).
+        let live = self.nodes.iter().filter(|e| e.form.is_some()).count() as u64;
+        let compaction = threshold_reached(collected, total);
         if compaction {
             self.remap = self.compacter();
         } else {
             self.remap.clear();
         }
-        self.metriques.gc += 1;
-        self.metriques.vivants = vivants;
-        self.metriques.morts += collectes;
+        self.metrics.gc += 1;
+        self.metrics.live = live;
+        self.metrics.dead += collected;
         if compaction {
-            self.metriques.compactions += 1;
+            self.metrics.compactions += 1;
         }
         let stats = StatsGc {
-            vivants,
-            collectes,
+            live,
+            collected,
             compaction,
         };
         self.observer.on_event(&TraceEvent::Gc {
-            vivants,
-            collectes,
+            live,
+            collected,
             compaction,
         });
         stats
     }
 
-    /// Compaction : reconstruit le vecteur des nœuds sans tombstones et
-    /// remappe les `NodeId` (table de remapping retournée). Réservée au
-    /// chemin `gc`, qui nettoie d'abord les tombstones de la table unique :
-    /// appel direct avec des tombstones laisserait des `NodeId` périmés
-    /// dans `unique`.
+    /// Compaction: rebuilds the node vector without tombstones and
+    /// remaps the `NodeId`s (remapping table returned). Reserved for the
+    /// `gc` path, which first cleans tombstones from the unique table:
+    /// a direct call with tombstones would leave stale `NodeId`s
+    /// in `unique`.
     fn compacter(&mut self) -> Vec<Option<NodeId>> {
         self.remap.clear();
         let mut remap: Vec<Option<NodeId>> = Vec::with_capacity(self.nodes.len());
-        let mut nouveaux: Vec<EntreeNoeud<C::Key, C::Payload>> = Vec::new();
-        for entree in self.nodes.drain(..) {
-            if entree.forme.is_some() {
+        let mut nouveaux: Vec<InputNode<C::Key, C::Payload>> = Vec::new();
+        for input in self.nodes.drain(..) {
+            if input.form.is_some() {
                 remap.push(Some(NodeId(nouveaux.len() as u32)));
-                nouveaux.push(entree);
+                nouveaux.push(input);
             } else {
                 remap.push(None);
             }
         }
         self.nodes = nouveaux;
         for node in self.unique.values_mut() {
-            if let Some(Some(nouveau)) = remap.get(node.0 as usize) {
-                *node = *nouveau;
+            if let Some(Some(new)) = remap.get(node.0 as usize) {
+                *node = *new;
             }
         }
-        for ensemble in self.index_niveaux.values_mut() {
-            *ensemble = ensemble
+        for set in self.index_levels.values_mut() {
+            *set = set
                 .iter()
                 .filter_map(|node| remap.get(node.0 as usize).copied().flatten())
                 .collect();
@@ -202,68 +202,68 @@ impl<C: Controller> Arena<C> {
         remap
     }
 
-    /// Forme normalisée d'un nœud : les clés passent par la forme normale de
-    /// l'algèbre de clés du contrôleur (sinon le hash-consing violerait C1).
-    fn forme_normalisee(&self, form: Form<C::Key, C::Payload>) -> Form<C::Key, C::Payload> {
+    /// Normalized form of a node: keys go through the normal form of the
+    /// controller's key algebra (otherwise hash-consing would violate C1).
+    fn form_normalized(&self, form: Form<C::Key, C::Payload>) -> Form<C::Key, C::Payload> {
         match form {
             Form::Terminal(payload) => Form::Terminal(payload),
-            Form::Node { level, arcs } => Form::Node {
+            Form::Node { level, edges } => Form::Node {
                 level,
-                arcs: arcs
+                edges: edges
                     .into_iter()
-                    .map(|(key, cible)| (self.controleur.keys().normal_form(&key), cible))
+                    .map(|(key, target)| (self.controller.keys().normal_form(&key), target))
                     .collect(),
             },
         }
     }
 
-    /// Réductions à la création du handle (spec § 2.3, M1-2) : R-collapse et
-    /// R-default, le diagramme de défaut D_δ étant désigné par le contrôleur.
-    /// Retourne soit la cible du collapse, soit la forme réduite à interniser.
-    fn reduit(
+    /// Reductions at handle creation (spec § 2.3, M1-2): R-collapse and
+    /// R-default, the default diagram D_δ being designated by the controller.
+    /// Returns either the collapse target or the reduced form to intern.
+    fn reduced(
         &self,
         anchor: Anchor,
         level: Level,
-        arcs: BTreeMap<C::Key, NodeId>,
+        edges: BTreeMap<C::Key, NodeId>,
     ) -> Result<Form<C::Key, C::Payload>, NodeId> {
-        // Atelier didactique (backlog § 9) : le contrôleur peut commuter
-        // R-default et R-collapse une à une.
-        let defaut_actif = self.controleur.defaut_actif();
-        let cle_defaut = if defaut_actif {
-            self.controleur.keys().default(level)
+        // Didactic workshop (backlog § 9): the controller can toggle
+        // R-default and R-collapse one at a time.
+        let default_active = self.controller.default_active();
+        let key_default = if default_active {
+            self.controller.keys().default(level)
         } else {
             None
         };
-        let cardinalite = self.controleur.keys().cardinality(level);
-        let payload_defaut = if defaut_actif {
-            self.controleur.default_payload(level)
+        let cardinality = self.controller.keys().cardinality(level);
+        let payload_default = if default_active {
+            self.controller.default_payload(level)
         } else {
             None
         };
-        let est_defaut = |node: NodeId| -> bool {
-            defaut_actif
-                && matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(payload))
+        let is_default = |node: NodeId| -> bool {
+            default_active
+                && matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_default.as_ref() == Some(payload))
         };
-        // M4-3 : défaut généralisé (D-abs/D-trans) si le contrôleur l'active.
-        let reduit = if !self.controleur.collapse_actif() {
-            reduire_sans_collapse(arcs, cle_defaut, &est_defaut)
-        } else if self.controleur.absorption_generalisee() {
-            // NodeId de D^déf sous cette ancre, s'il est déjà interné (sert
-            // au D-trans sur forme vide A = ∅).
-            let defaut = payload_defaut.as_ref().and_then(|p| {
+        // M4-3: generalized default (D-abs/D-trans) if the controller enables it.
+        let reduced = if !self.controller.collapse_active() {
+            reduce_without_collapse(edges, key_default, &is_default)
+        } else if self.controller.absorption_generalized() {
+            // NodeId of D^default under this anchor, if already interned (used
+            // for D-trans on empty form A = ∅).
+            let default = payload_default.as_ref().and_then(|p| {
                 self.unique
                     .get(&(Self::CONTROLLER, anchor, Form::Terminal(p.clone())))
                     .copied()
             });
-            crate_reduction_dabs(arcs, cle_defaut, &est_defaut, cardinalite, defaut)
+            crate_reduction_dabs(edges, key_default, &is_default, cardinality, default)
         } else {
-            reduire(arcs, cle_defaut, &est_defaut, cardinalite)
+            reduce(edges, key_default, &is_default, cardinality)
         };
-        match reduit {
-            Reduction::Collapse(cible) => Err(cible),
-            Reduction::Forme(arcs_reduits) => Ok(Form::Node {
+        match reduced {
+            Reduction::Collapse(target) => Err(target),
+            Reduction::Form(edges_reduced) => Ok(Form::Node {
                 level,
-                arcs: arcs_reduits,
+                edges: edges_reduced,
             }),
         }
     }
@@ -276,53 +276,53 @@ impl<C: Controller> Pool for Arena<C> {
     const CONTROLLER: ControllerId = C::FINGERPRINT;
 
     fn intern(&mut self, anchor: Anchor, form: Form<Self::Key, Self::Payload>) -> NodeId {
-        let forme = self.forme_normalisee(form);
-        let forme = match forme {
-            Form::Node { level, arcs } => {
-                let taille_avant = arcs.len();
-                match self.reduit(anchor, level, arcs) {
-                    Err(cible) => {
+        let form = self.form_normalized(form);
+        let form = match form {
+            Form::Node { level, edges } => {
+                let size_before = edges.len();
+                match self.reduced(anchor, level, edges) {
+                    Err(target) => {
                         self.observer.on_event(&TraceEvent::ReductionApplied {
                             rule: ReductionRule::Collapse,
                             level,
                         });
-                        return cible;
+                        return target;
                     }
-                    Ok(Form::Node { arcs, .. }) => {
-                        if arcs.len() < taille_avant {
+                    Ok(Form::Node { edges, .. }) => {
+                        if edges.len() < size_before {
                             self.observer.on_event(&TraceEvent::ReductionApplied {
                                 rule: ReductionRule::Default,
                                 level,
                             });
                         }
-                        Form::Node { level, arcs }
+                        Form::Node { level, edges }
                     }
                     Ok(terminal) => terminal,
                 }
             }
             terminal => terminal,
         };
-        let cle = (Self::CONTROLLER, anchor, forme.clone());
-        if let Some(node) = self.unique.get(&cle) {
-            self.metriques.partages += 1;
+        let key = (Self::CONTROLLER, anchor, form.clone());
+        if let Some(node) = self.unique.get(&key) {
+            self.metrics.shared += 1;
             self.observer
                 .on_event(&TraceEvent::NodeShared { node: *node });
             return *node;
         }
         let node = NodeId(self.nodes.len() as u32);
-        let level = match &forme {
+        let level = match &form {
             Form::Terminal(_) => None,
             Form::Node { level, .. } => Some(*level),
         };
-        self.nodes.push(EntreeNoeud {
-            plan: Plan::Principal,
-            forme: Some(forme),
+        self.nodes.push(InputNode {
+            plan: Plan::Main,
+            form: Some(form),
         });
         if let Some(level) = level {
-            self.index_niveaux.entry(level).or_default().insert(node);
+            self.index_levels.entry(level).or_default().insert(node);
         }
-        self.unique.insert(cle, node);
-        self.metriques.creations += 1;
+        self.unique.insert(key, node);
+        self.metrics.creations += 1;
         self.observer
             .on_event(&TraceEvent::NodeCreated { node, level });
         node
@@ -330,7 +330,7 @@ impl<C: Controller> Pool for Arena<C> {
 
     fn resolve(&self, node: NodeId) -> Result<&Form<Self::Key, Self::Payload>, PoolError> {
         match self.nodes.get(node.0 as usize) {
-            Some(entree) => entree.forme.as_ref().ok_or(PoolError::UnknownNode(node)),
+            Some(input) => input.form.as_ref().ok_or(PoolError::UnknownNode(node)),
             None => Err(PoolError::UnknownNode(node)),
         }
     }

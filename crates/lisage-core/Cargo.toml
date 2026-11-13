@@ -1,7 +1,7 @@
 [package]
 name = "lisage-core"
 version = "0.1.0"
-description = "Niveau 3 : pool, handles, GC, bi-plan, placement"
+description = "Level 3: pool, handles, GC, two-plane, placement"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

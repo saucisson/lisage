@@ -1,0 +1,38 @@
+warning: the `level:` in this pattern is redundant
+   --> crates/lisage-core/src/add.rs:278:34
+    |
+278 |                     Form::Node { level: level, .. } => Some(level),
+    |                                  ^^^^^^^^^^^^ help: use shorthand field pattern: `level`
+    |
+    = note: `#[warn(non_shorthand_field_patterns)]` on by default
+
+warning: `lisage-core` (lib) generated 1 warning (run `cargo fix --lib -p lisage-core` to apply 1 suggestion)
+   Compiling lisage-core v0.1.0 (/tmp/lisage-m6/crates/lisage-core)
+error[E0308]: mismatched types
+   --> crates/lisage-core/tests/memoire.rs:194:20
+    |
+194 |             edges: BTreeMap::from([(0, true), (1, false)]),
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `BTreeMap<u64, NodeId>`, found `BTreeMap<{integer}, bool>`
+    |
+    = note: expected struct `BTreeMap<u64, NodeId>`
+               found struct `BTreeMap<{integer}, bool>`
+
+For more information about this error, try `rustc --explain E0308`.
+error[E0308]: mismatched types
+   --> crates/lisage-core/tests/integrale.rs:132:34
+    |
+132 |         integral_constant(&pool, false, &full, None).expect("interned node"),
+    |         -----------------        ^^^^^ expected `NodeId`, found `bool`
+    |         |
+    |         arguments to this function are incorrect
+    |
+note: function defined here
+   --> crates/lisage-core/src/integral.rs:64:8
+    |
+ 64 | pub fn integral_constant<P: Pool<Key = Interval, Payload = bool>>(
+    |        ^^^^^^^^^^^^^^^^^
+
+error: could not compile `lisage-core` (test "memoire") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `lisage-core` (test "integrale") due to 1 previous error
+EXIT=101

@@ -1,27 +1,27 @@
-//! PBT du moteur de transductions (M1-4, L3) : identité (mêmes formes en
-//! sortie), comptage des chemins acceptants (transduction vs comptage naïf
-//! récursif), et sanité de la mémo (op, nœud).
+//! PBT of the transduction engine (M1-4, L3): identity (same forms in
+//! output), counting of accepting paths (transduction vs naive recursive
+//! count), and memo sanity (op, node).
 
 use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema};
-use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
+use lisage_core::schema::{Domain, ReferenceController, Schema};
+use lisage_core::transduction::{ContextPhiOut, Transducer, Transduction};
 use lisage_lang::value::Atom;
 use proptest::prelude::*;
 
 type PoolRef = Arena<ReferenceController>;
 
-fn nouveau_pool() -> PoolRef {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+fn new_pool() -> PoolRef {
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
-struct Identite;
+struct Identity;
 
-impl Transduction for Identite {
+impl Transduction for Identity {
     type H = ();
     type S = ();
     type Out = bool;
@@ -31,24 +31,24 @@ impl Transduction for Identite {
         2001
     }
     fn h0(&self) {}
-    fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
+    fn phi_dispatch(&self, _level: Level, h: &(), _edge: u64) {
         let _ = h;
     }
-    fn phi_aggr(&self, _level: Level, _h: &(), _arcs: &BTreeMap<u64, (Option<Level>, ())>) {}
+    fn phi_aggregate(&self, _level: Level, _h: &(), _edges: &BTreeMap<u64, (Option<Level>, ())>) {}
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<Self::M>) {
+        ctx: ContextPhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
                 Form::Node {
                     level: ctx.level,
-                    arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+                    edges: ctx.edges.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -62,9 +62,9 @@ impl Transduction for Identite {
     }
 }
 
-struct CompteChemins;
+struct CountPaths;
 
-impl Transduction for CompteChemins {
+impl Transduction for CountPaths {
     type H = ();
     type S = u64;
     type Out = bool;
@@ -74,26 +74,31 @@ impl Transduction for CompteChemins {
         2002
     }
     fn h0(&self) {}
-    fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
+    fn phi_dispatch(&self, _level: Level, h: &(), _edge: u64) {
         let _ = h;
     }
-    fn phi_aggr(&self, _level: Level, _h: &(), arcs: &BTreeMap<u64, (Option<Level>, u64)>) -> u64 {
-        arcs.values().map(|(_, s)| *s).sum()
+    fn phi_aggregate(
+        &self,
+        _level: Level,
+        _h: &(),
+        edges: &BTreeMap<u64, (Option<Level>, u64)>,
+    ) -> u64 {
+        edges.values().map(|(_, s)| *s).sum()
     }
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<Self::M>) {
+        ctx: ContextPhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
                 Form::Node {
                     level: ctx.level,
-                    arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+                    edges: ctx.edges.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -110,116 +115,116 @@ impl Transduction for CompteChemins {
     }
 }
 
-/// Égalité structurelle de deux formes dans deux pools distincts (les NodeId
-/// sont propres à chaque pool).
-fn formes_egales(
+/// Structural equality of two forms in two distinct pools (NodeIds are
+/// specific to each pool).
+fn forms_equal(
     pool_a: &PoolRef,
-    noeud_a: NodeId,
+    node_a: NodeId,
     pool_b: &PoolRef,
-    noeud_b: NodeId,
-    visites: &mut std::collections::HashMap<(NodeId, NodeId), bool>,
+    node_b: NodeId,
+    visits: &mut std::collections::HashMap<(NodeId, NodeId), bool>,
 ) -> bool {
-    if let Some(&vu) = visites.get(&(noeud_a, noeud_b)) {
-        return vu;
+    if let Some(&seen) = visits.get(&(node_a, node_b)) {
+        return seen;
     }
-    let egales = match (
-        pool_a.resolve(noeud_a).unwrap(),
-        pool_b.resolve(noeud_b).unwrap(),
+    let equal = match (
+        pool_a.resolve(node_a).unwrap(),
+        pool_b.resolve(node_b).unwrap(),
     ) {
         (Form::Terminal(pa), Form::Terminal(pb)) => pa == pb,
         (
             Form::Node {
                 level: la,
-                arcs: aa,
+                edges: aa,
             },
             Form::Node {
                 level: lb,
-                arcs: ab,
+                edges: ab,
             },
         ) => {
             la == lb
                 && aa.len() == ab.len()
-                && aa.iter().zip(ab.iter()).all(|((va, na), (vb, nb))| {
-                    va == vb && formes_egales(pool_a, *na, pool_b, *nb, visites)
+                && aa.iter().zip(ab.iter()).all(|((va, na), (vb, count))| {
+                    va == vb && forms_equal(pool_a, *na, pool_b, *count, visits)
                 })
         }
         _ => false,
     };
-    visites.insert((noeud_a, noeud_b), egales);
-    egales
+    visits.insert((node_a, node_b), equal);
+    equal
 }
 
-/// Comptage naïf récursif des chemins acceptants (oracle indépendant).
-fn compte_naif(pool: &PoolRef, noeud: NodeId) -> u64 {
-    match pool.resolve(noeud).unwrap() {
+/// Naive recursive counting of accepting paths (independent oracle).
+fn count_naive(pool: &PoolRef, node: NodeId) -> u64 {
+    match pool.resolve(node).unwrap() {
         Form::Terminal(payload) => u64::from(*payload),
-        Form::Node { arcs, .. } => arcs.values().map(|&c| compte_naif(pool, c)).sum(),
+        Form::Node { edges, .. } => edges.values().map(|&c| count_naive(pool, c)).sum(),
     }
 }
 
-/// Construit un DAG aléatoire dans le pool d'entrée : terminaux puis nœuds
-/// de niveaux 0..3, arcs vers des nœuds d'index strictement inférieur.
-fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> NodeId {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
-    let faux = pool.intern(anchor, Form::Terminal(false));
-    let mut noeuds = vec![vrai, faux];
-    for (niveau, cible) in paires {
-        let cible = noeuds[usize::try_from(cible).unwrap() % noeuds.len()];
-        let noeud = pool.intern(
+/// Builds a random DAG in the input pool: terminals then nodes of levels
+/// 0..3, edges toward nodes of strictly lower index.
+fn dag_random(pool: &mut PoolRef, anchor: Anchor, pairs: Vec<(u8, u32)>) -> NodeId {
+    let true_node = pool.intern(anchor, Form::Terminal(true));
+    let false_node = pool.intern(anchor, Form::Terminal(false));
+    let mut nodes = vec![true_node, false_node];
+    for (level, target) in pairs {
+        let target = nodes[usize::try_from(target).unwrap() % nodes.len()];
+        let node = pool.intern(
             anchor,
             Form::Node {
-                level: Level(u32::from(niveau % 4)),
-                arcs: BTreeMap::from([(u64::from(niveau % 2), cible)]),
+                level: Level(u32::from(level % 4)),
+                edges: BTreeMap::from([(u64::from(level % 2), target)]),
             },
         );
-        noeuds.push(noeud);
+        nodes.push(node);
     }
-    *noeuds.last().unwrap()
+    *nodes.last().unwrap()
 }
 
 proptest! {
-    /// Identité : la transduction reconstruit les mêmes formes en sortie.
+    /// Identity: the transduction rebuilds the same forms in output.
     #[test]
-    fn test_identite_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
-        let mut entree = nouveau_pool();
-        let mut sortie = nouveau_pool();
+    fn test_identity_pbt(pairs in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
+        let mut input = new_pool();
+        let mut output = new_pool();
         let anchor = Anchor(0);
-        let racine = dag_aleatoire(&mut entree, anchor, paires);
-        let mut runner = Transducteur::new(Identite);
-        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
-        prop_assert!(formes_egales(
-            &entree,
-            racine,
-            &sortie,
-            resultat,
+        let root = dag_random(&mut input, anchor, pairs);
+        let mut runner = Transducer::new(Identity);
+        let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
+        prop_assert!(forms_equal(
+            &input,
+            root,
+            &output,
+            result,
             &mut std::collections::HashMap::new()
         ));
     }
 
-    /// Comptage : la transduction (φ_aggr = somme) égale le comptage naïf.
+    /// Counting: the transduction (φ_aggr = sum) equals the naive count.
     #[test]
-    fn test_comptage_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
-        let mut entree = nouveau_pool();
-        let mut sortie = nouveau_pool();
+    fn test_counting_pbt(pairs in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
+        let mut input = new_pool();
+        let mut output = new_pool();
         let anchor = Anchor(0);
-        let racine = dag_aleatoire(&mut entree, anchor, paires);
-        let attendu = compte_naif(&entree, racine);
-        let mut runner = Transducteur::new(CompteChemins);
-        let (resultat, compte) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
-        prop_assert!(formes_egales(
-            &entree,
-            racine,
-            &sortie,
-            resultat,
+        let root = dag_random(&mut input, anchor, pairs);
+        let expected = count_naive(&input, root);
+        let mut runner = Transducer::new(CountPaths);
+        let (result, count) = runner.run(&input, &mut output, anchor, root).unwrap();
+        prop_assert!(forms_equal(
+            &input,
+            root,
+            &output,
+            result,
             &mut std::collections::HashMap::new()
         ));
-        prop_assert_eq!(compte, attendu);
-        // Mémo saine : une seconde exécution ne change rien.
-        let taille = runner.taille_memo();
-        let (r2, c2) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
-        prop_assert_eq!(r2, resultat);
-        prop_assert_eq!(c2, compte);
-        prop_assert_eq!(runner.taille_memo(), taille);
-        prop_assert!(taille <= entree.node_count());
+        prop_assert_eq!(count, expected);
+        // Healthy memo: a second run changes nothing.
+        let size = runner.size_memo();
+        let (r2, c2) = runner.run(&input, &mut output, anchor, root).unwrap();
+        prop_assert_eq!(r2, result);
+        prop_assert_eq!(c2, count);
+        prop_assert_eq!(runner.size_memo(), size);
+        prop_assert!(size <= input.node_count());
     }
 }

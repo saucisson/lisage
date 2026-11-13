@@ -1,125 +1,116 @@
-//! Métriques du pool bi-plan (M4-1, énoncé C5) : compteurs de cache
-//! (créations/partages/taux de hit) et de GC (vivants, morts, compactions)
-//! exposés par `MetriquesPool`, mesurés sur un scénario déterministe
-//! construit via les helpers de schéma.
+//! Metrics of the two-plane pool (M4-1, statement C5): cache counters
+//! (creations/sharings/hit rate) and GC counters (live, dead, compactions)
+//! exposed by `MetricsPool`, measured on a deterministic scenario built
+//! via the schema helpers.
 
 use lisage_algebra::interface::{Anchor, NodeId, Pool};
 use lisage_core::arena::Arena;
-use lisage_core::biplan::seuil_atteint;
+use lisage_core::biplan::threshold_reached;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiled};
 use lisage_lang::value::{Atom, Value};
 
-/// Taille du domaine d'atomes du schéma de test.
-const TAILLE_DOMAINE: u64 = 4;
-/// Ancre de test.
+/// Size of the atom domain of the test schema.
+const SIZE_DOMAINE: u64 = 4;
+/// Test anchor.
 const ANCRE_TEST: Anchor = Anchor(0);
-/// Atomes du premier ensemble compilé (hit de cache ensuite).
-const ENSEMBLE_PARTAGE: [u64; 2] = [0, 1];
-/// Atomes de l'ensemble racine du scénario GC.
-const ENSEMBLE_RACINE: [u64; 3] = [0, 1, 2];
-/// Nombre d'ensembles orphelins du scénario GC.
+/// Atoms of the first compiled set (cache hit afterwards).
+const SET_PARTAGE: [u64; 2] = [0, 1];
+/// Atoms of the root set of the GC scenario.
+const SET_ROOT: [u64; 3] = [0, 1, 2];
+/// Number of orphan sets of the GC scenario.
 const NB_ORPHELINS: u64 = 8;
-/// Dernier atome du domaine, présent dans chaque orphelin.
+/// Last atom of the domain, present in each orphan.
 const ATOME_FIXE_ORPHELIN: u64 = 3;
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Schéma `Set` sur le domaine `{0, 1, 2, 3}`.
+/// `Set` schema over the domain `{0, 1, 2, 3}`.
 fn schema_test() -> Schema {
-    Schema::Set(Domaine::nouveau((0..TAILLE_DOMAINE).map(Atom).collect()))
+    Schema::Set(Domain::new((0..SIZE_DOMAINE).map(Atom).collect()))
 }
 
-/// Construit un pool neuf pour le schéma donné.
-fn nouveau_pool(schema: &Schema) -> PoolRef {
+/// Builds a fresh pool for the given schema.
+fn new_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     )
 }
 
-/// Compile un ensemble d'atomes dans le pool.
-fn compiler_ensemble(
-    pool: &mut PoolRef,
-    anchor: Anchor,
-    schema: &Schema,
-    atomes: &[u64],
-) -> NodeId {
-    compiler(
+/// Compiles a set of atoms into the pool.
+fn compile_set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atoms: &[u64]) -> NodeId {
+    compiled(
         pool,
         anchor,
         schema,
-        &Value::Set(atomes.iter().map(|a| Value::Atom(Atom(*a))).collect()),
+        &Value::Set(atoms.iter().map(|a| Value::Atom(Atom(*a))).collect()),
     )
     .unwrap()
 }
 
-/// M4-1 : les métriques de cache du pool sont alimentées par le
-/// hash-consing (créations à la première internisation, partages aux
-/// internisations suivantes de la même forme) et le taux de hit est
-/// cohérent avec les compteurs.
+/// M4-1: the pool's cache metrics are fed by hash-consing (creations at
+/// the first interning, sharings at the following internings of the same
+/// form) and the hit rate is consistent with the counters.
 #[test]
-fn test_metriques_cache_hash_consing() {
+fn test_metrics_cache_hash_consing() {
     let schema = schema_test();
-    let mut pool = nouveau_pool(&schema);
-    let premier = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_PARTAGE);
-    let metriques = pool.metriques();
-    let creations_apres_premier = metriques.creations;
-    assert!(creations_apres_premier > 0, "créations comptées");
-    assert_eq!(metriques.partages, 0, "pas encore de partage");
+    let mut pool = new_pool(&schema);
+    let first = compile_set(&mut pool, ANCRE_TEST, &schema, &SET_PARTAGE);
+    let metrics = pool.metrics();
+    let creations_after_first = metrics.creations;
+    assert!(creations_after_first > 0, "creations counted");
+    assert_eq!(metrics.shared, 0, "no sharing yet");
 
-    // Recompiler le même ensemble : R-share, aucun nouveau nœud créé.
-    let partage = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_PARTAGE);
-    assert_eq!(partage, premier, "même forme = même handle");
-    let metriques = pool.metriques();
-    assert_eq!(
-        metriques.creations, creations_apres_premier,
-        "hit : pas de création"
-    );
-    assert!(metriques.partages > 0, "partages comptés");
+    // Recompile the same set: R-share, no new node created.
+    let shared = compile_set(&mut pool, ANCRE_TEST, &schema, &SET_PARTAGE);
+    assert_eq!(shared, first, "same form = same handle");
+    let metrics = pool.metrics();
+    assert_eq!(metrics.creations, creations_after_first, "hit: no creation");
+    assert!(metrics.shared > 0, "sharings counted");
 
-    // Taux de hit en pourcentage : partages * 100 / (créations + partages).
-    let taux = metriques.taux_hit();
-    let attendu = metriques.partages * 100 / (metriques.creations + metriques.partages);
-    assert_eq!(taux, attendu);
-    assert!(taux > 0 && taux < 100, "taux de hit: {taux}");
+    // Hit rate in percent: sharings * 100 / (creations + sharings).
+    let rate = metrics.rate_hit();
+    let expected = metrics.shared * 100 / (metrics.creations + metrics.shared);
+    assert_eq!(rate, expected);
+    assert!(rate > 0 && rate < 100, "hit rate: {rate}");
 }
 
-/// M4-1 : le GC alimente les métriques (vivants, morts, gc, compactions) de
-/// façon cohérente avec le seuil profilé, sur un scénario où une racine
-/// partage des sous-nœuds avec des orphelins.
+/// M4-1: the GC feeds the metrics (live, dead, gc, compactions)
+/// consistently with the profiled threshold, on a scenario where a root
+/// shares sub-nodes with orphans.
 #[test]
-fn test_metriques_gc_et_compaction() {
+fn test_metrics_gc_and_compaction() {
     let schema = schema_test();
-    let mut pool = nouveau_pool(&schema);
-    let racine = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_RACINE);
-    // Orphelins : beaucoup de formes non atteintes depuis la racine.
+    let mut pool = new_pool(&schema);
+    let root = compile_set(&mut pool, ANCRE_TEST, &schema, &SET_ROOT);
+    // Orphans: many forms not reachable from the root.
     for i in 0..NB_ORPHELINS {
-        compiler_ensemble(
+        compile_set(
             &mut pool,
             ANCRE_TEST,
             &schema,
-            &[i % TAILLE_DOMAINE, ATOME_FIXE_ORPHELIN],
+            &[i % SIZE_DOMAINE, ATOME_FIXE_ORPHELIN],
         );
     }
     let total = pool.node_count() as u64;
-    let stats = pool.gc(&[racine]);
-    assert!(stats.collectes > 0, "des orphelins sont collectés");
-    assert_eq!(stats.vivants + stats.collectes, total);
+    let stats = pool.gc(&[root]);
+    assert!(stats.collected > 0, "orphans are collected");
+    assert_eq!(stats.live + stats.collected, total);
 
-    let metriques = pool.metriques();
-    assert_eq!(metriques.gc, 1, "un seul GC effectué");
-    assert_eq!(metriques.vivants, stats.vivants);
-    assert_eq!(metriques.morts, stats.collectes);
+    let metrics = pool.metrics();
+    assert_eq!(metrics.gc, 1, "a single GC was run");
+    assert_eq!(metrics.live, stats.live);
+    assert_eq!(metrics.dead, stats.collected);
     assert_eq!(
-        metriques.compactions,
-        if seuil_atteint(stats.collectes, total) {
+        metrics.compactions,
+        if threshold_reached(stats.collected, total) {
             1
         } else {
             0
         },
-        "compaction profilée cohérente avec le seuil"
+        "profiled compaction consistent with the threshold"
     );
-    assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
-    assert_eq!(pool.vivants(), stats.vivants as usize);
+    assert_eq!(metrics.compactions, if stats.compaction { 1 } else { 0 });
+    assert_eq!(pool.live(), stats.live as usize);
 }

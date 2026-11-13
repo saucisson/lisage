@@ -1,18 +1,18 @@
-//! Instance-test **DDD-différence** (backlog § 9 de la feuille de route,
-//! question ouverte 9 de la spec, veine #83 après les fragments intervalles
-//! et DBM) : les *Difference Decision Diagrams* de Møller & Andersen (~2002)
-//! — contraintes de différence symboliques (DBM) pour les automates
-//! temporisés — comme instance vivante de l'algèbre de clés-régions.
+//! **DDD-difference** instance-test (backlog § 9 of the roadmap,
+//! open question 9 of the spec, thread #83 after the interval
+//! and DBM fragments): the *Difference Decision Diagrams* of Møller & Andersen (~2002)
+//! — symbolic difference constraints (DBM) for timed automata
+//! — as a living instance of the region-key algebra.
 //!
-//! Le contrat de clés (forme normale, couverture, intersection) est déclaré
-//! côté contrôleur (`Dbm`, `DbmKeys`) ; le pool ne change pas. L'ordre O
-//! s'entend sur le treillis des régions : un nœud partitionne la boîte en
-//! régions convexes, et l'arc absent vaut l'« absent » continu δ(ℓ) = région
-//! vide → payload par défaut. Le balayage d'univers (énumération des points
-//! du domaine) ne compile que si l'univers est borné à régions énumérables
-//! (spec Q9) : la construction du diagramme passe par les régions
-//! explicites, jamais par l'énumération des points — royaume libre DDD
-//! assumé sur le continu.
+//! The key contract (normal form, coverage, intersection) is declared
+//! on the controller side (`Dbm`, `DbmKeys`); the pool does not change. The order O
+//! is understood over the lattice of regions: a node partitions the box into
+//! convex regions, and the absent edge is the continuous "absent" δ(ℓ) = empty
+//! region → default payload. The universe sweep (enumeration of the points
+//! of the domain) only compiles if the universe is bounded to enumerable
+//! regions (spec Q9): diagram construction goes through explicit
+//! regions, never through point enumeration — free DDD kingdom
+//! assumed on the continuum.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -20,25 +20,25 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool, PoolError};
 
 use crate::dbm::Dbm;
 
-/// Évalue un DDD-différence sur un point du domaine : à chaque nœud, suit
-/// l'arc dont la région contient le point. `Ok(None)` si aucun arc ne
-/// couvre le point : l'arc absent vaut δ(ℓ), l'« absent » continu.
+/// Evaluates a DDD-difference on a point of the domain: at each node, follows
+/// the edge whose region contains the point. `Ok(None)` if no edge
+/// covers the point: the absent edge is δ(ℓ), the continuous "absent".
 pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     point: &[u64],
 ) -> Result<Option<bool>, PoolError> {
-    let mut noeud = racine;
+    let mut node = root;
     loop {
-        match pool.resolve(noeud)? {
+        match pool.resolve(node)? {
             Form::Terminal(payload) => return Ok(Some(*payload)),
-            Form::Node { arcs, .. } => {
-                match arcs
+            Form::Node { edges, .. } => {
+                match edges
                     .iter()
-                    .find(|(region, _)| region.contient(point))
-                    .map(|(_, cible)| *cible)
+                    .find(|(region, _)| region.contains(point))
+                    .map(|(_, target)| *target)
                 {
-                    Some(cible) => noeud = cible,
+                    Some(target) => node = target,
                     None => return Ok(None),
                 }
             }
@@ -46,46 +46,46 @@ pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
     }
 }
 
-/// Compte les nœuds distincts atteignables depuis `racine`, terminaux compris.
-pub fn compter_noeuds<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, racine: NodeId) -> u64 {
-    let mut visite = BTreeSet::new();
-    let mut pile = vec![racine];
-    while let Some(noeud) = pile.pop() {
-        if !visite.insert(noeud) {
+/// Counts the distinct nodes reachable from `root`, terminals included.
+pub fn count_nodes<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
+    let mut visit = BTreeSet::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if !visit.insert(node) {
             continue;
         }
-        if let Ok(Form::Node { arcs, .. }) = pool.resolve(noeud) {
-            pile.extend(arcs.values().copied());
+        if let Ok(Form::Node { edges, .. }) = pool.resolve(node) {
+            stack.extend(edges.values().copied());
         }
     }
-    visite.len() as u64
+    visit.len() as u64
 }
 
-/// Instance-test : la bande `x − y ≤ 1 ∧ y − x ≤ 2` sur deux horloges,
-/// compilée en deux niveaux par régions explicites (aucun balayage
-/// d'univers à la construction) :
+/// Instance-test: the band `x − y ≤ 1 ∧ y − x ≤ 2` over two clocks,
+/// compiled in two levels by explicit regions (no universe sweep
+/// at construction):
 ///
-/// - niveau 0 : `x − y ≤ 1` mène au niveau 1, le complémentaire
-///   `y − x ≤ −2` mène à `false` (les deux arcs couvrent la boîte) ;
-/// - niveau 1 : `y − x ≤ 2` mène à `true` ; hors de cette région, l'arc
-///   absent vaut δ(ℓ) → `false`.
-pub fn compiler_bande<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: Anchor) -> NodeId {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
-    let faux = pool.intern(anchor, Form::Terminal(false));
-    let niveau_1 = pool.intern(
+/// - level 0: `x − y ≤ 1` leads to level 1, the complement
+///   `y − x ≤ −2` leads to `false` (the two edges cover the box);
+/// - level 1: `y − x ≤ 2` leads to `true`; outside this region, the
+///   absent edge is δ(ℓ) → `false`.
+pub fn compile_band<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: Anchor) -> NodeId {
+    let true_node = pool.intern(anchor, Form::Terminal(true));
+    let false_node = pool.intern(anchor, Form::Terminal(false));
+    let level_1 = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(Dbm::nouveau(2, &[(1, 0, 2)]), vrai)]),
+            edges: BTreeMap::from([(Dbm::new(2, &[(1, 0, 2)]), true_node)]),
         },
     );
     pool.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([
-                (Dbm::nouveau(2, &[(0, 1, 1)]), niveau_1),
-                (Dbm::nouveau(2, &[(1, 0, -2)]), faux),
+            edges: BTreeMap::from([
+                (Dbm::new(2, &[(0, 1, 1)]), level_1),
+                (Dbm::new(2, &[(1, 0, -2)]), false_node),
             ]),
         },
     )

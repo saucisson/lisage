@@ -1,38 +1,38 @@
-//! Lisage core — pool, handles, GC, bi-plan, placement.
+//! Lisage core — pool, handles, GC, two-plane, placement.
 //!
-//! Niveau 3 : stockage canonique aveugle. La crate implémente le port
-//! [`lisage_algebra::interface::Pool`] ([`arena::Arena`]) et expose le port
-//! d'instrumentation [`observer::Observer`]. Elle ré-exporte les types
-//! d'interface du contrat pour que les crates qui ne dépendent pas
-//! d'`algebra` (Liseuse) puissent lire les diagrammes.
+//! Level 3: blind canonical storage. The crate implements the port
+//! [`lisage_algebra::interface::Pool`] ([`arena::Arena`]) and exposes the
+//! instrumentation port [`observer::Observer`]. It re-exports the contract's
+//! interface types so that crates that do not depend on `algebra` (Reader)
+//! can read the diagrams.
 
 pub mod add;
 pub mod arena;
-pub mod atelier;
 pub mod bdd;
 pub mod biplan;
 pub mod cdd;
 pub mod dbm;
 pub mod ddd;
 pub mod error;
-pub mod integrale;
+pub mod fold;
+pub mod integral;
 pub mod lookup;
-pub mod memoire;
+pub mod memory;
 pub mod observer;
 pub mod operations;
-pub mod pli;
 pub mod region;
 pub mod saturate;
 pub mod schema;
 pub mod transduction;
-pub mod transfert;
+pub mod transfer;
+pub mod workshop;
 
 pub use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, PolitiqueMemoire,
-    Pool, PoolError,
+    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, PolicyMemory, Pool,
+    PoolError,
 };
 
-/// Placeholder factice pour valider la CI (M0-1).
-pub fn socle() -> u32 {
+/// Dummy placeholder to validate CI (M0-1).
+pub fn base() -> u32 {
     42
 }

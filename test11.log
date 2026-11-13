@@ -1,0 +1,85 @@
+   Compiling lisage-lang v0.1.0 (/tmp/lisage-m6/crates/lisage-lang)
+   Compiling lisage-algebra v0.1.0 (/tmp/lisage-m6/crates/lisage-algebra)
+   Compiling lisage-core v0.1.0 (/tmp/lisage-m6/crates/lisage-core)
+   Compiling lisage-plan v0.1.0 (/tmp/lisage-m6/crates/lisage-plan)
+   Compiling lisage-bench v0.1.0 (/tmp/lisage-m6/crates/lisage-bench)
+   Compiling lisage-reader v0.1.0 (/tmp/lisage-m6/crates/lisage-reader)
+   Compiling lisage-backend v0.1.0 (/tmp/lisage-m6/crates/lisage-backend)
+warning: unused variable: `number`
+  --> crates/lisage-bench/tests/confrontation.rs:92:22
+   |
+92 | fn write_file_states(number: u64) -> PathBuf {
+   |                      ^^^^^^ help: if this is intentional, prefix it with an underscore: `_number`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `lisage-bench` (test "confrontation") generated 1 warning (run `cargo fix --test "confrontation" -p lisage-bench` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 41.30s
+     Running unittests src/lib.rs (target/debug/deps/lisage_algebra-07b305c3c58cdafc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/lisage_backend-2cd092be861cb554)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/lisage_bench-f41312c29da0007d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/confrontation.rs (target/debug/deps/confrontation-ba24fda237dcb628)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/collapse.rs (target/debug/deps/collapse-332b0fd69bb1ccab)
+
+running 2 tests
+test test_collapse_case_limits ... ok
+test test_collapse_pbt ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/confrontation.rs (target/debug/deps/confrontation-da76c68a449a125d)
+
+running 10 tests
+test test_philosophers_bound_refused ... ok
+test test_philosophers_thread_red_pinned ... FAILED
+test test_random_lcg_bounds_refused ... ok
+test test_serialization_line_pinned ... ok
+test test_philosophers_inputs_invalid ... ok
+test test_narration_workload_pinned ... FAILED
+test test_workloads_unknown_refused ... ok
+test test_window_encodings_pins ... ok
+test test_states_extended_consistent_with_thread_red ... ok
+test test_random_lcg_satisfactions_pinned ... ok
+
+failures:
+
+---- test_philosophers_thread_red_pinned stdout ----
+
+thread 'test_philosophers_thread_red_pinned' (952599) panicked at crates/lisage-bench/tests/confrontation.rs:148:65:
+workload executed: InputInvalid { detail: "declared n 2 ≠ requested n 3" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- test_narration_workload_pinned stdout ----
+
+thread 'test_narration_workload_pinned' (952596) panicked at crates/lisage-bench/tests/confrontation.rs:323:6:
+philosophers workload executed: InputInvalid { detail: "declared n 4 ≠ requested n 3" }
+
+
+failures:
+    test_narration_workload_pinned
+    test_philosophers_thread_red_pinned
+
+test result: FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p lisage-bench --test confrontation`
+TEST_EXIT=101

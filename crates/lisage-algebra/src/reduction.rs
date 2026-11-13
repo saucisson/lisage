@@ -1,25 +1,25 @@
-//! Réductions § 2.3 (M1-2) : R-share (côté pool, table unique, M1-1),
-//! R-collapse et R-default (côté contrôleur, appliquées à la création du
-//! handle). Confluence testée par PBT : `reduce∘reduce = reduce` et
-//! commutation des quotients.
+//! Reductions § 2.3 (M1-2): R-share (pool side, unique table, M1-1),
+//! R-collapse and R-default (controller side, applied at handle creation).
+//! Confluence tested by PBT: `reduce∘reduce = reduce` and commutation of
+//! quotients.
 
 use std::collections::BTreeMap;
 
 use crate::interface::NodeId;
 
-/// Résultat de la réduction d'une forme de nœud.
+/// Result of reducing a node form.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Reduction<Key> {
-    /// R-collapse : la forme se réduit à cette cible.
+    /// R-collapse: the form reduces to that target.
     Collapse(NodeId),
-    /// Forme réduite (R-default appliqué), à interniser telle quelle.
-    Forme(BTreeMap<Key, NodeId>),
+    /// Reduced form (R-default applied), to be interned as is.
+    Form(BTreeMap<Key, NodeId>),
 }
 
-/// R-collapse pur : toutes les cibles égales ⇒ `Some(cible)`, sinon `None`.
-pub fn collapse_arcs<Key: Ord>(arcs: &BTreeMap<Key, NodeId>) -> Option<NodeId> {
+/// Pure R-collapse: all targets equal ⇒ `Some(target)`, else `None`.
+pub fn collapse_edges<Key: Ord>(edges: &BTreeMap<Key, NodeId>) -> Option<NodeId> {
     let mut target: Option<NodeId> = None;
-    for child in arcs.values() {
+    for child in edges.values() {
         match target {
             None => target = Some(*child),
             Some(previous) if previous == *child => {}
@@ -29,153 +29,156 @@ pub fn collapse_arcs<Key: Ord>(arcs: &BTreeMap<Key, NodeId>) -> Option<NodeId> {
     target
 }
 
-/// Applique R-collapse puis R-default à un nœud (spec § 2.3).
+/// Applies R-collapse then R-default to a node (spec § 2.3).
 ///
-/// - `cle_defaut` : δ(ℓ) si le niveau a un arc par défaut ;
-/// - `est_defaut` : prédicat « ce nœud est le diagramme de défaut D_δ »
-///   désigné par le contrôleur (l'arc par défaut implicite vaut D_δ) ;
-/// - `cardinalite` : |Val(ℓ)|, exigée quand le niveau n'a pas de défaut.
-pub fn reduire<Key: Ord + Clone>(
-    arcs: BTreeMap<Key, NodeId>,
-    cle_defaut: Option<Key>,
-    est_defaut: &dyn Fn(NodeId) -> bool,
-    cardinalite: u64,
+/// - `key_default` : δ(ℓ) if the level has a default edge ;
+/// - `is_default` : predicate "this node is the default diagram D_δ"
+///   designated by the controller (the implicit default edge is D_δ) ;
+/// - `cardinality` : |Val(ℓ)|, required when the level has no default.
+pub fn reduce<Key: Ord + Clone>(
+    edges: BTreeMap<Key, NodeId>,
+    key_default: Option<Key>,
+    is_default: &dyn Fn(NodeId) -> bool,
+    cardinality: u64,
 ) -> Reduction<Key> {
-    // R-collapse sur l'ensemble complet : l'arc par défaut implicite vaut D_δ.
-    if let Some(cible) = collapse_arcs(&arcs) {
-        // Couverture (spec § 2.2 : tout arc absent vaut δ(ℓ)) : avec un
-        // défaut, le collapse ne vaut que si seul l'arc δ est explicite
-        // (les arcs absents prennent la valeur δ, même chemin) ou si la
-        // cible est D_δ ; sinon deux arcs explicites vers la même cible
-        // dénotent des chemins distincts (présence) et ne collapsent pas.
-        // Sans défaut, toutes les valeurs doivent être explicites.
-        let couvre = match &cle_defaut {
-            None => arcs.len() as u64 >= cardinalite,
-            Some(cle) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(cle)),
+    // R-collapse over the whole set: the implicit default edge is D_δ.
+    if let Some(target) = collapse_edges(&edges) {
+        // Coverage (spec § 2.2: every absent edge is δ(ℓ)): with a default,
+        // the collapse only holds if only the δ edge is explicit (absent
+        // edges take the value δ, same path) or if the target is D_δ;
+        // otherwise two explicit edges to the same target denote distinct
+        // paths (presence) and do not collapse. Without a default, all
+        // values must be explicit.
+        let covers = match &key_default {
+            None => edges.len() as u64 >= cardinality,
+            Some(key) => is_default(target) || (edges.len() == 1 && edges.contains_key(key)),
         };
-        if couvre {
-            return Reduction::Collapse(cible);
+        if covers {
+            return Reduction::Collapse(target);
         }
     }
-    // R-default : l'arc δ(ℓ) explicite menant à D_δ est supprimé.
-    let mut arcs = arcs;
-    if let Some(cle) = &cle_defaut
-        && arcs.get(cle).is_some_and(|cible| est_defaut(*cible))
+    // R-default: the explicit δ(ℓ) edge leading to D_δ is removed.
+    let mut edges = edges;
+    if let Some(key) = &key_default
+        && edges.get(key).is_some_and(|target| is_default(*target))
     {
-        arcs.remove(cle);
+        edges.remove(key);
     }
-    Reduction::Forme(arcs)
+    Reduction::Form(edges)
 }
 
-/// R-default **seul** (sans R-collapse) : l'arc δ(ℓ) explicite menant à
-/// D_δ est supprimé, la forme n'est jamais collapsée. Sert à commuter
-/// R-collapse indépendamment (atelier didactique, backlog § 9).
-pub fn reduire_sans_collapse<Key: Ord + Clone>(
-    arcs: BTreeMap<Key, NodeId>,
-    cle_defaut: Option<Key>,
-    est_defaut: &dyn Fn(NodeId) -> bool,
+/// R-default **only** (without R-collapse): the explicit δ(ℓ) edge leading
+/// to D_δ is removed, the form is never collapsed. Used to switch off
+/// R-collapse independently (didactic workshop, backlog § 9).
+pub fn reduce_without_collapse<Key: Ord + Clone>(
+    edges: BTreeMap<Key, NodeId>,
+    key_default: Option<Key>,
+    is_default: &dyn Fn(NodeId) -> bool,
 ) -> Reduction<Key> {
-    let mut arcs = arcs;
-    if let Some(cle) = &cle_defaut
-        && arcs.get(cle).is_some_and(|cible| est_defaut(*cible))
+    let mut edges = edges;
+    if let Some(key) = &key_default
+        && edges.get(key).is_some_and(|target| is_default(*target))
     {
-        arcs.remove(cle);
+        edges.remove(key);
     }
-    Reduction::Forme(arcs)
+    Reduction::Form(edges)
 }
 
-/// Ordre inverse (R-default d'abord, puis R-collapse) — la PBT de confluence
-/// vérifie que les deux ordres donnent le même résultat.
-pub fn reduire_inverse<Key: Ord + Clone>(
-    arcs: BTreeMap<Key, NodeId>,
-    cle_defaut: Option<Key>,
-    est_defaut: &dyn Fn(NodeId) -> bool,
-    cardinalite: u64,
+/// Inverse order (R-default first, then R-collapse) — the confluence PBT
+/// checks that both orders give the same result.
+pub fn reduce_inverse<Key: Ord + Clone>(
+    edges: BTreeMap<Key, NodeId>,
+    key_default: Option<Key>,
+    is_default: &dyn Fn(NodeId) -> bool,
+    cardinality: u64,
 ) -> Reduction<Key> {
-    let mut arcs = arcs;
-    let mut cible_supprimee: Option<NodeId> = None;
-    if let Some(cle) = &cle_defaut
-        && let Some(cible) = arcs.get(cle)
-        && est_defaut(*cible)
+    let mut edges = edges;
+    let mut target_removed: Option<NodeId> = None;
+    if let Some(key) = &key_default
+        && let Some(target) = edges.get(key)
+        && is_default(*target)
     {
-        cible_supprimee = Some(*cible);
-        arcs.remove(cle);
+        target_removed = Some(*target);
+        edges.remove(key);
     }
-    // Si l'arc de défaut était le seul arc, le nœud vaut D_δ : collapse.
-    if arcs.is_empty() {
-        return match cible_supprimee {
-            Some(cible) => Reduction::Collapse(cible),
-            None => Reduction::Forme(arcs),
+    // If the default edge was the only edge, the node is D_δ: collapse.
+    if edges.is_empty() {
+        return match target_removed {
+            Some(target) => Reduction::Collapse(target),
+            None => Reduction::Form(edges),
         };
     }
-    if let Some(cible) = collapse_arcs(&arcs) {
-        // Même couverture que `reduire` (confluence) : avec un défaut, le
-        // collapse ne vaut que si seul l'arc δ est explicite ou si la cible
-        // est D_δ ; sans défaut, toutes les valeurs doivent être explicites.
-        let couvre = match &cle_defaut {
-            None => arcs.len() as u64 >= cardinalite,
-            Some(cle) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(cle)),
+    if let Some(target) = collapse_edges(&edges) {
+        // Same coverage as `reduce` (confluence): with a default, the
+        // collapse only holds if only the δ edge is explicit or if the
+        // target is D_δ; without a default, all values must be explicit.
+        let covers = match &key_default {
+            None => edges.len() as u64 >= cardinality,
+            Some(key) => is_default(target) || (edges.len() == 1 && edges.contains_key(key)),
         };
-        if couvre {
-            return Reduction::Collapse(cible);
+        if covers {
+            return Reduction::Collapse(target);
         }
     }
-    Reduction::Forme(arcs)
+    Reduction::Form(edges)
 }
 
-/// (D-abs) + (D-trans) — défaut généralisé (spec § 2.4.1, M4-3, énoncé A6).
+/// (D-abs) + (D-trans) — generalized default (spec § 2.4.1, M4-3, statement
+/// A6).
 ///
-/// - **(D-abs)** `ν(ℓ, A ⊎ {v ↦ D^déf | v ∈ R}) → ν(ℓ, A)` pour tout
-///   sous-domaine R ⊆ Val(ℓ) : toute clé dont la cible ≡ D^déf est
-///   absorbable, pas seulement l'arc étiqueté δ(ℓ) (R-default n'en est
-///   que le cas particulier R = {δ(ℓ)}). Ne s'applique que si le niveau a
-///   un défaut (sinon les arcs absents ne vaudraient pas D^déf).
-/// - **(D-trans)** `ν(ℓ, A)` avec A = ∅ ou toutes cibles ≡ D → D : nœud
-///   transparent, écarts composés.
+/// - **(D-abs)** `ν(ℓ, A ⊎ {v ↦ D^def | v ∈ R}) → ν(ℓ, A)` for any
+///   subdomain R ⊆ Val(ℓ): any key whose target ≡ D^def is absorbable,
+///   not only the edge labeled δ(ℓ) (R-default is only the special case
+///   R = {δ(ℓ)}). Only applies if the level has a default (otherwise absent
+///   edges would not be D^def).
+/// - **(D-trans)** `ν(ℓ, A)` with A = ∅ or all targets ≡ D → D: transparent
+///   node, composed offsets.
 ///
-/// `defaut` est le `NodeId` de D^déf désigné par le contrôleur quand il est
-/// connu (sert au D-trans sur forme vide A = ∅, où aucun arc ne le donne).
+/// `default` is the `NodeId` of D^def designated by the controller when
+/// known (used for D-trans on the empty form A = ∅, where no edge gives
+/// it).
 ///
-/// La canonicité reste relative au contrat (contrôleur, ordre, ancre) :
-/// `≡ D^déf` se teste par `est_defaut` (le pool étant canonique, même
-/// forme = même nœud).
-pub fn reduire_dabs<Key: Ord + Clone>(
-    arcs: BTreeMap<Key, NodeId>,
-    cle_defaut: Option<Key>,
-    est_defaut: &dyn Fn(NodeId) -> bool,
-    cardinalite: u64,
-    defaut: Option<NodeId>,
+/// Canonicity remains relative to the contract (controller, order, anchor):
+/// `≡ D^def` is tested by `is_default` (the pool being canonical, same
+/// form = same node).
+pub fn reduce_dabs<Key: Ord + Clone>(
+    edges: BTreeMap<Key, NodeId>,
+    key_default: Option<Key>,
+    is_default: &dyn Fn(NodeId) -> bool,
+    cardinality: u64,
+    default: Option<NodeId>,
 ) -> Reduction<Key> {
-    // Cible de D^déf si au moins un arc y mène (sert au D-trans A = ∅).
-    let cible_defaut = defaut.or(arcs.values().find(|c| est_defaut(**c)).copied());
-    // (D-abs) : absorption sur tout sous-domaine, quand le niveau a un défaut.
-    let arcs: BTreeMap<Key, NodeId> = match &cle_defaut {
-        Some(_) => arcs
+    // Target of D^def if at least one edge leads to it (used for D-trans
+    // A = ∅).
+    let target_default = default.or(edges.values().find(|c| is_default(**c)).copied());
+    // (D-abs): absorption over any subdomain, when the level has a default.
+    let edges: BTreeMap<Key, NodeId> = match &key_default {
+        Some(_) => edges
             .into_iter()
-            .filter(|(_, cible)| !est_defaut(*cible))
+            .filter(|(_, target)| !is_default(*target))
             .collect(),
-        None => arcs,
+        None => edges,
     };
-    // (D-trans) : A = ∅ après absorption → D^déf (nœud transparent).
-    // Inactif sans clé de défaut : les arcs absents ne vaudraient pas D^déf.
-    if arcs.is_empty() && cle_defaut.is_some() {
-        return match cible_defaut {
-            Some(cible) => Reduction::Collapse(cible),
-            None => Reduction::Forme(arcs),
+    // (D-trans): A = ∅ after absorption → D^def (transparent node).
+    // Inactive without a default key: absent edges would not be D^def.
+    if edges.is_empty() && key_default.is_some() {
+        return match target_default {
+            Some(target) => Reduction::Collapse(target),
+            None => Reduction::Form(edges),
         };
     }
-    // R-collapse / (D-trans) « toutes cibles ≡ D », même règle de
-    // couverture que `reduire` (confluence) : avec un défaut, le collapse
-    // ne vaut que si la cible est D^déf ou si seul l'arc δ est explicite ;
-    // sans défaut, toutes les valeurs doivent être explicites.
-    if let Some(cible) = collapse_arcs(&arcs) {
-        let couvre = match &cle_defaut {
-            None => arcs.len() as u64 >= cardinalite,
-            Some(cle) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(cle)),
+    // R-collapse / (D-trans) "all targets ≡ D", same coverage rule as
+    // `reduce` (confluence): with a default, the collapse only holds if the
+    // target is D^def or if only the δ edge is explicit; without a default,
+    // all values must be explicit.
+    if let Some(target) = collapse_edges(&edges) {
+        let covers = match &key_default {
+            None => edges.len() as u64 >= cardinality,
+            Some(key) => is_default(target) || (edges.len() == 1 && edges.contains_key(key)),
         };
-        if couvre {
-            return Reduction::Collapse(cible);
+        if covers {
+            return Reduction::Collapse(target);
         }
     }
-    Reduction::Forme(arcs)
+    Reduction::Form(edges)
 }

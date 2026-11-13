@@ -1,7 +1,7 @@
 [package]
 name = "lisage-bench"
 version = "0.1.0"
-description = "Différentiel, property-based, MCC, événements non locaux"
+description = "Differential, property-based, MCC, non-local events"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

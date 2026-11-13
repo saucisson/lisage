@@ -1,11 +1,11 @@
-//! Différentiel local contre CUDD réel (M1-8, énoncé C6 — reproduction à
-//! l'identique contre un témoin externe indépendant).
+//! Local differential against real CUDD (M1-8, statement C6 — exact
+//! reproduction against an independent external witness).
 //!
-//! **Hors CI** : ce test est `#[ignore]` par défaut. Il exige :
-//! - l'image Docker `lisage-cudd:latest` (voir `docker/cudd/Dockerfile`) ;
-//! - Docker disponible sur la machine.
+//! **Out of CI**: this test is `#[ignore]` by default. It requires:
+//! - the Docker image `lisage-cudd:latest` (see `docker/cudd/Dockerfile`);
+//! - Docker available on the machine.
 //!
-//! Pour l'exécuter en local :
+//! To run it locally:
 //! ```sh
 //! docker build -t lisage-cudd:latest docker/cudd
 //! cargo nextest run -p lisage-bench --test cudd_local --run-ignored all
@@ -13,51 +13,51 @@
 
 use lisage_algebra::interface::Anchor;
 use lisage_core::arena::Arena;
-use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_noeuds};
+use lisage_core::bdd::{BddController, BddKeys, compile_bdd, count_nodes};
 use lisage_core::observer::NoOpObserver;
 use proptest::prelude::*;
 use std::process::Command;
 
-/// Appelle le binaire `cudd_count` dans le conteneur Docker et retourne le
-/// nombre de nœuds CUDD pour la table de vérité donnée.
-fn cudd_compter_noeuds(nombre_variables: u32, table: &[bool]) -> Option<usize> {
-    let mut entree = format!("{}\n", nombre_variables);
-    for &valeur in table {
-        entree.push_str(if valeur { "1 " } else { "0 " });
+/// Calls the `cudd_count` binary in the Docker container and returns the
+/// CUDD node count for the given truth table.
+fn cudd_count_nodes(number_variables: u32, table: &[bool]) -> Option<usize> {
+    let mut input = format!("{}\n", number_variables);
+    for &value in table {
+        input.push_str(if value { "1 " } else { "0 " });
     }
-    entree.push('\n');
+    input.push('\n');
 
     let docker_bin = std::env::var("DOCKER_BIN").unwrap_or_else(|_| "/usr/bin/docker".to_string());
 
-    // Passe l'entrée via un shell. `printf '%b'` interprète les \n.
+    // Passes the input via a shell. `printf '%b'` interprets the \n.
     let script = format!(
         "printf '%b' {} | {} run --rm -i lisage-cudd:latest cudd_count",
-        shell_quote(&entree),
+        shell_quote(&input),
         shell_quote(&docker_bin),
     );
-    let resultat = Command::new("/bin/sh").args(["-c", &script]).output();
+    let result = Command::new("/bin/sh").args(["-c", &script]).output();
 
-    let sortie = match resultat {
+    let output = match result {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("échec du spawn de /bin/sh -c : {}", e);
+            eprintln!("failed to spawn /bin/sh -c: {}", e);
             return None;
         }
     };
 
-    if !sortie.status.success() {
+    if !output.status.success() {
         eprintln!(
-            "cudd_count a échoué (code {:?}) : stdout={} stderr={}",
-            sortie.status.code(),
-            String::from_utf8_lossy(&sortie.stdout),
-            String::from_utf8_lossy(&sortie.stderr)
+            "cudd_count failed (code {:?}): stdout={} stderr={}",
+            output.status.code(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
         );
         return None;
     }
-    String::from_utf8_lossy(&sortie.stdout).trim().parse().ok()
+    String::from_utf8_lossy(&output.stdout).trim().parse().ok()
 }
 
-/// Échappe une chaîne pour le shell POSIX.
+/// Escapes a string for the POSIX shell.
 fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
@@ -65,31 +65,31 @@ fn shell_quote(s: &str) -> String {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(20))]
 
-    /// C6 local : le nombre de nœuds du BDD classique (arène lisage) égale
-    /// celui calculé par CUDD réel (conteneur Docker) sur des tables de
-    /// vérité aléatoires.
+    /// C6 local: the node count of the classic BDD (lisage arena) equals
+    /// the one computed by real CUDD (Docker container) on random truth
+    /// tables.
     #[test]
-    #[ignore = "hors CI — exige l'image Docker lisage-cudd:latest"]
-    fn test_c6_local_arene_vs_cudd(
-        nombre_variables in 2u32..=8,
+    #[ignore = "out of CI — requires the Docker image lisage-cudd:latest"]
+    fn test_c6_local_arena_vs_cudd(
+        number_variables in 2u32..=8,
         table in prop::collection::vec(any::<bool>(), 4..=256),
     ) {
-        let taille = 1usize << nombre_variables;
-        let table: Vec<bool> = table.into_iter().cycle().take(taille).collect();
+        let size = 1usize << number_variables;
+        let table: Vec<bool> = table.into_iter().cycle().take(size).collect();
 
-        let keys = BddKeys::new(nombre_variables);
-        let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
+        let keys = BddKeys::new(number_variables);
+        let mut pool = Arena::new(BddController::new(number_variables), Box::new(NoOpObserver));
         let anchor = Anchor(0);
-        let racine = compiler_bdd(&mut pool, anchor, &keys, &table);
-        let noeuds_arene = compter_noeuds(&pool, racine);
+        let root = compile_bdd(&mut pool, anchor, &keys, &table);
+        let nodes_arena = count_nodes(&pool, root);
 
-        let noeuds_cudd = cudd_compter_noeuds(nombre_variables, &table)
-            .expect("échec de l'appel au conteneur Docker lisage-cudd");
+        let nodes_cudd = cudd_count_nodes(number_variables, &table)
+            .expect("call to the lisage-cudd Docker container failed");
 
         prop_assert_eq!(
-            noeuds_arene,
-            noeuds_cudd as u64,
-            "C6 local : reproduction à l'identique du nombre de nœuds contre CUDD réel"
+            nodes_arena,
+            nodes_cudd as u64,
+            "C6 local: exact reproduction of the node count against real CUDD"
         );
     }
 }

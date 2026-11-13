@@ -1,92 +1,92 @@
-//! PBT de confluence des réductions § 2.3 (M1-2, énoncé C1) :
-//! `reduce∘reduce = reduce` (idempotence) et commutation des quotients
-//! (R-collapse et R-default commutent, quel que soit l'ordre).
+//! PBT of confluence of the reductions § 2.3 (M1-2, statement C1):
+//! `reduce∘reduce = reduce` (idempotence) and commutation of the quotients
+//! (R-collapse and R-default commutes, whatever the order).
 
 use std::collections::BTreeMap;
 
 use lisage_algebra::interface::NodeId;
-use lisage_algebra::reduction::{Reduction, reduire, reduire_inverse};
+use lisage_algebra::reduction::{Reduction, reduce, reduce_inverse};
 use proptest::prelude::*;
 
-/// Le nœud 0 joue le rôle du diagramme de défaut D_δ dans les tests.
-const NOEUD_DEFAUT: NodeId = NodeId(0);
+/// Node 0 plays the role of the default diagram D_δ in the tests.
+const NODE_DEFAUT: NodeId = NodeId(0);
 
-fn est_defaut(node: NodeId) -> bool {
-    node == NOEUD_DEFAUT
+fn is_default(node: NodeId) -> bool {
+    node == NODE_DEFAUT
 }
 
-fn vers_arcs(paires: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
-    paires
+fn toward_edges(pairs: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
+    pairs
         .into_iter()
-        .map(|(cle, cible)| (u64::from(cle), NodeId(cible)))
+        .map(|(key, target)| (u64::from(key), NodeId(target)))
         .collect()
 }
 
 #[test]
-fn test_collapse_niveau_valeur_exemple_spec() {
-    // val(a) : 0 et 1 mènent au même sous-DD ⇒ R-collapse (exemple spec § 2.3).
+fn test_collapse_level_value_example_spec() {
+    // val(a): 0 and 1 lead to the same sub-DD ⇒ R-collapse (spec § 2.3 example).
     let x = NodeId(5);
-    let arcs = BTreeMap::from([(0, x), (1, x)]);
-    let resultat = reduire(arcs, None, &est_defaut, 2);
-    assert_eq!(resultat, Reduction::Collapse(x));
+    let edges = BTreeMap::from([(0, x), (1, x)]);
+    let result = reduce(edges, None, &is_default, 2);
+    assert_eq!(result, Reduction::Collapse(x));
 }
 
 #[test]
-fn test_r_default_arc_absent_vers_defaut() {
-    // présence : absent ↦ ⊥ (D_δ) est supprimé, present ↦ X reste.
+fn test_r_default_edge_absent_toward_default() {
+    // presence: absent ↦ ⊥ (D_δ) is removed, present ↦ X remains.
     let x = NodeId(5);
-    let arcs = BTreeMap::from([(0, NOEUD_DEFAUT), (1, x)]);
-    let resultat = reduire(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(resultat, Reduction::Forme(BTreeMap::from([(1, x)])));
+    let edges = BTreeMap::from([(0, NODE_DEFAUT), (1, x)]);
+    let result = reduce(edges, Some(0), &is_default, 2);
+    assert_eq!(result, Reduction::Form(BTreeMap::from([(1, x)])));
 }
 
 #[test]
-fn test_pas_de_collapse_si_cible_non_defaut() {
-    // {present ↦ X} avec défaut implicite ⊥ et X ≠ ⊥ : pas de collapse.
+fn test_not_of_collapse_si_target_not_default() {
+    // {present ↦ X} with implicit default ⊥ and X ≠ ⊥: no collapse.
     let x = NodeId(5);
-    let arcs = BTreeMap::from([(1, x)]);
-    let resultat = reduire(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(resultat, Reduction::Forme(BTreeMap::from([(1, x)])));
+    let edges = BTreeMap::from([(1, x)]);
+    let result = reduce(edges, Some(0), &is_default, 2);
+    assert_eq!(result, Reduction::Form(BTreeMap::from([(1, x)])));
 }
 
 #[test]
-fn test_collapse_si_tout_vaut_le_defaut() {
-    // {absent ↦ ⊥, present ↦ ⊥} ⇒ collapse en ⊥.
-    let arcs = BTreeMap::from([(0, NOEUD_DEFAUT), (1, NOEUD_DEFAUT)]);
-    let resultat = reduire(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(resultat, Reduction::Collapse(NOEUD_DEFAUT));
+fn test_collapse_si_all_equals_the_default() {
+    // {absent ↦ ⊥, present ↦ ⊥} ⇒ collapse to ⊥.
+    let edges = BTreeMap::from([(0, NODE_DEFAUT), (1, NODE_DEFAUT)]);
+    let result = reduce(edges, Some(0), &is_default, 2);
+    assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
 }
 
 proptest! {
-    /// Confluence : `reduce∘reduce = reduce` — la forme réduite est un point
-    /// fixe de la réduction.
+    /// Confluence: `reduce∘reduce = reduce` — the reduced form is a
+    /// fixpoint of the reduction.
     #[test]
     fn test_confluence_idempotence(
-        paires in prop::collection::vec((0u8..4, 0u32..6), 0..6),
-        cle_defaut in proptest::option::of(0u8..4),
-        cardinalite in 1u64..5,
+        pairs in prop::collection::vec((0u8..4, 0u32..6), 0..6),
+        key_default in proptest::option::of(0u8..4),
+        cardinality in 1u64..5,
     ) {
-        let arcs = vers_arcs(paires);
-        let cle = cle_defaut.map(u64::from);
-        let premiere = reduire(arcs.clone(), cle, &est_defaut, cardinalite);
-        if let Reduction::Forme(arcs_reduits) = &premiere {
-            let seconde = reduire(arcs_reduits.clone(), cle, &est_defaut, cardinalite);
-            prop_assert_eq!(seconde, premiere, "reduce∘reduce = reduce");
+        let edges = toward_edges(pairs);
+        let key = key_default.map(u64::from);
+        let first = reduce(edges.clone(), key, &is_default, cardinality);
+        if let Reduction::Form(edges_reduced) = &first {
+            let second = reduce(edges_reduced.clone(), key, &is_default, cardinality);
+            prop_assert_eq!(second, first, "reduce∘reduce = reduce");
         }
     }
 
-    /// Commutation des quotients : R-collapse puis R-default == R-default
-    /// puis R-collapse.
+    /// Commutation of the quotients: R-collapse then R-default == R-default
+    /// then R-collapse.
     #[test]
     fn test_confluence_commutation(
-        paires in prop::collection::vec((0u8..4, 0u32..6), 0..6),
-        cle_defaut in proptest::option::of(0u8..4),
-        cardinalite in 1u64..5,
+        pairs in prop::collection::vec((0u8..4, 0u32..6), 0..6),
+        key_default in proptest::option::of(0u8..4),
+        cardinality in 1u64..5,
     ) {
-        let arcs = vers_arcs(paires);
-        let cle = cle_defaut.map(u64::from);
-        let direct = reduire(arcs.clone(), cle, &est_defaut, cardinalite);
-        let inverse = reduire_inverse(arcs, cle, &est_defaut, cardinalite);
-        prop_assert_eq!(direct, inverse, "les deux ordres de réduction commutent");
+        let edges = toward_edges(pairs);
+        let key = key_default.map(u64::from);
+        let direct = reduce(edges.clone(), key, &is_default, cardinality);
+        let inverse = reduce_inverse(edges, key, &is_default, cardinality);
+        prop_assert_eq!(direct, inverse, "the two reduction orders commutes");
     }
 }

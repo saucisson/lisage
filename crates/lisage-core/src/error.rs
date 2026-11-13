@@ -1,57 +1,57 @@
-//! Erreurs du cœur (roadmap § 10) : invariants internes = `assert!` ;
-//! frontières du port pool = `PoolError` typé, cause préservée.
+//! Core errors (roadmap § 10): internal invariants = `assert!`;
+//! pool port boundaries = typed `PoolError`, cause preserved.
 
 use lisage_algebra::interface::{Level, PoolError};
 
-/// Erreur typée de frontière du cœur.
+/// Typed error at the core boundary.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum CoreError {
-    /// Erreur remontée du port pool.
+    /// Error raised from the pool port.
     Pool(PoolError),
-    /// Opération demandée sur un pool vide.
+    /// Operation requested on an empty pool.
     EmptyArena,
-    /// Schéma inattendu à la frontière d'une opération.
-    SchemaInattendu {
-        /// Forme de schéma attendue.
-        attendu: &'static str,
-        /// Forme de schéma reçue.
+    /// Unexpected schema at the boundary of an operation.
+    SchemaUnexpected {
+        /// Expected schema form.
+        expected: &'static str,
+        /// Received schema form.
         recu: &'static str,
     },
-    /// Niveau d'un nœud hors du schéma (diagramme incompatible).
-    NiveauHorsSchema(Level),
-    /// Effet mémoire produit alors que la politique du contrôleur est
-    /// `Aucune` (M2-3, T3).
-    MemoireNonAutorisee,
-    /// Boucle de point fixe (`saturate`, M2-4) dépassant la borne de
-    /// sécurité (T2 garantit la terminaison sur schéma borné ; dépasser la
-    /// borne signale une régression).
-    NonTerminaison {
-        /// Borne d'itérations dépassée.
-        borne: u32,
+    /// Level of a node outside the schema (incompatible diagram).
+    LevelOutSchema(Level),
+    /// Memory effect produced while the controller's policy is
+    /// `No` (M2-3, T3).
+    MemoryNotAutorisee,
+    /// Fixed-point loop (`saturate`, M2-4) exceeding the safety
+    /// bound (T2 guarantees termination on a bounded schema; exceeding the
+    /// bound signals a regression).
+    NotTerminaison {
+        /// Iteration bound exceeded.
+        bound: u32,
     },
 }
 
 impl std::fmt::Display for CoreError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CoreError::Pool(error) => write!(formatter, "erreur du pool: {error}"),
-            CoreError::EmptyArena => write!(formatter, "le pool est vide"),
-            CoreError::SchemaInattendu { attendu, recu } => {
+            CoreError::Pool(error) => write!(formatter, "pool error: {error}"),
+            CoreError::EmptyArena => write!(formatter, "the pool is empty"),
+            CoreError::SchemaUnexpected { expected, recu } => {
                 write!(
                     formatter,
-                    "schéma inattendu: attendu {attendu}, reçu {recu}"
+                    "unexpected schema: expected {expected}, got {recu}"
                 )
             }
-            CoreError::NiveauHorsSchema(niveau) => {
-                write!(formatter, "niveau hors schéma: {niveau:?}")
+            CoreError::LevelOutSchema(level) => {
+                write!(formatter, "level outside schema: {level:?}")
             }
-            CoreError::MemoireNonAutorisee => {
-                write!(formatter, "effet mémoire produit avec la politique Aucune")
+            CoreError::MemoryNotAutorisee => {
+                write!(formatter, "memory effect produced with policy No")
             }
-            CoreError::NonTerminaison { borne } => {
+            CoreError::NotTerminaison { bound } => {
                 write!(
                     formatter,
-                    "saturation non terminée après {borne} itérations"
+                    "saturation did not terminate after {bound} iterations"
                 )
             }
         }

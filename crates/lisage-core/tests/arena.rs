@@ -1,5 +1,5 @@
-//! Tests de l'arena (M1-1) : R-share (table unique), handles, événements
-//! de trace épinglés par un observateur enregistreur.
+//! Arena tests (M1-1): R-share (unique table), handles, trace events
+//! pinned by a recording observer.
 
 use std::collections::BTreeMap;
 use std::sync::Mutex;
@@ -42,7 +42,7 @@ impl Controller for MockController {
     }
 }
 
-/// Observateur enregistreur : épingle la narration (contrat ADR-0005).
+/// Recording observer: pins the narration (ADR-0005 contract).
 #[derive(Default)]
 struct RecordingObserver {
     events: Mutex<Vec<TraceEvent>>,
@@ -54,9 +54,9 @@ impl Observer for RecordingObserver {
     }
 }
 
-fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserver>) {
-    let observateur = std::sync::Arc::new(RecordingObserver::default());
-    let copie = observateur.clone();
+fn arena_with_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserver>) {
+    let observer = std::sync::Arc::new(RecordingObserver::default());
+    let copy = observer.clone();
     struct Pont(std::sync::Arc<RecordingObserver>);
     impl Observer for Pont {
         fn on_event(&self, event: &TraceEvent) {
@@ -64,41 +64,41 @@ fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserve
         }
     }
     (
-        Arena::new(MockController { keys: MockKeys }, Box::new(Pont(copie))),
-        observateur,
+        Arena::new(MockController { keys: MockKeys }, Box::new(Pont(copy))),
+        observer,
     )
 }
 
 #[test]
 fn test_r_share_table_unique() {
-    let (mut arena, _trace) = arena_avec_trace();
+    let (mut arena, _trace) = arena_with_trace();
     let anchor = Anchor(0);
-    let premier = arena.intern(anchor, Form::Terminal(true));
+    let first = arena.intern(anchor, Form::Terminal(true));
     let second = arena.intern(anchor, Form::Terminal(true));
-    assert_eq!(premier, second, "R-share : même forme ⇒ même nœud");
+    assert_eq!(first, second, "R-share: same form ⇒ same node");
     assert_eq!(arena.node_count(), 1);
 }
 
 #[test]
-fn test_formes_distinctes_nodes_distincts() {
-    let (mut arena, _trace) = arena_avec_trace();
+fn test_forms_distinct_nodes_distinct() {
+    let (mut arena, _trace) = arena_with_trace();
     let anchor = Anchor(0);
-    let vrai_ = arena.intern(anchor, Form::Terminal(true));
-    let faux = arena.intern(anchor, Form::Terminal(false));
-    assert_ne!(vrai_, faux);
+    let true_node = arena.intern(anchor, Form::Terminal(true));
+    let false_node = arena.intern(anchor, Form::Terminal(false));
+    assert_ne!(true_node, false_node);
     assert_eq!(arena.node_count(), 2);
 }
 
 #[test]
-fn test_handles_unicite() {
-    let (mut arena, _trace) = arena_avec_trace();
+fn test_handles_uniqueness() {
+    let (mut arena, _trace) = arena_with_trace();
     let anchor = Anchor(3);
     let terminal = arena.terminal(anchor, true);
     let node = arena.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(1, terminal)]),
+            edges: BTreeMap::from([(1, terminal)]),
         },
     );
     let handle_a = arena.handle(node, anchor);
@@ -109,18 +109,15 @@ fn test_handles_unicite() {
 }
 
 #[test]
-fn test_resolve_erreur_typee() {
-    let (arena, _trace) = arena_avec_trace();
-    let resultat = arena.resolve(NodeId(99));
-    assert_eq!(
-        resultat,
-        Err(lisage_core::PoolError::UnknownNode(NodeId(99)))
-    );
+fn test_resolve_error_typed() {
+    let (arena, _trace) = arena_with_trace();
+    let result = arena.resolve(NodeId(99));
+    assert_eq!(result, Err(lisage_core::PoolError::UnknownNode(NodeId(99))));
 }
 
-/// Algèbre de clés non identité : deux orthographes (0 et 2) ont la même
-/// forme normale — sert à prouver que la normalisation est appliquée avant
-/// le hachage (sinon C1 serait violé).
+/// Non-identity key algebra: two spellings (0 and 2) have the same
+/// normal form — used to prove that normalization is applied before
+/// hashing (otherwise C1 would be violated).
 struct NormalizingKeys;
 
 impl KeyAlgebra for NormalizingKeys {
@@ -154,7 +151,7 @@ impl Controller for NormalizingController {
 }
 
 #[test]
-fn test_normalisation_cles_avant_hachage() {
+fn test_normalisation_keys_before_hashing() {
     let mut arena: Arena<NormalizingController> = Arena::new(
         NormalizingController {
             keys: NormalizingKeys,
@@ -167,33 +164,33 @@ fn test_normalisation_cles_avant_hachage() {
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, terminal)]),
+            edges: BTreeMap::from([(0, terminal)]),
         },
     );
     let via_2 = arena.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(2, terminal)]),
+            edges: BTreeMap::from([(2, terminal)]),
         },
     );
     assert_eq!(
         via_0, via_2,
-        "clés 0 et 2, même forme normale ⇒ même nœud (C1)"
+        "keys 0 and 2, same normal form ⇒ same node (C1)"
     );
 }
 
 #[test]
 fn test_events_trace_narration() {
-    let (mut arena, trace) = arena_avec_trace();
+    let (mut arena, trace) = arena_with_trace();
     let anchor = Anchor(0);
     let node = arena.intern(anchor, Form::Terminal(true));
     arena.intern(anchor, Form::Terminal(true));
-    let noeud = arena.intern(
+    let node_form = arena.intern(
         anchor,
         Form::Node {
             level: Level(5),
-            arcs: BTreeMap::from([(1, node)]),
+            edges: BTreeMap::from([(1, node)]),
         },
     );
     let events = trace.events.lock().unwrap();
@@ -203,7 +200,7 @@ fn test_events_trace_narration() {
             TraceEvent::NodeCreated { node, level: None },
             TraceEvent::NodeShared { node },
             TraceEvent::NodeCreated {
-                node: noeud,
+                node: node_form,
                 level: Some(Level(5))
             },
         ]
@@ -212,48 +209,48 @@ fn test_events_trace_narration() {
 
 #[test]
 fn test_events_reduction_applied() {
-    let (mut arena, trace) = arena_avec_trace();
+    let (mut arena, trace) = arena_with_trace();
     let anchor = Anchor(0);
-    let defaut = arena.terminal(anchor, false); // D_δ = NodeId(0)
-    let autre = arena.terminal(anchor, true);
-    let niveau = Level(3);
-    // R-collapse : tous les arcs mènent à D_δ et δ est explicite ⇒ Collapse(D_δ).
-    let cible = arena.intern(
+    let default = arena.terminal(anchor, false); // D_δ = NodeId(0)
+    let other = arena.terminal(anchor, true);
+    let level = Level(3);
+    // R-collapse: all edges lead to D_δ and δ is explicit ⇒ Collapse(D_δ).
+    let target = arena.intern(
         anchor,
         Form::Node {
-            level: niveau,
-            arcs: BTreeMap::from([(0, defaut), (1, defaut)]),
+            level,
+            edges: BTreeMap::from([(0, default), (1, default)]),
         },
     );
-    assert_eq!(cible, defaut);
-    // R-default : l'arc δ(ℓ) mène à D_δ, il est retiré, la forme est conservée.
-    let noeud = arena.intern(
+    assert_eq!(target, default);
+    // R-default: the δ(ℓ) edge leads to D_δ, it is removed, the form is kept.
+    let node = arena.intern(
         anchor,
         Form::Node {
-            level: niveau,
-            arcs: BTreeMap::from([(0, defaut), (1, autre)]),
+            level,
+            edges: BTreeMap::from([(0, default), (1, other)]),
         },
     );
-    assert_ne!(noeud, defaut);
+    assert_ne!(node, default);
     let events = trace.events.lock().unwrap();
     assert!(
         events.contains(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Collapse,
-            level: niveau,
+            level,
         }),
-        "l'événement ReductionApplied{{Collapse}} doit être émis (trace épinglée)"
+        "the ReductionApplied{{Collapse}} event must be emitted (pinned trace)"
     );
     assert!(
         events.contains(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Default,
-            level: niveau,
+            level,
         }),
-        "l'événement ReductionApplied{{Default}} doit être émis (trace épinglée)"
+        "the ReductionApplied{{Default}} event must be emitted (pinned trace)"
     );
 }
 
 #[test]
-fn test_noop_observer_par_defaut() {
+fn test_noop_observer_by_default() {
     let mut arena: Arena<MockController> =
         Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver));
     let node = arena.terminal(Anchor(0), true);

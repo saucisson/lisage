@@ -1,28 +1,28 @@
-//! Tests du pli et des semi-anneaux (M1-6, spec § 5, A4/A5) : `Pli<S>`
-//! (count sur `(ℕ,+,×)`, pli Bool sur `(Bool,∨,∧)`), expansion-comptage
-//! A4 sur niveaux collapsés, et `union` (merge de construction Bool).
+//! Tests of the fold and the semirings (M1-6, spec § 5, A4/A5): `Fold<S>`
+//! (count over `(ℕ,+,×)`, Bool fold over `(Bool,∨,∧)`), expansion-counting
+//! A4 on collapsed levels, and `union` (Bool construction merge).
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
+use lisage_core::fold::{BoolOr, Fold, count, union};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{BoolOu, Pli, compter, union};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
-use lisage_core::transduction::Transducteur;
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiled};
+use lisage_core::transduction::Transducer;
 use lisage_lang::value::{Atom, Value};
 
 type PoolRef = Arena<ReferenceController>;
 
-fn atome(valeur: u64) -> Value {
-    Value::Atom(Atom(valeur))
+fn atom(value: u64) -> Value {
+    Value::Atom(Atom(value))
 }
 
-fn map_de(paires: &[(u64, u64)]) -> Value {
+fn map_of(pairs: &[(u64, u64)]) -> Value {
     Value::Map(
-        paires
+        pairs
             .iter()
-            .map(|(cle, valeur)| (atome(*cle), atome(*valeur)))
+            .map(|(key, value)| (atom(*key), atom(*value)))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }
@@ -34,139 +34,134 @@ fn pool(schema: &Schema) -> PoolRef {
     )
 }
 
-/// Compile un ensemble de maps en un seul diagramme (union des membres).
-fn compiler_ensemble(
+/// Compiles a set of maps into a single diagram (union of the members).
+fn compile_set(
     pool: &mut PoolRef,
     anchor: Anchor,
     schema: &Schema,
-    ensemble: &BTreeSet<Value>,
+    set: &BTreeSet<Value>,
 ) -> NodeId {
     let keys = SchemaKeys::new(schema.clone());
-    let mut resultat = pool.intern(anchor, Form::Terminal(false));
-    for membre in ensemble {
-        let n = compiler(pool, anchor, schema, membre).unwrap();
-        resultat = union(pool, &keys, anchor, resultat, n).unwrap();
+    let mut result = pool.intern(anchor, Form::Terminal(false));
+    for membre in set {
+        let n = compiled(pool, anchor, schema, membre).unwrap();
+        result = union(pool, &keys, anchor, result, n).unwrap();
     }
-    resultat
+    result
 }
 
-/// Exemple de la spec § 5 : `S = {{a↦0}, {a↦1}}` sur `Map([a], {0,1})` —
-/// le niveau `val(a)` est collapsé, le chemin explicite est unique mais
-/// `|S| = 2` (A4 : le cardinal du niveau entre dans l'agrégation).
+/// Example from spec § 5: `S = {{a↦0}, {a↦1}}` on `Map([a], {0,1})` —
+/// the level `val(a)` is collapsed, the explicit path is unique but
+/// `|S| = 2` (A4: the cardinality of the level enters the aggregation).
 #[test]
-fn test_count_niveau_collapsed_a4_exemple_spec() {
-    let schema = Schema::Map(vec![Atom(0)], Domaine::nouveau(vec![Atom(0), Atom(1)]));
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+fn test_count_level_collapsed_a4_example_spec() {
+    let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
-    // Le niveau val(a) a été collapsé : un seul arc explicite.
-    let Form::Node { arcs, .. } = entree.resolve(racine).unwrap() else {
-        panic!("nœud de présence attendu")
+    let set = BTreeSet::from([map_of(&[(0, 0)]), map_of(&[(0, 1)])]);
+    let root = compile_set(&mut input, anchor, &schema, &set);
+    // The level val(a) has been collapsed: a single explicit edge.
+    let Form::Node { edges, .. } = input.resolve(root).unwrap() else {
+        panic!("presence node expected")
     };
-    assert_eq!(arcs.len(), 1, "un seul chemin explicite");
-    let total = compter(&entree, &mut sortie, anchor, &schema, racine).unwrap();
+    assert_eq!(edges.len(), 1, "a single explicit path");
+    let total = count(&input, &mut output, anchor, &schema, root).unwrap();
     assert_eq!(total, 2, "A4 : |Val(val(a))| × 1 = 2");
 }
 
-/// Comptage sur un ensemble de maps à deux clés (pas de collapse ici).
+/// Counting over a set of maps with two keys (no collapse here).
 #[test]
-fn test_count_ensemble_maps() {
-    let schema = Schema::Map(
-        vec![Atom(0), Atom(1)],
-        Domaine::nouveau(vec![Atom(0), Atom(1)]),
-    );
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+fn test_count_set_maps() {
+    let schema = Schema::Map(vec![Atom(0), Atom(1)], Domain::new(vec![Atom(0), Atom(1)]));
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([map_de(&[(0, 1), (1, 0)]), map_de(&[(0, 0)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
-    let total = compter(&entree, &mut sortie, anchor, &schema, racine).unwrap();
+    let set = BTreeSet::from([map_of(&[(0, 1), (1, 0)]), map_of(&[(0, 0)])]);
+    let root = compile_set(&mut input, anchor, &schema, &set);
+    let total = count(&input, &mut output, anchor, &schema, root).unwrap();
     assert_eq!(total, 2);
 }
 
-/// Ensemble vide : le pli vaut zéro. Ensemble plein (toutes les maps) :
-/// le comptage vaut le produit des cardinalités (tout niveau collapsé).
+/// Empty set: the fold is zero. Full set (all maps):
+/// the count is the product of the cardinalities (every level collapsed).
 #[test]
-fn test_count_ensemble_vide_et_plein() {
-    let schema = Schema::Map(vec![Atom(0)], Domaine::nouveau(vec![Atom(0), Atom(1)]));
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+fn test_count_set_empty_and_full() {
+    let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
 
-    let vide = BTreeSet::new();
-    let racine_vide = compiler_ensemble(&mut entree, anchor, &schema, &vide);
+    let empty = BTreeSet::new();
+    let root_empty = compile_set(&mut input, anchor, &schema, &empty);
     assert_eq!(
-        compter(&entree, &mut sortie, anchor, &schema, racine_vide).unwrap(),
+        count(&input, &mut output, anchor, &schema, root_empty).unwrap(),
         0
     );
 
-    // Toutes les maps sur une clé à valeurs {0,1} : {a↦0} et {a↦1}.
-    let plein = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
-    let racine_plein = compiler_ensemble(&mut entree, anchor, &schema, &plein);
+    // All maps over one key with values {0,1}: {a↦0} and {a↦1}.
+    let full = BTreeSet::from([map_of(&[(0, 0)]), map_of(&[(0, 1)])]);
+    let root_full = compile_set(&mut input, anchor, &schema, &full);
     assert_eq!(
-        compter(&entree, &mut sortie, anchor, &schema, racine_plein).unwrap(),
+        count(&input, &mut output, anchor, &schema, root_full).unwrap(),
         2
     );
 }
 
-/// Pli sur `(Bool, ∨, ∧)` : « l'ensemble est non vide » (∃-summary).
+/// Fold over `(Bool, ∨, ∧)`: "the set is not-empty" (∃-summary).
 #[test]
-fn test_pli_boolou_non_vide() {
-    let schema = Schema::Map(vec![Atom(0)], Domaine::nouveau(vec![Atom(0), Atom(1)]));
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+fn test_fold_boolou_not_empty() {
+    let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
 
-    let mut runner = Transducteur::new(Pli::<BoolOu>::new(schema.clone()));
-    let vide = BTreeSet::new();
-    let racine_vide = compiler_ensemble(&mut entree, anchor, &schema, &vide);
-    let (_, s_vide) = runner
-        .run(&entree, &mut sortie, anchor, racine_vide)
-        .unwrap();
-    assert_eq!(s_vide, BoolOu(false), "ensemble vide ⇒ faux");
+    let mut runner = Transducer::new(Fold::<BoolOr>::new(schema.clone()));
+    let empty = BTreeSet::new();
+    let root_empty = compile_set(&mut input, anchor, &schema, &empty);
+    let (_, s_empty) = runner.run(&input, &mut output, anchor, root_empty).unwrap();
+    assert_eq!(s_empty, BoolOr(false), "empty set ⇒ false");
 
-    let non_vide = BTreeSet::from([map_de(&[(0, 1)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &non_vide);
-    let (_, s) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
-    assert_eq!(s, BoolOu(true), "ensemble non vide ⇒ vrai");
+    let not_empty = BTreeSet::from([map_of(&[(0, 1)])]);
+    let root = compile_set(&mut input, anchor, &schema, &not_empty);
+    let (_, s) = runner.run(&input, &mut output, anchor, root).unwrap();
+    assert_eq!(s, BoolOr(true), "not-empty set ⇒ true");
 }
 
-/// Union (merge de construction Bool, A5) : idempotente, ⊥ neutre ; ⊤ est
-/// le membre « tout par défaut » (la map vide), pas un absorbant.
+/// Union (Bool construction merge, A5): idempotent, ⊥ neutral; ⊤ is
+/// the "all default" member (the empty map), not an absorbing element.
 #[test]
 fn test_union_merge_construction_bool() {
-    let schema = Schema::Map(vec![Atom(0)], Domaine::nouveau(vec![Atom(0), Atom(1)]));
-    let mut entree = pool(&schema);
+    let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
+    let mut input = pool(&schema);
     let anchor = Anchor(0);
     let keys = SchemaKeys::new(schema.clone());
-    let m0 = compiler(&mut entree, anchor, &schema, &map_de(&[(0, 0)])).unwrap();
-    let m1 = compiler(&mut entree, anchor, &schema, &map_de(&[(0, 1)])).unwrap();
-    let faux = entree.intern(anchor, Form::Terminal(false));
-    let vide = compiler(&mut entree, anchor, &schema, &map_de(&[])).unwrap();
+    let m0 = compiled(&mut input, anchor, &schema, &map_of(&[(0, 0)])).unwrap();
+    let m1 = compiled(&mut input, anchor, &schema, &map_of(&[(0, 1)])).unwrap();
+    let false_node = input.intern(anchor, Form::Terminal(false));
+    let empty = compiled(&mut input, anchor, &schema, &map_of(&[])).unwrap();
 
     assert_eq!(
-        union(&mut entree, &keys, anchor, m0, m0).unwrap(),
+        union(&mut input, &keys, anchor, m0, m0).unwrap(),
         m0,
-        "idempotente"
+        "idempotent"
     );
     assert_eq!(
-        union(&mut entree, &keys, anchor, m0, faux).unwrap(),
+        union(&mut input, &keys, anchor, m0, false_node).unwrap(),
         m0,
         "⊥ neutre"
     );
-    let les_deux = union(&mut entree, &keys, anchor, m0, m1).unwrap();
-    let les_trois = union(&mut entree, &keys, anchor, les_deux, vide).unwrap();
-    let mut sortie = pool(&schema);
+    let the_two = union(&mut input, &keys, anchor, m0, m1).unwrap();
+    let the_three = union(&mut input, &keys, anchor, the_two, empty).unwrap();
+    let mut output = pool(&schema);
     assert_eq!(
-        compter(&entree, &mut sortie, anchor, &schema, les_deux).unwrap(),
+        count(&input, &mut output, anchor, &schema, the_two).unwrap(),
         2,
-        "l'union de deux membres compte 2"
+        "the union of two members counts 2"
     );
     assert_eq!(
-        compter(&entree, &mut sortie, anchor, &schema, les_trois).unwrap(),
+        count(&input, &mut output, anchor, &schema, the_three).unwrap(),
         3,
-        "⊤ = map vide : un troisième membre, pas d'absorption"
+        "⊤ = empty map: a third member, no absorption"
     );
 }

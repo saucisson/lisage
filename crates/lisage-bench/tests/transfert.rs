@@ -1,55 +1,54 @@
-//! PBT des événements non locaux (M2-5, T3) : pour toute map aléatoire et
-//! tout couple de clés source < destination, le transfert compilé en
-//! transduction à mémoire de niveau vérifie la sémantique `m(a) -= 1;
-//! m(b) += 1` (si `m(a) ≥ 1` et `m(b)+1` dans le domaine), et laisse les
-//! autres clés inchangées.
+//! PBT of not-local events (M2-5, T3): for any random map and any pair of
+//! keys source < destination, the transfer compiled as a level-memory
+//! transduction checks the semantics `m(a) -= 1; m(b) += 1` (if `m(a) ≥ 1`
+//! and `m(b)+1` in the domain), and leaves the other keys unchanged.
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::{Anchor, NodeId, PolitiqueMemoire};
+use lisage_algebra::interface::{Anchor, NodeId, PolicyMemory};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler, decompiler};
-use lisage_core::transduction::Transducteur;
-use lisage_core::transfert::TransfertNonLocal;
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiled, decompile};
+use lisage_core::transduction::Transducer;
+use lisage_core::transfer::TransferNotLocal;
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
-/// Nombre de clés de la map aléatoire.
-const NOMBRE_CLES: u64 = 3;
-/// Taille du domaine des valeurs.
-const TAILLE_DOMAINE: u64 = 4;
+/// Number of keys of the random map.
+const NUMBER_CLES: u64 = 3;
+/// Size of the value domain.
+const SIZE_DOMAINE: u64 = 4;
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Schéma `Map` à `NOMBRE_CLES` clés sur le domaine `{0..TAILLE_DOMAINE}`.
+/// `Map` schema with `NUMBER_CLES` keys over the domain `{0..SIZE_DOMAINE}`.
 fn schema_test() -> Schema {
     Schema::Map(
-        (0..NOMBRE_CLES).map(Atom).collect(),
-        Domaine::nouveau((0..TAILLE_DOMAINE).map(Atom).collect()),
+        (0..NUMBER_CLES).map(Atom).collect(),
+        Domain::new((0..SIZE_DOMAINE).map(Atom).collect()),
     )
 }
 
-fn nouveau_pool(schema: &Schema) -> PoolRef {
+fn new_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     )
 }
 
-/// Compile une map `clé ↦ valeur` dans le pool.
-fn compiler_map(
+/// Compiles a map `key ↦ value` into the pool.
+fn compile_map(
     pool: &mut PoolRef,
     anchor: Anchor,
     schema: &Schema,
-    entrees: &BTreeMap<u64, u64>,
+    inputs: &BTreeMap<u64, u64>,
 ) -> NodeId {
-    compiler(
+    compiled(
         pool,
         anchor,
         schema,
         &Value::Map(
-            entrees
+            inputs
                 .iter()
                 .map(|(k, v)| (Value::Atom(Atom(*k)), Value::Atom(Atom(*v))))
                 .collect(),
@@ -58,57 +57,57 @@ fn compiler_map(
     .unwrap()
 }
 
-/// Décompile un nœud en map `clé ↦ valeur`.
-fn decompiler_map(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> BTreeMap<u64, u64> {
-    match decompiler(pool, schema, noeud).unwrap() {
+/// Decompiles a node into a map `key ↦ value`.
+fn decompile_map(pool: &PoolRef, schema: &Schema, node: NodeId) -> BTreeMap<u64, u64> {
+    match decompile(pool, schema, node).unwrap() {
         Value::Map(map) => map
             .into_iter()
             .map(|(k, v)| match (k, v) {
                 (Value::Atom(Atom(k)), Value::Atom(Atom(v))) => (k, v),
-                _ => panic!("atomes attendus"),
+                _ => panic!("atoms expected"),
             })
             .collect(),
-        _ => panic!("map attendue"),
+        _ => panic!("map expected"),
     }
 }
 
 proptest! {
-    /// Sémantique par arc du transfert non local (T3) sur map complète
-    /// (toutes les clés présentes) : `m(a) -= 1` si `m(a) ≥ 1` ; `m(b) += 1`
-    /// si de plus `m(b) + 1` est dans le domaine, sinon `m(b)` inchangé.
-    /// Les autres clés sont toujours inchangées.
+    /// Arc semantics of the not-local transfer (T3) on a full map
+    /// (all keys present): `m(a) -= 1` if `m(a) ≥ 1`; `m(b) += 1`
+    /// if moreover `m(b) + 1` is in the domain, otherwise `m(b)` unchanged.
+    /// The other keys are always unchanged.
     #[test]
-    fn test_transfert_semantique(
-        valeurs in prop::collection::vec(0u64..TAILLE_DOMAINE, NOMBRE_CLES as usize),
-        source in 0u64..NOMBRE_CLES,
-        destination in 0u64..NOMBRE_CLES,
+    fn test_transfer_semantic(
+        values in prop::collection::vec(0u64..SIZE_DOMAINE, NUMBER_CLES as usize),
+        source in 0u64..NUMBER_CLES,
+        destination in 0u64..NUMBER_CLES,
     ) {
         prop_assume!(source < destination);
-        let entrees: BTreeMap<u64, u64> = (0..NOMBRE_CLES).zip(valeurs).collect();
+        let inputs: BTreeMap<u64, u64> = (0..NUMBER_CLES).zip(values).collect();
         let schema = schema_test();
         let anchor = Anchor(0);
-        let mut pool = nouveau_pool(&schema);
-        let initial = compiler_map(&mut pool, anchor, &schema, &entrees);
+        let mut pool = new_pool(&schema);
+        let initial = compile_map(&mut pool, anchor, &schema, &inputs);
 
-        let transfert = TransfertNonLocal::new(
+        let transfer = TransferNotLocal::new(
             &schema,
             usize::try_from(source).unwrap(),
             usize::try_from(destination).unwrap(),
         );
-        let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
-        let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+        let mut runner = Transducer::with_policy(transfer, PolicyMemory::ByLevel);
+        let (result, _) = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
-        let obtenu = decompiler_map(&pool, &schema, resultat);
-        let mut attendu = entrees.clone();
-        let valeur_source = entrees[&source];
-        let valeur_destination = entrees[&destination];
-        // Le transfert n'est actif que si la source a au moins 1 unité.
-        if valeur_source >= 1 {
-            attendu.insert(source, valeur_source - 1);
-            if valeur_destination + 1 < TAILLE_DOMAINE {
-                attendu.insert(destination, valeur_destination + 1);
+        let obtenu = decompile_map(&pool, &schema, result);
+        let mut expected = inputs.clone();
+        let value_source = inputs[&source];
+        let value_destination = inputs[&destination];
+        // The transfer is active only if the source has at least 1 unit.
+        if value_source >= 1 {
+            expected.insert(source, value_source - 1);
+            if value_destination + 1 < SIZE_DOMAINE {
+                expected.insert(destination, value_destination + 1);
             }
         }
-        prop_assert_eq!(obtenu, attendu);
+        prop_assert_eq!(obtenu, expected);
     }
 }

@@ -1,0 +1,11 @@
+[package]
+name = "lisage-reader"
+version = "0.1.0"
+description = "The visualizer (trace, index, SVG/HTML rendering)"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lisage-core = { path = "../lisage-core" }
+lisage-lang = { path = "../lisage-lang" }

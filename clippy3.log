@@ -1,0 +1,9 @@
+    Checking lisage-algebra v0.1.0 (/tmp/lisage-m6/crates/lisage-algebra)
+    Checking lisage-lang v0.1.0 (/tmp/lisage-m6/crates/lisage-lang)
+    Checking lisage-core v0.1.0 (/tmp/lisage-m6/crates/lisage-core)
+    Checking lisage-plan v0.1.0 (/tmp/lisage-m6/crates/lisage-plan)
+    Checking lisage-bench v0.1.0 (/tmp/lisage-m6/crates/lisage-bench)
+    Checking lisage-reader v0.1.0 (/tmp/lisage-m6/crates/lisage-reader)
+    Checking lisage-backend v0.1.0 (/tmp/lisage-m6/crates/lisage-backend)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.06s
+CLIPPY_EXIT=0

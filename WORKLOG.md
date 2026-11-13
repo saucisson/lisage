@@ -44,6 +44,12 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-13 - M6-5: English-only crates/ (issue #108, feat/108)
+
+- **Issue**: #108 (milestone M6) — translate all French identifiers, comments, strings and file names under `crates/` to English, per the M6-1 glossary.
+- **Done**: full rename of public API and internals (e.g. `filtrer`→`filter`, `fonction`→`function`, `Transducteur`→`Transducer`, `ContextePhiOut`→`ContextPhiOut`, `cible`→`target`, `chemin`→`path`, `noeud`→`node`, `niveau`→`level`, `morts`→`dead`, `collectes`→`collected`, `suivant`→`next`, `courant`→`current`, `marquage`→`marking`, `tirer`→`fire`, `numero`→`number`, `borne`→`bound`, `succes`→`success`, `vrai`/`faux`→`true_node`/`false_node`); file renames (`pas_a_pas`→`step_by_step`, `vue_memoire`→`view_memory`, `vue_ordre`→`view_order`, `temoin_bdd`→`witness_bdd`, crate `lisage-liseuse`→`lisage-reader`, etc.); Cargo.toml descriptions, bench figure `philosophers-n5.svg` and all comments/strings in English. Keyword collisions aliased (`exists_dd`/`filter_dd` in differential tests).
+- **Evidence**: `cargo test --workspace` green (295 tests), `cargo clippy --workspace --all-targets -- -D warnings` green, `cargo fmt --check` green, `make check` green; zero accented characters left under `crates/`.
+
 ## 2026-11-13 - Confrontation — horloge alea-lcg avant la génération de la table (fix/confrontation-alea-horloge)
 
 - **Issue**: aucune (asymétrie signalée à la revue de PR #95/#96 : le témoin CUDD démarre son horloge avant la génération de la table LCG, le runner lisage démarrait la sienne après).

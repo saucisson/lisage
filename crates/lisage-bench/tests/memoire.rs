@@ -1,33 +1,33 @@
-//! PBT de la mémoire de niveau (M2-3, T3) : invariants de versioning —
-//! `version == nombre d'écritures`, read-after-write keyed by
-//! `(NodeId, Level)`, et `taille` cohérent.
+//! PBT of the level memory (M2-3, T3): versioning invariants —
+//! `version == number of writes`, read-after-write keyed by
+//! `(NodeId, Level)`, and `size` consistent.
 
 use lisage_algebra::interface::{Level, NodeId};
-use lisage_core::memoire::MemoireNiveau;
+use lisage_core::memory::MemoryLevel;
 use proptest::prelude::*;
 
 proptest! {
-    /// version(M) == nombre d'écritures ; read-after-write ; taille cohérent.
+    /// version(M) == number of writes ; read-after-write ; size consistent.
     #[test]
-    fn test_memoire_niveau_invariants(
+    fn test_memory_level_invariants(
         ecritures in prop::collection::vec(
             (0u32..10, 0u32..5, 0u64..100),
             0..20
         )
     ) {
-        let mut memoire: MemoireNiveau<u64> = MemoireNiveau::new();
-        prop_assert_eq!(memoire.version(), 0);
-        let mut attendu: std::collections::HashMap<(NodeId, Level), u64> =
+        let mut memory: MemoryLevel<u64> = MemoryLevel::new();
+        prop_assert_eq!(memory.version(), 0);
+        let mut expected: std::collections::HashMap<(NodeId, Level), u64> =
             std::collections::HashMap::new();
-        for (i, (noeud, niveau, valeur)) in ecritures.iter().enumerate() {
-            let ancien = memoire.ecrire(NodeId(*noeud), Level(*niveau), *valeur);
-            prop_assert_eq!(memoire.version(), (i + 1) as u64, "version == nombre d'écritures");
-            prop_assert_eq!(ancien, attendu.insert((NodeId(*noeud), Level(*niveau)), *valeur));
+        for (i, (node, level, value)) in ecritures.iter().enumerate() {
+            let previous = memory.write(NodeId(*node), Level(*level), *value);
+            prop_assert_eq!(memory.version(), (i + 1) as u64, "version == number of writes");
+            prop_assert_eq!(previous, expected.insert((NodeId(*node), Level(*level)), *value));
         }
-        prop_assert_eq!(memoire.taille(), attendu.len());
-        // Read-after-write : chaque clé lit la dernière valeur écrite.
-        for ((noeud, niveau), valeur) in &attendu {
-            prop_assert_eq!(memoire.lire(*noeud, *niveau), Some(valeur));
+        prop_assert_eq!(memory.size(), expected.len());
+        // Read-after-write: each key reads the last value written.
+        for ((node, level), value) in &expected {
+            prop_assert_eq!(memory.read(*node, *level), Some(value));
         }
     }
 }

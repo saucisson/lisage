@@ -1,227 +1,224 @@
-//! Oracle de rentabilité analytique (M3-3, énoncé C4) : **premier modèle
-//! prédictif** — taille du domaine, densité attendue, coût d'encodage,
-//! nombre de requêtes aval — et **garde-fou par différentiel** : la
-//! prédiction est comparée à la mesure réelle, à un facteur près (C4 est
-//! falsifiable : un modèle qui s'écarte hors bornes est rejeté).
+//! Analytic profitability oracle (M3-3, statement C4): **first predictive
+//! model** — domain size, expected density, encoding cost, number of
+//! downstream requests — and **differential guardrail**: the prediction is
+//! compared to the actual measurement, up to a factor (C4 is falsifiable: a
+//! model that deviates out of bounds is rejected).
 //!
-//! Modèle (balayage d'univers sur `Set(D)`) : un ensemble aléatoire sur
-//! un domaine de `n` clés, chaque clé présente avec probabilité `d`, a une
-//! chaîne d'environ `n·d` nœuds (+ le terminal) ; chaque requête aval
-//! coûte la taille prédite au coût d'encodage du royaume.
+//! Model (universe sweep over `Set(D)`): a random set over a domain of `n`
+//! keys, each key present with probability `d`, has a chain of about `n·d`
+//! nodes (+ the terminal); each downstream request costs the predicted size
+//! at the kingdom's encoding cost.
 
-/// Plus grand commun diviseur (Euclide).
+/// Greatest common divisor (Euclid).
 fn pgcd(mut a: u64, mut b: u64) -> u64 {
     while b != 0 {
-        let reste = a % b;
+        let remainder = a % b;
         a = b;
-        b = reste;
+        b = remainder;
     }
     a.max(1)
 }
 
-/// Rationnel exact, normalisé (dénominateur strictement positif) :
-/// arithmétique exacte par défaut (roadmap § 10, décision M5-4). Champs
-/// privés : seul [`Rationnel::nouveau`] construit, l'invariant `den > 0`
-/// ne peut pas être contourné par un littéral.
+/// Exact rational, normalized (strictly positive denominator): exact
+/// arithmetic by default (roadmap § 10, decision M5-4). Private fields:
+/// only [`Rational::new`] constructs it, the `den > 0` invariant cannot
+/// be bypassed by a literal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Rationnel {
+pub struct Rational {
     num: u64,
     den: u64,
 }
 
-impl Rationnel {
-    /// Rationnel `num/den`, normalisé par le pgcd ; `den == 0` ⇒ 0/1.
-    pub fn nouveau(num: u64, den: u64) -> Self {
+impl Rational {
+    /// Rational `num/den`, normalized by the gcd; `den == 0` ⇒ 0/1.
+    pub fn new(num: u64, den: u64) -> Self {
         if den == 0 {
-            return Rationnel { num: 0, den: 1 };
+            return Rational { num: 0, den: 1 };
         }
-        let diviseur = pgcd(num, den);
-        Rationnel {
-            num: num / diviseur,
-            den: den / diviseur,
-        }
-    }
-
-    /// Rationnel entier.
-    pub fn entier(valeur: u64) -> Self {
-        Rationnel {
-            num: valeur,
-            den: 1,
+        let divisor = pgcd(num, den);
+        Rational {
+            num: num / divisor,
+            den: den / divisor,
         }
     }
 
-    /// Numérateur (après normalisation).
+    /// Integer rational.
+    pub fn entier(value: u64) -> Self {
+        Rational { num: value, den: 1 }
+    }
+
+    /// Numerator (after normalization).
     pub fn num(&self) -> u64 {
         self.num
     }
 
-    /// Dénominateur (> 0).
+    /// Denominator (> 0).
     pub fn den(&self) -> u64 {
         self.den
     }
 
-    /// Produit de deux rationnels (saturé en cas de dépassement).
-    pub fn multiplier(&self, autre: &Self) -> Self {
-        let num = self.num.saturating_mul(autre.num);
-        let den = self.den.saturating_mul(autre.den);
-        Rationnel::nouveau(num, den)
+    /// Product of two rationals (saturating on overflow).
+    pub fn multiplier(&self, other: &Self) -> Self {
+        let num = self.num.saturating_mul(other.num);
+        let den = self.den.saturating_mul(other.den);
+        Rational::new(num, den)
     }
 
-    /// `self <= autre` en arithmétique exacte (produits croisés, u128).
-    pub fn inferieur_ou_egal(&self, autre: &Self) -> bool {
-        (self.num as u128) * (autre.den as u128) <= (autre.num as u128) * (self.den as u128)
+    /// `self <= other` in exact arithmetic (cross products, u128).
+    pub fn lower_or_equal(&self, other: &Self) -> bool {
+        (self.num as u128) * (other.den as u128) <= (other.num as u128) * (self.den as u128)
     }
 }
 
-/// Borne inférieure de conformité du garde-fou : mesure ≥ prédit / 2.
-pub const BORNE_INFERIEURE: Rationnel = Rationnel { num: 1, den: 2 };
-/// Borne supérieure de conformité du garde-fou : mesure ≤ 2 × prédit.
-pub const BORNE_SUPERIEURE: Rationnel = Rationnel { num: 2, den: 1 };
+/// Lower bound of the guardrail's compliance: measurement ≥ predicted / 2.
+pub const BOUND_INFERIEURE: Rational = Rational { num: 1, den: 2 };
+/// Upper bound of the guardrail's compliance: measurement ≤ 2 × predicted.
+pub const BOUND_SUPERIEURE: Rational = Rational { num: 2, den: 1 };
 
-/// Erreur typée de construction des paramètres de l'oracle.
+/// Typed error for oracle parameter construction.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurOracle {
-    /// Densité attendue hors de [0, 1].
-    DensiteHorsBornes,
+pub enum ErrorOracle {
+    /// Expected density out of [0, 1].
+    DensityOutBounds,
 }
 
-impl std::fmt::Display for ErreurOracle {
+impl std::fmt::Display for ErrorOracle {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurOracle::DensiteHorsBornes => {
-                write!(formatter, "densité attendue hors de [0, 1]")
+            ErrorOracle::DensityOutBounds => {
+                write!(formatter, "expected density out of [0, 1]")
             }
         }
     }
 }
 
-impl std::error::Error for ErreurOracle {}
+impl std::error::Error for ErrorOracle {}
 
-/// Paramètres d'entrée du modèle prédictif (M3-3). Champs privés : seul
-/// [`ParametresOracle::nouveau`] construit, la densité y est validée dans
-/// [0, 1] et ne peut pas être contournée par un littéral.
+/// Input parameters of the predictive model (M3-3). Private fields: only
+/// [`ParametersOracle::new`] constructs it, the density is validated in
+/// [0, 1] there and cannot be bypassed by a literal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ParametresOracle {
-    taille_domaine: u64,
-    densite_attendue: Rationnel,
-    cout_encodage: u64,
-    requetes_aval: u64,
+pub struct ParametersOracle {
+    size_domain: u64,
+    density_expected: Rational,
+    cost_encoding: u64,
+    requests_downstream: u64,
 }
 
-impl ParametresOracle {
-    /// Paramètres validés : la densité attendue doit tenir dans [0, 1].
-    pub fn nouveau(
-        taille_domaine: u64,
-        densite_attendue: Rationnel,
-        cout_encodage: u64,
-        requetes_aval: u64,
-    ) -> Result<Self, ErreurOracle> {
-        let zero = Rationnel::nouveau(0, 1);
-        let un = Rationnel::entier(1);
-        if !(zero.inferieur_ou_egal(&densite_attendue) && densite_attendue.inferieur_ou_egal(&un)) {
-            return Err(ErreurOracle::DensiteHorsBornes);
+impl ParametersOracle {
+    /// Validated parameters: the expected density must lie in [0, 1].
+    pub fn new(
+        size_domain: u64,
+        density_expected: Rational,
+        cost_encoding: u64,
+        requests_downstream: u64,
+    ) -> Result<Self, ErrorOracle> {
+        let zero = Rational::new(0, 1);
+        let one = Rational::entier(1);
+        if !(zero.lower_or_equal(&density_expected) && density_expected.lower_or_equal(&one)) {
+            return Err(ErrorOracle::DensityOutBounds);
         }
-        Ok(ParametresOracle {
-            taille_domaine,
-            densite_attendue,
-            cout_encodage,
-            requetes_aval,
+        Ok(ParametersOracle {
+            size_domain,
+            density_expected,
+            cost_encoding,
+            requests_downstream,
         })
     }
 
-    /// Taille du domaine : nombre de clés balayées.
-    pub fn taille_domaine(&self) -> u64 {
-        self.taille_domaine
+    /// Domain size: number of keys swept.
+    pub fn size_domain(&self) -> u64 {
+        self.size_domain
     }
 
-    /// Densité attendue (validée dans [0, 1]).
-    pub fn densite_attendue(&self) -> Rationnel {
-        self.densite_attendue
+    /// Expected density (validated in [0, 1]).
+    pub fn density_expected(&self) -> Rational {
+        self.density_expected
     }
 
-    /// Coût d'encodage : coût d'un niveau selon l'encodage du royaume.
-    pub fn cout_encodage(&self) -> u64 {
-        self.cout_encodage
+    /// Encoding cost of one level under the kingdom's encoding.
+    pub fn cost_encoding(&self) -> u64 {
+        self.cost_encoding
     }
 
-    /// Nombre de requêtes aval prévues sur le diagramme.
-    pub fn requetes_aval(&self) -> u64 {
-        self.requetes_aval
+    /// Number of downstream requests expected on the diagram.
+    pub fn requests_downstream(&self) -> u64 {
+        self.requests_downstream
     }
 }
 
-/// Prédiction du modèle prédictif.
+/// Prediction of the predictive model.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Prediction {
-    /// Taille de diagramme prédite (nœuds, terminal compris).
-    pub taille_predite: u64,
-    /// Coût total prédit (unités d'encodage) : taille × coût d'encodage ×
-    /// requêtes aval.
-    pub cout_total_predit: u64,
+    /// Predicted diagram size (nodes, terminal included).
+    pub size_predicted: u64,
+    /// Predicted total cost (encoding units): size × encoding cost ×
+    /// downstream requests.
+    pub cost_total_predicted: u64,
 }
 
-/// Oracle de rentabilité analytique (M3-3) : le modèle prédictif et son
-/// garde-fou par différentiel.
+/// Analytic profitability oracle (M3-3): the predictive model and its
+/// differential guardrail.
 pub struct Oracle;
 
 impl Oracle {
-    /// Prédiction : `taille = 1 + n·d` nœuds (chaîne du set aléatoire +
-    /// terminal), `coût total = taille × coût_encodage × requêtes_aval`
-    /// (saturé).
-    pub fn predire(parametres: &ParametresOracle) -> Prediction {
-        let presents = (parametres.taille_domaine as u128)
-            * (parametres.densite_attendue.num as u128)
-            / (parametres.densite_attendue.den as u128);
-        let taille_predite = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
-        let cout_total_predit = taille_predite
-            .saturating_mul(parametres.cout_encodage)
-            .saturating_mul(parametres.requetes_aval);
+    /// Prediction: `size = 1 + n·d` nodes (chain of the random set +
+    /// terminal), `total cost = size × cost_encoding × requests_downstream`
+    /// (saturating).
+    pub fn predire(parameters: &ParametersOracle) -> Prediction {
+        let presents = (parameters.size_domain as u128) * (parameters.density_expected.num as u128)
+            / (parameters.density_expected.den as u128);
+        let size_predicted = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
+        let cost_total_predicted = size_predicted
+            .saturating_mul(parameters.cost_encoding)
+            .saturating_mul(parameters.requests_downstream);
         Prediction {
-            taille_predite,
-            cout_total_predit,
+            size_predicted,
+            cost_total_predicted,
         }
     }
 
-    /// Garde-fou par différentiel (C4) : compare la prédiction à la mesure
-    /// réelle. Conforme si la mesure tient dans [prédit/2, 2 × prédit].
-    pub fn garde_fou(predit: u64, mesure: u64) -> VerdictGardeFou {
-        VerdictGardeFou::nouveau(predit, mesure)
+    /// Differential guardrail (C4): compares the prediction to the actual
+    /// measurement. Compliant if the measurement lies in [predicted/2, 2 × predicted].
+    pub fn keeps_wild(predicted: u64, measure: u64) -> VerdictKeepsWild {
+        VerdictKeepsWild::new(predicted, measure)
     }
 }
 
-/// Verdict du garde-fou par différentiel : prédiction contre mesure.
+/// Verdict of the differential guardrail: prediction against measurement.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct VerdictGardeFou {
-    /// Coût prédit par le modèle.
-    pub predit: u64,
-    /// Coût réellement mesuré.
-    pub mesure: u64,
+pub struct VerdictKeepsWild {
+    /// Cost predicted by the model.
+    pub predicted: u64,
+    /// Cost actually measured.
+    pub measure: u64,
 }
 
-impl VerdictGardeFou {
-    /// Verdict entre une prédiction et une mesure.
-    pub fn nouveau(predit: u64, mesure: u64) -> Self {
-        VerdictGardeFou { predit, mesure }
+impl VerdictKeepsWild {
+    /// Verdict between a prediction and a measurement.
+    pub fn new(predicted: u64, measure: u64) -> Self {
+        VerdictKeepsWild { predicted, measure }
     }
 
-    /// Ratio mesure/prédit en arithmétique exacte. Par convention de
-    /// [`Rationnel::nouveau`], `prédit == 0` donne le ratio 0/1 (et non une
-    /// valeur saturée) ; `est_conforme` ne passe pas par `ratio` et traite
-    /// `prédit == 0` directement.
-    pub fn ratio(&self) -> Rationnel {
-        Rationnel::nouveau(self.mesure, self.predit)
+    /// Ratio measurement/prediction in exact arithmetic. By convention of
+    /// [`Rational::new`], `predicted == 0` gives the ratio 0/1 (and not a
+    /// saturated value); `is_compliant` does not go through `ratio` and
+    /// handles `predicted == 0` directly.
+    pub fn ratio(&self) -> Rational {
+        Rational::new(self.measure, self.predicted)
     }
 
-    /// Conforme si la mesure tient dans [BORNE_INFERIEURE × prédit,
-    /// BORNE_SUPERIEURE × prédit] — comparaison exacte sans division
-    /// (produits croisés en u128), donc correcte aussi pour `prédit == 0`
-    /// (conforme ssi `mesure == 0`). Hors bornes, le modèle est falsifié (C4).
-    pub fn est_conforme(&self) -> bool {
-        let predit = self.predit as u128;
-        let mesure = self.mesure as u128;
-        // BORNE_INFERIEURE <= mesure/prédit <=> min.num·prédit <= mesure·min.den
-        // mesure/prédit <= BORNE_SUPERIEURE <=> mesure·max.den <= max.num·prédit
-        (BORNE_INFERIEURE.num as u128) * predit <= mesure * (BORNE_INFERIEURE.den as u128)
-            && mesure * (BORNE_SUPERIEURE.den as u128) <= (BORNE_SUPERIEURE.num as u128) * predit
+    /// Compliant if the measurement lies in [BOUND_INFERIEURE × predicted,
+    /// BOUND_SUPERIEURE × predicted] — exact comparison without division
+    /// (cross products in u128), hence also correct for `predicted == 0`
+    /// (compliant iff `measure == 0`). Out of bounds, the model is falsified (C4).
+    pub fn is_compliant(&self) -> bool {
+        let predicted = self.predicted as u128;
+        let measure = self.measure as u128;
+        // BOUND_INFERIEURE <= measure/predicted <=> min.num·predicted <= measure·min.den
+        // measure/predicted <= BOUND_SUPERIEURE <=> measure·max.den <= max.num·predicted
+        (BOUND_INFERIEURE.num as u128) * predicted <= measure * (BOUND_INFERIEURE.den as u128)
+            && measure * (BOUND_SUPERIEURE.den as u128)
+                <= (BOUND_SUPERIEURE.num as u128) * predicted
     }
 }

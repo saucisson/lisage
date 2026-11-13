@@ -1,23 +1,23 @@
-//! Lisage bench — différentiel, property-based, MCC, événements non locaux.
+//! Lisage bench — differential, property-based, MCC, not-local events.
 
 pub mod confrontation;
-pub mod differentiel;
+pub mod differential;
 pub mod pnml;
 pub mod sdd;
-pub mod temoin_bdd;
-pub mod triptyque;
+pub mod triptych;
+pub mod witness_bdd;
 
-/// Voie A : interprète de référence naïf (source de vérité).
-pub fn voie_a(x: u32) -> u32 {
+/// Lane A: naive reference interpreter (source of truth).
+pub fn lane_a(x: u32) -> u32 {
     x + 1
 }
 
-/// Voie B : DD à ordre fixe (simulation factice).
-pub fn voie_b(x: u32) -> u32 {
+/// Lane B: fixed-order decision diagram (mock simulation).
+pub fn lane_b(x: u32) -> u32 {
     x + 1
 }
 
-/// Voie C : Lisage + planner (simulation factice).
-pub fn voie_c(x: u32) -> u32 {
+/// Lane C: Lisage + planner (mock simulation).
+pub fn lane_c(x: u32) -> u32 {
     x + 1
 }

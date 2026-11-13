@@ -1,120 +1,117 @@
-//! Confrontation lisage ↔ témoins externes (ADR-0102, décision humaine du
-//! 10 nov. 2026 : témoins en conteneurs Docker locaux, hors CI) : côté
-//! lisage du harnais de mesures temps/mémoire sur les variantes BDD, MDD
-//! et encodages de la fenêtre glissante. Ce module exécute **une charge une
-//! seule fois** et rend une [`MesureConfrontation`] ; le binaire
-//! `confrontation` la sérialise en une ligne JSON sur stdout ; l'orchestrateur
-//! `python -m scripts bench-confrontation` lance les répétitions (un
-//! processus neuf par mesure : la RSS pic du processus entier ne se divise
-//! pas en répétitions in-process) et agrège.
+//! Lisage ↔ external witnesses confrontation (ADR-0102, human decision of
+//! 2026-11-10: witnesses in local Docker containers, outside CI): the
+//! lisage side of the time/memory measurement harness over BDD and MDD
+//! variants and sliding-window encodings. This module runs **one workload
+//! exactly once** and returns a [`MeasureConfrontation`]; the
+//! `confrontation` binary serializes it as one JSON line on stdout; the
+//! orchestrator `python -m scripts bench-confrontation` runs the repetitions
+//! (one fresh process per measurement: whole-process peak RSS does not
+//! divide into in-process repetitions) and aggregates.
 //!
-//! Les mêmes charges sont implémentées chez chaque témoin (CUDD/Sylvan pour
-//! le booléen, libDDD pour les DDD de l'école de Paris, Meddly pour les MDD)
-//! avec la même convention : même entrée, même objet construit, même valeur
-//! de vérification croisée. Le protocole complet (équité, métriques,
-//! reproduction) vit dans `docs/bench-confrontation-temoins-et-mesures.md`.
+//! The same workloads are implemented at each witness (CUDD/Sylvan for
+//! Boolean, libDDD for the Paris-school DDDs, Meddly for MDDs) with the
+//! same convention: same input, same object built, same cross-check value.
+//! The full protocol (fairness, metrics, reproduction) lives in
+//! `docs/bench-confrontation-temoins-and-mesures.md`.
 //!
-//! Bloc mesuré, identique chez tous les outils : lecture de l'entrée +
-//! construction du diagramme + comptage de vérification. L'initialisation
-//! de la bibliothèque (manager, workers) est hors du bloc : elle varie d'un
-//! outil à l'autre et n'est pas la charge comparée.
+//! Measured block, identical across all tools: input reading + diagram
+//! construction + verification counting. Library initialization (manager,
+//! workers) is outside the block: it varies from tool to tool and is not
+//! the compared workload.
 
 use std::collections::BTreeMap;
 use std::time::Instant;
 
 use lisage_algebra::interface::{Anchor, Form, Pool, PoolError};
 use lisage_core::arena::Arena;
-use lisage_core::atelier::{
-    AtelierController, Encodage, Reductions, compter_chemins, compter_noeuds, construire_fenetre,
-};
-use lisage_core::bdd::{
-    BddController, BddKeys, compiler_bdd, compter_noeuds as compter_noeuds_bdd,
-};
+use lisage_core::bdd::{BddController, BddKeys, compile_bdd, count_nodes as count_nodes_bdd};
 use lisage_core::error::CoreError;
-use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
-use lisage_core::pli::{compter as compter_pli, union};
-use lisage_core::schema::{
-    Domaine, ReferenceController, Schema, SchemaError, SchemaKeys, compiler,
+use lisage_core::fold::{count as count_fold, union};
+use lisage_core::observer::{ChannelAttribute, NoOpObserver, Observer, TraceEvent};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiled};
+use lisage_core::workshop::{
+    Encoding, Reductions, WorkshopController, build_window, count_nodes, count_paths,
 };
 use lisage_lang::value::{Atom, Value};
 
-/// Ancre de mesure (une seule ancre par mesure, convention du harnais).
+/// Measurement anchor (a single anchor per measurement, harness convention).
 const ANCRE_MESURE: Anchor = Anchor(0);
 /// `think`.
 const PENSE: u64 = 0;
-/// `affamé` (valeur intermédiaire du domaine des pc).
+/// `hungry` (intermediate value of the pc domain).
 const AFFAME: u64 = 1;
-/// `eat` (valeur interdite sur deux voisins circulairement).
-const MANGE: u64 = 2;
-/// Nombre de variables BDD du contrôleur de la charge `fenetre` (la
-/// fenêtre glissante est lue sur 2 niveaux : racine + fenêtre).
+/// `eat` (value forbidden on two circular neighbors).
+const EATS: u64 = 2;
+/// Number of BDD variables of the `window` workload controller (the
+/// sliding window is read over 2 levels: root + window).
 const VARIABLES_BDD_FENETRE: u32 = 2;
-/// Pas des clés de l'intercalage : clé `2i` = `pc_i`, clé `2i+1` = `left_i`.
+/// Stride of the interleaving: key `2i` = `pc_i`, key `2i+1` = `left_i`.
 const PAS_CLE_INTERCALAGE: u64 = 2;
-/// Graine du LCG de la table de vérité déterministe (même LCG que la ligne
-/// de base M1-8 : `benches/micro.rs` et `cudd_local.rs`).
+/// Seed of the deterministic truth-table LCG (same LCG as the M1-8
+/// baseline: `benches/micro.rs` and `cudd_local.rs`).
 pub const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
-/// Multiplicateur du LCG (Knuth).
+/// LCG multiplier (Knuth).
 pub const MULTIPLICATEUR_LCG: u64 = 6_364_136_223_846_793_005;
-/// Incrément du LCG.
+/// LCG increment.
 pub const INCREMENT_LCG: u64 = 1_442_695_040_888_963_407;
-/// Nombre maximal de variables acceptées par la charge `alea-lcg` (garde :
-/// la table de vérité est `2^n` entrées en mémoire).
+/// Maximum number of variables accepted by the `random-lcg` workload
+/// (guard: the truth table is `2^n` entries in memory).
 const VARIABLES_MAXIMALES_ALEA: u32 = 24;
-/// Nombre maximal de philosophes accepté par la charge `philosophes` (garde :
-/// le schéma intercalé a `2n` clés, R_n croît vite — le banc mesure n ≤ 7).
+/// Maximum number of philosophers accepted by the `philosophers` workload
+/// (guard: the interleaved schema has `2n` keys, R_n grows fast — the bench
+/// measures n ≤ 7).
 const PHILOSOPHES_MAXIMAUX: u64 = 32;
-/// Conversion secondes → millisecondes du bloc mesuré.
+/// Seconds → milliseconds conversion of the measured block.
 const MILLIS_PAR_SECONDE: f64 = 1_000.0;
 
-/// Outil mesuré par ce runner (fixe : le binaire ne mesure que lisage ; les
-/// témoins externes ont leur propre binaire avec leur propre nom).
+/// Tool measured by this runner (fixed: the binary only measures lisage;
+/// external witnesses have their own binary with their own name).
 pub const OUTIL: &str = "lisage";
 
-/// Charge de la confrontation (ensemble fermé, ADR-0006).
+/// Workload of the confrontation (closed set, ADR-0006).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Charge {
-    /// Table de vérité LCG déterministe, BDD par expansion de Shannon.
-    AleaLcg,
-    /// R_n du fil rouge, union de maps sur le schéma intercalé.
-    Philosophes,
-    /// Fenêtre glissante, encodage absolu ou relatif.
-    Fenetre,
+pub enum Workload {
+    /// Deterministic LCG truth table, BDD by Shannon expansion.
+    RandomLcg,
+    /// R_n of the golden thread, union of maps over the interleaved schema.
+    Philosophers,
+    /// Sliding window, absolute or relative encoding.
+    Window,
 }
 
-impl Charge {
-    /// Analyse le nom de charge (bord du binaire) ; `None` si inconnu.
-    pub fn depuis_nom(nom: &str) -> Option<Charge> {
-        match nom {
-            "alea-lcg" => Some(Charge::AleaLcg),
-            "philosophes" => Some(Charge::Philosophes),
-            "fenetre" => Some(Charge::Fenetre),
+impl Workload {
+    /// Parses the workload name (binary edge); `None` if unknown.
+    pub fn since_name(name: &str) -> Option<Workload> {
+        match name {
+            "random-lcg" => Some(Workload::RandomLcg),
+            "philosophers" => Some(Workload::Philosophers),
+            "window" => Some(Workload::Window),
             _ => None,
         }
     }
 
-    /// Étiquette du protocole JSON.
-    pub fn etiquette(&self) -> &'static str {
+    /// JSON protocol label.
+    pub fn label(&self) -> &'static str {
         match self {
-            Charge::AleaLcg => "alea-lcg",
-            Charge::Philosophes => "philosophes",
-            Charge::Fenetre => "fenetre",
+            Workload::RandomLcg => "random-lcg",
+            Workload::Philosophers => "philosophers",
+            Workload::Window => "window",
         }
     }
 }
 
-/// Variante de diagramme mesurée (ensemble fermé).
+/// Measured diagram variant (closed set).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Variante {
-    /// BDD booléen.
+    /// Boolean BDD.
     Bdd,
-    /// MDD (schéma à domaines finis).
+    /// MDD (finite-domain schema).
     Mdd,
 }
 
 impl Variante {
-    /// Étiquette du protocole JSON.
-    pub fn etiquette(&self) -> &'static str {
+    /// JSON protocol label.
+    pub fn label(&self) -> &'static str {
         match self {
             Variante::Bdd => "bdd",
             Variante::Mdd => "mdd",
@@ -122,583 +119,578 @@ impl Variante {
     }
 }
 
-/// Étiquette JSON d'un encodage de fenêtre.
-fn etiquette_encodage(encodage: &Encodage) -> &'static str {
-    match encodage {
-        Encodage::Absolu => "absolu",
-        Encodage::Relatif => "relatif",
+/// JSON label of a window encoding.
+fn label_encoding(encoding: &Encoding) -> &'static str {
+    match encoding {
+        Encoding::Absolute => "absolute",
+        Encoding::Relative => "relative",
     }
 }
 
-/// Une mesure de confrontation : le résultat d'une charge exécutée une fois.
+/// One confrontation measurement: the result of a workload run once.
 #[derive(Clone, PartialEq, Debug)]
-pub struct MesureConfrontation {
-    /// Variante de diagramme mesurée.
+pub struct MeasureConfrontation {
+    /// Measured diagram variant.
     pub variante: Variante,
-    /// Charge exécutée.
-    pub charge: Charge,
-    /// Paramètres de la charge, dans un ordre stable (sérialisés en objet).
-    pub parametres: Vec<(String, String)>,
-    /// Encodage de la charge `fenetre` uniquement.
-    pub encodage: Option<Encodage>,
-    /// Temps du bloc mesuré, en millisecondes.
-    pub temps_ms: f64,
-    /// RSS maximale du processus, en kilo-octets (`VmHWM`).
+    /// Workload executed.
+    pub workload: Workload,
+    /// Workload parameters, in a stable order (serialized as an object).
+    pub parameters: Vec<(String, String)>,
+    /// Encoding of the `window` workload only.
+    pub encoding: Option<Encoding>,
+    /// Time of the measured block, in milliseconds.
+    pub time_ms: f64,
+    /// Maximum RSS of the process, in kilobytes (`VmHWM`).
     pub rss_max_ko: u64,
-    /// Nœuds du diagramme construit, terminaux compris (convention
-    /// documentée par outil dans le protocole).
-    pub noeuds: u64,
-    /// Valeur de vérification croisée : identique chez tous les outils pour
-    /// la même charge (cardinal compté, satisfactions). Toute divergence
-    /// entre outils invalide la mesure.
+    /// Nodes of the built diagram, terminals included (convention
+    /// documented per tool in the protocol).
+    pub nodes: u64,
+    /// Cross-check value: identical across all tools for the same workload
+    /// (counted cardinality, satisfactions). Any divergence between tools
+    /// invalidates the measurement.
     pub verifie: u64,
 }
 
-/// Erreur typée du harnais de confrontation.
+/// Typed error of the confrontation harness.
 #[derive(Clone, PartialEq, Debug)]
-pub enum ErreurConfrontation {
-    /// Paramètres invalides pour la charge (nombre, type, bornes).
-    ParametresInvalides {
-        /// La charge concernée.
-        charge: &'static str,
-        /// Le détail de l'invalidité.
+pub enum ErrorConfrontation {
+    /// Invalid parameters for the workload (count, type, bounds).
+    ParametersInvalid {
+        /// The workload concerned.
+        workload: &'static str,
+        /// The detail of the invalidity.
         detail: String,
     },
-    /// Entrée illisible (fichier d'états, `/proc` absent).
-    EntreeInvalide {
-        /// Le détail de l'invalidité.
+    /// Unreadable input (state file, `/proc` missing).
+    InputInvalid {
+        /// The detail of the invalidity.
         detail: String,
     },
-    /// La vérification croisée interne a échoué : la valeur comptée ne
-    /// correspond pas à la valeur attendue.
+    /// The internal cross-check failed: the counted value does not match
+    /// the expected value.
     VerifieEchoue {
-        /// La valeur attendue.
-        attendu: u64,
-        /// La valeur obtenue.
+        /// The expected value.
+        expected: u64,
+        /// The obtained value.
         obtenu: u64,
     },
-    /// Erreur du cœur (pool, pli, atelier), cause préservée.
-    Interne {
-        /// L'erreur du cœur.
+    /// Core error (pool, fold, workshop), cause preserved.
+    Internal {
+        /// The core error.
         source: CoreError,
     },
-    /// Erreur de schéma (compilation d'une valeur hors domaine), cause
-    /// préservée.
+    /// Schema error (compiling a value outside the domain), cause
+    /// preserved.
     Schema {
-        /// L'erreur de schéma.
+        /// The schema error.
         source: SchemaError,
     },
 }
 
-impl std::fmt::Display for ErreurConfrontation {
+impl std::fmt::Display for ErrorConfrontation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurConfrontation::ParametresInvalides { charge, detail } => {
-                write!(formatter, "paramètres invalides pour {charge}: {detail}")
+            ErrorConfrontation::ParametersInvalid { workload, detail } => {
+                write!(formatter, "invalid parameters for {workload}: {detail}")
             }
-            ErreurConfrontation::EntreeInvalide { detail } => {
-                write!(formatter, "entrée invalide: {detail}")
+            ErrorConfrontation::InputInvalid { detail } => {
+                write!(formatter, "invalid input: {detail}")
             }
-            ErreurConfrontation::VerifieEchoue { attendu, obtenu } => {
+            ErrorConfrontation::VerifieEchoue { expected, obtenu } => {
                 write!(
                     formatter,
-                    "vérification croisée échouée: attendu {attendu}, obtenu {obtenu}"
+                    "cross-check failed: expected {expected}, got {obtenu}"
                 )
             }
-            ErreurConfrontation::Interne { source } => {
-                write!(formatter, "erreur du cœur: {source}")
+            ErrorConfrontation::Internal { source } => {
+                write!(formatter, "core error: {source}")
             }
-            ErreurConfrontation::Schema { source } => {
-                write!(formatter, "erreur de schéma: {source}")
+            ErrorConfrontation::Schema { source } => {
+                write!(formatter, "schema error: {source}")
             }
         }
     }
 }
 
-impl std::error::Error for ErreurConfrontation {
+impl std::error::Error for ErrorConfrontation {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            ErreurConfrontation::Interne { source } => Some(source),
-            ErreurConfrontation::Schema { source } => Some(source),
+            ErrorConfrontation::Internal { source } => Some(source),
+            ErrorConfrontation::Schema { source } => Some(source),
             _ => None,
         }
     }
 }
 
-impl From<CoreError> for ErreurConfrontation {
+impl From<CoreError> for ErrorConfrontation {
     fn from(source: CoreError) -> Self {
-        ErreurConfrontation::Interne { source }
+        ErrorConfrontation::Internal { source }
     }
 }
 
-impl From<PoolError> for ErreurConfrontation {
+impl From<PoolError> for ErrorConfrontation {
     fn from(source: PoolError) -> Self {
-        ErreurConfrontation::Interne {
+        ErrorConfrontation::Internal {
             source: CoreError::Pool(source),
         }
     }
 }
 
-impl From<SchemaError> for ErreurConfrontation {
+impl From<SchemaError> for ErrorConfrontation {
     fn from(source: SchemaError) -> Self {
-        ErreurConfrontation::Schema { source }
+        ErrorConfrontation::Schema { source }
     }
 }
 
-/// Échappe une chaîne pour JSON (même échappement minimal que
-/// `lisage-liseuse::trace` : les valeurs mesurées sont un vocabulaire
-/// contrôlé, le contrat reste correct).
-fn echapper_json(chaine: &str) -> String {
-    let mut sortie = String::with_capacity(chaine.len() + 2);
-    for caractere in chaine.chars() {
-        match caractere {
-            '"' => sortie.push_str("\\\""),
-            '\\' => sortie.push_str("\\\\"),
-            '\n' => sortie.push_str("\\n"),
-            '\r' => sortie.push_str("\\r"),
-            '\t' => sortie.push_str("\\t"),
-            caractere_bas if (caractere_bas as u32) < 0x20 => {
-                sortie.push_str(&format!("\\u{:04x}", caractere_bas as u32));
+/// Escapes a string for JSON (same minimal escaping as
+/// `lisage-reader::trace`: the measured values are a controlled
+/// vocabulary, the contract stays correct).
+fn escape_json(string: &str) -> String {
+    let mut output = String::with_capacity(string.len() + 2);
+    for character in string.chars() {
+        match character {
+            '"' => output.push_str("\\\""),
+            '\\' => output.push_str("\\\\"),
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\t' => output.push_str("\\t"),
+            character_low if (character_low as u32) < 0x20 => {
+                output.push_str(&format!("\\u{:04x}", character_low as u32));
             }
-            caractere_simple => sortie.push(caractere_simple),
+            character_simple => output.push(character_simple),
         }
     }
-    sortie
+    output
 }
 
-/// Sérialise une mesure en une ligne JSON (sans le `\n` final). L'ordre des
-/// clés est fixe et épinglé par test : `outil`, `variante`, `charge`,
-/// `parametres`, `encodage` (fenêtre seulement), `temps_ms`, `rss_max_ko`,
-/// `noeuds`, `verifie`.
-pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
-    let mut ligne = String::with_capacity(256);
-    ligne.push('{');
-    ligne.push_str(&format!(
-        "\"outil\":\"{}\",\"variante\":\"{}\",\"charge\":\"{}\"",
-        echapper_json(OUTIL),
-        mesure.variante.etiquette(),
-        mesure.charge.etiquette()
+/// Serializes a measurement as one JSON line (without the trailing `\n`).
+/// The key order is fixed and pinned by test: `tool`, `variant`, `workload`,
+/// `parameters`, `encoding` (window only), `time_ms`, `rss_max_ko`,
+/// `nodes`, `verified`.
+pub fn serialize_line(measure: &MeasureConfrontation) -> String {
+    let mut line = String::with_capacity(256);
+    line.push('{');
+    line.push_str(&format!(
+        "\"tool\":\"{}\",\"variant\":\"{}\",\"workload\":\"{}\"",
+        escape_json(OUTIL),
+        measure.variante.label(),
+        measure.workload.label()
     ));
-    ligne.push_str(",\"parametres\":{");
-    for (indice, (cle, valeur)) in mesure.parametres.iter().enumerate() {
+    line.push_str(",\"parameters\":{");
+    for (indice, (key, value)) in measure.parameters.iter().enumerate() {
         if indice > 0 {
-            ligne.push(',');
+            line.push(',');
         }
-        ligne.push_str(&format!(
+        line.push_str(&format!(
             "\"{}\":\"{}\"",
-            echapper_json(cle),
-            echapper_json(valeur)
+            escape_json(key),
+            escape_json(value)
         ));
     }
-    ligne.push('}');
-    if let Some(encodage) = &mesure.encodage {
-        ligne.push_str(&format!(
-            ",\"encodage\":\"{}\"",
-            etiquette_encodage(encodage)
-        ));
+    line.push('}');
+    if let Some(encoding) = &measure.encoding {
+        line.push_str(&format!(",\"encoding\":\"{}\"", label_encoding(encoding)));
     }
-    ligne.push_str(&format!(
-        ",\"temps_ms\":{:.3},\"rss_max_ko\":{},\"noeuds\":{},\"verifie\":{}",
-        mesure.temps_ms, mesure.rss_max_ko, mesure.noeuds, mesure.verifie
+    line.push_str(&format!(
+        ",\"time_ms\":{:.3},\"rss_max_ko\":{},\"nodes\":{},\"verified\":{}",
+        measure.time_ms, measure.rss_max_ko, measure.nodes, measure.verifie
     ));
-    ligne.push('}');
-    ligne
+    line.push('}');
+    line
 }
 
-/// RSS maximale du processus en kilo-octets (`VmHWM` de `/proc/self/status`).
-/// Linux seulement, documenté dans le protocole : les exécutions locales et
-/// les conteneurs des témoins sont Linux.
-fn rss_max_ko() -> Result<u64, ErreurConfrontation> {
-    const MARQUEUR: &str = "VmHWM:";
-    let status = std::fs::read_to_string("/proc/self/status").map_err(|erreur| {
-        ErreurConfrontation::EntreeInvalide {
-            detail: format!("/proc/self/status illisible : {erreur}"),
+/// Maximum RSS of the process in kilobytes (`VmHWM` from
+/// `/proc/self/status`). Linux only, documented in the protocol: local runs
+/// and witness containers are Linux.
+fn rss_max_ko() -> Result<u64, ErrorConfrontation> {
+    const MARKER: &str = "VmHWM:";
+    let status = std::fs::read_to_string("/proc/self/status").map_err(|error| {
+        ErrorConfrontation::InputInvalid {
+            detail: format!("/proc/self/status unreadable: {error}"),
         }
     })?;
-    for ligne in status.lines() {
-        if let Some(valeurs) = ligne.strip_prefix(MARQUEUR) {
-            return valeurs
+    for line in status.lines() {
+        if let Some(values) = line.strip_prefix(MARKER) {
+            return values
                 .split_whitespace()
                 .next()
-                .and_then(|valeur| valeur.parse::<u64>().ok())
-                .ok_or_else(|| ErreurConfrontation::EntreeInvalide {
-                    detail: format!("ligne {MARQUEUR} inattendue : {ligne}"),
+                .and_then(|value| value.parse::<u64>().ok())
+                .ok_or_else(|| ErrorConfrontation::InputInvalid {
+                    detail: format!("unexpected {MARKER} line: {line}"),
                 });
         }
     }
-    Err(ErreurConfrontation::EntreeInvalide {
-        detail: "VmHWM absent de /proc/self/status (plateforme non Linux)".to_string(),
+    Err(ErrorConfrontation::InputInvalid {
+        detail: "VmHWM absent from /proc/self/status (not-Linux platform)".to_string(),
     })
 }
 
-/// Génère la table de vérité déterministe du LCG sur `n` variables (bit de
-/// poids fort de l'état, même LCG que la ligne de base M1-8).
-fn table_lcg(nombre_variables: u32) -> Vec<bool> {
-    let mut etat = GRAINE_LCG;
-    (0..(1usize << nombre_variables))
+/// Generates the deterministic LCG truth table over `n` variables (high bit
+/// of the state, same LCG as the M1-8 baseline).
+fn table_lcg(number_variables: u32) -> Vec<bool> {
+    let mut state = GRAINE_LCG;
+    (0..(1usize << number_variables))
         .map(|_| {
-            etat = etat
+            state = state
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
-            (etat >> 63) == 1
+            (state >> 63) == 1
         })
         .collect()
 }
 
-/// Charge `alea-lcg` : BDD classique d'une table de vérité aléatoire
-/// déterministe, construction par expansion de Shannon. La falsification
-/// interne C6 est exécutée : le compte de nœuds de l'arène doit être celui
-/// du témoin mini-BDD indépendant, et l'évaluation doit suivre la table.
-fn charge_alea_lcg(
-    nombre_variables: u32,
-    observateur: Option<&dyn Observer>,
-) -> Result<MesureConfrontation, ErreurConfrontation> {
-    if nombre_variables == 0 || nombre_variables > VARIABLES_MAXIMALES_ALEA {
-        return Err(ErreurConfrontation::ParametresInvalides {
-            charge: Charge::AleaLcg.etiquette(),
-            detail: format!("n doit être dans 1..={VARIABLES_MAXIMALES_ALEA}"),
+/// Workload `random-lcg`: classic BDD of a deterministic random truth
+/// table, built by Shannon expansion. The internal C6 falsification is
+/// run: the arena's node count must equal that of the independent mini-BDD
+/// witness, and evaluation must follow the table.
+fn workload_random_lcg(
+    number_variables: u32,
+    observer: Option<&dyn Observer>,
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
+    if number_variables == 0 || number_variables > VARIABLES_MAXIMALES_ALEA {
+        return Err(ErrorConfrontation::ParametersInvalid {
+            workload: Workload::RandomLcg.label(),
+            detail: format!("n must be in 1..={VARIABLES_MAXIMALES_ALEA}"),
         });
     }
-    let keys = BddKeys::new(nombre_variables);
-    let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
-    let debut = Instant::now();
-    let table = table_lcg(nombre_variables);
-    let satisfait_attendu = table.iter().filter(|valeur| **valeur).count() as u64;
-    let racine = compiler_bdd(&mut pool, ANCRE_MESURE, &keys, &table);
-    let noeuds = compter_noeuds_bdd(&pool, racine);
-    let duree = debut.elapsed();
-    // Falsification C6 : l'arène et le témoin mini-BDD indépendant doivent
-    // compter le même nombre de nœuds sur la même table.
-    let mut temoin = crate::temoin_bdd::MiniBdd::new();
-    let racine_temoin = temoin.compiler_table(nombre_variables, &table);
-    let noeuds_temoin = temoin.compter_noeuds(racine_temoin);
-    if noeuds != noeuds_temoin {
-        return Err(ErreurConfrontation::VerifieEchoue {
-            attendu: noeuds_temoin,
-            obtenu: noeuds,
+    let keys = BddKeys::new(number_variables);
+    let mut pool = Arena::new(BddController::new(number_variables), Box::new(NoOpObserver));
+    let start = Instant::now();
+    let table = table_lcg(number_variables);
+    let satisfies_expected = table.iter().filter(|value| **value).count() as u64;
+    let root = compile_bdd(&mut pool, ANCRE_MESURE, &keys, &table);
+    let nodes = count_nodes_bdd(&pool, root);
+    let duree = start.elapsed();
+    // C6 falsification: the arena and the independent mini-BDD witness must
+    // count the same number of nodes on the same table.
+    let mut witness = crate::witness_bdd::MiniBdd::new();
+    let root_witness = witness.compile_table(number_variables, &table);
+    let nodes_witness = witness.count_nodes(root_witness);
+    if nodes != nodes_witness {
+        return Err(ErrorConfrontation::VerifieEchoue {
+            expected: nodes_witness,
+            obtenu: nodes,
         });
     }
-    if temoin.evaluer(racine_temoin, 0) != table[0] {
-        return Err(ErreurConfrontation::VerifieEchoue {
-            attendu: table[0] as u64,
-            obtenu: temoin.evaluer(racine_temoin, 0) as u64,
+    if witness.evaluer(root_witness, 0) != table[0] {
+        return Err(ErrorConfrontation::VerifieEchoue {
+            expected: table[0] as u64,
+            obtenu: witness.evaluer(root_witness, 0) as u64,
         });
     }
-    if let Some(observateur) = observateur {
-        observateur.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
-            noeud: racine,
-            valeur: format!(
-                "charge={} noeuds={} verifie={}",
-                Charge::AleaLcg.etiquette(),
-                noeuds,
-                satisfait_attendu
+    if let Some(observer) = observer {
+        observer.on_event(&TraceEvent::Attribute {
+            channel: ChannelAttribute::Synthesize,
+            node: root,
+            value: format!(
+                "workload={} nodes={} verified={}",
+                Workload::RandomLcg.label(),
+                nodes,
+                satisfies_expected
             ),
         });
     }
-    Ok(MesureConfrontation {
+    Ok(MeasureConfrontation {
         variante: Variante::Bdd,
-        charge: Charge::AleaLcg,
-        parametres: vec![("n".to_string(), nombre_variables.to_string())],
-        encodage: None,
-        temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
+        workload: Workload::RandomLcg,
+        parameters: vec![("n".to_string(), number_variables.to_string())],
+        encoding: None,
+        time_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
-        noeuds,
-        verifie: satisfait_attendu,
+        nodes,
+        verifie: satisfies_expected,
     })
 }
 
-/// État étendu d'un philosophe : `pc_i` (pense/affamé/mange) et `left_i`
-/// dérivée (libre/tenue/precedente), intercalés `pc_0 left_0 pc_1 …`.
-type EtatEtendu = Vec<u64>;
+/// Extended state of a philosopher: `pc_i` (think/hungry/eat) and derived
+/// `left_i` (free/held/preceding), interleaved `pc_0 left_0 pc_1 …`.
+type StateEtendu = Vec<u64>;
 
-/// Charge `philosophes` : R_n du fil rouge (docs/exemple-fil-rouge) lu depuis
-/// le fichier d'états étendus partagé par tous les outils (première ligne
-/// `n <n>`, puis un état étendu par ligne, valeurs séparées par des
-/// espaces). Construction : union des maps compilées sur le schéma
-/// intercalé ; le cardinal par pli `(ℕ,+,×)` doit être le nombre d'états
-/// du fichier.
-fn charge_philosophes(
-    nombre_philosophes: u64,
-    chemin: &str,
-    observateur: Option<&dyn Observer>,
-) -> Result<MesureConfrontation, ErreurConfrontation> {
-    if nombre_philosophes == 0 || nombre_philosophes > PHILOSOPHES_MAXIMAUX {
-        return Err(ErreurConfrontation::ParametresInvalides {
-            charge: Charge::Philosophes.etiquette(),
-            detail: format!("n doit être dans 1..={PHILOSOPHES_MAXIMAUX}"),
+/// Workload `philosophers`: R_n of the golden thread (docs/golden-thread-example-n-philosophers-end-to-end)
+/// read from the extended-state file shared by all tools (first line
+/// `n <n>`, then one extended state per line, values separated by spaces).
+/// Construction: union of the maps compiled over the interleaved schema;
+/// the fold `(ℕ,+,×)` cardinality must equal the number of states in the
+/// file.
+fn workload_philosophers(
+    number_philosophers: u64,
+    path: &str,
+    observer: Option<&dyn Observer>,
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
+    if number_philosophers == 0 || number_philosophers > PHILOSOPHES_MAXIMAUX {
+        return Err(ErrorConfrontation::ParametersInvalid {
+            workload: Workload::Philosophers.label(),
+            detail: format!("n must be in 1..={PHILOSOPHES_MAXIMAUX}"),
         });
     }
-    // Init hors bloc mesuré (schéma, clés, arènes) — comme l'init du manager
-    // chez les témoins. Bloc mesuré : lecture de l'entrée + construction +
-    // comptage.
+    // Init outside the measured block (schema, keys, arenas) — like the
+    // manager init at the witnesses. Measured block: input reading +
+    // construction + counting.
     let schema = Schema::Map(
-        (0..PAS_CLE_INTERCALAGE * nombre_philosophes)
+        (0..PAS_CLE_INTERCALAGE * number_philosophers)
             .map(Atom)
             .collect(),
-        Domaine::nouveau(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)]),
+        Domain::new(vec![Atom(PENSE), Atom(AFFAME), Atom(EATS)]),
     );
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let debut = Instant::now();
-    let contenu =
-        std::fs::read_to_string(chemin).map_err(|erreur| ErreurConfrontation::EntreeInvalide {
-            detail: format!("fichier d'états {chemin} illisible : {erreur}"),
+    let start = Instant::now();
+    let content =
+        std::fs::read_to_string(path).map_err(|error| ErrorConfrontation::InputInvalid {
+            detail: format!("state file {path} unreadable: {error}"),
         })?;
-    let etats = lire_etats(nombre_philosophes, &contenu)?;
-    let attendu = etats.len() as u64;
-    let mut racine = pool.intern(ANCRE_MESURE, Form::Terminal(false));
-    for etat in &etats {
-        let map: BTreeMap<Value, Value> = etat
+    let states = read_states(number_philosophers, &content)?;
+    let expected = states.len() as u64;
+    let mut root = pool.intern(ANCRE_MESURE, Form::Terminal(false));
+    for state in &states {
+        let map: BTreeMap<Value, Value> = state
             .iter()
             .enumerate()
-            .map(|(indice, valeur)| (Value::Atom(Atom(indice as u64)), Value::Atom(Atom(*valeur))))
+            .map(|(indice, value)| (Value::Atom(Atom(indice as u64)), Value::Atom(Atom(*value))))
             .collect();
-        let membre = compiler(&mut pool, ANCRE_MESURE, &schema, &Value::Map(map))?;
-        racine = union(&mut pool, &keys, ANCRE_MESURE, racine, membre)?;
+        let membre = compiled(&mut pool, ANCRE_MESURE, &schema, &Value::Map(map))?;
+        root = union(&mut pool, &keys, ANCRE_MESURE, root, membre)?;
     }
-    let verifie = compter_pli(&pool, &mut sortie, ANCRE_MESURE, &schema, racine)?;
-    let noeuds = compter_noeuds(&pool, racine)?;
-    let duree = debut.elapsed();
-    if verifie != attendu {
-        return Err(ErreurConfrontation::VerifieEchoue {
-            attendu,
+    let verifie = count_fold(&pool, &mut output, ANCRE_MESURE, &schema, root)?;
+    let nodes = count_nodes(&pool, root)?;
+    let duree = start.elapsed();
+    if verifie != expected {
+        return Err(ErrorConfrontation::VerifieEchoue {
+            expected,
             obtenu: verifie,
         });
     }
-    if let Some(observateur) = observateur {
-        observateur.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
-            noeud: racine,
-            valeur: format!(
-                "charge={} noeuds={} verifie={}",
-                Charge::Philosophes.etiquette(),
-                noeuds,
+    if let Some(observer) = observer {
+        observer.on_event(&TraceEvent::Attribute {
+            channel: ChannelAttribute::Synthesize,
+            node: root,
+            value: format!(
+                "workload={} nodes={} verified={}",
+                Workload::Philosophers.label(),
+                nodes,
                 verifie
             ),
         });
     }
-    Ok(MesureConfrontation {
+    Ok(MeasureConfrontation {
         variante: Variante::Mdd,
-        charge: Charge::Philosophes,
-        parametres: vec![("n".to_string(), nombre_philosophes.to_string())],
-        encodage: None,
-        temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
+        workload: Workload::Philosophers,
+        parameters: vec![("n".to_string(), number_philosophers.to_string())],
+        encoding: None,
+        time_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
-        noeuds,
+        nodes,
         verifie,
     })
 }
 
-/// Lit et valide le fichier d'états étendus : première ligne `n <n>`, puis
-/// `2n` valeurs par ligne dans `{0, 1, 2}`.
-fn lire_etats(
-    nombre_philosophes: u64,
-    contenu: &str,
-) -> Result<Vec<EtatEtendu>, ErreurConfrontation> {
-    let nombre_valeurs = PAS_CLE_INTERCALAGE as usize * nombre_philosophes as usize;
-    let mut lignes = contenu.lines();
-    let premiere = lignes
+/// Reads and validates the extended-state file: first line `n <n>`, then
+/// `2n` values per line in `{0, 1, 2}`.
+fn read_states(
+    number_philosophers: u64,
+    content: &str,
+) -> Result<Vec<StateEtendu>, ErrorConfrontation> {
+    let number_values = PAS_CLE_INTERCALAGE as usize * number_philosophers as usize;
+    let mut lines = content.lines();
+    let first = lines
         .next()
-        .ok_or_else(|| ErreurConfrontation::EntreeInvalide {
-            detail: "fichier d'états vide".to_string(),
+        .ok_or_else(|| ErrorConfrontation::InputInvalid {
+            detail: "empty state file".to_string(),
         })?;
-    let champs_premiere: Vec<&str> = premiere.split_whitespace().collect();
-    if champs_premiere.len() != 2 || champs_premiere[0] != "n" {
-        return Err(ErreurConfrontation::EntreeInvalide {
-            detail: format!("première ligne attendue « n <n> », reçue : {premiere}"),
+    let fields_first: Vec<&str> = first.split_whitespace().collect();
+    if fields_first.len() != 2 || fields_first[0] != "n" {
+        return Err(ErrorConfrontation::InputInvalid {
+            detail: format!("expected first line \"n <n>\", got: {first}"),
         });
     }
-    let n_declare: u64 =
-        champs_premiere[1]
+    let n_declared: u64 =
+        fields_first[1]
             .parse()
-            .map_err(|_| ErreurConfrontation::EntreeInvalide {
-                detail: format!("n illisible : {}", champs_premiere[1]),
+            .map_err(|_| ErrorConfrontation::InputInvalid {
+                detail: format!("unreadable n: {}", fields_first[1]),
             })?;
-    if n_declare != nombre_philosophes {
-        return Err(ErreurConfrontation::EntreeInvalide {
-            detail: format!("n déclaré {n_declare} ≠ n demandé {nombre_philosophes}"),
+    if n_declared != number_philosophers {
+        return Err(ErrorConfrontation::InputInvalid {
+            detail: format!("declared n {n_declared} ≠ requested n {number_philosophers}"),
         });
     }
-    let mut etats = Vec::new();
-    for (numero, ligne) in lignes.enumerate() {
-        if ligne.trim().is_empty() {
+    let mut states = Vec::new();
+    for (number, line) in lines.enumerate() {
+        if line.trim().is_empty() {
             continue;
         }
-        let etat: Result<Vec<u64>, _> = ligne
+        let state: Result<Vec<u64>, _> = line
             .split_whitespace()
-            .map(|valeur| valeur.parse::<u64>())
+            .map(|value| value.parse::<u64>())
             .collect();
-        let etat = etat.map_err(|_| ErreurConfrontation::EntreeInvalide {
-            detail: format!("ligne {} : valeur illisible", numero + 2),
+        let state = state.map_err(|_| ErrorConfrontation::InputInvalid {
+            detail: format!("line {}: unreadable value", number + 2),
         })?;
-        if etat.len() != nombre_valeurs {
-            return Err(ErreurConfrontation::EntreeInvalide {
+        if state.len() != number_values {
+            return Err(ErrorConfrontation::InputInvalid {
                 detail: format!(
-                    "ligne {} : {} valeurs, {} attendues",
-                    numero + 2,
-                    etat.len(),
-                    nombre_valeurs
+                    "line {}: {} values, {} expected",
+                    number + 2,
+                    state.len(),
+                    number_values
                 ),
             });
         }
-        if etat.iter().any(|valeur| *valeur > MANGE) {
-            return Err(ErreurConfrontation::EntreeInvalide {
-                detail: format!("ligne {} : valeur hors du domaine {{0,1,2}}", numero + 2),
+        if state.iter().any(|value| *value > EATS) {
+            return Err(ErrorConfrontation::InputInvalid {
+                detail: format!("line {}: value outside the domain {{0,1,2}}", number + 2),
             });
         }
-        etats.push(etat);
+        states.push(state);
     }
-    Ok(etats)
+    Ok(states)
 }
 
-/// Charge `fenetre` : la fenêtre glissante du fil rouge n° 2 dans l'encodage
-/// demandé. Vérification : les chemins racine → terminaux doivent être
-/// `taille × nb_bases` (une fenêtre par base, `taille` positions par
-/// fenêtre), quel que soit l'encodage — seul le nombre de nœuds partagés
-/// diffère (absolu : un nœud par base ; relatif : une seule forme, O(1) en
-/// `nb_bases`).
-fn charge_fenetre(
-    taille: u64,
-    nb_bases: u64,
-    encodage: Encodage,
-    observateur: Option<&dyn Observer>,
-) -> Result<MesureConfrontation, ErreurConfrontation> {
-    if taille == 0 || nb_bases == 0 {
-        return Err(ErreurConfrontation::ParametresInvalides {
-            charge: Charge::Fenetre.etiquette(),
-            detail: "taille et nb_bases doivent être ≥ 1".to_string(),
+/// Workload `window`: the sliding window of golden thread no. 2 in the
+/// requested encoding. Check: root → terminal paths must be
+/// `size × count_bases` (one window per base, `size` positions per window),
+/// whatever the encoding — only the number of shared nodes differs
+/// (absolute: one node per base; relative: a single form, O(1) in
+/// `count_bases`).
+fn workload_window(
+    size: u64,
+    count_bases: u64,
+    encoding: Encoding,
+    observer: Option<&dyn Observer>,
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
+    if size == 0 || count_bases == 0 {
+        return Err(ErrorConfrontation::ParametersInvalid {
+            workload: Workload::Window.label(),
+            detail: "size and count_bases must be ≥ 1".to_string(),
         });
     }
-    let attendu = taille.saturating_mul(nb_bases);
+    let expected = size.saturating_mul(count_bases);
     let mut pool = Arena::new(
-        AtelierController::nouveau(
+        WorkshopController::new(
             BddController::new(VARIABLES_BDD_FENETRE),
-            Reductions::sans_collapse(),
+            Reductions::without_collapse(),
         ),
         Box::new(NoOpObserver),
     );
-    let debut = Instant::now();
-    let racine = construire_fenetre(&mut pool, ANCRE_MESURE, encodage, taille, nb_bases);
-    let verifie = compter_chemins(&pool, racine)?;
-    let noeuds = compter_noeuds(&pool, racine)?;
-    let duree = debut.elapsed();
-    if verifie != attendu {
-        return Err(ErreurConfrontation::VerifieEchoue {
-            attendu,
+    let start = Instant::now();
+    let root = build_window(&mut pool, ANCRE_MESURE, encoding, size, count_bases);
+    let verifie = count_paths(&pool, root)?;
+    let nodes = count_nodes(&pool, root)?;
+    let duree = start.elapsed();
+    if verifie != expected {
+        return Err(ErrorConfrontation::VerifieEchoue {
+            expected,
             obtenu: verifie,
         });
     }
-    if let Some(observateur) = observateur {
-        observateur.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
-            noeud: racine,
-            valeur: format!(
-                "charge={} encodage={} noeuds={} verifie={}",
-                Charge::Fenetre.etiquette(),
-                etiquette_encodage(&encodage),
-                noeuds,
+    if let Some(observer) = observer {
+        observer.on_event(&TraceEvent::Attribute {
+            channel: ChannelAttribute::Synthesize,
+            node: root,
+            value: format!(
+                "workload={} encoding={} nodes={} verified={}",
+                Workload::Window.label(),
+                label_encoding(&encoding),
+                nodes,
                 verifie
             ),
         });
     }
-    Ok(MesureConfrontation {
+    Ok(MeasureConfrontation {
         variante: Variante::Mdd,
-        charge: Charge::Fenetre,
-        parametres: vec![
-            ("taille".to_string(), taille.to_string()),
-            ("nb_bases".to_string(), nb_bases.to_string()),
+        workload: Workload::Window,
+        parameters: vec![
+            ("size".to_string(), size.to_string()),
+            ("count_bases".to_string(), count_bases.to_string()),
         ],
-        encodage: Some(encodage),
-        temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
+        encoding: Some(encoding),
+        time_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
-        noeuds,
+        nodes,
         verifie,
     })
 }
 
-/// Exécute une charge une fois et rend la mesure. Paramètres :
-/// `alea-lcg <n>`, `philosophes <n> <chemin>`,
-/// `fenetre <taille> <nb_bases> [absolu|relatif]` (absolu par défaut).
-/// `observateur` : canal de narration (ADR-0100) — un événement
-/// `Attr`/`Synthétise` porte le récapitulatif de la charge.
-pub fn executer(
-    charge: &Charge,
-    parametres: &[String],
-    observateur: Option<&dyn Observer>,
-) -> Result<MesureConfrontation, ErreurConfrontation> {
-    match charge {
-        Charge::AleaLcg => {
-            let seul =
-                parametres
-                    .first()
-                    .ok_or_else(|| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::AleaLcg.etiquette(),
-                        detail: "attendu : alea-lcg <n>".to_string(),
+/// Runs a workload once and returns the measurement. Parameters:
+/// `random-lcg <n>`, `philosophers <n> <path>`,
+/// `window <size> <count_bases> [absolute|relative]` (absolute by default).
+/// `observer`: narration channel (ADR-0100) — an `Attribute`/`Synthesize`
+/// event carries the workload summary.
+pub fn execute(
+    workload: &Workload,
+    parameters: &[String],
+    observer: Option<&dyn Observer>,
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
+    match workload {
+        Workload::RandomLcg => {
+            let only = parameters
+                .first()
+                .ok_or_else(|| ErrorConfrontation::ParametersInvalid {
+                    workload: Workload::RandomLcg.label(),
+                    detail: "expected: random-lcg <n>".to_string(),
+                })?;
+            let number_variables =
+                only.parse::<u32>()
+                    .map_err(|_| ErrorConfrontation::ParametersInvalid {
+                        workload: Workload::RandomLcg.label(),
+                        detail: format!("unreadable n: {only}"),
                     })?;
-            let nombre_variables =
-                seul.parse::<u32>()
-                    .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::AleaLcg.etiquette(),
-                        detail: format!("n illisible : {seul}"),
-                    })?;
-            charge_alea_lcg(nombre_variables, observateur)
+            workload_random_lcg(number_variables, observer)
         }
-        Charge::Philosophes => {
-            let (premier, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
-                ErreurConfrontation::ParametresInvalides {
-                    charge: Charge::Philosophes.etiquette(),
-                    detail: "attendu : philosophes <n> <chemin>".to_string(),
+        Workload::Philosophers => {
+            let (first, second) = parameters.first().zip(parameters.get(1)).ok_or_else(|| {
+                ErrorConfrontation::ParametersInvalid {
+                    workload: Workload::Philosophers.label(),
+                    detail: "expected: philosophers <n> <path>".to_string(),
                 }
             })?;
-            let nombre_philosophes =
-                premier
+            let number_philosophers =
+                first
                     .parse::<u64>()
-                    .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Philosophes.etiquette(),
-                        detail: format!("n illisible : {premier}"),
+                    .map_err(|_| ErrorConfrontation::ParametersInvalid {
+                        workload: Workload::Philosophers.label(),
+                        detail: format!("unreadable n: {first}"),
                     })?;
-            charge_philosophes(nombre_philosophes, second, observateur)
+            workload_philosophers(number_philosophers, second, observer)
         }
-        Charge::Fenetre => {
-            let (premier, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
-                ErreurConfrontation::ParametresInvalides {
-                    charge: Charge::Fenetre.etiquette(),
-                    detail: "attendu : fenetre <taille> <nb_bases> [absolu|relatif]".to_string(),
+        Workload::Window => {
+            let (first, second) = parameters.first().zip(parameters.get(1)).ok_or_else(|| {
+                ErrorConfrontation::ParametersInvalid {
+                    workload: Workload::Window.label(),
+                    detail: "expected: window <size> <count_bases> [absolute|relative]".to_string(),
                 }
             })?;
-            let taille =
-                premier
-                    .parse::<u64>()
-                    .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Fenetre.etiquette(),
-                        detail: format!("taille illisible : {premier}"),
-                    })?;
-            let nb_bases =
+            let size = first
+                .parse::<u64>()
+                .map_err(|_| ErrorConfrontation::ParametersInvalid {
+                    workload: Workload::Window.label(),
+                    detail: format!("unreadable size: {first}"),
+                })?;
+            let count_bases =
                 second
                     .parse::<u64>()
-                    .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Fenetre.etiquette(),
-                        detail: format!("nb_bases illisible : {second}"),
+                    .map_err(|_| ErrorConfrontation::ParametersInvalid {
+                        workload: Workload::Window.label(),
+                        detail: format!("unreadable count_bases: {second}"),
                     })?;
-            let encodage = match parametres.get(2).map(String::as_str) {
-                None | Some("absolu") => Encodage::Absolu,
-                Some("relatif") => Encodage::Relatif,
-                Some(autre) => {
-                    return Err(ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Fenetre.etiquette(),
-                        detail: format!("encodage inconnu : {autre}"),
+            let encoding = match parameters.get(2).map(String::as_str) {
+                None | Some("absolute") => Encoding::Absolute,
+                Some("relative") => Encoding::Relative,
+                Some(other) => {
+                    return Err(ErrorConfrontation::ParametersInvalid {
+                        workload: Workload::Window.label(),
+                        detail: format!("unknown encoding: {other}"),
                     });
                 }
             };
-            charge_fenetre(taille, nb_bases, encodage, observateur)
+            workload_window(size, count_bases, encoding, observer)
         }
     }
 }

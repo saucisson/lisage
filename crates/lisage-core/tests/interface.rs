@@ -1,5 +1,5 @@
-//! Bornes `Send`/`Sync` des traits d'interface vérifiées à la compilation
-//! (M1-0) — complémentaire du test de sources de lisage-bench.
+//! `Send`/`Sync` bounds of the interface traits checked at compiled time
+//! (M1-0) — complement of the lisage-bench source test.
 
 use std::collections::BTreeMap;
 

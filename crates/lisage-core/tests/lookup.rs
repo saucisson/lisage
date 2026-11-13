@@ -1,6 +1,6 @@
-//! Tests de `lookup(k)` (M1-5, spec § 6) : modes cherche/extrait/stop,
-//! fragment de DD synthétisé, T-EXPAND + greffe quand le niveau valeur de
-//! la clé a été collapsé.
+//! `lookup(k)` tests (M1-5, spec § 6): seek/extract/stop modes,
+//! synthesized DD fragment, T-EXPAND + grafting when the value level of
+//! the key has been collapsed.
 
 use std::collections::BTreeMap;
 
@@ -8,162 +8,157 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::lookup::{Lookup, LookupController};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{ABSENT, Domaine, PRESENT, ReferenceController, Schema, compiler};
-use lisage_core::transduction::Transducteur;
+use lisage_core::schema::{ABSENT, Domain, PRESENT, ReferenceController, Schema, compiled};
+use lisage_core::transduction::Transducer;
 use lisage_lang::value::{Atom, Value};
 
-type PoolSortie = Arena<LookupController>;
+type PoolOutput = Arena<LookupController>;
 
-fn atome(valeur: u64) -> Value {
-    Value::Atom(Atom(valeur))
+fn atom(value: u64) -> Value {
+    Value::Atom(Atom(value))
 }
 
-fn map_de(paires: &[(u64, u64)]) -> Value {
+fn map_of(pairs: &[(u64, u64)]) -> Value {
     Value::Map(
-        paires
+        pairs
             .iter()
-            .map(|(cle, valeur)| (atome(*cle), atome(*valeur)))
+            .map(|(key, value)| (atom(*key), atom(*value)))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }
 
-/// Exécute `lookup(cle)` sur la map compilée et renvoie (résultat, fragment).
-fn executer_lookup(
+/// Runs `lookup(key)` on the compiled map and returns (result, fragment).
+fn execute_lookup(
     schema: &Schema,
-    liste_cles: &[Atom],
-    domaine_valeurs: &Domaine,
-    valeur: &Value,
-    cle: Atom,
-) -> (PoolSortie, NodeId, BTreeMap<u64, NodeId>) {
-    let mut entree = Arena::new(
+    list_keys: &[Atom],
+    domain_values: &Domain,
+    value: &Value,
+    key: Atom,
+) -> (PoolOutput, NodeId, BTreeMap<u64, NodeId>) {
+    let mut input = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         LookupController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
     let anchor = Anchor(0);
-    let racine = compiler(&mut entree, anchor, schema, valeur).unwrap();
-    let mut runner = Transducteur::new(Lookup::new(
-        cle,
-        liste_cles.to_vec(),
-        domaine_valeurs.clone(),
-    ));
-    let (resultat, fragment) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
-    (sortie, resultat, fragment)
+    let root = compiled(&mut input, anchor, schema, value).unwrap();
+    let mut runner = Transducer::new(Lookup::new(key, list_keys.to_vec(), domain_values.clone()));
+    let (result, fragment) = runner.run(&input, &mut output, anchor, root).unwrap();
+    (output, result, fragment)
 }
 
-/// Suit le chemin de la map dans le diagramme de sortie et renvoie le
-/// payload du terminal atteint (None si la clé suivie est absente de la
-/// map : l'arc par défaut mène à D_δ = ε(None)).
+/// Follows the path of the map in the output diagram and returns the
+/// payload of the reached terminal (None if the followed key is absent from the
+/// map: the default edge leads to D_δ = ε(None)).
 fn payload_terminal(
-    pool: &PoolSortie,
-    mut noeud: NodeId,
-    liste_cles: &[Atom],
+    pool: &PoolOutput,
+    mut node: NodeId,
+    list_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
 ) -> Option<u64> {
     loop {
-        match pool.resolve(noeud).unwrap() {
+        match pool.resolve(node).unwrap() {
             Form::Terminal(payload) => return *payload,
-            Form::Node { level, arcs } => {
+            Form::Node { level, edges } => {
                 let index = (level.0 / 2) as usize;
-                let cle = Value::Atom(liste_cles[index]);
+                let key = Value::Atom(list_keys[index]);
                 if level.0.is_multiple_of(2) {
-                    match map.get(&cle) {
-                        Some(_) => noeud = *arcs.get(&PRESENT).expect("arc présent"),
-                        // Arc par défaut implicite ⇒ D_δ = ε(None) ; arc
-                        // explicite (sous-arbre greffé) ⇒ on le suit.
-                        None => match arcs.get(&ABSENT) {
-                            Some(&suite) => noeud = suite,
+                    match map.get(&key) {
+                        Some(_) => node = *edges.get(&PRESENT).expect("present edge"),
+                        // Implicit default edge ⇒ D_δ = ε(None); explicit
+                        // edge (grafted subtree) ⇒ we follow it.
+                        None => match edges.get(&ABSENT) {
+                            Some(&suite) => node = suite,
                             None => return None,
                         },
                     }
                 } else {
-                    let Some(Value::Atom(valeur)) = map.get(&cle) else {
-                        panic!("clé présente avec valeur atomique")
+                    let Some(Value::Atom(value)) = map.get(&key) else {
+                        panic!("present key with atomic value")
                     };
-                    noeud = *arcs.get(&valeur.0).expect("arc valeur");
+                    node = *edges.get(&value.0).expect("value edge");
                 }
             }
         }
     }
 }
 
-/// Map à deux clés sur V = {0,1} : lookup retrouve la valeur des deux clés.
+/// Map with two keys over V = {0,1}: lookup retrieves the value of both keys.
 #[test]
-fn test_lookup_cles_presentes() {
-    let liste_cles = vec![Atom(0), Atom(1)];
-    let domaine_valeurs = Domaine::nouveau(vec![Atom(0), Atom(1)]);
-    let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
-    let valeur = map_de(&[(0, 1), (1, 0)]);
-    let Value::Map(ref map) = valeur else {
+fn test_lookup_keys_present() {
+    let list_keys = vec![Atom(0), Atom(1)];
+    let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
+    let schema = Schema::Map(list_keys.clone(), domain_values.clone());
+    let value = map_of(&[(0, 1), (1, 0)]);
+    let Value::Map(ref map) = value else {
         panic!("map")
     };
 
-    let (sortie, resultat, fragment) =
-        executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(0));
+    let (output, result, fragment) =
+        execute_lookup(&schema, &list_keys, &domain_values, &value, Atom(0));
     assert_eq!(
-        payload_terminal(&sortie, resultat, &liste_cles, map),
+        payload_terminal(&output, result, &list_keys, map),
         Some(1),
         "lookup(a) = 1"
     );
     assert!(
         fragment.contains_key(&1),
-        "le fragment porte l'arc valeur 1 vers ε(Some(1))"
+        "the fragment carries the value edge 1 to ε(Some(1))"
     );
 
-    let (sortie, resultat, _) =
-        executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(1));
+    let (output, result, _) = execute_lookup(&schema, &list_keys, &domain_values, &value, Atom(1));
     assert_eq!(
-        payload_terminal(&sortie, resultat, &liste_cles, map),
+        payload_terminal(&output, result, &list_keys, map),
         Some(0),
         "lookup(b) = 0"
     );
 }
 
-/// Clé absente de la map : le terminal vaut None (D_δ du pool de sortie).
+/// Key absent from the map: the terminal is None (D_δ of the output pool).
 #[test]
-fn test_lookup_cle_absente() {
-    let liste_cles = vec![Atom(0), Atom(1)];
-    let domaine_valeurs = Domaine::nouveau(vec![Atom(0), Atom(1)]);
-    let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
-    let valeur = map_de(&[(0, 1)]);
-    let Value::Map(ref map) = valeur else {
+fn test_lookup_key_absent() {
+    let list_keys = vec![Atom(0), Atom(1)];
+    let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
+    let schema = Schema::Map(list_keys.clone(), domain_values.clone());
+    let value = map_of(&[(0, 1)]);
+    let Value::Map(ref map) = value else {
         panic!("map")
     };
 
-    let (sortie, resultat, fragment) =
-        executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(1));
+    let (output, result, fragment) =
+        execute_lookup(&schema, &list_keys, &domain_values, &value, Atom(1));
     assert_eq!(
-        payload_terminal(&sortie, resultat, &liste_cles, map),
+        payload_terminal(&output, result, &list_keys, map),
         None,
-        "lookup(b) = None, clé absente"
+        "lookup(b) = None, absent key"
     );
-    assert!(fragment.is_empty(), "pas de fragment sans Stop");
+    assert!(fragment.is_empty(), "no fragment without Stop");
 }
 
-/// Domaine valeur de cardinalité 1 : le niveau val(k) est collapsé à la
-/// compilation ; φ_out le ré-explicite (T-EXPAND) et greffe Some(v).
+/// Value domain of cardinality 1: the level val(k) is collapsed at
+/// compilation; φ_out re-explicits it (T-EXPAND) and grafts Some(v).
 #[test]
-fn test_lookup_niveau_valeur_collapsed_t_expand() {
-    let liste_cles = vec![Atom(0)];
-    let domaine_valeurs = Domaine::nouveau(vec![Atom(0)]);
-    let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
-    let valeur = map_de(&[(0, 0)]);
-    let Value::Map(ref map) = valeur else {
+fn test_lookup_level_value_collapsed_t_expand() {
+    let list_keys = vec![Atom(0)];
+    let domain_values = Domain::new(vec![Atom(0)]);
+    let schema = Schema::Map(list_keys.clone(), domain_values.clone());
+    let value = map_of(&[(0, 0)]);
+    let Value::Map(ref map) = value else {
         panic!("map")
     };
 
-    let (sortie, resultat, fragment) =
-        executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(0));
+    let (output, result, fragment) =
+        execute_lookup(&schema, &list_keys, &domain_values, &value, Atom(0));
     assert_eq!(
-        payload_terminal(&sortie, resultat, &liste_cles, map),
+        payload_terminal(&output, result, &list_keys, map),
         Some(0),
-        "T-EXPAND : lookup(a) = 0 malgré le niveau valeur collapsé"
+        "T-EXPAND: lookup(a) = 0 despite the collapsed value level"
     );
     assert!(
         fragment.is_empty(),
-        "pas de Stop dans le cas collapsé : la valeur vit dans le DD (T-EXPAND)"
+        "no Stop in the collapsed case: the value lives in the DD (T-EXPAND)"
     );
 }

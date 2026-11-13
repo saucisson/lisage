@@ -1,36 +1,36 @@
-//! Tests de `saturate` (M2-4, spec § 7, T2/T3) : point fixe croissant,
-//! terminaison, restriction par niveaux de la politique Statique, retrait
-//! des niveaux stabilisés par la politique AutoDetectee, et chaîne
-//! croissante multi-itérations via `saturer`.
+//! Tests of `saturate` (M2-4, spec § 7, T2/T3): increasing fixpoint,
+//! termination, restriction by levels of the Static policy, removal
+//! of the levels stabilized by the AutoDetectee policy, and increasing
+//! multi-iteration chain via `saturer`.
 //!
-//! Les diagrammes dénotent des familles d'ensembles (style ZDD) : le
-//! point fixe de `X ⊕ τ(X)` avec une étape émettant le singleton `{a}` est
-//! la famille `{X, {a}}` — on compare donc les nœuds (et les cardinaux
-//! via `compter`), pas les valeurs décompilées.
+//! The diagrams denote families of sets (ZDD style): the fixpoint of
+//! `X ⊕ τ(X)` with a step emitting the singleton `{a}` is
+//! the family `{X, {a}}` — so we compare nodes (and cardinalities
+//! via `count`), not the decompiled values.
 
 use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
+use lisage_core::fold::{count, union};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{compter, union};
-use lisage_core::saturate::{BORNE_ITERATIONS, ParametresSaturation, PolitiqueSaturation, saturer};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
-use lisage_core::transduction::{ContextePhiOut, Transduction};
+use lisage_core::saturate::{BOUND_ITERATIONS, ParametersSaturation, PolicySaturation, saturer};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiled};
+use lisage_core::transduction::{ContextPhiOut, Transduction};
 use lisage_lang::value::{Atom, Value};
 
-/// Fingerprint de la transduction identité de test.
+/// Fingerprint of the test identity transduction.
 const FINGERPRINT_IDENTITE: u64 = 4001;
-/// Fingerprint de la transduction d'étape `EmetSingleton`.
+/// Fingerprint of the `EmitsSingleton` step transduction.
 const FINGERPRINT_EMET_SINGLETON: u64 = 4002;
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Transduction identité : copie le diagramme (union avec soi-même).
+/// Identity transduction: copies the diagram (union with itself).
 #[derive(Clone)]
-struct Identite;
+struct Identity;
 
-impl Transduction for Identite {
+impl Transduction for Identity {
     type H = ();
     type S = ();
     type Out = bool;
@@ -40,24 +40,24 @@ impl Transduction for Identite {
         FINGERPRINT_IDENTITE
     }
     fn h0(&self) {}
-    fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
+    fn phi_dispatch(&self, _level: Level, h: &(), _edge: u64) {
         let _ = h;
     }
-    fn phi_aggr(&self, _level: Level, _h: &(), _arcs: &BTreeMap<u64, (Option<Level>, ())>) {}
+    fn phi_aggregate(&self, _level: Level, _h: &(), _edges: &BTreeMap<u64, (Option<Level>, ())>) {}
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<()>) {
+        ctx: ContextPhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         (
             pool.intern(
                 ctx.anchor,
                 Form::Node {
                     level: ctx.level,
-                    arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+                    edges: ctx.edges.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -71,15 +71,15 @@ impl Transduction for Identite {
     }
 }
 
-/// Transduction d'étape qui émet toujours le singleton donné, quel que soit
-/// le nœud d'entrée : `τ(X) = {{ajout}}` pour tout `X` non terminal. L'union
-/// `X ⊕ {{ajout}}` fait croître la famille `X` jusqu'à contenir `{ajout}`.
+/// Step transduction that always emits the given singleton, whatever the
+/// input node: `τ(X) = {{ajout}}` for any not-terminal `X`. The union
+/// `X ⊕ {{ajout}}` grows the family `X` until it contains `{ajout}`.
 #[derive(Clone)]
-struct EmetSingleton {
+struct EmitsSingleton {
     singleton: NodeId,
 }
 
-impl Transduction for EmetSingleton {
+impl Transduction for EmitsSingleton {
     type H = ();
     type S = ();
     type Out = bool;
@@ -89,17 +89,17 @@ impl Transduction for EmetSingleton {
         FINGERPRINT_EMET_SINGLETON
     }
     fn h0(&self) {}
-    fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
+    fn phi_dispatch(&self, _level: Level, h: &(), _edge: u64) {
         let _ = h;
     }
-    fn phi_aggr(&self, _level: Level, _h: &(), _arcs: &BTreeMap<u64, (Option<Level>, ())>) {}
+    fn phi_aggregate(&self, _level: Level, _h: &(), _edges: &BTreeMap<u64, (Option<Level>, ())>) {}
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         _pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<()>) {
+        ctx: ContextPhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         let _ = ctx;
-        (self.singleton, lisage_core::memoire::EffetMemoire::new())
+        (self.singleton, lisage_core::memory::EffectMemory::new())
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
         &self,
@@ -112,222 +112,208 @@ impl Transduction for EmetSingleton {
     }
 }
 
-/// Construit un pool neuf pour le schéma donné.
-fn nouveau_pool(schema: &Schema) -> PoolRef {
+/// Builds a new pool for the given schema.
+fn new_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     )
 }
 
-/// Compile un ensemble d'atomes dans le pool.
-fn compiler_ensemble(
-    pool: &mut PoolRef,
-    anchor: Anchor,
-    schema: &Schema,
-    atomes: &[u64],
-) -> NodeId {
-    compiler(
+/// Compiles a set of atoms into the pool.
+fn compile_set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atoms: &[u64]) -> NodeId {
+    compiled(
         pool,
         anchor,
         schema,
-        &Value::Set(atomes.iter().map(|a| Value::Atom(Atom(*a))).collect()),
+        &Value::Set(atoms.iter().map(|a| Value::Atom(Atom(*a))).collect()),
     )
     .unwrap()
 }
 
-/// Cardinal d'un diagramme (nombre de membres de la famille dénotée).
-fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
-    let mut sortie = nouveau_pool(schema);
-    compter(pool, &mut sortie, Anchor(0), schema, noeud).unwrap()
+/// Cardinality of a diagram (number of members of the denoted family).
+fn cardinal(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
+    let mut output = new_pool(schema);
+    count(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
 
-/// M2-4, T2 : `saturer` termine et atteint un point fixe — avec une étape
-/// identité, le point fixe est immédiat (1 itération) et `X ⊕ id(X) = X`.
+/// M2-4, T2: `saturer` terminates and reaches a fixpoint — with an
+/// identity step, the fixpoint is immediate (1 iteration) and `X ⊕ id(X) = X`.
 #[test]
-fn test_saturate_termine_et_point_fixe() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+fn test_saturate_done_and_point_fixe() {
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let anchor = Anchor(0);
-    let initial = compiler_ensemble(&mut pool, anchor, &schema, &[0]);
+    let initial = compile_set(&mut pool, anchor, &schema, &[0]);
 
-    let politique = PolitiqueSaturation::AutoDetectee;
-    let mut params = ParametresSaturation {
-        transduction: &Identite,
-        politique: &politique,
+    let policy = PolicySaturation::AutoDetectee;
+    let mut params = ParametersSaturation {
+        transduction: &Identity,
+        policy: &policy,
         pool: &mut pool,
         keys: &keys,
         anchor,
         initial,
-        nombre_niveaux: schema.nombre_niveaux(),
-        observateur: None,
+        number_levels: schema.number_levels(),
+        observer: None,
     };
-    let resultat = saturer(&mut params).unwrap();
-    assert_eq!(
-        resultat.iterations, 1,
-        "identité : point fixe immédiat (T2)"
-    );
-    assert_eq!(resultat.noeud, initial, "X ⊕ id(X) = X");
+    let result = saturer(&mut params).unwrap();
+    assert_eq!(result.iterations, 1, "identity: immediate fixpoint (T2)");
+    assert_eq!(result.node, initial, "X ⊕ id(X) = X");
 }
 
-/// M2-4 : les deux politiques atteignent le même point fixe lorsque
-/// `Statique` déclare tous les niveaux du schéma.
+/// M2-4: the two policies reach the same fixpoint when
+/// `Static` declares all the levels of the schema.
 #[test]
-fn test_saturate_politiques_equivalentes() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+fn test_saturate_policies_equivalent() {
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
 
-    let niveaux: Vec<Level> = (0..schema.nombre_niveaux()).map(Level).collect();
-    let politique_statique = PolitiqueSaturation::Statique(niveaux);
-    let politique_auto = PolitiqueSaturation::AutoDetectee;
+    let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
+    let policy_static = PolicySaturation::Static(levels);
+    let policy_auto = PolicySaturation::AutoDetectee;
 
-    let mut pool_s = nouveau_pool(&schema);
-    let initial_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[0]);
-    let mut params = ParametresSaturation {
-        transduction: &Identite,
-        politique: &politique_statique,
+    let mut pool_s = new_pool(&schema);
+    let initial_s = compile_set(&mut pool_s, anchor, &schema, &[0]);
+    let mut params = ParametersSaturation {
+        transduction: &Identity,
+        policy: &policy_static,
         pool: &mut pool_s,
         keys: &keys,
         anchor,
         initial: initial_s,
-        nombre_niveaux: schema.nombre_niveaux(),
-        observateur: None,
+        number_levels: schema.number_levels(),
+        observer: None,
     };
-    let r_statique = saturer(&mut params).unwrap();
+    let r_static = saturer(&mut params).unwrap();
 
-    let mut pool_a = nouveau_pool(&schema);
-    let initial_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[0]);
-    let mut params = ParametresSaturation {
-        transduction: &Identite,
-        politique: &politique_auto,
+    let mut pool_a = new_pool(&schema);
+    let initial_a = compile_set(&mut pool_a, anchor, &schema, &[0]);
+    let mut params = ParametersSaturation {
+        transduction: &Identity,
+        policy: &policy_auto,
         pool: &mut pool_a,
         keys: &keys,
         anchor,
         initial: initial_a,
-        nombre_niveaux: schema.nombre_niveaux(),
-        observateur: None,
+        number_levels: schema.number_levels(),
+        observer: None,
     };
     let r_auto = saturer(&mut params).unwrap();
 
-    assert_eq!(
-        r_statique.noeud, initial_s,
-        "statique : point fixe = initial"
-    );
-    assert_eq!(
-        r_auto.noeud, initial_a,
-        "auto-détectée : point fixe = initial"
-    );
-    assert_eq!(r_statique.iterations, r_auto.iterations);
+    assert_eq!(r_static.node, initial_s, "static : point fixe = initial");
+    assert_eq!(r_auto.node, initial_a, "auto-detected: fixpoint = initial");
+    assert_eq!(r_static.iterations, r_auto.iterations);
 }
 
-/// M2-4 : la politique `Statique` restreint réellement les niveaux actifs —
-/// avec une étape qui émet un singleton à la racine (niveau 0), exclure le
-/// niveau 0 de la liste statique laisse le point fixe inchangé, tandis que
-/// `AutoDetectee` (tous niveaux actifs) l'atteint avec le singleton ajouté.
-/// Ce test échoue si le paramètre `politique` est ignoré.
+/// M2-4: the `Static` policy really restricts the active levels —
+/// with a step that emits a singleton at the root (level 0), excluding
+/// level 0 from the static list leaves the fixpoint unchanged, while
+/// `AutoDetectee` (all levels active) reaches it with the singleton added.
+/// This test fails if the `policy` parameter is ignored.
 #[test]
-fn test_saturate_statique_restreint_les_niveaux() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
+fn test_saturate_static_restricted_the_levels() {
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
 
-    // Politique Statique excluant le niveau racine 0.
-    let niveaux_sans_racine: Vec<Level> = (1..schema.nombre_niveaux()).map(Level).collect();
-    let politique_statique = PolitiqueSaturation::Statique(niveaux_sans_racine);
-    let mut pool_s = nouveau_pool(&schema);
-    let initial_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[0]);
-    let singleton_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[2]);
-    let etape_s = EmetSingleton {
+    // Static policy excluding the root level 0.
+    let levels_without_root: Vec<Level> = (1..schema.number_levels()).map(Level).collect();
+    let policy_static = PolicySaturation::Static(levels_without_root);
+    let mut pool_s = new_pool(&schema);
+    let initial_s = compile_set(&mut pool_s, anchor, &schema, &[0]);
+    let singleton_s = compile_set(&mut pool_s, anchor, &schema, &[2]);
+    let step_s = EmitsSingleton {
         singleton: singleton_s,
     };
-    let mut params = ParametresSaturation {
-        transduction: &etape_s,
-        politique: &politique_statique,
+    let mut params = ParametersSaturation {
+        transduction: &step_s,
+        policy: &policy_static,
         pool: &mut pool_s,
         keys: &keys,
         anchor,
         initial: initial_s,
-        nombre_niveaux: schema.nombre_niveaux(),
-        observateur: None,
+        number_levels: schema.number_levels(),
+        observer: None,
     };
-    let r_statique = saturer(&mut params).unwrap();
+    let r_static = saturer(&mut params).unwrap();
     assert_eq!(
-        r_statique.noeud, initial_s,
-        "niveau racine exclu : l'étape n'y est pas appliquée, point fixe = initial"
+        r_static.node, initial_s,
+        "root level excluded: the step is not applied there, fixpoint = initial"
     );
-    assert_eq!(r_statique.iterations, 1);
+    assert_eq!(r_static.iterations, 1);
 
-    // Politique AutoDetectee : tous les niveaux actifs, le singleton est
-    // atteint.
-    let politique_auto = PolitiqueSaturation::AutoDetectee;
-    let mut pool_a = nouveau_pool(&schema);
-    let initial_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[0]);
-    let singleton_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[2]);
-    let etape_a = EmetSingleton {
+    // AutoDetected policy: all levels active, the singleton is
+    // reached.
+    let policy_auto = PolicySaturation::AutoDetectee;
+    let mut pool_a = new_pool(&schema);
+    let initial_a = compile_set(&mut pool_a, anchor, &schema, &[0]);
+    let singleton_a = compile_set(&mut pool_a, anchor, &schema, &[2]);
+    let step_a = EmitsSingleton {
         singleton: singleton_a,
     };
-    let attendu_a = union(&mut pool_a, &keys, anchor, initial_a, singleton_a).unwrap();
-    let mut params = ParametresSaturation {
-        transduction: &etape_a,
-        politique: &politique_auto,
+    let expected_a = union(&mut pool_a, &keys, anchor, initial_a, singleton_a).unwrap();
+    let mut params = ParametersSaturation {
+        transduction: &step_a,
+        policy: &policy_auto,
         pool: &mut pool_a,
         keys: &keys,
         anchor,
         initial: initial_a,
-        nombre_niveaux: schema.nombre_niveaux(),
-        observateur: None,
+        number_levels: schema.number_levels(),
+        observer: None,
     };
     let r_auto = saturer(&mut params).unwrap();
     assert_eq!(
-        r_auto.noeud, attendu_a,
-        "tous niveaux actifs : le point fixe contient le singleton émis"
+        r_auto.node, expected_a,
+        "all levels active: the fixpoint contains the emitted singleton"
     );
     assert!(
         r_auto.iterations >= 2,
-        "chaîne croissante : plusieurs itérations, got {}",
+        "increasing chain: several iterations, got {}",
         r_auto.iterations
     );
 }
 
-/// M2-4, T2 : `saturer` avec une étape non triviale — chaîne croissante
-/// `{{0}} → {{0},{2}}` en appelant `saturer` (plusieurs itérations de la
-/// boucle de point fixe, pas une boucle réécrite à la main).
+/// M2-4, T2: `saturer` with a not-trivial step — increasing chain
+/// `{{0}} → {{0},{2}}` by calling `saturer` (several iterations of the
+/// fixpoint loop, not a hand-rewritten loop).
 #[test]
-fn test_saturate_chaine_croissante_multi_iterations() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
+fn test_saturate_string_increasing_multi_iterations() {
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));
     let keys = SchemaKeys::new(schema.clone());
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let anchor = Anchor(0);
 
-    let initial = compiler_ensemble(&mut pool, anchor, &schema, &[0]);
-    let singleton_2 = compiler_ensemble(&mut pool, anchor, &schema, &[2]);
-    let attendu = union(&mut pool, &keys, anchor, initial, singleton_2).unwrap();
-    let etape = EmetSingleton {
+    let initial = compile_set(&mut pool, anchor, &schema, &[0]);
+    let singleton_2 = compile_set(&mut pool, anchor, &schema, &[2]);
+    let expected = union(&mut pool, &keys, anchor, initial, singleton_2).unwrap();
+    let step = EmitsSingleton {
         singleton: singleton_2,
     };
-    let politique = PolitiqueSaturation::AutoDetectee;
-    let mut params = ParametresSaturation {
-        transduction: &etape,
-        politique: &politique,
+    let policy = PolicySaturation::AutoDetectee;
+    let mut params = ParametersSaturation {
+        transduction: &step,
+        policy: &policy,
         pool: &mut pool,
         keys: &keys,
         anchor,
         initial,
-        nombre_niveaux: schema.nombre_niveaux(),
-        observateur: None,
+        number_levels: schema.number_levels(),
+        observer: None,
     };
-    let resultat = saturer(&mut params).unwrap();
+    let result = saturer(&mut params).unwrap();
     assert!(
-        resultat.iterations >= 2,
-        "chaîne croissante : plusieurs itérations, got {}",
-        resultat.iterations
+        result.iterations >= 2,
+        "increasing chain: several iterations, got {}",
+        result.iterations
     );
-    assert!(resultat.iterations <= BORNE_ITERATIONS, "terminaison (T2)");
+    assert!(result.iterations <= BOUND_ITERATIONS, "terminaison (T2)");
     assert_eq!(
-        resultat.noeud, attendu,
-        "point fixe = union de l'initial et du singleton"
+        result.node, expected,
+        "fixpoint = union of the initial and the singleton"
     );
-    assert_eq!(cardinal(&pool, &schema, resultat.noeud), 2);
+    assert_eq!(cardinal(&pool, &schema, result.node), 2);
 }

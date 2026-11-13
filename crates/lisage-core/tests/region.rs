@@ -1,210 +1,208 @@
-//! Tests de l'algèbre de clés-régions, fragment intervalles (backlog § 9,
-//! question ouverte 9 de la spec) : forme normale canonique (C1 relatif à
-//! l'algèbre de régions), cardinalité, défaut, partage au pool, et
-//! différentiel contre l'énumération naïve sur un niveau.
+//! Region-key algebra tests, interval fragment (backlog § 9,
+//! open question 9 of the spec): canonical normal form (C1 relative to
+//! the region algebra), cardinality, default, sharing in the pool, and
+//! differential against naive enumeration over one level.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
+use lisage_core::region::{EMPTY, Interval, RegionController, RegionKeys};
 
 type PoolRegion = Arena<RegionController>;
 
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 
 fn pool(domaines: Vec<u64>) -> PoolRegion {
     Arena::new(
-        RegionController::nouveau(RegionKeys::nouvelle(domaines)),
+        RegionController::new(RegionKeys::new(domaines)),
         Box::new(NoOpObserver),
     )
 }
 
 #[test]
-fn test_intervalle_vide_normalise() {
-    let vide = Intervalle::nouveau(5, 3);
-    assert_eq!(vide, VIDE);
-    assert!(vide.est_vide());
-    assert_eq!(vide.taille(), 0);
-    assert!(!vide.contient(3));
-    let point = Intervalle::point(4);
-    assert!(!point.est_vide());
-    assert_eq!(point.taille(), 1);
-    assert!(point.contient(4));
-    assert!(!point.contient(5));
-    assert_eq!(Intervalle::nouveau(2, 5).taille(), 4);
+fn test_interval_empty_normalize() {
+    let empty = Interval::new(5, 3);
+    assert_eq!(empty, EMPTY);
+    assert!(empty.is_empty());
+    assert_eq!(empty.size(), 0);
+    assert!(!empty.contains(3));
+    let point = Interval::point(4);
+    assert!(!point.is_empty());
+    assert_eq!(point.size(), 1);
+    assert!(point.contains(4));
+    assert!(!point.contains(5));
+    assert_eq!(Interval::new(2, 5).size(), 4);
 }
 
 #[test]
-fn test_normal_form_canonique_et_idempotente() {
-    let keys = RegionKeys::nouvelle(vec![8]);
-    // Toute écriture d'un intervalle vide a la même forme normale.
-    assert_eq!(keys.normal_form(&Intervalle::nouveau(7, 2)), VIDE);
-    assert_eq!(keys.normal_form(&VIDE), VIDE);
-    // Forme normale idempotente, et stable sur les non-vides.
-    let intervalle = Intervalle::nouveau(2, 5);
-    assert_eq!(keys.normal_form(&keys.normal_form(&intervalle)), intervalle);
+fn test_normal_form_canonical_and_idempotent() {
+    let keys = RegionKeys::new(vec![8]);
+    // Any writing of an empty interval has the same normal form.
+    assert_eq!(keys.normal_form(&Interval::new(7, 2)), EMPTY);
+    assert_eq!(keys.normal_form(&EMPTY), EMPTY);
+    // Idempotent normal form, and stable on not-empty ones.
+    let interval = Interval::new(2, 5);
+    assert_eq!(keys.normal_form(&keys.normal_form(&interval)), interval);
 }
 
 #[test]
-fn test_cardinalite_et_defaut_par_niveau() {
-    let keys = RegionKeys::nouvelle(vec![8, 3]);
+fn test_cardinality_and_default_by_level() {
+    let keys = RegionKeys::new(vec![8, 3]);
     assert_eq!(keys.cardinality(Level(0)), 8);
     assert_eq!(keys.cardinality(Level(1)), 3);
-    // δ(ℓ) = l'intervalle vide, l'« absent » continu.
-    assert_eq!(keys.default(Level(0)), Some(VIDE));
-    assert_eq!(keys.default(Level(1)), Some(VIDE));
+    // δ(ℓ) = the empty interval, the continuous "absent".
+    assert_eq!(keys.default(Level(0)), Some(EMPTY));
+    assert_eq!(keys.default(Level(1)), Some(EMPTY));
 }
 
-/// C1 relatif : deux écritures d'une même région partagent le même nœud au
-/// pool (R-share après forme normale), deux régions distinctes non.
+/// Relative C1: two writings of the same region share the same node in the
+/// pool (R-share after normal form), two distinct regions do not.
 #[test]
-fn test_partage_pool_c1_relatif() {
+fn test_shared_pool_c1_relative() {
     let mut pool = pool(vec![8]);
-    let terminal = pool.intern(ANCRE, Form::Terminal(true));
-    let niveau = Level(0);
-    let forme_vide_a = Form::Node {
-        level: niveau,
-        arcs: BTreeMap::from([(VIDE, terminal)]),
+    let terminal = pool.intern(ANCHOR, Form::Terminal(true));
+    let level = Level(0);
+    let form_empty_a = Form::Node {
+        level,
+        edges: BTreeMap::from([(EMPTY, terminal)]),
     };
-    let forme_vide_b = Form::Node {
-        level: niveau,
-        arcs: BTreeMap::from([(Intervalle::nouveau(9, 2), terminal)]),
-    };
-    assert_eq!(
-        pool.intern(ANCRE, forme_vide_a.clone()),
-        pool.intern(ANCRE, forme_vide_b),
-        "intervalle vide sous deux écritures = même nœud"
-    );
-    let forme_point_a = Form::Node {
-        level: niveau,
-        arcs: BTreeMap::from([(Intervalle::point(3), terminal)]),
-    };
-    let forme_point_b = Form::Node {
-        level: niveau,
-        arcs: BTreeMap::from([(Intervalle::nouveau(3, 3), terminal)]),
+    let form_empty_b = Form::Node {
+        level,
+        edges: BTreeMap::from([(Interval::new(9, 2), terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCRE, forme_point_a.clone()),
-        pool.intern(ANCRE, forme_point_b),
-        "point écrit deux façons = même nœud"
+        pool.intern(ANCHOR, form_empty_a.clone()),
+        pool.intern(ANCHOR, form_empty_b),
+        "empty interval under two writings = same node"
     );
-    let forme_autre = Form::Node {
-        level: niveau,
-        arcs: BTreeMap::from([(Intervalle::point(4), terminal)]),
+    let form_point_a = Form::Node {
+        level,
+        edges: BTreeMap::from([(Interval::point(3), terminal)]),
+    };
+    let form_point_b = Form::Node {
+        level,
+        edges: BTreeMap::from([(Interval::new(3, 3), terminal)]),
+    };
+    assert_eq!(
+        pool.intern(ANCHOR, form_point_a.clone()),
+        pool.intern(ANCHOR, form_point_b),
+        "point written two ways = same node"
+    );
+    let form_other = Form::Node {
+        level,
+        edges: BTreeMap::from([(Interval::point(4), terminal)]),
     };
     assert_ne!(
-        pool.intern(ANCRE, forme_point_a),
-        pool.intern(ANCRE, forme_autre),
-        "régions distinctes = nœuds distincts"
+        pool.intern(ANCHOR, form_point_a),
+        pool.intern(ANCHOR, form_other),
+        "distinct regions = distinct nodes"
     );
 }
 
-/// Propriété (LCG) : la forme normale est idempotente, et taille/est_vide/
-/// contient sont cohérents avec la représentation normalisée.
+/// Property (LCG): the normal form is idempotent, and size/is_empty/
+/// contains are consistent with the normalized representation.
 #[test]
-fn test_propriete_normalisation_lcg() {
+fn test_property_normalisation_lcg() {
     const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
-    let keys = RegionKeys::nouvelle(vec![16]);
+    const NUMBER_CAS: u64 = 30;
+    let keys = RegionKeys::new(vec![16]);
     let mut graine = GRAINE_LCG;
-    for _ in 0..NOMBRE_CAS {
-        let mut suivant = || {
+    for _ in 0..NUMBER_CAS {
+        let mut next = || {
             graine = graine
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
             graine
         };
-        let inf = suivant() % 16;
-        let sup = suivant() % 16;
-        let intervalle = Intervalle::nouveau(inf, sup);
-        let normalisee = keys.normal_form(&intervalle);
-        assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
-        assert_eq!(normalisee.est_vide(), inf > sup);
+        let inf = next() % 16;
+        let sup = next() % 16;
+        let interval = Interval::new(inf, sup);
+        let normalized = keys.normal_form(&interval);
+        assert_eq!(keys.normal_form(&normalized), normalized, "idempotence");
+        assert_eq!(normalized.is_empty(), inf > sup);
+        assert_eq!(normalized.size(), if inf > sup { 0 } else { sup - inf + 1 });
+        let point = next() % 16;
         assert_eq!(
-            normalisee.taille(),
-            if inf > sup { 0 } else { sup - inf + 1 }
-        );
-        let point = suivant() % 16;
-        assert_eq!(
-            normalisee.contient(point),
-            !normalisee.est_vide() && inf <= point && point <= sup
+            normalized.contains(point),
+            !normalized.is_empty() && inf <= point && point <= sup
         );
     }
 }
 
-/// Différentiel contre l'énumération naïve : un nœud de niveau 0 dont les
-/// arcs sont des intervalles disjoints vers `terminal(true)` (l'ensemble S)
-/// ou `terminal(false)` (son complémentaire) représente S ; le compte de
-/// points des arcs vrais du DD égale |S|. L'arc `VIDE` vers le défaut est
-/// supprimé par R-default.
+/// Differential against naive enumeration: a level-0 node whose
+/// edges are disjoint intervals to `terminal(true)` (the set S)
+/// or `terminal(false)` (its complement) represents S; the point count
+/// of the true edges of the DD equals |S|. The `EMPTY` edge to the default is
+/// removed by R-default.
 #[test]
-fn test_differentiel_union_intervalles_contre_enumeration() {
+fn test_differential_union_intervals_against_enumeration() {
     const GRAINE_LCG: u64 = 0x2545_F491_4F6C_DD1D;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
-    const TAILLE_DOMAINE: u64 = 12;
-    let mut pool = pool(vec![TAILLE_DOMAINE]);
-    let vrai_terminal = pool.intern(ANCRE, Form::Terminal(true));
-    let faux_terminal = pool.intern(ANCRE, Form::Terminal(false));
+    const NUMBER_CAS: u64 = 30;
+    const SIZE_DOMAINE: u64 = 12;
+    let mut pool = pool(vec![SIZE_DOMAINE]);
+    let true_terminal = pool.intern(ANCHOR, Form::Terminal(true));
+    let false_terminal = pool.intern(ANCHOR, Form::Terminal(false));
     let mut graine = GRAINE_LCG;
-    for _ in 0..NOMBRE_CAS {
-        let mut suivant = || {
+    for _ in 0..NUMBER_CAS {
+        let mut next = || {
             graine = graine
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
             graine
         };
-        // Sous-ensemble S de [0, TAILLE_DOMAINE) tiré au LCG.
-        let ensemble: BTreeSet<u64> = (0..TAILLE_DOMAINE).filter(|_| suivant() % 2 == 1).collect();
-        // Compression de S et de son complémentaire en intervalles disjoints.
-        let mut arcs = BTreeMap::new();
+        // Subset S of [0, SIZE_DOMAINE) drawn from the LCG.
+        let set: BTreeSet<u64> = (0..SIZE_DOMAINE).filter(|_| next() % 2 == 1).collect();
+        // Compression of S and its complement into disjoint intervals.
+        let mut edges = BTreeMap::new();
         let mut point = 0;
-        while point < TAILLE_DOMAINE {
-            let dans_s = ensemble.contains(&point);
-            let mut fin = point;
-            while fin + 1 < TAILLE_DOMAINE && ensemble.contains(&(fin + 1)) == dans_s {
-                fin += 1;
+        while point < SIZE_DOMAINE {
+            let in_s = set.contains(&point);
+            let mut end = point;
+            while end + 1 < SIZE_DOMAINE && set.contains(&(end + 1)) == in_s {
+                end += 1;
             }
-            arcs.insert(
-                Intervalle::nouveau(point, fin),
-                if dans_s { vrai_terminal } else { faux_terminal },
+            edges.insert(
+                Interval::new(point, end),
+                if in_s { true_terminal } else { false_terminal },
             );
-            point = fin + 1;
+            point = end + 1;
         }
-        // L'arc absent mène au défaut D_δ = terminal(false) : R-default.
-        arcs.insert(VIDE, faux_terminal);
-        let racine = pool.intern(
-            ANCRE,
+        // The absent edge leads to the default D_δ = terminal(false): R-default.
+        edges.insert(EMPTY, false_terminal);
+        let root = pool.intern(
+            ANCHOR,
             Form::Node {
                 level: Level(0),
-                arcs,
+                edges,
             },
         );
-        let compte_dd: u64 = match pool.resolve(racine).expect("nœud interné") {
-            Form::Terminal(valeur) => {
-                // R-collapse : S vide ou plein, le nœud se réduit au terminal.
-                if *valeur { TAILLE_DOMAINE } else { 0 }
+        let count_dd: u64 = match pool.resolve(root).expect("interned node") {
+            Form::Terminal(value) => {
+                // R-collapse: S empty or full, the node reduces to the terminal.
+                if *value { SIZE_DOMAINE } else { 0 }
             }
-            Form::Node { arcs, .. } => {
+            Form::Node { edges, .. } => {
                 assert!(
-                    !arcs.contains_key(&VIDE),
-                    "R-default supprime l'arc vers le défaut"
+                    !edges.contains_key(&EMPTY),
+                    "R-default removes the edge to the default"
                 );
-                arcs.iter()
-                    .filter(|(_, cible)| **cible == vrai_terminal)
-                    .map(|(intervalle, _)| intervalle.taille())
+                edges
+                    .iter()
+                    .filter(|(_, target)| **target == true_terminal)
+                    .map(|(interval, _)| interval.size())
                     .sum()
             }
         };
         assert_eq!(
-            compte_dd,
-            ensemble.len() as u64,
-            "compte DD == cardinal naïf de S"
+            count_dd,
+            set.len() as u64,
+            "DD count == naive cardinality of S"
         );
     }
 }

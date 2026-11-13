@@ -1,136 +1,136 @@
-//! Algèbre de clés-régions, fragment **DBM** (backlog § 9 de la feuille de
-//! route, question ouverte 9 de la spec, veine #83 après le fragment
-//! intervalles #85-précédent) : la clé d'arc est une **matrice de bornes de
-//! différences** (DBM), région convexe de la boîte bornée `[0, N)^n`.
+//! Region-key algebra, **DBM** fragment (backlog § 9 of the roadmap,
+//! open question 9 of the spec, thread #83 after the previous
+//! interval fragment #85): the edge key is a **difference bound matrix**
+//! (DBM), a convex region of the bounded box `[0, N)^n`.
 //!
-//! Forme normale canonique = **clôture par plus courts chemins**
-//! (Floyd-Warshall) : deux écritures d'une même région ont la même clôture,
-//! l'égalité est décidable, C1 tient relativement à l'algèbre de régions.
-//! Une région incohérente (diagonale négative après clôture) est normalisée
-//! au canonique [`INCOHERENT`], la région vide — l'« absent » continu δ(ℓ).
+//! Canonical normal form = **shortest-path closure**
+//! (Floyd-Warshall): two writings of the same region have the same closure,
+//! equality is decidable, C1 holds relative to the region algebra.
+//! An inconsistent region (negative diagonal after closure) is normalized
+//! to the canonical [`INCONSISTENT`], the empty region — the continuous "absent" δ(ℓ).
 //!
-//! Les bornes sont stockées en `i128` en interne : la clôture somme des
-//! bornes `i64` ne peut pas déborder. La mesure de Lebesgue 2D (aire de la
-//! zone ∩ boîte, [`DbmKeys::mesure_zone`]) et l'intégrale au pli sur clés
-//! DBM (`crate::integrale::integrale_dbm_constante`) complètent ce fragment
-//! côté mesure ; le semi-anneau à densités polynomiales reste hors fragment.
+//! The bounds are stored as `i128` internally: the closure sum of the
+//! `i64` bounds cannot overflow. The 2D Lebesgue measure (area of the
+//! zone ∩ box, [`DbmKeys::measure_zone`]) and the fold integral over DBM
+//! keys (`crate::integral::integral_dbm_constant`) complete this fragment
+//! on the measure side; the semiring with polynomial densities stays out of scope.
 
 use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};
 
-/// Nombre de variables d'une DBM nulle (région vide canonique sans variable).
-pub const INCOHERENT: Dbm = Dbm {
-    nombre_variables: 0,
-    matrice: Vec::new(),
+/// Number of variables of a null DBM (canonical empty region without variable).
+pub const INCONSISTENT: Dbm = Dbm {
+    number_variables: 0,
+    matrix: Vec::new(),
 };
 
-/// Clé-région convexe : DBM sur `nombre_variables` variables, `matrice[i][j]`
-/// = borne `Some(c)` de la contrainte `x_i − x_j ≤ c` (`None` = pas de
-/// contrainte). Toute construction passe par [`Dbm::nouveau`], qui pose la
-/// diagonale à `x_i − x_i ≤ 0` et normalise : clôture canonique, et région
-/// incohérente → [`INCOHERENT`]. L'égalité dérivée est alors l'égalité des
-/// régions.
+/// Convex region key: DBM over `number_variables` variables, `matrix[i][j]`
+/// = bound `Some(c)` of the constraint `x_i − x_j ≤ c` (`None` = no
+/// constraint). Every construction goes through [`Dbm::new`], which sets the
+/// diagonal to `x_i − x_i ≤ 0` and normalizes: canonical closure, and
+/// inconsistent region → [`INCONSISTENT`]. The derived equality is then the
+/// equality of the regions.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Dbm {
-    nombre_variables: usize,
-    matrice: Vec<Vec<Option<i128>>>,
+    number_variables: usize,
+    matrix: Vec<Vec<Option<i128>>>,
 }
 
 impl Dbm {
-    /// DBM sur `nombre_variables` variables à partir de contraintes
-    /// `(i, j, c)` signifiant `x_i − x_j ≤ c`, puis normalisation (clôture
-    /// canonique ; incohérence → [`INCOHERENT`]).
-    pub fn nouveau(nombre_variables: usize, contraintes: &[(usize, usize, i64)]) -> Self {
-        let n = nombre_variables;
-        let mut matrice = vec![vec![None; n]; n];
-        for (i, ligne) in matrice.iter_mut().enumerate() {
-            ligne[i] = Some(0);
+    /// DBM over `number_variables` variables from constraints
+    /// `(i, j, c)` meaning `x_i − x_j ≤ c`, then normalization (canonical
+    /// closure; inconsistency → [`INCONSISTENT`]).
+    pub fn new(number_variables: usize, constraints: &[(usize, usize, i64)]) -> Self {
+        let n = number_variables;
+        let mut matrix = vec![vec![None; n]; n];
+        for (i, line) in matrix.iter_mut().enumerate() {
+            line[i] = Some(0);
         }
-        for &(i, j, c) in contraintes {
+        for &(i, j, c) in constraints {
             assert!(
                 i < n && j < n,
-                "contrainte hors domaine (invariant interne)"
+                "constraint outside domain (internal invariant)"
             );
-            let borne = i128::from(c);
-            matrice[i][j] = Some(match matrice[i][j] {
-                Some(ancienne) => ancienne.min(borne),
-                None => borne,
+            let bound = i128::from(c);
+            matrix[i][j] = Some(match matrix[i][j] {
+                Some(previousne) => previousne.min(bound),
+                None => bound,
             });
         }
-        Self::fermer(n, matrice)
+        Self::close(n, matrix)
     }
 
-    /// Forme normale de la région : clôture de la matrice courante (point
-    /// fixe si déjà normalisée), incohérence → [`INCOHERENT`].
+    /// Normal form of the region: closure of the current matrix (fixpoint
+    /// if already normalized), inconsistency → [`INCONSISTENT`].
     fn normaliser(&self) -> Self {
-        if self.est_vide() {
-            return INCOHERENT;
+        if self.is_empty() {
+            return INCONSISTENT;
         }
-        Self::fermer(self.nombre_variables, self.matrice.clone())
+        Self::close(self.number_variables, self.matrix.clone())
     }
 
-    /// Clôture par plus courts chemins (Floyd-Warshall) ; si une diagonale
-    /// devient négative, la région est vide → [`INCOHERENT`].
-    fn fermer(nombre_variables: usize, mut matrice: Vec<Vec<Option<i128>>>) -> Self {
-        let n = nombre_variables;
+    /// Shortest-path closure (Floyd-Warshall); if a diagonal
+    /// becomes negative, the region is empty → [`INCONSISTENT`].
+    fn close(number_variables: usize, mut matrix: Vec<Vec<Option<i128>>>) -> Self {
+        let n = number_variables;
         for k in 0..n {
             for i in 0..n {
                 for j in 0..n {
-                    if let (Some(a), Some(b)) = (matrice[i][k], matrice[k][j]) {
-                        let somme = a + b;
-                        matrice[i][j] = Some(match matrice[i][j] {
-                            Some(ancienne) => ancienne.min(somme),
-                            None => somme,
+                    if let (Some(a), Some(b)) = (matrix[i][k], matrix[k][j]) {
+                        let sum = a + b;
+                        matrix[i][j] = Some(match matrix[i][j] {
+                            Some(previousne) => previousne.min(sum),
+                            None => sum,
                         });
                     }
                 }
             }
         }
-        if (0..n).any(|i| matches!(matrice[i][i], Some(d) if d < 0)) {
-            return INCOHERENT;
+        if (0..n).any(|i| matches!(matrix[i][i], Some(d) if d < 0)) {
+            return INCONSISTENT;
         }
         Dbm {
-            nombre_variables: n,
-            matrice,
+            number_variables: n,
+            matrix,
         }
     }
 
-    /// Nombre de variables de la région.
-    pub fn nombre_variables(&self) -> usize {
-        self.nombre_variables
+    /// Number of variables of the region.
+    pub fn number_variables(&self) -> usize {
+        self.number_variables
     }
 
-    /// Matrice des bornes `matrice[i][j]` = `Some(c)` pour `x_i − x_j ≤ c`.
-    pub fn matrice(&self) -> &[Vec<Option<i128>>] {
-        &self.matrice
+    /// Matrix of bounds `matrix[i][j]` = `Some(c)` for `x_i − x_j ≤ c`.
+    pub fn matrix(&self) -> &[Vec<Option<i128>>] {
+        &self.matrix
     }
 
-    /// La région est-elle vide (incohérente) ?
-    pub fn est_vide(&self) -> bool {
-        *self == INCOHERENT
+    /// Is the region empty (inconsistent)?
+    pub fn is_empty(&self) -> bool {
+        *self == INCONSISTENT
     }
 
-    /// Intersection (meet) de deux régions : borne `x_i − x_j ≤ min(c, c')`
-    /// point par point, puis clôture canonique. L'intersection de deux
-    /// régions convexes est convexe : le meet de deux DBM clôturées est
-    /// déjà clôturé, la fermeture est idempotente. Toute région vide
-    /// donne [`INCOHERENT`].
-    pub fn intersection(&self, autre: &Dbm) -> Dbm {
-        if self.est_vide() || autre.est_vide() {
-            return INCOHERENT;
+    /// Intersection (meet) of two regions: bound `x_i − x_j ≤ min(c, c')`
+    /// point by point, then canonical closure. The intersection of two
+    /// convex regions is convex: the meet of two closed DBMs is
+    /// already closed, the closure is idempotent. Any empty region
+    /// donne [`INCONSISTENT`].
+    pub fn intersection(&self, other: &Dbm) -> Dbm {
+        if self.is_empty() || other.is_empty() {
+            return INCONSISTENT;
         }
         assert_eq!(
-            self.nombre_variables, autre.nombre_variables,
-            "intersection de régions de dimensions différentes (invariant interne)"
+            self.number_variables, other.number_variables,
+            "intersection of regions of different dimensions (internal invariant)"
         );
-        let n = self.nombre_variables;
-        let matrice: Vec<Vec<Option<i128>>> = self
-            .matrice
+        let n = self.number_variables;
+        let matrix: Vec<Vec<Option<i128>>> = self
+            .matrix
             .iter()
-            .zip(&autre.matrice)
-            .map(|(ligne_a, ligne_b)| {
-                ligne_a
+            .zip(&other.matrix)
+            .map(|(line_a, line_b)| {
+                line_a
                     .iter()
-                    .zip(ligne_b)
+                    .zip(line_b)
                     .map(|(a, b)| match (a, b) {
                         (Some(a), Some(b)) => Some((*a).min(*b)),
                         (Some(a), None) => Some(*a),
@@ -140,21 +140,21 @@ impl Dbm {
                     .collect()
             })
             .collect();
-        Self::fermer(n, matrice)
+        Self::close(n, matrix)
     }
 
-    /// Le point `point[i] = x_i` appartient-il à la région ?
-    pub fn contient(&self, point: &[u64]) -> bool {
-        if self.est_vide() {
+    /// Does the point `point[i] = x_i` belong to the region?
+    pub fn contains(&self, point: &[u64]) -> bool {
+        if self.is_empty() {
             return false;
         }
         assert_eq!(
             point.len(),
-            self.nombre_variables,
-            "point de mauvaise dimension (invariant interne)"
+            self.number_variables,
+            "point of wrong dimension (internal invariant)"
         );
-        (0..self.nombre_variables).all(|i| {
-            (0..self.nombre_variables).all(|j| match self.matrice[i][j] {
+        (0..self.number_variables).all(|i| {
+            (0..self.number_variables).all(|j| match self.matrix[i][j] {
                 Some(c) => i128::from(point[i]) - i128::from(point[j]) <= c,
                 None => true,
             })
@@ -162,59 +162,59 @@ impl Dbm {
     }
 }
 
-/// Algèbre de clés-régions DBM sur domaine borné par variable :
-/// `Val(ℓ) = [0, taille_domaine)`, une clé = une région convexe de la boîte,
-/// `δ(ℓ)` = la région vide [`INCOHERENT`].
+/// DBM region-key algebra over a per-variable bounded domain:
+/// `Val(ℓ) = [0, size_domain)`, a key = a convex region of the box,
+/// `δ(ℓ)` = the empty region [`INCONSISTENT`].
 #[derive(Clone)]
 pub struct DbmKeys {
-    taille_domaine: u64,
+    size_domain: u64,
 }
 
 impl DbmKeys {
-    /// Algèbre pour des variables à domaine borné `[0, taille_domaine)`.
-    pub fn nouvelle(taille_domaine: u64) -> Self {
-        DbmKeys { taille_domaine }
+    /// Algebra for variables with bounded domain `[0, size_domain)`.
+    pub fn new(size_domain: u64) -> Self {
+        DbmKeys { size_domain }
     }
 
-    /// Taille du domaine d'une variable, `Val(ℓ) = [0, taille)`.
-    pub fn taille_domaine(&self) -> u64 {
-        self.taille_domaine
+    /// Size of a variable's domain, `Val(ℓ) = [0, size)`.
+    pub fn size_domain(&self) -> u64 {
+        self.size_domain
     }
 
-    /// Couverture : la famille de régions couvre-t-elle toute la boîte
-    /// bornée `[0, taille_domaine)^n` (n = dimension des régions) ?
+    /// Coverage: does the family of regions cover the whole bounded
+    /// box `[0, size_domain)^n` (n = dimension of the regions)?
     ///
-    /// Contrat de clés déclaré côté contrôleur (feuille de route § 9 :
-    /// « forme normale, couverture, intersection »). Décidable par
-    /// balayage d'univers **seulement si l'univers est borné à régions
-    /// énumérables** (spec Q9) : sur le domaine continu, le balayage ne
-    /// compile pas et le royaume libre DDD est assumé — la couverture se
-    /// déclare alors par les arcs explicites du diagramme, elle ne se
-    /// calcule pas.
-    /// **Mesure de Lebesgue** de la zone intersectée à la boîte
-    /// `[0, taille_domaine)²`, rendue **doublée** (aire × 2, exacte en
-    /// `i128` : l'aire peut être demi-entière). Réservé aux zones **2D** :
-    /// une DBM à 2 variables est une bande `−b ≤ x − y ≤ a` (les seules
-    /// contraintes hors diagonale sont `matrice[0][1]` et `matrice[1][0]`),
-    /// et l'aire de la bande ∩ carré `[0, N]²` vaut `f(−b) − f(a)` avec
-    /// `f(t)` = aire de `{x − y > t}` : 0 si `t ≥ N`, `N²` si `t ≤ −N`,
-    /// `(N − t)²/2` si `0 ≤ t < N`, `N² − (N + t)²/2` si `−N < t < 0`.
-    /// Zone vide → 0. (Spec Q9 (ii) :
-    /// « régions polyédriques » — le cas 2D exact ; n > 2 hors fragment.)
-    pub fn mesure_zone(&self, zone: &Dbm) -> i128 {
-        if zone.est_vide() {
+    /// Key contract declared on the controller side (roadmap § 9:
+    /// "normal form, coverage, intersection"). Decidable by
+    /// universe sweep **only if the universe is bounded to enumerable
+    /// regions** (spec Q9): on the continuous domain, the sweep does
+    /// not compiled and the free DDD kingdom is assumed — coverage is
+    /// then declared by the explicit edges of the diagram, it is not
+    /// computed.
+    /// **Lebesgue measure** of the zone intersected with the box
+    /// `[0, size_domain)²`, returned **doubled** (area × 2, exact in
+    /// `i128`: the area can be half-integer). Reserved for **2D** zones:
+    /// a 2-variable DBM is a band `−b ≤ x − y ≤ a` (the only
+    /// off-diagonal constraints are `matrix[0][1]` and `matrix[1][0]`),
+    /// and the area of the band ∩ square `[0, N]²` is `f(−b) − f(a)` with
+    /// `f(t)` = area of `{x − y > t}`: 0 if `t ≥ N`, `N²` if `t ≤ −N`,
+    /// `(N − t)²/2` if `0 ≤ t < N`, `N² − (N + t)²/2` if `−N < t < 0`.
+    /// Empty zone → 0. (Spec Q9 (ii):
+    /// "polyhedral regions" — the exact 2D case; n > 2 out of scope.)
+    pub fn measure_zone(&self, zone: &Dbm) -> i128 {
+        if zone.is_empty() {
             return 0;
         }
         assert_eq!(
-            zone.nombre_variables(),
+            zone.number_variables(),
             2,
-            "mesure exacte réservée aux zones 2D (invariant interne)"
+            "exact measure reserved for 2D zones (internal invariant)"
         );
-        let n = i128::from(self.taille_domaine);
-        // Aire doublée de {x − y > t} dans le carré [0, N]² : triangle de
-        // côtés N − t si t ≥ 0, carré moins triangle de côtés N + t si
+        let n = i128::from(self.size_domain);
+        // Doubled area of {x − y > t} in the square [0, N]²: triangle with
+        // sides N − t if t ≥ 0, square minus triangle with sides N + t if
         // t < 0.
-        let au_dessus = |t: i128| -> i128 {
+        let above = |t: i128| -> i128 {
             if t >= n {
                 0
             } else if t <= -n {
@@ -225,50 +225,50 @@ impl DbmKeys {
                 2 * n * n - (n + t) * (n + t)
             }
         };
-        let a = zone.matrice()[0][1];
-        let b = zone.matrice()[1][0];
-        // Aire de la bande −b ≤ x−y ≤ a = {x−y > −b} moins {x−y > a}.
-        let aire_doublee = match b {
+        let a = zone.matrix()[0][1];
+        let b = zone.matrix()[1][0];
+        // Area of the band −b ≤ x−y ≤ a = {x−y > −b} minus {x−y > a}.
+        let area_doubled = match b {
             None => 2 * n * n,
-            Some(b) => au_dessus(-b),
+            Some(b) => above(-b),
         } - match a {
             None => 0,
-            Some(a) => au_dessus(a),
+            Some(a) => above(a),
         };
         debug_assert!(
-            aire_doublee >= 0,
-            "aire négative : zone non clôturée (invariant interne)"
+            area_doubled >= 0,
+            "negative area: zone not closed (internal invariant)"
         );
-        aire_doublee.max(0)
+        area_doubled.max(0)
     }
 
-    pub fn couverture(&self, regions: &[Dbm]) -> bool {
-        // La région vide ne couvre rien ; la dimension est celle des
-        // régions non vides (une famille de régions vides ne couvre pas).
+    pub fn coverage(&self, regions: &[Dbm]) -> bool {
+        // The empty region covers nothing; the dimension is that of the
+        // not-empty regions (a family of empty regions covers nothing).
         let Some(n) = regions
             .iter()
-            .find(|region| !region.est_vide())
-            .map(Dbm::nombre_variables)
+            .find(|region| !region.is_empty())
+            .map(Dbm::number_variables)
         else {
             return false;
         };
         for region in regions {
-            if !region.est_vide() {
+            if !region.is_empty() {
                 assert_eq!(
-                    region.nombre_variables(),
+                    region.number_variables(),
                     n,
-                    "couverture d'une famille hétérogène (invariant interne)"
+                    "coverage of a heterogeneous family (internal invariant)"
                 );
             }
         }
-        let taille = self.taille_domaine;
-        // Balayage d'univers de la boîte bornée (odomètre sur n variables).
+        let size = self.size_domain;
+        // Universe sweep of the bounded box (odometer over n variables).
         let mut point = vec![0u64; n];
         loop {
-            if !regions.iter().any(|region| region.contient(&point)) {
+            if !regions.iter().any(|region| region.contains(&point)) {
                 return false;
             }
-            // Incrémentation odométrique.
+            // Odometer increment.
             let mut i = n;
             loop {
                 if i == 0 {
@@ -276,7 +276,7 @@ impl DbmKeys {
                 }
                 i -= 1;
                 point[i] += 1;
-                if point[i] < taille {
+                if point[i] < size {
                     break;
                 }
                 point[i] = 0;
@@ -293,24 +293,24 @@ impl KeyAlgebra for DbmKeys {
     }
 
     fn cardinality(&self, _level: Level) -> u64 {
-        self.taille_domaine
+        self.size_domain
     }
 
     fn default(&self, _level: Level) -> Option<Self::Key> {
-        Some(INCOHERENT)
+        Some(INCONSISTENT)
     }
 }
 
-/// Contrôleur à clés-régions DBM : payload booléen, `D_δ` = région vide →
-/// `false` (miroir de la présence `Set` : l'arc absent mène à
-/// `terminal(false)` et R-default le supprime).
+/// DBM region-key controller: Boolean payload, `D_δ` = empty region →
+/// `false` (mirror of `Set` presence: the absent edge leads to
+/// `terminal(false)` and R-default removes it).
 pub struct DbmController {
     keys: DbmKeys,
 }
 
 impl DbmController {
-    /// Contrôleur pour l'algèbre de clés-régions DBM donnée.
-    pub fn nouveau(keys: DbmKeys) -> Self {
+    /// Controller for the given DBM region-key algebra.
+    pub fn new(keys: DbmKeys) -> Self {
         DbmController { keys }
     }
 }

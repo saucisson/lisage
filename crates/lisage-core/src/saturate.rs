@@ -1,15 +1,15 @@
-//! `saturate` — point fixe croissant d'une transduction d'étape (M2-4,
-//! spec § 7, énoncés T2/T3) : `saturate(τ, D) = νX. D ⊕ τ(X, h₀)`.
+//! `saturate` — increasing fixpoint of a step transduction (M2-4,
+//! spec § 7, statements T2/T3) : `saturate(τ, D) = νX. D ⊕ τ(X, h₀)`.
 //!
-//! Deux politiques de saturation, deux instances d'une même sémantique du
-//! point fixe (même résultat final, stratégie d'itération différente) :
-//! - [`PolitiqueSaturation::Statique`] (à la Ciardo) : `τ` n'est appliquée
-//!   qu'aux niveaux déclarés ;
-//! - [`PolitiqueSaturation::AutoDetectee`] (à la Hamez) : tous les niveaux
-//!   sont actifs au départ ; un niveau dont l'itération courante n'a rien
-//!   changé est retiré de l'ensemble actif.
+//! Two saturation policies, two instances of the same fixpoint semantics
+//! (same final result, different iteration strategy):
+//! - [`PolicySaturation::Static`] (Ciardo-style): `τ` is only applied
+//!   at the declared levels;
+//! - [`PolicySaturation::AutoDetectee`] (Hamez-style): all levels
+//!   are active at first; a level whose current iteration changed nothing
+//!   is removed from the active set.
 //!
-//! Le merge de construction `⊕` est l'union idempotente (Bool, A5).
+//! The construction merge `⊕` is the idempotent union (Bool, A5).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
@@ -17,108 +17,105 @@ use std::sync::{Arc, Mutex};
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::error::CoreError;
+use crate::fold::union;
 use crate::observer::{Observer, TraceEvent};
-use crate::pli::union;
 use crate::schema::SchemaKeys;
-use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
+use crate::transduction::{ContextPhiOut, Transducer, Transduction};
 
-/// Borne de sécurité de la boucle de point fixe (T2 garantit la terminaison
-/// sur schéma borné ; la borne ne sert qu'à détecter une régression).
-pub const BORNE_ITERATIONS: u32 = 1_000;
+/// Safety bound of the fixpoint loop (T2 guarantees termination on a
+/// bounded schema; the bound is only there to detect a regression).
+pub const BOUND_ITERATIONS: u32 = 1_000;
 
-/// Sel du fingerprint du wrapper [`RestreintAuxNiveaux`] : sépare
-/// domain-ement le fingerprint du wrapper de celui de la transduction
-/// interne.
+/// Salt of the [`RestrictedAuxLevels`] wrapper fingerprint: separates
+/// the wrapper fingerprint from that of the inner transduction.
 const SEL_FINGERPRINT_WRAPPER: u64 = 0x5A7A_0000_0000_0000;
 
-/// Politique de saturation (M2-4) : deux instances d'une même sémantique
-/// du point fixe. Les deux politiques produisent le même point fixe lorsque
-/// `Statique` déclare tous les niveaux ; seule la stratégie d'itération
-/// diffère.
+/// Saturation policy (M2-4): two instances of the same fixpoint semantics.
+/// The two policies produce the same fixpoint when `Static` declares all
+/// levels; only the iteration strategy differs.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum PolitiqueSaturation {
-    /// Statique par niveaux (à la Ciardo) : seuls les niveaux listés sont
-    /// saturés à chaque itération.
-    Statique(Vec<Level>),
-    /// Auto-détectée (à la Hamez) : tous les niveaux sont actifs au départ ;
-    /// un niveau est retiré dès qu'une itération ne change rien à ce niveau.
+pub enum PolicySaturation {
+    /// Static by level (Ciardo-style): only the listed levels are
+    /// saturated at each iteration.
+    Static(Vec<Level>),
+    /// Auto-detected (Hamez-style): all levels are active at first;
+    /// a level is removed as soon as an iteration changes nothing at that level.
     AutoDetectee,
 }
 
-/// Paramètres d'une saturation (record, ADR-0003).
-pub struct ParametresSaturation<'a, T, P> {
-    /// Transduction d'étape `τ` (cloneable pour les itérations).
+/// Parameters of a saturation (record, ADR-0003).
+pub struct ParametersSaturation<'a, T, P> {
+    /// Step transduction `τ` (cloneable for the iterations).
     pub transduction: &'a T,
-    /// Politique de saturation.
-    pub politique: &'a PolitiqueSaturation,
-    /// Pool unique (lecture + écriture, payload `bool`) : l'itération
-    /// courante et le résultat vivent dans le même pool.
+    /// Saturation policy.
+    pub policy: &'a PolicySaturation,
+    /// Single pool (read + write, payload `bool`): the current iteration
+    /// and the result live in the same pool.
     pub pool: &'a mut P,
-    /// Algèbre de clés du schéma (pour l'union).
+    /// Key algebra of the schema (for the union).
     pub keys: &'a SchemaKeys,
-    /// Ancre de la racine.
+    /// Anchor of the root.
     pub anchor: Anchor,
-    /// Nœud initial `D`.
+    /// Initial node `D`.
     pub initial: NodeId,
-    /// Nombre de niveaux du schéma (pour AutoDetectee : tous les niveaux).
-    pub nombre_niveaux: u32,
-    /// Observateur de trace (M2-6) : reçoit un `Round` par itération et les
-    /// événements du runner d'étape. `None` = pas de trace.
-    pub observateur: Option<Arc<dyn Observer>>,
+    /// Number of levels of the schema (for AutoDetectee: all levels).
+    pub number_levels: u32,
+    /// Trace observer (M2-6): receives one `Round` per iteration and the
+    /// step runner events. `None` = no trace.
+    pub observer: Option<Arc<dyn Observer>>,
 }
 
-/// Résultat d'une saturation : nœud du point fixe + nombre d'itérations.
+/// Result of a saturation: fixpoint node + number of iterations.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ResultatSaturation {
-    /// Nœud du point fixe atteint.
-    pub noeud: NodeId,
-    /// Nombre d'itérations de la boucle de point fixe.
+pub struct ResultSaturation {
+    /// Fixpoint node reached.
+    pub node: NodeId,
+    /// Number of iterations of the fixpoint loop.
     pub iterations: u32,
 }
 
-/// Transduction wrapper qui restreint une transduction d'étape à un
-/// ensemble de niveaux actifs : aux niveaux actifs, elle délègue à la
-/// transduction interne et enregistre les niveaux modifiés ; aux autres,
-/// copie identité.
-pub struct RestreintAuxNiveaux<T> {
+/// Transduction wrapper that restricts a step transduction to a set of
+/// active levels: at active levels, it delegates to the inner transduction
+/// and records the modified levels; at the others, identity copy.
+pub struct RestrictedAuxLevels<T> {
     inner: T,
-    niveaux_actifs: Vec<Level>,
-    niveaux_modifies: Mutex<BTreeSet<Level>>,
+    levels_active: Vec<Level>,
+    levels_modified: Mutex<BTreeSet<Level>>,
 }
 
-impl<T: Clone> Clone for RestreintAuxNiveaux<T> {
+impl<T: Clone> Clone for RestrictedAuxLevels<T> {
     fn clone(&self) -> Self {
-        // Le clone repart d'un suivi vierge : `saturer` crée de toute façon
-        // un wrapper neuf à chaque itération.
-        RestreintAuxNiveaux {
+        // The clone starts from a fresh tracking: `saturer` creates a new
+        // wrapper at each iteration anyway.
+        RestrictedAuxLevels {
             inner: self.inner.clone(),
-            niveaux_actifs: self.niveaux_actifs.clone(),
-            niveaux_modifies: Mutex::new(BTreeSet::new()),
+            levels_active: self.levels_active.clone(),
+            levels_modified: Mutex::new(BTreeSet::new()),
         }
     }
 }
 
-impl<T> RestreintAuxNiveaux<T> {
-    /// Wrapper neuf : `inner` restreinte aux `niveaux_actifs`.
-    pub fn new(inner: T, niveaux_actifs: Vec<Level>) -> Self {
-        RestreintAuxNiveaux {
+impl<T> RestrictedAuxLevels<T> {
+    /// New wrapper: `inner` restricted to `levels_active`.
+    pub fn new(inner: T, levels_active: Vec<Level>) -> Self {
+        RestrictedAuxLevels {
             inner,
-            niveaux_actifs,
-            niveaux_modifies: Mutex::new(BTreeSet::new()),
+            levels_active,
+            levels_modified: Mutex::new(BTreeSet::new()),
         }
     }
 
-    /// Niveaux auxquels `φ_out` a produit un nœud différent de l'entrée
-    /// depuis la création du wrapper (politique AutoDetectee).
-    pub fn niveaux_modifies(&self) -> BTreeSet<Level> {
-        self.niveaux_modifies
+    /// Levels at which `φ_out` produced a node different from the input
+    /// since the wrapper was created (AutoDetectee policy).
+    pub fn levels_modified(&self) -> BTreeSet<Level> {
+        self.levels_modified
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
 }
 
-impl<T: Transduction> Transduction for RestreintAuxNiveaux<T> {
+impl<T: Transduction> Transduction for RestrictedAuxLevels<T> {
     type H = T::H;
     type S = T::S;
     type Out = T::Out;
@@ -130,44 +127,44 @@ impl<T: Transduction> Transduction for RestreintAuxNiveaux<T> {
     fn h0(&self) -> Self::H {
         self.inner.h0()
     }
-    fn phi_disp(&self, level: Level, h: &Self::H, arc: u64) -> Self::H {
-        self.inner.phi_disp(level, h, arc)
+    fn phi_dispatch(&self, level: Level, h: &Self::H, edge: u64) -> Self::H {
+        self.inner.phi_dispatch(level, h, edge)
     }
-    fn phi_aggr(
+    fn phi_aggregate(
         &self,
         level: Level,
         h: &Self::H,
-        arcs: &BTreeMap<u64, (Option<Level>, Self::S)>,
+        edges: &BTreeMap<u64, (Option<Level>, Self::S)>,
     ) -> Self::S {
-        self.inner.phi_aggr(level, h, arcs)
+        self.inner.phi_aggregate(level, h, edges)
     }
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
-        if self.niveaux_actifs.contains(&ctx.level) {
-            let noeud_entree = ctx.noeud_entree;
+        ctx: ContextPhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memory::EffectMemory<Self::M>) {
+        if self.levels_active.contains(&ctx.level) {
+            let node_input = ctx.node_input;
             let level = ctx.level;
-            let (noeud, effet) = self.inner.phi_out(pool, ctx);
-            if noeud != noeud_entree {
-                self.niveaux_modifies
+            let (node, effect) = self.inner.phi_out(pool, ctx);
+            if node != node_input {
+                self.levels_modified
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .insert(level);
             }
-            (noeud, effet)
+            (node, effect)
         } else {
-            let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
+            let edges = ctx.edges.into_iter().map(|(v, (n, _))| (v, n)).collect();
             (
                 pool.intern(
                     ctx.anchor,
                     Form::Node {
                         level: ctx.level,
-                        arcs,
+                        edges,
                     },
                 ),
-                crate::memoire::EffetMemoire::new(),
+                crate::memory::EffectMemory::new(),
             )
         }
     }
@@ -182,75 +179,72 @@ impl<T: Transduction> Transduction for RestreintAuxNiveaux<T> {
     }
 }
 
-/// Point fixe croissant `saturate(τ, D)` sur le pool (spec § 7, T2) :
-/// itère `X ← X ⊕ τ(X)` jusqu'à stabilisation, en appliquant `τ` selon la
-/// politique (restreinte aux niveaux actifs ; AutoDetectee retire les
-/// niveaux stabilisés de l'ensemble actif).
+/// Increasing fixpoint `saturate(τ, D)` on the pool (spec § 7, T2):
+/// iterates `X ← X ⊕ τ(X)` until stabilization, applying `τ` according to
+/// the policy (restricted to the active levels; AutoDetectee removes the
+/// stabilized levels from the active set).
 ///
-/// La terminaison (T2) est garantie sur schéma borné : l'ensemble des
-/// formes canoniques est fini et la chaîne est croissante pour l'inclusion
-/// des dénotations. La [`BORNE_ITERATIONS`] ne sert que de filet de
-/// sécurité contre une régression.
+/// Termination (T2) is guaranteed on a bounded schema: the set of
+/// canonical forms is finite and the chain is increasing for the inclusion
+/// of denotations. [`BOUND_ITERATIONS`] is only a safety net against a
+/// regression.
 pub fn saturer<T, P>(
-    params: &mut ParametresSaturation<'_, T, P>,
-) -> Result<ResultatSaturation, CoreError>
+    params: &mut ParametersSaturation<'_, T, P>,
+) -> Result<ResultSaturation, CoreError>
 where
     T: Transduction<Out = bool> + Clone,
     P: Pool<Key = u64, Payload = bool>,
 {
-    // Niveaux actifs selon la politique.
-    let mut niveaux_actifs: Vec<Level> = match params.politique {
-        PolitiqueSaturation::Statique(niveaux) => niveaux.clone(),
-        PolitiqueSaturation::AutoDetectee => (0..params.nombre_niveaux).map(Level).collect(),
+    // Active levels according to the policy.
+    let mut levels_active: Vec<Level> = match params.policy {
+        PolicySaturation::Static(levels) => levels.clone(),
+        PolicySaturation::AutoDetectee => (0..params.number_levels).map(Level).collect(),
     };
 
-    let mut courant = params.initial;
+    let mut current = params.initial;
     let mut iterations = 0u32;
     loop {
         iterations += 1;
-        if iterations > BORNE_ITERATIONS {
-            return Err(CoreError::NonTerminaison {
-                borne: BORNE_ITERATIONS,
+        if iterations > BOUND_ITERATIONS {
+            return Err(CoreError::NotTerminaison {
+                bound: BOUND_ITERATIONS,
             });
         }
-        if let Some(observateur) = &params.observateur {
-            observateur.on_event(&TraceEvent::Round { numero: iterations });
+        if let Some(observer) = &params.observer {
+            observer.on_event(&TraceEvent::Round { number: iterations });
         }
-        let etape = RestreintAuxNiveaux::new(params.transduction.clone(), niveaux_actifs.clone());
-        // Spec § 7 : les étapes de saturate peuvent produire un effet mémoire
-        // (T3, M2-5) — politique ParNiveau. La mémoire vit le temps d'une
-        // passe : le runner (et sa mémoire) est recréé à chaque itération.
-        let mut runner = match &params.observateur {
-            Some(observateur) => Transducteur::avec_observateur(
-                etape,
-                lisage_algebra::interface::PolitiqueMemoire::ParNiveau,
-                Arc::clone(observateur),
+        let step = RestrictedAuxLevels::new(params.transduction.clone(), levels_active.clone());
+        // Spec § 7: saturate steps can produce a memory effect
+        // (T3, M2-5) — ByLevel policy. The memory lives for one
+        // pass: the runner (and its memory) is recreated at each iteration.
+        let mut runner = match &params.observer {
+            Some(observer) => Transducer::with_observer(
+                step,
+                lisage_algebra::interface::PolicyMemory::ByLevel,
+                Arc::clone(observer),
             ),
-            None => Transducteur::avec_politique(
-                etape,
-                lisage_algebra::interface::PolitiqueMemoire::ParNiveau,
-            ),
+            None => Transducer::with_policy(step, lisage_algebra::interface::PolicyMemory::ByLevel),
         };
-        let (image, _) = runner.run_meme_pool(params.pool, params.anchor, courant)?;
-        let suivant = union(params.pool, params.keys, params.anchor, courant, image)?;
-        if suivant == courant {
-            return Ok(ResultatSaturation {
-                noeud: courant,
+        let (image, _) = runner.run_same_pool(params.pool, params.anchor, current)?;
+        let next = union(params.pool, params.keys, params.anchor, current, image)?;
+        if next == current {
+            return Ok(ResultSaturation {
+                node: current,
                 iterations,
             });
         }
-        if matches!(params.politique, PolitiqueSaturation::AutoDetectee) {
-            // Politique Hamez : un niveau non modifié par l'itération est
-            // retiré de l'ensemble actif.
-            let modifies = runner.transduction().niveaux_modifies();
-            niveaux_actifs.retain(|niveau| modifies.contains(niveau));
-            if niveaux_actifs.is_empty() {
-                return Ok(ResultatSaturation {
-                    noeud: suivant,
+        if matches!(params.policy, PolicySaturation::AutoDetectee) {
+            // Hamez policy: a level not modified by the iteration is
+            // removed from the active set.
+            let modified = runner.transduction().levels_modified();
+            levels_active.retain(|level| modified.contains(level));
+            if levels_active.is_empty() {
+                return Ok(ResultSaturation {
+                    node: next,
                     iterations,
                 });
             }
         }
-        courant = suivant;
+        current = next;
     }
 }

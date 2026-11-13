@@ -1,6 +1,6 @@
-//! PBT de R-collapse (M1-0) : `Controller::collapse` est pure ; toute
-//! implémentation fausse (toujours `None`, toujours la première cible) est
-//! réfutée par la propriété.
+//! PBT of R-collapse (M1-0): `Controller::collapse` is pure; any wrong
+//! implementation (always `None`, always the first target) is refuted by
+//! the property.
 
 use std::collections::BTreeMap;
 
@@ -39,7 +39,7 @@ impl Controller for MockController {
     }
 }
 
-fn arcs_of(pairs: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
+fn edges_of(pairs: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
     pairs
         .into_iter()
         .map(|(key, target)| (u64::from(key), NodeId(target)))
@@ -47,36 +47,36 @@ fn arcs_of(pairs: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
 }
 
 #[test]
-fn test_collapse_cas_limites() {
+fn test_collapse_case_limits() {
     assert_eq!(
         MockController::collapse(&BTreeMap::<u64, NodeId>::new()),
         None
     );
     assert_eq!(
-        MockController::collapse(&arcs_of(vec![(1, 7)])),
+        MockController::collapse(&edges_of(vec![(1, 7)])),
         Some(NodeId(7))
     );
     assert_eq!(
-        MockController::collapse(&arcs_of(vec![(0, 3), (1, 3), (2, 3)])),
+        MockController::collapse(&edges_of(vec![(0, 3), (1, 3), (2, 3)])),
         Some(NodeId(3))
     );
     assert_eq!(
-        MockController::collapse(&arcs_of(vec![(0, 3), (1, 4)])),
+        MockController::collapse(&edges_of(vec![(0, 3), (1, 4)])),
         None
     );
 }
 
 proptest! {
-    /// R-collapse : `Some(cible)` ssi la table est non vide et toutes les
-    /// cibles sont égales ; `None` sinon.
+    /// R-collapse: `Some(target)` iff the table is not-empty and all
+    /// targets are equal; `None` otherwise.
     #[test]
     fn test_collapse_pbt(pairs in prop::collection::vec((0u8..4, 0u32..10), 0..8)) {
-        let arcs = arcs_of(pairs);
-        let result = MockController::collapse(&arcs);
-        let premiere = arcs.values().next().copied();
-        let toutes_egales = premiere.is_some_and(|cible| arcs.values().all(|t| *t == cible));
-        if toutes_egales {
-            prop_assert_eq!(result, premiere);
+        let edges = edges_of(pairs);
+        let result = MockController::collapse(&edges);
+        let first = edges.values().next().copied();
+        let all_equal = first.is_some_and(|target| edges.values().all(|t| *t == target));
+        if all_equal {
+            prop_assert_eq!(result, first);
         } else {
             prop_assert_eq!(result, None);
         }

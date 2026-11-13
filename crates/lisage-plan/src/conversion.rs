@@ -1,197 +1,194 @@
-//! Conversions entre ordres et royaumes de contrôleurs (M3-2, énoncé C3,
-//! spec § 2.4.3 et § 10 Q1) : **réordonner = convertir** — une conversion
-//! entre deux [`Order<T>`] d'un même type est compilée en transduction
-//! (séquence de transpositions adjacentes de niveaux) à **coût
-//! prévisible** (nombre d'inversions, distance de Kendall tau, calculée
-//! depuis les seuls ordres). Le **contrat typé s'étend des ordres aux
-//! encodages** : une valeur n'existe que dans un [`Royaume`] typé par
-//! (type `T`, marque d'ordre `O`, marque d'encodage `E`), et quitter le
-//! royaume passe par une conversion explicite.
+//! Conversions between orders and controller kingdoms (M3-2, statement C3,
+//! spec § 2.4.3 and § 10 Q1): **reorder = convert** — a conversion between
+//! two [`Order<T>`] of the same type is compiled into a transduction
+//! (sequence of adjacent level transpositions) at **predictable cost**
+//! (number of inversions, Kendall tau distance, computed from the orders
+//! alone). The **typed contract extends from orders to encodings**: a value
+//! only exists in a [`Kingdom`] typed by (type `T`, order mark `O`,
+//! encoding mark `E`), and leaving the kingdom goes through an explicit
+//! conversion.
 
 use std::marker::PhantomData;
 
-use crate::ordre::{MarqueOrdre, Order, TypeOrdre};
+use crate::order::{MarkedOrder, Order, TypeOrder};
 
-/// Encodage d'un type (royaume de contrôleur, M3-2) : compilation de la
-/// décomposition sémantique en niveaux physiques.
+/// Encoding of a type (controller kingdom, M3-2): compilation of the
+/// semantic decomposition into physical levels.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Encodage {
-    /// Balayage d'univers : un niveau de présence par clé, δ = absent,
-    /// sans marqueur (spec § 2.1, compilation de M1).
-    BalayageUnivers,
-    /// Compilation énumérative : positions + marqueur de fin, bornée par
-    /// la longueur (constructeur `Seq`, M2-1).
+pub enum Encoding {
+    /// Universe sweep: one presence level per key, δ = absent,
+    /// no marker (spec § 2.1, M1 compilation).
+    SweepUnivers,
+    /// Enumerative compilation: positions + end marker, bounded by the
+    /// length (constructor `Seq`, M2-1).
     Enumeration,
 }
 
-/// Marque d'encodage : type zéro-taille portant un [`Encodage`]. Le
-/// contrat typé des royaumes passe par cette marque, comme l'ordre par
-/// [`MarqueOrdre`].
-pub trait MarqueEncodage: Sized + Send + Sync {
-    /// L'encodage associé à la marque.
-    fn encodage() -> Encodage;
+/// Encoding mark: zero-sized type carrying an [`Encoding`]. The typed
+/// contract of kingdoms goes through this mark, like the order through
+/// [`MarkedOrder`].
+pub trait MarkedEncoding: Sized + Send + Sync {
+    /// The encoding associated with the mark.
+    fn encoding() -> Encoding;
 }
 
-/// Erreur typée de conversion (cause préservée).
+/// Typed conversion error (cause preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurConversion {
-    /// Les deux ordres n'ont pas le même ensemble canonique de clés :
-    /// pas de conversion possible entre ces types-là.
-    OrdresInconvertibles,
-    /// La conversion ne part pas de l'ordre du royaume source ou
-    /// n'arrive pas à l'ordre du royaume cible.
-    RoyaumeIncompatible,
+pub enum ErrorConversion {
+    /// The two orders do not have the same canonical key set: no conversion
+    /// possible between those types.
+    OrdersUnconvertible,
+    /// The conversion does not start from the source kingdom's order or
+    /// does not arrive at the target kingdom's order.
+    KingdomIncompatible,
 }
 
-impl std::fmt::Display for ErreurConversion {
+impl std::fmt::Display for ErrorConversion {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurConversion::OrdresInconvertibles => {
-                write!(
-                    formatter,
-                    "ordres inconvertibles (clés canoniques différentes)"
-                )
+            ErrorConversion::OrdersUnconvertible => {
+                write!(formatter, "unconvertible orders (different canonical keys)")
             }
-            ErreurConversion::RoyaumeIncompatible => {
+            ErrorConversion::KingdomIncompatible => {
                 write!(
                     formatter,
-                    "conversion incompatible avec les royaumes source/cible"
+                    "conversion incompatible with the source/target kingdoms"
                 )
             }
         }
     }
 }
 
-impl std::error::Error for ErreurConversion {}
+impl std::error::Error for ErrorConversion {}
 
-/// Conversion entre deux ordres d'un même type `T` : **réordonner =
-/// convertir**. Compilée en transduction — séquence de transpositions
-/// adjacentes de niveaux — à coût prévisible : le nombre d'inversions
-/// entre les deux π (distance de Kendall tau), calculé depuis les seuls
-/// ordres, avant toute exécution.
+/// Conversion between two orders of the same type `T`: **reorder =
+/// convert**. Compiled into a transduction — sequence of adjacent level
+/// transpositions — at predictable cost: the number of inversions between
+/// the two π (Kendall tau distance), computed from the orders alone,
+/// before any execution.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Conversion<T: TypeOrdre> {
+pub struct Conversion<T: TypeOrder> {
     source: Order<T>,
-    cible: Order<T>,
-    /// Transpositions adjacentes (positions dans la séquence) composant
-    /// π_source → π_cible, dans l'ordre d'application.
+    target: Order<T>,
+    /// Adjacent transpositions (positions in the sequence) composing
+    /// π_source → π_target, in application order.
     transpositions: Vec<(usize, usize)>,
 }
 
-impl<T: TypeOrdre> Conversion<T> {
-    /// Conversion de `source` vers `cible` : les deux ordres doivent avoir
-    /// le même ensemble canonique de clés (même type instancié).
-    pub fn nouveau(source: &Order<T>, cible: &Order<T>) -> Result<Self, ErreurConversion> {
-        if source.canoniques() != cible.canoniques() {
-            return Err(ErreurConversion::OrdresInconvertibles);
+impl<T: TypeOrder> Conversion<T> {
+    /// Conversion from `source` to `target`: both orders must have the same
+    /// canonical key set (same instantiated type).
+    pub fn new(source: &Order<T>, target: &Order<T>) -> Result<Self, ErrorConversion> {
+        if source.canonical_keys() != target.canonical_keys() {
+            return Err(ErrorConversion::OrdersUnconvertible);
         }
-        // Tri à bulles de la séquence cible vers l'ordre source, en
-        // enregistrant chaque transposition adjacente : le nombre de
-        // transpositions égale le nombre d'inversions.
-        let mut sequence = cible.sequence().to_vec();
+        // Bubble sort of the target sequence towards the source order,
+        // recording each adjacent transposition: the number of
+        // transpositions equals the number of inversions.
+        let mut sequence = target.sequence().to_vec();
         let mut transpositions = Vec::new();
-        let mut triee = false;
-        while !triee {
-            triee = true;
+        let mut sorted = false;
+        while !sorted {
+            sorted = true;
             for index in 0..sequence.len().saturating_sub(1) {
-                let position_courante = source.position(&sequence[index]);
-                let position_suivante = source.position(&sequence[index + 1]);
-                if position_courante > position_suivante {
+                let position_current = source.position(&sequence[index]);
+                let position_next = source.position(&sequence[index + 1]);
+                if position_current > position_next {
                     sequence.swap(index, index + 1);
                     transpositions.push((index, index + 1));
-                    triee = false;
+                    sorted = false;
                 }
             }
         }
         debug_assert_eq!(sequence, source.sequence());
         Ok(Conversion {
             source: source.clone(),
-            cible: cible.clone(),
+            target: target.clone(),
             transpositions,
         })
     }
 
-    /// Ordre de départ de la conversion.
+    /// Starting order of the conversion.
     pub fn source(&self) -> &Order<T> {
         &self.source
     }
 
-    /// Ordre d'arrivée de la conversion.
-    pub fn cible(&self) -> &Order<T> {
-        &self.cible
+    /// Arrival order of the conversion.
+    pub fn target(&self) -> &Order<T> {
+        &self.target
     }
 
-    /// Coût prévisible de la transduction : nombre d'inversions entre les
-    /// deux π = nombre de transpositions adjacentes.
-    pub fn cout(&self) -> usize {
+    /// Predictable cost of the transduction: number of inversions between
+    /// the two π = number of adjacent transpositions.
+    pub fn cost(&self) -> usize {
         self.transpositions.len()
     }
 
-    /// Transpositions adjacentes (positions) composant la transduction.
+    /// Adjacent transpositions (positions) composing the transduction.
     pub fn transpositions(&self) -> &[(usize, usize)] {
         &self.transpositions
     }
 
-    /// La conversion est l'identité (coût nul) ssi les deux ordres sont
-    /// alignés.
-    pub fn est_identite(&self) -> bool {
-        self.cout() == 0
+    /// The conversion is the identity (zero cost) iff the two orders are
+    /// aligned.
+    pub fn is_identity(&self) -> bool {
+        self.cost() == 0
     }
 }
 
-/// Marqueur de variance de `Royaume` : aucune borne sur `T`, `O`, `E`.
-type MarqueurRoyaume<T, O, E> = PhantomData<fn() -> (T, O, E)>;
+/// Variance marker of `Kingdom`: no bounds on `T`, `O`, `E`.
+type MarkerKingdom<T, O, E> = PhantomData<fn() -> (T, O, E)>;
 
-/// Royaume de contrôleur : contrat typé (type `T`, marque d'ordre `O`,
-/// marque d'encodage `E`) — extension du contrat typé des ordres aux
-/// encodages (M3-2, C3). Une valeur n'existe que dans un royaume ;
-/// quitter le royaume = conversion explicite.
-pub struct Royaume<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> {
-    valeur: V,
-    marqueur: MarqueurRoyaume<T, O, E>,
+/// Controller kingdom: typed contract (type `T`, order mark `O`, encoding
+/// mark `E`) — extension of the typed contract from orders to encodings
+/// (M3-2, C3). A value only exists in a kingdom; leaving the kingdom =
+/// explicit conversion.
+pub struct Kingdom<T: TypeOrder, O: MarkedOrder<T>, E: MarkedEncoding, V> {
+    value: V,
+    marker: MarkerKingdom<T, O, E>,
 }
 
-impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> {
-    /// Valeur neuf dans le royaume `(T, O, E)`.
-    pub fn nouveau(valeur: V) -> Self {
-        Royaume {
-            valeur,
-            marqueur: PhantomData,
+impl<T: TypeOrder, O: MarkedOrder<T>, E: MarkedEncoding, V> Kingdom<T, O, E, V> {
+    /// New value in the kingdom `(T, O, E)`.
+    pub fn new(value: V) -> Self {
+        Kingdom {
+            value,
+            marker: PhantomData,
         }
     }
 
-    /// Valeur portée par le royaume.
-    pub fn valeur(&self) -> &V {
-        &self.valeur
+    /// Value carried by the kingdom.
+    pub fn value(&self) -> &V {
+        &self.value
     }
 
-    /// Ordre du royaume, d'après sa marque.
-    pub fn ordre(descripteur: &T) -> Order<T> {
-        O::ordre(descripteur)
+    /// Order of the kingdom, from its mark.
+    pub fn order(descripteur: &T) -> Order<T> {
+        O::order(descripteur)
     }
 
-    /// Encodage du royaume, d'après sa marque.
-    pub fn encodage() -> Encodage {
-        E::encodage()
+    /// Encoding of the kingdom, from its mark.
+    pub fn encoding() -> Encoding {
+        E::encoding()
     }
 }
 
-impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V: Clone> Royaume<T, O, E, V> {
-    /// **Réordonner = convertir** : change la marque d'ordre du royaume
-    /// via une conversion explicite à coût prévisible (`conversion.cout()`).
-    /// Contrat typé vérifié en valeur : la conversion doit partir de
-    /// l'ordre du royaume source (`O`) et arriver à celui du royaume cible
-    /// (`O2`).
-    pub fn reordonner<O2: MarqueOrdre<T>>(
+impl<T: TypeOrder, O: MarkedOrder<T>, E: MarkedEncoding, V: Clone> Kingdom<T, O, E, V> {
+    /// **Reorder = convert**: changes the kingdom's order mark via an
+    /// explicit conversion at predictable cost (`conversion.cost()`).
+    /// Typed contract checked by value: the conversion must start from the
+    /// source kingdom's order (`O`) and arrive at the target kingdom's
+    /// order (`O2`).
+    pub fn reorder<O2: MarkedOrder<T>>(
         &self,
         descripteur: &T,
         conversion: &Conversion<T>,
-    ) -> Result<Royaume<T, O2, E, V>, ErreurConversion> {
-        if conversion.source() != &O::ordre(descripteur)
-            || conversion.cible() != &O2::ordre(descripteur)
+    ) -> Result<Kingdom<T, O2, E, V>, ErrorConversion> {
+        if conversion.source() != &O::order(descripteur)
+            || conversion.target() != &O2::order(descripteur)
         {
-            return Err(ErreurConversion::RoyaumeIncompatible);
+            return Err(ErrorConversion::KingdomIncompatible);
         }
-        Ok(Royaume::nouveau(self.valeur.clone()))
+        Ok(Kingdom::new(self.value.clone()))
     }
 }
