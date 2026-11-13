@@ -1,271 +1,271 @@
-# Exemple fil rouge : n philosophes, de bout en bout
+# Golden-thread example: n philosophers, end to end
 
-*Déroulé complet du cadre sur le cas régulier : modèle, contrôleur, encodage, transductions, saturation, opérations, puis la variante irrégulière du philosophe gaucher (§ 9). Chiffres vérifiés par simulation : appartenance exhaustive pour n ≤ 7, comptage contre le polynôme d'indépendance du cycle jusqu'à n = 20, mesures du prototype plat jusqu'à n = 200 (§ 6.2, § 9.5). Résultats affichés : l'espace atteignable, exponentiel en n, tient en 7 nœuds indépendants de n ; l'explosion intermédiaire est dans la policy naïve, pas dans la structure ; la variante à un philosophe irrégulier tient aussi en 7 nœuds.*
+*Complete walkthrough of the framework on the regular case: model, controller, encoding, transductions, saturation, operations, then the irregular variant of the left-handed philosopher (§ 9). Figures verified by simulation: exhaustive membership for n ≤ 7, counting against the indein-flightence polynomial of the cycle up to n = 20, measurements of the flat prototype up to n = 200 (§ 6.2, § 9.5). Reported results: the reachable space, exponential in n, fits in 7 nodes indein-flightent of n; the intermediate blow-up is in the naive policy, not in the structure; the variant with one irregular philosopher also fits in 7 nodes.*
 
 ---
 
-## 0. Le résultat en une table
+## 0. The result in one table
 
-| Représentation de R_n | Nœuds | n = 50 |
+| Representation of R_n | Nodes | n = 50 |
 |---|---|---|
-| Énumération explicite | ≈ (1+√3)^n ≈ 2,73^n états | ≈ 7·10²¹ états : impossible |
-| MDD plat, ordre fixe, réductions § 2.3 seules | Θ(n) | ~200 |
-| SDD hiérarchique (Hamez) | compact : la hiérarchie capture la régularité (c'est son cas d'école) | à mesurer (jalon 4) |
-| **Lisage plat + formes relatives + D-abs** | **7 nœuds, pour tout n ≥ 3** | **7** |
+| Expallowed enumeration | ≈ (1+√3)^n ≈ 2.73^n states | ≈ 7·10²¹ states: impossible |
+| Flat MDD, fixed order, § 2.3 reductions only | Θ(n) | ~200 |
+| Hierarchical SDD (Hamez) | compact: the hierarchy captures the regularity (it is its textbook case) | to be measured (milestone 4) |
+| **Flat Lisage + relative forms + D-abs** | **7 nodes, for all n ≥ 3** | **7** |
 
-Les 7 nœuds : 5 formes + 2 terminaux. Le paramètre n ne vit dans aucun nœud : il vit sur le shift de l'arc d'entrée (le dépliage). R_5 et R_50 partagent exactement les mêmes nœuds physiques ; changer n, c'est changer l'ancre, pas le graphe. Les 5 formes sont l'automate minimal du langage des cellules légales : C1 (minimalité par handle) exige ces nœuds, ni un de moins, ni un de plus. Vérifications : |R_3| = 20, |R_4| = 56, |R_5| = 152, |R_6| = 416, |R_8| = 3104, |R_20| = 536 754 176. La variante irrégulière (§ 9) tient aussi en 7 nœuds : seul le nœud racine change (7 clés au lieu de 5), l'intérieur est inchangé.
+The 7 nodes: 5 forms + 2 terminals. The parameter n lives in no node: it lives on the shift of the input edge (the unfolding). R_5 and R_50 share exactly the same physical nodes; changing n means changing the anchor, not the graph. The 5 forms are the minimal automaton of the language of legal cells: C1 (minimality by handle) requires these nodes, not one fewer, not one more. Checks: |R_3| = 20, |R_4| = 56, |R_5| = 152, |R_6| = 416, |R_8| = 3104, |R_20| = 536 754 176. The irregular variant (§ 9) also fits in 7 nodes: only the root node changes (7 keys instead of 5), the interior is unchanged.
 
 ---
 
-## 1. Le modèle au niveau 1 (le langage)
+## 1. The level-1 model (the language)
 
 ```
 type Philo = Tag { think, hungry, eat }
-type Fork  = Tag { free, me, prev }        // me : tenue par le philosophe de la cellule ; prev : par le précédent
-type Cell  = { pc : Philo, left : Fork }    // left : la fourchette entre i-1 et i
-type State = Seq Cell                       // anneau de longueur n, n ≥ 3
+type Fork  = Tag { free, me, prev }        // me : held by the philosopher of the cell ; prev : by the previous one
+type Cell  = { pc : Philo, left : Fork }    // left : the fork between i-1 and i
+type State = Seq Cell                       // ring of length n, n ≥ 3
 
 take    : ∀i, pc_i = hungry ∧ left_i = free ∧ left_{i+1} = free
-          → pc_i = eat, left_i = me, left_{i+1} = prev     // saisie atomique des deux fourchettes
+          → pc_i = eat, left_i = me, left_{i+1} = prev     // atomic seizure of both forks
 release : ∀i, pc_i = eat → pc_i = think, left_i = free, left_{i+1} = free
 hungry  : ∀i, pc_i = think → pc_i = hungry
 
 let init     = map (i -> { pc : think, left : free }) (ring n)
-let reach    = fix (take ∪ release ∪ hungry) init    // saturation, policy auto-détectée
-let n_states = count reach                            // semi-anneau (ℕ,+,×) : 152 si n = 5
-let stuck    = filter (s -> ¬ enabled s) reach        // vide : think → hungry est toujours armé
+let reach    = fix (take ∪ release ∪ hungry) init    // saturation, auto-detected policy
+let n_states = count reach                            // semiring (ℕ,+,×) : 152 if n = 5
+let stuck    = filter (s -> ¬ enabled s) reach        // empty : think → hungry is always armed
 ```
 
-Saisie atomique : pas d'interblocage dans ce modèle. La variante «un philosophe gaucher» (saisie en deux temps) est le terrain falsifiable : livrée au § 9.
+Atomic seizure: no deadlock in this model. The "one left-handed philosopher" variant (two-step seizure) is the falsifiable testbed: delivered in § 9.
 
 ---
 
-## 2. Le contrôleur C_philo (instanciation de § 1.2 de la proposition)
+## 2. The C_philo controller (instantiation of § 1.2 of the proposition)
 
 ```
-C_philo = ( δ           : borné, Tag{think,hungry,eat} × Tag{free,me,prev}   // 9 clés, 5 placements légaux
-          , Σ            : Seq(Cell), longueur n ≥ 3
-          , décomp + O   : positionnel : cellule i avant cellule i+1 ; l'anneau est déroulé,
-                          la couture 0/n est explicite (racine = position 0, ancre = position n)
-          , R            : R-collapse, R-default, R-share (spec § 2.3) ; D-abs, D-trans armées (spec § 2.4)
-          , défauts      : déduits du type : la cellule (think, free)
-          , D^déf        : (think, free), absorbable sur tout sous-domaine
-          , encodage     : relatif dans l'intérieur (shift sur l'arc) ; absolu aux coutures
-          , attribution   : hérité = (p, shift), p = «le précédent mange» ;
-                            synthétisé = semi-anneau (Bool pour la saturation, (ℕ,+,×) pour le comptage) ;
-                            mémoire = cache (événement, forme, ancre)
+C_philo = ( δ           : bounded, Tag{think,hungry,eat} × Tag{free,me,prev}   // 9 keys, 5 allowed placements
+          , Σ            : Seq(Cell), length n ≥ 3
+          , decomposition + O   : positional : cell i before cell i+1 ; the ring is unrolled,
+                          the 0/n seam is expallowed (root = position 0, anchor = position n)
+          , R            : R-collapse, R-default, R-share (spec § 2.3) ; D-abs, D-trans armed (spec § 2.4)
+          , defaults     : deduced from the type : the cell (think, free)
+          , D^def        : (think, free), absorbable on any subdomain
+          , encoding     : relative in the interior (shift on the edge) ; absolute at the seams
+          , attribution   : inherited = (p, shift), p = "the previous one eats" ;
+                            synthesized = semiring (Bool for saturation, (ℕ,+,×) for counting) ;
+                            memory = cache (event, form, anchor)
           )
 ```
 
-Le choix qui porte tout le reste : l'**intercalage** (pc_i, left_i). Chaque fourchette vit dans la cellule de son consommateur de droite, donc les trois événements sont locaux (largeur ≤ 2, § 5). Variante d'encodage «Seq Philo puis Seq Fork» : take_i devient non local et réclame la mémoire de niveau (T3) ; le cadre l'exprime aussi, mais l'oracle de rentabilité préfère l'intercalage. **La localité des événements est une propriété de l'instance, pas du cadre.**
+The choice that carries everything else: the **interleaving** (pc_i, left_i). Each fork lives in the cell of its right-hand consumer, so the three events are local (width ≤ 2, § 5). Encoding variant "Seq Philo then Seq Fork": take_i becomes non-local and requires level memory (T3); the framework can express it too, but the profitability oracle prefers the interleaving. **The locality of events is a property of the instance, not of the framework.**
 
 ---
 
-## 3. L'espace atteignable comme langage
+## 3. The reachable space as a language
 
-La cohérence fourchettes/philosophes est locale à la cellule (typage par inclusion : Val(x) dépend de l'hérité p) :
+Fork/philosopher consistency is local to the cell (inclusion typing: Val(x) dein-flights on the inherited p):
 
-| Hérité p («le précédent mange») | Cellules légales (pc, left) |
+| Inherited p ("the previous one eats") | Legal cells (pc, left) |
 |---|---|
 | p = 0 | (think, free), (hungry, free), (eat, me) |
-| p = 1 | (think, prev), (hungry, prev) ; (eat, ·) non placée |
+| p = 1 | (think, prev), (hungry, prev) ; (eat, ·) not placed |
 
-Un état = une suite de n cellules légales sans deux «eat» adjacents circulairement, et :
+A state = a sequence of n legal cells with no two circularly adjacent "eat"s, and:
 
-> **R_n = mots circulaires de n cellules sans «eat eat» adjacent = 2^n · I(C_n, ½)**, avec I le polynôme d'indépendance du cycle.
+> **R_n = circular words of n cells with no adjacent "eat eat" = 2^n · I(C_n, ½)**, with I the indein-flightence polynomial of the cycle.
 
-Preuve en deux temps (vérifiée par BFS explicite jusqu'à n = 8) : tout état atteignable respecte l'invariant (les gardes l'imposent) ; toute configuration indépendante est atteinte (saisies dans n'importe quel ordre, puis passages hungry). La bijection pc-mots ↔ (E, H) : E = mangeurs (indépendant dans le cycle), H = affamés, le reste pense.
+Proof in two steps (verified by expallowed BFS up to n = 8): every reachable state respects the invariant (the guards impose it); every indein-flightent configuration is reached (seizures in any order, then hungry transitions). The bijection pc-words ↔ (E, H): E = eaters (indein-flightent in the cycle), H = hungry ones, the rest think.
 
 ---
 
-## 4. La représentation : 5 formes, 2 terminaux, 1 ancre
+## 4. The representation: 5 forms, 2 terminals, 1 anchor
 
-Le diagramme SVG de référence est dans le canevas « Les 7 formes des philosophes : diagramme SVG » ; l'ASCII qui suit reste la source de vérité des clés.
+The reference SVG diagram is in the canvas "The 7 forms of the philosophers: SVG diagram"; the ASCII below remains the source of truth for the keys.
 
 ```
-racine S (position 0, encodage absolu ; sa clé left encode déjà pc_{n-1})
+root S (position 0, absolute encoding ; its left key already encodes pc_{n-1})
   ├─ (t,f) ──▶ A₀        ┐
-  ├─ (h,f) ──▶ A₀        │ promesse : pc_{n-1} ≠ eat
-  ├─ (e,m) ──▶ A₁        ┘ (entrée p = 1 : je mange)
+  ├─ (h,f) ──▶ A₀        │ promise : pc_{n-1} ≠ eat
+  ├─ (e,m) ──▶ A₁        ┘ (input p = 1 : I eat)
   ├─ (t,p) ──▶ B₀        ┐
-  └─ (h,p) ──▶ B₀        ┘ promesse : pc_{n-1} = eat
+  └─ (h,p) ──▶ B₀        ┘ promise : pc_{n-1} = eat
 
-intérieurs (cellules 1..n-1, shift sur l'arc, ancre = position n)
+interiors (cells 1..n-1, shift on the edge, anchor = position n)
   A₀ : (t,f)→A₀  (h,f)→A₀  (e,m)→A₁        B₀ : (t,f)→B₀  (h,f)→B₀  (e,m)→B₁
-  A₁ : (t,p)→A₀  (h,p)→A₀  (e,·) non placée   B₁ : (t,p)→B₀  (h,p)→B₀  (e,·) non placée
-  à l'ancre : A₀ → ⊤, A₁ → ⊥               à l'ancre : B₀ → ⊥, B₁ → ⊤
+  A₁ : (t,p)→A₀  (h,p)→A₀  (e,·) not placed   B₁ : (t,p)→B₀  (h,p)→B₀  (e,·) not placed
+  at the anchor : A₀ → ⊤, A₁ → ⊥            at the anchor : B₀ → ⊥, B₁ → ⊤
 ```
 
-Lecture des mécanismes :
+Reading the mechanisms:
 
-- **Handle** : (C_philo, forme, ancre). L'ancre est symbolique («la fin de l'anneau») ; le shift vit sur l'arc, +1 par cellule ; R_n = dépliage de S sur n cellules. Les mêmes nœuds servent toutes les valeurs de n.
-- **Formes relatives (spec § 2.4.3)** : A₀ et B₀ sont le motif auto-similaire «une cellule, puis la suite» ; leur boucle (t,f) est le segment régulier, déplié jusqu'à l'ancre. Déplier A₀ donne exactement ce que la hiérarchie SDD encode en un nœud : la conjecture d'unfold (spec § 2.4.4) en acte.
-- **D-abs (spec § 2.4.1)** : (think, free) = D^déf ; une course de cellules par défaut de longueur quelconque se lit comme le seul arc (t,f). L'état initial (tout le monde pense) = un arc, pas un arbre.
-- **Typage par inclusion** : l'arc (eat, ·) de A₁/B₁ n'existe pas : la clé n'est pas dans Val(x) quand le précédent mange.
-- **Couture** : la fourchette de la cellule 0 encode déjà pc_{n-1}, donc S lit une **promesse** sur la fin de l'anneau, et l'ancre la vérifie. La ligne A (promesse «le dernier ne mange pas») est le cœur ; la ligne B (promesse «le dernier mange») et le terminal ⊥ sont le terme de bord : O(1). A₀ et B₀ ont le même motif d'enfants, elles diffèrent par le verdict d'ancre : distinctes sous C1, confondues par aucun quotient.
-- **Minimalité** : S, A₀, A₁, B₀, B₁ = les 5 états de l'automate minimal du langage (départ + (p, promesse)) ; la canonicité est la minimisation de coalgèbre (§ 1.3 de la proposition), ce document en est la vérification concrète. Vérifié le 10 novembre 2026 : les 5 états sont deux à deux distingués par des suffixes de longueur ≤ 2 (le seul témoin de longueur 2 est S ≠ A₀, suffixe [(t,p),(e,m)] : seule S atteint la ligne B depuis l'entrée) ; aucun nœud fusionnable, ni un de plus, ni un de moins.
+- **Handle**: (C_philo, form, anchor). The anchor is symbolic ("the end of the ring"); the shift lives on the edge, +1 per cell; R_n = unfolding of S over n cells. The same nodes serve all values of n.
+- **Relative forms (spec § 2.4.3)**: A₀ and B₀ are the self-similar pattern "one cell, then the rest"; their (t,f) loop is the regular segment, unfolded up to the anchor. Unfolding A₀ gives exactly what the SDD hierarchy encodes in one node: the unfold conjecture (spec § 2.4.4) in action.
+- **D-abs (spec § 2.4.1)**: (think, free) = D^def; a run of default cells of any length reads as the single edge (t,f). The initial state (everyone thinks) = one edge, not a tree.
+- **Inclusion typing**: the (eat, ·) edge of A₁/B₁ does not exist: the key is not in Val(x) when the previous one eats.
+- **Seam**: the fork of cell 0 already encodes pc_{n-1}, so S reads a **promise** about the end of the ring, and the anchor verifies it. Line A (promise "the last one does not eat") is the core; line B (promise "the last one eats") and the terminal ⊥ are the boundary term: O(1). A₀ and B₀ have the same child pattern, they differ by the anchor verdict: distinct under C1, merged by no quotient.
+- **Minimality**: S, A₀, A₁, B₀, B₁ = the 5 states of the minimal automaton of the language (start + (p, promise)); canonicity is coalgebra minimization (§ 1.3 of the proposition), this document is its concrete verification. Verified on November 10, 2026: the 5 states are pairwise distinguished by suffixes of length ≤ 2 (the only witness of length 2 is S ≠ A₀, suffix [(t,p),(e,m)]: only S reaches line B from the input); no mergeable node, not one more, not one fewer.
 
-Trois lectures de contrôle (n = 5) : eat en 2 seul : S→A₀, (e,m)→A₁, (t,p)→A₀, boucles, ancre(A₀) → ⊤. Eat en 0 seul : S→A₁, (t,p)→A₀, boucles, ancre(A₀) → ⊤. Eat en 0 et 4 : S→A₁, (t,p)→A₀, boucles, (e,m)→A₁, ancre(A₁) → ⊥ (0 et 4 sont adjacents dans l'anneau : rejeté). Ces trois traces sont dans la simulation exhaustive.
+Three control readings (n = 5): eat at 2 only: S→A₀, (e,m)→A₁, (t,p)→A₀, loops, anchor(A₀) → ⊤. Eat at 0 only: S→A₁, (t,p)→A₀, loops, anchor(A₀) → ⊤. Eat at 0 and 4: S→A₁, (t,p)→A₀, loops, (e,m)→A₁, anchor(A₁) → ⊥ (0 and 4 are adjacent in the ring: rejected). These three traces are in the exhaustive simulation.
 
 ---
 
-## 5. Les événements comme transductions attribuées
+## 5. Events as attributed transductions
 
-| Transduction | Largeur | Canaux | Signature de portée |
+| Transduction | Width | Channels | Scope signature |
 |---|---|---|---|
-| hungry | 1 cellule | hérité (p, shift) | lit (i) |
-| take | 2 cellules | hérité (p, shift) ; garde remontante | lit (i, i+1) |
-| release | 2 cellules | hérité (p, shift) | lit (i, i+1) |
+| hungry | 1 cell | inherited (p, shift) | reads (i) |
+| take | 2 cells | inherited (p, shift) ; upward guard | reads (i, i+1) |
+| release | 2 cells | inherited (p, shift) | reads (i, i+1) |
 
-Les 3n événements = **3 classes × n shifts** : chaque classe est invariante par translation, la transduction descend avec le shift dans le canal hérité, le computed cache porte la clé (événement, forme, ancre). Le travail est fait une fois par paire, pas une fois par position : c'est le partage de travail par invariance de translation (spec § 2.4). Les événements de couture (take/release aux positions 0 et n-1) sont les seuls à écrire dans la ligne B : le bord, encore O(1).
+The 3n events = **3 classes × n shifts**: each class is invariant under translation, the transduction descends with the shift in the inherited channel, the computed cache carries the key (event, form, anchor). The work is done once per pair, not once per position: this is work sharing by translation invariance (spec § 2.4). The seam events (take/release at positions 0 and n-1) are the only ones writing to line B: the boundary, still O(1).
 
 ---
 
-## 6. La saturation : O(1) cœur + couture
+## 6. Saturation: O(1) core + seam
 
-Départ : init = un arc (D-abs). Point fixe : les 7 nœuds, en trois à quatre rondes :
+Start: init = one edge (D-abs). Fixpoint: the 7 nodes, in three to four rounds:
 
-1. hungry partout : arcs (h,f) sur S, A₀, B₀ ;
-2. take : arcs (e,m) sur A₀, B₀ et S ; découverte de A₁, B₁ ;
-3. take/release près de la couture : clés (t,p), (h,p) de S (découverte de la ligne B) puis des lignes A/B ; convergence.
+1. hungry everywhere: (h,f) edges on S, A₀, B₀;
+2. take: (e,m) edges on A₀, B₀ and S; discovery of A₁, B₁;
+3. take/release near the seam: keys (t,p), (h,p) of S (discovery of line B) then of lines A/B; convergence.
 
-La policy «statique par niveaux» (Ciardo) balaye des positions ; ici les positions ont disparu : l'itération porte sur les usages (événement × forme × ancre), l'index niveau → usages vivant dans le plan d'ombre (la voie porteuse discutée pour la compatibilité Hamez). La policy «auto-détectée» (Hamez) reconnaît le motif régulier et fait exactement ce balayage par formes. Coût attendu : constant par classe d'événement + la couture. C'est la prédiction falsifiable de la contribution 8 : si la saturation coûte Θ(n) par classe, le partage de travail est faux.
+The "static by levels" policy (Ciardo) sweeps positions; here the positions are gone: the iteration runs over uses (event × form × anchor), the level index → uses living in the shadow plane (the carrier lane discussed for Hamez compatibility). The "auto-detected" policy (Hamez) recognizes the regular pattern and does exactly this sweep by forms. Expected cost: constant per event class + the seam. This is the falsifiable prediction of contribution 8: if saturation costs Θ(n) per class, work sharing is wrong.
 
-### 6.1 Ce que fait un tir (l'opération élémentaire)
+### 6.1 What a firing does (the elementary operation)
 
-Un tir de l'événement e sur le nœud courant (prise d'image, puis union) :
+A firing of event e on the current node (image, then union):
 
-1. **descente** : la transduction suit le canal hérité jusqu'à la position i ; dans le prototype plat ce sont i niveaux, en Lisage le shift est déjà sur l'arc et la forme est relue dans le pool ;
-2. **garde** : lecture d'au plus 2 clés (take : (h,f) ∧ (·,f)) ; une clé manquante coupe la branche ;
-3. **ré-écriture locale** : re-clé de 2 nœuds au plus ((h,f)→(e,m) et (·,f)→(·,p)) ;
-4. **union** avec le résultat partiel, puis re-réduction : le hash-consing fusionne les nœuds égaux à l'écriture (R-share gratuit) ;
-5. **cache** : clé (événement, nœud) dans le prototype, (événement, forme, ancre) en Lisage : le second tir sur la même paire est gratuit.
+1. **descent**: the transduction follows the inherited channel down to position i; in the flat prototype these are i levels, in Lisage the shift is already on the edge and the form is re-read in the pool;
+2. **guard**: reading at most 2 keys (take: (h,f) ∧ (·,f)); a missing key cuts the branch;
+3. **local rewrite**: re-keying at most 2 nodes ((h,f)→(e,m) and (·,f)→(·,p));
+4. **union** with the partial result, then re-reduction: hash-consing merges equal nodes at write time (free R-share);
+5. **cache**: key (event, node) in the prototype, (event, form, anchor) in Lisage: the second firing on the same pair is free.
 
-La couture : dans le plat, take_{n-1} relit la position 0 depuis la profondeur n-1, une descente de span n payée à chaque application ; en Lisage la couture est un arc du pool, O(1). C'est le seul écart de complexité par tir entre le plat et Lisage.
+The seam: in the flat version, take_{n-1} re-reads position 0 from depth n-1, a descent of span n paid at each application; in Lisage the seam is an edge of the pool, O(1). This is the only per-firing complexity gap between flat and Lisage.
 
-### 6.2 Mesuré : où ça explose (et où ça n'explose pas)
+### 6.2 Measured: where it blows up (and where it does not)
 
-Prototype : MDD plat hash-consé en Python, ordre fixe, mêmes événements ; oracles : BFS explicite (sat == BFS pour n = 4..7) et pli (== comptage exact jusqu'à n = 20). Mesures d'un prototype interprété : les ratios et ordres de grandeur sont porteurs, les constantes non.
+Prototype: hash-consed flat MDD in Python, fixed order, same events; oracles: expallowed BFS (sat == BFS for n = 4..7) and fold (== exact counting up to n = 20). Measurements from an interpreted prototype: the ratios and orders of magnitude are meaningful, the constants are not.
 
 | n | 5 | 10 | 20 | 30 |
 |---|---|---|---|---|
-| résultat final (nœuds vivants, ⊤ compris) | 16 | 36 | 76 | 116 |
-| saturation : image max en cours | 15 | 35 | 75 | 115 |
-| BFS naïf : image max en cours | 26 | 126 | 553 | 1 276 |
-| saturation : nœuds créés (table unique) | 140 | 655 | 2 885 | 6 715 |
-| BFS naïf : nœuds créés | 432 | 4 634 | 44 959 | 162 884 |
-| saturation : firings / passes | 45 / 2 | 90 / 2 | 180 / 2 | 270 / 2 |
-| BFS naïf : firings / rounds | 120 / 8 | 480 / 16 | 1 860 / 31 | 4 140 / 46 |
+| final result (live nodes, ⊤ included) | 16 | 36 | 76 | 116 |
+| saturation: max image in progress | 15 | 35 | 75 | 115 |
+| naive BFS: max image in progress | 26 | 126 | 553 | 1 276 |
+| saturation: nodes created (unique table) | 140 | 655 | 2 885 | 6 715 |
+| naive BFS: nodes created | 432 | 4 634 | 44 959 | 162 884 |
+| saturation: firings / passes | 45 / 2 | 90 / 2 | 180 / 2 | 270 / 2 |
+| naive BFS: firings / rounds | 120 / 8 | 480 / 16 | 1 860 / 31 | 4 140 / 46 |
 
-Trois lectures :
+Three readings:
 
-- **L'explosion intermédiaire existe, et elle est dans la policy, pas dans la structure.** Le résultat final est linéaire (4n − 4), mais le BFS naïf gonfle son image en cours à ≈ 1,4 n² : jusqu'à 11 × le résultat final (1 276 contre 116 à n = 30). La saturation garde l'image ≤ résultat + 1 : elle n'écrit jamais beaucoup plus que ce qu'elle garde.
-- **Le coût de création suit** : ≈ 7,8 n² en saturation (Θ(n²) : chaque paire (événement, nœud) écrite au plus une fois), ≈ 6 n³ en naïf. En pool Lisage, ces paires se quotientent en (événement, forme, ancre) : la cible est O(1) par classe + couture (contribution 8).
-- **Le quotient est déjà visible dans le plat** : les 15 nœuds internes vivants à n = 5 ne portent que 5 signatures distinctes, avec multiplicités ×6, ×5, ×2, ×1, ×1 : le plat stocke des réplicas positionnels des 5 formes du § 4 (⊥ y est implicite : clé absente). La table du § 0 est donc à moitié mesurée : le plat paie n copies, Lisage paie une forme et facture le dépliage à la lecture.
+- **The intermediate blow-up exists, and it is in the policy, not in the structure.** The final result is linear (4n − 4), but naive BFS swells its in-progress image to ≈ 1.4 n²: up to 11 × the final result (1 276 vs 116 at n = 30). Saturation keeps the image ≤ result + 1: it never writes much more than it keeps.
+- **The creation cost follows**: ≈ 7.8 n² in saturation (Θ(n²): each (event, node) pair written at most once), ≈ 6 n³ in naive. In the Lisage pool, these pairs are quotiented into (event, form, anchor): the target is O(1) per class + seam (contribution 8).
+- **The quotient is already visible in the flat version**: the 15 live internal nodes at n = 5 carry only 5 distinct signatures, with multipallowedies ×6, ×5, ×2, ×1, ×1: the flat version stores positional replicas of the 5 forms of § 4 (⊥ is impallowed there: key absent). The table of § 0 is thus half measured: flat pays n copies, Lisage pays one form and bills the unfolding at read time.
 
-(À n = 100 : 396 vivants, 78 325 créés, 900 firings, 2 passes ; à n = 200 : 796 vivants, 316 625 créés.)
+(At n = 100: 396 live, 78 325 created, 900 firings, 2 passes; at n = 200: 796 live, 316 625 created.)
 
-### 6.3 Le même exercice «à la DDD» et «à la Hamez» : ce que la policy change, ce qu'elle ne change pas
+### 6.3 The same exercise "DDD-style" and "Hamez-style": what the policy changes, what it does not
 
-Le prototype **est** un moteur d'homomorphismes à la DDD (Couvreur) : application locale d'un événement, mémo (événement, nœud), union mémoïsée (nœud, nœud), merge ⊕ idempotent hash-consé. Les chiffres du § 6.2 se lisent donc tels quels comme des mesures DDD. Mesures complémentaires (moteur reconstruit, cohérent à ±2 % avec le § 6.2) : le **pic de structure vivante** (ce qu'un moteur à GC et caches évictibles doit réellement retenir en vol : racine + image courante) et la **mémoire retenue sans éviction** (table unique + les deux mémos, jamais purgés) :
+The prototype **is** a DDD-style homomorphism engine (Couvreur): local application of an event, memo (event, node), memoized union (node, node), idempotent hash-consed merge ⊕. The figures of § 6.2 therefore read as-is as DDD measurements. Complementary measurements (rebuilt engine, consistent to ±2 % with § 6.2): the **live structure peak** (what an engine with GC and evictable caches must actually hold in flight: root + current image) and the **memory retained without eviction** (unique table + the two memos, never purged):
 
 | n | 10 | 20 | 30 |
 |---|---|---|---|
-| **Saturation** : pic vivant | 68 (≈2,0 × final) | 148 (≈1,95) | 228 (≈1,97) |
-| **Saturation** : retenue sans éviction | 2 033 (≈20 n²) | 9 003 (≈23 n²) | 20 973 (≈23 n²) |
-| **Fixpoint naïf** : pic vivant | 299 (8,3 × final) | 1 299 (17,1 ×) | 2 971 (25,6 ×) |
-| **Fixpoint naïf** : retenue sans éviction | 14 942 (≈15 n³) | 142 692 (≈18 n³) | 513 092 (≈19 n³) |
+| **Saturation**: live peak | 68 (≈2.0 × final) | 148 (≈1.95) | 228 (≈1.97) |
+| **Saturation**: retained without eviction | 2 033 (≈20 n²) | 9 003 (≈23 n²) | 20 973 (≈23 n²) |
+| **Naive fixpoint**: live peak | 299 (8.3 × final) | 1 299 (17.1 ×) | 2 971 (25.6 ×) |
+| **Naive fixpoint**: retained without eviction | 14 942 (≈15 n³) | 142 692 (≈18 n³) | 513 092 (≈19 n³) |
 
-Trois lectures :
+Three readings:
 
-- **Le pic vivant est gouverné par la policy, pas par la représentation.** En saturation, le moteur ne retient jamais beaucoup plus que le résultat (≈2× : le résultat, plus l'image en vol qui partage presque tout) ; en fixpoint rond par rond, le pic est quadratique (≈3,3 n², ratio au final ≈ 0,85 n, croissant) : c'est le *peak effect* de la littérature, mesuré. La bibliothèque SDD de Hamez dit exactement cela et implémente la saturation **dans** la bibliothèque (fixpoint h*, policy auto-détectée) ; la hiérarchie en classes bornées ne fait jamais exister de front d'onde global : l'intermédiaire est la classe courante.
-- **Mais la mémoire et le travail restent indexés par position.** Même en saturation, un moteur plat retient Θ(n²) : Θ(n) événements × Θ(n) nœuds (mémo (événement, nœud) ≈ 8 n², union ≈ 7,8 n², table ≈ 7,4 n²), et sans GC rien ne rend ces entrées. En naïf c'est Θ(n³) retenu. La hiérarchie de Hamez réduit les paires à (événement, classe) : Θ(n) ; le folding récursif des modèles réguliers (Instantiable Petri Nets) partage les classes identiques et pousse les philosophes à l'échelle de plusieurs milliers. Aucun des deux ne quotientte les paires elles-mêmes.
-- **La cible Lisage est le quotient des paires** : (classe d'événement, forme, ancre) = 3 × 5 × 1 entrées, O(1) + bord, et un pool borné à 7 nœuds pendant toute la construction (la séquence de découverte du § 6). Le tableau du § 0 dit que le résultat y est O(1) ; cette table ajoute que l'intermédiaire et la mémoire de travail y sont O(1) aussi, là où le meilleur moteur plat-hiérarchique est Θ(n) vivant / Θ(n) paires. C'est le protocole du jalon 4 : mesurer SDD/HSDD (nœuds, pic, mémoires) sur le même exemple, la ligne de base attendue étant pic ≈ final et travail quasi-linéaire.
+- **The live peak is governed by the policy, not by the representation.** In saturation, the engine never holds much more than the result (≈2×: the result, plus the in-flight image which shares almost everything); in round-by-round fixpoint, the peak is quadratic (≈3.3 n², ratio to final ≈ 0.85 n, growing): it is the *peak effect* of the literature, measured. Hamez's SDD library says exactly this and implements saturation **inside** the library (fixpoint h*, auto-detected policy); the hierarchy in bounded classes never lets a global wavefront exist: the intermediate is the current class.
+- **But memory and work remain position-indexed.** Even in saturation, a flat engine retains Θ(n²): Θ(n) events × Θ(n) nodes (memo (event, node) ≈ 8 n², union ≈ 7.8 n², table ≈ 7.4 n²), and without GC nothing releases these entries. In naive it is Θ(n³) retained. Hamez's hierarchy reduces the pairs to (event, class): Θ(n); the recursive folding of regular models (Instantiable Petri Nets) shares identical classes and scales the philosophers to several thousand. Neither quotients the pairs themselves.
+- **The Lisage target is the quotient of the pairs**: (event class, form, anchor) = 3 × 5 × 1 entries, O(1) + boundary, and a pool bounded to 7 nodes throughout the construction (the discovery sequence of § 6). The table of § 0 says the result there is O(1); this table adds that the intermediate and the working memory are O(1) too, where the best flat-hierarchical engine is Θ(n) live / Θ(n) pairs. This is the milestone 4 protocol: measure SDD/HSDD (nodes, peak, memories) on the same example, the expected baseline being peak ≈ final and near-linear work.
 
-Le gaucher ne change aucune des courbes : pic vivant 70/150/230 (sat, +2 nœuds), 316/1 333/3 029 (naïf, +1 %), mémos +1,2 %. L'irrégularité coûte une constante dans toutes les policies plates ; côté HSDD, elle casse le folding des modules identiques et réclame un re-parenthésage autour de la couture ; côté Lisage, elle remplace S par S' (§ 9) et rien d'autre.
+The left-hander changes none of the curves: live peak 70/150/230 (sat, +2 nodes), 316/1 333/3 029 (naive, +1 %), memos +1.2 %. The irregularity costs a constant in all flat policies; on the HSDD side, it breaks the folding of identical modules and requires re-parenthesizing around the seam; on the Lisage side, it replaces S with S' (§ 9) and nothing else.
 
-Sources : le point peak effect / saturation interne est dans Hamez, Thierry-Mieg, Kordon, *Building Efficient Model Checkers using Hierarchical Set Decision Diagrams and Automatic Saturation*, Fundamenta Informaticae 94(3-4), 2009, et sa version ICATPN 2008 (benchmark philosophes, folding récursif, table 2 : 2n philosophes) ; le folding régulier est dans Thierry-Mieg, Poitrenaud, Hamez, Kordon, *Hierarchical Set Decision Diagrams and Regular Models*, TACAS 2009. Les nombres exacts de ces tables sont à rapatrier pour le benchmark du jalon 4 (accès HAL limité lors de la rédaction) ; les qualités affirmées ici sont celles des abstracts et du texte extrait.
-
----
-
-## 7. Les opérations dérivées (une structure, des semi-anneaux)
-
-- **count** (synthétisé, (ℕ,+,×)) : le pli porte sur les formes, pas sur les positions. Sur la ligne A : a₀(ℓ) = 2a₀(ℓ-1) + a₁(ℓ-1), a₁(ℓ) = 2a₀(ℓ-1) (matrice [[2,1],[2,0]], valeurs propres 1 ± √3) ; la ligne B est la même matrice avec conditions initiales échangées (ancre ⊥/⊤) ; |R_n| = 2a₀(n-1) + a₁(n-1) + 2b₀(n-1), vérifié exact jusqu'à n = 20. Croissance (1+√3)^n : le comptage est une puissance de matrice, O(log n), pas O(n). Ce pli est l'explicitation de D-abs (dualité réduction↔explicitation, (A6) spec § 5.2) : la course régulière de (t,f) absorbée en un seul arc est re-dépliée en récurrence linéaire sur l'hérité, et la régularité de l'absorbé achète l'exponentiation ; contre-épreuve : le gaucher (§ 9.4), même matrice enrichie, ratio 1,2887 constant.
-- **exists** (synthétisé, Bool) : «la cellule 0 peut-elle manger ?» : la projection ne garde que la branche (e,m) de S : le résultat est un objet du même pool, à peine plus petit.
-- **member** (hérité) : un état explicite contre R_n : on descend avec le shift, O(n) sur le dépliage, stockage nul.
-- **deadlock** : vide (hungry toujours armé depuis think) : filter + exists, une ligne de langage.
+Sources: the peak effect / internal saturation point is in Hamez, Thierry-Mieg, Kordon, *Building Efficient Model Checkers using Hierarchical Set Decision Diagrams and Automatic Saturation*, Fundamenta Informaticae 94(3-4), 2009, and its ICATPN 2008 version (philosophers benchmark, recursive folding, table 2: 2n philosophers); the regular folding is in Thierry-Mieg, Poitrenaud, Hamez, Kordon, *Hierarchical Set Decision Diagrams and Regular Models*, TACAS 2009. The exact numbers of these tables are to be retrieved for the milestone 4 benchmark (limited HAL access at writing time); the qualities claimed here are those of the abstracts and the extracted text.
 
 ---
 
-## 8. Ce que l'exemple prouve, et ce qu'il ne prouve pas
+## 7. Derived operations (one structure, semirings)
 
-**Prouvé ici** : la structure de R_n (triple caractérisation vérifiée), l'existence d'un encodage à 7 nœuds indépendant de n, le comptage exact par pli sur les formes. Ces faits ne dépendent pas du cadre : ils sont la cible que le cadre doit atteindre.
-
-**La constructibilité ascendante est vérifiée aussi (simulation, 10 novembre 2026)** : niveau après niveau en partant du terminal, avec l'ancre en table de verdicts (4 entrées) et l'argument sur l'arc, la construction crée les 4 formes au premier niveau, puis **zéro nœud à chaque niveau suivant**, puis S au niveau n : convergence vers exactement les 7 nœuds, S identique pour n = 3..50 (R_5 et R_50 partagent tout). Le même montage en absolu (verdicts d'ancre matérialisés en nœuds, ⊥ implicite) crée 3 puis 4 nœuds par niveau pour toujours : **4n − 4 vivants, exactement la ligne du prototype plat (§ 6.2)** ; la convergence est donc une propriété de la convention d'ancre (l'ancre symbolique), pas du terrain, et le bord du régime absolu est la même couture que celle du plat (détail élégant : au premier niveau, seul B₁ manque à l'appel, son nœud de bord est tout-⊥ et se réduit à ⊥ : promesse «le dernier mange» déjà morte à une cellule de la fin). Contrôles : table dérivée du modèle (§ 1, § 3) == table du § 4 ; verdicts exhaustifs sur les 5^n mots de clés pour n ≤ 6 ; les états légaux acceptés pour n ≤ 8 ; |R_n| par trois voies indépendantes (DP sur les pc-mots, chemins du DD, pli du § 7) égaux jusqu'à n = 20 (536 754 176) et n = 50 ; les 5 états deux à deux distingués par des suffixes de longueur ≤ 2 (C1).
-
-**Non prouvé, prévu** :
-
-1. **La régularité est le meilleur cas.** L'anneau est le terrain choisi par la lignée SDD précisément parce qu'il est régulier ; HSDD y partage déjà stockage et travail. La conjecture d'unfold pose que le plat+shift de Lisage est le dépliage exact de leur hiérarchie : la comparaison mesurée (nœuds, temps, cache) est le benchmark du jalon 4.
-2. **La valeur ajoutée visible ici** : pas de hiérarchie à construire ni à maintenir ; le même pool héberge le contrôleur témoin (BDD classique pour le différentiel CUDD) ; l'irrégularité est absorbée par le bord : le philosophe gaucher (§ 9) n'ajoute **aucune** forme intérieure, seule la racine s'enrichit (7 clés au lieu de 5) et le comptage se refait par le même pli ; la hiérarchie SDD, elle, est à reconstruire.
-3. **La dégradation est prévue** : topologie quelconque, les formes perdent leur auto-similarité, la représentation redevient Θ(n) puis le MDD plat reprend l'avantage ; c'est le critère de l'oracle (§ 1.2 de la proposition) : répétition régulière → plat+shift ; imbriquée irrégulière → tour de contrôleurs.
-4. **Cible de design, partiellement mesurée** : le prototype plat valide la structure du langage (sat == BFS, pli == comptage), les intermédiaires (§ 6.2) et le quotient en 5 signatures ; mais les 7 nœuds en pool et le O(1)+bord restent des prédictions : le property-based du jalon 1 doit vérifier que la saturation converge vers exactement ces formes (C1, minimalité par handle), et le jalon 4 doit les mesurer contre l'encodage SDD hiérarchique. Si la mesure contredit la table du § 0, la contribution 8 est falsifiée : c'est le protocole.
-
-Note de méthode : la première version de cette structure (avant simulation) ratait la promesse portée par la fourchette de la cellule 0 et rejetait des états valides ; c'est exactement le genre d'erreur que le test différentiel du jalon 1 attrape au premier commit. L'exemple valait donc déjà son poste.
+- **count** (synthesized, (ℕ,+,×)): the fold runs on forms, not on positions. On line A: a₀(ℓ) = 2a₀(ℓ-1) + a₁(ℓ-1), a₁(ℓ) = 2a₀(ℓ-1) (matrix [[2,1],[2,0]], eigenvalues 1 ± √3); line B is the same matrix with swapped initial conditions (anchor ⊥/⊤); |R_n| = 2a₀(n-1) + a₁(n-1) + 2b₀(n-1), verified exact up to n = 20. Growth (1+√3)^n: counting is a matrix power, O(log n), not O(n). This fold is the expallowedation of D-abs (reduction↔expallowedation duality, (A6) spec § 5.2): the regular run of (t,f) absorbed into a single edge is re-unfolded into a linear recurrence on the inherited, and the regularity of the absorbed buys the exponentiation; counter-test: the left-hander (§ 9.4), same enriched matrix, constant ratio 1.2887.
+- **exists** (synthesized, Bool): "can cell 0 eat?": the projection keeps only the (e,m) branch of S: the result is an object of the same pool, barely smaller.
+- **member** (inherited): an expallowed state against R_n: we descend with the shift, O(n) on the unfolding, zero storage.
+- **deadlock**: empty (hungry always armed from think): filter + exists, one language line.
 
 ---
 
-## 9. La variante irrégulière : le philosophe gaucher
+## 8. What the example proves, and what it does not
 
-Le cas régulier est le terrain favorable de la lignée SDD. Test de la promesse «l'irrégularité est absorbée par le bord» : le philosophe 0 saisit en deux temps, tous les autres restent atomiques.
+**Proven here**: the structure of R_n (triple characterization verified), the existence of a 7-node encoding indein-flightent of n, exact counting by fold over the forms. These facts do not dein-flight on the framework: they are the target the framework must reach.
 
-### 9.1 Le modèle
+**Bottom-up constructibility is verified too (simulation, November 10, 2026)**: level by level starting from the terminal, with the anchor as a verdict table (4 entries) and the argument on the edge, the construction creates the 4 forms at the first level, then **zero nodes at each subsequent level**, then S at level n: convergence to exactly the 7 nodes, S identical for n = 3..50 (R_5 and R_50 share everything). The same setup in absolute mode (anchor verdicts materialized as nodes, ⊥ impallowed) creates 3 then 4 nodes per level forever: **4n − 4 live, exactly the line of the flat prototype (§ 6.2)**; convergence is therefore a property of the anchor convention (the symbolic anchor), not of the ground, and the boundary of the absolute regime is the same seam as the flat one (elegant detail: at the first level, only B₁ is missing, its boundary node is all-⊥ and reduces to ⊥: the promise "the last one eats" already dead one cell from the end). Controls: table derived from the model (§ 1, § 3) == table of § 4; exhaustive verdicts over the 5^n key words for n ≤ 6; legal states accepted for n ≤ 8; |R_n| by three indein-flightent routes (DP on pc-words, DD paths, fold of § 7) equal up to n = 20 (536 754 176) and n = 50; the 5 states pairwise distinguished by suffixes of length ≤ 2 (C1).
+
+**Not proven, planned**:
+
+1. **Regularity is the best case.** The ring is the terrain chosen by the SDD lineage precisely because it is regular; HSDD already shares storage and work there. The unfold conjecture states that Lisage's flat+shift is the exact unfolding of their hierarchy: the measured comparison (nodes, time, cache) is the milestone 4 benchmark.
+2. **The visible added value here**: no hierarchy to build or maintain; the same pool hosts the witness controller (classical BDD for the CUDD differential); the irregularity is absorbed by the boundary: the left-handed philosopher (§ 9) adds **no** interior form, only the root is enriched (7 keys instead of 5) and counting is redone by the same fold; the SDD hierarchy, for its part, must be rebuilt.
+3. **The degradation is expected**: arbitrary topology, the forms lose their self-similarity, the representation becomes Θ(n) again then the flat MDD regains the advantage; this is the oracle criterion (§ 1.2 of the proposition): regular repetition → flat+shift; nested irregularity → controller tower.
+4. **Design target, partially measured**: the flat prototype validates the structure of the language (sat == BFS, fold == counting), the intermediates (§ 6.2) and the quotient into 5 signatures; but the 7 nodes in pool and the O(1)+boundary remain predictions: the property-based of milestone 1 must verify that saturation converges to exactly these forms (C1, minimality by handle), and milestone 4 must measure them against the hierarchical SDD encoding. If the measurement contradicts the table of § 0, contribution 8 is falsified: that is the protocol.
+
+Method note: the first version of this structure (before simulation) missed the promise carried by the fork of cell 0 and rejected valid states; this is exactly the kind of error the differential test of milestone 1 catches at the first commit. The example was therefore already worth its place.
+
+---
+
+## 9. The irregular variant: the left-handed philosopher
+
+The regular case is the favorable ground of the SDD lineage. Test of the promise "the irregularity is absorbed by the boundary": philosopher 0 seizes in two steps, all others remain atomic.
+
+### 9.1 The model
 
 ```
-take1_0 : pc_0 = hungry ∧ left_1 = free → pc_0 = g, left_1 = prev   // premier temps, largeur 2
-take2_0 : pc_0 = g ∧ left_0 = free → pc_0 = eat, left_0 = me        // second temps, largeur 1
-release_0 : pc_0 = eat → pc_0 = think, left_0 = free, left_1 = free // comme au § 1
-philosophes 1..n-1 : modèle du § 1 inchangé
+take1_0 : pc_0 = hungry ∧ left_1 = free → pc_0 = g, left_1 = prev   // first step, width 2
+take2_0 : pc_0 = g ∧ left_0 = free → pc_0 = eat, left_0 = me        // second step, width 1
+release_0 : pc_0 = eat → pc_0 = think, left_0 = free, left_1 = free // as in § 1
+philosophers 1..n-1 : model of § 1 unchanged
 ```
 
-L'état g : le philosophe 0 tient la fourchette partagée avec la cellule 1 (encodée left_1), attend celle de sa propre cellule (left_0). L'interblocage reste impossible : un seul philosophe tient-et-attend, la chaîne d'attente ne peut pas se refermer (les autres saisissent atomiquement). Le type local de pc_0 passe à {think, hungry, g, eat} : un type de cellule changé à une position, pas un cadre changé.
+The g state: philosopher 0 holds the fork shared with cell 1 (encoded left_1), waits for the one of its own cell (left_0). Deadlock remains impossible: a single philosopher holds-and-waits, the wait chain cannot close (the others seize atomically). The local type of pc_0 becomes {think, hungry, g, eat}: a cell type changed at one position, not a changed framework.
 
-### 9.2 Le langage atteignable
+### 9.2 The reachable language
 
-Mots circulaires de pc, sans «eat eat» adjacent, sans (pc_0 = g ∧ pc_1 = eat) : le voisin de droite du gaucher ne peut pas lui prendre sa fourchette tenue. Les fourchettes se dérivent des pc : left_1 = prev si pc_0 ∈ {eat, g} ; left_0 = me si pc_0 = eat ; sinon comme au § 3. Vérifié exhaustivement : dérivation + ces deux interdits == langage atteignable (n = 4..7 : 72/196/536/1464 états ; forme == BFS == langage).
+Circular words of pc, with no adjacent "eat eat", without (pc_0 = g ∧ pc_1 = eat): the left-hander's right-hand neighbor cannot take his held fork. The forks are derived from the pc: left_1 = prev if pc_0 ∈ {eat, g}; left_0 = me if pc_0 = eat; otherwise as in § 3. Verified exhaustively: derivation + these two prohibitions == reachable language (n = 4..7: 72/196/536/1464 states; form == BFS == language).
 
-### 9.3 La structure : toujours 7 nœuds, et le même intérieur
+### 9.3 The structure: still 7 nodes, and the same interior
 
 ```
-racine S' (7 clés, promesse sur pc_{n-1} comme S)
-  (t,f)→A₀  (h,f)→A₀  (g,f)→A₁  (e,m)→A₁     // ligne A : pc_{n-1} ≠ eat
-  (t,p)→B₀  (h,p)→B₀  (g,p)→B₁               // ligne B : pc_{n-1} = eat
+root S' (7 keys, promise on pc_{n-1} as S)
+  (t,f)→A₀  (h,f)→A₀  (g,f)→A₁  (e,m)→A₁     // line A : pc_{n-1} ≠ eat
+  (t,p)→B₀  (h,p)→B₀  (g,p)→B₁               // line B : pc_{n-1} = eat
 
-A₀, A₁, B₀, B₁ : IDENTIQUES au cas régulier, ancres comprises (A₀→⊤, A₁→⊥, B₀→⊥, B₁→⊤)
+A₀, A₁, B₀, B₁ : IDENTICAL to the regular case, anchors included (A₀→⊤, A₁→⊥, B₀→⊥, B₁→⊤)
 ```
 
-Zéro nouvelle forme intérieure : la clé g n'existe dans aucune forme intérieure (le gaucher ne quitte pas sa position), l'irrégularité est entière dans S'. Mesuré sur les nœuds vivants du prototype plat : les signatures intérieures du gaucher sont exactement celles du cas régulier (mêmes 4 ensembles de clés ; une réplique de plus pour la signature (t,p)/(h,p) du bord, et la racine porte 7 clés au lieu de 5). Coût total : +1 nœud plat vivant (4n − 3 au lieu de 4n − 4), +3 firings, même couture, passes toujours 2.
+Zero new interior form: the key g exists in no interior form (the left-hander never leaves his position), the irregularity is entirely in S'. Measured on the live nodes of the flat prototype: the interior signatures of the left-hander are exactly those of the regular case (same 4 key sets; one more replica for the boundary signature (t,p)/(h,p), and the root carries 7 keys instead of 5). Total cost: +1 live flat node (4n − 3 instead of 4n − 4), +3 firings, same seam, still 2 passes.
 
-Trace de découverte (mesurée) : les 8 premières signatures créées par la saturation du gaucher sont, dans l'ordre, celles du cas régulier ; les clés (g,f) et (g,p) n'apparaissent qu'aux rangs 9 et 12. L'irrégularité se greffe sur du matériel déjà en place, elle ne restructure rien.
+Discovery trace (measured): the first 8 signatures created by the left-hander's saturation are, in order, those of the regular case; the keys (g,f) and (g,p) appear only at ranks 9 and 12. The irregularity grafts onto material already in place, it restructures nothing.
 
-### 9.4 Le comptage : même pli, racine plus riche
+### 9.4 Counting: same fold, richer root
 
-Mêmes matrices qu'au § 7 ; la racine S' ajoute une entrée A₁ ((g,f)) et une entrée B₁ ((g,p)) :
+Same matrices as in § 7; the root S' adds an A₁ entry ((g,f)) and a B₁ entry ((g,p)):
 
-> |R'_n| = 2a₀(n-1) + 2a₁(n-1) + 2b₀(n-1) + b₁(n-1), avec a₀(ℓ) = 2a₀(ℓ-1) + a₁(ℓ-1), a₁(ℓ) = 2a₀(ℓ-1), a₀(0) = 1, a₁(0) = 0, et b idem avec b₀(0) = 0, b₁(0) = 1.
+> |R'_n| = 2a₀(n-1) + 2a₁(n-1) + 2b₀(n-1) + b₁(n-1), with a₀(ℓ) = 2a₀(ℓ-1) + a₁(ℓ-1), a₁(ℓ) = 2a₀(ℓ-1), a₀(0) = 1, a₁(0) = 0, and b likewise with b₀(0) = 0, b₁(0) = 1.
 
-|R'_4| = 72, |R'_5| = 196, |R'_6| = 536, |R'_7| = 1464 (vérifiés par énumération), |R'_{20}| = 691 701 760. Ratio |R'_n| / |R_n| = 1,2887, constant sur n = 4..20 : même base (1+√3)^n, la classe irrégulière décale la constante, pas l'exposant.
+|R'_4| = 72, |R'_5| = 196, |R'_6| = 536, |R'_7| = 1464 (verified by enumeration), |R'_{20}| = 691 701 760. Ratio |R'_n| / |R_n| = 1.2887, constant over n = 4..20: same base (1+√3)^n, the irregular class shifts the constant, not the exponent.
 
-### 9.5 Mesures plat : la même leçon avec l'irrégularité
+### 9.5 Flat measurements: the same lesson with the irregularity
 
 | n | 5 | 10 | 20 | 30 |
 |---|---|---|---|---|
-| résultat final (nœuds vivants, ⊤ compris) | 17 | 37 | 77 | 117 |
-| saturation : image max en cours | 16 | 36 | 76 | 116 |
-| BFS naïf : image max en cours | 31 | 137 | 578 | 1 317 |
-| saturation : firings / passes | 48 / 2 | 93 / 2 | 183 / 2 | 273 / 2 |
+| final result (live nodes, ⊤ included) | 17 | 37 | 77 | 117 |
+| saturation: max image in progress | 16 | 36 | 76 | 116 |
+| naive BFS: max image in progress | 31 | 137 | 578 | 1 317 |
+| saturation: firings / passes | 48 / 2 | 93 / 2 | 183 / 2 | 273 / 2 |
 
-sat == BFS pour n = 4..7, pli == comptage BFS jusqu'à n = 10 (au-delà, le BFS explicite explose en mémoire). À n = 100 : 397 vivants, 78 625 créés (régulier : 78 325, donc +0,4 %) ; à n = 200 : 797 vivants. La leçon du § 6.2 tient avec l'irrégularité : l'image intermédiaire du naïf reste quadratique (1 317 contre 117 à n = 30), la saturation reste à résultat + 1, et l'irrégularité coûte une constante.
+sat == BFS for n = 4..7, fold == BFS counting up to n = 10 (beyond that, expallowed BFS blows up in memory). At n = 100: 397 live, 78 625 created (regular: 78 325, so +0.4 %); at n = 200: 797 live. The lesson of § 6.2 holds with the irregularity: the naive intermediate image remains quadratic (1 317 vs 117 at n = 30), saturation stays at result + 1, and the irregularity costs a constant.
 
-### 9.6 k gauchers (argument, à mesurer)
+### 9.6 k left-handers (argument, to be measured)
 
-k positions irrégulières : des gauchers identiques partagent la même forme de racine (mêmes clés), mais le handle (contrôleur, ancre, forme) distingue les positions : O(k) handles ; les formes intérieures restent partagées entre tous les philosophes, réguliers ou non. La dégradation est linéaire dans le nombre de points irréguliers, pas dans la taille de l'anneau ; la hiérarchie SDD, elle, doit être redessinée pour chaque nouveau motif. C'est la prédiction falsifiable : si le jalon 4 mesure autre chose que O(k), la promesse du bord est fausse.
+k irregular positions: identical left-handers share the same root form (same keys), but the handle (controller, anchor, form) distinguishes the positions: O(k) handles; the interior forms remain shared among all philosophers, regular or not. The degradation is linear in the number of irregular points, not in the size of the ring; the SDD hierarchy, for its part, must be redesigned for each new pattern. This is the falsifiable prediction: if milestone 4 measures anything other than O(k), the boundary promise is false.

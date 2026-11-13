@@ -1,148 +1,148 @@
-# Analyse critique de la note de conception « Diagrammes de décision, IR et localité mémoire »
+# Critical analysis of the design note "Decision Diagrams, IR and memory locality"
 
-*Note de méthode : le document analysé est une note de conception exploratoire du projet (2026) ; sa bibliographie y était signalée comme non vérifiée. Les références vérifiables ont donc été vérifiées, et l'analyse sépare ce qui tient du document de ce qui tient du fond.*
-
----
-
-## 1. Ce qui tient — et tient bien
-
-1. **La distinction localité de représentation / localité d'exécution** est juste et rarement faite explicitement. La plupart des travaux sur le placement se préoccupent de la première et constatent empiriquement la seconde.
-2. **La séparation en quatre dimensions** (ordre sémantique, ordre physique des variables, disposition mémoire, ordre d'exécution) est une bonne grammaire d'analyse. Réserve importante toutefois : voir § 4.7 — c'est une bonne *discipline de spécification*, mais pas un théorème de factorisation.
-3. **La prudence méthodologique** (backend existant, interprète de référence, tests différentiels, property-based testing, fuzzing) est la bonne stratégie pour un prototype. Rien à redire sur le fond.
-4. **La conclusion finale** — « ce sont les objets utilisés ensemble par les opérations dominantes qui doivent guider le placement » — est la bonne question, correctement formulée.
-
-Le cœur du problème n'est pas dans ces points. Il est dans trois angles morts : un problème de recherche repoussé sans être nommé, une canonicité « sémantique » mal posée, et une factorisation trop propre entre ordre et opérations — précisément ce que *Specification of Decision Diagram Operations* (Linard, Hamez et al., 2010) démontre être insoutenable.
+*Method note: the analyzed document is an exploratory project design note (2026); its bibliography was flagged there as unverified. Verifiable references were therefore verified, and the analysis separates what belongs to the document from what belongs to the substance.*
 
 ---
 
-## 2. Le projet de langage : le modèle de coût est le sujet, il est repoussé en annexe
+## 1. What holds — and holds well
 
-### 2.1 « Exploitation transparente » : un problème de recherche dur, pas une fonctionnalité
+1. **The representation locality / execution locality distinction** is correct and rarely made expallowed. Most placement work concerns itself with the former and observes the latter empirically.
+2. **The separation into four dimensions** (semantic order, physical variable order, memory layout, execution order) is a good grammar of analysis. Important caveat, however: see § 4.7 — it is a good *specification discipline*, but not a factorization theorem.
+3. **The methodological caution** (existing backend, reference interpreter, differential tests, property-based testing, fuzzing) is the right strategy for a prototype. Nothing to object to on the substance.
+4. **The final conclusion** — "it is the objects used together by the dominant operations that should guide placement" — is the right question, correctly formulated.
 
-La voie 1 (`map`/`filter` « détecte » qu'une valeur se prête à une représentation DD) suppose un **modèle de profitabilité** : savoir *a priori* quand la construction symbolique d'une valeur + l'opération spécialisée coûtent moins que l'exécution concrète. C'est exactement le problème ouvert de la thèse de Linard (2009) et de polyDD (Linard et al., 2010) (quand une catégorie de DD « dédiée à un problème donné » est-elle rentable ?), et la note le traite comme un détail d'implémentation future. Il devrait être l'objectif de recherche n° 1 du projet, avec un premier modèle de coût même grossier : taille du domaine, densité attendue, coût de l'encodage, nombre de requêtes symboliques ultérieures (une représentation symbolique n'est jamais rentable pour *une* opération, seulement pour une *séquence*).
-
-### 2.2 L'angle mort majeur : la composition d'opérandes d'ordres différents
-
-Le document dit (§ 3.2) que « l'encodage peut dépendre du type et du contexte », mais ne confronte jamais la conséquence : si deux valeurs symboliques construites dans des contextes différents (donc des ordres différents) se combinent, `apply` inter-ordres est catastrophique — l'opération sur deux DD d'ordres incompatables peut exponentier en taille intermédiaire, ou imposer une permutation coûteuse d'abord. Une fonction compilée vers DD est un objet *fermé* dont l'ordre de variables fait partie du contrat d'appel. Le « plan physique » doit donc inclure une **politique d'alignement des ordres** comme primitive de première classe (réordonner l'opérande le plus petit ? maintenir un ordre global canonique du module ? payer le permute ?), faute de quoi le langage compose des représentations incompatibles. C'est le seul vrai problème conceptuel que la note ne voit pas, et il est lié à l'intrication ordre/opérations (§ 4).
-
-### 2.3 La voie 2 est saine
-
-La voie « explicitement symbolique » (`exists`, `forall`, requêtes) est au contraire bien posée : la quantification est une *abstraction* sémantique naturelle, et le compilateur choisit librement l'encodage en dessous. C'est le niveau auquel les deux voies devraient d'ailleurs se rejoindre : le compilateur peut réutiliser la voie symbolique comme cible de spécialisation pour la voie transparente, le modèle de coût décidant de la conversion.
+The core of the problem is not in these points. It lies in three blind spots: a research problem deferred without being named, a "semantic" canonicity poorly posed, and a factorization between order and operations that is too clean — precisely what *Specification of Decision Diagram Operations* (Linard, Hamez et al., 2010) shows to be untenable.
 
 ---
 
-## 3. Semantic IR / Physical IR : la « canonicité mathématique » est mal posée
+## 2. The language project: the cost model is the subject, it is relegated to an apin-flightix
 
-### 3.1 Il n'existe pas de forme canonique indépendante de l'encodage
+### 2.1 "Transparent exploitation": a hard research problem, not a feature
 
-Le § 2.1 présente le Semantic DD comme « forme canonique mathématique, même si non matérialisée ». Or dans toute la littérature (Bryant, Darwiche, les contrôleurs polyDD), la canonicité est *toujours relative à un triple* : (ordre des variables, règles de réduction, convention de défaut). Un ordre sémantique « conceptuel » est lui aussi un choix — simplement un choix différent. Le niveau sémantique ne peut pas être canonique ; il peut seulement être **défini à équivalence près** (la classe de toutes les représentations physiques de la même fonction). C'est d'ailleurs une définition plus utile : le Semantic DD est une classe d'équivalence, et le plan physique est une fonction de choix dans cette classe. Formulé ainsi, la distinction Semantic/Physical devient propre.
+Lane 1 (`map`/`filter` "detects" that a value lends itself to a DD representation) presupposes a **profitability model**: knowing *a priori* when the symbolic construction of a value + the specialized operation cost less than concrete execution. This is exactly the open problem of Linard's thesis (2009) and of polyDD (Linard et al., 2010) (when is a category of DD "dedicated to a given problem" profitable?), and the note treats it as a future implementation detail. It should be the project's research objective no. 1, with a first cost model even if coarse: domain size, expected density, encoding cost, number of subsequent symbolic queries (a symbolic representation is never profitable for *one* operation, only for a *sequence*).
 
-### 3.2 « Annotations plutôt que langage séparé » : le risque documenté
+### 2.2 The major blind spot: composing operands of different orders
 
-L'idée d'un IR unique avec annotations est défendable (c'est grosso modo la stratégie LLVM), mais l'expérience des compilateurs réels montre le mode de défaillance : les annotations mutent en nœuds de premier niveau dès qu'une passe doit raisonner dessus. La ligne de partage correcte est :
+The document says (§ 3.2) that "the encoding may dein-flight on the type and the context", but never confronts the consequence: if two symbolic values built in different contexts (hence different orders) are combined, inter-order `apply` is catastrophic — the operation on two DDs with incompatible orders can blow up exponentially in intermediate size, or require a costly permutation first. A function compiled to DD is a *closed* object whose variable order is part of the calling contract. The "physical plan" must therefore include an **order alignment policy** as a first-class primitive (reorder the smaller operand? maintain a canonical global order for the module? pay the permute?), otherwise the language composes incompatible representations. This is the only real conceptual problem the note does not see, and it is linked to the order/operations entanglement (§ 4).
 
-- les **conversions** entre représentations sont des opérations *sémantiques* (elles changent l'objet, pas seulement son coût) → nœuds de premier niveau du IR ;
-- les **hints** (traversal plan, placement) sont des métadonnées *non observables* sémantiquement → annotations.
+### 2.3 Lane 2 is sound
 
-La note effleure cette distinction (« nœuds explicites indiquant des conversions ou des coûts ») mais la traite comme un détail. C'est le point d'architecture le plus important du document et il devrait être tranché avant tout prototype.
-
-### 3.3 La liste des réductions mélange trois natures différentes
-
-Le § 3.1 classe ensemble des mécanismes qui ne sont pas de même nature :
-
-1. **Réductions canoniques préservant la fonction** : partage des sous-DD identiques, suppression des tests redondants. Ce sont les seules qui méritent le nom de *réduction* : elles ne changent ni la fonction représentée ni l'interprétation des diagrammes.
-2. **Changements de convention canonique** : le zero-suppressed n'est *pas* une réduction du BDD — c'est une autre algèbre. La branche manquante n'a plus la même signification (jamais sélectionné vs. par défaut), donc changer de convention change l'interprétation de *tous* les diagrammes du système, pas seulement d'un sous-graphe. Idem pour le collapse/don't-care, qui suppose une logique à trois valeurs ou des fonctions partiellement définies. Ces choix relèvent du contrôleur (au sens polyDD), pas du niveau « réduction ».
-3. **Compression physique non observable** : packing, compactage de champs.
-
-En outre, le document range le **hash-consing** dans la catégorie 3, alors qu'il est le mécanisme même de la canonicité : la table d'unicité fait de l'identité de nœud une conséquence du contenu. Le hash-consing n'est pas une optimisation mémoire parmi d'autres ; c'est ce qui rend l'égalité structurelle décidable en O(1) et c'est précisément ce qui **contraint** les stratégies de placement (voir § 4.5).
-
-### 3.4 « Construire directement dans l'ordre physique » : le plan statique ne peut pas exister
-
-Le § 3 affirme qu'on peut éviter le reordering destructeur en construisant directement selon le plan physique. La difficulté éludée : le bon ordre dépend des *résultats intermédiaires* de la construction, pas seulement de la description sémantique initiale. C'est la raison d'être du sifting déclenché dynamiquement dans CUDD (seuils de nœuds). Le « plan physique » doit donc être un *processus réactif* (observable : compteurs, seuils, replanification), pas une décision initiale. La note le présuppose statique : contradiction directe avec l'intrication ordre/opérations (Linard 2009 ; *Specification of Decision Diagram Operations*, 2010).
+The "expallowedly symbolic" lane (`exists`, `forall`, queries) is on the contrary well posed: quantification is a natural *semantic abstraction*, and the compiler freely chooses the encoding underneath. This is the level at which the two lanes should in fact meet: the compiler can reuse the symbolic lane as a specialization target for the transparent lane, the cost model deciding on the conversion.
 
 ---
 
-## 4. Localité mémoire : réponse globalement juste, trois incomplétudes notables
+## 3. Semantic IR / Physical IR: the "mathematical canonicity" is poorly posed
 
-### 4.1 Oubli du multi-cœur / NUMA
+### 3.1 There is no encoding-indein-flightent canonical form
 
-Sylvan figure dans les références, mais toute la note est mono-thread. Or la localité dominante d'un moteur multicœur est **l'affinité NUMA et la contention sur les tables** (unique table et computed table partagées), pas la disposition des nœuds. Point d'entrée existant exactement à la jonction des thèmes de la note : *Multi-core On-The-Fly Saturation* (van Dijk, Meijer & van de Pol, TACAS 2019, [DOI](https://doi.org/10.1007/978-3-030-17465-1_4)) — saturation, multi-cœur et ordre des variables y interagissent frontalement.
+§ 2.1 presents the Semantic DD as "mathematical canonical form, even if not materialized". Yet in the entire literature (Bryant, Darwiche, the polyDD controllers), canonicity is *always relative to a triple*: (variable order, reduction rules, default convention). A "conceptual" semantic order is itself a choice — simply a different choice. The semantic level cannot be canonical; it can only be **defined up to equivalence** (the class of all physical representations of the same function). This is in fact a more useful definition: the Semantic DD is an equivalence class, and the physical plan is a choice function within this class. Formulated this way, the Semantic/Physical distinction becomes clean.
 
-### 4.2 `apply` est un parcours du *produit* de deux DAG
+### 3.2 "Annotations rather than a separate language": the documented risk
 
-La limite la plus fondamentale du placement par diagramme, non dite dans le document : une opération binaire visite des *paires* de nœuds, une dans chaque opérande. La localité d'`apply` dépend donc simultanément des deux dispositions, qui interfèrent — aucune disposition d'un seul diagramme ne peut capturer le motif d'accès du produit. Les deux conclusions correctes que le document ne tire pas : (i) le placement doit se raisonner *par opération* (voire par paire d'opérations fréquentes), pas par diagramme ; (ii) pour les opérations dominantes binaires, le vrai levier est la disposition *conjointe* (co-placer deux diagrammes souvent combinés), ce qui rejoint le mark-sweep-shift de la bibliothèque Microsoft mais le généralise.
+The idea of a single IR with annotations is defensible (it is roughly the LLVM strategy), but the experience of real compilers shows the failure mode: annotations mutate into first-class nodes as soon as a pass must reason about them. The correct dividing line is:
 
-### 4.3 Tables souvent dominantes
+- **conversions** between representations are *semantic* operations (they change the object, not just its cost) → first-class nodes of the IR;
+- **hints** (traversal plan, placement) are semantically *unobservable* metadata → annotations.
 
-La note optimise les nœuds ; or dans un package réel, la computed table et la table d'unicité représentent fréquemment l'essentiel du trafic mémoire et des défauts de cache (la table d'unicité est systématiquement traversée à chaque création de nœud ; la computed table à chaque sous-problème). Un benchmark qui ne mesure que les défauts de cache *sur les nœuds* peut optimiser la composante minoritaire. (Appui : CacBDD — Lv, Su & Xu 2013, « A BDD Package with Dynamic Cache Management », [DOI](https://doi.org/10.1007/978-3-642-39799-8_15) — montre que la gestion du cache à elle seule est un sujet.)
+The note brushes against this distinction ("expallowed nodes indicating conversions or costs") but treats it as a detail. This is the most important architectural point of the document and it should be settled before any prototype.
 
-### 4.4 La tension fondamentale non identifiée : adressage par contenu vs. adressage par usage
+### 3.3 The list of reductions mixes three different natures
 
-Le hash-consing assigne aux nœuds une identité *fondée sur le contenu* ; le placement par affinité d'accès veut les disposer selon l'*usage*. Ces deux principes produisent des affectations contradictoires. Conséquence pratique intéressante que le document pourrait exploiter : dans un hash-consing standard, les IDs sont attribués **en ordre de création**, donc la disposition par défaut capture l'affinité temporelle de la *construction*, pas celle des opérations ultérieures. D'où deux stratégies cohérentes avec ce constat : (a) recaler les IDs lors de la compaction selon le profil de la *phase suivante* (généralisation du mark-sweep-shift) ; (b) renoncer au placement fin et optimiser les tables — ce qui ramène au § 4.3. Le document oppose compaction/profilage sans voir que la question de fond est ce conflit d'adressage.
+§ 3.1 groups together mechanisms that are not of the same nature:
 
-### 4.5 Bibliographie : partiellement invérifiable, deux erreurs identifiées
+1. **Canonical reductions preserving the function**: sharing of identical sub-DDs, elimination of redundant tests. These are the only ones that deserve the name *reduction*: they change neither the represented function nor the interpretation of the diagrams.
+2. **Changes of canonical convention**: zero-suppressed is *not* a reduction of the BDD — it is another algebra. The missing branch no longer has the same meaning (never selected vs. by default), so changing convention changes the interpretation of *all* diagrams in the system, not just of one subgraph. Same for collapse/don't-care, which assumes three-valued logic or partially defined functions. These choices belong to the controller (in the polyDD sense), not to the "reduction" level.
+3. **Non-observable physical compression**: packing, field compaction.
 
-La note le reconnaît elle-même, mais voici l'état des vérifications :
+Moreover, the document ranks **hash-consing** in category 3, whereas it is the very mechanism of canonicity: the unique table makes node identity a consequence of content. Hash-consing is not a memory optimization among others; it is what makes structural equality decidable in O(1) and it is precisely what **constrains** placement strategies (see § 4.5).
 
-| Référence citée | État |
+### 3.4 "Build directly in the physical order": the static plan cannot exist
+
+§ 3 claims that destructive reordering can be avoided by building directly according to the physical plan. The elided difficulty: the good order depends on the *intermediate results* of the construction, not only on the initial semantic description. This is the purpose of dynamically triggered sifting in CUDD (node thresholds). The "physical plan" must therefore be a *reactive process* (observable: counters, thresholds, replanning), not an initial decision. The note presupposes it static: direct contradiction with the order/operations entanglement (Linard 2009; *Specification of Decision Diagram Operations*, 2010).
+
+---
+
+## 4. Memory locality: globally correct answer, three notable gaps
+
+### 4.1 Omission of multi-core / NUMA
+
+Sylvan appears in the references, but the whole note is single-threaded. Yet the dominant locality of a multi-core engine is **NUMA affinity and contention on the tables** (unique table and computed table shared), not the layout of the nodes. Existing entry point exactly at the junction of the note's themes: *Multi-core On-The-Fly Saturation* (van Dijk, Meijer & van de Pol, TACAS 2019, [DOI](https://doi.org/10.1007/978-3-030-17465-1_4)) — saturation, multi-core and variable order interact head-on there.
+
+### 4.2 `apply` is a traversal of the *product* of two DAGs
+
+The most fundamental limit of per-diagram placement, not stated in the document: a binary operation visits *pairs* of nodes, one in each operand. The locality of `apply` therefore depends simultaneously on both layouts, which interfere — no layout of a single diagram can capture the access pattern of the product. The two correct conclusions the document does not draw: (i) placement must be reasoned *per operation* (even per pair of frequent operations), not per diagram; (ii) for dominant binary operations, the real lever is the *joint* layout (co-placing two diagrams often combined), which joins the mark-sweep-shift of the Microsoft library but generalizes it.
+
+### 4.3 Tables are often dominant
+
+The note optimizes nodes; yet in a real package, the computed table and the unique table frequently represent the bulk of memory traffic and cache misses (the unique table is systematically traversed at each node creation; the computed table at each subproblem). A benchmark that measures only cache misses *on nodes* can optimize the minor component. (Support: CacBDD — Lv, Su & Xu 2013, "A BDD Package with Dynamic Cache Management", [DOI](https://doi.org/10.1007/978-3-642-39799-8_15) — shows that cache management alone is a subject.)
+
+### 4.4 The fundamental tension not identified: content addressing vs. usage addressing
+
+Hash-consing assigns nodes an identity *based on content*; access-affinity placement wants to arrange them according to *usage*. These two principles produce contradictory assignments. Interesting practical consequence that the document could exploit: in standard hash-consing, IDs are assigned **in creation order**, so the default layout captures the temporal affinity of *construction*, not that of subsequent operations. Hence two strategies consistent with this observation: (a) reassign IDs during compaction according to the profile of the *next phase* (generalization of mark-sweep-shift); (b) give up fine-grained placement and optimize the tables — which brings us back to § 4.3. The document opposes compaction/profiling without seeing that the underlying question is this addressing conflict.
+
+### 4.5 Bibliography: partially unverifiable, two errors identified
+
+The note acknowledges this itself, but here is the state of the verifications:
+
+| Cited reference | Status |
 |---|---|
-| *Binary Decision Diagrams on Modern Hardware*, FMCAD 2023 | Confirmée : Samuel Pastva (Université Masaryk), le PDF `is.muni.cz` est cohérent |
-| *TeDDy* → lien `github.com/ahamez/eddy` | **Erreur** : ce lien pointe vers EDDy (bibliothèque d'Alexandre Hamez). TeDDy est un autre projet : Mrena, Kvaššay & Zaitseva, « TeDDy: Templated decision diagram library », SoftwareX 2024 ([DOI](https://doi.org/10.1016/j.softx.2024.101715)). Les deux méritent d'être cités, séparément |
-| *Design of a Pointerless BDD Package* (2001) | Introuvable en base bibliographique sous ce titre exact — à re-vérifier avant usage |
-| Yang & O'Hallaron 1997 | DOI plausible mais non confirmé lors des vérifications |
-| Chilimbi & Larus 1998, Sylvan, CUDD, Microsoft DecisionDiagrams | Solides |
+| *Binary Decision Diagrams on Modern Hardware*, FMCAD 2023 | Confirmed: Samuel Pastva (Masaryk Universite), the `is.muni.cz` PDF is consistent |
+| *TeDDy* → link `github.com/ahamez/eddy` | **Error**: this link points to EDDy (Alexandre Hamez's library). TeDDy is another project: Mrena, Kvassay & Zaitseva, "TeDDy: Templated decision diagram library", SoftwareX 2024 ([DOI](https://doi.org/10.1016/j.softx.2024.101715)). Both deserve to be cited, separately |
+| *Design of a Pointerless BDD Package* (2001) | Not found in bibliographic databases under this exact title — to be re-verified before use |
+| Yang & O'Hallaron 1997 | Plausible DOI but not confirmed during the verifications |
+| Chilimbi & Larus 1998, Sylvan, CUDD, Microsoft DecisionDiagrams | Solid |
 
-Et deux absents récents directement dans la cible du projet : la manipulation de BDD **en mémoire externe** (Sølvsten, van de Pol et al., arXiv 2021, [DOI](https://doi.org/10.48550/arxiv.2104.12101)) et la **prédiction des besoins mémoire des opérations** sur BDD (Sølvsten & van de Pol, TACAS 2023) — ce dernier est exactement un morceau du modèle de coût manquant du § 2.1.
+And two recent absentees directly in the project's target: BDD manipulation **in external memory** (Solvsten, van de Pol et al., arXiv 2021, [DOI](https://doi.org/10.48550/arxiv.2104.12101)) and **prediction of the memory demands of BDD operations** (Solvsten & van de Pol, TACAS 2023) — the latter is exactly a piece of the cost model missing from § 2.1.
 
-### 4.6 Benchmark : méthodologie à durcir
+### 4.6 Benchmark: methodology to harden
 
-Le plan de benchmark (§ 7) est bon, mais deux pièges ne sont pas signalés :
+The benchmark plan (§ 7) is good, but two pitfalls are not flagged:
 
-1. **Confusion densité/hachage** : une compaction change l'assignation des IDs, donc les séquences de sondage des tables de hachage. Mesurer « compaction on/off » capture simultanément l'effet de densité et l'effet de distribution de hachage. Il faut contrôler (randomiser les IDs de façon reproductible, ou mesurer avec/sans re-hash).
-2. **Manques dans les mesures** : hit-rate de la computed table, taille relative des tables vs. nombre de nœuds, ordre de construction contrôlé (même fonction, ordres de construction différents → dispositions différentes). Et des workloads réalistes existent déjà : les modèles du Model Checking Contest servent de banc éprouvé à toute cette lignée d'outils.
-
----
-
-## 5. Le point qui manque à toute la note : l'intrication ordre/opérations
-
-La remarque finale du document n'y est pas développée, et elle en est pourtant la clef de voûte critique : **l'ordre et les opérations sont intriqués, et les homomorphismes manquent d'un canal d'information inter-niveaux**.
-
-### 5.1 Mise en forme du diagnostic
-
-Dans le modèle DDD, un homomorphisme est un opérateur descendant qui se décompose niveau par niveau : à chaque variable, il choisit les successeurs. Le seul canal d'information est le *paramètre* de l'opérateur (les combinainateurs de Thierry-Mieg : `Collected`/`IfThenElse`/etc.), donc toute information contextuelle doit être gelée dans l'opérateur *avant* la descente. Il n'y a :
-
-- **pas de canal remontant** (attributs synthétisés : une information calculée dans un sous-arbre n'est pas consultable par le niveau parent pendant l'opération) ;
-- **pas de mémoire de niveau** (pas d'état stocké entre deux visites du même niveau, hormis le diagramme lui-même) ;
-- et donc pas d'autre choix que de *réifier l'état dans les variables* (variables intermédiaires) quand un calcul dépend de la conjonction de plusieurs niveaux — avec le coût que cela suppose en taille de diagramme.
-
-### 5.2 La littérature valide empiriquement ce diagnostic
-
-C'est exactement le problème rencontré par la **saturation avec événements non locaux** : les transitions couvrant plusieurs niveaux cassent la validité/efficacité de l'itération par niveau. La lignée Ciardo/Zhao le contourne par de la *localisation d'événements* (event localization : réécrire les événements multi-niveaux en événements locaux via des niveaux intermédiaires) — c'est-à-dire précisément la réification d'état dénoncée ci-dessus, faite à la main. Les deux diagnostics (intrication ordre/opérations, absence de stockage inter-niveaux) sont les deux faces du même phénomène : **le niveau n'est pas une frontière d'encapsulation étanche**, et les formalismes actuels font comme si elle l'était.
-
-### 5.3 Deux conséquences pour le projet
-
-**Vers la sémantique.** La formalisation naturelle existe : les homomorphismes actuels correspondent à des *attributs hérités* (l'information ne descend que par paramétrage). Il manque les *attributs synthétisés* et une mémoire de niveau — autrement dit, passer des transducteurs descendants aux **grammaires attribuées** sur le diagramme (ou aux réécritures d'arbre à état). Un « contrôleur » polyDD généralisé devrait spécifier, par catégorie de DD, les deux flux (hérité/synthétisé) et la politique de stockage inter-niveaux. C'est, à ce jour, un vide réel dans la littérature, et l'extension naturelle de *Specification of Decision Diagram Operations* (2010).
-
-**Vers la mémoire.** Il y a une convergence heureuse avec le sujet de localité : si l'information inter-niveaux doit être stockée quelque part, la question de *son* placement se pose en même temps que celui des nœuds. Stocker l'attribut *dans* le nœud (ou dans un tableau parallèle co-localisé) plutôt que dans une structure séparée résout le problème sémantique et le problème de localité ensemble : le `TraversalPlan`/`PlacementPlan` de la note gagnerait un quatrième concept, un `AttributeStore`, dont la disposition est partie intégrante du plan physique. Le benchmark du § 7 du document devrait donc ajouter une variante : opérations à attributs inter-niveaux, avec et sans co-localisation des attributs.
+1. **Density/hashing confusion**: compaction changes the assignment of IDs, hence the probing sequences of the hash tables. Measuring "compaction on/off" simultaneously captures the density effect and the hashing distribution effect. One must control (randomize the IDs reproducibly, or measure with/without re-hash).
+2. **Gaps in the measurements**: hit-rate of the computed table, relative size of the tables vs. number of nodes, controlled construction order (same function, different construction orders → different layouts). And realistic workloads already exist: the models of the Model Checking Contest serve as a proven test bench for this whole lineage of tools.
 
 ---
 
-## 6. Synthèse — cinq corrections prioritaires
+## 5. The point missing from the whole note: the order/operations entanglement
 
-1. **Promouvoir le modèle de coût** (quand une représentation symbolique est-elle rentable ?) d'implémentation future à objectif de recherche central ; s'appuyer sur la prédiction de besoins mémoire (Sølvsten & van de Pol 2023) comme première brique.
-2. **Ajouter la politique d'alignement des ordres** aux primitives du plan physique ; c'est la conséquence non traitée de « l'encodage dépend du contexte ».
-3. **Trancher l'IR** : conversions = nœuds sémantiques de premier niveau ; hints = annotations non observables. Pas de statut intermédiaire.
-4. **Reclassifier les mécanismes** : réduction canonique / changement de convention canonique / compression physique — trois catégories étanches, et le hash-consing côté fondations de la canonicité, pas côté optimisation.
-5. **Fusionner les deux fils** (intrication ordre/opérations + canal inter-niveaux) : la saturation avec événements non locaux est le cas d'école ; un prototype d'homomorphismes à attributs sur ce cas validerait cette thèse et donnerait au projet son résultat de recherche distinctif.
+The document's final remark is not developed there, yet it is its critical keystone: **order and operations are entangled, and homomorphisms lack an inter-level information channel**.
+
+### 5.1 Formulation of the diagnosis
+
+In the DDD model, a homomorphism is a descending operator that decomposes level by level: at each variable, it chooses the successors. The only information channel is the operator's *parameter* (Thierry-Mieg's combinators: `Collected`/`IfThenElse`/etc.), so all contextual information must be frozen into the operator *before* the descent. There is:
+
+- **no upward channel** (synthesized attributes: information computed in a subtree is not accessible to the parent level during the operation);
+- **no level memory** (no state stored between two visits to the same level, apart from the diagram itself);
+- and therefore no choice but to *reify the state into the variables* (intermediate variables) when a computation depends on the conjunction of several levels — with the cost that this implies in diagram size.
+
+### 5.2 The literature empirically validates this diagnosis
+
+This is exactly the problem encountered by **saturation with non-local events**: transitions spanning several levels break the validity/efficiency of level-by-level iteration. The Ciardo/Zhao lineage works around it through *event localization* (rewriting multi-level events as local events via intermediate levels) — that is, precisely the state reification denounced above, done by hand. The two diagnoses (order/operations entanglement, absence of inter-level storage) are two faces of the same phenomenon: **the level is not a watertight encapsulation boundary**, and current formalisms pretend it is.
+
+### 5.3 Two consequences for the project
+
+**Toward semantics.** The natural formalization exists: current homomorphisms correspond to *inherited attributes* (information only descends through parameterization). What is missing are *synthesized attributes* and a level memory — in other words, moving from descending transducers to **attributed grammars** on the diagram (or to stateful tree rewriting). A generalized polyDD "controller" should specify, per DD category, the two flows (inherited/synthesized) and the inter-level storage policy. This is, to date, a real gap in the literature, and the natural extension of *Specification of Decision Diagram Operations* (2010).
+
+**Toward memory.** There is a happy convergence with the locality topic: if inter-level information must be stored somewhere, the question of *its* placement arises at the same time as that of the nodes. Storing the attribute *in* the node (or in a co-located parallel array) rather than in a separate structure solves the semantic problem and the locality problem together: the note's `TraversalPlan`/`PlacementPlan` would gain a fourth concept, an `AttributeStore`, whose layout is an integral part of the physical plan. The benchmark of § 7 of the document should therefore add a variant: operations with inter-level attributes, with and without co-location of the attributes.
 
 ---
 
-## 7. Références ajoutées lors de la vérification
+## 6. Synthesis — five priority corrections
 
-- Pastva, S. — *Binary Decision Diagrams on Modern Hardware*, FMCAD 2023 (confirmée).
-- Mrena, M., Kvaššay, M., Zaitseva, E. — *TeDDy: Templated decision diagram library*, SoftwareX 2024. https://doi.org/10.1016/j.softx.2024.101715
+1. **Promote the cost model** (when is a symbolic representation profitable?) from future implementation to central research objective; rely on memory-demand prediction (Solvsten & van de Pol 2023) as a first building block.
+2. **Add the order alignment policy** to the primitives of the physical plan; it is the untreated consequence of "the encoding depends on the context".
+3. **Settle the IR**: conversions = first-class semantic nodes; hints = unobservable annotations. No intermediate status.
+4. **Reclassify the mechanisms**: canonical reduction / change of canonical convention / physical compression — three watertight categories, and hash-consing on the side of the foundations of canonicity, not on the side of optimization.
+5. **Merge the two threads** (order/operations entanglement + inter-level channel): saturation with non-local events is the textbook case; a prototype of attribute homomorphisms on this case would validate this thesis and give the project its distinctive research result.
+
+---
+
+## 7. References added during verification
+
+- Pastva, S. — *Binary Decision Diagrams on Modern Hardware*, FMCAD 2023 (confirmed).
+- Mrena, M., Kvassay, M., Zaitseva, E. — *TeDDy: Templated decision diagram library*, SoftwareX 2024. https://doi.org/10.1016/j.softx.2024.101715
 - van Dijk, T., Meijer, J., van de Pol, J. — *Multi-core On-The-Fly Saturation*, TACAS 2019. https://doi.org/10.1007/978-3-030-17465-1_4
-- Sølvsten, S. C., van de Pol, J., et al. — *Efficient Binary Decision Diagram Manipulation in External Memory*, arXiv 2021. https://doi.org/10.48550/arxiv.2104.12101
-- Sølvsten, S. C., van de Pol, J. — *Predicting Memory Demands of BDD Operations Using Maximum Graph Cuts*, TACAS 2023.
+- Solvsten, S. C., van de Pol, J., et al. — *Efficient Binary Decision Diagram Manipulation in External Memory*, arXiv 2021. https://doi.org/10.48550/arxiv.2104.12101
+- Solvsten, S. C., van de Pol, J. — *Predicting Memory Demands of BDD Operations Using Maximum Graph Cuts*, TACAS 2023.
 - Lv, G., Su, K., Xu, Y. — *CacBDD: A BDD Package with Dynamic Cache Management*, 2013. https://doi.org/10.1007/978-3-642-39799-8_15
 - Minato, S. — *Streaming BDD manipulation*, IEEE Trans. Computers 2002. https://doi.org/10.1109/tc-2002.1004587

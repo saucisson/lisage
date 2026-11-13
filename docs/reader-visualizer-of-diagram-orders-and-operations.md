@@ -1,121 +1,121 @@
-# Liseuse : voir Lisage travailler
+# Reader: watching Lisage at work
 
-**Liseuse** est l'outil de visualisation du projet : elle montre un **ordre** (et son contrôleur), un **diagramme de décision** (le pool, ses handles, ses réductions), et **l'application d'une opération** sur ce diagramme, pas à pas. Le nom suit la règle de Lisage : la liseuse est à la fois celle qui lit et la lectrice (lire + Lisage).
+**Reader** is the project's visualization tool: it shows an **order** (and its controller), a **decision diagram** (the pool, its handles, its reductions), and **the application of an operation** on that diagram, step by step. The name follows Lisage's rule: the reader is both the one who reads and the female reader (read + Lisage).
 
-## 1. Rôle et non-rôles
+## 1. Role and non-roles
 
-**Rôle** : rendre visibles les trois affirmations du projet que le texte ne peut que constater : la canonicité par handle (C1 : deux formes identiques sous deux ancres différentes ne fusionnent pas), le travail de saturation (rounds, firings, mémoire de niveau), et le partage (multiplicités, quotient O(1) + bord). Un œil sur le pool vaut mille affichages de débogage.
+**Role**: make visible the three claims of the project that text can only state: canonicity by handle (C1: two identical forms under two different anchors do not merge), the saturation work (rounds, firings, level memory), and sharing (multipallowedies, O(1) + edge). One look at the pool is worth a thousand debug printouts.
 
-**Non-rôles assumés** : ce n'est pas un débogueur de code Rust (pas de points d'arrêt, pas d'inspection mémoire du processus) ; ce n'est pas un éditeur de graphe (lecture seule, jamais d'édition du diagramme) ; ce n'est pas un serveur (fichiers autonomes, consultables hors ligne, committables dans le dépôt).
+**Assumed non-roles**: it is not a Rust code debugger (no breakpoints, no process memory inspection); it is not a graph editor (read-only, never edits the diagram); it is not a server (self-contained files, viewable offline, committable in the repo).
 
-**Contrainte de fond** : le déterminisme. Une trace rejouée doit être identique à la trace d'origine (l'exigence même du jalon 1 : interprète de référence + property-based). Liseuse ne fait donc que **rejouer** des événements émis par le moteur ; elle n'interroge jamais le moteur en direct.
+**Fundamental constraint**: determinism. A replayed trace must be identical to the original trace (the very requirement of milestone 1: reference interpreter + property-based). Reader therefore only **replays** events emitted by the engine; it never queries the engine live.
 
-## 2. Architecture : event-sourced, trois briques, un fichier
+## 2. Architecture: event-sourced, three building blocks, one file
 
 ```
 ┌─────────────── lisage-core ───────────────┐
-│  port d'instrumentation : trait Observer  │
-│  (no-op par défaut, zéro coût en release) │
+│  instrumentation port: Observer trait     │
+│  (no-op by default, zero cost in release) │
 └──────────────┬───────────────────────────┘
-               │ événements typés
+               │ typed events
                ▼
-┌────────────── lisage-liseuse ─────────────────────────────┐
-│  1. trace  : sérialiseur JSONL versionné (schema rédigé)   │
-│  2. index : reconstruction des états (replay déterministe) │
-│             + fenêtres (par round, par opération, par pool)│
-│  3. rendu : SVG du diagramme, HTML autonome, export figures│
-└──────────────┬────────────────────────────────────────────┘
-               │ un fichier unique, ouvrable hors ligne
+┌────────────── lisage-reader ───────────────────────────────┐
+│  1. trace  : versioned JSONL serializer (written schema)   │
+│  2. index : state reconstruction (deterministic replay)    │
+│             + windows (per round, per operation, per pool) │
+│  3. render : diagram SVG, standalone HTML, figure export   │
+└──────────────┬─────────────────────────────────────────────┘
+               │ a single file, openable offline
                ▼
-        liseuse.html  (SVG + scrubber JS minimal, aucun serveur,
-                       aucune dépendance réseau, committable)
+        reader.html  (SVG + minimal JS scrubber, no server,
+                       no network dein-flightency, committable)
 ```
 
-Les trois briques sont des modules de la crate `lisage-liseuse`, une crate de plus du workspace (voir la feuille de route, M0-2). La sortie est un **fichier HTML autonome** (le SVG et le scrubber y sont embarqués) : on le met dans `bench-results/`, on le commit, on l'envoie par courriel, on l'ouvre dans une revue.
+The three building blocks are modules of the `lisage-reader` crate, one more crate in the workspace (see the roadmap, M0-2). The output is a **standalone HTML file** (the SVG and the scrubber are embedded in it): drop it in `bench-results/`, commit it, send it by email, open it in a review.
 
-## 3. Le format de trace (le contrat entre le moteur et l'œil)
+## 3. The trace format (the contract between the engine and the eye)
 
-JSONL, une ligne = un événement, schéma versionné (`{"v":1, ...}`). Types d'événements :
+JSONL, one line = one event, versioned schema (`{"v":1, ...}`). Event types:
 
-| Événement | Champs | Ce que ça rend visible |
+| Event | Fields | What it makes visible |
 |---|---|---|
-| `HandleCreated` | contrôleur, ancre, forme, `NodeId` | la naissance d'un handle : la clé (contrôleur, ancre, forme) qui fonde C1 |
-| `Reduction` | type (R-share, R-collapse, R-default, D-abs), ids | les quotients quand ils tirent |
-| `Memo` | op, arguments, hit/miss | le prix du pli (L3) |
-| `Attr` | canal (hérité, synthétisé, mémoire), nœud, valeur | les trois flux, la pièce centrale de Lisage |
-| `Fire` | classe d'événement, nœud, round | la saturation au travail |
-| `Round` | début/fin, niveau, compteur de passes | les rounds et leur convergence |
-| `Convert` | contrôleur source, cible, coût | les royaumes et les conversions à coût prédictible |
-| `Pool` | plan, créations, vivants, GC | le bi-plan, la mémoire |
-| `Snapshot` | (throttle) état complet du pool | les points d'ancrage du scrubber sur les longues traces |
+| `HandleCreated` | controller, anchor, form, `NodeId` | the birth of a handle: the key (controller, anchor, form) that grounds C1 |
+| `Reduction` | type (R-share, R-collapse, R-default, D-abs), ids | the quotients when they trigger |
+| `Memo` | op, arguments, hit/miss | the cost of the fold (L3) |
+| `Attr` | channel (inherited, synthesized, memory), node, value | the three flows, the centerpiece of Lisage |
+| `Fire` | event class, node, round | saturation at work |
+| `Round` | start/end, level, pass counter | the rounds and their convergence |
+| `Convert` | source controller, target, cost | the kingdoms and conversions with predictable cost |
+| `Pool` | plane, creations, live, GC | the two-plane pool, memory |
+| `Snapshot` | (throttle) full pool state | the scrubber anchor points on long traces |
 
-Deux règles de conception : (i) le port `Observer` est **le seul** point de sortie (le pool n'inspecte jamais ⊕, et l'instrumentation non plus : elle observe des identifiants et des compteurs, pas la sémantique) ; (ii) le volume est **borné par fenêtrage** : une trace complète par round, une trace grossière (compteurs + snapshots) pour les longues exécutions ; le réglage est un simple entier (événements par fenêtre).
+Two design rules: (i) the `Observer` port is **the only** exit point (the pool never inspects ⊕, and the instrumentation doesn't either: it observes identifiers and counters, not semantics); (ii) volume is **bounded by windowing**: one full trace per round, one coarse trace (counters + snapshots) for long runs; the setting is a simple integer (events per window).
 
-## 4. Vue 1 : l'ordre et les contrôleurs
+## 4. View 1: the order and the controllers
 
-Ce que la vue montre : **O**, la décomposition et les conversions, c'est-à-dire les paramètres du contrôleur étendu `C = (δ, Σ, décomposition + O, R, défauts, D^déf, encodage, attribution)`.
+What the view shows: **O**, the decomposition and the conversions, i.e. the parameters of the extended controller `C = (δ, Σ, decomposition + O, R, defaults, D^def, encoding, attribution)`.
 
-- **La fiche contrôleur** : les huit champs de `C` en un panneau, avec leurs valeurs pour l'instance courante. C'est la légende de tout le reste : chaque couleur, chaque forme de nœud, chaque arc pointillé affiché ensuite s'y rattache.
-- **L'ordre comme piste** : O linéaire en une piste horizontale (les niveaux dans l'ordre de balayage) ; O structuré en arbre dessiné comme un arbre (le vtree des SDD sententiels s'y installera sans cas particulier).
-- **Les royaumes côte à côte** : quand deux contrôleurs coexistent (le témoin BDD classique et l'instance de référence, par exemple), deux pistes superposées, et la conversion fléchée avec son coût mesuré (événements `Convert`).
-- **Le Σ déplié** : à côté de la piste, l'expression de Σ qui déplie les niveaux (le record des philosophes, la variable répétée avec son marqueur de fin pour `Seq`/`Set`/`Map`), pour voir que l'ordre est un dépliage, pas une liste de variables.
+- **The controller card**: the eight fields of `C` in one panel, with their values for the current instance. It is the legend for everything else: every color, every node shape, every dashed edge shown later ties back to it.
+- **The order as a track**: O linear as a horizontal track (the levels in sweep order); O structured as a tree drawn as a tree (the vtree of sentential SDDs will fit there without a special case).
+- **The kingdoms side by side**: when two controllers coexist (the classic BDD witness and the reference instance, for example), two overlaid tracks, and the arrowed conversion with its measured cost (`Convert` events).
+- **The unfolded Σ**: next to the track, the Σ expression that unfolds the levels (the philosophers' record, the repeated variable with its end marker for `Seq`/`Set`/`Map`), to see that the order is an unfolding, not a list of variables.
 
-## 5. Vue 2 : le diagramme
+## 5. View 2: the diagram
 
-Le pool dessiné comme un DAG à niveaux : une bande horizontale par clé de Σ (le layout est donné par l'ordre, pas calculé : nos diagrammes sont ordonnés par construction, aucun Sugiyama nécessaire).
+The pool drawn as a leveled DAG: one horizontal band per Σ key (the layout is given by the order, not computed: our diagrams are ordered by construction, no Sugiyama needed).
 
-- **Les nœuds** : rectangles arrondis = handles ; survol = le triple (contrôleur, ancre, forme) et la multiplicité (combien de réplicas positionnels ce handle représente) ; un badge ×k quand k > 1.
-- **Les arcs** : étiquetés par les clés ; les arcs implicites de `D^déf` en pointillés gris (l'absence dessinée comme absence) ; le marqueur de fin de `list/set/map` comme un petit disque plein.
-- **Les ancres** : la valuation d'arête (shift, poids, complément) en couleur d'arc, avec la légende de la fiche contrôleur.
-- **Les clés-régions** (δ continu) : quand les clés sont des régions (intervalles, contraintes DBM, singletons dégénérés), l'arc porte le **terme** de la clé tel quel ; Liseuse l'affiche sans l'interpréter (le pool ne l'interprète jamais), et la fiche contrôleur documente l'algèbre de clés qui fonde sa lecture.
-- **Le zoom sémantique** : dézoomer groupe par classes du quotient (formes × ancres : les 5 signatures des philosophes plutôt que les 15 nœuds vivants à n = 5) ; zoomer revient aux réplicas positionnels. Le quotient est visible d'un mouvement de molette : c'est la contribution n° 8 rendue palpable.
-- **Le pool en fond** : les nœuds groupés par plan (principal/ombre), les collectes du GC en fondu.
+- **The nodes**: rounded rectangles = handles; hover = the triple (controller, anchor, form) and the multipallowedy (how many positional replicas this handle stands for); a ×k badge when k > 1.
+- **The edges**: labeled by the keys; the impallowed edges of `D^def` in gray dashes (absence drawn as absence); the end marker of `list/set/map` as a small filled disk.
+- **The anchors**: the edge valuation (shift, weight, complement) in edge color, with the legend from the controller card.
+- **Region-keys** (continuous δ): when the keys are regions (intervals, DBM constraints, degenerate singletons), the edge carries the key **term** as-is; Reader displays it without interpreting it (the pool never interprets it either), and the controller card documents the key algebra that grounds its reading.
+- **Semantic zoom**: zooming out groups by quotient classes (forms × anchors: the 5 signatures of the philosophers rather than the 15 live nodes at n = 5); zooming in returns to positional replicas. The quotient is visible with a mouse wheel movement: it is contribution no. 8 made tangible.
+- **The pool in the background**: nodes grouped by plane (main/shadow), GC collections fading out.
 
 ```
-Exemple (philosophes, vue quotient, 5 signatures) :
+Example (philosophers, quotient view, 5 signatures):
 
-  record : A(3)  B(3)  ...           Σ déplié : Philo(n) = record[Goût; ×(Fourchette, Fourchette)]
-  ────────────────────────────────  piste O : g₁ f₁ g₂ f₂ g₃ f₃ (intercalage du record)
+  record : A(3)  B(3)  ...           unfolded Σ : Philo(n) = record[Taste; ×(Fork, Fork)]
+  ────────────────────────────────  O track : g₁ f₁ g₂ f₂ g₃ f₃ (interleaving of the record)
    S ──▶ ⬤/⊤ ──▶ A₀ ──▶ A₁
-            ╲────▶ B₀ ──▶ B₁        handles : S, A₀, A₁, B₀, B₁, ⊤, ⊥ (7 avec les feuilles)
+            ╲────▶ B₀ ──▶ B₁        handles : S, A₀, A₁, B₀, B₁, ⊤, ⊥ (7 with the leaves)
   ────────────────────────────────
-   ×1     ×6     ×5     ×2 ...      multiplicités : le plat paie n, Lisage paie une forme
+   ×1     ×6     ×5     ×2 ...      multipallowedies : the flat pays n, Lisage pays one form
 ```
 
-## 6. Vue 3 : l'opération, pas à pas
+## 6. View 3: the operation, step by step
 
-C'est la vue qui n'existe nulle part dans les paquets existants : **le déroulé d'une transduction attribuée**, rejoué événement par événement sur le diagramme.
+This is the view that exists nowhere in existing packages: **the unfolding of an attributed transduction**, replayed event by event on the diagram.
 
-- **Le scrubber** : une frise des événements de la fenêtre (un tir, un round, une opération complète) ; on scrubbe, le diagramme montre l'état à cet instant. Les `Snapshot` bornent la reconstruction ; entre deux, le replay incrémental.
-- **Les trois canaux en couleur** : l'attribut **hérité** descend en bleu (l'arc porte une valeur vers le bas), le **synthétisé** remonte en orange (`φ_aggr` agrège les fils), la **mémoire de niveau** pulse en violet quand elle écrit. `lookup` devient lisible : la clé descend, le fragment remonte.
-- **Les mémos** : halo vert (hit) ou rouge (miss) sur le nœud visité ; le compteur hit/miss en tableau de bord, le prix du pli en direct.
-- **Les réductions** : un flash au `Reduction` (deux nœuds fusionnent en gardant le survivant ; les fantômes des nœuds absorbés restent un instant en filigrane).
-- **Les rounds de saturation** : barres verticales sur la frise (round k = tirer toutes les classes d'événements locales à un niveau avant de remonter) ; compteur de passes, firings, vivants, pic : les grandeurs mesurées dans l'exemple des philosophes, en direct.
-- **Le tableau de bord** : created, live, peak, passes, firings, memo hit-rate : exactement les colonnes des tables de mesures, pour qu'une figure et un tableau de bench parlent le même langage.
+- **The scrubber**: a timeline of the window's events (one firing, one round, one full operation); you scrub, the diagram shows the state at that instant. The `Snapshot`s bound the reconstruction; between two of them, incremental replay.
+- **The three channels in color**: the **inherited** attribute descends in blue (the edge carries a value downward), the **synthesized** one rises in orange (`φ_aggr` aggregates the children), the **level memory** pulses in purple when it writes. `lookup` becomes readable: the key goes down, the fragment comes back up.
+- **The memos**: green halo (hit) or red (miss) on the visited node; the hit/miss counter on the dashboard, the cost of the fold live.
+- **The reductions**: a flash at `Reduction` (two nodes merge keeping the survivor; the ghosts of the absorbed nodes linger for a moment as a watermark).
+- **The saturation rounds**: vertical bars on the timeline (round k = fire all event classes local to a level before going back up); pass counter, firings, live, peak: the quantities measured in the philosophers example, live.
+- **The dashboard**: created, live, peak, passes, firings, memo hit-rate: exactly the columns of the measurement tables, so that a figure and a bench table speak the same language.
 
-## 7. Cas d'usage étalons
+## 7. Benchmark use cases
 
-1. **Philosophes n = 3, 4, 5** : un tir complet en pas à pas (vue 3), puis la saturation rounds par rounds, puis la vue quotient ; la figure finale (7 formes, O(1) + bord) est le premier livrable de l'article. `fold` (le comptage) rejoué : le pli remonte, la table montre le cardinal exact 152 / 23 168 / 536 754 176.
-2. **Le gaucher** : même exemple, un philosophe inversé ; la vue montre la racine s'enrichir (7 clés) et l'intérieur **inchangé** : les formes intérieures restent partagées. C'est la promesse du bord, dessinée.
-3. **C1 en action** : deux nœuds de même forme sous deux ancres différentes restent deux handles ; la vue les affiche côte à côte avec leur triple. Le PBT vérifie, Liseuse le montre.
-4. **Le témoin BDD** : la même fonction sous le contrôleur BDD classique, conversion fléchée entre les royaumes, coût mesuré.
-5. **Figures d'article** : mode export (M5-5) : SVG propre, thème serif, légende auto-générée depuis la fiche contrôleur ; le même fichier qui sert au débogage sert à la publication.
+1. **Philosophers n = 3, 4, 5**: one full firing step by step (view 3), then the saturation round by round, then the quotient view; the final figure (7 forms, O(1) + edge) is the paper's first deliverable. `fold` (the counting) replayed: the fold goes back up, the table shows the exact cardinality 152 / 23 168 / 536 754 176.
+2. **The left-hander**: same example, one inverted philosopher; the view shows the root enriching (7 keys) and the interior **unchanged**: the inner forms remain shared. It is the promise of the edge, drawn.
+3. **C1 in action**: two nodes of the same form under two different anchors remain two handles; the view shows them side by side with their triple. The PBT verifies, Reader shows it.
+4. **The BDD witness**: the same function under the classic BDD controller, arrowed conversion between the kingdoms, measured cost.
+5. **Paper figures**: export mode (M5-5): clean SVG, serif theme, legend auto-generated from the controller card; the same file used for debugging serves for publication.
 
-## 8. Limites et passages à l'échelle
+## 8. Limitations and scaling
 
-- **Taille de trace** : le fenêtrage borne tout ; en mode grossier (compteurs + snapshots), une exécution MCC complète tient en quelques Mo de JSONL. Le réglage : fenêtre par round, ou par opération, ou fixe.
-- **Taille de diagramme** : la vue cible les cas pédagogiques et de bench (jusqu'à ~10 000 nœuds rendus, au-delà le zoom sémantique passe au quotient et aux compteurs). Liseuse n'est pas un profileur de très grands espaces : c'est l'œil du protocole, pas la loupe du datacenter.
-- **Aucun serveur, aucune dépendance JS** : un fichier HTML, du SVG, quelques centaines de lignes de JS vanilla pour le scrubber. Si le JS devient un fardeau, la sortie SVG statique reste complète (le scrubber devient une suite de fichiers numérotés).
+- **Trace size**: windowing bounds everything; in coarse mode (counters + snapshots), a full MCC run fits in a few MB of JSONL. The setting: window per round, or per operation, or fixed.
+- **Diagram size**: the view targets pedagogical and bench cases (up to ~10,000 rendered nodes; beyond that the semantic zoom switches to quotient and counters). Reader is not a profiler of very large spaces: it is the eye of the protocol, not the magnifying glass of the datacenter.
+- **No server, no JS dein-flightency**: one HTML file, SVG, a few hundred lines of vanilla JS for the scrubber. If the JS becomes a burden, the static SVG output remains complete (the scrubber becomes a series of numbered files).
 
-## 9. Découpage (rattaché aux jalons de la feuille de route)
+## 9. Breakdown (tied to the roadmap milestones)
 
-| Livrable | Jalon | Contenu |
+| Deliverable | Milestone | Content |
 |---|---|---|
-| Port `Observer` + schéma de trace v1 | M1-9 | les événements du tableau § 3, le sérialiseur, le replay |
-| Vue diagramme statique (SVG) | M1-9 | niveaux, handles, ancres, arcs implicites |
-| Trace pas à pas + canaux + mémos | M2-6 | le scrubber, les trois canaux, les réductions, les rounds |
-| Vue ordre/contrôleurs/conversions | M3-4 | fiche contrôleur, pistes, royaumes, Σ déplié |
-| Vues mémoire et quotient | M4-5 | pools, GC, badges de multiplicité, zoom sémantique |
-| Export figures articles | M5-5 | thème publication, légendes auto |
+| `Observer` port + trace schema v1 | M1-9 | the events of the table § 3, the serializer, the replay |
+| Static diagram view (SVG) | M1-9 | levels, handles, anchors, impallowed edges |
+| Step-by-step trace + channels + memos | M2-6 | the scrubber, the three channels, the reductions, the rounds |
+| Order/controllers/conversions view | M3-4 | controller card, tracks, kingdoms, unfolded Σ |
+| Memory and quotient views | M4-5 | pools, GC, multipallowedy badges, semantic zoom |
+| Paper figure export | M5-5 | publication theme, auto legends |
 
-**Critère d'acceptation transversal** : à chaque jalon, le protocole de mesure correspondant (les tables de l'exemple des philosophes pour M4, la comparaison A/B/C pour M5) doit être reproductible **une figure Liseuse à l'appui**, générée depuis une trace archivée dans le dépôt.
+**Cross-cutting acceptance criterion**: at each milestone, the corresponding measurement protocol (the tables of the philosophers example for M4, the A/B/C comparison for M5) must be reproducible **with a Reader figure as evidence**, generated from a trace archived in the repo.

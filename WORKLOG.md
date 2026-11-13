@@ -61,6 +61,12 @@ One entry per commit or pull request:
 - **Done**: README.md and AGENTS.md were already fully English (0 accented lines, grep-verified); WORKLOG.md conventions were already English — adds the explicit rule that new entries are written in English while pre-M6 entries stay in French as the historical record. Historical `.github/pr-body-*.md` artifacts are left untouched (past PR bodies, not living documentation). Known limitation: the one French comment in `.github/workflows/ci.yml` (bench step name) cannot be fixed from an agent session — the GitHub App token lacks the `workflow` scope, push is refused; left for the human.
 - **Evidence**: `grep -rIlP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]' README.md AGENTS.md Makefile .github/workflows/` returns nothing after the fix; `make check` not run: docs/config-comment-only change, no code touched.
 - **Judgement calls**: AGENTS.md needed no translation (already English), so no needs-human escalation was required for this issue despite AGENTS.md being on the escalation list — the diff does not touch it.
+## 2026-11-13 - M6-3 docs/ translated to English, French filenames renamed (issue #106)
+
+- **Issue**: #106 (M6-3, milestone M6).
+- **Done**: the 10 French-named files under `docs/` are renamed to English (`git mv`: proposal, state of the art, roadmap, specification, two golden-thread examples, two critical analyses, reader, spike, philosophers SVG) and their content translated to English. Cross-references to the old French filenames updated in `crates/lisage-liseuse` and `crates/lisage-bench` doc comments and in the specification. All `docs/*.md` verified 0 accented lines (`grep -cP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇœæ]'`).
+- **Evidence**: accent grep returns 0 for every `docs/*.md`; old-filename grep across `*.md`/`*.rs` returns nothing outside `docs/audit-french-inventory.md` (M6-0, intentional), `WORKLOG.md` (historical) and `.review/` artifacts. `make check` not run here: docs-only change, no code touched (the `.rs` edits are doc-comment path strings only).
+- **Judgement calls**: the SVG asset `docs/the-7-forms-of-the-philosophers-diagram.svg` still contains French text — listed as follow-up for M6-6/M6-7. PR exceeds the ~1000-line budget (ADR-0101): the human explicitly authorized oversized PRs for milestone M6.
 - **Escalations**: none.
 
 ## 2026-11-13 - M6-1 glossary review fix: missing contract terms + duplicate rows (PR #178)

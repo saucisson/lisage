@@ -1,136 +1,136 @@
-# Analyse critique — note de conception « ΣDD structurels : seq/set/map/tagged union »
+# Critical analysis — design note « Structural ΣDDs: seq/set/map/tagged union »
 
-*Analyse critique de la note de conception fournie (2026), succédant à la note « Diagrammes de décision, IR et localité mémoire ».*
-
----
-
-## 1. Ce que cette note apporte réellement
-
-Trois idées y sont solides et à conserver :
-
-1. **Le trio d'interprétations** (valeur structurée / fonction sur dimensions / collection de chemins) et la conséquence opérationnelle : `map`-sur-chaque-chemin ≠ `reduce`/`exists`-sur-l'ensemble des chemins ≠ fermeture (`saturation`). Cette taxonomie en trois familles (transformation de chemins, agrégation entre chemins, fermeture) est la bonne grille de lecture pour toutes les opérations du niveau 2.
-2. **La canonisation relative** : `Canon(T, O_s, R)` — canonique pour le triple (décomposition, ordre, règles de réduction), pas absolu. C'est exactement le correctif à apporter au « Semantic DD canonique mathématique » de la note précédente, et la note l'intègre bien ici.
-3. **L'ordre comme ressource algorithmique** et le programme « compiler l'expression *sous* l'ordre dont auront besoin les opérations aval », plutôt que construire puis réordonner. C'est la thèse de l'intrication ordre/opérations (Linard 2009 ; *Specification of Decision Diagram Operations*, 2010), reformulée en problème de compilation : la bonne reformulation.
-
-Le reste appelle des réserves sérieuses, en particulier sur la nouveauté revendiquée et sur un angle mort canonicité. Détail ci-dessous.
+*Critical analysis of the supplied design note (2026), succeeding the note « Decision Diagrams, IR and Memory Locality ».*
 
 ---
 
-## 2. Le point de départ : une lignée interne à l'écosystème du projet
+## 1. What this note actually delivers
 
-Vérification faite : les **ΣDD** sont de **Didier Buchs et Steve Hostettler** (2009), le groupe de Genève, avec lequel les auteurs de polyDD ont co-publié (AlPiNA, CosyVerif). Le même groupe a publié les **Multi-Set Decision Diagrams** (Levi & Hostettler, 2009). Autrement dit, la note propose d'étendre une lignée *interne à l'écosystème du projet* (Genève, LIP6) : ce n'est pas une architecture posée sur une littérature étrangère, c'est une continuation interne, et elle doit être évaluée comme telle (en particulier : pourquoi les ΣDD n'ont-ils pas déjà été étendus ainsi ? La réponse de 2009-2012 était polyDD, Linard et al., ACSD 2010).
+Three ideas in it are solid and worth keeping:
+
+1. **The trio of interpretations** (structured value / function over dimensions / set of paths) and the operational consequence: `map`-on-each-path ≠ `reduce`/`exists`-over-the-set-of-paths ≠ closure (`saturation`). This three-family taxonomy (path transformation, aggregation across paths, closure) is the right reading grid for all level-2 operations.
+2. **Relative canonicalization**: `Canon(T, O_s, R)` — canonical for the triple (decomposition, order, reduction rules), not absolute. This is exactly the correction to bring to the « canonical mathematical Semantic DD » of the previous note, and the note integrates it well here.
+3. **Order as an algorithmic resource** and the program « compile the expression *under* the order that downstream operations will need », rather than build then reorder. This is the thesis of the order/operations entanglement (Linard 2009; *Specification of Decision Diagram Operations*, 2010), reformulated as a compilation problem: the right reformulation.
+
+The rest calls for serious reservations, in particular about the claimed novelty and about a canonicality blind spot. Details below.
 
 ---
 
-## 3. Le « Structural DD » : moins nouveau qu'il n'y paraît, et c'est une bonne nouvelle
+## 2. The starting point: a lineage internal to the project's ecosystem
 
-La proposition d'un DD sur `Seq/Set/Map/Tag` est présentée comme un saut conceptuel. En réalité, chaque couche a un antécédent direct et connu :
+Verified: **ΣDDs** are by **Didier Buchs and Steve Hostettler** (2009), the Geneva group, with which the polyDD authors have co-published (AlPiNA, CosyVerif). The same group published the **Multi-Set Decision Diagrams** (Levi & Hostettler, 2009). In other words, the note proposes extending a lineage *internal to the project's ecosystem* (Geneva, LIP6): this is not an architecture set on a foreign literature, it is an internal continuation, and it must be evaluated as such (in particular: why have ΣDDs not already been extended this way? The 2009–2012 answer was polyDD, Linard et al., ACSD 2010).
 
-| Couche proposée | Antécédent connu | Ce qui s'y joue |
+---
+
+## 3. The « Structural DD »: less new than it seems, and that is good news
+
+The proposal of a DD over `Seq/Set/Map/Tag` is presented as a conceptual leap. In reality, each layer has a direct, known antecedent:
+
+| Proposed layer | Known antecedent | What is at stake there |
 |---|---|---|
-| `Seq` (partage de suffixes, langage de séquences) | DD sur séquences = **trie partagé = automate minimal** (BDD/ZDD vus comme automates) ; **Queue BDDs** de Godefroid & Long (LICS 1996) | Un DD sur des séquences à positions variables *est* un automate déterministe minimal ; le partage de suffixes est la déterminisation/minimisation |
-| `Set` (canonisation + DD de présence) | **Multi-Set Decision Diagrams** (Levi & Hostettler 2009) ; forme canonique = fonction caractéristique DD sur variables des éléments | Canonique ssi ordre total sur les encodages d'éléments ; rien de plus exotique qu'une BDD de fonction caractéristique |
-| `Map` (relation clé→valeur) | HSDD (arcs valués par des ensembles) + MTBDD fonctionnels ; `Map<K,V> ≈ DD<K, Option<V>>` (la note le dit elle-même) | La « contrainte de canonisation sur les clés » = ordre des clés = un variable ordering de plus |
-| `Tag` | Constructeurs de termes des ΣDD eux-mêmes ; unions typées des MDD | C'est la couche la plus proche des ΣDD d'origine |
+| `Seq` (suffix sharing, sequence language) | DD over sequences = **shared trie = minimal automaton** (BDD/ZDD seen as automata); **Queue BDDs** by Godefroid & Long (LICS 1996) | A DD over sequences at variable positions *is* a minimal deterministic automaton; suffix sharing is determinization/minimization |
+| `Set` (canonicalization + presence DD) | **Multi-Set Decision Diagrams** (Levi & Hostettler 2009); canonical form = characteristic-function DD over element variables | Canonical iff total order on element encodings; nothing more exotic than a characteristic-function BDD |
+| `Map` (key→value relation) | HSDD (edges valued by sets) + functional MTBDDs; `Map<K,V> ≈ DD<K, Option<V>>` (the note says so itself) | The « canonicalization constraint on keys » = key order = one more variable ordering |
+| `Tag` | Term constructors of the ΣDDs themselves; typed unions of MDDs | The layer closest to the original ΣDDs |
 
-**Conséquence pour le projet** : le « Structural ΣDD » n'est pas une nouvelle primitive, c'est une *synthèse* — et c'est précisément le programme de polyDD (un framework généralisant les catégories de DD) instancié sur la signature structurelle de Genève. La note dit d'ailleurs elle-même, en conclusion, qu'il faudra « voir si ça retombe sur des structures connues » : oui, en grande partie, et le seul endroit où ça *ne* retombe pas sur du connu est l'endroit que la note n'explore pas : **les opérations et leur compilation** (§ 7). Le slogan correct serait : les constructeurs sont connus, l'ordre-est-une-compilation est le vrai sujet.
-
----
-
-## 4. L'angle mort canonicité : la preuve demandée est fausse en général
-
-La note propose de démontrer : « pour toute structure finie, sa représentation réduite est unique ». C'est **faux sans hypothèses fortes**, et l'histoire du domaine le montre :
-
-- Pour `Seq` non borné, le point de fixation de la canonicité, c'est la **minimalité d'automate** — atteignable seulement pour les représentations régulières. Les **Queue BDDs** de Godefroid & Long en sont la démonstration par l'échec : pour les files non bornées, la représentation canonique n'existe pas, et il a fallu approximer (perte de canonicité, de O(1)-égalité, de l'union en temps raisonnable).
-- Pour `Set<T>`/`Map<K,V>` sur des atomes **infinis** (le langage cible a `Int` et `String` non bornés !), la forme canonique d'un ensemble fini de valeurs existe (fonction caractéristique sur l'encodage), mais son *support* (les dimensions) dépend de l'encodage des atomes — et change à chaque insertion hors du domaine déjà vu. La canonicité n'est donc stable que **relativement à un schéma d'encodage des atomes fixé** — un paramètre de plus dans `Canon(T, O_s, R)`, que l'architecture doit expliciter (schéma d'atomes = quelles dimensions existent, encodage borné ou pointé).
-- Le cas `Map` non borné en clés est le pire : c'est exactement le territoire des DDD de Couvreur, dont la **non-canonicité est un choix assumé** pour cette raison. La note devrait dire : `Seq`/`Set` bornés → canonique ; domaines ouverts → DDD-style non canonique + homomorphismes, avec égalité par encodage syntaxique, pas par fonction.
-
-**Correction à apporter au programme** : remplacer « la forme réduite est unique » par « la forme réduite est unique *relativement à* (schéma d'atomes, décomposition, ordre sémantique, règles) » et classer les constructeurs par statut canonique. C'est un théorème de classification à écrire — c'est là, et pas dans les constructeurs, qu'est la contribution théorique.
+**Consequence for the project**: the « Structural ΣDD » is not a new primitive, it is a *synthesis* — and that is precisely the polyDD program (a framework generalizing DD categories) instantiated on the Geneva structural signature. The note itself says, in conclusion, that one will have to « see whether it falls back onto known structures »: yes, largely, and the only place where it does *not* fall back onto the known is the place the note does not explore: **operations and their compilation** (§ 7). The correct slogan would be: the constructors are known, order-as-compilation is the real subject.
 
 ---
 
-## 5. Terminal non booléens : la réponse est correcte, et c'est un résultat déjà connu
+## 4. The canonicality blind spot: the requested proof is false in general
 
-La question des terminaux non booléens dans la hiérarchie reçoit dans la note une réponse juste (chaque sous-DD est une fonction ; le nœud parent *compose* ces sous-fonctions ; le partage `D₁ = D₂` en découle). Mais il faut nommer ce que la réponse redécouvre : c'est **la sémantique même des SDD/HSDD** — un arc d'un HSDD porte un ensemble représenté par un sous-DD, et l'égalité en O(1) par identité de nœud est précisément le partage hiérarchique de Hamez. De même, la dualité « DD = ensemble (interprétation A) vs DD = fonction (interprétation B) » est la dualité classique **langage/fonction** (BDD vs MTBDD), et le fix du « une seule fonction globale » — *le DD représente un ensemble de chemins, une union* — est exactement la sémantique des DDD (un DDD dénote un ensemble d'affectations, union par construction).
+The note proposes to prove: « for any finite structure, its reduced representation is unique ». This is **false without strong hypotheses**, and the history of the field shows it:
 
-En revanche, deux éléments de la note sont réellement bons et à garder :
+- For unbounded `Seq`, the canonicality fixed point is **automaton minimality** — attainable only for regular representations. The **Queue BDDs** of Godefroid & Long are the proof by failure: for unbounded queues, the canonical representation does not exist, and approximation was needed (loss of canonicality, of O(1)-equality, of union in reasonable time).
+- For `Set<T>`/`Map<K,V>` over **infinite** atoms (the target language has unbounded `Int` and `String`!), the canonical form of a finite set of values exists (characteristic function over the encoding), but its *support* (the dimensions) dein-flights on the encoding of atoms — and changes with each insertion outside the domain already seen. Canonicality is therefore stable only **relative to a fixed atom-encoding schema** — one more parameter in `Canon(T, O_s, R)`, which the architecture must make expallowed (atom schema = which dimensions exist, bounded or pointer encoding).
+- The unbounded-in-keys `Map` case is the worst: it is exactly the territory of Couvreur's DDDs, whose **non-canonicality is an assumed choice** for this reason. The note should say: bounded `Seq`/`Set` → canonical; open domains → DDD-style non-canonical + homomorphisms, with equality by syntactic encoding, not by function.
 
-1. **L'algèbre de défauts par type** (`Bool → false`, `Set → ∅`, `Map → ∅`, `Option → None`, `Int → 0`) : c'est la généralisation correcte des conventions BDD (défaut = faux) et ZDD (défaut = absent), déductible du type et surchargeable par l'opération. À intégrer dans le contrôleur polyDD comme paramètre à part entière — c'est concret et neuf sous cette forme.
-2. **Le terminal fonctionnel** (`DD : Bool → (Int→Int)`, terminaux = fermetures) et la prudence immédiate sur l'égalité extensionnelle : correct. Le partage se fera sur la représentation canonique de la *syntaxe* (IR canonique de la fermeture), jamais sur la sémantique. C'est une contrainte structurelle du modèle, bien vue.
-
----
-
-## 6. Ordre sémantique / ordre physique : convergence, mais trois coûts cachés
-
-L'architecture `SemanticDD canonique → (permutation π par type, ordre physique) → PhysicalDD`, avec recompilation plutôt que reordering destructeur, converge avec l'analyse précédente (note « DD, IR et localité mémoire »), dont elle corrige d'ailleurs le point canonicité. Trois coûts restent cachés :
-
-1. **Le Semantic DD lui-même peut être exponentiellement plus gros que le meilleur Physical DD.** La canonicité « indépendante de l'ordre physique » reste relative à une *décomposition sémantique* — qui est un choix d'ordre déguisé. Pour certaines fonctions, aucune décomposition sémantique unique n'est compacte alors que plusieurs ordres physiques le sont. Conséquence pratique : la stratégie « recompiler depuis le Semantic DD » vaut reconstruction complète — sur les très grands espaces d'états, c'est précisément le coût qu'on voulait éviter. Le Semantic DD doit donc être *optionnel* : matérialisé pour les objets qu'on sait devoir réutiliser sous plusieurs ordres, jamais comme passerelle systématique.
-2. **Le planner doit connaître le futur.** « Compiler `x` directement sous l'ordre dont auront besoin `map f` puis `exists p` » suppose une chaîne d'opérations connue à la compilation. Avec des fonctions d'ordre supérieur passées en arguments, l'aval est une valeur *runtime* : le planner statique se réduit à des heuristiques, et il faut quand même du reordering dynamique dans la panoplie — le problème de CUDD ne disparaît pas, il est repoussé au rang de fallback.
-3. **La composition est repoussée, pas résolue.** La note identifie elle-même « la composition de deux Semantic DD de décompositions différentes » comme la prochaine difficulté. C'est *le* problème : avec des permutations π **par type et par contexte**, l'espace d'incompatibilité entre opérandes explose littéralement (π₁ ≠ π₂ sur un même type suffit à casser les opérations binaires compilées). L'architecture a besoin d'une politique d'alignement explicite — c'était déjà le constat de l'analyse précédente ; les π par type l'aggravent.
+**Correction to bring to the program**: replace « the reduced form is unique » with « the reduced form is unique *relative to* (atom schema, decomposition, semantic order, rules) » and classify constructors by canonical status. This is a classification theorem to write — it is there, and not in the constructors, that the theoretical contribution lies.
 
 ---
 
-## 7. Opérations : la note s'arrête pile là où la proposition Lisage commence
+## 5. Non-Boolean terminals: the answer is correct, and it is an already-known result
 
-Le point le plus important, soulevé en objection : « on a aussi besoin d'opérations **non homomorphiques** ». La note l'admet (§ 8 : `lookup`, `insert`, `join`, `groupBy` ne sont pas des homomorphismes ; § 13 : trois familles), mais ne propose **aucun mécanisme** — elle renvoie à un vague « interpréteur sur l'ordre ».
+The question of non-Boolean terminals in the hierarchy receives in the note a correct answer (each sub-DD is a function; the parent node *composes* these sub-functions; the sharing `D₁ = D₂` follows from it). But one must name what the answer rediscovers: it is **the very semantics of SDDs/HSDDs** — an edge of an HSDD carries a set represented by a sub-DD, and O(1) equality by node identity is precisely Hamez's hierarchical sharing. Likewise, the « DD = set (interpretation A) vs DD = function (interpretation B) » duality is the classic **language/function** duality (BDD vs MTBDD), and the fix of « a single global function » — *the DD represents a set of paths, a union* — is exactly the semantics of DDDs (a DDD denotes a set of assignments, union by construction).
 
-Or la taxonomie en trois familles qu'elle donne est exactement la grille qui manque à l'idée d'homomorphismes à attributs de la proposition Lisage, et elle s'y superpose terme à terme :
+However, two elements of the note are genuinely good and worth keeping:
 
-| Famille (note) | Sens de l'information | Mécanisme |
+1. **The default algebra by type** (`Bool → false`, `Set → ∅`, `Map → ∅`, `Option → None`, `Int → 0`): this is the correct generalization of BDD conventions (default = false) and ZDD conventions (default = absent), derivable from the type and overloadable by the operation. To be integrated into the polyDD controller as a full-fledged parameter — it is concrete and new in this form.
+2. **The functional terminal** (`DD : Bool → (Int→Int)`, terminals = closures) and the immediate caution about extensional equality: correct. Sharing will happen on the canonical representation of the *syntax* (canonical IR of the closure), never on the semantics. It is a structural constraint of the model, well seen.
+
+---
+
+## 6. Semantic order / physical order: convergence, but three hidden costs
+
+The architecture `canonical SemanticDD → (permutation π per type, physical order) → PhysicalDD`, with recompilation rather than destructive reordering, converges with the previous analysis (note « DD, IR and Memory Locality »), whose canonicality point it in fact corrects. Three costs remain hidden:
+
+1. **The Semantic DD itself can be exponentially larger than the best Physical DD.** « Order-indein-flightent » canonicality remains relative to a *semantic decomposition* — which is a disguised order choice. For some functions, no single semantic decomposition is compact while several physical orders are. Practical consequence: the « recompile from the Semantic DD » strategy amounts to full reconstruction — on very large state spaces, this is precisely the cost one wanted to avoid. The Semantic DD must therefore be *optional*: materialized for objects known to be reused under several orders, never as a systematic gateway.
+2. **The planner must know the future.** « Compile `x` directly under the order that `map f` then `exists p` will need » assumes an operation chain known at compile time. With higher-order functions passed as arguments, the downstream is a *runtime* value: the static planner reduces to heuristics, and dynamic reordering must still be in the toolbox — the CUDD problem does not disappear, it is demoted to fallback status.
+3. **Composition is deferred, not solved.** The note itself identifies « the composition of two Semantic DDs with different decompositions » as the next difficulty. It is *the* problem: with permutations π **per type and per context**, the incompatibility space between operands literally explodes (π₁ ≠ π₂ on a single type suffices to break compiled binary operations). The architecture needs an expallowed alignment policy — this was already the finding of the previous analysis; per-type πs make it worse.
+
+---
+
+## 7. Operations: the note stops exactly where the Lisage proposal begins
+
+The most important point, raised as an objection: « we also need **non-homomorphic operations** ». The note admits it (§ 8: `lookup`, `insert`, `join`, `groupBy` are not homomorphisms; § 13: three families), but proposes **no mechanism** — it refers to a vague « interpreter over the order ».
+
+Yet the three-family taxonomy it gives is exactly the grid that the idea of attributed homomorphisms in the Lisage proposal lacks, and it superimposes on it term by term:
+
+| Family (note) | Direction of information | Mechanism |
 |---|---|---|
-| Transformation de chemins (`map`) | **attributs hérités** (descendants) | homomorphisme DDD classique |
-| Agrégation entre chemins (`reduce`, `fold`, `exists`) | **attributs synthétisés** (remontants) | canal absent des homomorphismes actuels — c'est le mécanisme manquant |
-| Fermeture (`saturation`) | les deux + **mémoire de niveau** (point fixe par niveau) | saturation d'Hamez = instance ; événements non locaux = cas où la mémoire de niveau manque |
+| Path transformation (`map`) | **inherited attributes** (downward) | classic DDD homomorphism |
+| Aggregation across paths (`reduce`, `fold`, `exists`) | **synthesized attributes** (upward) | channel absent from current homomorphisms — this is the missing mechanism |
+| Closure (`saturation`) | both + **level memory** (fixed point per level) | Hamez saturation = instance; non-local events = case where level memory is lacking |
 
-`lookup : Map<K,V> × K → Option<V>` est le cas d'école parfait : l'opération doit porter la clé *vers le bas* (hérité), comparer aux clés rencontrées (contexte inter-niveaux), et *remonter* la valeur trouvée (synthétisé). Aucun de ces trois canaux n'existe dans le modèle homomorphique actuel. La note produit donc, sans le voir, l'énoncé de besoins de la proposition : **le « Decision IR » doit être fondé sur une sémantique de grammaire attribuée sur le diagramme** — hérités + synthétisés + mémoire de niveau — dont les homomorphismes DDD, les folds et la saturation sont les trois instances. C'est la pièce à écrire en priorité, et elle est absente du plan de la note.
-
----
-
-## 8. Estimation et plan d'implémentation : solide, mais deux risques majeurs manquent au tableau
-
-La partie estimation est raisonnable et honnête (phases 6/10 → 9/10, backend Sylvan/CUDD d'abord, planner par étapes, benchmark A/B/C falsifiable — très bien). Le tableau des risques est incomplet :
-
-1. **Manque le risque scientifique n° 1, identifié par l'analyse précédente** : le modèle de coût (quand la représentation symbolique est-elle rentable). La note l'effleure (« l'IA ne va pas inventer la fonction de coût ») sans le traiter comme le goulot du projet. Le benchmark A/B/C le mesure *a posteriori* ; il faudrait une brique *prédictive* (cf. Sølvsten & van de Pol 2023 sur la prédiction des besoins mémoire des opérations).
-2. **Manque le risque « explosion du Semantic DD »** (§ 6.1 ci-dessus) : toute l'architecture repose sur la recompilation depuis la forme sémantique ; si celle-ci est monstre, l'architecture se dégrade en reconstruction systématique.
-3. **Manquent les métriques mémoire/localité** de l'analyse précédente : le benchmark proposé (nœuds, mémoire, temps d'opérations) ne mesure ni défauts de cache, ni hit-rates des tables (souvent dominantes), ni coût du placement — alors même que la note fait de la disposition un « annotation » de niveau 3.
-4. **Manque le test de saturation** : le raccourci proposé (modèle `State / Set<State> / step / reachable`) est le bon, mais il faut y inclure un modèle à **événements non locaux** — c'est le seul qui mette simultanément à l'épreuve le canal inter-niveaux et la saturation par homomorphismes.
-
-Sur les chiffres eux-mêmes : les ordres de grandeur (prototype 1-2 mois, système de recherche 3-6 mois, framework 18-36 mois) sont plausibles *pour l'ingénierie* ; ils sous-estiment la recherche (canonicité classifiée par constructeur, sémantique attribuée, alignement des ordres) dont dépend l'intérêt du tout — et la note admet implicitement ce point en concluant sur la question falsificatrice. À garder : la discipline « architecture qui permet de remplacer le backend » et « ne pas déboguer sept couches à la fois ».
+`lookup : Map<K,V> × K → Option<V>` is the perfect textbook case: the operation must carry the key *downward* (inherited), compare against encountered keys (cross-level context), and *bring back up* the found value (synthesized). None of these three channels exists in the current homomorphic model. The note therefore produces, without seeing it, the requirements statement of the proposal: **the « Decision IR » must be founded on an attributed-grammar semantics over the diagram** — inherited + synthesized + level memory — of which DDD homomorphisms, folds and saturation are the three instances. This is the piece to write first, and it is absent from the note's plan.
 
 ---
 
-## 9. Synthèse — ce qu'on garde, ce qu'on corrige, ce qu'on ajoute
+## 8. Estimation and implementation plan: solid, but two major risks are missing from the table
 
-**À garder tel quel**
-- Les trois familles d'opérations (chemins / entre chemins / fermeture) comme grille du niveau 2.
-- `Canon(T, O_s, R)` : canonicité relative, jamais absolue.
-- L'ordre comme ressource algorithmique ; conversions (`convert`, `materialize`) comme nœuds de premier niveau à coût explicite dans le Physical IR.
-- L'algèbre de défauts par type.
-- Le plan d'implémentation par étapes et le benchmark A/B/C falsifiable.
+The estimation part is reasonable and honest (phases 6/10 → 9/10, Sylvan/CUDD backend first, planner in stages, falsifiable A/B/C benchmark — very good). The risk table is incomplete:
 
-**À corriger**
-- Le théorème de canonicité : unique *relativement à* (schéma d'atomes, décomposition, ordre, règles) ; classification `Seq`/`Set`/`Map` bornés = canoniques vs domaines ouverts = DDD non canonique. S'appuyer sur les antécédents : automates minimaux (Seq), MSDD (Set), Queue BDDs (échec de canonicité non bornée), HSDD (Map/valeurs).
-- Le Semantic DD : optionnel et jamais passerelle systématique (risque d'explosion).
-- Le planner : admettre qu'avec fonctions d'ordre supérieur, l'aval est runtime ; le reordering dynamique reste un fallback nécessaire.
-- La composition de décompositions/permutations différentes : à traiter comme *le* problème central, pas comme annexe.
+1. **Missing the No. 1 scientific risk, identified by the previous analysis**: the cost model (when is the symbolic representation worthwhile). The note brushes against it (« AI will not invent the cost function ») without treating it as the project's bottleneck. The A/B/C benchmark measures it *a posteriori*; a *predictive* brick would be needed (cf. Solvsten & van de Pol 2023 on predicting the memory demands of operations).
+2. **Missing the « Semantic DD explosion » risk** (§ 6.1 above): the whole architecture rests on recompilation from the semantic form; if that form is a monster, the architecture degrades into systematic reconstruction.
+3. **Missing the memory/locality metrics** of the previous analysis: the proposed benchmark (nodes, memory, operation times) measures neither cache misses, nor table hit-rates (often dominant), nor placement cost — even though the note makes layout a level-3 « annotation ».
+4. **Missing the saturation test**: the proposed shortcut (model `State / Set<State> / step / reachable`) is the right one, but it must include a model with **non-local events** — the only one that simultaneously puts to the test the cross-level channel and saturation by homomorphisms.
 
-**À ajouter (absent de la note)**
-- La sémantique à attributs (hérités/synthétisés/mémoire de niveau) comme fondation du niveau 2 — elle implémente exactement les trois familles d'opérations et répare le déficit des homomorphismes identifié par *Specification of Decision Diagram Operations* (2010). `lookup` = cas d'école ; événements non locaux = banc de validation.
-- Le modèle de coût prédictif en brique n° 1.
-- Les métriques mémoire (tables, cache, placement) dans le benchmark.
-
-**Positionnement stratégique** : cette note fait converger la lignée Genève (ΣDD, MSDD : Buchs/Hostettler) et celle de polyDD (contrôleurs) vers le même objet : une bibliothèque en couches où la couche basse est un backend générique (Sylvan/CUDD ou polyDD étendu), la couche moyenne l'algèbre décisionnelle (contrôleurs + attributs), et la couche haute le langage. La couche moyenne est la contribution ; les deux autres sont de l'ingénierie connue. C'est exactement « de moins structurée à plus structurée » — et chaque couche ne doit exiger de la couche inférieure que ce qu'elle fournit déjà (c'est le critère de netteté des couches à respecter dans le code : `semantic/` ne connaît pas `backend/`).
+On the numbers themselves: the orders of magnitude (prototype 1–2 months, research system 3–6 months, framework 18–36 months) are plausible *for the engineering*; they underestimate the research (canonicality classified by constructor, attributed semantics, order alignment) on which the interest of the whole dein-flights — and the note impallowedly admits this point by concluding on the falsifying question. To keep: the discipline « an architecture that allows replacing the backend » and « do not debug seven layers at once ».
 
 ---
 
-## 10. Références vérifiées pour cette analyse
+## 9. Synthesis — what we keep, what we correct, what we add
 
-- Buchs, D., Hostettler, S. — *Sigma Decision Diagrams*, 2009 (origine des ΣDD, groupe de Genève).
-- Levi, L., Hostettler, S. — *Multi-Set Decisions Diagrams*, 2009 (antécédent direct de la couche `Set`).
-- Godefroid, P., Long, D. — *Symbolic Protocol Verification with Queue BDDs*, LICS 1996 / STTT 1999. https://doi.org/10.1023/a:1008771008310 (antécédent — et échec de canonicité — de la couche `Seq` non bornée).
-- Couvreur, Encrenaz, Paviot-Adet, Poitrenaud, Wacrenier — *Data Decision Diagrams for Petri Net Analysis*, ATPN 2002. https://doi.org/10.1007/3-540-48068-4_8 (sémantique ensembliste des chemins ; non-canonicité assumée).
-- Hamez, Thierry-Mieg, Kordon — *Hierarchical Set Decision Diagrams and Automatic Saturation*, ATPN 2008. https://doi.org/10.1007/978-3-540-68746-7_16 (terminaux non booléens = sous-DD partagés ; saturation par homomorphismes).
+**To keep as-is**
+- The three operation families (paths / across paths / closure) as the level-2 grid.
+- `Canon(T, O_s, R)`: relative canonicality, never absolute.
+- Order as an algorithmic resource; conversions (`convert`, `materialize`) as first-class nodes with expallowed cost in the Physical IR.
+- The default algebra by type.
+- The staged implementation plan and the falsifiable A/B/C benchmark.
+
+**To correct**
+- The canonicality theorem: unique *relative to* (atom schema, decomposition, order, rules); classification bounded `Seq`/`Set`/`Map` = canonical vs open domains = non-canonical DDD. Rely on the antecedents: minimal automata (Seq), MSDD (Set), Queue BDDs (failure of unbounded canonicality), HSDD (Map/values).
+- The Semantic DD: optional and never a systematic gateway (explosion risk).
+- The planner: admit that with higher-order functions, the downstream is runtime; dynamic reordering remains a necessary fallback.
+- The composition of different decompositions/permutations: to be treated as *the* central problem, not as an apin-flightix.
+
+**To add (absent from the note)**
+- Attributed semantics (inherited/synthesized/level memory) as the foundation of level 2 — it implements exactly the three operation families and repairs the homomorphism deficit identified by *Specification of Decision Diagram Operations* (2010). `lookup` = textbook case; non-local events = validation testbed.
+- The predictive cost model as brick No. 1.
+- Memory metrics (tables, cache, placement) in the benchmark.
+
+**Strategic positioning**: this note makes the Geneva lineage (ΣDD, MSDD: Buchs/Hostettler) and that of polyDD (controllers) converge toward the same object: a layered library where the low layer is a generic backend (Sylvan/CUDD or extended polyDD), the middle layer the decision algebra (controllers + attributes), and the high layer the language. The middle layer is the contribution; the other two are known engineering. It is exactly « from less structured to more structured » — and each layer must require of the layer below only what it already provides (this is the layer-clarity criterion to respect in the code: `semantic/` does not know `backend/`).
+
+---
+
+## 10. References verified for this analysis
+
+- Buchs, D., Hostettler, S. — *Sigma Decision Diagrams*, 2009 (origin of ΣDDs, Geneva group).
+- Levi, L., Hostettler, S. — *Multi-Set Decisions Diagrams*, 2009 (direct antecedent of the `Set` layer).
+- Godefroid, P., Long, D. — *Symbolic Protocol Verification with Queue BDDs*, LICS 1996 / STTT 1999. https://doi.org/10.1023/a:1008771008310 (antecedent — and canonicality failure — of the unbounded `Seq` layer).
+- Couvreur, Encrenaz, Paviot-Adet, Poitrenaud, Wacrenier — *Data Decision Diagrams for Petri Net Analysis*, ATPN 2002. https://doi.org/10.1007/3-540-48068-4_8 (set semantics of paths; assumed non-canonicality).
+- Hamez, Thierry-Mieg, Kordon — *Hierarchical Set Decision Diagrams and Automatic Saturation*, ATPN 2008. https://doi.org/10.1007/978-3-540-68746-7_16 (non-Boolean terminals = shared sub-DDs; saturation by homomorphisms).
 - Miner & Ciardo — *Efficient Reachability Set Generation and Storage Using Decision Diagrams*, ATPN 1999. https://doi.org/10.1007/3-540-48745-x_2
-- Hermanns, Meyer-Kayser, Siegle, Plateau — *Multi Terminal BDDs to Represent and Analyse Continuous Time Markov Chains*, 1999 (l'interprétation-fonction multi-terminale).
+- Hermanns, Meyer-Kayser, Siegle, Plateau — *Multi Terminal BDDs to Represent and Analyse Continuous Time Markov Chains*, 1999 (the multi-terminal function interpretation).
 - van Dijk & Pol — *Sylvan: multi-core framework for decision diagrams*, 2016. https://doi.org/10.1007/s10009-016-0433-2
-- Sølvsten & van de Pol — *Predicting Memory Demands of BDD Operations Using Maximum Graph Cuts*, TACAS 2023 (brique du modèle de coût prédictif).
+- Solvsten & van de Pol — *Predicting Memory Demands of BDD Operations Using Maximum Graph Cuts*, TACAS 2023 (brick of the predictive cost model).
