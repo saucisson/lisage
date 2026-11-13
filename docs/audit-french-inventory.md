@@ -15,11 +15,11 @@ Files scanned: 323 (see the `find` command in the Reproducibility section); 190 
 
 | Category | Files with French | Accented lines | Stop-word lines | French-ident lines |
 |---|---|---|---|---|
+| Code (crates/, tools/, scripts/) | 120 | 3176 | 3605 | 6378 |
+| Documentation (root + docs/ + .github/) | 46 | 1459 | 1495 | 0 |
 | Other | 13 | 11 | 43 | 0 |
-| Documentation (root + docs/ + .github/) | 47 | 1468 | 1507 | 0 |
 | Config / manifests | 10 | 6 | 8 | 0 |
 | Assets (svg, bench-results) | 1 | 1 | 0 | 0 |
-| Code (crates/, tools/, scripts/) | 120 | 3176 | 3605 | 6378 |
 
 ## Per-file detail (files with any signal, sorted by accented-line count)
 
