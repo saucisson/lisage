@@ -7,16 +7,16 @@ grep/regex commands documented in the last section of this report.
 
 Scope: `docs/`, root Markdown files, `crates/`, `tools/`, `scripts/`,
 `.github/`, manifests and assets. Excluded: `.git/`, `.venv/`,
-`target/`, `.review/`, `.confrontation/`, lock files.
+`target/`, `.review/`, `.confrontation/`, `.hypothesis/`, lock files.
 
-Files scanned: 347 (see the `find` command in the Reproducibility section); 191 files carry at least one French signal (per-file table below).
+Files scanned: 323 (see the `find` command in the Reproducibility section); 191 files carry at least one French signal (per-file table below).
 
 ## Totals by category
 
 | Category | Files with French | Accented lines | Stop-word lines | French-ident lines |
 |---|---|---|---|---|
-| Other | 14 | 19 | 58 | 0 |
-| Documentation (root + docs/ + .github/) | 46 | 1459 | 1494 | 0 |
+| Other | 13 | 11 | 43 | 0 |
+| Documentation (root + docs/ + .github/) | 47 | 1468 | 1507 | 0 |
 | Config / manifests | 10 | 6 | 8 | 0 |
 | Assets (svg, bench-results) | 1 | 1 | 0 | 0 |
 | Code (crates/, tools/, scripts/) | 120 | 3176 | 3605 | 6378 |
@@ -31,7 +31,7 @@ The French-ident column is measured on `crates/` only (signal 3 greps Rust sourc
 | crates/lisage-core/src/schema.rs | Code (crates/, tools/, scripts/) | 82 | 94 | 299 | 862 |
 | crates/lisage-core/tests/atelier.rs | Code (crates/, tools/, scripts/) | 111 | 119 | 229 | 651 |
 | crates/lisage-bench/src/confrontation.rs | Code (crates/, tools/, scripts/) | 109 | 114 | 230 | 705 |
-| WORKLOG.md | Documentation (root + docs/ + .github/) | 290 | 261 | 0 | 599 |
+| WORKLOG.md | Documentation (root + docs/ + .github/) | 290 | 262 | 0 | 607 |
 | crates/lisage-core/src/transduction.rs | Code (crates/, tools/, scripts/) | 58 | 53 | 146 | 365 |
 | docs/spécification-le-calcul-des-transductions-attribuées-instance-de-référence.md | Documentation (root + docs/ + .github/) | 196 | 194 | 0 | 425 |
 | crates/lisage-core/tests/schema.rs | Code (crates/, tools/, scripts/) | 31 | 32 | 159 | 356 |
@@ -144,8 +144,8 @@ The French-ident column is measured on `crates/` only (signal 3 greps Rust sourc
 | .github/pr-body-15.md | Documentation (root + docs/ + .github/) | 11 | 9 | 0 | 40 |
 | crates/lisage-lang/src/value.rs | Code (crates/, tools/, scripts/) | 7 | 3 | 4 | 22 |
 | .github/pr-body-12b.md | Documentation (root + docs/ + .github/) | 9 | 7 | 0 | 53 |
+| docs/audit-french-inventory.md | Documentation (root + docs/ + .github/) | 9 | 12 | 0 | 251 |
 | .github/pr-body-13b.md | Documentation (root + docs/ + .github/) | 8 | 5 | 0 | 50 |
-| .hypothesis/unicode_data/17.0.0/charmap.json.gz | Other | 8 | 15 | 0 | 176 |
 | docs/les-7-formes-des-philosophes-diagramme-svg.svg | Other | 7 | 7 | 0 | 90 |
 | crates/lisage-algebra/src/lib.rs | Code (crates/, tools/, scripts/) | 3 | 2 | 3 | 11 |
 | crates/lisage-bench/src/lib.rs | Code (crates/, tools/, scripts/) | 3 | 1 | 2 | 24 |
@@ -221,16 +221,17 @@ The French-ident column is measured on `crates/` only (signal 3 greps Rust sourc
 
 ## Reproducibility
 
-All counts are produced by the three grep pipelines below, run from the
-repository root. The `EXCLUDE` regex filters the excluded directories
-(`.git/`, `.venv/`, `target/`, `.review/`, `.confrontation/`) on every
-pipeline; lock files (`Cargo.lock`, `uv.lock`) are excluded only in the
-`find` denominator command at the end. `grep -c` counts matching lines
-per file; `grep -v ':0$'` keeps only files with at least one match; the
-totals are the column sums of the per-file table.
+All counts are produced by the pipelines below, run from the repository
+root. The `EXCLUDE` regex filters the excluded directories (`.git/`,
+`.venv/`, `target/`, `.review/`, `.confrontation/`, `.hypothesis/`) on
+every pipeline; lock files (`Cargo.lock`, `uv.lock`) are excluded only
+in the `find` denominator command at the end. `grep -c` counts matching
+lines per file; `grep -v ':0$'` keeps only files with at least one
+match; the totals are the column sums of the per-file table. `grep -I`
+skips binary files (e.g. `.gz`), so no binary row appears in the table.
 
 ```sh
-EXCLUDE='^\./(\.git|\.venv|target|\.review|\.confrontation)/'
+EXCLUDE='^\./(\.git|\.venv|target|\.review|\.confrontation|\.hypothesis)/'
 
 # Signal 1 - accented characters (primary, unambiguous French signal),
 # per-file matching-line counts over every text file:
@@ -238,12 +239,15 @@ grep -rIcP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇœæ]' 
   | grep -vE "$EXCLUDE" | grep -v ':0$' | sort -t: -k2 -rn
 
 # Signal 2 - French stop-words in prose (secondary signal):
-grep -rIcE '\b(le|la|les|un|une|des|du|de|et|est|en|dans|pour|par|sur|avec|sans|sous|que|qui|quoi|dont|ou|au|aux|ce|cet|cette|ces|son|sa|ses|leur|leurs|notre|votre|il|elle|ils|elles|nous|vous|etre|avoir|fait|faire|plus|moins|tres|tout|tous|toute|toutes|autre|autres|meme|ici|cela|ne|pas|si|mais|ou|donc|or|ni|car|afin|lors|lorsque|bien|des|dès|deja|encore|chaque|entre|parmi|selon|contre|chez|vers|depuis|jusqu)\b' . \
+grep -rIcE '\b(le|la|les|un|une|des|du|de|et|est|en|dans|pour|par|sur|avec|sans|sous|que|qui|quoi|dont|au|aux|ce|cet|cette|ces|son|sa|ses|leur|leurs|notre|votre|il|elle|ils|elles|nous|vous|etre|avoir|fait|faire|plus|moins|tres|tout|tous|toute|toutes|autre|autres|meme|ici|cela|ne|pas|si|mais|donc|or|ni|car|afin|lors|lorsque|bien|deja|encore|chaque|entre|parmi|selon|contre|chez|vers|depuis|jusqu)\b' . \
   | grep -vE "$EXCLUDE" | grep -v ':0$' | sort -t: -k2 -rn
 
 # Signal 3 - French snake_case identifier fragments, Rust sources only:
-grep -rIcE '\b[a-z_]*(_)(fenetre|temoin|construire|mesurer|reduire|reduction|pli|atelier|arene|schema|transduction|transfert|memoire|observateur|biplan|forme|racine|feuille|jalon|charge|erreur|noeud|table|chemin|glisser|ancre|entree|sortie|appel|cle|base|arc|paire|ensemble|saturer|integrale|compter|compteur|taille|niveau|valeur|ordre|tri|niveau|borne|seuil|paquet|morceau|visiter|parcours|premier|dernier|suivant|precedent|profondeur|largeur|etiquette|marquer|enfant|parent|branche|produit|somme|quotient|intervalle|couleur|legende|vue|region|transition|etat|attribut|variable|compte|mesure|domaine|cardinal|cible|hauteur|poids|poids|exemple|nombre|diff|destination|source|texte|nom|point|piste|terminal|lire|contre|disperser|decompiler|compiler|construire|compter|filtrer|trier|valider|comparer|convertir|serialiser|extraire|empiler|depiler|iterer|tester|epingle|rejeter|notifier|dessiner|ecrire|ouvrir|fermer|decouper|fusionner|coller|parcourir|visiter|mesurer|reduire|saturer|normaliser|canoniser|compter|construire|fabriquer|extraire|disperser|appliquer|resoudre|verifier|exporter|importer|publier|reproduire|mesurer|estimer|evaluer|calculer|analyser|synthetiser|observer|marquer|etiqueter|compter|compter|mesurer|reduire|plier|deplier|glisser|ancrer|fenetrer|temoigner|confronter|differentiel|trier|ordonner|filtrer|projeter|compiler|decompiler|transferer|memoriser|observer|visualiser|lire|ecrire|afficher|imprimer|exporter|importer|serialiser|deserialiser)\b' crates/ \
+grep -rIcE '\b[a-z_]+_(fenetre|temoin|construire|mesurer|reduire|reduction|pli|atelier|arene|schema|transduction|transfert|memoire|observateur|biplan|forme|racine|feuille|jalon|charge|erreur|noeud|table|chemin|glisser|ancre|entree|sortie|appel|cle|base|arc|paire|ensemble|saturer|integrale|compter|compteur|taille|niveau|valeur|ordre|tri|borne|seuil|paquet|morceau|visiter|parcours|premier|dernier|suivant|precedent|profondeur|largeur|etiquette|marquer|enfant|parent|branche|produit|somme|quotient|intervalle|couleur|legende|vue|region|transition|etat|attribut|variable|compte|mesure|domaine|cardinal|cible|hauteur|poids|exemple|nombre|destination|source|texte|nom|point|piste|terminal|lire|contre|disperser|decompiler|compiler|filtrer|trier|valider|comparer|convertir|serialiser|extraire|empiler|depiler|iterer|tester|epingle|rejeter|notifier|dessiner|ecrire|ouvrir|fermer|decouper|fusionner|coller|parcourir|visiter|reduire|saturer|normaliser|canoniser|fabriquer|appliquer|resoudre|verifier|exporter|importer|publier|reproduire|estimer|evaluer|calculer|analyser|synthetiser|observer|marquer|etiqueter|plier|deplier|glisser|ancrer|fenetrer|temoigner|confronter|differentiel|ordonner|filtrer|projeter|transferer|memoriser|visualiser|afficher|imprimer|deserialiser)\b' crates/ \
   | grep -v ':0$' | sort -t: -k2 -rn
+
+# Total lines column (per file):
+find . -type f | grep -vE "$EXCLUDE" | grep -vE '\./(Cargo\.lock|uv\.lock)$' | xargs wc -l
 
 # Files scanned (denominator of the report):
 find . -type f | grep -vE "$EXCLUDE" | grep -vE '\./(Cargo\.lock|uv\.lock)$' | wc -l
