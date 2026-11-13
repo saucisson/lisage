@@ -61,6 +61,8 @@ One entry per commit or pull request:
 - **Done**: README.md and AGENTS.md were already fully English (0 accented lines, grep-verified); WORKLOG.md conventions were already English — adds the explicit rule that new entries are written in English while pre-M6 entries stay in French as the historical record. Historical `.github/pr-body-*.md` artifacts are left untouched (past PR bodies, not living documentation). Known limitation: the one French comment in `.github/workflows/ci.yml` (bench step name) cannot be fixed from an agent session — the GitHub App token lacks the `workflow` scope, push is refused; left for the human.
 - **Evidence**: `grep -rIlP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]' README.md AGENTS.md Makefile .github/workflows/` returns nothing after the fix; `make check` not run: docs/config-comment-only change, no code touched.
 - **Judgement calls**: AGENTS.md needed no translation (already English), so no needs-human escalation was required for this issue despite AGENTS.md being on the escalation list — the diff does not touch it.
+- **Escalations**: none.
+
 ## 2026-11-13 - M6-1 glossary review fix: missing contract terms + duplicate rows (PR #178)
 
 - **Issue**: #104 (M6-1, milestone M6).
