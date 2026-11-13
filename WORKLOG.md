@@ -59,6 +59,12 @@ One entry per commit or pull request:
 - **Done**: README.md and AGENTS.md were already fully English (0 accented lines, grep-verified); WORKLOG.md conventions were already English — adds the explicit rule that new entries are written in English while pre-M6 entries stay in French as the historical record. Historical `.github/pr-body-*.md` artifacts are left untouched (past PR bodies, not living documentation). Known limitation: the one French comment in `.github/workflows/ci.yml` (bench step name) cannot be fixed from an agent session — the GitHub App token lacks the `workflow` scope, push is refused; left for the human.
 - **Evidence**: `grep -rIlP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]' README.md AGENTS.md Makefile .github/workflows/` returns nothing after the fix; `make check` not run: docs/config-comment-only change, no code touched.
 - **Judgement calls**: AGENTS.md needed no translation (already English), so no needs-human escalation was required for this issue despite AGENTS.md being on the escalation list — the diff does not touch it.
+## 2026-11-13 - M6-1 glossary: FR→EN terminology mapping (issue #104)
+
+- **Issue**: #104 (M6-1, milestone M6).
+- **Done**: adds `docs/glossary.md` — two-column FR→EN table covering the domain terms named in the issue (liseuse→reader, diagramme de décision→decision diagram, transduction attribuée→attributed transduction, fenêtre glissante→sliding window, jalon→milestone, atelier didactique→didactic workshop, pool bi-plan→two-plane pool, forme relative→relative form, témoin BDD→BDD witness, schéma de référence→reference schema) plus the full identifier vocabulary extracted from crates/ (word-level mapping: fenetre→window, construire→build, compter→count, temoin→witness, etc.) and the naming rules (snake_case English functions, English module/file names, acronym casing, English log events and user-facing strings).
+- **Evidence**: vocabulary extracted mechanically from all crates/*/src and crates/*/tests identifiers (1 079 unique multi-word identifiers, 402 declarations) and from the domain terms grepped in docs/ and README.md; `make check` not run: docs-only change, no code touched.
+- **Judgement calls**: word-level mapping (not per-identifier) so the glossary stays maintainable; acronyms that are proper names (BDD, CUDD, DAG, GCD) stay uppercase, others follow surrounding case.
 - **Escalations**: none.
 
 ## 2026-11-13 - Confrontation — horloge alea-lcg avant la génération de la table (fix/confrontation-alea-horloge)
