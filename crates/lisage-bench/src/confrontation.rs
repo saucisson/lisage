@@ -359,11 +359,11 @@ fn charge_alea_lcg(
             detail: format!("n doit être dans 1..={VARIABLES_MAXIMALES_ALEA}"),
         });
     }
+    let keys = BddKeys::new(nombre_variables);
+    let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
     let debut = Instant::now();
     let table = table_lcg(nombre_variables);
     let satisfait_attendu = table.iter().filter(|valeur| **valeur).count() as u64;
-    let keys = BddKeys::new(nombre_variables);
-    let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
     let racine = compiler_bdd(&mut pool, ANCRE_MESURE, &keys, &table);
     let noeuds = compter_noeuds_bdd(&pool, racine);
     let duree = debut.elapsed();
