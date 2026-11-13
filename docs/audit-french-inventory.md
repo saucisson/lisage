@@ -23,7 +23,9 @@ Files scanned: 347 (see the `find` command in the Reproducibility section); 191 
 
 ## Per-file detail (files with any signal, sorted by accented-line count)
 
-| File | Category | Accented lines | Stop-word lines | French-ident lines | Total lines |
+The French-ident column is measured on `crates/` only (signal 3 greps Rust sources); tools/ and scripts/ rows show 0 because they are not scanned by that pipeline.
+
+| File | Category | Accented lines | Stop-word lines | French-ident lines (crates/ only) | Total lines |
 |---|---|---|---|---|---|
 | crates/lisage-core/src/atelier.rs | Code (crates/, tools/, scripts/) | 141 | 154 | 302 | 720 |
 | crates/lisage-core/src/schema.rs | Code (crates/, tools/, scripts/) | 82 | 94 | 299 | 862 |
@@ -220,11 +222,12 @@ Files scanned: 347 (see the `find` command in the Reproducibility section); 191 
 ## Reproducibility
 
 All counts are produced by the three grep pipelines below, run from the
-repository root. Exclusions (`.git/`, `.venv/`, `target/`, `.review/`,
-`.confrontation/`, lock files) are applied with the same `grep -vE`
-filter on every pipeline. `grep -c` counts matching lines per file;
-`grep -v ':0$'` keeps only files with at least one match; the totals
-are the column sums of the per-file table.
+repository root. The `EXCLUDE` regex filters the excluded directories
+(`.git/`, `.venv/`, `target/`, `.review/`, `.confrontation/`) on every
+pipeline; lock files (`Cargo.lock`, `uv.lock`) are excluded only in the
+`find` denominator command at the end. `grep -c` counts matching lines
+per file; `grep -v ':0$'` keeps only files with at least one match; the
+totals are the column sums of the per-file table.
 
 ```sh
 EXCLUDE='^\./(\.git|\.venv|target|\.review|\.confrontation)/'
