@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4a-10 review fix: revert local variable renames in tests/biplan.rs (issue #108)
+
+- **Issue**: #108 (M6-5). Review of PR #212 reported 1 BLOCKING: local identifiers (`partage`, `metriques`, `meme`, `partages`, `taux`, `attendu`, `premier`, `vivantes_avant`) were renamed in `tests/biplan.rs`, outside the comments/strings-only scope.
+- **Done**: reverts those local variable renames to their French names; comments and string literals stay translated. Identifiers are M6-6 scope.
+- **Evidence**: `cargo test -p lisage-core --test biplan` ok (7 passed); `cargo fmt -p lisage-core -- --check` clean.
+- **Judgement calls**: none.
 ## 2026-11-14 - M6-5 part 4a-10: lisage-core biplan+bdd+error+lib+interface tests translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
