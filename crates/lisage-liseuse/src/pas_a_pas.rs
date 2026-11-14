@@ -23,7 +23,7 @@ const COULEUR_HERITE: &str = "#2980b9";
 /// Color of the synthesized channel (orange).
 const COULEUR_SYNTHETISE: &str = "#e67e22";
 /// Color of the level memory (purple).
-const COULEUR_MEMORY_TMP: &str = "#8e44ad";
+const COULEUR_MEMORY: &str = "#8e44ad";
 /// Color of ghosts (gray watermark).
 const COULEUR_FANTOME: &str = "#bbb";
 /// Default color of nodes without attribute (M2-6).
@@ -147,7 +147,7 @@ fn couleur_canal(canal: CanalAttr) -> &'static str {
     match canal {
         CanalAttr::Inherited => COULEUR_HERITE,
         CanalAttr::Synthesized => COULEUR_SYNTHETISE,
-        CanalAttr::Memory => COULEUR_MEMORY_TMP,
+        CanalAttr::Memory => COULEUR_MEMORY,
     }
 }
 
@@ -166,7 +166,7 @@ fn couleur_node(etat: &EtatTrace, node: NodeId) -> &'static str {
 /// Height and color of a timeline tick according to the event type.
 fn tiret_frise(evenement: &TraceEvent) -> (u32, &'static str) {
     match evenement {
-        TraceEvent::Round { .. } => (HAUTEUR_FRISE - 16, COULEUR_MEMORY_TMP),
+        TraceEvent::Round { .. } => (HAUTEUR_FRISE - 16, COULEUR_MEMORY),
         TraceEvent::MemoHit { .. } => (10, COULEUR_MEMO_HIT),
         TraceEvent::MemoMiss { .. } => (10, COULEUR_MEMO_MISS),
         TraceEvent::Attr { canal, .. } => (10, couleur_canal(*canal)),
@@ -361,7 +361,7 @@ pub fn legende_canaux() -> BTreeMap<&'static str, &'static str> {
     BTreeMap::from([
         ("inherited", COULEUR_HERITE),
         ("synthesized", COULEUR_SYNTHETISE),
-        ("memory", COULEUR_MEMORY_TMP),
+        ("memory", COULEUR_MEMORY),
         ("ghost", COULEUR_FANTOME),
     ])
 }
