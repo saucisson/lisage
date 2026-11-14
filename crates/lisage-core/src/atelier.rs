@@ -625,7 +625,7 @@ impl AncreFenetre {
 /// Builds the sliding window read under the composite `ancre`: the base of
 /// the anchor is the argument of the incoming arc (key `cle_entree`), the
 /// shape of the window stays relative (keys `0..taille-1`, min section = 0)
-/// and shared. Returns `(racine, fenêtre)`: the root specific to this base,
+/// and shared. Returns `(racine, window)`: the root specific to this base,
 /// the window shape reached by its incoming arc.
 pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,

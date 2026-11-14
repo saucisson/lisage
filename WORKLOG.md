@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4a-11: lisage-core atelier leftover translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: fixes the last French comment in `crates/lisage-core/src/atelier.rs` (`fenêtre` in the `construire_fenetre_ancree` doc-comment). Remaining accented tokens in lisage-core are public French identifiers (`Synthétise`, test names) or files covered by open PRs #203/#204/#205 (transduction, transfert, cdd, dabs, relatif, schema).
+- **Evidence**: accent grep on atelier.rs matches only `Synthétise`; `cargo check -p lisage-core --tests` passes; `cargo fmt -p lisage-core -- --check` clean. Tests not re-run: comment-only change, no code touched.
+- **Judgement calls**: none.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-5 part 4a-10 review fix: revert local variable renames in tests/biplan.rs (issue #108)
 
 - **Issue**: #108 (M6-5). Review of PR #212 reported 1 BLOCKING: local identifiers (`partage`, `metriques`, `meme`, `partages`, `taux`, `attendu`, `premier`, `vivantes_avant`) were renamed in `tests/biplan.rs`, outside the comments/strings-only scope.
