@@ -30,7 +30,7 @@ fn schema_test() -> Schema {
     )
 }
 
-fn nouveau_pool(schema: &Schema) -> PoolRef {
+fn new_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
@@ -87,7 +87,7 @@ proptest! {
         let entrees: BTreeMap<u64, u64> = (0..NOMBRE_CLES).zip(valeurs).collect();
         let schema = schema_test();
         let anchor = Anchor(0);
-        let mut pool = nouveau_pool(&schema);
+        let mut pool = new_pool(&schema);
         let initial = compiler_map(&mut pool, anchor, &schema, &entrees);
 
         let transfert = TransfertNonLocal::new(

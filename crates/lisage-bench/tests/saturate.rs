@@ -69,7 +69,7 @@ fn schema_test() -> Schema {
 }
 
 /// Builds a fresh pool for the given schema.
-fn nouveau_pool(schema: &Schema) -> PoolRef {
+fn new_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
@@ -94,7 +94,7 @@ fn compiler_ensemble(
 
 /// Cardinal of a diagram (number of members of the denoted family).
 fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
-    let mut sortie = nouveau_pool(schema);
+    let mut sortie = new_pool(schema);
     compter(pool, &mut sortie, Anchor(0), schema, noeud).unwrap()
 }
 
@@ -114,7 +114,7 @@ proptest! {
         let niveaux: Vec<Level> = (0..schema.nombre_niveaux()).map(Level).collect();
         let politique = PolitiqueSaturation::Statique(niveaux);
 
-        let mut pool = nouveau_pool(&schema);
+        let mut pool = new_pool(&schema);
         let noeud_initial = compiler_ensemble(&mut pool, anchor, &schema, &initial);
         let singleton = compiler_ensemble(&mut pool, anchor, &schema, &[ajout]);
         let etape = EmetSingleton { singleton };

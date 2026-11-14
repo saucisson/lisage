@@ -113,7 +113,7 @@ impl Transduction for EmetSingleton {
 }
 
 /// Builds a fresh pool for the given schema.
-fn nouveau_pool(schema: &Schema) -> PoolRef {
+fn new_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
@@ -138,7 +138,7 @@ fn compiler_ensemble(
 
 /// Cardinality of a diagram (number of members of the denoted family).
 fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
-    let mut sortie = nouveau_pool(schema);
+    let mut sortie = new_pool(schema);
     compter(pool, &mut sortie, Anchor(0), schema, noeud).unwrap()
 }
 
@@ -148,7 +148,7 @@ fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
 fn test_saturate_termine_et_point_fixe() {
     let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let anchor = Anchor(0);
     let initial = compiler_ensemble(&mut pool, anchor, &schema, &[0]);
 
@@ -180,7 +180,7 @@ fn test_saturate_politiques_equivalentes() {
     let politique_statique = PolitiqueSaturation::Statique(niveaux);
     let politique_auto = PolitiqueSaturation::AutoDetectee;
 
-    let mut pool_s = nouveau_pool(&schema);
+    let mut pool_s = new_pool(&schema);
     let initial_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[0]);
     let mut params = ParametresSaturation {
         transduction: &Identite,
@@ -194,7 +194,7 @@ fn test_saturate_politiques_equivalentes() {
     };
     let r_statique = saturer(&mut params).unwrap();
 
-    let mut pool_a = nouveau_pool(&schema);
+    let mut pool_a = new_pool(&schema);
     let initial_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[0]);
     let mut params = ParametresSaturation {
         transduction: &Identite,
@@ -227,7 +227,7 @@ fn test_saturate_statique_restreint_les_niveaux() {
     // Static policy excluding the root level 0.
     let niveaux_sans_racine: Vec<Level> = (1..schema.nombre_niveaux()).map(Level).collect();
     let politique_statique = PolitiqueSaturation::Statique(niveaux_sans_racine);
-    let mut pool_s = nouveau_pool(&schema);
+    let mut pool_s = new_pool(&schema);
     let initial_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[0]);
     let singleton_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[2]);
     let etape_s = EmetSingleton {
@@ -252,7 +252,7 @@ fn test_saturate_statique_restreint_les_niveaux() {
 
     // AutoDetectee policy: all levels active, the singleton is reached.
     let politique_auto = PolitiqueSaturation::AutoDetectee;
-    let mut pool_a = nouveau_pool(&schema);
+    let mut pool_a = new_pool(&schema);
     let initial_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[0]);
     let singleton_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[2]);
     let etape_a = EmetSingleton {
@@ -288,7 +288,7 @@ fn test_saturate_statique_restreint_les_niveaux() {
 fn test_saturate_chaine_croissante_multi_iterations() {
     let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]));
     let keys = SchemaKeys::new(schema.clone());
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let anchor = Anchor(0);
 
     let initial = compiler_ensemble(&mut pool, anchor, &schema, &[0]);
