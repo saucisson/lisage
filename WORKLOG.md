@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-3 docs part 8/8: roadmap translated + doc paths in crates comments (issue #106)
+
+- **Issue**: #106 (M6-3, milestone M6).
+- **Done**: part of the eight-way split of PR #180 (the reviewer session hits its turn limit on diffs over ~500 lines; the human authorized oversized PRs for M6, the split is a reviewer-feasibility measure, not a scope change). This part renames and translates the file(s) listed in the commit message; corrupted machine-translation tokens and remaining French fragments flagged in the review of PR #180 are repaired.
+- **Evidence**: accent grep returns 0 on every added file; old-filename grep returns nothing outside `docs/audit-french-inventory.md`, `docs/glossary.md` and `WORKLOG.md` (intentional). `make check` not run: the five touched Rust files carry doc-comment-only changes (no behavior change); the full crates/ translation is gated by M6-5 (issue #108).
+- **Judgement calls**: none beyond the split itself.
+- **Escalations**: none.
+
 
 ## 2026-11-14 - M6-3 docs part 7/8: spike translated + philosophers SVG in English (issue #106)
 

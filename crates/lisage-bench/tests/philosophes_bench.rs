@@ -1,5 +1,5 @@
 //! Benchmark philosophes (M4-4, énoncé C8) : mesures de référence du fil
-//! rouge (docs/exemple-fil-rouge § 6-9 ; la mesure contre SDD/HSDD externe
+//! rouge (docs/golden-thread-example-n-philosophers-end-to-end § 6-9 ; la mesure contre SDD/HSDD externe
 //! est hors périmètre de la CI). Prédictions falsifiables vérifiées ici :
 //! |R_n| = 20/56/152/416/1136 (n = 3..7), variante gaucher |R'_n| =
 //! 72/196/536/1464 (n = 4..7) avec ratio |R'_n|/|R_n| = 1,2887 **constant**,
