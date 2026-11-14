@@ -1,43 +1,43 @@
-//! **Atelier didactique** — tableau de bord des réductions (backlog § 9 de
-//! la feuille de route, demande du 10 novembre 2026) : rendre manipulable la
-//! thèse « le diagramme est une fonction du contrôleur » en
-//! activant/désactivant chaque réduction une à une et en mesurant.
+//! **Didactic workshop** — reduction dashboard (backlog § 9 of the
+//! roadmap, request of November 10, 2026): making the thesis "the diagram
+//! is a function of the controller" tangible by enabling/disabling each
+//! reduction one at a time and measuring.
 //!
-//! Premier fragment (backend, sans front web) :
+//! First fragment (backend, no web front):
 //!
-//! - [`Reductions`] : commutateurs R-collapse / R-default ;
-//! - [`AtelierController`] : contrôleur enveloppant qui les commute (le pool
-//!   lit les hooks `collapse_actif` / `defaut_actif` à l'interning) ;
-//! - [`mesurer`] : trois métriques didactiques — les **nœuds partagés**
-//!   (R-share actif, compte de handles atteignables), les **chemins**
-//!   (nombre de chemins racine → terminal) et la **taille dépliée** (nombre
-//!   de nœuds de l'arbre déplié, chaque arc dupliquant le sous-arbre cible :
-//!   ce que coûterait l'absence de hash-consing). Exemple fil rouge : R₃ tient en
-//!   33 nœuds partagés contre une taille dépliée de 126, les 20 chemins
-//!   étant un par état atteignable.
+//! - [`Reductions`]: R-collapse / R-default switches;
+//! - [`AtelierController`]: wrapping controller that toggles them (the pool
+//!   reads the `collapse_actif` / `defaut_actif` hooks at interning time);
+//! - [`mesurer`]: three didactic metrics — the **shared nodes**
+//!   (R-share active, count of reachable handles), the **paths**
+//!   (number of root → terminal paths) and the **unfolded size** (number
+//!   of nodes in the unfolded tree, each arc duplicating the target subtree:
+//!   what the absence of hash-consing would cost). Thread example: R₃ fits in
+//!   33 shared nodes versus an unfolded size of 126, the 20 paths
+//!   being one per reachable state.
 //!
-//! R-share lui-même n'est pas commutable (c'est la table unique du pool) :
-//! sa désactivation se **mesure** par la taille dépliée, pas par un pool
-//! dégradé.
+//! R-share itself is not switchable (it is the pool's single table):
+//! its deactivation is **measured** by the unfolded size, not by a
+//! degraded pool.
 //!
-//! Fragment 3 (paramètre d'ordre, backlog § 9) :
+//! Fragment 3 (ordering parameter, backlog § 9):
 //!
-//! - [`Ordre`] : permutation niveau → variable, jouée à la compilation ;
-//! - [`compiler_bdd_ordre`] / [`comparer_ordres`] : la même fonction booléenne
-//!   compilée sous deux ordres — mêmes chemins (2^n, un par affectation),
-//!   nœuds partagés différents : « le diagramme est une fonction du
-//!   contrôleur », l'ordre se voit à l'œil nu.
+//! - [`Ordre`]: level → variable permutation, applied at compile time;
+//! - [`compiler_bdd_ordre`] / [`comparer_ordres`]: the same boolean function
+//!   compiled under two orderings — same paths (2^n, one per assignment),
+//!   different shared nodes: "the diagram is a function of the
+//!   controller", the ordering is visible to the naked eye.
 //!
-//! Fragment 4 (paramètre d'ancre composée, backlog § 9, fil rouge fenêtre
-//! glissante) :
+//! Fragment 4 (composite anchor parameter, backlog § 9, sliding-window
+//! thread):
 //!
-//! - [`AncreFenetre`] : l'ancre composée `{base, horizon}` du protocole
-//!   SWP — deux décalages nommés, la glisse est le déplacement de la base,
-//!   portée par l'arc d'entrée ;
-//! - [`construire_fenetre_ancree`] / [`comparer_ancres_fenetre`] : la
-//!   fenêtre lue sous deux ancres — chaque ancre a sa racine, la forme
-//!   relative de la fenêtre est partagée (`meme_forme`), seules les
-//!   lectures absolues diffèrent : « l'ancre bouge, le pool jamais ».
+//! - [`AncreFenetre`]: the composite anchor `{base, horizon}` of the
+//!   SWP protocol — two named offsets, the slide is the movement of the base,
+//!   carried by the incoming arc;
+//! - [`construire_fenetre_ancree`] / [`comparer_ancres_fenetre`]: the
+//!   window read under two anchors — each anchor has its own root, the
+//!   relative shape of the window is shared (`meme_forme`), only the
+//!   absolute readings differ: "the anchor moves, the pool never does".
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -48,34 +48,34 @@ use lisage_algebra::relatif::{AncreComposee, Fragment, GroupeCles};
 
 use crate::observer::{CanalAttr, Observer, TraceEvent};
 
-/// Commutateurs des réductions côté contrôleur (R-share exclu : mesuré).
+/// Controller-side reduction switches (R-share excluded: measured).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Reductions {
-    /// R-collapse actif.
+    /// R-collapse active.
     pub collapse: bool,
-    /// R-default actif (absorption de l'arc δ(ℓ) vers D_δ).
+    /// R-default active (absorption of the δ(ℓ) arc towards D_δ).
     pub defaut: bool,
 }
 
 impl Reductions {
-    /// Toutes les réductions activées (configuration canonique).
+    /// All reductions enabled (canonical configuration).
     pub const TOUTES: Reductions = Reductions {
         collapse: true,
         defaut: true,
     };
-    /// Aucune réduction côté contrôleur (R-share toujours actif, mesuré).
+    /// No controller-side reduction (R-share always active, measured).
     pub const AUCUNE: Reductions = Reductions {
         collapse: false,
         defaut: false,
     };
-    /// R-collapse commuté, R-default actif.
+    /// R-collapse toggled off, R-default active.
     pub fn sans_collapse() -> Self {
         Reductions {
             collapse: false,
             defaut: true,
         }
     }
-    /// R-default commuté, R-collapse actif.
+    /// R-default toggled off, R-collapse active.
     pub fn sans_defaut() -> Self {
         Reductions {
             collapse: true,
@@ -84,20 +84,20 @@ impl Reductions {
     }
 }
 
-/// Contrôleur enveloppant qui commute R-collapse et R-default selon
-/// [`Reductions`] ; tout le reste est délégué au contrôleur interne.
+/// Wrapping controller that toggles R-collapse and R-default according to
+/// [`Reductions`]; everything else is delegated to the inner controller.
 pub struct AtelierController<C: Controller> {
     inner: C,
     reductions: Reductions,
 }
 
 impl<C: Controller> AtelierController<C> {
-    /// Enveloppe `inner` avec les commutateurs `reductions`.
+    /// Wraps `inner` with the `reductions` switches.
     pub fn nouveau(inner: C, reductions: Reductions) -> Self {
         AtelierController { inner, reductions }
     }
 
-    /// Les commutateurs actifs.
+    /// The active switches.
     pub fn reductions(&self) -> Reductions {
         self.reductions
     }
@@ -108,7 +108,7 @@ impl<C: Controller> Controller for AtelierController<C> {
     type Payload = C::Payload;
     type Keys = C::Keys;
 
-    // Empreinte propre à l'enveloppe (hors plage des contrôleurs natifs 1-6).
+    // Fingerprint specific to the wrapper (outside the native controllers 1-6 range).
     const FINGERPRINT: ControllerId = ControllerId(100);
 
     fn keys(&self) -> &Self::Keys {
@@ -144,22 +144,22 @@ impl<C: Controller> Controller for AtelierController<C> {
     }
 }
 
-/// Rapport de mesure didactique d'un diagramme.
+/// Didactic measurement report of a diagram.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct RapportAtelier {
-    /// Nœuds distincts atteignables (R-share actif) : le diagramme partagé.
+    /// Distinct reachable nodes (R-share active): the shared diagram.
     pub noeuds_partages: u64,
-    /// Chemins racine → terminal dans le DAG.
+    /// Root → terminal paths in the DAG.
     pub chemins: u64,
-    /// Nœuds de l'arbre déplié (chaque arc dupliquant le sous-arbre cible) :
-    /// le coût de l'absence de hash-consing.
+    /// Nodes of the unfolded tree (each arc duplicating the target subtree):
+    /// the cost of the absence of hash-consing.
     pub taille_depliee: u64,
 }
 
-/// Mesure un diagramme : nœuds partagés, chemins et taille dépliée. Propage
-/// l'erreur du pool (un `NodeId` inconnu est une erreur, pas une valeur
-/// muette). `observateur` : canal de narration (ADR-0100) — un événement
-/// `Attr`/`Synthétise` porte le rapport complet.
+/// Measures a diagram: shared nodes, paths and unfolded size. Propagates
+/// the pool error (an unknown `NodeId` is an error, not a silent value).
+/// `observateur`: narration channel (ADR-0100) — an `Attr`/`Synthétise`
+/// event carries the full report.
 pub fn mesurer<P: Pool>(
     pool: &P,
     racine: NodeId,
@@ -183,7 +183,7 @@ pub fn mesurer<P: Pool>(
     Ok(rapport)
 }
 
-/// Compte les nœuds distincts atteignables depuis `racine`, terminaux compris.
+/// Counts the distinct nodes reachable from `racine`, terminals included.
 pub fn compter_noeuds<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolError> {
     let mut visite = BTreeSet::new();
     let mut pile = vec![racine];
@@ -198,9 +198,9 @@ pub fn compter_noeuds<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolErro
     Ok(visite.len() as u64)
 }
 
-/// Compte les chemins racine → terminal du DAG (mémoïsé par nœud, saturé).
-/// Ce n'est pas la taille dépliée : celle-ci est la somme des longueurs de
-/// chemins, calculée par [`compter_taille_depliee`].
+/// Counts the root → terminal paths of the DAG (memoized per node, saturating).
+/// This is not the unfolded size: that one is the sum of path lengths,
+/// computed by [`compter_taille_depliee`].
 pub fn compter_chemins<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolError> {
     fn chemins<P: Pool>(
         pool: &P,
@@ -227,9 +227,9 @@ pub fn compter_chemins<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolErr
     chemins(pool, racine, &mut memo)
 }
 
-/// Nombre de nœuds de l'arbre déplié (mémoïsé par nœud, saturé) : chaque
-/// arc duplique le sous-arbre de sa cible, ce que coûterait l'absence de
-/// R-share.
+/// Number of nodes in the unfolded tree (memoized per node, saturating): each
+/// arc duplicates the subtree of its target, what the absence of
+/// R-share would cost.
 pub fn compter_taille_depliee<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolError> {
     fn taille<P: Pool>(
         pool: &P,
@@ -256,36 +256,36 @@ pub fn compter_taille_depliee<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, 
     taille(pool, racine, &mut memo)
 }
 
-/// Niveau de la racine de la fenêtre glissante.
+/// Level of the sliding-window root.
 const NIVEAU_RACINE: u32 = 0;
-/// Niveau du nœud fenêtre de la fenêtre glissante.
+/// Level of the window node of the sliding window.
 const NIVEAU_FENETRE: u32 = 1;
 
-/// **Paramètre d'encodage** (atelier didactique, backlog § 9 : « jouer les
-/// paramètres du contrôleur — ordre, encodage absolu/relatif, royaume,
-/// ancre composée »).
+/// **Encoding parameter** (didactic workshop, backlog § 9: "playing with the
+/// controller parameters — ordering, absolute/relative encoding, realm,
+/// composite anchor").
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Encodage {
-    /// Clés absolues : chaque fenêtre a ses propres clés, un nœud par base.
+    /// Absolute keys: each window has its own keys, one node per base.
     Absolu,
-    /// Clés relatives (section min = 0, M4-2) : une seule forme partagée,
-    /// l'argument de position vit sur l'arc d'entrée.
+    /// Relative keys (min section = 0, M4-2): a single shared shape,
+    /// the position argument lives on the incoming arc.
     Relatif,
 }
 
-/// Comparaison didactique des deux encodages sur le même objet logique.
+/// Didactic comparison of the two encodings on the same logical object.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct RapportComparaison {
-    /// Métriques de l'encodage absolu.
+    /// Metrics of the absolute encoding.
     pub absolu: RapportAtelier,
-    /// Métriques de l'encodage relatif.
+    /// Metrics of the relative encoding.
     pub relatif: RapportAtelier,
 }
 
-/// Construit la **fenêtre glissante** en encodage absolu : pour chaque base
-/// `b ∈ [0, nb_bases)`, une fenêtre propre `{b..b+taille-1}` (un nœud par
-/// base), toutes reliées à la racine. Le nombre de nœuds croît avec
-/// `nb_bases` — c'est le « l'infini de la fenêtre » du prototype plat.
+/// Builds the **sliding window** in absolute encoding: for each base
+/// `b ∈ [0, nb_bases)`, its own window `{b..b+taille-1}` (one node per
+/// base), all linked to the root. The number of nodes grows with
+/// `nb_bases` — this is the "infinity of the window" of the flat prototype.
 pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -313,8 +313,8 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
     )
 }
 
-/// Interne la forme relative de la fenêtre (clés `0..taille-1`, section
-/// min = 0), partagée par toutes les bases.
+/// Interns the relative shape of the window (keys `0..taille-1`, min
+/// section = 0), shared by all bases.
 fn interner_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -330,10 +330,10 @@ fn interner_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     )
 }
 
-/// Construit la même fenêtre glissante en encodage **relatif** (M4-2,
-/// section min = 0) : une seule forme `{0..taille-1}` partagée par toutes les
-/// bases (l'argument de position vit sur l'arc d'entrée). Le nombre de
-/// nœuds est constant — c'est le « 4 contre l'infini » de la fenêtre.
+/// Builds the same sliding window in **relative** encoding (M4-2,
+/// min section = 0): a single shape `{0..taille-1}` shared by all the
+/// bases (the position argument lives on the incoming arc). The number of
+/// nodes is constant — this is the "4 against infinity" of the window.
 pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -351,8 +351,8 @@ pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     )
 }
 
-/// Construit la fenêtre glissante dans l'`encodage` demandé : point
-/// d'entrée unique du paramètre d'encodage.
+/// Builds the sliding window in the requested `encodage`: single entry
+/// point of the encoding parameter.
 pub fn construire_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -366,9 +366,9 @@ pub fn construire_fenetre<P: Pool<Key = u64, Payload = bool>>(
     }
 }
 
-/// Compare les deux encodages de la fenêtre glissante sur `nb_bases` bases :
-/// mêmes chemins (même objet logique), nœuds partagés différents — le partage
-/// relatif se voit à l'œil nu. `observateur` : narration ADR-0100.
+/// Compares the two encodings of the sliding window over `nb_bases` bases:
+/// same paths (same logical object), different shared nodes — the
+/// relative sharing is visible to the naked eye. `observateur`: ADR-0100 narration.
 pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -393,66 +393,66 @@ pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
     Ok(RapportComparaison { absolu, relatif })
 }
 
-/// **Paramètre d'ordre** (atelier didactique, backlog § 9 : « jouer les
-/// paramètres du contrôleur — ordre, encodage absolu/relatif, royaume,
-/// ancre composée ») : permutation niveau → variable. Le niveau ℓ décide
-/// la variable `permutation[ℓ]` ; l'ordre naturel est l'identité.
+/// **Ordering parameter** (didactic workshop, backlog § 9: "playing with the
+/// controller parameters — ordering, absolute/relative encoding, realm,
+/// composite anchor"): level → variable permutation. Level ℓ decides
+/// variable `permutation[ℓ]`; the natural ordering is the identity.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Ordre {
-    /// `permutation[ℓ]` = variable décidée au niveau ℓ.
+    /// `permutation[ℓ]` = variable decided at level ℓ.
     permutation: Vec<u32>,
 }
 
 impl Ordre {
-    /// Ordre naturel : le niveau ℓ décide la variable ℓ.
+    /// Natural ordering: level ℓ decides variable ℓ.
     pub fn naturel(nombre_variables: u32) -> Self {
         Ordre {
             permutation: (0..nombre_variables).collect(),
         }
     }
 
-    /// Ordre inversé : le niveau ℓ décide la variable n-1-ℓ.
+    /// Reversed ordering: level ℓ decides variable n-1-ℓ.
     pub fn inverse(nombre_variables: u32) -> Self {
         Ordre {
             permutation: (0..nombre_variables).rev().collect(),
         }
     }
 
-    /// Ordre personnalisé : `permutation[ℓ]` = variable du niveau ℓ. Doit
-    /// être une permutation de `0..n` (sinon deux niveaux décideraient la
-    /// même variable et une variable serait sautée).
+    /// Custom ordering: `permutation[ℓ]` = variable of level ℓ. Must
+    /// be a permutation of `0..n` (otherwise two levels would decide the
+    /// same variable and one variable would be skipped).
     pub fn personnalise(permutation: Vec<u32>) -> Self {
         let mut triee = permutation.clone();
         triee.sort_unstable();
         assert_eq!(
             triee,
             (0..permutation.len() as u32).collect::<Vec<_>>(),
-            "l'ordre est une permutation de 0..n (invariant interne)"
+            "the ordering is a permutation of 0..n (internal invariant)"
         );
         Ordre { permutation }
     }
 
-    /// Nombre de variables.
+    /// Number of variables.
     pub fn nombre_variables(&self) -> u32 {
         self.permutation.len() as u32
     }
 
-    /// Variable décidée au niveau `niveau`.
+    /// Variable decided at level `niveau`.
     pub fn variable_au_niveau(&self, niveau: u32) -> u32 {
         self.permutation[niveau as usize]
     }
 
-    /// Étiquette didactique `[v₀, v₁, …]` pour la narration.
+    /// Didactic label `[v₀, v₁, …]` for narration.
     pub fn etiquette(&self) -> String {
         let variables: Vec<String> = self.permutation.iter().map(u32::to_string).collect();
         format!("[{}]", variables.join(","))
     }
 }
 
-/// Compile une table de vérité en BDD classique sous l'`ordre` donné :
-/// expansion de Shannon descendante, le niveau ℓ décide la variable
-/// `ordre.variable_au_niveau(ℓ)`. `table[a]` = valeur de la fonction sur
-/// l'affectation `a` (bit ℓ de `a` = variable ℓ) ; la longueur doit être
+/// Compiles a truth table into a classic BDD under the given `ordre`:
+/// top-down Shannon expansion, level ℓ decides variable
+/// `ordre.variable_au_niveau(ℓ)`. `table[a]` = value of the function on
+/// assignment `a` (bit ℓ of `a` = variable ℓ); the length must be
 /// `2^n`.
 pub fn compiler_bdd_ordre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
@@ -464,11 +464,11 @@ pub fn compiler_bdd_ordre<P: Pool<Key = u64, Payload = bool>>(
     assert_eq!(
         table.len(),
         1usize << nombre_variables,
-        "table de vérité de taille 2^n (invariant interne)"
+        "truth table of size 2^n (internal invariant)"
     );
-    // Permute la table : bit ℓ de l'indice local = bit `ordre[ℓ]` de
-    // l'indice original, puis l'expansion de Shannon classique s'applique
-    // (au niveau ℓ on branche sur le bit ℓ de l'indice local).
+    // Permute the table: bit ℓ of the local index = bit `ordre[ℓ]` of
+    // the original index, then the classic Shannon expansion applies
+    // (at level ℓ we branch on bit ℓ of the local index).
     let table_locale: Vec<bool> = (0..table.len())
         .map(|indice| {
             let mut original = 0usize;
@@ -481,10 +481,10 @@ pub fn compiler_bdd_ordre<P: Pool<Key = u64, Payload = bool>>(
     shannon(pool, anchor, Level(NIVEAU_RACINE), &table_locale)
 }
 
-/// Expansion de Shannon descendante : `table` est indexée par les bits des
-/// variables restantes (bit ℓ de l'indice = variable du niveau ℓ) ; les
-/// positions paires (bit du niveau courant = 0) donnent l'arc 0, les
-/// impaires l'arc 1.
+/// Top-down Shannon expansion: `table` is indexed by the bits of the
+/// remaining variables (bit ℓ of the index = variable of level ℓ); the
+/// even positions (bit of the current level = 0) give arc 0, the
+/// odd ones arc 1.
 fn shannon<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -507,19 +507,19 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
     )
 }
 
-/// Comparaison didactique de deux ordres sur la même fonction booléenne.
+/// Didactic comparison of two orderings on the same boolean function.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct RapportComparaisonOrdres {
-    /// Métriques sous le premier ordre.
+    /// Metrics under the first ordering.
     pub premier: RapportAtelier,
-    /// Métriques sous le second ordre.
+    /// Metrics under the second ordering.
     pub second: RapportAtelier,
 }
 
-/// Compile la même table de vérité sous deux ordres et mesure : mêmes
-/// chemins (2^n, un par affectation — même objet logique), nœuds partagés
-/// différents — l'ordre change le diagramme, pas la fonction.
-/// `observateur` : narration ADR-0100.
+/// Compiles the same truth table under two orderings and measures: same
+/// paths (2^n, one per assignment — same logical object), different shared
+/// nodes — the ordering changes the diagram, not the function.
+/// `observateur`: ADR-0100 narration.
 pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -531,7 +531,7 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
     assert_eq!(
         ordre_premier.nombre_variables(),
         ordre_second.nombre_variables(),
-        "les deux ordres portent sur le même nombre de variables (invariant interne)"
+        "both orderings cover the same number of variables (internal invariant)"
     );
     let racine_premier = compiler_bdd_ordre(pool, anchor, ordre_premier, table);
     let racine_second = compiler_bdd_ordre(pool, anchor, ordre_second, table);
@@ -553,31 +553,31 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
     Ok(RapportComparaisonOrdres { premier, second })
 }
 
-/// Fragment nommé « base » de l'ancre composée de la fenêtre glissante
-/// (position de séquence, fil rouge SWP).
+/// Fragment named "base" of the composite anchor of the sliding window
+/// (sequence position, SWP thread).
 pub fn fragment_base() -> Fragment {
     Fragment("base".to_string())
 }
 
-/// Fragment nommé « horizon » de l'ancre composée de la fenêtre glissante
-/// (taille de la fenêtre, fil rouge SWP).
+/// Fragment named "horizon" of the composite anchor of the sliding window
+/// (window size, SWP thread).
 pub fn fragment_horizon() -> Fragment {
     Fragment("horizon".to_string())
 }
 
-/// **Paramètre d'ancre composée** (atelier didactique, backlog § 9 :
-/// « jouer les paramètres du contrôleur — ordre, encodage absolu/relatif,
-/// royaume, ancre composée » ; fil rouge fenêtre glissante § 4-5) :
-/// l'ancre de la fenêtre est un enregistrement nommé de deux décalages,
-/// `{base, horizon}`. La **glisse** est le déplacement de la base ; l'ancre
-/// reste dans le handle (C1 inchangé), le pool reste aveugle.
+/// **Composite anchor parameter** (didactic workshop, backlog § 9:
+/// "playing with the controller parameters — ordering, absolute/relative
+/// encoding, realm, composite anchor"; sliding-window thread § 4-5):
+/// the window's anchor is a named record of two offsets,
+/// `{base, horizon}`. The **slide** is the movement of the base; the anchor
+/// stays in the handle (C1 unchanged), the pool stays blind.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AncreFenetre {
     inner: AncreComposee,
 }
 
 impl AncreFenetre {
-    /// Ancre `{base, horizon}` : les deux décalages nommés du protocole SWP.
+    /// Anchor `{base, horizon}`: the two named offsets of the SWP protocol.
     pub fn nouvelle(base: i64, horizon: i64) -> Self {
         AncreFenetre {
             inner: AncreComposee::nouveau()
@@ -586,47 +586,47 @@ impl AncreFenetre {
         }
     }
 
-    /// Décalage de la base (position de séquence).
+    /// Offset of the base (sequence position).
     pub fn base(&self) -> i64 {
         self.inner.decalage(&fragment_base())
     }
 
-    /// Décalage de l'horizon (taille de la fenêtre).
+    /// Offset of the horizon (window size).
     pub fn horizon(&self) -> i64 {
         self.inner.decalage(&fragment_horizon())
     }
 
-    /// Nouvelle ancre, base déplacée de `delta` : la glisse de la fenêtre.
+    /// New anchor, base shifted by `delta`: the slide of the window.
     pub fn glessee(&self, delta: i64) -> Self {
         AncreFenetre {
             inner: self.inner.decalee(&fragment_base(), delta),
         }
     }
 
-    /// Lecture absolue de la fenêtre : l'intervalle `[base, base + horizon)`.
+    /// Absolute reading of the window: the interval `[base, base + horizon)`.
     pub fn fenetre_absolue(&self) -> (i64, i64) {
         let base = self.base();
         (base, base + self.horizon())
     }
 
-    /// Clé de l'arc d'entrée : la base de l'ancre, saturée dans `u64`.
-    /// C'est l'argument de position (spec § 2.4.5 : l'arc entrant porte
-    /// l'argument) — il vit sur l'arc, jamais dans la clé d'interning.
+    /// Key of the incoming arc: the base of the anchor, saturated into `u64`.
+    /// This is the position argument (spec § 2.4.5: the incoming arc carries
+    /// the argument) — it lives on the arc, never in the interning key.
     pub fn cle_entree(&self) -> u64 {
         self.base().max(0) as u64
     }
 
-    /// Étiquette didactique `{base: b, horizon: k}` pour la narration.
+    /// Didactic label `{base: b, horizon: k}` for narration.
     pub fn etiquette(&self) -> String {
         format!("{{base: {}, horizon: {}}}", self.base(), self.horizon())
     }
 }
 
-/// Construit la fenêtre glissante lue sous l'`ancre` composée : la base de
-/// l'ancre est l'argument de l'arc d'entrée (clé `cle_entree`), la forme de
-/// la fenêtre reste relative (clés `0..taille-1`, section min = 0) et
-/// partagée. Retourne `(racine, fenêtre)` : la racine propre à cette base,
-/// la forme de fenêtre atteinte par son arc d'entrée.
+/// Builds the sliding window read under the composite `ancre`: the base of
+/// the anchor is the argument of the incoming arc (key `cle_entree`), the
+/// shape of the window stays relative (keys `0..taille-1`, min section = 0)
+/// and shared. Returns `(racine, fenêtre)`: the root specific to this base,
+/// the window shape reached by its incoming arc.
 pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -644,32 +644,32 @@ pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
     (racine, fenetre)
 }
 
-/// Comparaison didactique de deux ancres composées sur la même fenêtre.
+/// Didactic comparison of two composite anchors on the same window.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct RapportComparaisonAncres {
-    /// Métriques de la fenêtre lue sous la première ancre.
+    /// Metrics of the window read under the first anchor.
     pub avant: RapportAtelier,
-    /// Métriques de la fenêtre lue sous la seconde ancre.
+    /// Metrics of the window read under the second anchor.
     pub apres: RapportAtelier,
-    /// Vrai si les deux lectures atteignent la même forme de fenêtre
-    /// (`NodeId`) : déplacer la base ne duplique pas la forme.
+    /// True if both readings reach the same window shape
+    /// (`NodeId`): moving the base does not duplicate the shape.
     pub meme_forme: bool,
-    /// Compte de nœuds du pool après les deux lectures (une racine par
-    /// ancre, une seule forme de fenêtre).
+    /// Node count of the pool after both readings (one root per
+    /// anchor, a single window shape).
     pub noeuds_pool: u64,
-    /// Lecture absolue `[base, base + horizon)` sous la première ancre.
+    /// Absolute reading `[base, base + horizon)` under the first anchor.
     pub lecture_avant: (i64, i64),
-    /// Lecture absolue `[base, base + horizon)` sous la seconde ancre.
+    /// Absolute reading `[base, base + horizon)` under the second anchor.
     pub lecture_apres: (i64, i64),
 }
 
-/// Compare la fenêtre glissante lue sous deux ancres composées : chaque
-/// ancre construit sa propre racine (l'arc d'entrée porte sa base), mais la
-/// forme relative de la fenêtre (clés `0..taille-1`, section min = 0) est
-/// partagée — `meme_forme` vrai, mêmes nœuds, mêmes chemins — seules les
-/// lectures absolues diffèrent. C'est la glisse du protocole SWP :
-/// « l'ancre bouge, le pool jamais » : déplacer la base ne duplique pas la
-/// forme de la fenêtre. `observateur` : narration ADR-0100.
+/// Compares the sliding window read under two composite anchors: each
+/// anchor builds its own root (the incoming arc carries its base), but the
+/// relative shape of the window (keys `0..taille-1`, min section = 0) is
+/// shared — `meme_forme` true, same nodes, same paths — only the
+/// absolute readings differ. This is the slide of the SWP protocol:
+/// "the anchor moves, the pool never does": moving the base does not
+/// duplicate the window shape. `observateur`: ADR-0100 narration.
 pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -678,8 +678,8 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
     ancre_apres: &AncreFenetre,
     observateur: Option<&dyn Observer>,
 ) -> Result<RapportComparaisonAncres, PoolError> {
-    // Chaque ancre entre dans le pool par son arc d'entrée (sa base) ; la
-    // forme de fenêtre atteinte des deux côtés doit être le même nœud.
+    // Each anchor enters the pool through its incoming arc (its base); the
+    // window shape reached on both sides must be the same node.
     let (racine_avant, fenetre_avant) =
         construire_fenetre_ancree(pool, anchor, taille, ancre_avant);
     let (racine_apres, fenetre_apres) =

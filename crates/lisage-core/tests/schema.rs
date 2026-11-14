@@ -1,5 +1,5 @@
-//! Tests des schémas de référence (M1-3) : compilation balayage d'univers
-//! (un niveau de présence par clé, δ = absent, sans marqueur).
+//! Tests for the reference schemas (M1-3): universe-sweep compilation (one
+//! presence level per key, δ = absent, no marker).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -23,8 +23,8 @@ fn atome(v: u64) -> Value {
     Value::Atom(Atom(v))
 }
 
-/// Exemple de la spec § 1 : K = {a, b}, V = {0, 1}, la map {a↦1, b↦0}
-/// compile en chaîne de présences : k_a? → val(a)=1 → k_b? → val(b)=0 → ⊤.
+/// Example from spec § 1: K = {a, b}, V = {0, 1}, the map {a↦1, b↦0} compiles
+/// into a chain of presences: k_a? → val(a)=1 → k_b? → val(b)=0 → ⊤.
 #[test]
 fn test_compilation_map_exemple_spec() {
     let schema = Schema::Map(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
@@ -35,30 +35,30 @@ fn test_compilation_map_exemple_spec() {
 
     let terminal = pool.intern(anchor, Form::Terminal(true));
     let Form::Node { level, arcs } = pool.resolve(racine).unwrap() else {
-        panic!("la racine doit être un nœud de présence");
+        panic!("the root must be a presence node");
     };
     assert_eq!(*level, Level(0));
     let noeud_valeur_a = arcs[&PRESENT];
     let Form::Node { level, arcs } = pool.resolve(noeud_valeur_a).unwrap() else {
-        panic!("nœud de valeur attendu");
+        panic!("value node expected");
     };
     assert_eq!(*level, Level(1));
     assert_eq!(arcs.len(), 1);
     let noeud_presence_b = arcs[&PRESENT];
     let Form::Node { level, arcs } = pool.resolve(noeud_presence_b).unwrap() else {
-        panic!("nœud de présence attendu");
+        panic!("presence node expected");
     };
     assert_eq!(*level, Level(2));
     let noeud_valeur_b = arcs[&PRESENT];
     let Form::Node { level, arcs } = pool.resolve(noeud_valeur_b).unwrap() else {
-        panic!("nœud de valeur attendu");
+        panic!("value node expected");
     };
     assert_eq!(*level, Level(3));
     assert_eq!(arcs, &BTreeMap::from([(ABSENT, terminal)]));
 }
 
-/// R-collapse saute les niveaux de présence des éléments absents (style
-/// ZDD) : {a} sur {a, b} se compile en un seul nœud k_a? → présent → ⊤.
+/// R-collapse skips the presence levels of absent elements (ZDD style): {a}
+/// over {a, b} compiles into a single node k_a? → present → ⊤.
 #[test]
 fn test_ensemble_absents_collapses() {
     let schema = Schema::Set(domaine(&[0, 1]));
@@ -76,7 +76,7 @@ fn test_ensemble_absents_collapses() {
     );
 }
 
-/// La map vide compile vers ⊤ ; une clé absente saute son niveau de présence.
+/// The empty map compiles to ⊤; an absent key skips its presence level.
 #[test]
 fn test_map_vide_et_cle_absente() {
     let schema = Schema::Map(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
@@ -86,7 +86,7 @@ fn test_map_vide_et_cle_absente() {
     let racine = compiler(&mut pool, anchor, &schema, &vide).unwrap();
     assert_eq!(pool.resolve(racine).unwrap(), &Form::Terminal(true));
 
-    // {b ↦ 0} : le niveau de présence de a est sauté (R-collapse).
+    // {b ↦ 0}: a's presence level is skipped (R-collapse).
     let map = Value::Map(BTreeMap::from([(atome(1), atome(0))]));
     let racine = compiler(&mut pool, anchor, &schema, &map).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
@@ -106,7 +106,7 @@ fn test_map_vide_et_cle_absente() {
     );
 }
 
-/// Erreurs typées : type incompatible, atome hors domaine.
+/// Typed errors: incompatible type, atom out of domain.
 #[test]
 fn test_erreurs_typees() {
     let schema = Schema::Set(domaine(&[0, 1]));
@@ -116,8 +116,8 @@ fn test_erreurs_typees() {
     assert_eq!(
         erreur,
         SchemaError::TypeMismatch {
-            attendu: "ensemble",
-            recu: "atome"
+            attendu: "set",
+            recu: "atom"
         }
     );
     let hors = Value::Set(BTreeSet::from([atome(9)]));
@@ -125,7 +125,7 @@ fn test_erreurs_typees() {
     assert_eq!(erreur, SchemaError::HorsDomaine(Atom(9)));
 }
 
-/// Schéma Atom(D) : un seul niveau, Val = D.
+/// Schema Atom(D): a single level, Val = D.
 #[test]
 fn test_schema_atome() {
     let schema = Schema::Atom(domaine(&[0, 1, 2]));
@@ -142,8 +142,8 @@ fn test_schema_atome() {
     );
 }
 
-/// L'ensemble vide compile vers le terminal d'acceptation ⊤ (chemin vide),
-/// et l'ensemble plein vers la chaîne complète des présences.
+/// The empty set compiles to the accepting terminal ⊤ (empty path), and the
+/// full set to the complete chain of presences.
 #[test]
 fn test_ensemble_vide_et_plein() {
     let schema = Schema::Set(domaine(&[0, 1]));
@@ -171,8 +171,8 @@ fn test_ensemble_vide_et_plein() {
     );
 }
 
-/// La validation d'une map distingue la clé hors domaine de la valeur hors
-/// domaine (l'erreur porte l'atome fautif).
+/// Map validation distinguishes an out-of-domain key from an out-of-domain
+/// value (the error carries the offending atom).
 #[test]
 fn test_erreur_valeur_hors_domaine_map() {
     let schema = Schema::Map(vec![Atom(0)], domaine(&[0, 1]));
@@ -186,7 +186,7 @@ fn test_erreur_valeur_hors_domaine_map() {
     assert_eq!(erreur, SchemaError::HorsDomaine(Atom(7)));
 }
 
-/// Round-trip : décompiler(compiler(v)) = v.
+/// Round-trip: decompile(compile(v)) = v.
 #[test]
 fn test_round_trip() {
     let schema = Schema::Map(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
@@ -208,8 +208,8 @@ fn test_round_trip() {
     assert_eq!(decompiler(&pool, &schema, racine).unwrap(), atome(1));
 }
 
-/// C1 appliqué aux schémas : deux valeurs distinctes compilent vers des
-/// nœuds distincts ; la même valeur compile deux fois vers le même nœud.
+/// C1 applied to schemas: two distinct values compile to distinct nodes; the
+/// same value compiles twice to the same node.
 #[test]
 fn test_canonicite_compilation() {
     let schema = Schema::Set(domaine(&[0, 1]));
@@ -231,23 +231,23 @@ fn test_seq_compilation_round_trip() {
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
 
-    // Séquence vide.
+    // Empty sequence.
     let seq_vide = Value::Seq(vec![]);
     let racine = compiler(&mut pool, anchor, &schema, &seq_vide).unwrap();
     assert_eq!(decompiler(&pool, &schema, racine).unwrap(), seq_vide);
 
-    // Séquence [1, 2].
+    // Sequence [1, 2].
     let seq = Value::Seq(vec![atome(1), atome(2)]);
     let racine = compiler(&mut pool, anchor, &schema, &seq).unwrap();
     assert_eq!(decompiler(&pool, &schema, racine).unwrap(), seq);
 
-    // Séquence pleine [0, 1, 2].
+    // Full sequence [0, 1, 2].
     let seq_pleine = Value::Seq(vec![atome(0), atome(1), atome(2)]);
     let racine = compiler(&mut pool, anchor, &schema, &seq_pleine).unwrap();
     assert_eq!(decompiler(&pool, &schema, racine).unwrap(), seq_pleine);
 }
 
-/// M2-1 : Seq — canonicité (même séquence = même nœud).
+/// M2-1: Seq — canonicity (same sequence = same node).
 #[test]
 fn test_seq_canonicite() {
     let schema = Schema::Seq(domaine(&[0, 1]), 2);
@@ -285,8 +285,8 @@ fn test_seq_hors_domaine() {
     ));
 }
 
-/// M2-1 : Seq — le marqueur de fin est une clé requise : `default()` retourne
-/// `None` pour tous les niveaux d'un schéma Seq (pas de défaut absorbable).
+/// M2-1: Seq — the end marker is a required key: `default()` returns `None`
+/// for all levels of a Seq schema (no absorbable default).
 #[test]
 fn test_seq_marqueur_fin_cle_requise() {
     use lisage_algebra::interface::{KeyAlgebra, Level};
@@ -298,15 +298,15 @@ fn test_seq_marqueur_fin_cle_requise() {
         assert_eq!(
             keys.default(Level(niveau)),
             None,
-            "niveau {niveau} : pas de défaut (clé requise)"
+            "level {niveau}: no default (required key)"
         );
     }
-    // Cardinalité : |D|+1 par position, 2 au niveau marqueur.
+    // Cardinality: |D|+1 per position, 2 at the marker level.
     assert_eq!(keys.cardinality(Level(0)), 4);
     assert_eq!(keys.cardinality(Level(3)), 2);
 }
 
-/// M2-2 : Tag — compilation union typée et round-trip (C2).
+/// M2-2: Tag — typed union compilation and round-trip (C2).
 #[test]
 fn test_tag_compilation_round_trip() {
     let schema = Schema::Tag(vec![Atom(0), Atom(1), Atom(2)], domaine(&[10, 20]));
@@ -322,7 +322,7 @@ fn test_tag_compilation_round_trip() {
     }
 }
 
-/// M2-2 : Tag — canonicité et un seul arc utile (C2).
+/// M2-2: Tag — canonicity and a single useful arc (C2).
 #[test]
 fn test_tag_canonicite_c2() {
     use lisage_algebra::interface::Pool;
@@ -333,15 +333,15 @@ fn test_tag_canonicite_c2() {
     let r1 = compiler(&mut pool, anchor, &schema, &tag).unwrap();
     let r2 = compiler(&mut pool, anchor, &schema, &tag).unwrap();
     assert_eq!(r1, r2);
-    // Un seul arc sur le nœud discriminant.
+    // A single arc on the discriminant node.
     if let Ok(Form::Node { arcs, .. }) = pool.resolve(r1) {
-        assert_eq!(arcs.len(), 1, "C2 : un seul arc utile par nœud");
+        assert_eq!(arcs.len(), 1, "C2: a single useful arc per node");
     } else {
-        panic!("nœud attendu");
+        panic!("node expected");
     }
 }
 
-/// M2-2 : Tag — erreur discriminant hors liste.
+/// M2-2: Tag — discriminant out of the list error.
 #[test]
 fn test_tag_discriminant_invalide() {
     let schema = Schema::Tag(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
