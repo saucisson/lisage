@@ -187,7 +187,7 @@ fn test_narration_evenements_attr_synthétise() {
     assert!(
         attrs
             .iter()
-            .any(|e| matches!(e, TraceEvent::Attr { valeur, .. } if valeur == "mesure=19")),
+            .any(|e| matches!(e, TraceEvent::Attr { valeur, .. } if valeur == "measure=19")),
         "the final event carries the total measure 19"
     );
 }
