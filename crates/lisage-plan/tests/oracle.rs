@@ -96,7 +96,7 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
     const INCREMENT_LCG: u64 = 1442695040888963407;
 
     let mut graine = GRAINE_LCG;
-    let mut suivant = move || {
+    let mut next = move || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
@@ -104,10 +104,10 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
     };
 
     for _cas in 0..50 {
-        let size_domain = 1 + suivant() % 100;
-        let densite = Rationnel::new(suivant() % 101, 100);
-        let cout_encodage = suivant() % 10; // 0 possible: predicted can be null
-        let requetes_aval = suivant() % 20;
+        let size_domain = 1 + next() % 100;
+        let densite = Rationnel::new(next() % 101, 100);
+        let cout_encodage = next() % 10; // 0 possible: predicted can be null
+        let requetes_aval = next() % 20;
         let params =
             ParametresOracle::new(size_domain, densite, cout_encodage, requetes_aval).unwrap();
         let prediction = Oracle::predire(&params);
@@ -126,7 +126,7 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
         let plus_de_requetes = Oracle::predire(
             &ParametresOracle::new(
                 params.size_domain(),
-                params.densite_attendue(),
+                params.densite_expectede(),
                 params.cout_encodage(),
                 requetes_aval + 1,
             )

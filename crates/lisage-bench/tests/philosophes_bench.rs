@@ -30,9 +30,9 @@ const MANGE: u64 = 2;
 /// `g`: intermediate state of the left-handed philosopher (position 0 only).
 const GAUCHER: u64 = 3;
 /// Expected |R_n| (golden thread § 0, verified by simulation up to n = 20).
-const R_ATTENDUS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152), (6, 416), (7, 1136)];
+const R_EXPECTEDS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152), (6, 416), (7, 1136)];
 /// Expected |R'_n| for the left-handed variant (golden thread § 9.2, n = 4..7).
-const R_GAUCHER_ATTENDUS: &[(u64, u64)] = &[(4, 72), (5, 196), (6, 536), (7, 1464)];
+const R_GAUCHER_EXPECTEDS: &[(u64, u64)] = &[(4, 72), (5, 196), (6, 536), (7, 1464)];
 /// Predicted ratio |R'_n| / |R_n|, constant (golden thread § 9.4).
 const RATIO_GAUCHER: f64 = 1.2887;
 /// Tolerance on the ratio (constancy and value) — explicit falsification.
@@ -95,20 +95,20 @@ fn fourchette(compteur_programme: &[u64], n: usize, i: usize) -> u64 {
 
 /// Enumerates the reachable circular words (regular or left-handed).
 fn mots_atteignables(n: usize, gaucher: bool) -> Vec<Vec<u64>> {
-    let mut resultat = Vec::new();
+    let mut result = Vec::new();
     let mut mot = vec![PENSE; n];
     loop {
         let circulaire_ok = (0..n).all(|i| !(mot[i] == MANGE && mot[(i + 1) % n] == MANGE));
         let gaucher_ok = !gaucher || !(mot[0] == GAUCHER && mot[1] == MANGE);
         if circulaire_ok && gaucher_ok {
-            resultat.push(mot.clone());
+            result.push(mot.clone());
         }
         // Base-3 increment; the left-handed has a 4th value `g` at
         // position 0 only.
         let mut i = n;
         loop {
             if i == 0 {
-                return resultat;
+                return result;
             }
             i -= 1;
             let max = if gaucher && i == 0 { GAUCHER } else { MANGE };
@@ -160,7 +160,7 @@ fn compter_r_n(pool_input: &PoolRef, schema: &Schema, root: NodeId) -> u64 {
 /// otherwise.
 #[test]
 fn test_bench_cardinaux_r_n() {
-    for &(n, attendu) in R_ATTENDUS {
+    for &(n, expected) in R_EXPECTEDS {
         let schema = schema_anneau(n, false);
         let mut pool = Arena::new(
             ReferenceController::new(schema.clone()),
@@ -171,8 +171,8 @@ fn test_bench_cardinaux_r_n() {
         let reference = mots_atteignables(n as usize, false).len() as u64;
         assert_eq!(compte, reference, "n={n}: DD pli == enumeration");
         assert_eq!(
-            compte, attendu,
-            "n={n}: |R_{n}| = {attendu} (golden thread)"
+            compte, expected,
+            "n={n}: |R_{n}| = {expected} (golden thread)"
         );
     }
 }
@@ -183,7 +183,7 @@ fn test_bench_cardinaux_r_n() {
 #[test]
 fn test_bench_gaucher_ratio_constant() {
     let mut ratios = Vec::new();
-    for &(n, attendu) in R_GAUCHER_ATTENDUS {
+    for &(n, expected) in R_GAUCHER_EXPECTEDS {
         let schema = schema_anneau(n, true);
         let mut pool = Arena::new(
             ReferenceController::new(schema.clone()),
@@ -198,8 +198,8 @@ fn test_bench_gaucher_ratio_constant() {
             "n={n}: DD pli == enumeration (left-handed)"
         );
         assert_eq!(
-            reference, attendu,
-            "n={n}: |R'_{n}| = {attendu} (golden thread § 9.2)"
+            reference, expected,
+            "n={n}: |R'_{n}| = {expected} (golden thread § 9.2)"
         );
         // Regular |R_n| for the ratio.
         let schema_reg = schema_anneau(n, false);
@@ -241,7 +241,7 @@ fn test_bench_sept_formes_o1_et_bord() {
     let mut comptes_formes = Vec::new();
     let mut nodes_plats = Vec::new();
     let mut creations = 0u64;
-    for &(n, _) in R_ATTENDUS {
+    for &(n, _) in R_EXPECTEDS {
         let schema = schema_anneau(n, false);
         let mut pool = Arena::new(
             ReferenceController::new(schema.clone()),
@@ -274,8 +274,8 @@ fn test_bench_sept_formes_o1_et_bord() {
     );
     // The flat prototype edge is pinned exactly (explicit falsification)
     // and grows with n.
-    for (&(n, attendu), &measure) in BORD_PLAT.iter().zip(&nodes_plats) {
-        assert_eq!(measure, attendu, "n={n}: flat edge = {attendu} live");
+    for (&(n, expected), &measure) in BORD_PLAT.iter().zip(&nodes_plats) {
+        assert_eq!(measure, expected, "n={n}: flat edge = {expected} live");
     }
     assert!(
         nodes_plats.windows(2).all(|w| w[1] > w[0]),

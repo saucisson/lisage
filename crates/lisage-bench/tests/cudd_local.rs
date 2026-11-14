@@ -35,9 +35,9 @@ fn cudd_compter_nodes(nombre_variables: u32, table: &[bool]) -> Option<usize> {
         shell_quote(&input),
         shell_quote(&docker_bin),
     );
-    let resultat = Command::new("/bin/sh").args(["-c", &script]).output();
+    let result = Command::new("/bin/sh").args(["-c", &script]).output();
 
-    let output = match resultat {
+    let output = match result {
         Ok(s) => s,
         Err(e) => {
             eprintln!("failed to spawn /bin/sh -c: {}", e);

@@ -80,8 +80,8 @@ fn test_metriques_cache_hash_consing() {
 
     // Hit rate as a percentage: shares * 100 / (creations + shares).
     let taux = metriques.taux_hit();
-    let attendu = metriques.partages * 100 / (metriques.creations + metriques.partages);
-    assert_eq!(taux, attendu);
+    let expected = metriques.partages * 100 / (metriques.creations + metriques.partages);
+    assert_eq!(taux, expected);
     assert!(taux > 0 && taux < 100, "hit rate: {taux}");
 }
 

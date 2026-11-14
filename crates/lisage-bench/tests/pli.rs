@@ -44,12 +44,12 @@ fn compiler_ensemble(
     ensemble: &BTreeSet<Value>,
 ) -> NodeId {
     let keys = SchemaKeys::new(schema.clone());
-    let mut resultat = pool.intern(anchor, Form::Terminal(false));
+    let mut result = pool.intern(anchor, Form::Terminal(false));
     for membre in ensemble {
         let n = compiler(pool, anchor, schema, membre).unwrap();
-        resultat = union(pool, &keys, anchor, resultat, n).unwrap();
+        result = union(pool, &keys, anchor, result, n).unwrap();
     }
-    resultat
+    result
 }
 
 proptest! {

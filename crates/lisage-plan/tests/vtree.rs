@@ -40,9 +40,9 @@ fn test_autre_vtree_autre_ordre() {
     );
     let ordre = Order::canonique(&vtree);
     assert_eq!(ordre.sequence(), &[Atom(2), Atom(0), Atom(1)]);
-    let resultat = Order::new(&vtree, vec![Atom(0), Atom(1), Atom(2)]);
+    let result = Order::new(&vtree, vec![Atom(0), Atom(1), Atom(2)]);
     assert_eq!(
-        resultat.unwrap_err(),
+        result.unwrap_err(),
         ErreurOrdre::ContrainteViolee {
             avant: Atom(2),
             apres: Atom(0),
@@ -54,9 +54,9 @@ fn test_autre_vtree_autre_ordre() {
 /// vtree constraint violated, rejected with the offending pair.
 #[test]
 fn test_pi_violant_vtree_rejete() {
-    let resultat = Order::new(&vtree_test(), vec![Atom(2), Atom(0), Atom(1), Atom(3)]);
+    let result = Order::new(&vtree_test(), vec![Atom(2), Atom(0), Atom(1), Atom(3)]);
     assert_eq!(
-        resultat.unwrap_err(),
+        result.unwrap_err(),
         ErreurOrdre::ContrainteViolee {
             avant: Atom(0),
             apres: Atom(2),
@@ -67,8 +67,8 @@ fn test_pi_violant_vtree_rejete() {
 /// π that is not a permutation of the vtree's variables: rejected.
 #[test]
 fn test_pi_pas_une_permutation_rejete() {
-    let resultat = Order::new(&vtree_test(), vec![Atom(0), Atom(1), Atom(2), Atom(9)]);
-    assert_eq!(resultat.unwrap_err(), ErreurOrdre::PasUnePermutation);
+    let result = Order::new(&vtree_test(), vec![Atom(0), Atom(1), Atom(2), Atom(9)]);
+    assert_eq!(result.unwrap_err(), ErreurOrdre::PasUnePermutation);
 }
 
 /// Invalid vtree: duplicate variable, typed error.
@@ -90,13 +90,13 @@ fn vtree_aleatoire(graine: &mut u64, nombre_variables: u64) -> Vtree {
         if variables.len() == 1 {
             return Vtree::feuille(variables[0]);
         }
-        let point_coupe = (suivant(graine) % (variables.len() as u64 - 1)) as usize + 1;
+        let point_coupe = (next(graine) % (variables.len() as u64 - 1)) as usize + 1;
         Vtree::node(
             construire(graine, &variables[..point_coupe]),
             construire(graine, &variables[point_coupe..]),
         )
     }
-    fn suivant(graine: &mut u64) -> u64 {
+    fn next(graine: &mut u64) -> u64 {
         *graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
@@ -143,9 +143,9 @@ fn test_propriete_ordre_canonique_satisfait_contraintes() {
         let sequence = ordre.sequence();
         let mut triee = sequence.to_vec();
         triee.sort();
-        let mut attendues: Vec<Atom> = (0..nombre_variables).map(Atom).collect();
-        attendues.sort();
-        assert_eq!(triee, attendues);
+        let mut expected_f: Vec<Atom> = (0..nombre_variables).map(Atom).collect();
+        expected_f.sort();
+        assert_eq!(triee, expected_f);
         verifier_gauche_avant_droite(&vtree, sequence);
     }
 }

@@ -13,12 +13,12 @@ use lisage_liseuse::philosophes::{
 use lisage_liseuse::svg::rendre_svg;
 
 /// Expected |R_n| (docs/golden-thread-example-n-philosophers-end-to-end § 0, verified by simulation).
-const R_ATTENDUS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152)];
+const R_EXPECTEDS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152)];
 
 /// C8: |R_n| by DD fold == reference enumeration == golden-thread values.
 #[test]
 fn test_c8_cardinaux_r3_r4_r5() {
-    for &(n, attendu) in R_ATTENDUS {
+    for &(n, expected) in R_EXPECTEDS {
         let schema = schema_anneau(n);
         let mut input = pool_neuf(&schema);
         let mut output = pool_neuf(&schema);
@@ -28,8 +28,8 @@ fn test_c8_cardinaux_r3_r4_r5() {
         let reference = mots_atteignables(n as usize).len() as u64;
         assert_eq!(compte, reference, "n={n} : DD fold == enumeration");
         assert_eq!(
-            compte, attendu,
-            "n={n} : |R_{n}| = {attendu} (golden thread)"
+            compte, expected,
+            "n={n} : |R_{n}| = {expected} (golden thread)"
         );
     }
 }
@@ -38,7 +38,7 @@ fn test_c8_cardinaux_r3_r4_r5() {
 /// eats (key 0 present); DD count == reference.
 #[test]
 fn test_filter_cellule_zero_mange() {
-    for &(n, _) in R_ATTENDUS {
+    for &(n, _) in R_EXPECTEDS {
         let schema = schema_mangeurs(n);
         let mut input = pool_neuf(&schema);
         let mut output = pool_neuf(&schema);
@@ -79,7 +79,7 @@ fn test_filter_cellule_zero_mange() {
 /// `exists` is broken (always-true or always-false).
 #[test]
 fn test_exists_sur_r_n() {
-    for &(n, _) in R_ATTENDUS {
+    for &(n, _) in R_EXPECTEDS {
         let schema = schema_mangeurs(n);
         let mut input = pool_neuf(&schema);
         let mut output = pool_neuf(&schema);
@@ -120,7 +120,7 @@ fn test_sept_formes_contre_r_n() {
 
     let legales = cellules_legales();
     assert_eq!(legales.len(), 5, "5 internal forms");
-    for &(n, _) in R_ATTENDUS {
+    for &(n, _) in R_EXPECTEDS {
         let schema = schema_anneau(n);
         let mut input = pool_neuf(&schema);
         let anchor = Anchor(0);

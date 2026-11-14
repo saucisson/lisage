@@ -100,14 +100,14 @@ proptest! {
     #[test]
     fn test_voie_a_lookup(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
         let ensemble = ensemble_aleatoire(maps);
-        let resultat = lookup(&ensemble, &atome(0));
-        prop_assert_eq!(resultat.len(), ensemble.len());
+        let result = lookup(&ensemble, &atome(0));
+        prop_assert_eq!(result.len(), ensemble.len());
         for membre in &ensemble {
-            let attendu = match membre {
+            let expected = match membre {
                 Value::Map(map) => map.get(&atome(0)).cloned(),
                 _ => None,
             };
-            prop_assert_eq!(&resultat[membre], &attendu);
+            prop_assert_eq!(&result[membre], &expected);
         }
     }
 }

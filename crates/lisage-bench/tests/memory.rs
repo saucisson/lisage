@@ -17,16 +17,16 @@ proptest! {
     ) {
         let mut memory: MemoryLevel<u64> = MemoryLevel::new();
         prop_assert_eq!(memory.version(), 0);
-        let mut attendu: std::collections::HashMap<(NodeId, Level), u64> =
+        let mut expected: std::collections::HashMap<(NodeId, Level), u64> =
             std::collections::HashMap::new();
         for (i, (node, level, value)) in ecritures.iter().enumerate() {
             let ancien = memory.ecrire(NodeId(*node), Level(*level), *value);
             prop_assert_eq!(memory.version(), (i + 1) as u64, "version == number of writes");
-            prop_assert_eq!(ancien, attendu.insert((NodeId(*node), Level(*level)), *value));
+            prop_assert_eq!(ancien, expected.insert((NodeId(*node), Level(*level)), *value));
         }
-        prop_assert_eq!(memory.size(), attendu.len());
+        prop_assert_eq!(memory.size(), expected.len());
         // Read-after-write: each key reads the last written value.
-        for ((node, level), value) in &attendu {
+        for ((node, level), value) in &expected {
             prop_assert_eq!(memory.lire(*node, *level), Some(value));
         }
     }

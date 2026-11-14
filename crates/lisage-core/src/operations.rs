@@ -49,8 +49,8 @@ impl Existe {
     /// the schema is not a map.
     pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
         let Schema::Map(liste_keys, _) = schema else {
-            return Err(CoreError::SchemaInattendu {
-                attendu: "Map",
+            return Err(CoreError::SchemaInexpected {
+                expected: "Map",
                 recu: forme_schema(schema),
             });
         };
@@ -73,8 +73,8 @@ impl Filtre {
     /// the schema is not a map.
     pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
         let Schema::Map(liste_keys, _) = schema else {
-            return Err(CoreError::SchemaInattendu {
-                attendu: "Map",
+            return Err(CoreError::SchemaInexpected {
+                expected: "Map",
                 recu: forme_schema(schema),
             });
         };
@@ -374,8 +374,8 @@ where
     let mut visite = BTreeSet::new();
     valider_levels(pool_input, schema, node, &mut visite)?;
     let mut runner = Transducteur::new(transduction);
-    let (resultat, _) = runner.run(pool_input, pool_output, anchor, node)?;
-    Ok(resultat)
+    let (result, _) = runner.run(pool_input, pool_output, anchor, node)?;
+    Ok(result)
 }
 
 /// `map(f)` on the set of atoms denoted by `node` (schema `Atom`).
@@ -391,6 +391,6 @@ where
     POut: Pool<Key = u64, Payload = bool>,
 {
     let mut runner = Transducteur::new(Image::new(fonction));
-    let (resultat, _) = runner.run(pool_input, pool_output, anchor, node)?;
-    Ok(resultat)
+    let (result, _) = runner.run(pool_input, pool_output, anchor, node)?;
+    Ok(result)
 }

@@ -112,20 +112,20 @@ fn test_propriete_normalisation_lcg() {
     let keys = RegionKeys::new(vec![16]);
     let mut graine = GRAINE_LCG;
     for _ in 0..NOMBRE_CAS {
-        let mut suivant = || {
+        let mut next = || {
             graine = graine
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
             graine
         };
-        let inf = suivant() % 16;
-        let sup = suivant() % 16;
+        let inf = next() % 16;
+        let sup = next() % 16;
         let intervalle = Intervalle::new(inf, sup);
         let normalisee = keys.normal_form(&intervalle);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
         assert_eq!(normalisee.est_vide(), inf > sup);
         assert_eq!(normalisee.size(), if inf > sup { 0 } else { sup - inf + 1 });
-        let point = suivant() % 16;
+        let point = next() % 16;
         assert_eq!(
             normalisee.contient(point),
             !normalisee.est_vide() && inf <= point && point <= sup
@@ -149,14 +149,14 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
     let faux_terminal = pool.intern(ANCRE, Form::Terminal(false));
     let mut graine = GRAINE_LCG;
     for _ in 0..NOMBRE_CAS {
-        let mut suivant = || {
+        let mut next = || {
             graine = graine
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
             graine
         };
         // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
-        let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| suivant() % 2 == 1).collect();
+        let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
         // Compression of S and its complement into disjoint intervals.
         let mut arcs = BTreeMap::new();
         let mut point = 0;

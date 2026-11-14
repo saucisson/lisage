@@ -45,12 +45,12 @@ fn compiler_ensemble(
     ensemble: &BTreeSet<Value>,
 ) -> NodeId {
     let keys = SchemaKeys::new(schema.clone());
-    let mut resultat = pool.intern(anchor, Form::Terminal(false));
+    let mut result = pool.intern(anchor, Form::Terminal(false));
     for membre in ensemble {
         let n = compiler(pool, anchor, schema, membre).unwrap();
-        resultat = union(pool, &keys, anchor, resultat, n).unwrap();
+        result = union(pool, &keys, anchor, result, n).unwrap();
     }
-    resultat
+    result
 }
 
 /// Presence predicate, DD side: `p(m) = present(a)`.
@@ -129,9 +129,9 @@ proptest! {
             Box::new(predicat_dd),
         )
         .unwrap();
-        let attendu_ensemble = filter(&ensemble, predicat_lang);
-        let attendu = compiler_ensemble(&mut output, anchor, &schema, &attendu_ensemble);
-        prop_assert_eq!(dd, attendu, "DD path != path A (filter), C1 structural");
+        let expected_ensemble = filter(&ensemble, predicat_lang);
+        let expected = compiler_ensemble(&mut output, anchor, &schema, &expected_ensemble);
+        prop_assert_eq!(dd, expected, "DD path != path A (filter), C1 structural");
     }
 
     /// C1 differential: map(f) DD (relabeling) == map interpreter on a
@@ -153,11 +153,11 @@ proptest! {
         let anchor = Anchor(0);
         let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
         let dd = image(&input, &mut output, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
-        let attendu_ensemble = map(&ensemble, |v| match v {
+        let expected_ensemble = map(&ensemble, |v| match v {
             Value::Atom(a) => atome((a.0 + 1) % 3),
             autre => autre.clone(),
         });
-        let attendu = compiler_ensemble(&mut output, anchor, &schema, &attendu_ensemble);
-        prop_assert_eq!(dd, attendu, "DD path != path A (map), C1 structural");
+        let expected = compiler_ensemble(&mut output, anchor, &schema, &expected_ensemble);
+        prop_assert_eq!(dd, expected, "DD path != path A (map), C1 structural");
     }
 }

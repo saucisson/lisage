@@ -20,7 +20,7 @@ const TENUE: u64 = 1;
 /// Fork held by the previous philosopher (he eats).
 const PRECEDENTE: u64 = 2;
 /// |R_n| of the golden thread for n = 3..7 (verified by simulation, M4-4).
-const R_ATTENDUS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152), (6, 416), (7, 1136)];
+const R_EXPECTEDS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152), (6, 416), (7, 1136)];
 /// Shared nodes of R_3 (didactic workshop, fragment 1: 33 nodes).
 const NODES_R3: u64 = 33;
 /// Paths of the test window: 10 bases × 4 positions.
@@ -140,11 +140,11 @@ fn test_alea_lcg_bornes_refusees() {
 /// (33), cardinal via pli == number of states in the file.
 #[test]
 fn test_philosophes_fil_rouge_epingle() {
-    for &(nombre, attendu) in R_ATTENDUS {
+    for &(nombre, expected) in R_EXPECTEDS {
         let chemin = ecrire_fichier_etats(nombre);
         let parametres = vec![nombre.to_string(), chemin.display().to_string()];
         let measure = executer(&Charge::Philosophes, &parametres, None).expect("workload run");
-        assert_eq!(measure.verifie, attendu, "n={nombre}: pinned |R_n|");
+        assert_eq!(measure.verifie, expected, "n={nombre}: pinned |R_n|");
         assert_eq!(measure.variante, Variante::Mdd);
         if nombre == 3 {
             assert_eq!(measure.nodes, NODES_R3, "R_3: 33 shared nodes");
@@ -246,18 +246,18 @@ fn test_serialisation_ligne_epinglee() {
         nodes: 3,
         verifie: 40,
     };
-    let attendu = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
+    let expected = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\"encodage\":\"relatif\",\
 \"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
-    assert_eq!(serialiser_ligne(&measure), attendu);
+    assert_eq!(serialiser_ligne(&measure), expected);
     let sans_encodage = MeasureConfrontation {
         encodage: None,
         ..measure
     };
-    let attendu_sans = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
+    let expected_sans = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\
 \"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
-    assert_eq!(serialiser_ligne(&sans_encodage), attendu_sans);
+    assert_eq!(serialiser_ligne(&sans_encodage), expected_sans);
 }
 
 /// The harness's extended-state generation (same algorithm as
@@ -265,9 +265,9 @@ fn test_serialisation_ligne_epinglee() {
 /// n = 3..7, each state with 2n values in {0,1,2}.
 #[test]
 fn test_etats_etendus_coherents_avec_fil_rouge() {
-    for &(nombre, attendu) in R_ATTENDUS {
+    for &(nombre, expected) in R_EXPECTEDS {
         let etats = etats_etendus(nombre as usize);
-        assert_eq!(etats.len() as u64, attendu, "n={nombre}: pinned |R_n|");
+        assert_eq!(etats.len() as u64, expected, "n={nombre}: pinned |R_n|");
         assert!(etats.iter().all(|etat| {
             etat.len() == 2 * nombre as usize && etat.iter().all(|value| *value <= MANGE)
         }));
@@ -298,7 +298,7 @@ fn test_narration_charge_epinglee() {
     };
     let measure =
         executer(&Charge::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("workload run");
-    let attendu = format!(
+    let expected = format!(
         "workload=alea-lcg nodes={} check={}",
         measure.nodes, SATISFACTIONS_LCG_N4
     );
@@ -318,8 +318,8 @@ fn test_narration_charge_epinglee() {
         Some(&collecteur),
     )
     .expect("fenetre workload run");
-    let attendus = [
-        attendu,
+    let expected_list = [
+        expected,
         format!(
             "workload=philosophes nodes={} check={}",
             measure_philo.nodes, measure_philo.verifie
@@ -330,7 +330,7 @@ fn test_narration_charge_epinglee() {
         ),
     ];
     let events = collecteur.evenements.lock().expect("mutex").clone();
-    for attendu in &attendus {
+    for expected in &expected_list {
         assert!(
             events.iter().any(|e| matches!(
                 e,
@@ -338,9 +338,9 @@ fn test_narration_charge_epinglee() {
                     canal: CanalAttr::Synthesized,
                     value,
                     ..
-                } if value == attendu
+                } if value == expected
             )),
-            "the narration event carries the summary: {attendu}"
+            "the narration event carries the summary: {expected}"
         );
     }
 }

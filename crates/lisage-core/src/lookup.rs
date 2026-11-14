@@ -127,7 +127,7 @@ impl Lookup {
             return n;
         }
         let forme = pool.resolve(node).unwrap().clone();
-        let resultat = match forme {
+        let result = match forme {
             Form::Terminal(_) => pool.intern(anchor, Form::Terminal(payload)),
             Form::Node { level, arcs } => {
                 let arcs = arcs
@@ -137,8 +137,8 @@ impl Lookup {
                 pool.intern(anchor, Form::Node { level, arcs })
             }
         };
-        memo.insert(node, resultat);
-        resultat
+        memo.insert(node, result);
+        result
     }
 }
 

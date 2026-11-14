@@ -58,18 +58,18 @@ pub fn fourchette(pc: &[u64], n: usize, i: usize) -> u64 {
 /// Enumerates the circular words of length `n` over {0,1,2} with no two `2`
 /// adjacent circularly (reachable states, reference enumeration).
 pub fn mots_atteignables(n: usize) -> Vec<Vec<u64>> {
-    let mut resultat = Vec::new();
+    let mut result = Vec::new();
     let mut mot = vec![0u64; n];
     loop {
         let circulaire_ok = (0..n).all(|i| !(mot[i] == 2 && mot[(i + 1) % n] == 2));
         if circulaire_ok {
-            resultat.push(mot.clone());
+            result.push(mot.clone());
         }
         // Increment in base 3.
         let mut i = n;
         loop {
             if i == 0 {
-                return resultat;
+                return result;
             }
             i -= 1;
             if mot[i] < 2 {

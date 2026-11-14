@@ -156,8 +156,8 @@ fn test_rendre_svg_vue_memory() {
             }
         })
         .expect("Lisage bar present");
-    let attendu = 7 * 400 / 152;
-    assert_eq!(largeur_lisage, attendu, "proportional Lisage bar");
+    let expected = 7 * 400 / 152;
+    assert_eq!(largeur_lisage, expected, "proportional Lisage bar");
     // Determinism.
     let svg2 = rendre_svg_vue_memory(
         &[VuePool::depuis_metriques(

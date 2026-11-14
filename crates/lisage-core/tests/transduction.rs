@@ -193,9 +193,9 @@ fn test_canal_herite_identite_et_profondeur() {
     let anchor = Anchor(0);
     let (_, b) = dag(&mut input, anchor);
     let mut runner = Transducteur::new(IdentiteProfondeur);
-    let (resultat, profondeur) = runner.run(&input, &mut output, anchor, b).unwrap();
+    let (result, profondeur) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
-        output.resolve(resultat).unwrap(),
+        output.resolve(result).unwrap(),
         input.resolve(b).unwrap(),
         "identity ⇒ same forms"
     );
@@ -215,8 +215,8 @@ fn test_canal_synthetise_comptage() {
         appels: appels.clone(),
     };
     let mut runner = Transducteur::new(compte);
-    let (resultat, compte_chemins) = runner.run(&input, &mut output, anchor, b).unwrap();
-    assert_eq!(output.resolve(resultat).unwrap(), input.resolve(b).unwrap());
+    let (result, compte_chemins) = runner.run(&input, &mut output, anchor, b).unwrap();
+    assert_eq!(output.resolve(result).unwrap(), input.resolve(b).unwrap());
     assert_eq!(compte_chemins, 2, "two paths lead to ⊤");
     assert_eq!(
         appels.load(Ordering::SeqCst),
@@ -279,9 +279,9 @@ fn test_transduction_sur_diagramme_compile() {
     ]));
     let root = compiler(&mut input, anchor, &schema, &ensemble).unwrap();
     let mut runner = Transducteur::new(Identite);
-    let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
+    let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
     assert_eq!(
-        output.resolve(resultat).unwrap(),
+        output.resolve(result).unwrap(),
         input.resolve(root).unwrap()
     );
 }

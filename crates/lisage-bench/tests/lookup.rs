@@ -88,17 +88,17 @@ proptest! {
             liste_keys.clone(),
             domain_values.clone(),
         ));
-        let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
-        let dd = payload_terminal(&output, resultat, &liste_keys, &map);
+        let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
+        let dd = payload_terminal(&output, result, &liste_keys, &map);
 
         // Path A: reference interpreter on the set {map}.
         let ensemble = BTreeSet::from([value.clone()]);
-        let attendu = lookup(&ensemble, &atome(key))[&value].clone();
-        let attendu_opt = match attendu {
+        let expected = lookup(&ensemble, &atome(key))[&value].clone();
+        let expected_opt = match expected {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,
         };
-        prop_assert_eq!(dd, attendu_opt, "DD path != path A for lookup");
+        prop_assert_eq!(dd, expected_opt, "DD path != path A for lookup");
     }
 
     /// C1 differential, collapsed case: value domain of cardinal 1 ⇒
@@ -135,15 +135,15 @@ proptest! {
             liste_keys.clone(),
             domain_values.clone(),
         ));
-        let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
-        let dd = payload_terminal(&output, resultat, &liste_keys, &map);
+        let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
+        let dd = payload_terminal(&output, result, &liste_keys, &map);
 
         let ensemble = BTreeSet::from([value.clone()]);
-        let attendu = lookup(&ensemble, &atome(key))[&value].clone();
-        let attendu_opt = match attendu {
+        let expected = lookup(&ensemble, &atome(key))[&value].clone();
+        let expected_opt = match expected {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,
         };
-        prop_assert_eq!(dd, attendu_opt, "DD path != path A (collapsed case)");
+        prop_assert_eq!(dd, expected_opt, "DD path != path A (collapsed case)");
     }
 }

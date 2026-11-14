@@ -76,29 +76,29 @@ fn ordre_inverse(n: usize) -> Vec<Atom> {
 /// (canonical order and reversed order), for each toy model.
 #[test]
 fn test_cardinal_identique_sur_les_trois_voies() {
-    let attendus = [
+    let expected_list = [
         (PNML_BOUCL, 1),
         (PNML_TRANSFERT, 2),
         (PNML_CHOIX, 3),
         (PNML_CYCLE2, 6),
     ];
-    for (pnml, cardinal_attendu) in attendus {
+    for (pnml, cardinal_expected) in expected_list {
         let network = network(pnml);
         let measure_a = voie_a(&network);
         let measure_b = voie_b(&network).unwrap();
-        let resultat_c_canonique =
+        let result_c_canonique =
             voie_c(&network, &ordre_canonique(network.nombre_places())).unwrap();
-        let resultat_c_inverse = voie_c(&network, &ordre_inverse(network.nombre_places())).unwrap();
-        let measure_c_canonique = resultat_c_canonique.measure;
-        let measure_c_inverse = resultat_c_inverse.measure;
-        assert_eq!(measure_a.cardinal, cardinal_attendu, "path A on {pnml}");
-        assert_eq!(measure_b.cardinal, cardinal_attendu, "path B on {pnml}");
+        let result_c_inverse = voie_c(&network, &ordre_inverse(network.nombre_places())).unwrap();
+        let measure_c_canonique = result_c_canonique.measure;
+        let measure_c_inverse = result_c_inverse.measure;
+        assert_eq!(measure_a.cardinal, cardinal_expected, "path A on {pnml}");
+        assert_eq!(measure_b.cardinal, cardinal_expected, "path B on {pnml}");
         assert_eq!(
-            measure_c_canonique.cardinal, cardinal_attendu,
+            measure_c_canonique.cardinal, cardinal_expected,
             "canonical path C on {pnml}"
         );
         assert_eq!(
-            measure_c_inverse.cardinal, cardinal_attendu,
+            measure_c_inverse.cardinal, cardinal_expected,
             "reversed path C on {pnml}"
         );
     }
@@ -125,9 +125,9 @@ fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
 fn test_voie_c_canonique_egale_voie_b() {
     let network = network(PNML_CYCLE2);
     let measure_b = voie_b(&network).unwrap();
-    let resultat_c = voie_c(&network, &ordre_canonique(network.nombre_places())).unwrap();
-    assert_eq!(measure_b, resultat_c.measure);
-    assert_eq!(resultat_c.strategie, StrategieAval::OrdreRuntime);
+    let result_c = voie_c(&network, &ordre_canonique(network.nombre_places())).unwrap();
+    assert_eq!(measure_b, result_c.measure);
+    assert_eq!(result_c.strategie, StrategieAval::OrdreRuntime);
 }
 
 /// Invalid π (missing, duplicated, or foreign key): the planner falls back
@@ -139,9 +139,9 @@ fn test_voie_c_ordre_invalide_repli_canonique() {
     let key_double = vec![Atom(0), Atom(0), Atom(2)];
     let key_etrangere = vec![Atom(0), Atom(1), Atom(7)];
     for ordre in [key_manquante, key_double, key_etrangere] {
-        let resultat = voie_c(&network, &ordre).unwrap();
-        assert_eq!(resultat.strategie, StrategieAval::RepliCanonique);
-        assert_eq!(resultat.measure.cardinal, 3);
+        let result = voie_c(&network, &ordre).unwrap();
+        assert_eq!(result.strategie, StrategieAval::RepliCanonique);
+        assert_eq!(result.measure.cardinal, 3);
     }
 }
 
@@ -149,9 +149,9 @@ fn test_voie_c_ordre_invalide_repli_canonique() {
 #[test]
 fn test_voie_c_ordre_runtime_adopte() {
     let network = network(PNML_CYCLE2);
-    let resultat = voie_c(&network, &ordre_inverse(network.nombre_places())).unwrap();
-    assert_eq!(resultat.strategie, StrategieAval::OrdreRuntime);
-    assert_eq!(resultat.measure.cardinal, 6);
+    let result = voie_c(&network, &ordre_inverse(network.nombre_places())).unwrap();
+    assert_eq!(result.strategie, StrategieAval::OrdreRuntime);
+    assert_eq!(result.measure.cardinal, 6);
 }
 
 /// Net without a place: typed error on paths B and C.

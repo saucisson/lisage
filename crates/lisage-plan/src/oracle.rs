@@ -100,7 +100,7 @@ impl std::error::Error for ErreurOracle {}
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ParametresOracle {
     size_domain: u64,
-    densite_attendue: Rationnel,
+    densite_expectede: Rationnel,
     cout_encodage: u64,
     requetes_aval: u64,
 }
@@ -109,18 +109,19 @@ impl ParametresOracle {
     /// Validated parameters: the expected density must fit in [0, 1].
     pub fn new(
         size_domain: u64,
-        densite_attendue: Rationnel,
+        densite_expectede: Rationnel,
         cout_encodage: u64,
         requetes_aval: u64,
     ) -> Result<Self, ErreurOracle> {
         let zero = Rationnel::new(0, 1);
         let un = Rationnel::entier(1);
-        if !(zero.inferieur_ou_egal(&densite_attendue) && densite_attendue.inferieur_ou_egal(&un)) {
+        if !(zero.inferieur_ou_egal(&densite_expectede) && densite_expectede.inferieur_ou_egal(&un))
+        {
             return Err(ErreurOracle::DensiteHorsBornes);
         }
         Ok(ParametresOracle {
             size_domain,
-            densite_attendue,
+            densite_expectede,
             cout_encodage,
             requetes_aval,
         })
@@ -132,8 +133,8 @@ impl ParametresOracle {
     }
 
     /// Expected density (validated in [0, 1]).
-    pub fn densite_attendue(&self) -> Rationnel {
-        self.densite_attendue
+    pub fn densite_expectede(&self) -> Rationnel {
+        self.densite_expectede
     }
 
     /// Encoding cost: cost of one level according to the realm's encoding.
@@ -166,8 +167,9 @@ impl Oracle {
     /// terminal), `total cost = size × encoding_cost × downstream_queries`
     /// (saturated).
     pub fn predire(parametres: &ParametresOracle) -> Prediction {
-        let presents = (parametres.size_domain as u128) * (parametres.densite_attendue.num as u128)
-            / (parametres.densite_attendue.den as u128);
+        let presents = (parametres.size_domain as u128)
+            * (parametres.densite_expectede.num as u128)
+            / (parametres.densite_expectede.den as u128);
         let size_predite = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
         let cout_total_predit = size_predite
             .saturating_mul(parametres.cout_encodage)

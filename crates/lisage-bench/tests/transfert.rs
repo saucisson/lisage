@@ -96,19 +96,19 @@ proptest! {
             usize::try_from(destination).unwrap(),
         );
         let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-        let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+        let (result, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
-        let obtenu = decompiler_map(&pool, &schema, resultat);
-        let mut attendu = inputs.clone();
+        let obtenu = decompiler_map(&pool, &schema, result);
+        let mut expected = inputs.clone();
         let value_source = inputs[&source];
         let value_destination = inputs[&destination];
         // The transfer is active only if the source has at least 1 unit.
         if value_source >= 1 {
-            attendu.insert(source, value_source - 1);
+            expected.insert(source, value_source - 1);
             if value_destination + 1 < SIZE_DOMAIN {
-                attendu.insert(destination, value_destination + 1);
+                expected.insert(destination, value_destination + 1);
             }
         }
-        prop_assert_eq!(obtenu, attendu);
+        prop_assert_eq!(obtenu, expected);
     }
 }

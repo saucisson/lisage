@@ -110,18 +110,18 @@ fn test_boucle_espace_stable() {
 
 #[test]
 fn test_erreur_xml_mal_forme() {
-    let resultat =
+    let result =
         NetworkPetri::depuis_pnml(&PnmlDocument("<pnml><net><place id=\"p0\">".to_string()));
-    assert!(matches!(resultat, Err(PnmlError::XmlMalForme { .. })));
+    assert!(matches!(result, Err(PnmlError::XmlMalForme { .. })));
 }
 
 #[test]
 fn test_erreur_attribut_manquant() {
-    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(
+    let result = NetworkPetri::depuis_pnml(&PnmlDocument(
         "<pnml><net><place/></net></pnml>".to_string(),
     ));
     assert!(matches!(
-        resultat,
+        result,
         Err(PnmlError::AttributManquant {
             element: "place",
             attribut: "id"
@@ -132,50 +132,53 @@ fn test_erreur_attribut_manquant() {
 #[test]
 fn test_erreur_arc_vers_inconnu() {
     let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t9\"/></net></pnml>";
-    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
-    assert!(matches!(resultat, Err(PnmlError::ArcVersInconnu { .. })));
+    let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
+    assert!(matches!(result, Err(PnmlError::ArcVersInconnu { .. })));
 }
 
 #[test]
 fn test_erreur_arc_mal_oriente() {
     // Two linked transitions: badly oriented arc, rejected at parsing.
     let document = "<pnml><net><transition id=\"t1\"/><transition id=\"t2\"/><arc source=\"t1\" target=\"t2\"/></net></pnml>";
-    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
-    assert!(matches!(resultat, Err(PnmlError::ArcMalOriente { .. })));
+    let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
+    assert!(matches!(result, Err(PnmlError::ArcMalOriente { .. })));
 }
 
 #[test]
 fn test_erreur_poids_non_supporte() {
     let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t1\" weight=\"2\"/></net></pnml>";
-    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
-    assert!(matches!(resultat, Err(PnmlError::PoidsNonSupporte { .. })));
+    let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
+    assert!(matches!(result, Err(PnmlError::PoidsNonSupporte { .. })));
 }
 
 #[test]
-fn test_erreur_element_inattendu() {
+fn test_erreur_element_inexpected() {
     // Root other than <pnml>.
-    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument("<foo/>".to_string()));
+    let result = NetworkPetri::depuis_pnml(&PnmlDocument("<foo/>".to_string()));
     assert!(matches!(
-        resultat,
-        Err(PnmlError::ElementInattendu {
-            attendu: "pnml",
+        result,
+        Err(PnmlError::ElementInexpected {
+            expected: "pnml",
             ..
         })
     ));
     // <pnml> without <net>.
-    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument("<pnml/>".to_string()));
+    let result = NetworkPetri::depuis_pnml(&PnmlDocument("<pnml/>".to_string()));
     assert!(matches!(
-        resultat,
-        Err(PnmlError::ElementInattendu { attendu: "net", .. })
+        result,
+        Err(PnmlError::ElementInexpected {
+            expected: "net",
+            ..
+        })
     ));
 }
 
 #[test]
 fn test_erreur_nombre_invalide() {
     let document = "<pnml><net><place id=\"p0\"><initialMarking><text>abc</text></initialMarking></place></net></pnml>";
-    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
+    let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(
-        resultat,
+        result,
         Err(PnmlError::NombreInvalide {
             element: "initialMarking",
             ..
@@ -260,12 +263,12 @@ proptest! {
         let total_avant: u64 = initial.values().map(|a| a.0).sum();
         for transition in &network.transitions {
             if est_sensibilisee(&network, &transition.identifiant, &initial) {
-                let suivant = tirer(&network, &transition.identifiant, &initial);
+                let next = tirer(&network, &transition.identifiant, &initial);
                 // The resulting marking has one entry per place.
-                prop_assert_eq!(suivant.len(), nombre_places);
+                prop_assert_eq!(next.len(), nombre_places);
                 // Documented invariant: firing moves one token (weight 1
                 // in input and in output), the total is preserved.
-                let total_apres: u64 = suivant.values().map(|a| a.0).sum();
+                let total_apres: u64 = next.values().map(|a| a.0).sum();
                 prop_assert_eq!(total_apres, total_avant);
             }
         }

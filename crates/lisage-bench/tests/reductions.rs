@@ -27,8 +27,8 @@ fn test_collapse_level_value_exemple_spec() {
     // val(a): 0 and 1 lead to the same sub-DD ⇒ R-collapse (spec § 2.3 example).
     let x = NodeId(5);
     let arcs = BTreeMap::from([(0, x), (1, x)]);
-    let resultat = reduire(arcs, None, &est_defaut, 2);
-    assert_eq!(resultat, Reduction::Collapse(x));
+    let result = reduire(arcs, None, &est_defaut, 2);
+    assert_eq!(result, Reduction::Collapse(x));
 }
 
 #[test]
@@ -36,8 +36,8 @@ fn test_r_default_arc_absent_vers_defaut() {
     // presence: absent ↦ ⊥ (D_δ) is removed, present ↦ X stays.
     let x = NodeId(5);
     let arcs = BTreeMap::from([(0, NODE_DEFAUT), (1, x)]);
-    let resultat = reduire(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(resultat, Reduction::Forme(BTreeMap::from([(1, x)])));
+    let result = reduire(arcs, Some(0), &est_defaut, 2);
+    assert_eq!(result, Reduction::Forme(BTreeMap::from([(1, x)])));
 }
 
 #[test]
@@ -45,16 +45,16 @@ fn test_pas_de_collapse_si_cible_non_defaut() {
     // {present ↦ X} with implicit default ⊥ and X ≠ ⊥: no collapse.
     let x = NodeId(5);
     let arcs = BTreeMap::from([(1, x)]);
-    let resultat = reduire(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(resultat, Reduction::Forme(BTreeMap::from([(1, x)])));
+    let result = reduire(arcs, Some(0), &est_defaut, 2);
+    assert_eq!(result, Reduction::Forme(BTreeMap::from([(1, x)])));
 }
 
 #[test]
 fn test_collapse_si_tout_vaut_le_defaut() {
     // {absent ↦ ⊥, present ↦ ⊥} ⇒ collapse to ⊥.
     let arcs = BTreeMap::from([(0, NODE_DEFAUT), (1, NODE_DEFAUT)]);
-    let resultat = reduire(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(resultat, Reduction::Collapse(NODE_DEFAUT));
+    let result = reduire(arcs, Some(0), &est_defaut, 2);
+    assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
 }
 
 proptest! {
