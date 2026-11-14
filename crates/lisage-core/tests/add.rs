@@ -61,29 +61,29 @@ fn singleton_bool(pool: &mut PoolBool, map: &Value) -> NodeId {
 /// weight-1 singletons.
 fn construire_add(pool: &mut PoolAdd, ensemble: &BTreeSet<Value>) -> NodeId {
     let keys = SchemaKeys::new(schema_test());
-    let mut racine = pool.intern(ANCRE, Form::Terminal(0));
+    let mut root = pool.intern(ANCRE, Form::Terminal(0));
     for map in ensemble {
         let membre = singleton_add(pool, map, 1);
-        racine = merge_add(pool, &keys, ANCRE, racine, membre).unwrap();
+        root = merge_add(pool, &keys, ANCRE, root, membre).unwrap();
     }
-    racine
+    root
 }
 
 /// Builds the set of maps in the Bool pool by idempotent union.
 fn construire_bool(pool: &mut PoolBool, ensemble: &BTreeSet<Value>) -> NodeId {
     let keys = SchemaKeys::new(schema_test());
-    let mut racine = pool.intern(ANCRE, Form::Terminal(false));
+    let mut root = pool.intern(ANCRE, Form::Terminal(false));
     for map in ensemble {
         let membre = singleton_bool(pool, map);
-        racine = union(pool, &keys, ANCRE, racine, membre).unwrap();
+        root = union(pool, &keys, ANCRE, root, membre).unwrap();
     }
-    racine
+    root
 }
 
 /// Counts the cardinal in the Bool pool (fold `(ℕ,+,×)`).
-fn cardinal_bool(pool: &PoolBool, racine: NodeId) -> u64 {
+fn cardinal_bool(pool: &PoolBool, root: NodeId) -> u64 {
     let mut sortie = pool_bool();
-    compter(pool, &mut sortie, ANCRE, &schema_test(), racine).unwrap()
+    compter(pool, &mut sortie, ANCRE, &schema_test(), root).unwrap()
 }
 
 /// The unique table is indexed by the weights: terminals of different
@@ -127,11 +127,11 @@ fn test_somme_poids_egale_cardinal() {
     .into_iter()
     .collect();
     let mut pool_a = pool_add();
-    let racine_add = construire_add(&mut pool_a, &ensemble);
-    assert_eq!(somme_poids(&pool_a, &schema_test(), racine_add).unwrap(), 3);
+    let root_add = construire_add(&mut pool_a, &ensemble);
+    assert_eq!(somme_poids(&pool_a, &schema_test(), root_add).unwrap(), 3);
     let mut pool_b = pool_bool();
-    let racine_bool = construire_bool(&mut pool_b, &ensemble);
-    assert_eq!(cardinal_bool(&pool_b, racine_bool), 3);
+    let root_bool = construire_bool(&mut pool_b, &ensemble);
+    assert_eq!(cardinal_bool(&pool_b, root_bool), 3);
 }
 
 /// Compatibility guard (Q8): with a duplicate, the lifted construction
@@ -150,18 +150,18 @@ fn test_garde_fou_compatibilite_doublon() {
     .collect();
     let mut pool_a = pool_add();
     let keys = SchemaKeys::new(schema_test());
-    let mut racine = pool_a.intern(ANCRE, Form::Terminal(0));
+    let mut root = pool_a.intern(ANCRE, Form::Terminal(0));
     for membre in &ensemble {
         let singleton = singleton_add(&mut pool_a, membre, 1);
-        racine = merge_add(&mut pool_a, &keys, ANCRE, racine, singleton).unwrap();
+        root = merge_add(&mut pool_a, &keys, ANCRE, root, singleton).unwrap();
     }
     // The duplicate is counted twice: 4, not 3.
     let doublon = singleton_add(&mut pool_a, &map, 1);
-    racine = merge_add(&mut pool_a, &keys, ANCRE, racine, doublon).unwrap();
-    assert_eq!(somme_poids(&pool_a, &schema_test(), racine).unwrap(), 4);
+    root = merge_add(&mut pool_a, &keys, ANCRE, root, doublon).unwrap();
+    assert_eq!(somme_poids(&pool_a, &schema_test(), root).unwrap(), 4);
     let mut pool_b = pool_bool();
-    let racine_bool = construire_bool(&mut pool_b, &ensemble);
-    assert_eq!(cardinal_bool(&pool_b, racine_bool), 3);
+    let root_bool = construire_bool(&mut pool_b, &ensemble);
+    assert_eq!(cardinal_bool(&pool_b, root_bool), 3);
 }
 
 /// Property (LCG-generated cases): for any set of maps over 2 keys with
@@ -192,13 +192,13 @@ fn test_propriete_somme_poids_egale_cardinal_lcg() {
             ensemble.insert(map_de(&[(0, x0), (1, x1)]));
         }
         let mut pool_a = pool_add();
-        let racine_add = construire_add(&mut pool_a, &ensemble);
+        let root_add = construire_add(&mut pool_a, &ensemble);
         let mut pool_b = pool_bool();
-        let racine_bool = construire_bool(&mut pool_b, &ensemble);
+        let root_bool = construire_bool(&mut pool_b, &ensemble);
         assert_eq!(
-            somme_poids(&pool_a, &schema_test(), racine_add).unwrap(),
+            somme_poids(&pool_a, &schema_test(), root_add).unwrap(),
             ensemble.len() as u64
         );
-        assert_eq!(cardinal_bool(&pool_b, racine_bool), ensemble.len() as u64);
+        assert_eq!(cardinal_bool(&pool_b, root_bool), ensemble.len() as u64);
     }
 }

@@ -45,9 +45,9 @@ fn test_trace_jsonl_versionnee_et_deterministe() {
     };
     let observateur_a = JsonlObserver::new();
     let observateur_b = JsonlObserver::new();
-    let racine_a = construire(&observateur_a);
-    let racine_b = construire(&observateur_b);
-    assert_eq!(racine_a, racine_b, "C1: same construction ⇒ same root");
+    let root_a = construire(&observateur_a);
+    let root_b = construire(&observateur_b);
+    assert_eq!(root_a, root_b, "C1: same construction ⇒ same root");
     assert_eq!(
         observateur_a.lignes(),
         observateur_b.lignes(),
@@ -122,10 +122,10 @@ fn test_svg_statique_deterministe() {
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let anchor = Anchor(0);
-    let racine = ensemble(&mut pool, anchor, &schema, &[0, 1]);
+    let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
 
-    let svg = rendre_svg(&pool, racine);
-    let svg2 = rendre_svg(&pool, racine);
+    let svg = rendre_svg(&pool, root);
+    let svg2 = rendre_svg(&pool, root);
     assert_eq!(
         svg, svg2,
         "deterministic rendering (replayable identically)"
@@ -150,8 +150,8 @@ fn test_svg_structure_equilibree() {
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
-    let racine = ensemble(&mut pool, Anchor(0), &schema, &[1]);
-    let svg = rendre_svg(&pool, racine);
+    let root = ensemble(&mut pool, Anchor(0), &schema, &[1]);
+    let svg = rendre_svg(&pool, root);
     let ouvertures = svg.matches("<rect ").count();
     let fermetures_rect = svg.matches("/>").count();
     assert!(ouvertures >= 2, "node + terminal rendered");

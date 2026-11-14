@@ -115,17 +115,17 @@ pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
     svg
 }
 
-/// Renders the sub-diagram reachable from `racine` as a **standalone
+/// Renders the sub-diagram reachable from `root` as a **standalone
 /// publication SVG**: white background, serif title, diagram in the given
 /// theme, and auto-generated channel legend if `avec_legende`.
 pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     titre: &str,
     theme: &Theme,
     avec_legende: bool,
 ) -> String {
-    let (placement, nombre_niveaux) = placer(pool, racine);
+    let (placement, nombre_niveaux) = placer(pool, root);
     let largeur_diagramme =
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
     let largeur_legende = if avec_legende { LARGEUR_LEGENDE } else { 0 };
@@ -147,7 +147,7 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
         theme.encre,
         echapper_xml(titre)
     ));
-    svg.push_str(&dessiner_corps(pool, racine, &placement, &theme.couleurs()));
+    svg.push_str(&dessiner_corps(pool, root, &placement, &theme.couleurs()));
     if avec_legende {
         svg.push_str(&rendre_legende_svg(
             theme,
@@ -162,14 +162,14 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
 /// Pixel → centimeter conversion scale for PGF (1 px = 0.05 cm).
 const ECHELLE_PGF_CM_PAR_PIXEL: f64 = 0.05;
 
-/// Renders the sub-diagram reachable from `racine` as a **standalone
+/// Renders the sub-diagram reachable from `root` as a **standalone
 /// PGF/TikZ** (document `standalone`), for inclusion in a LaTeX article.
 pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     titre: &str,
 ) -> String {
-    let (placement, _nombre_niveaux) = placer(pool, racine);
+    let (placement, _nombre_niveaux) = placer(pool, root);
     let mut pgf = String::new();
     pgf.push_str(
         "\\documentclass[tikz,border=5pt]{standalone}\n\\usepackage{tikz}\n\\begin{document}\n",
@@ -202,7 +202,7 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
         }
     }
     // Arcs.
-    let mut pile = vec![racine];
+    let mut pile = vec![root];
     let mut deja_vu = std::collections::BTreeSet::new();
     while let Some(noeud) = pile.pop() {
         if !deja_vu.insert(noeud) {

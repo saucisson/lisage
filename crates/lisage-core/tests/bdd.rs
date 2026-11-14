@@ -27,13 +27,13 @@ fn test_bdd_constantes_un_seul_terminal() {
     let mut pool = pool(3);
     let anchor = Anchor(0);
     let keys = BddKeys::new(3);
-    let racine_faux = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, false));
-    let racine_vrai = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, true));
+    let root_faux = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, false));
+    let root_vrai = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, true));
     // R-collapse: no variable, a single terminal visited.
-    assert_eq!(compter_noeuds(&pool, racine_faux), 1);
-    assert_eq!(compter_noeuds(&pool, racine_vrai), 1);
-    assert!(!evaluer(&pool, racine_faux, 0b101).unwrap());
-    assert!(evaluer(&pool, racine_vrai, 0b101).unwrap());
+    assert_eq!(compter_noeuds(&pool, root_faux), 1);
+    assert_eq!(compter_noeuds(&pool, root_vrai), 1);
+    assert!(!evaluer(&pool, root_faux, 0b101).unwrap());
+    assert!(evaluer(&pool, root_vrai, 0b101).unwrap());
 }
 
 #[test]
@@ -42,12 +42,12 @@ fn test_bdd_xor2_compte_et_evalue() {
     let anchor = Anchor(0);
     let keys = BddKeys::new(2);
     let table = table_xor2();
-    let racine = compiler_bdd(&mut pool, anchor, &keys, &table);
-    // XOR(x0, x1) : racine x0 + deux nœuds x1 distincts + ⊥/⊤ = 5 nœuds.
-    assert_eq!(compter_noeuds(&pool, racine), 5);
+    let root = compiler_bdd(&mut pool, anchor, &keys, &table);
+    // XOR(x0, x1) : root x0 + deux nœuds x1 distincts + ⊥/⊤ = 5 nœuds.
+    assert_eq!(compter_noeuds(&pool, root), 5);
     for a in 0..4u64 {
         assert_eq!(
-            evaluer(&pool, racine, a).unwrap(),
+            evaluer(&pool, root, a).unwrap(),
             table[a as usize],
             "affectation {a}"
         );
@@ -59,9 +59,9 @@ fn test_bdd_projection_collapse() {
     let mut pool = pool(2);
     let anchor = Anchor(0);
     let keys = BddKeys::new(2);
-    // Projection sur x0 : les deux branches de la racine x1 potentielles
+    // Projection sur x0 : les deux branches de la root x1 potentielles
     // are constant, R-collapse reduces them — root x0 → (⊥, ⊤), 3 nodes.
     let table = (0..4u64).map(|a| a & 1 == 1).collect::<Vec<bool>>();
-    let racine = compiler_bdd(&mut pool, anchor, &keys, &table);
-    assert_eq!(compter_noeuds(&pool, racine), 3);
+    let root = compiler_bdd(&mut pool, anchor, &keys, &table);
+    assert_eq!(compter_noeuds(&pool, root), 3);
 }

@@ -81,14 +81,14 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let racine = compiler(&mut entree, anchor, &schema, &valeur).unwrap();
+        let root = compiler(&mut entree, anchor, &schema, &valeur).unwrap();
         let cle_atome = Atom(cle);
         let mut runner = Transducteur::new(Lookup::new(
             cle_atome,
             liste_cles.clone(),
             domaine_valeurs.clone(),
         ));
-        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
         let dd = payload_terminal(&sortie, resultat, &liste_cles, &map);
 
         // Path A: reference interpreter on the set {map}.
@@ -128,14 +128,14 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let racine = compiler(&mut entree, anchor, &schema, &valeur).unwrap();
+        let root = compiler(&mut entree, anchor, &schema, &valeur).unwrap();
         let cle_atome = Atom(cle);
         let mut runner = Transducteur::new(Lookup::new(
             cle_atome,
             liste_cles.clone(),
             domaine_valeurs.clone(),
         ));
-        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
         let dd = payload_terminal(&sortie, resultat, &liste_cles, &map);
 
         let ensemble = BTreeSet::from([valeur.clone()]);

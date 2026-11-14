@@ -120,8 +120,8 @@ proptest! {
     fn test_round_trip_compilation((schema, valeur) in prop_oneof![schema_ensemble(), schema_map(), schema_atome()]) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = Anchor(0);
-        let racine = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
-        prop_assert_eq!(decompiler(&pool, &schema, racine).unwrap(), valeur);
+        let root = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
+        prop_assert_eq!(decompiler(&pool, &schema, root).unwrap(), valeur);
     }
 
     /// Canonicity (C1): two distinct values compile to distinct
@@ -130,12 +130,12 @@ proptest! {
     fn test_canonicite_compilation((schema, valeur_a, valeur_b) in schema_et_deux_valeurs()) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = Anchor(0);
-        let racine_a1 = compiler(&mut pool, anchor, &schema, &valeur_a).unwrap();
-        let racine_a2 = compiler(&mut pool, anchor, &schema, &valeur_a).unwrap();
-        let racine_b = compiler(&mut pool, anchor, &schema, &valeur_b).unwrap();
-        prop_assert_eq!(racine_a1, racine_a2);
+        let root_a1 = compiler(&mut pool, anchor, &schema, &valeur_a).unwrap();
+        let root_a2 = compiler(&mut pool, anchor, &schema, &valeur_a).unwrap();
+        let root_b = compiler(&mut pool, anchor, &schema, &valeur_b).unwrap();
+        prop_assert_eq!(root_a1, root_a2);
         if valeur_a != valeur_b {
-            prop_assert_ne!(racine_a1, racine_b, "distinct values ⇒ distinct nodes (C1)");
+            prop_assert_ne!(root_a1, root_b, "distinct values ⇒ distinct nodes (C1)");
         }
     }
 }
@@ -165,11 +165,11 @@ fn test_t5_seq_round_trip_propriete() {
             .map(|&v| Value::Atom(Atom(v)))
             .collect();
         let valeur = Value::Seq(seq.clone());
-        let racine = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
-        let retour = decompiler(&pool, &schema, racine).unwrap();
+        let root = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
+        let retour = decompiler(&pool, &schema, root).unwrap();
         prop_assert_eq!(retour, valeur.clone(), "round-trip Seq");
         // Canonicity.
-        let racine2 = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
-        prop_assert_eq!(racine, racine2, "canonicity Seq");
+        let root2 = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
+        prop_assert_eq!(root, root2, "canonicity Seq");
     });
 }

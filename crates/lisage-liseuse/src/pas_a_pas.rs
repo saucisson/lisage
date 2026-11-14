@@ -226,11 +226,11 @@ fn rendre_frise(svg: &mut String, scrubber: &Scrubber, largeur: u32) {
 fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
     svg: &mut String,
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     placement: &BTreeMap<NodeId, Placement>,
     y_decalage: u32,
 ) {
-    let mut pile = vec![racine];
+    let mut pile = vec![root];
     let mut deja_vu = BTreeSet::new();
     while let Some(noeud) = pile.pop() {
         if !deja_vu.insert(noeud) {
@@ -341,12 +341,12 @@ fn rendre_noeuds<P: Pool<Key = u64, Payload = bool>>(
 /// dashboard (hits/misses/rounds).
 pub fn rendre_svg_pas_a_pas<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     scrubber: &Scrubber,
     diff: &DiffTrace,
 ) -> String {
     let etat = scrubber.etat();
-    let (placement, nombre_niveaux) = placer(pool, racine);
+    let (placement, nombre_niveaux) = placer(pool, root);
     let largeur =
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
     let hauteur = MARGE_HAUT + HAUTEUR_FRISE + (nombre_niveaux + 1) * HAUTEUR_NIVEAU + 20;
@@ -354,7 +354,7 @@ pub fn rendre_svg_pas_a_pas<P: Pool<Key = u64, Payload = bool>>(
     ouvrir_svg(&mut svg, largeur, hauteur, scrubber, &etat);
     rendre_frise(&mut svg, scrubber, largeur);
     let y_decalage = HAUTEUR_FRISE + 8;
-    rendre_arcs(&mut svg, pool, racine, &placement, y_decalage);
+    rendre_arcs(&mut svg, pool, root, &placement, y_decalage);
     rendre_noeuds(&mut svg, pool, &placement, diff, &etat, y_decalage);
     svg.push_str("</svg>\n");
     svg

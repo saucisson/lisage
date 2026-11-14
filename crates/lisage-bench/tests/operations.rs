@@ -86,13 +86,13 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+        let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
         let dd = existe(
             &entree,
             &mut sortie,
             anchor,
             &schema,
-            racine,
+            root,
             Box::new(predicat_dd),
         )
         .unwrap();
@@ -119,13 +119,13 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+        let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
         let dd = filtrer(
             &entree,
             &mut sortie,
             anchor,
             &schema,
-            racine,
+            root,
             Box::new(predicat_dd),
         )
         .unwrap();
@@ -151,8 +151,8 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
-        let dd = image(&entree, &mut sortie, anchor, racine, Box::new(|v| (v + 1) % 3)).unwrap();
+        let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+        let dd = image(&entree, &mut sortie, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
         let attendu_ensemble = map(&ensemble, |v| match v {
             Value::Atom(a) => atome((a.0 + 1) % 3),
             autre => autre.clone(),

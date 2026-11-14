@@ -91,7 +91,7 @@ pub fn construire_r_n<P: Pool<Key = u64, Payload = bool>>(
 ) -> NodeId {
     let schema = schema_anneau(n);
     let keys = SchemaKeys::new(schema.clone());
-    let mut racine = pool.intern(anchor, Form::Terminal(false));
+    let mut root = pool.intern(anchor, Form::Terminal(false));
     for mot in mots_atteignables(n as usize) {
         let map: BTreeMap<Value, Value> = (0..n)
             .flat_map(|i| {
@@ -105,9 +105,9 @@ pub fn construire_r_n<P: Pool<Key = u64, Payload = bool>>(
             .collect();
         let membre = compiler(pool, anchor, &schema, &Value::Map(map))
             .expect("reachable state compilable (internal invariant)");
-        racine = union(pool, &keys, anchor, racine, membre).expect("internal union");
+        root = union(pool, &keys, anchor, root, membre).expect("internal union");
     }
-    racine
+    root
 }
 
 /// Counts |R_n| by fold `(ℕ,+,×)` (DD path).
@@ -116,10 +116,10 @@ pub fn compter_r_n(
     pool_sortie: &mut Arena<ReferenceController>,
     anchor: Anchor,
     n: u64,
-    racine: NodeId,
+    root: NodeId,
 ) -> u64 {
     let schema = schema_anneau(n);
-    compter(pool_entree, pool_sortie, anchor, &schema, racine).expect("internal count")
+    compter(pool_entree, pool_sortie, anchor, &schema, root).expect("internal count")
 }
 
 /// The 5 legal cells (forms of the minimal automaton of the language of
@@ -154,7 +154,7 @@ pub fn construire_mangeurs(
 ) -> NodeId {
     let schema = schema_mangeurs(n);
     let keys = SchemaKeys::new(schema.clone());
-    let mut racine = pool.intern(anchor, Form::Terminal(false));
+    let mut root = pool.intern(anchor, Form::Terminal(false));
     for mot in mots_atteignables(n as usize) {
         let map: BTreeMap<Value, Value> = (0..n)
             .filter(|&i| mot[i as usize] == MANGE)
@@ -162,9 +162,9 @@ pub fn construire_mangeurs(
             .collect();
         let membre = compiler(pool, anchor, &schema, &Value::Map(map))
             .expect("reachable state compilable (internal invariant)");
-        racine = union(pool, &keys, anchor, racine, membre).expect("internal union");
+        root = union(pool, &keys, anchor, root, membre).expect("internal union");
     }
-    racine
+    root
 }
 
 /// New pool for the demo.

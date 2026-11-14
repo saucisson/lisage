@@ -66,14 +66,14 @@ fn test_existe_predicat_exemple_spec() {
     let mut sortie = pool(&schema);
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
 
     let verdict = existe(
         &entree,
         &mut sortie,
         anchor,
         &schema,
-        racine,
+        root,
         Box::new(predicat_exemple_spec),
     )
     .unwrap();
@@ -84,7 +84,7 @@ fn test_existe_predicat_exemple_spec() {
         &mut sortie,
         anchor,
         &schema,
-        racine,
+        root,
         Box::new(|cles: &ClePresentes| cles.contains(&0) && cles.contains(&1)),
     )
     .unwrap();
@@ -100,7 +100,7 @@ fn test_filtre_garde() {
     let mut sortie = pool(&schema);
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
 
     // Guard "key 0 present".
     let filtre = filtrer(
@@ -108,7 +108,7 @@ fn test_filtre_garde() {
         &mut sortie,
         anchor,
         &schema,
-        racine,
+        root,
         Box::new(|cles: &ClePresentes| cles.contains(&0)),
     )
     .unwrap();
@@ -129,14 +129,14 @@ fn test_image_reetiquetage_atomes() {
     let mut sortie = pool(&schema);
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([atome(0), atome(2)]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
 
     // f(v) = (v + 1) mod 3 : {0, 2} ↦ {1, 0}.
     let image = image(
         &entree,
         &mut sortie,
         anchor,
-        racine,
+        root,
         Box::new(|v| (v + 1) % 3),
     )
     .unwrap();
@@ -157,14 +157,14 @@ fn test_existe_schema_non_map_erreur_typee() {
     let mut entree = pool(&schema);
     let mut sortie = pool(&schema);
     let anchor = Anchor(0);
-    let racine = entree.intern(anchor, Form::Terminal(false));
+    let root = entree.intern(anchor, Form::Terminal(false));
 
     let resultat = existe(
         &entree,
         &mut sortie,
         anchor,
         &schema,
-        racine,
+        root,
         Box::new(|_: &ClePresentes| true),
     );
     assert_eq!(

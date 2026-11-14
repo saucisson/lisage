@@ -162,18 +162,18 @@ pub struct RapportAtelier {
 /// event carries the full report.
 pub fn mesurer<P: Pool>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     observateur: Option<&dyn Observer>,
 ) -> Result<RapportAtelier, PoolError> {
     let rapport = RapportAtelier {
-        noeuds_partages: compter_noeuds(pool, racine)?,
-        chemins: compter_chemins(pool, racine)?,
-        taille_depliee: compter_taille_depliee(pool, racine)?,
+        noeuds_partages: compter_noeuds(pool, root)?,
+        chemins: compter_chemins(pool, root)?,
+        taille_depliee: compter_taille_depliee(pool, root)?,
     };
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: racine,
+            noeud: root,
             valeur: format!(
                 "noeuds_partages={} chemins={} taille_depliee={}",
                 rapport.noeuds_partages, rapport.chemins, rapport.taille_depliee
@@ -183,10 +183,10 @@ pub fn mesurer<P: Pool>(
     Ok(rapport)
 }
 
-/// Counts the distinct nodes reachable from `racine`, terminals included.
-pub fn compter_noeuds<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolError> {
+/// Counts the distinct nodes reachable from `root`, terminals included.
+pub fn compter_noeuds<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     let mut visite = BTreeSet::new();
-    let mut pile = vec![racine];
+    let mut pile = vec![root];
     while let Some(noeud) = pile.pop() {
         if !visite.insert(noeud) {
             continue;
@@ -201,7 +201,7 @@ pub fn compter_noeuds<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolErro
 /// Counts the root → terminal paths of the DAG (memoized per node, saturating).
 /// This is not the unfolded size: that one is the sum of path lengths,
 /// computed by [`compter_taille_depliee`].
-pub fn compter_chemins<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolError> {
+pub fn compter_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     fn chemins<P: Pool>(
         pool: &P,
         noeud: NodeId,
@@ -224,13 +224,13 @@ pub fn compter_chemins<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolErr
         Ok(total)
     }
     let mut memo = HashMap::new();
-    chemins(pool, racine, &mut memo)
+    chemins(pool, root, &mut memo)
 }
 
 /// Number of nodes in the unfolded tree (memoized per node, saturating): each
 /// arc duplicates the subtree of its target, what the absence of
 /// R-share would cost.
-pub fn compter_taille_depliee<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, PoolError> {
+pub fn compter_taille_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     fn taille<P: Pool>(
         pool: &P,
         noeud: NodeId,
@@ -253,7 +253,7 @@ pub fn compter_taille_depliee<P: Pool>(pool: &P, racine: NodeId) -> Result<u64, 
         Ok(total)
     }
     let mut memo = HashMap::new();
-    taille(pool, racine, &mut memo)
+    taille(pool, root, &mut memo)
 }
 
 /// Level of the sliding-window root.
@@ -376,14 +376,14 @@ pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
     nb_bases: u64,
     observateur: Option<&dyn Observer>,
 ) -> Result<RapportComparaison, PoolError> {
-    let racine_absolue = construire_fenetre(pool, anchor, Encodage::Absolu, taille, nb_bases);
-    let racine_relative = construire_fenetre(pool, anchor, Encodage::Relatif, taille, nb_bases);
-    let absolu = mesurer(pool, racine_absolue, observateur)?;
-    let relatif = mesurer(pool, racine_relative, observateur)?;
+    let root_absolue = construire_fenetre(pool, anchor, Encodage::Absolu, taille, nb_bases);
+    let root_relative = construire_fenetre(pool, anchor, Encodage::Relatif, taille, nb_bases);
+    let absolu = mesurer(pool, root_absolue, observateur)?;
+    let relatif = mesurer(pool, root_relative, observateur)?;
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: racine_relative,
+            noeud: root_relative,
             valeur: format!(
                 "encodage=relatif_vs_absolu noeuds={} contre {}",
                 relatif.noeuds_partages, absolu.noeuds_partages
@@ -533,14 +533,14 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
         ordre_second.nombre_variables(),
         "both orderings cover the same number of variables (internal invariant)"
     );
-    let racine_premier = compiler_bdd_ordre(pool, anchor, ordre_premier, table);
-    let racine_second = compiler_bdd_ordre(pool, anchor, ordre_second, table);
-    let premier = mesurer(pool, racine_premier, observateur)?;
-    let second = mesurer(pool, racine_second, observateur)?;
+    let root_premier = compiler_bdd_ordre(pool, anchor, ordre_premier, table);
+    let root_second = compiler_bdd_ordre(pool, anchor, ordre_second, table);
+    let premier = mesurer(pool, root_premier, observateur)?;
+    let second = mesurer(pool, root_second, observateur)?;
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: racine_second,
+            noeud: root_second,
             valeur: format!(
                 "ordre={}_vs_{} noeuds={} contre {}",
                 ordre_premier.etiquette(),
@@ -625,7 +625,7 @@ impl AncreFenetre {
 /// Builds the sliding window read under the composite `ancre`: the base of
 /// the anchor is the argument of the incoming arc (key `cle_entree`), the
 /// shape of the window stays relative (keys `0..taille-1`, min section = 0)
-/// and shared. Returns `(racine, window)`: the root specific to this base,
+/// and shared. Returns `(root, window)`: the root specific to this base,
 /// the window shape reached by its incoming arc.
 pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
@@ -634,14 +634,14 @@ pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
     ancre: &AncreFenetre,
 ) -> (NodeId, NodeId) {
     let fenetre = interner_fenetre_relative(pool, anchor, taille);
-    let racine = pool.intern(
+    let root = pool.intern(
         anchor,
         Form::Node {
             level: Level(NIVEAU_RACINE),
             arcs: BTreeMap::from([(ancre.cle_entree(), fenetre)]),
         },
     );
-    (racine, fenetre)
+    (root, fenetre)
 }
 
 /// Didactic comparison of two composite anchors on the same window.
@@ -680,20 +680,18 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
 ) -> Result<RapportComparaisonAncres, PoolError> {
     // Each anchor enters the pool through its incoming arc (its base); the
     // window shape reached on both sides must be the same node.
-    let (racine_avant, fenetre_avant) =
-        construire_fenetre_ancree(pool, anchor, taille, ancre_avant);
-    let (racine_apres, fenetre_apres) =
-        construire_fenetre_ancree(pool, anchor, taille, ancre_apres);
+    let (root_avant, fenetre_avant) = construire_fenetre_ancree(pool, anchor, taille, ancre_avant);
+    let (root_apres, fenetre_apres) = construire_fenetre_ancree(pool, anchor, taille, ancre_apres);
     let noeuds_pool = pool.node_count() as u64;
     let meme_forme = fenetre_avant == fenetre_apres;
-    let avant = mesurer(pool, racine_avant, observateur)?;
-    let apres = mesurer(pool, racine_apres, observateur)?;
+    let avant = mesurer(pool, root_avant, observateur)?;
+    let apres = mesurer(pool, root_apres, observateur)?;
     if let Some(obs) = observateur {
         let (debut_avant, fin_avant) = ancre_avant.fenetre_absolue();
         let (debut_apres, fin_apres) = ancre_apres.fenetre_absolue();
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: racine_apres,
+            noeud: root_apres,
             valeur: format!(
                 "ancre={}_vs_{} noeuds={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
                 ancre_avant.etiquette(),

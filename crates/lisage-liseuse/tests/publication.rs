@@ -28,16 +28,16 @@ fn diagramme_test() -> (PoolRef, NodeId) {
         Box::new(NoOpObserver),
     );
     let valeur = Value::Set(BTreeSet::from([Value::Atom(Atom(0))]));
-    let racine = compiler(&mut pool, Anchor(0), &schema, &valeur).unwrap();
-    (pool, racine)
+    let root = compiler(&mut pool, Anchor(0), &schema, &valeur).unwrap();
+    (pool, root)
 }
 
 /// The publication SVG is standalone, in the serif theme, with the escaped title.
 #[test]
 fn test_svg_publication_theme_serif_et_titre() {
-    let (pool, racine) = diagramme_test();
+    let (pool, root) = diagramme_test();
     let theme = Theme::publication();
-    let svg = rendre_svg_publication(&pool, racine, "figure <A> & B", &theme, false);
+    let svg = rendre_svg_publication(&pool, root, "figure <A> & B", &theme, false);
     assert!(svg.starts_with("<svg xmlns=\"http://www.w3.org/2000/svg\""));
     assert!(svg.contains("font-family=\"serif\""));
     assert!(svg.contains("figure &lt;A&gt; &amp; B"));
@@ -60,31 +60,31 @@ fn test_legende_auto_depuis_legende_des_canaux() {
         assert!(legende.contains(etiquette), "label of {canal:?}");
     }
     // The publication SVG with legend embeds the three channels.
-    let (pool, racine) = diagramme_test();
-    let svg = rendre_svg_publication(&pool, racine, "fig", &theme, true);
+    let (pool, root) = diagramme_test();
+    let svg = rendre_svg_publication(&pool, root, "fig", &theme, true);
     for (_canal, etiquette, _couleur) in LEGENDE_CANAUX {
         assert!(svg.contains(etiquette));
     }
     // Without legend: no channel swatch.
-    let svg_sans = rendre_svg_publication(&pool, racine, "fig", &theme, false);
+    let svg_sans = rendre_svg_publication(&pool, root, "fig", &theme, false);
     assert!(!svg_sans.contains("inherited (φ_disp)"));
 }
 
 /// The publication rendering is deterministic (two identical calls).
 #[test]
 fn test_svg_publication_deterministe() {
-    let (pool, racine) = diagramme_test();
+    let (pool, root) = diagramme_test();
     let theme = Theme::publication();
-    let premier = rendre_svg_publication(&pool, racine, "fig", &theme, true);
-    let second = rendre_svg_publication(&pool, racine, "fig", &theme, true);
+    let premier = rendre_svg_publication(&pool, root, "fig", &theme, true);
+    let second = rendre_svg_publication(&pool, root, "fig", &theme, true);
     assert_eq!(premier, second);
 }
 
 /// The PGF is a standalone TikZ document: diagram nodes and arcs, title.
 #[test]
 fn test_pgf_autonome_avec_noeuds_et_arcs() {
-    let (pool, racine) = diagramme_test();
-    let pgf = rendre_pgf(&pool, racine, "figure A");
+    let (pool, root) = diagramme_test();
+    let pgf = rendre_pgf(&pool, root, "figure A");
     assert!(pgf.contains("\\documentclass[tikz,border=5pt]{standalone}"));
     assert!(pgf.contains("\\begin{tikzpicture}"));
     assert!(pgf.contains("\\end{tikzpicture}"));
@@ -96,11 +96,11 @@ fn test_pgf_autonome_avec_noeuds_et_arcs() {
     assert_eq!(nombre_noeuds, 2);
     assert_eq!(pgf.matches("\\draw[->]").count(), 1);
     // LaTeX escaping of the title.
-    let pgf_echappe = rendre_pgf(&pool, racine, "100% _special_");
+    let pgf_echappe = rendre_pgf(&pool, root, "100% _special_");
     assert!(pgf_echappe.contains("100\\% \\_special\\_"));
     // Regression: the backslash must be escaped last, otherwise the
     // braces of `\textbackslash{}` are re-escaped.
-    let pgf_backslash = rendre_pgf(&pool, racine, "a\\b");
+    let pgf_backslash = rendre_pgf(&pool, root, "a\\b");
     assert!(pgf_backslash.contains("a\\textbackslash{}b"));
 }
 

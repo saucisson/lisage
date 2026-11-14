@@ -111,9 +111,9 @@ impl<C: Controller> Arena<C> {
     /// tombstones (removed from the unique table and the index); if the
     /// dead threshold is reached, profiled compaction with a `NodeId`
     /// remapping table.
-    pub fn gc(&mut self, racines: &[NodeId]) -> StatsGc {
+    pub fn gc(&mut self, roots: &[NodeId]) -> StatsGc {
         let mut atteints = BTreeSet::new();
-        let mut pile: Vec<NodeId> = racines.to_vec();
+        let mut pile: Vec<NodeId> = roots.to_vec();
         while let Some(node) = pile.pop() {
             if !atteints.insert(node) {
                 continue;

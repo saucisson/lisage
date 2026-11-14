@@ -125,7 +125,7 @@ fn mots_atteignables(n: usize, gaucher: bool) -> Vec<Vec<u64>> {
 fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
     let schema = schema_anneau(n, gaucher);
     let keys = SchemaKeys::new(schema.clone());
-    let mut racine = pool.intern(ANCRE_TEST, Form::Terminal(false));
+    let mut root = pool.intern(ANCRE_TEST, Form::Terminal(false));
     for mot in mots_atteignables(n as usize, gaucher) {
         let map: BTreeMap<Value, Value> = (0..n)
             .flat_map(|i| {
@@ -141,18 +141,18 @@ fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
             .map(|(cle, valeur)| (Value::Atom(Atom(cle)), Value::Atom(Atom(valeur))))
             .collect();
         let membre = compiler(pool, ANCRE_TEST, &schema, &Value::Map(map)).unwrap();
-        racine = union(pool, &keys, ANCRE_TEST, racine, membre).unwrap();
+        root = union(pool, &keys, ANCRE_TEST, root, membre).unwrap();
     }
-    racine
+    root
 }
 
 /// Counts |R_n| via the `(ℕ,+,×)` pli on the given schema.
-fn compter_r_n(pool_entree: &PoolRef, schema: &Schema, racine: NodeId) -> u64 {
+fn compter_r_n(pool_entree: &PoolRef, schema: &Schema, root: NodeId) -> u64 {
     let mut sortie = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    compter(pool_entree, &mut sortie, ANCRE_TEST, schema, racine).unwrap()
+    compter(pool_entree, &mut sortie, ANCRE_TEST, schema, root).unwrap()
 }
 
 /// M4-4: |R_n| via DD pli == enumeration == golden-thread values
@@ -166,8 +166,8 @@ fn test_bench_cardinaux_r_n() {
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let racine = construire_r_n(&mut pool, n, false);
-        let compte = compter_r_n(&pool, &schema, racine);
+        let root = construire_r_n(&mut pool, n, false);
+        let compte = compter_r_n(&pool, &schema, root);
         let reference = mots_atteignables(n as usize, false).len() as u64;
         assert_eq!(compte, reference, "n={n}: DD pli == enumeration");
         assert_eq!(
@@ -189,9 +189,9 @@ fn test_bench_gaucher_ratio_constant() {
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let racine = construire_r_n(&mut pool, n, true);
+        let root = construire_r_n(&mut pool, n, true);
         // |R'_n| via DD pli == reference enumeration == golden thread § 9.2.
-        let compte = compter_r_n(&pool, &schema, racine);
+        let compte = compter_r_n(&pool, &schema, root);
         let reference = mots_atteignables(n as usize, true).len() as u64;
         assert_eq!(
             compte, reference,
@@ -207,8 +207,8 @@ fn test_bench_gaucher_ratio_constant() {
             ReferenceController::new(schema_reg.clone()),
             Box::new(NoOpObserver),
         );
-        let racine_reg = construire_r_n(&mut pool_reg, n, false);
-        let compte_reg = compter_r_n(&pool_reg, &schema_reg, racine_reg);
+        let root_reg = construire_r_n(&mut pool_reg, n, false);
+        let compte_reg = compter_r_n(&pool_reg, &schema_reg, root_reg);
         let ratio = compte as f64 / compte_reg as f64;
         ratios.push(ratio);
         assert!(
@@ -247,7 +247,7 @@ fn test_bench_sept_formes_o1_et_bord() {
             ReferenceController::new(schema.clone()),
             Box::new(Pont(observateur.clone())),
         );
-        let racine = construire_r_n(&mut pool, n, false);
+        let root = construire_r_n(&mut pool, n, false);
         // Distinct (pc, left) signatures appearing in R_n.
         let mut vus: std::collections::BTreeSet<(u64, u64)> = std::collections::BTreeSet::new();
         for mot in mots_atteignables(n as usize, false) {
@@ -265,7 +265,7 @@ fn test_bench_sept_formes_o1_et_bord() {
         // the live peak = live after construction).
         noeuds_plats.push(pool.vivants());
         creations += pool.metriques().creations;
-        let _ = racine;
+        let _ = root;
     }
     // O(1): the number of forms does not depend on n.
     assert!(

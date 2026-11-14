@@ -47,10 +47,10 @@ fn ensemble(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64])
 fn test_vue_pool_depuis_metriques_gc() {
     let schema = schema_ensemble();
     let mut pool = pool_neuf(&schema);
-    let racine = ensemble(&mut pool, ANCRE_TEST, &schema, &[0, 1]);
+    let root = ensemble(&mut pool, ANCRE_TEST, &schema, &[0, 1]);
     // Orphan collected by the GC.
     let _orphelin = ensemble(&mut pool, ANCRE_TEST, &schema, &[2]);
-    let stats_gc = pool.gc(&[racine]);
+    let stats_gc = pool.gc(&[root]);
     let metriques = pool.metriques();
     let vue = VuePool::depuis_metriques("reference", metriques, stats_gc.vivants, 0);
     assert_eq!(vue.nom, "reference");
@@ -111,9 +111,9 @@ fn test_classes_quotient_formes_par_ancres() {
 fn test_rendre_svg_vue_memoire() {
     let schema = schema_ensemble();
     let mut pool = pool_neuf(&schema);
-    let racine = ensemble(&mut pool, ANCRE_TEST, &schema, &[0, 1]);
+    let root = ensemble(&mut pool, ANCRE_TEST, &schema, &[0, 1]);
     let _orphelin = ensemble(&mut pool, ANCRE_TEST, &schema, &[2]);
-    let stats_gc = pool.gc(&[racine]);
+    let stats_gc = pool.gc(&[root]);
     let vue_pool = VuePool::depuis_metriques("reference", pool.metriques(), stats_gc.vivants, 0);
     let classes = vec![
         ClasseQuotient {
@@ -203,7 +203,7 @@ fn test_comparaison_naif_dd_lisage() {
     // Shadow plane: a node interned in the shadow plane is counted apart.
     let schema = schema_ensemble();
     let mut pool = pool_neuf(&schema);
-    let racine = ensemble(&mut pool, ANCRE_TEST, &schema, &[0]);
+    let root = ensemble(&mut pool, ANCRE_TEST, &schema, &[0]);
     let ombre = pool.intern_plan(
         ANCRE_TEST,
         Form::Node {
@@ -213,5 +213,5 @@ fn test_comparaison_naif_dd_lisage() {
         Plan::Ombre,
     );
     assert_eq!(pool.plan_de(ombre), Some(Plan::Ombre));
-    assert_eq!(pool.plan_de(racine), Some(Plan::Principal));
+    assert_eq!(pool.plan_de(root), Some(Plan::Principal));
 }

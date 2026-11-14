@@ -90,8 +90,8 @@ fn test_intersection_intervalles() {
 fn test_integrale_union_deux_intervalles() {
     let mut pool = pool();
     let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
-    let racine = compiler_union(&mut pool, ANCRE, &intervalles);
-    let mesure = integrale_constante(&pool, racine, &region_pleine(), None).expect("interned node");
+    let root = compiler_union(&mut pool, ANCRE, &intervalles);
+    let mesure = integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
     // Continuous measure: (5−2) + (9−7) = 3 + 2 = 5.
     assert_eq!(mesure, 5, "integral = sum of lengths");
     // Discrete cardinal: (5−2+1) + (9−7+1) = 4 + 3 = 7.
@@ -106,14 +106,14 @@ fn test_integrale_union_deux_intervalles() {
 fn test_integrale_restreinte_a_une_region() {
     let mut pool = pool();
     let intervalles = vec![Intervalle::new(2, 8)];
-    let racine = compiler_union(&mut pool, ANCRE, &intervalles);
+    let root = compiler_union(&mut pool, ANCRE, &intervalles);
     // Restriction to [5, 11]: measure of [2,8] ∩ [5,11] = [5,8], length 3.
     let sous_region = Intervalle::new(5, 11);
-    let mesure = integrale_constante(&pool, racine, &sous_region, None).expect("interned node");
+    let mesure = integrale_constante(&pool, root, &sous_region, None).expect("interned node");
     assert_eq!(mesure, 3);
     // Restriction to a disjoint region: zero measure.
     let disjointe = Intervalle::new(9, 11);
-    let mesure_nulle = integrale_constante(&pool, racine, &disjointe, None).expect("interned node");
+    let mesure_nulle = integrale_constante(&pool, root, &disjointe, None).expect("interned node");
     assert_eq!(mesure_nulle, 0);
 }
 
@@ -144,9 +144,9 @@ fn test_integrale_terminaux() {
 fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
     let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
-    let racine = compiler_union(&mut pool, ANCRE, &intervalles);
+    let root = compiler_union(&mut pool, ANCRE, &intervalles);
     let collecteur = Collecteur::new();
-    let mesure = integrale_constante(&pool, racine, &region_pleine(), Some(&collecteur))
+    let mesure = integrale_constante(&pool, root, &region_pleine(), Some(&collecteur))
         .expect("interned node");
     assert_eq!(mesure, 5);
     let events = collecteur.events();
@@ -207,9 +207,9 @@ fn test_propriete_integrale_contre_cardinal_lcg() {
             }
         }
         let mut pool = pool();
-        let racine = compiler_union(&mut pool, ANCRE, &intervalles);
+        let root = compiler_union(&mut pool, ANCRE, &intervalles);
         let mesure =
-            integrale_constante(&pool, racine, &region_pleine(), None).expect("interned node");
+            integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
         // Analytic measure: sum of (end − start) of the intervals.
         let mesure_attendue: u64 = intervalles
             .iter()

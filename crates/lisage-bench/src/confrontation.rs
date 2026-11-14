@@ -365,30 +365,30 @@ fn charge_alea_lcg(
     let debut = Instant::now();
     let table = table_lcg(nombre_variables);
     let expected_satisfactions = table.iter().filter(|valeur| **valeur).count() as u64;
-    let racine = compiler_bdd(&mut pool, ANCRE_MESURE, &keys, &table);
-    let noeuds = compter_noeuds_bdd(&pool, racine);
+    let root = compiler_bdd(&mut pool, ANCRE_MESURE, &keys, &table);
+    let noeuds = compter_noeuds_bdd(&pool, root);
     let duree = debut.elapsed();
     // C6 falsification: the arena and the independent mini-BDD witness must
     // count the same number of nodes on the same table.
     let mut temoin = crate::temoin_bdd::MiniBdd::new();
-    let racine_temoin = temoin.compiler_table(nombre_variables, &table);
-    let noeuds_temoin = temoin.compter_noeuds(racine_temoin);
+    let root_temoin = temoin.compiler_table(nombre_variables, &table);
+    let noeuds_temoin = temoin.compter_noeuds(root_temoin);
     if noeuds != noeuds_temoin {
         return Err(ErreurConfrontation::VerifieEchoue {
             attendu: noeuds_temoin,
             obtenu: noeuds,
         });
     }
-    if temoin.evaluer(racine_temoin, 0) != table[0] {
+    if temoin.evaluer(root_temoin, 0) != table[0] {
         return Err(ErreurConfrontation::VerifieEchoue {
             attendu: table[0] as u64,
-            obtenu: temoin.evaluer(racine_temoin, 0) as u64,
+            obtenu: temoin.evaluer(root_temoin, 0) as u64,
         });
     }
     if let Some(observateur) = observateur {
         observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: racine,
+            noeud: root,
             valeur: format!(
                 "workload={} nodes={} check={}",
                 Charge::AleaLcg.etiquette(),
@@ -455,7 +455,7 @@ fn charge_philosophes(
         })?;
     let etats = lire_etats(nombre_philosophes, &contenu)?;
     let attendu = etats.len() as u64;
-    let mut racine = pool.intern(ANCRE_MESURE, Form::Terminal(false));
+    let mut root = pool.intern(ANCRE_MESURE, Form::Terminal(false));
     for etat in &etats {
         let map: BTreeMap<Value, Value> = etat
             .iter()
@@ -463,10 +463,10 @@ fn charge_philosophes(
             .map(|(indice, valeur)| (Value::Atom(Atom(indice as u64)), Value::Atom(Atom(*valeur))))
             .collect();
         let membre = compiler(&mut pool, ANCRE_MESURE, &schema, &Value::Map(map))?;
-        racine = union(&mut pool, &keys, ANCRE_MESURE, racine, membre)?;
+        root = union(&mut pool, &keys, ANCRE_MESURE, root, membre)?;
     }
-    let verifie = compter_pli(&pool, &mut sortie, ANCRE_MESURE, &schema, racine)?;
-    let noeuds = compter_noeuds(&pool, racine)?;
+    let verifie = compter_pli(&pool, &mut sortie, ANCRE_MESURE, &schema, root)?;
+    let noeuds = compter_noeuds(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != attendu {
         return Err(ErreurConfrontation::VerifieEchoue {
@@ -477,7 +477,7 @@ fn charge_philosophes(
     if let Some(observateur) = observateur {
         observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: racine,
+            noeud: root,
             valeur: format!(
                 "workload={} nodes={} check={}",
                 Charge::Philosophes.etiquette(),
@@ -587,9 +587,9 @@ fn charge_fenetre(
         Box::new(NoOpObserver),
     );
     let debut = Instant::now();
-    let racine = construire_fenetre(&mut pool, ANCRE_MESURE, encodage, taille, nb_bases);
-    let verifie = compter_chemins(&pool, racine)?;
-    let noeuds = compter_noeuds(&pool, racine)?;
+    let root = construire_fenetre(&mut pool, ANCRE_MESURE, encodage, taille, nb_bases);
+    let verifie = compter_chemins(&pool, root)?;
+    let noeuds = compter_noeuds(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != attendu {
         return Err(ErreurConfrontation::VerifieEchoue {
@@ -600,7 +600,7 @@ fn charge_fenetre(
     if let Some(observateur) = observateur {
         observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: racine,
+            noeud: root,
             valeur: format!(
                 "workload={} encoding={} nodes={} check={}",
                 Charge::Fenetre.etiquette(),

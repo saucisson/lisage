@@ -89,9 +89,9 @@ fn test_mesure_zone_analytique() {
 #[test]
 fn test_integrale_bande_aire_analytique() {
     let mut pool = pool();
-    let racine = compiler_bande(&mut pool, ANCRE);
+    let root = compiler_bande(&mut pool, ANCRE);
     let mesure =
-        integrale_dbm_constante(&pool, racine, &boite(), &keys(), None).expect("interned node");
+        integrale_dbm_constante(&pool, root, &boite(), &keys(), None).expect("interned node");
     assert_eq!(mesure, 19, "integral = doubled area of the band ∩ box");
     // A non-interned NodeId is a propagated error, not a silent value.
     assert!(integrale_dbm_constante(&pool, NodeId(u32::MAX), &boite(), &keys(), None).is_err());
@@ -102,16 +102,16 @@ fn test_integrale_bande_aire_analytique() {
 #[test]
 fn test_integrale_restreinte_a_une_region() {
     let mut pool = pool();
-    let racine = compiler_bande(&mut pool, ANCRE);
+    let root = compiler_bande(&mut pool, ANCRE);
     // Restriction to {x − y ≤ 0}: band ∩ {−2 ≤ x−y ≤ 0}, area 6 → 12.
     let sous_region = Dbm::new(2, &[(0, 1, 0)]);
     let mesure =
-        integrale_dbm_constante(&pool, racine, &sous_region, &keys(), None).expect("interned node");
+        integrale_dbm_constante(&pool, root, &sous_region, &keys(), None).expect("interned node");
     assert_eq!(mesure, 12);
     // Restriction to a region disjoint from the band: zero measure.
     let disjointe = Dbm::new(2, &[(1, 0, -3)]); // x − y ≥ 3
     let mesure_nulle =
-        integrale_dbm_constante(&pool, racine, &disjointe, &keys(), None).expect("interned node");
+        integrale_dbm_constante(&pool, root, &disjointe, &keys(), None).expect("interned node");
     assert_eq!(mesure_nulle, 0);
 }
 
@@ -141,18 +141,18 @@ fn test_integrale_terminaux_dbm() {
 #[test]
 fn test_differentiel_cardinal_contre_mesure() {
     let mut pool = pool();
-    let racine = compiler_bande(&mut pool, ANCRE);
+    let root = compiler_bande(&mut pool, ANCRE);
     let cardinal: u64 = (0..TAILLE_DOMAINE)
         .flat_map(|x| (0..TAILLE_DOMAINE).map(move |y| [x, y]))
         .filter(|point| {
-            evaluer(&pool, racine, point)
+            evaluer(&pool, root, point)
                 .expect("interned node")
                 .unwrap_or(false)
         })
         .count() as u64;
     assert_eq!(cardinal, 12, "integer points of the band in [0,4)²");
     let mesure =
-        integrale_dbm_constante(&pool, racine, &boite(), &keys(), None).expect("interned node");
+        integrale_dbm_constante(&pool, root, &boite(), &keys(), None).expect("interned node");
     assert_eq!(mesure, 19);
     assert!(
         mesure <= 2 * i128::from(cardinal),
@@ -165,9 +165,9 @@ fn test_differentiel_cardinal_contre_mesure() {
 #[test]
 fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
-    let racine = compiler_bande(&mut pool, ANCRE);
+    let root = compiler_bande(&mut pool, ANCRE);
     let collecteur = Collecteur::new();
-    let mesure = integrale_dbm_constante(&pool, racine, &boite(), &keys(), Some(&collecteur))
+    let mesure = integrale_dbm_constante(&pool, root, &boite(), &keys(), Some(&collecteur))
         .expect("interned node");
     assert_eq!(mesure, 19);
     let events = collecteur.events();

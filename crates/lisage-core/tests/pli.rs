@@ -60,13 +60,13 @@ fn test_count_niveau_collapsed_a4_exemple_spec() {
     let mut sortie = pool(&schema);
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
     // The val(a) level was collapsed: a single explicit arc.
-    let Form::Node { arcs, .. } = entree.resolve(racine).unwrap() else {
+    let Form::Node { arcs, .. } = entree.resolve(root).unwrap() else {
         panic!("presence node expected")
     };
     assert_eq!(arcs.len(), 1, "a single explicit path");
-    let total = compter(&entree, &mut sortie, anchor, &schema, racine).unwrap();
+    let total = compter(&entree, &mut sortie, anchor, &schema, root).unwrap();
     assert_eq!(total, 2, "A4: |Val(val(a))| × 1 = 2");
 }
 
@@ -78,8 +78,8 @@ fn test_count_ensemble_maps() {
     let mut sortie = pool(&schema);
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([map_de(&[(0, 1), (1, 0)]), map_de(&[(0, 0)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
-    let total = compter(&entree, &mut sortie, anchor, &schema, racine).unwrap();
+    let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let total = compter(&entree, &mut sortie, anchor, &schema, root).unwrap();
     assert_eq!(total, 2);
 }
 
@@ -93,17 +93,17 @@ fn test_count_ensemble_vide_et_plein() {
     let anchor = Anchor(0);
 
     let vide = BTreeSet::new();
-    let racine_vide = compiler_ensemble(&mut entree, anchor, &schema, &vide);
+    let root_vide = compiler_ensemble(&mut entree, anchor, &schema, &vide);
     assert_eq!(
-        compter(&entree, &mut sortie, anchor, &schema, racine_vide).unwrap(),
+        compter(&entree, &mut sortie, anchor, &schema, root_vide).unwrap(),
         0
     );
 
     // All maps over one key with values {0,1}: {a↦0} and {a↦1}.
     let plein = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
-    let racine_plein = compiler_ensemble(&mut entree, anchor, &schema, &plein);
+    let root_plein = compiler_ensemble(&mut entree, anchor, &schema, &plein);
     assert_eq!(
-        compter(&entree, &mut sortie, anchor, &schema, racine_plein).unwrap(),
+        compter(&entree, &mut sortie, anchor, &schema, root_plein).unwrap(),
         2
     );
 }
@@ -118,15 +118,13 @@ fn test_pli_boolou_non_vide() {
 
     let mut runner = Transducteur::new(Pli::<BoolOu>::new(schema.clone()));
     let vide = BTreeSet::new();
-    let racine_vide = compiler_ensemble(&mut entree, anchor, &schema, &vide);
-    let (_, s_vide) = runner
-        .run(&entree, &mut sortie, anchor, racine_vide)
-        .unwrap();
+    let root_vide = compiler_ensemble(&mut entree, anchor, &schema, &vide);
+    let (_, s_vide) = runner.run(&entree, &mut sortie, anchor, root_vide).unwrap();
     assert_eq!(s_vide, BoolOu(false), "empty set ⇒ false");
 
     let non_vide = BTreeSet::from([map_de(&[(0, 1)])]);
-    let racine = compiler_ensemble(&mut entree, anchor, &schema, &non_vide);
-    let (_, s) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+    let root = compiler_ensemble(&mut entree, anchor, &schema, &non_vide);
+    let (_, s) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
     assert_eq!(s, BoolOu(true), "non-empty set ⇒ true");
 }
 

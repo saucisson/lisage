@@ -112,7 +112,7 @@ fn test_runner_emet_memo_et_attr() {
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let anchor = Anchor(0);
-    let racine = ensemble(&mut pool, anchor, &schema, &[0, 1]);
+    let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
 
     let collecteur = Collecteur::new();
     let mut runner = Transducteur::avec_observateur(
@@ -124,9 +124,9 @@ fn test_runner_emet_memo_et_attr() {
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
-    let _ = runner.run(&pool, &mut sortie, anchor, racine).unwrap();
+    let _ = runner.run(&pool, &mut sortie, anchor, root).unwrap();
     // Re-run to trigger MemoHit.
-    let _ = runner.run(&pool, &mut sortie, anchor, racine).unwrap();
+    let _ = runner.run(&pool, &mut sortie, anchor, root).unwrap();
 
     let evenements = collecteur.prendre();
     assert!(
@@ -332,7 +332,7 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let anchor = Anchor(0);
-    let racine = ensemble(&mut pool, anchor, &schema, &[0, 1]);
+    let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
 
     let collecteur = Collecteur::new();
     let mut runner = Transducteur::avec_observateur(
@@ -344,12 +344,12 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
-    let _ = runner.run(&pool, &mut sortie, anchor, racine).unwrap();
+    let _ = runner.run(&pool, &mut sortie, anchor, root).unwrap();
     let mut evenements = collecteur.prendre();
     evenements.insert(0, TraceEvent::Round { numero: 1 });
     // The runner does not observe the pool: we add the NodeCreated of the
     // input diagram so that the state has nodes.
-    let mut pile = vec![racine];
+    let mut pile = vec![root];
     let mut deja_vu = BTreeSet::new();
     while let Some(n) = pile.pop() {
         if !deja_vu.insert(n) {
@@ -369,7 +369,7 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     let mut scrubber = Scrubber::new(evenements);
     scrubber.aller_a(scrubber.longueur());
     let diff_vide = DiffTrace::default();
-    let svg = rendre_svg_pas_a_pas(&pool, racine, &scrubber, &diff_vide);
+    let svg = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_vide);
     // Colored channels present (inherited blue, synthesized orange).
     let legende = legende_canaux();
     assert!(
@@ -391,14 +391,14 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
         !diff_fantomes.fantomes.is_empty(),
         "present nodes = ghosts when going back to 0"
     );
-    let svg_fantomes = rendre_svg_pas_a_pas(&pool, racine, &scrubber, &diff_fantomes);
+    let svg_fantomes = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_fantomes);
     assert!(
         svg_fantomes.contains("stroke-dasharray=\"4 3\""),
         "ghosts dashed"
     );
 
     // Determinism.
-    let svg2 = rendre_svg_pas_a_pas(&pool, racine, &scrubber, &diff_vide);
+    let svg2 = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_vide);
     assert_eq!(svg, svg2, "deterministic rendering");
 }
 

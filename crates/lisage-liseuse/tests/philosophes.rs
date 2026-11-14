@@ -23,8 +23,8 @@ fn test_c8_cardinaux_r3_r4_r5() {
         let mut entree = pool_neuf(&schema);
         let mut sortie = pool_neuf(&schema);
         let anchor = Anchor(0);
-        let racine = construire_r_n(&mut entree, anchor, n);
-        let compte = compter_r_n(&entree, &mut sortie, anchor, n, racine);
+        let root = construire_r_n(&mut entree, anchor, n);
+        let compte = compter_r_n(&entree, &mut sortie, anchor, n, root);
         let reference = mots_atteignables(n as usize).len() as u64;
         assert_eq!(compte, reference, "n={n} : DD fold == enumeration");
         assert_eq!(
@@ -43,13 +43,13 @@ fn test_filter_cellule_zero_mange() {
         let mut entree = pool_neuf(&schema);
         let mut sortie = pool_neuf(&schema);
         let anchor = Anchor(0);
-        let racine = construire_mangeurs(&mut entree, anchor, n);
+        let root = construire_mangeurs(&mut entree, anchor, n);
         let filtre = filtrer(
             &entree,
             &mut sortie,
             anchor,
             &schema,
-            racine,
+            root,
             Box::new(|cles: &ClePresentes| cles.contains(&0)),
         )
         .unwrap();
@@ -84,13 +84,13 @@ fn test_exists_sur_r_n() {
         let mut entree = pool_neuf(&schema);
         let mut sortie = pool_neuf(&schema);
         let anchor = Anchor(0);
-        let racine = construire_mangeurs(&mut entree, anchor, n);
+        let root = construire_mangeurs(&mut entree, anchor, n);
         let un_mange = existe(
             &entree,
             &mut sortie,
             anchor,
             &schema,
-            racine,
+            root,
             Box::new(|cles: &ClePresentes| cles.contains(&0)),
         )
         .unwrap();
@@ -101,7 +101,7 @@ fn test_exists_sur_r_n() {
             &mut sortie,
             anchor,
             &schema,
-            racine,
+            root,
             Box::new(move |cles: &ClePresentes| (0..n_copie).all(|i| cles.contains(&i))),
         )
         .unwrap();
@@ -124,12 +124,12 @@ fn test_sept_formes_contre_r_n() {
         let schema = schema_anneau(n);
         let mut entree = pool_neuf(&schema);
         let anchor = Anchor(0);
-        let racine = construire_r_n(&mut entree, anchor, n);
+        let root = construire_r_n(&mut entree, anchor, n);
 
         // Nodes reachable from the root + terminals seen.
         let mut atteignables = std::collections::BTreeSet::new();
         let mut terminaux_vus = std::collections::BTreeSet::new();
-        let mut pile = vec![racine];
+        let mut pile = vec![root];
         while let Some(noeud) = pile.pop() {
             if !atteignables.insert(noeud) {
                 continue;
@@ -238,10 +238,10 @@ fn test_figure_svg_r5_exportee() {
     let n = 5u64;
     let schema = schema_anneau(n);
     let mut entree = pool_neuf(&schema);
-    let racine = construire_r_n(&mut entree, Anchor(0), n);
-    let svg = rendre_svg(&entree, racine);
+    let root = construire_r_n(&mut entree, Anchor(0), n);
+    let svg = rendre_svg(&entree, root);
     assert!(svg.starts_with("<svg ") && svg.contains("ℓ0"));
-    assert_eq!(svg, rendre_svg(&entree, racine), "deterministic rendering");
+    assert_eq!(svg, rendre_svg(&entree, root), "deterministic rendering");
 
     let dossier = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
     std::fs::create_dir_all(dossier).expect("creation of bench-results");

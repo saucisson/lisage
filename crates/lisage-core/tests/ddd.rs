@@ -64,14 +64,14 @@ fn test_couverture_boite_bornee() {
 #[test]
 fn test_bande_differentiel_contre_enumeration() {
     let mut pool = pool();
-    let racine = compiler_bande(&mut pool, ANCRE);
+    let root = compiler_bande(&mut pool, ANCRE);
     // Four nodes: true, false, level 1, the root — against 16 points.
-    assert_eq!(compter_noeuds(&pool, racine), 4);
+    assert_eq!(compter_noeuds(&pool, root), 4);
     for x in 0..TAILLE_DOMAINE {
         for y in 0..TAILLE_DOMAINE {
             let point = [x, y];
             let attendu = i128::from(x) - i128::from(y) <= 1 && i128::from(y) - i128::from(x) <= 2;
-            let lu = evaluer(&pool, racine, &point).expect("interned node");
+            let lu = evaluer(&pool, root, &point).expect("interned node");
             assert_eq!(
                 lu.unwrap_or(false),
                 attendu,
@@ -86,11 +86,11 @@ fn test_bande_differentiel_contre_enumeration() {
 #[test]
 fn test_partage_pool_bande() {
     let mut pool = pool();
-    let racine_a = compiler_bande(&mut pool, ANCRE);
-    let racine_b = compiler_bande(&mut pool, ANCRE);
-    assert_eq!(racine_a, racine_b, "same band = same root");
+    let root_a = compiler_bande(&mut pool, ANCRE);
+    let root_b = compiler_bande(&mut pool, ANCRE);
+    assert_eq!(root_a, root_b, "same band = same root");
     // The root really has two arcs at level 0 (region + complement).
-    let Form::Node { arcs, .. } = pool.resolve(racine_a).expect("interned node") else {
+    let Form::Node { arcs, .. } = pool.resolve(root_a).expect("interned node") else {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2);
