@@ -1,15 +1,15 @@
-//! Démo fil rouge — philosophes de bout en bout (M1-10, énoncé C8) :
-//! construction de l'espace atteignable R_n pour n = 3, 4, 5 en encodage plat
-//! (anneau déroulé : une clé par cellule, valeur = cellule légale), comptage
-//! par pli `(ℕ,+,×)`, opérations `map`/`filter`/`exists`, et vérification des
-//! **7 formes** (5 signatures internes + 2 terminaux) indépendamment de n.
+//! Golden-thread demo — end-to-end philosophers (M1-10, statement C8):
+//! construction of the reachable space R_n for n = 3, 4, 5 in flat encoding
+//! (unrolled ring: one key per cell, value = legal cell), counting
+//! by fold `(ℕ,+,×)`, `map`/`filter`/`exists` operations, and verification of the
+//! **7 forms** (5 internal signatures + 2 terminals) independently of n.
 //!
-//! Modèle (docs/golden-thread-example-n-philosophers-end-to-end § 1-2) en **intercalage** : chaque cellule
-//! i contribue deux clés, `2i` = `pc_i` et `2i+1` = `left_i`, toutes deux à
-//! domaine {0, 1, 2} (`think/hungry/eat` et `free/me/prev`). La fourchette
-//! `left_i` est déterminée par le mot `pc` : `me` si i mange, `prev` si i-1
-//! mange, `free` sinon. Un état atteignable = mot circulaire sur {T, H, E}
-//! sans deux `E` adjacents.
+//! Model (docs/golden-thread-example-n-philosophers-end-to-end § 1-2) in **interleaving**: each cell
+//! i contributes two keys, `2i` = `pc_i` and `2i+1` = `left_i`, both with
+//! domain {0, 1, 2} (`think/hungry/eat` and `free/me/prev`). The fork
+//! `left_i` is determined by the word `pc`: `me` if i eats, `prev` if i-1
+//! eats, `free` otherwise. A reachable state = circular word over {T, H, E}
+//! with no two adjacent `E`.
 
 use std::collections::BTreeMap;
 
@@ -20,22 +20,22 @@ use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, comp
 use lisage_core::{Anchor, Form, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
 
-/// Valeur `think` / `hungry` / `eat` d'un `pc`.
+/// `think` / `hungry` / `eat` value of a `pc`.
 pub const PENSE: u64 = 0;
-/// Valeur `hungry` d'un `pc`.
+/// `hungry` value of a `pc`.
 pub const AFFAME: u64 = 1;
-/// Valeur `eat` d'un `pc`.
+/// `eat` value of a `pc`.
 pub const MANGE: u64 = 2;
-/// Valeur `free` d'une fourchette.
+/// `free` value of a fork.
 pub const LIBRE: u64 = 0;
-/// Valeur `me` d'une fourchette.
+/// `me` value of a fork.
 pub const TENUE: u64 = 1;
-/// Valeur `prev` d'une fourchette.
+/// `prev` value of a fork.
 pub const PRECEDENTE: u64 = 2;
 
-/// Schéma de l'anneau déroulé en **intercalage** (docs/golden-thread-example-n-philosophers-end-to-end
-/// § 2) : `2n` clés, clé `2i` = `pc_i`, clé `2i+1` = `left_i`, domaine
-/// `{0, 1, 2}` pour les deux.
+/// Schema of the unrolled ring in **interleaving** (docs/golden-thread-example-n-philosophers-end-to-end
+/// § 2): `2n` keys, key `2i` = `pc_i`, key `2i+1` = `left_i`, domain
+/// `{0, 1, 2}` for both.
 pub fn schema_anneau(n: u64) -> Schema {
     Schema::Map(
         (0..2 * n).map(Atom).collect(),
@@ -43,8 +43,8 @@ pub fn schema_anneau(n: u64) -> Schema {
     )
 }
 
-/// Fourchette `left_i` déterminée par le mot `pc` (sans deux `E` adjacents
-/// circulairement) : `me` si i mange, `prev` si i-1 mange, `free` sinon.
+/// Fork `left_i` determined by the word `pc` (no two `E` adjacent
+/// circularly): `me` if i eats, `prev` if i-1 eats, `free` otherwise.
 pub fn fourchette(pc: &[u64], n: usize, i: usize) -> u64 {
     if pc[i] == MANGE {
         TENUE
@@ -55,8 +55,8 @@ pub fn fourchette(pc: &[u64], n: usize, i: usize) -> u64 {
     }
 }
 
-/// Énumère les mots circulaires de longueur `n` sur {0,1,2} sans deux `2`
-/// adjacents circulairement (états atteignables, énumération de référence).
+/// Enumerates the circular words of length `n` over {0,1,2} with no two `2`
+/// adjacent circularly (reachable states, reference enumeration).
 pub fn mots_atteignables(n: usize) -> Vec<Vec<u64>> {
     let mut resultat = Vec::new();
     let mut mot = vec![0u64; n];
@@ -65,7 +65,7 @@ pub fn mots_atteignables(n: usize) -> Vec<Vec<u64>> {
         if circulaire_ok {
             resultat.push(mot.clone());
         }
-        // Incrémentation en base 3.
+        // Increment in base 3.
         let mut i = n;
         loop {
             if i == 0 {
@@ -81,9 +81,9 @@ pub fn mots_atteignables(n: usize) -> Vec<Vec<u64>> {
     }
 }
 
-/// Construit R_n dans le pool : union des maps compilées, une par état
-/// atteignable. Générique sur le pool : l'atelier didactique enveloppe le
-/// contrôleur (`AtelierController`) pour commuter les réductions.
+/// Builds R_n in the pool: union of the compiled maps, one per
+/// reachable state. Generic over the pool: the didactic workshop wraps the
+/// controller (`AtelierController`) to switch the reductions.
 pub fn construire_r_n<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -104,13 +104,13 @@ pub fn construire_r_n<P: Pool<Key = u64, Payload = bool>>(
             .map(|(cle, valeur)| (Value::Atom(Atom(cle)), Value::Atom(Atom(valeur))))
             .collect();
         let membre = compiler(pool, anchor, &schema, &Value::Map(map))
-            .expect("état atteignable compilable (invariant interne)");
-        racine = union(pool, &keys, anchor, racine, membre).expect("union interne");
+            .expect("reachable state compilable (internal invariant)");
+        racine = union(pool, &keys, anchor, racine, membre).expect("internal union");
     }
     racine
 }
 
-/// Compte |R_n| par pli `(ℕ,+,×)` (voie DD).
+/// Counts |R_n| by fold `(ℕ,+,×)` (DD path).
 pub fn compter_r_n(
     pool_entree: &Arena<ReferenceController>,
     pool_sortie: &mut Arena<ReferenceController>,
@@ -119,15 +119,15 @@ pub fn compter_r_n(
     racine: NodeId,
 ) -> u64 {
     let schema = schema_anneau(n);
-    compter(pool_entree, pool_sortie, anchor, &schema, racine).expect("comptage interne")
+    compter(pool_entree, pool_sortie, anchor, &schema, racine).expect("internal count")
 }
 
-/// Les 5 cellules légales (formes de l'automate minimal du langage des
-/// cellules légales, docs/golden-thread-example-n-philosophers-end-to-end § 3-4) : avec l'hérité
-/// p = « le précédent mange », p = 0 autorise (think,free), (hungry,free),
-/// (eat,me) ; p = 1 autorise (think,prev), (hungry,prev). Avec les 2
-/// terminaux ⊥/⊤, ce sont les **7 formes** du fil rouge (niveau automate ;
-/// la version « 7 nœuds du DD » est l'encodage relatif, jalon M4).
+/// The 5 legal cells (forms of the minimal automaton of the language of
+/// legal cells, docs/golden-thread-example-n-philosophers-end-to-end § 3-4): with the inherited
+/// p = « the previous eats », p = 0 allows (think,free), (hungry,free),
+/// (eat,me); p = 1 allows (think,prev), (hungry,prev). With the 2
+/// terminals ⊥/⊤, these are the **7 forms** of the golden thread (automaton level;
+/// the « 7 DD nodes » version is the relative encoding, milestone M4).
 pub fn cellules_legales() -> [(u64, u64); 5] {
     [
         (PENSE, LIBRE),
@@ -138,15 +138,15 @@ pub fn cellules_legales() -> [(u64, u64); 5] {
     ]
 }
 
-/// Schéma « mangeurs » pour `filter`/`exists` : `n` clés, clé `i` présente
-/// ssi la cellule `i` mange (valeur unique `0`). Les prédicats de présence
-/// discriminent alors les états.
+/// « eaters » schema for `filter`/`exists`: `n` keys, key `i` present
+/// iff cell `i` eats (single value `0`). The presence predicates
+/// then discriminate the states.
 pub fn schema_mangeurs(n: u64) -> Schema {
     Schema::Map((0..n).map(Atom).collect(), Domaine::nouveau(vec![Atom(0)]))
 }
 
-/// Construit l'ensemble des mangeurs de R_n (clé `i` présente ssi `pc_i =
-/// eat`) : projection de R_n utilisable par `filter`/`exists`.
+/// Builds the set of eaters of R_n (key `i` present iff `pc_i =
+/// eat`): projection of R_n usable by `filter`/`exists`.
 pub fn construire_mangeurs(
     pool: &mut Arena<ReferenceController>,
     anchor: Anchor,
@@ -161,13 +161,13 @@ pub fn construire_mangeurs(
             .map(|i| (Value::Atom(Atom(i)), Value::Atom(Atom(0))))
             .collect();
         let membre = compiler(pool, anchor, &schema, &Value::Map(map))
-            .expect("état atteignable compilable (invariant interne)");
-        racine = union(pool, &keys, anchor, racine, membre).expect("union interne");
+            .expect("reachable state compilable (internal invariant)");
+        racine = union(pool, &keys, anchor, racine, membre).expect("internal union");
     }
     racine
 }
 
-/// Pool neuf pour la démo.
+/// New pool for the demo.
 pub fn pool_neuf(schema: &Schema) -> Arena<ReferenceController> {
     Arena::new(
         ReferenceController::new(schema.clone()),
