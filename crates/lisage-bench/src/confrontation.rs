@@ -12,7 +12,7 @@
 //! Boolean, libDDD for the Paris-school DDDs, Meddly for MDDs)
 //! with the same convention: same input, same object built, same
 //! cross-check value. The full protocol (fairness, metrics,
-//! reproduction) lives in `docs/bench-confrontation-temoins-et-measures.md`.
+//! reproduction) lives in `docs/bench-confrontation-witnesses-and-measures.md`.
 //!
 //! Measured block, identical across all tools: input reading +
 //! diagram construction + verification counting. Library initialization

@@ -14,7 +14,7 @@ use lisage_algebra::reduction::{
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::biplan::{IndexLevelx, MetriquesPool, NodeEntry, Plan, StatsGc, seuil_atteint};
+use crate::biplan::{IndexLevels, MetriquesPool, NodeEntry, Plan, StatsGc, seuil_atteint};
 use crate::observer::{Observer, ReductionRule, TraceEvent};
 
 /// Hash-consing key: (controller, anchor, form).
@@ -27,7 +27,7 @@ pub struct Arena<C: Controller> {
     nodes: Vec<NodeEntry<C::Key, C::Payload>>,
     unique: HashMap<KeyInterning<C::Key, C::Payload>, NodeId>,
     /// Shadow-plane index: level → live nodes of that level.
-    index_levels: IndexLevelx,
+    index_levels: IndexLevels,
     metriques: MetriquesPool,
     /// Remapping table of the last compaction (empty otherwise).
     remap: Vec<Option<NodeId>>,
@@ -41,7 +41,7 @@ impl<C: Controller> Arena<C> {
         Arena {
             nodes: Vec::new(),
             unique: HashMap::new(),
-            index_levels: IndexLevelx::new(),
+            index_levels: IndexLevels::new(),
             metriques: MetriquesPool::default(),
             remap: Vec::new(),
             observer,

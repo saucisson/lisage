@@ -26,7 +26,7 @@ use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 /// bounded schema; the bound is only there to detect a regression).
 pub const BORNE_ITERATIONS: u32 = 1_000;
 
-/// Fingerprint salt of the [`RestreintAuxLevelx`] wrapper: domain-separates
+/// Fingerprint salt of the [`RestreintAuxLevels`] wrapper: domain-separates
 /// the wrapper's fingerprint from that of the inner transduction.
 const SEL_FINGERPRINT_WRAPPER: u64 = 0x5A7A_0000_0000_0000;
 
@@ -77,17 +77,17 @@ pub struct ResultatSaturation {
 /// Wrapper transduction that restricts a step transduction to a set of
 /// active levels: at active levels, it delegates to the inner transduction
 /// and records the modified levels; at the others, identity copy.
-pub struct RestreintAuxLevelx<T> {
+pub struct RestreintAuxLevels<T> {
     inner: T,
     levels_actifs: Vec<Level>,
     levels_modifies: Mutex<BTreeSet<Level>>,
 }
 
-impl<T: Clone> Clone for RestreintAuxLevelx<T> {
+impl<T: Clone> Clone for RestreintAuxLevels<T> {
     fn clone(&self) -> Self {
         // The clone starts from a fresh tracking: `saturer` creates a new
         // wrapper at each iteration anyway.
-        RestreintAuxLevelx {
+        RestreintAuxLevels {
             inner: self.inner.clone(),
             levels_actifs: self.levels_actifs.clone(),
             levels_modifies: Mutex::new(BTreeSet::new()),
@@ -95,10 +95,10 @@ impl<T: Clone> Clone for RestreintAuxLevelx<T> {
     }
 }
 
-impl<T> RestreintAuxLevelx<T> {
+impl<T> RestreintAuxLevels<T> {
     /// New wrapper: `inner` restricted to the `levels_actifs`.
     pub fn new(inner: T, levels_actifs: Vec<Level>) -> Self {
-        RestreintAuxLevelx {
+        RestreintAuxLevels {
             inner,
             levels_actifs,
             levels_modifies: Mutex::new(BTreeSet::new()),
@@ -115,7 +115,7 @@ impl<T> RestreintAuxLevelx<T> {
     }
 }
 
-impl<T: Transduction> Transduction for RestreintAuxLevelx<T> {
+impl<T: Transduction> Transduction for RestreintAuxLevels<T> {
     type H = T::H;
     type S = T::S;
     type Out = T::Out;
@@ -212,7 +212,7 @@ where
         if let Some(observateur) = &params.observateur {
             observateur.on_event(&TraceEvent::Round { numero: iterations });
         }
-        let etape = RestreintAuxLevelx::new(params.transduction.clone(), levels_actifs.clone());
+        let etape = RestreintAuxLevels::new(params.transduction.clone(), levels_actifs.clone());
         // Spec § 7: saturate steps can produce a memory effect
         // (T3, M2-5) — PerLevel policy. The memory lives for one pass:
         // the runner (and its memory) is recreated at each iteration.
