@@ -150,7 +150,7 @@ impl<T: Transduction> Transducteur<T> {
     }
 
     /// Access to the embedded transduction (to inspect the state of a
-    /// wrapper, e.g. levels modified by `RestreintAuxLevelx`).
+    /// wrapper, e.g. levels modified by `RestreintAuxLevels`).
     pub fn transduction(&self) -> &T {
         &self.transduction
     }

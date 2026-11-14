@@ -76,7 +76,7 @@ pub(crate) struct NodeEntry<Key, Payload> {
 }
 
 /// Shadow-plane index: level → live nodes of that level.
-pub(crate) type IndexLevelx = BTreeMap<Level, BTreeSet<NodeId>>;
+pub(crate) type IndexLevels = BTreeMap<Level, BTreeSet<NodeId>>;
 
 /// Decides whether the profiled compaction threshold is reached.
 pub fn seuil_atteint(morts: u64, total: u64) -> bool {
