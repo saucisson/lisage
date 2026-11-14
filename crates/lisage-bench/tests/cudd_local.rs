@@ -21,23 +21,23 @@ use std::process::Command;
 /// Calls the `cudd_count` binary in the Docker container and returns the
 /// CUDD node count for the given truth table.
 fn cudd_compter_noeuds(nombre_variables: u32, table: &[bool]) -> Option<usize> {
-    let mut entree = format!("{}\n", nombre_variables);
+    let mut input = format!("{}\n", nombre_variables);
     for &valeur in table {
-        entree.push_str(if valeur { "1 " } else { "0 " });
+        input.push_str(if valeur { "1 " } else { "0 " });
     }
-    entree.push('\n');
+    input.push('\n');
 
     let docker_bin = std::env::var("DOCKER_BIN").unwrap_or_else(|_| "/usr/bin/docker".to_string());
 
     // Passes the input via a shell. `printf '%b'` interprets the \n.
     let script = format!(
         "printf '%b' {} | {} run --rm -i lisage-cudd:latest cudd_count",
-        shell_quote(&entree),
+        shell_quote(&input),
         shell_quote(&docker_bin),
     );
     let resultat = Command::new("/bin/sh").args(["-c", &script]).output();
 
-    let sortie = match resultat {
+    let output = match resultat {
         Ok(s) => s,
         Err(e) => {
             eprintln!("failed to spawn /bin/sh -c: {}", e);
@@ -45,16 +45,16 @@ fn cudd_compter_noeuds(nombre_variables: u32, table: &[bool]) -> Option<usize> {
         }
     };
 
-    if !sortie.status.success() {
+    if !output.status.success() {
         eprintln!(
             "cudd_count failed (code {:?}): stdout={} stderr={}",
-            sortie.status.code(),
-            String::from_utf8_lossy(&sortie.stdout),
-            String::from_utf8_lossy(&sortie.stderr)
+            output.status.code(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
         );
         return None;
     }
-    String::from_utf8_lossy(&sortie.stdout).trim().parse().ok()
+    String::from_utf8_lossy(&output.stdout).trim().parse().ok()
 }
 
 /// Escapes a string for the POSIX shell.

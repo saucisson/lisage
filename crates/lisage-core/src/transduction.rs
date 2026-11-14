@@ -38,7 +38,7 @@ pub struct ContextePhiOut<'a, H, S, M: Clone + Eq + Hash + Debug> {
     /// Level memory in read (M2-3).
     pub memoire: &'a MemoireNiveau<M>,
     /// Input node being visited (key of the level memory).
-    pub noeud_entree: NodeId,
+    pub node_input: NodeId,
 }
 
 /// Attributed transduction (spec § 3.1): three partial functions of the
@@ -171,12 +171,12 @@ impl<T: Transduction> Transducteur<T> {
     }
 
     /// Runs the transduction at the root, with initial attribute `h0`.
-    /// The input is read from `pool_entree` (payload `bool`), the result is
-    /// written into `pool_sortie` (payload `Out`).
+    /// The input is read from `pool_input` (payload `bool`), the result is
+    /// written into `pool_output` (payload `Out`).
     pub fn run<PIn, POut>(
         &mut self,
-        pool_entree: &PIn,
-        pool_sortie: &mut POut,
+        pool_input: &PIn,
+        pool_output: &mut POut,
         anchor: Anchor,
         noeud: NodeId,
     ) -> Result<(NodeId, T::S), CoreError>
@@ -185,7 +185,7 @@ impl<T: Transduction> Transducteur<T> {
         POut: Pool<Key = u64, Payload = T::Out>,
     {
         let h = self.transduction.h0();
-        self.run_avec(pool_entree, pool_sortie, anchor, noeud, h)
+        self.run_avec(pool_input, pool_output, anchor, noeud, h)
     }
 
     /// Single-pool variant: reads and writes in the same pool (payload `Out`
@@ -207,8 +207,8 @@ impl<T: Transduction> Transducteur<T> {
 
     fn run_avec<PIn, POut>(
         &mut self,
-        pool_entree: &PIn,
-        pool_sortie: &mut POut,
+        pool_input: &PIn,
+        pool_output: &mut POut,
         anchor: Anchor,
         noeud: NodeId,
         h: T::H,
@@ -228,9 +228,9 @@ impl<T: Transduction> Transducteur<T> {
             return Ok((*resultat, s.clone()));
         }
         self.notifier(TraceEvent::MemoMiss { noeud });
-        let forme = pool_entree.resolve(noeud)?.clone();
+        let forme = pool_input.resolve(noeud)?.clone();
         let (resultat, s) = match forme {
-            Form::Terminal(payload) => self.transduction.psi(pool_sortie, anchor, payload, &h),
+            Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
             Form::Node { level, arcs } => {
                 let mut enfants = BTreeMap::new();
                 let mut s_arcs = BTreeMap::new();
@@ -242,8 +242,8 @@ impl<T: Transduction> Transducteur<T> {
                         valeur: format!("{h_arc:?}"),
                     });
                     let (cible_resultat, s_arc) =
-                        self.run_avec(pool_entree, pool_sortie, anchor, cible, h_arc)?;
-                    let niveau_cible = match pool_entree.resolve(cible) {
+                        self.run_avec(pool_input, pool_output, anchor, cible, h_arc)?;
+                    let niveau_cible = match pool_input.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
                         Err(erreur) => return Err(erreur.into()),
@@ -263,9 +263,9 @@ impl<T: Transduction> Transducteur<T> {
                     h: &h,
                     arcs: enfants,
                     memoire: &self.memoire,
-                    noeud_entree: noeud,
+                    node_input: noeud,
                 };
-                let (noeud_resultat, effet) = self.transduction.phi_out(pool_sortie, ctx);
+                let (noeud_resultat, effet) = self.transduction.phi_out(pool_output, ctx);
                 if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoireNonAutorisee);
                 }
@@ -341,7 +341,7 @@ impl<T: Transduction> Transducteur<T> {
                     h: &h,
                     arcs: enfants,
                     memoire: &self.memoire,
-                    noeud_entree: noeud,
+                    node_input: noeud,
                 };
                 let (noeud_resultat, effet) = self.transduction.phi_out(pool, ctx);
                 if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {

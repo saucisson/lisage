@@ -16,7 +16,7 @@ pub type CleMemoire = (NodeId, Level);
 /// `τ(n, h)` pure in `(id(n), h, version(M))`).
 #[derive(Clone, Debug)]
 pub struct MemoireNiveau<V: Clone + Eq + Hash + Debug> {
-    entrees: HashMap<CleMemoire, V>,
+    inputs: HashMap<CleMemoire, V>,
     version: u64,
 }
 
@@ -30,7 +30,7 @@ impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
     /// Empty memory, version 0.
     pub fn new() -> Self {
         MemoireNiveau {
-            entrees: HashMap::new(),
+            inputs: HashMap::new(),
             version: 0,
         }
     }
@@ -42,19 +42,19 @@ impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
 
     /// Read: value stored at `(noeud, niveau)`, if present.
     pub fn lire(&self, noeud: NodeId, niveau: Level) -> Option<&V> {
-        self.entrees.get(&(noeud, niveau))
+        self.inputs.get(&(noeud, niveau))
     }
 
     /// Write: stores `valeur` at `(noeud, niveau)` and increments the version
     /// (L1). Returns the old value if it existed.
     pub fn ecrire(&mut self, noeud: NodeId, niveau: Level, valeur: V) -> Option<V> {
         self.version += 1;
-        self.entrees.insert((noeud, niveau), valeur)
+        self.inputs.insert((noeud, niveau), valeur)
     }
 
     /// Number of stored entries (for tests).
     pub fn taille(&self) -> usize {
-        self.entrees.len()
+        self.inputs.len()
     }
 }
 

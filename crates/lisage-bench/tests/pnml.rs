@@ -206,10 +206,10 @@ fn reseau_aleatoire(
         document.push_str(&format!("<transition id=\"t{index}\"/>"));
     }
     for index in 0..nombre_transitions {
-        let entree = index % nombre_places.max(1);
-        let sortie = (index + 1) % nombre_places.max(1);
+        let input = index % nombre_places.max(1);
+        let output = (index + 1) % nombre_places.max(1);
         document.push_str(&format!(
-            "<arc source=\"p{entree}\" target=\"t{index}\"/><arc source=\"t{index}\" target=\"p{sortie}\"/>"
+            "<arc source=\"p{input}\" target=\"t{index}\"/><arc source=\"t{index}\" target=\"p{output}\"/>"
         ));
     }
     document.push_str("</net></pnml>");

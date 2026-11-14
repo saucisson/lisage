@@ -612,7 +612,7 @@ impl AncreFenetre {
     /// Key of the incoming arc: the base of the anchor, saturated into `u64`.
     /// This is the position argument (spec § 2.4.5: the incoming arc carries
     /// the argument) — it lives on the arc, never in the interning key.
-    pub fn cle_entree(&self) -> u64 {
+    pub fn key_input(&self) -> u64 {
         self.base().max(0) as u64
     }
 
@@ -623,7 +623,7 @@ impl AncreFenetre {
 }
 
 /// Builds the sliding window read under the composite `ancre`: the base of
-/// the anchor is the argument of the incoming arc (key `cle_entree`), the
+/// the anchor is the argument of the incoming arc (key `key_input`), the
 /// shape of the window stays relative (keys `0..taille-1`, min section = 0)
 /// and shared. Returns `(root, window)`: the root specific to this base,
 /// the window shape reached by its incoming arc.
@@ -638,7 +638,7 @@ pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level: Level(NIVEAU_ROOT),
-            arcs: BTreeMap::from([(ancre.cle_entree(), fenetre)]),
+            arcs: BTreeMap::from([(ancre.key_input(), fenetre)]),
         },
     );
     (root, fenetre)

@@ -8,7 +8,7 @@ use std::process::ExitCode;
 
 use lisage_bench::confrontation::{Charge, executer, serialiser_ligne};
 
-/// Code de sortie : usage incorrect.
+/// Code de output : usage incorrect.
 const CODE_USAGE: u8 = 2;
 
 /// Workload usage line, written as-is on stderr.

@@ -337,8 +337,8 @@ impl Transduction for Image {
 
 /// `exists(p)` on the set of maps denoted by `noeud` (schema `Map`).
 pub fn existe<PIn, POut>(
-    pool_entree: &PIn,
-    pool_sortie: &mut POut,
+    pool_input: &PIn,
+    pool_output: &mut POut,
     anchor: Anchor,
     schema: &Schema,
     noeud: NodeId,
@@ -350,17 +350,17 @@ where
 {
     let transduction = Existe::new(schema, predicat)?;
     let mut visite = BTreeSet::new();
-    valider_niveaux(pool_entree, schema, noeud, &mut visite)?;
+    valider_niveaux(pool_input, schema, noeud, &mut visite)?;
     let mut runner = Transducteur::new(transduction);
-    let (_, verdict) = runner.run(pool_entree, pool_sortie, anchor, noeud)?;
+    let (_, verdict) = runner.run(pool_input, pool_output, anchor, noeud)?;
     Ok(verdict.0)
 }
 
 /// `filter(p)` on the set of maps denoted by `noeud`: returns the diagram
 /// of the filtered set (canonical, A3).
 pub fn filtrer<PIn, POut>(
-    pool_entree: &PIn,
-    pool_sortie: &mut POut,
+    pool_input: &PIn,
+    pool_output: &mut POut,
     anchor: Anchor,
     schema: &Schema,
     noeud: NodeId,
@@ -372,16 +372,16 @@ where
 {
     let transduction = Filtre::new(schema, predicat)?;
     let mut visite = BTreeSet::new();
-    valider_niveaux(pool_entree, schema, noeud, &mut visite)?;
+    valider_niveaux(pool_input, schema, noeud, &mut visite)?;
     let mut runner = Transducteur::new(transduction);
-    let (resultat, _) = runner.run(pool_entree, pool_sortie, anchor, noeud)?;
+    let (resultat, _) = runner.run(pool_input, pool_output, anchor, noeud)?;
     Ok(resultat)
 }
 
 /// `map(f)` on the set of atoms denoted by `noeud` (schema `Atom`).
 pub fn image<PIn, POut>(
-    pool_entree: &PIn,
-    pool_sortie: &mut POut,
+    pool_input: &PIn,
+    pool_output: &mut POut,
     anchor: Anchor,
     noeud: NodeId,
     fonction: Box<dyn Fn(u64) -> u64 + Send + Sync>,
@@ -391,6 +391,6 @@ where
     POut: Pool<Key = u64, Payload = bool>,
 {
     let mut runner = Transducteur::new(Image::new(fonction));
-    let (resultat, _) = runner.run(pool_entree, pool_sortie, anchor, noeud)?;
+    let (resultat, _) = runner.run(pool_input, pool_output, anchor, noeud)?;
     Ok(resultat)
 }

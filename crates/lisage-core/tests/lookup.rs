@@ -12,7 +12,7 @@ use lisage_core::schema::{ABSENT, Domaine, PRESENT, ReferenceController, Schema,
 use lisage_core::transduction::Transducteur;
 use lisage_lang::value::{Atom, Value};
 
-type PoolSortie = Arena<LookupController>;
+type PoolOutput = Arena<LookupController>;
 
 fn atome(valeur: u64) -> Value {
     Value::Atom(Atom(valeur))
@@ -34,31 +34,31 @@ fn executer_lookup(
     domaine_valeurs: &Domaine,
     valeur: &Value,
     cle: Atom,
-) -> (PoolSortie, NodeId, BTreeMap<u64, NodeId>) {
-    let mut entree = Arena::new(
+) -> (PoolOutput, NodeId, BTreeMap<u64, NodeId>) {
+    let mut input = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         LookupController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
     let anchor = Anchor(0);
-    let root = compiler(&mut entree, anchor, schema, valeur).unwrap();
+    let root = compiler(&mut input, anchor, schema, valeur).unwrap();
     let mut runner = Transducteur::new(Lookup::new(
         cle,
         liste_cles.to_vec(),
         domaine_valeurs.clone(),
     ));
-    let (resultat, fragment) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
-    (sortie, resultat, fragment)
+    let (resultat, fragment) = runner.run(&input, &mut output, anchor, root).unwrap();
+    (output, resultat, fragment)
 }
 
 /// Follows the map's path in the output diagram and returns the payload of
 /// the reached terminal (None if the followed key is absent from the map:
 /// the default arc leads to D_δ = ε(None)).
 fn payload_terminal(
-    pool: &PoolSortie,
+    pool: &PoolOutput,
     mut noeud: NodeId,
     liste_cles: &[Atom],
     map: &BTreeMap<Value, Value>,
@@ -101,10 +101,10 @@ fn test_lookup_cles_presentes() {
         panic!("map")
     };
 
-    let (sortie, resultat, fragment) =
+    let (output, resultat, fragment) =
         executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(0));
     assert_eq!(
-        payload_terminal(&sortie, resultat, &liste_cles, map),
+        payload_terminal(&output, resultat, &liste_cles, map),
         Some(1),
         "lookup(a) = 1"
     );
@@ -113,10 +113,10 @@ fn test_lookup_cles_presentes() {
         "the fragment carries the value arc 1 to ε(Some(1))"
     );
 
-    let (sortie, resultat, _) =
+    let (output, resultat, _) =
         executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(1));
     assert_eq!(
-        payload_terminal(&sortie, resultat, &liste_cles, map),
+        payload_terminal(&output, resultat, &liste_cles, map),
         Some(0),
         "lookup(b) = 0"
     );
@@ -133,10 +133,10 @@ fn test_lookup_cle_absente() {
         panic!("map")
     };
 
-    let (sortie, resultat, fragment) =
+    let (output, resultat, fragment) =
         executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(1));
     assert_eq!(
-        payload_terminal(&sortie, resultat, &liste_cles, map),
+        payload_terminal(&output, resultat, &liste_cles, map),
         None,
         "lookup(b) = None, absent key"
     );
@@ -155,10 +155,10 @@ fn test_lookup_niveau_valeur_collapsed_t_expand() {
         panic!("map")
     };
 
-    let (sortie, resultat, fragment) =
+    let (output, resultat, fragment) =
         executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(0));
     assert_eq!(
-        payload_terminal(&sortie, resultat, &liste_cles, map),
+        payload_terminal(&output, resultat, &liste_cles, map),
         Some(0),
         "T-EXPAND: lookup(a) = 0 despite the collapsed value level"
     );

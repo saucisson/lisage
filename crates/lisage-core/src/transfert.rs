@@ -136,12 +136,12 @@ impl TransfertNonLocal {
         pool: &mut P,
         anchor: Anchor,
         memoire: &MemoireNiveau<bool>,
-        noeud_entree: NodeId,
+        node_input: NodeId,
         level: Level,
         arcs: BTreeMap<u64, (NodeId, ())>,
     ) -> (BTreeMap<u64, (NodeId, ())>, EffetMemoire<bool>) {
         // Already produced by this node at this visit? (idempotence M).
-        if memoire.lire(noeud_entree, level) == Some(&true) {
+        if memoire.lire(node_input, level) == Some(&true) {
             return (arcs, EffetMemoire::new());
         }
         let mut remap = BTreeMap::new();
@@ -155,7 +155,7 @@ impl TransfertNonLocal {
             }
         }
         let effet = if decremente {
-            EffetMemoire::une(noeud_entree, level, true)
+            EffetMemoire::une(node_input, level, true)
         } else {
             EffetMemoire::new()
         };
@@ -277,10 +277,10 @@ impl Transduction for TransfertNonLocal {
             h,
             arcs,
             memoire,
-            noeud_entree,
+            node_input,
         } = ctx;
         let (arcs, effet) = if level == self.niveau_source() {
-            self.decremente_source(pool, anchor, memoire, noeud_entree, level, arcs)
+            self.decremente_source(pool, anchor, memoire, node_input, level, arcs)
         } else if level == Schema::niveau_presence(self.index_destination)
             && matches!(h, EtatTransfert::Transfert(_))
         {

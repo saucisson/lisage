@@ -205,9 +205,9 @@ fn compter_niveau(
     root: NodeId,
     ancre: Anchor,
 ) -> Result<u64, ErreurSdd> {
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    Ok(compter(pool, &mut sortie, ancre, schema, root)?)
+    Ok(compter(pool, &mut output, ancre, schema, root)?)
 }

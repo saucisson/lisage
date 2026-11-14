@@ -226,18 +226,18 @@ impl Transduction for Lookup {
                             arcs: greffon,
                         },
                     );
-                    let mut arcs_sortie: BTreeMap<u64, NodeId> = arcs
+                    let mut arcs_output: BTreeMap<u64, NodeId> = arcs
                         .into_iter()
                         .filter(|(v, _)| *v != PRESENT)
                         .map(|(v, (n, _))| (v, n))
                         .collect();
-                    arcs_sortie.insert(PRESENT, noeud_valeur);
+                    arcs_output.insert(PRESENT, noeud_valeur);
                     return (
                         pool.intern(
                             anchor,
                             Form::Node {
                                 level,
-                                arcs: arcs_sortie,
+                                arcs: arcs_output,
                             },
                         ),
                         crate::memoire::EffetMemoire::new(),

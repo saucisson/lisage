@@ -70,7 +70,7 @@ pub struct StatsGc {
 
 /// Two-plane pool entry: plane + form (tombstone after GC).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub(crate) struct EntreeNoeud<Key, Payload> {
+pub(crate) struct NodeEntry<Key, Payload> {
     pub plan: Plan,
     pub forme: Option<lisage_algebra::interface::Form<Key, Payload>>,
 }

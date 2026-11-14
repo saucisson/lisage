@@ -14,7 +14,7 @@ use lisage_algebra::reduction::{
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::biplan::{EntreeNoeud, IndexNiveaux, MetriquesPool, Plan, StatsGc, seuil_atteint};
+use crate::biplan::{IndexNiveaux, MetriquesPool, NodeEntry, Plan, StatsGc, seuil_atteint};
 use crate::observer::{Observer, ReductionRule, TraceEvent};
 
 /// Hash-consing key: (controller, anchor, form).
@@ -24,7 +24,7 @@ type CleInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
 /// controller instance: its key algebra (parameterized by the schema, M1-3)
 /// decides normal forms, cardinalities and defaults.
 pub struct Arena<C: Controller> {
-    nodes: Vec<EntreeNoeud<C::Key, C::Payload>>,
+    nodes: Vec<NodeEntry<C::Key, C::Payload>>,
     unique: HashMap<CleInterning<C::Key, C::Payload>, NodeId>,
     /// Shadow-plane index: level → live nodes of that level.
     index_niveaux: IndexNiveaux,
@@ -69,8 +69,8 @@ impl<C: Controller> Arena<C> {
         plan: Plan,
     ) -> NodeId {
         let node = self.intern(anchor, form);
-        if let Some(entree) = self.nodes.get_mut(node.0 as usize) {
-            entree.plan = plan;
+        if let Some(input) = self.nodes.get_mut(node.0 as usize) {
+            input.plan = plan;
         }
         node
     }
@@ -118,7 +118,7 @@ impl<C: Controller> Arena<C> {
             if !atteints.insert(node) {
                 continue;
             }
-            if let Some(EntreeNoeud {
+            if let Some(NodeEntry {
                 forme: Some(Form::Node { arcs, .. }),
                 ..
             }) = self.nodes.get(node.0 as usize)
@@ -128,9 +128,9 @@ impl<C: Controller> Arena<C> {
         }
         let total = self.nodes.len() as u64;
         let mut collectes = 0u64;
-        for (index, entree) in self.nodes.iter_mut().enumerate() {
-            if entree.forme.is_some() && !atteints.contains(&NodeId(index as u32)) {
-                entree.forme = None;
+        for (index, input) in self.nodes.iter_mut().enumerate() {
+            if input.forme.is_some() && !atteints.contains(&NodeId(index as u32)) {
+                input.forme = None;
                 collectes += 1;
             }
         }
@@ -176,11 +176,11 @@ impl<C: Controller> Arena<C> {
     fn compacter(&mut self) -> Vec<Option<NodeId>> {
         self.remap.clear();
         let mut remap: Vec<Option<NodeId>> = Vec::with_capacity(self.nodes.len());
-        let mut new_nodes: Vec<EntreeNoeud<C::Key, C::Payload>> = Vec::new();
-        for entree in self.nodes.drain(..) {
-            if entree.forme.is_some() {
+        let mut new_nodes: Vec<NodeEntry<C::Key, C::Payload>> = Vec::new();
+        for input in self.nodes.drain(..) {
+            if input.forme.is_some() {
                 remap.push(Some(NodeId(new_nodes.len() as u32)));
-                new_nodes.push(entree);
+                new_nodes.push(input);
             } else {
                 remap.push(None);
             }
@@ -312,7 +312,7 @@ impl<C: Controller> Pool for Arena<C> {
             Form::Terminal(_) => None,
             Form::Node { level, .. } => Some(*level),
         };
-        self.nodes.push(EntreeNoeud {
+        self.nodes.push(NodeEntry {
             plan: Plan::Principal,
             forme: Some(forme),
         });
@@ -328,7 +328,7 @@ impl<C: Controller> Pool for Arena<C> {
 
     fn resolve(&self, node: NodeId) -> Result<&Form<Self::Key, Self::Payload>, PoolError> {
         match self.nodes.get(node.0 as usize) {
-            Some(entree) => entree.forme.as_ref().ok_or(PoolError::UnknownNode(node)),
+            Some(input) => input.forme.as_ref().ok_or(PoolError::UnknownNode(node)),
             None => Err(PoolError::UnknownNode(node)),
         }
     }

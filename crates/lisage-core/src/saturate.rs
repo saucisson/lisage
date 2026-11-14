@@ -144,10 +144,10 @@ impl<T: Transduction> Transduction for RestreintAuxNiveaux<T> {
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
     ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
         if self.niveaux_actifs.contains(&ctx.level) {
-            let noeud_entree = ctx.noeud_entree;
+            let node_input = ctx.node_input;
             let level = ctx.level;
             let (noeud, effet) = self.inner.phi_out(pool, ctx);
-            if noeud != noeud_entree {
+            if noeud != node_input {
                 self.niveaux_modifies
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)

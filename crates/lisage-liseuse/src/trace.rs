@@ -16,19 +16,19 @@ pub const TRACE_VERSION: u32 = 2;
 /// Minimal JSON escaping of a string (events carry no dynamic
 /// ones, but the contract stays correct).
 fn echapper_json(chaine: &str) -> String {
-    let mut sortie = String::with_capacity(chaine.len() + 2);
+    let mut output = String::with_capacity(chaine.len() + 2);
     for caractere in chaine.chars() {
         match caractere {
-            '"' => sortie.push_str("\\\""),
-            '\\' => sortie.push_str("\\\\"),
-            '\n' => sortie.push_str("\\n"),
-            '\r' => sortie.push_str("\\r"),
-            '\t' => sortie.push_str("\\t"),
-            c if (c as u32) < 0x20 => sortie.push_str(&format!("\\u{:04x}", c as u32)),
-            c => sortie.push(c),
+            '"' => output.push_str("\\\""),
+            '\\' => output.push_str("\\\\"),
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\t' => output.push_str("\\t"),
+            c if (c as u32) < 0x20 => output.push_str(&format!("\\u{:04x}", c as u32)),
+            c => output.push(c),
         }
     }
-    sortie
+    output
 }
 
 /// JSON name of a reduction rule.
@@ -123,10 +123,10 @@ impl JsonlObserver {
         self.lignes.lock().expect("mutex poisoned").clone()
     }
 
-    /// Writes the full trace (one line per event) to `sortie`.
-    pub fn ecrire<W: Write>(&self, sortie: &mut W) -> std::io::Result<()> {
+    /// Writes the full trace (one line per event) to `output`.
+    pub fn ecrire<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
         for ligne in self.lignes() {
-            writeln!(sortie, "{ligne}")?;
+            writeln!(output, "{ligne}")?;
         }
         Ok(())
     }

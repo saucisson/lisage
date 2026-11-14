@@ -62,15 +62,15 @@ fn predicat_exemple_spec(cles: &ClePresentes) -> bool {
 #[test]
 fn test_existe_predicat_exemple_spec() {
     let schema = schema_map();
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
-    let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
 
     let verdict = existe(
-        &entree,
-        &mut sortie,
+        &input,
+        &mut output,
         anchor,
         &schema,
         root,
@@ -80,8 +80,8 @@ fn test_existe_predicat_exemple_spec() {
     assert!(verdict, "a↦1 satisfies p (present(a))");
 
     let aucun = existe(
-        &entree,
-        &mut sortie,
+        &input,
+        &mut output,
         anchor,
         &schema,
         root,
@@ -96,16 +96,16 @@ fn test_existe_predicat_exemple_spec() {
 #[test]
 fn test_filtre_garde() {
     let schema = schema_map();
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
-    let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
 
     // Guard "key 0 present".
     let filtre = filtrer(
-        &entree,
-        &mut sortie,
+        &input,
+        &mut output,
         anchor,
         &schema,
         root,
@@ -113,7 +113,7 @@ fn test_filtre_garde() {
     )
     .unwrap();
     let attendu = compiler_ensemble(
-        &mut sortie,
+        &mut output,
         anchor,
         &schema,
         &BTreeSet::from([map_de(&[(0, 1)])]),
@@ -125,23 +125,16 @@ fn test_filtre_garde() {
 #[test]
 fn test_image_reetiquetage_atomes() {
     let schema = Schema::Atom(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]));
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([atome(0), atome(2)]);
-    let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+    let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
 
     // f(v) = (v + 1) mod 3 : {0, 2} ↦ {1, 0}.
-    let image = image(
-        &entree,
-        &mut sortie,
-        anchor,
-        root,
-        Box::new(|v| (v + 1) % 3),
-    )
-    .unwrap();
+    let image = image(&input, &mut output, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
     let attendu = compiler_ensemble(
-        &mut sortie,
+        &mut output,
         anchor,
         &schema,
         &BTreeSet::from([atome(1), atome(0)]),
@@ -154,14 +147,14 @@ fn test_image_reetiquetage_atomes() {
 #[test]
 fn test_existe_schema_non_map_erreur_typee() {
     let schema = Schema::Atom(Domaine::new(vec![Atom(0)]));
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let root = entree.intern(anchor, Form::Terminal(false));
+    let root = input.intern(anchor, Form::Terminal(false));
 
     let resultat = existe(
-        &entree,
-        &mut sortie,
+        &input,
+        &mut output,
         anchor,
         &schema,
         root,
@@ -181,14 +174,14 @@ fn test_existe_schema_non_map_erreur_typee() {
 #[test]
 fn test_filtre_niveau_hors_schema_erreur_typee() {
     let schema = schema_map();
-    let mut entree = pool(&schema);
-    let mut sortie = pool(&schema);
+    let mut input = pool(&schema);
+    let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let terminal_faux = entree.intern(anchor, Form::Terminal(false));
-    let terminal_vrai = entree.intern(anchor, Form::Terminal(true));
+    let terminal_faux = input.intern(anchor, Form::Terminal(false));
+    let terminal_vrai = input.intern(anchor, Form::Terminal(true));
     // Level 4 outside the schema (2 keys ⇒ levels 0..3); distinct arcs to
     // avoid any collapse at interning.
-    let malforme = entree.intern(
+    let malforme = input.intern(
         anchor,
         Form::Node {
             level: Level(4),
@@ -197,8 +190,8 @@ fn test_filtre_niveau_hors_schema_erreur_typee() {
     );
 
     let resultat = filtrer(
-        &entree,
-        &mut sortie,
+        &input,
+        &mut output,
         anchor,
         &schema,
         malforme,

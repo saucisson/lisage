@@ -14,7 +14,7 @@ use lisage_lang::interpreter::lookup;
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
-type PoolSortie = Arena<LookupController>;
+type PoolOutput = Arena<LookupController>;
 
 fn atome(valeur: u64) -> Value {
     Value::Atom(Atom(valeur))
@@ -23,7 +23,7 @@ fn atome(valeur: u64) -> Value {
 /// Follows the map's path in the output diagram and returns the
 /// payload of the reached terminal.
 fn payload_terminal(
-    pool: &PoolSortie,
+    pool: &PoolOutput,
     mut noeud: NodeId,
     liste_cles: &[Atom],
     map: &BTreeMap<Value, Value>,
@@ -72,24 +72,24 @@ proptest! {
             .collect();
         let valeur = Value::Map(map.clone());
 
-        let mut entree = Arena::new(
+        let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let mut sortie = Arena::new(
+        let mut output = Arena::new(
             LookupController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler(&mut entree, anchor, &schema, &valeur).unwrap();
+        let root = compiler(&mut input, anchor, &schema, &valeur).unwrap();
         let cle_atome = Atom(cle);
         let mut runner = Transducteur::new(Lookup::new(
             cle_atome,
             liste_cles.clone(),
             domaine_valeurs.clone(),
         ));
-        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
-        let dd = payload_terminal(&sortie, resultat, &liste_cles, &map);
+        let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
+        let dd = payload_terminal(&output, resultat, &liste_cles, &map);
 
         // Path A: reference interpreter on the set {map}.
         let ensemble = BTreeSet::from([valeur.clone()]);
@@ -119,24 +119,24 @@ proptest! {
             .collect();
         let valeur = Value::Map(map.clone());
 
-        let mut entree = Arena::new(
+        let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let mut sortie = Arena::new(
+        let mut output = Arena::new(
             LookupController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler(&mut entree, anchor, &schema, &valeur).unwrap();
+        let root = compiler(&mut input, anchor, &schema, &valeur).unwrap();
         let cle_atome = Atom(cle);
         let mut runner = Transducteur::new(Lookup::new(
             cle_atome,
             liste_cles.clone(),
             domaine_valeurs.clone(),
         ));
-        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
-        let dd = payload_terminal(&sortie, resultat, &liste_cles, &map);
+        let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
+        let dd = payload_terminal(&output, resultat, &liste_cles, &map);
 
         let ensemble = BTreeSet::from([valeur.clone()]);
         let attendu = lookup(&ensemble, &atome(cle))[&valeur].clone();

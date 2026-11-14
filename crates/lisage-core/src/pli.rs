@@ -220,8 +220,8 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
 /// exact on Bool construction (A5). Lifts the result from the synthesized
 /// channel.
 pub fn compter<PIn, POut>(
-    pool_entree: &PIn,
-    pool_sortie: &mut POut,
+    pool_input: &PIn,
+    pool_output: &mut POut,
     anchor: Anchor,
     schema: &Schema,
     noeud: NodeId,
@@ -231,7 +231,7 @@ where
     POut: Pool<Key = u64, Payload = bool>,
 {
     let mut runner = Transducteur::new(Pli::<Naturel>::new(schema.clone()));
-    let (_, total) = runner.run(pool_entree, pool_sortie, anchor, noeud)?;
+    let (_, total) = runner.run(pool_input, pool_output, anchor, noeud)?;
     Ok(total.0)
 }
 

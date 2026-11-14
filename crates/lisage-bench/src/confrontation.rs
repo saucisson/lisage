@@ -166,7 +166,7 @@ pub enum ErreurConfrontation {
         detail: String,
     },
     /// Unreadable input (status file, `/proc` absent).
-    EntreeInvalide {
+    InvalidInput {
         /// The detail of the invalidity.
         detail: String,
     },
@@ -197,7 +197,7 @@ impl std::fmt::Display for ErreurConfrontation {
             ErreurConfrontation::ParametresInvalides { charge, detail } => {
                 write!(formatter, "invalid parameters for {charge}: {detail}")
             }
-            ErreurConfrontation::EntreeInvalide { detail } => {
+            ErreurConfrontation::InvalidInput { detail } => {
                 write!(formatter, "invalid input: {detail}")
             }
             ErreurConfrontation::VerifieEchoue { attendu, obtenu } => {
@@ -250,21 +250,21 @@ impl From<SchemaError> for ErreurConfrontation {
 /// `lisage-liseuse::trace`: the measured values are a controlled
 /// vocabulary, the contract stays correct).
 fn echapper_json(chaine: &str) -> String {
-    let mut sortie = String::with_capacity(chaine.len() + 2);
+    let mut output = String::with_capacity(chaine.len() + 2);
     for caractere in chaine.chars() {
         match caractere {
-            '"' => sortie.push_str("\\\""),
-            '\\' => sortie.push_str("\\\\"),
-            '\n' => sortie.push_str("\\n"),
-            '\r' => sortie.push_str("\\r"),
-            '\t' => sortie.push_str("\\t"),
+            '"' => output.push_str("\\\""),
+            '\\' => output.push_str("\\\\"),
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\t' => output.push_str("\\t"),
             caractere_bas if (caractere_bas as u32) < 0x20 => {
-                sortie.push_str(&format!("\\u{:04x}", caractere_bas as u32));
+                output.push_str(&format!("\\u{:04x}", caractere_bas as u32));
             }
-            caractere_simple => sortie.push(caractere_simple),
+            caractere_simple => output.push(caractere_simple),
         }
     }
-    sortie
+    output
 }
 
 /// Serializes a measurement as one JSON line (without the trailing `\n`). The
@@ -312,7 +312,7 @@ pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
 fn rss_max_ko() -> Result<u64, ErreurConfrontation> {
     const MARQUEUR: &str = "VmHWM:";
     let status = std::fs::read_to_string("/proc/self/status").map_err(|erreur| {
-        ErreurConfrontation::EntreeInvalide {
+        ErreurConfrontation::InvalidInput {
             detail: format!("/proc/self/status unreadable: {erreur}"),
         }
     })?;
@@ -322,12 +322,12 @@ fn rss_max_ko() -> Result<u64, ErreurConfrontation> {
                 .split_whitespace()
                 .next()
                 .and_then(|valeur| valeur.parse::<u64>().ok())
-                .ok_or_else(|| ErreurConfrontation::EntreeInvalide {
+                .ok_or_else(|| ErreurConfrontation::InvalidInput {
                     detail: format!("unexpected {MARQUEUR} line: {ligne}"),
                 });
         }
     }
-    Err(ErreurConfrontation::EntreeInvalide {
+    Err(ErreurConfrontation::InvalidInput {
         detail: "VmHWM absent from /proc/self/status (non-Linux platform)".to_string(),
     })
 }
@@ -444,13 +444,13 @@ fn charge_philosophes(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
     let debut = Instant::now();
     let contenu =
-        std::fs::read_to_string(chemin).map_err(|erreur| ErreurConfrontation::EntreeInvalide {
+        std::fs::read_to_string(chemin).map_err(|erreur| ErreurConfrontation::InvalidInput {
             detail: format!("states file {chemin} unreadable: {erreur}"),
         })?;
     let etats = lire_etats(nombre_philosophes, &contenu)?;
@@ -465,7 +465,7 @@ fn charge_philosophes(
         let membre = compiler(&mut pool, ANCRE_MESURE, &schema, &Value::Map(map))?;
         root = union(&mut pool, &keys, ANCRE_MESURE, root, membre)?;
     }
-    let verifie = compter_pli(&pool, &mut sortie, ANCRE_MESURE, &schema, root)?;
+    let verifie = compter_pli(&pool, &mut output, ANCRE_MESURE, &schema, root)?;
     let noeuds = compter_noeuds(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != attendu {
@@ -508,23 +508,23 @@ fn lire_etats(
     let mut lignes = contenu.lines();
     let premiere = lignes
         .next()
-        .ok_or_else(|| ErreurConfrontation::EntreeInvalide {
+        .ok_or_else(|| ErreurConfrontation::InvalidInput {
             detail: "empty states file".to_string(),
         })?;
     let champs_premiere: Vec<&str> = premiere.split_whitespace().collect();
     if champs_premiere.len() != 2 || champs_premiere[0] != "n" {
-        return Err(ErreurConfrontation::EntreeInvalide {
+        return Err(ErreurConfrontation::InvalidInput {
             detail: format!("expected first line \"n <n>\", got: {premiere}"),
         });
     }
     let n_declare: u64 =
         champs_premiere[1]
             .parse()
-            .map_err(|_| ErreurConfrontation::EntreeInvalide {
+            .map_err(|_| ErreurConfrontation::InvalidInput {
                 detail: format!("unreadable n: {}", champs_premiere[1]),
             })?;
     if n_declare != nombre_philosophes {
-        return Err(ErreurConfrontation::EntreeInvalide {
+        return Err(ErreurConfrontation::InvalidInput {
             detail: format!("declared n {n_declare} ≠ requested n {nombre_philosophes}"),
         });
     }
@@ -537,11 +537,11 @@ fn lire_etats(
             .split_whitespace()
             .map(|valeur| valeur.parse::<u64>())
             .collect();
-        let etat = etat.map_err(|_| ErreurConfrontation::EntreeInvalide {
+        let etat = etat.map_err(|_| ErreurConfrontation::InvalidInput {
             detail: format!("line {}: unreadable value", numero + 2),
         })?;
         if etat.len() != nombre_valeurs {
-            return Err(ErreurConfrontation::EntreeInvalide {
+            return Err(ErreurConfrontation::InvalidInput {
                 detail: format!(
                     "line {}: {} values, {} expected",
                     numero + 2,
@@ -551,7 +551,7 @@ fn lire_etats(
             });
         }
         if etat.iter().any(|valeur| *valeur > MANGE) {
-            return Err(ErreurConfrontation::EntreeInvalide {
+            return Err(ErreurConfrontation::InvalidInput {
                 detail: format!("line {}: value outside the domain {{0,1,2}}", numero + 2),
             });
         }
