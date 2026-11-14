@@ -78,7 +78,7 @@ impl Schema {
         match self {
             Schema::Atom(_) => 1,
             Schema::Set(domaine) => domaine.taille() as u32,
-            Schema::Map(liste_cles, _) => PAS_NIVEAU_MAP * liste_cles.len() as u32,
+            Schema::Map(liste_keys, _) => PAS_NIVEAU_MAP * liste_keys.len() as u32,
             Schema::Seq(_, longueur_max) => longueur_max + 1,
             Schema::Tag(liste, _) => PAS_NIVEAU_MAP * liste.len() as u32,
         }
@@ -302,9 +302,9 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             }
             compiler_ensemble(pool, anchor, domaine, elements, 0)
         }
-        (Schema::Map(liste_cles, domaine_values), Value::Map(map)) => {
-            valider_map(liste_cles, domaine_values, map)?;
-            compiler_map(pool, anchor, liste_cles, map, 0)
+        (Schema::Map(liste_keys, domaine_values), Value::Map(map)) => {
+            valider_map(liste_keys, domaine_values, map)?;
+            compiler_map(pool, anchor, liste_keys, map, 0)
         }
         (Schema::Seq(domaine, longueur_max), Value::Seq(elements)) => {
             valider_seq(domaine, *longueur_max, elements)?;
@@ -324,19 +324,19 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
 /// Validates the keys and values of a map against the schema (typed errors,
 /// the faulty atom is the one reported).
 fn valider_map(
-    liste_cles: &[Atom],
+    liste_keys: &[Atom],
     domaine_values: &Domaine,
     map: &BTreeMap<Value, Value>,
 ) -> Result<(), SchemaError> {
-    for (cle, value) in map {
-        let Value::Atom(atome_cle) = cle else {
+    for (key, value) in map {
+        let Value::Atom(atome_key) = key else {
             return Err(SchemaError::TypeMismatch {
                 attendu: "atomic key",
-                recu: forme_value(cle),
+                recu: forme_value(key),
             });
         };
-        if !liste_cles.contains(atome_cle) {
-            return Err(SchemaError::HorsDomaine(*atome_cle));
+        if !liste_keys.contains(atome_key) {
+            return Err(SchemaError::HorsDomaine(*atome_key));
         }
         let Value::Atom(atome_value) = value else {
             return Err(SchemaError::TypeMismatch {
@@ -396,16 +396,16 @@ fn compiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
 fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    liste_cles: &[Atom],
+    liste_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
     index: usize,
 ) -> Result<NodeId, SchemaError> {
-    if index == liste_cles.len() {
+    if index == liste_keys.len() {
         return Ok(pool.intern(anchor, Form::Terminal(true)));
     }
-    let suite = compiler_map(pool, anchor, liste_cles, map, index + 1)?;
-    let cle = Value::Atom(liste_cles[index]);
-    let arcs = match map.get(&cle) {
+    let suite = compiler_map(pool, anchor, liste_keys, map, index + 1)?;
+    let key = Value::Atom(liste_keys[index]);
+    let arcs = match map.get(&key) {
         Some(Value::Atom(value)) => {
             let node_value = pool.intern(
                 anchor,
@@ -462,7 +462,7 @@ fn valider_seq(
 }
 
 /// Arc key of the end marker in a sequence (value = domain size).
-fn cle_fin(domaine: &Domaine) -> u64 {
+fn key_fin(domaine: &Domaine) -> u64 {
     domaine.taille() as u64
 }
 
@@ -505,7 +505,7 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
             _ => unreachable!("validated by valider_seq"),
         }
     } else {
-        cle_fin(domaine) // end marker
+        key_fin(domaine) // end marker
     };
     Ok(pool.intern(
         anchor,
@@ -603,9 +603,9 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
                     node,
                 });
             }
-            for (cle, cible) in arcs {
+            for (key, cible) in arcs {
                 if matches!(pool.resolve(*cible), Ok(Form::Terminal(true))) {
-                    let atome = Atom(*cle);
+                    let atome = Atom(*key);
                     if domaine.contient(atome) {
                         return Ok(Value::Atom(atome));
                     }
@@ -622,9 +622,9 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             decompiler_ensemble(pool, domaine, node, &mut elements)?;
             Ok(Value::Set(elements))
         }
-        Schema::Map(liste_cles, _) => {
+        Schema::Map(liste_keys, _) => {
             let mut map = BTreeMap::new();
-            decompiler_map(pool, liste_cles, node, &mut map)?;
+            decompiler_map(pool, liste_keys, node, &mut map)?;
             Ok(Value::Map(map))
         }
         Schema::Seq(domaine, longueur_max) => {
@@ -734,7 +734,7 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
                         node,
                     });
                 };
-                if arc == cle_fin(domaine) {
+                if arc == key_fin(domaine) {
                     // Early end marker: the sequence stops here.
                     node = suite;
                     continue;
@@ -791,7 +791,7 @@ fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
 
 fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    liste_cles: &[Atom],
+    liste_keys: &[Atom],
     mut node: NodeId,
     map: &mut BTreeMap<Value, Value>,
 ) -> Result<(), SchemaError> {
@@ -812,7 +812,7 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                     });
                 }
                 let index = (level.0 / PAS_NIVEAU_MAP) as usize;
-                if index >= liste_cles.len() {
+                if index >= liste_keys.len() {
                     return Err(SchemaError::NodeInattendu {
                         attendu: "presence level of a key",
                         node,
@@ -841,7 +841,7 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                             node: node_value,
                         });
                     };
-                    map.insert(Value::Atom(liste_cles[index]), Value::Atom(Atom(value)));
+                    map.insert(Value::Atom(liste_keys[index]), Value::Atom(Atom(value)));
                     node = suite;
                 } else if let Some(&suite) = arcs.get(&ABSENT) {
                     node = suite;

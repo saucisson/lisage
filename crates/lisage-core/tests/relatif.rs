@@ -258,26 +258,26 @@ fn test_propriete_groupe_shift() {
 
         // (v) Homomorphism: f(n₁ ⊕ n₂) = f(n₁)∘f(n₂). Key large enough that
         // the intermediate readings do not saturate to 0.
-        let cle_grande = BORNE + suivant() % BORNE;
+        let key_grande = BORNE + suivant() % BORNE;
         let a1 = (suivant() % (2 * BORNE)) as i64 - BORNE as i64;
         let a2 = (suivant() % (2 * BORNE)) as i64 - BORNE as i64;
         let compose = groupe.compose(&a1, &a2);
         assert_eq!(
-            groupe.apply(&cle_grande, &compose),
-            groupe.apply(&groupe.apply(&cle_grande, &a1), &a2)
+            groupe.apply(&key_grande, &compose),
+            groupe.apply(&groupe.apply(&key_grande, &a1), &a2)
         );
 
         // (i) Inverse: f(n) then f(n)⁻¹ = identity (key large enough).
         let n = (suivant() % BORNE) as i64;
         assert_eq!(
-            groupe.apply(&groupe.apply(&cle_grande, &n), &groupe.invert(&n)),
-            cle_grande
+            groupe.apply(&groupe.apply(&key_grande, &n), &groupe.invert(&n)),
+            key_grande
         );
 
         // (vi) Trivial kernel: f injective over the arguments.
         let n1 = (suivant() % BORNE) as i64;
         let n2 = (suivant() % BORNE) as i64;
-        if groupe.apply(&cle_grande, &n1) == groupe.apply(&cle_grande, &n2) {
+        if groupe.apply(&key_grande, &n1) == groupe.apply(&key_grande, &n2) {
             assert_eq!(
                 n1, n2,
                 "f(n₁) = f(n₂) ⇒ n₁ = n₂ (storage modulo the kernel)"
@@ -294,8 +294,8 @@ fn test_propriete_groupe_shift() {
         let arc2 = InputArc::new(a2, handle);
         let arc_compose = arc1.compose(&groupe, &arc2);
         assert_eq!(
-            arc_compose.read_key(&groupe, &cle_grande),
-            arc2.read_key(&groupe, &arc1.read_key(&groupe, &cle_grande))
+            arc_compose.read_key(&groupe, &key_grande),
+            arc2.read_key(&groupe, &arc1.read_key(&groupe, &key_grande))
         );
     }
 }

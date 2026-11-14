@@ -263,17 +263,17 @@ fn test_propriete_dabs_confluence() {
         let nb_arcs = suivant() % 6;
         let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
             .map(|_| {
-                let cle = suivant() % CARDINALITE_MOCK;
+                let key = suivant() % CARDINALITE_MOCK;
                 let cible = NodeId((suivant() % 3) as u32);
-                (cle, cible)
+                (key, cible)
             })
             .collect();
-        let cle_defaut = if suivant() % 2 == 0 { Some(0) } else { None };
+        let key_defaut = if suivant() % 2 == 0 { Some(0) } else { None };
 
-        let defaut = cle_defaut.map(|_| NODE_DEFAUT);
+        let defaut = key_defaut.map(|_| NODE_DEFAUT);
         let premier = reduire_dabs(
             arcs.clone(),
-            cle_defaut,
+            key_defaut,
             &est_defaut,
             CARDINALITE_MOCK,
             defaut,
@@ -283,7 +283,7 @@ fn test_propriete_dabs_confluence() {
         if let Reduction::Forme(arcs_reduits) = &premier {
             let second = reduire_dabs(
                 arcs_reduits.clone(),
-                cle_defaut,
+                key_defaut,
                 &est_defaut,
                 CARDINALITE_MOCK,
                 defaut,
@@ -292,7 +292,7 @@ fn test_propriete_dabs_confluence() {
         }
 
         // D-abs: when δ(ℓ) exists, no arc toward D^def remains.
-        if cle_defaut.is_some()
+        if key_defaut.is_some()
             && let Reduction::Forme(a) = &premier
         {
             assert!(
@@ -302,7 +302,7 @@ fn test_propriete_dabs_confluence() {
         }
         // Inactivity without δ(ℓ): never a collapse on an empty form, even
         // with D^def designated (the absent arcs would not be worth D^def).
-        if cle_defaut.is_none()
+        if key_defaut.is_none()
             && arcs.is_empty()
             && let Reduction::Collapse(_) = &premier
         {
@@ -313,7 +313,7 @@ fn test_propriete_dabs_confluence() {
         // (then the target is D^def).
         if let Reduction::Collapse(cible) = &premier {
             // Same arcs after D-abs as in `reduire_dabs`.
-            let arcs_filtres: BTreeMap<u64, NodeId> = match cle_defaut {
+            let arcs_filtres: BTreeMap<u64, NodeId> = match key_defaut {
                 Some(_) => arcs
                     .iter()
                     .filter(|(_, c)| !est_defaut(**c))
@@ -322,12 +322,12 @@ fn test_propriete_dabs_confluence() {
                 None => arcs.clone(),
             };
             let toutes_defaut = !arcs.is_empty() && arcs.values().all(|c| est_defaut(*c));
-            let couvre = match cle_defaut {
+            let couvre = match key_defaut {
                 None => arcs_filtres.len() as u64 >= CARDINALITE_MOCK,
-                Some(cle) => {
+                Some(key) => {
                     est_defaut(*cible)
                         || toutes_defaut
-                        || (arcs_filtres.len() == 1 && arcs_filtres.contains_key(&cle))
+                        || (arcs_filtres.len() == 1 && arcs_filtres.contains_key(&key))
                 }
             };
             assert!(couvre, "lawful collapse: target={cible:?}");

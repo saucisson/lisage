@@ -74,7 +74,7 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
     value: &Value,
     poids: u64,
 ) -> Result<NodeId, SchemaError> {
-    let Schema::Map(liste_cles, domaine) = schema else {
+    let Schema::Map(liste_keys, domaine) = schema else {
         return Err(SchemaError::TypeMismatch {
             attendu: "map",
             recu: "other schema",
@@ -86,22 +86,22 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
             recu: "other value",
         });
     };
-    for (cle, value) in map {
-        let (Value::Atom(atome_cle), Value::Atom(atome_value)) = (cle, value) else {
+    for (key, value) in map {
+        let (Value::Atom(atome_key), Value::Atom(atome_value)) = (key, value) else {
             return Err(SchemaError::TypeMismatch {
                 attendu: "atomic key and value",
                 recu: "non-atomic",
             });
         };
-        if !liste_cles.contains(atome_cle) {
-            return Err(SchemaError::HorsDomaine(*atome_cle));
+        if !liste_keys.contains(atome_key) {
+            return Err(SchemaError::HorsDomaine(*atome_key));
         }
         if !domaine.contient(*atome_value) {
             return Err(SchemaError::HorsDomaine(*atome_value));
         }
     }
     Ok(compiler_map_pondere(
-        pool, anchor, liste_cles, map, 0, poids,
+        pool, anchor, liste_keys, map, 0, poids,
     ))
 }
 
@@ -109,17 +109,17 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
 fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     anchor: Anchor,
-    liste_cles: &[Atom],
+    liste_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
     index: usize,
     poids: u64,
 ) -> NodeId {
-    if index == liste_cles.len() {
+    if index == liste_keys.len() {
         return pool.intern(anchor, Form::Terminal(poids));
     }
-    let suite = compiler_map_pondere(pool, anchor, liste_cles, map, index + 1, poids);
-    let cle = Value::Atom(liste_cles[index]);
-    let arcs = match map.get(&cle) {
+    let suite = compiler_map_pondere(pool, anchor, liste_keys, map, index + 1, poids);
+    let key = Value::Atom(liste_keys[index]);
+    let arcs = match map.get(&key) {
         Some(Value::Atom(value)) => {
             let node_value = pool.intern(
                 anchor,

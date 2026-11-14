@@ -135,10 +135,10 @@ fn test_voie_c_canonique_egale_voie_b() {
 #[test]
 fn test_voie_c_ordre_invalide_repli_canonique() {
     let reseau = reseau(PNML_CHOIX);
-    let cle_manquante = vec![Atom(0), Atom(1)];
-    let cle_double = vec![Atom(0), Atom(0), Atom(2)];
-    let cle_etrangere = vec![Atom(0), Atom(1), Atom(7)];
-    for ordre in [cle_manquante, cle_double, cle_etrangere] {
+    let key_manquante = vec![Atom(0), Atom(1)];
+    let key_double = vec![Atom(0), Atom(0), Atom(2)];
+    let key_etrangere = vec![Atom(0), Atom(1), Atom(7)];
+    for ordre in [key_manquante, key_double, key_etrangere] {
         let resultat = voie_c(&reseau, &ordre).unwrap();
         assert_eq!(resultat.strategie, StrategieAval::RepliCanonique);
         assert_eq!(resultat.mesure.cardinal, 3);

@@ -23,7 +23,7 @@ use lisage_core::schema::{
     Domaine, ReferenceController, Schema, SchemaError, SchemaKeys, compiler,
 };
 use lisage_lang::value::{Atom, Value};
-use lisage_plan::ordre::{CleMap, ClesMap, Order, Phase, StrategieAval};
+use lisage_plan::ordre::{KeyMap, KeysMap, Order, Phase, StrategieAval};
 
 use crate::pnml::{self, ReseauPetri};
 
@@ -119,7 +119,7 @@ pub struct ResultatVoieC {
 
 /// Path C: DD of the reachable space with **runtime order** — π of the
 /// place keys submitted to the `lisage-plan` planner (`Order::avec_aval_runtime`
-/// on the `ClesMap` descriptor); the adopted order (runtime or canonical) is
+/// on the `KeysMap` descriptor); the adopted order (runtime or canonical) is
 /// used to build the schema.
 pub fn voie_c(
     reseau: &ReseauPetri,
@@ -128,21 +128,21 @@ pub fn voie_c(
     if reseau.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
     }
-    let cles: Vec<Atom> = (0..reseau.nombre_places())
+    let keys: Vec<Atom> = (0..reseau.nombre_places())
         .map(|index| Atom(index as u64))
         .collect();
-    let descripteur = ClesMap(cles);
+    let descripteur = KeysMap(keys);
     // π runtime: presence then value for each key, in the requested order.
-    let pi_runtime: Vec<CleMap> = ordre_runtime
+    let pi_runtime: Vec<KeyMap> = ordre_runtime
         .iter()
-        .flat_map(|cle| {
+        .flat_map(|key| {
             [
-                CleMap {
-                    cle: *cle,
+                KeyMap {
+                    key: *key,
                     phase: Phase::Presence,
                 },
-                CleMap {
-                    cle: *cle,
+                KeyMap {
+                    key: *key,
                     phase: Phase::Value,
                 },
             ]
@@ -152,8 +152,8 @@ pub fn voie_c(
     let ordre_adopte: Vec<Atom> = ordre
         .sequence()
         .iter()
-        .filter_map(|cle_map| match cle_map.phase {
-            Phase::Presence => Some(cle_map.cle),
+        .filter_map(|key_map| match key_map.phase {
+            Phase::Presence => Some(key_map.key),
             Phase::Value => None,
         })
         .collect();
@@ -163,11 +163,11 @@ pub fn voie_c(
 
 /// Builds the DD of the reachable space in the given key order,
 /// then measures (cardinal via pli, live nodes after construction).
-fn voie_dd(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<MesureVoie, ErreurTriptyque> {
+fn voie_dd(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<MesureVoie, ErreurTriptyque> {
     if reseau.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
     }
-    let schema = schema_petri(reseau, ordre_cles)?;
+    let schema = schema_petri(reseau, ordre_keys)?;
     let espace = pnml::espace_atteignable(reseau);
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -189,11 +189,11 @@ fn voie_dd(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<MesureVoie, Erre
 /// `Map(K, V)` schema of a net marking: keys = places in
 /// the given order (π), value domain = `0..=max_jetons` bounded by
 /// the reachable space. π must be a permutation of the place indexes.
-fn schema_petri(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<Schema, ErreurTriptyque> {
+fn schema_petri(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<Schema, ErreurTriptyque> {
     let mut attendues: Vec<Atom> = (0..reseau.nombre_places())
         .map(|index| Atom(index as u64))
         .collect();
-    let mut recues = ordre_cles.to_vec();
+    let mut recues = ordre_keys.to_vec();
     attendues.sort();
     recues.sort();
     if recues != attendues {
@@ -201,7 +201,7 @@ fn schema_petri(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<Schema, Err
     }
     let max_jetons = jetons_max(reseau);
     let domaine = Domaine::new((0..=max_jetons).map(Atom).collect());
-    Ok(Schema::Map(ordre_cles.to_vec(), domaine))
+    Ok(Schema::Map(ordre_keys.to_vec(), domaine))
 }
 
 /// Maximum number of tokens observed on a place in the

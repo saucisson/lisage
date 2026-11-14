@@ -275,12 +275,12 @@ fn lire_balise_ouvrante(
                 return Ok((nom, attributs, false));
             }
             _ => {
-                let clef = lire_nom(octets, position)?;
+                let key = lire_nom(octets, position)?;
                 sauter_espaces(octets, position);
                 attendre(octets, position, '=')?;
                 sauter_espaces(octets, position);
                 let value = lire_chaine(octets, position)?;
-                attributs.insert(clef, value);
+                attributs.insert(key, value);
             }
         }
     }
@@ -670,7 +670,7 @@ pub fn marquage_depuis_value(value: &Value) -> Option<Marquage> {
     match value {
         Value::Map(map) => map
             .iter()
-            .map(|(clef, compte)| match (clef, compte) {
+            .map(|(key, compte)| match (key, compte) {
                 (Value::Atom(c), Value::Atom(n)) => Some((*c, *n)),
                 _ => None,
             })
@@ -727,17 +727,17 @@ pub fn tirer(reseau: &ReseauPetri, transition: &TransitionId, marquage: &Marquag
     let mut resultat = marquage.clone();
     for place in places_entrantes(reseau, transition) {
         if let Some(index) = reseau.index_place(place) {
-            let clef = Atom(index as u64);
-            if let Some(jetons) = resultat.get_mut(&clef) {
+            let key = Atom(index as u64);
+            if let Some(jetons) = resultat.get_mut(&key) {
                 jetons.0 = jetons.0.saturating_sub(1);
             }
         }
     }
     for place in places_sortantes(reseau, transition) {
         if let Some(index) = reseau.index_place(place) {
-            let clef = Atom(index as u64);
+            let key = Atom(index as u64);
             resultat
-                .entry(clef)
+                .entry(key)
                 .and_modify(|jetons| jetons.0 += 1)
                 .or_insert(Atom(1));
         }
@@ -758,7 +758,7 @@ pub fn pas_semantique(reseau: &ReseauPetri, ensemble: &BTreeSet<Value>) -> BTree
                 let suivant = tirer(reseau, &transition.identifiant, &marquage);
                 let map: BTreeMap<Value, Value> = suivant
                     .into_iter()
-                    .map(|(clef, compte)| (Value::Atom(clef), Value::Atom(compte)))
+                    .map(|(key, compte)| (Value::Atom(key), Value::Atom(compte)))
                     .collect();
                 successeurs.insert(Value::Map(map));
             }

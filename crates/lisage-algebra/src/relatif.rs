@@ -140,7 +140,7 @@ pub trait CycleGroup {
     type Argument: Clone + Eq + Hash + Debug;
 
     /// Action: effective key = f(n)(stored key).
-    fn apply(&self, cle: &Self::Key, argument: &Self::Argument) -> Self::Key;
+    fn apply(&self, key: &Self::Key, argument: &Self::Argument) -> Self::Key;
 
     /// Composition law of arguments: f(n₁)∘f(n₂) = f(n₁ ⊕ n₂).
     fn compose(&self, premier: &Self::Argument, second: &Self::Argument) -> Self::Argument;
@@ -172,9 +172,9 @@ impl CycleGroup for ShiftGroup {
     type Key = u64;
     type Argument = i64;
 
-    fn apply(&self, cle: &u64, argument: &i64) -> u64 {
+    fn apply(&self, key: &u64, argument: &i64) -> u64 {
         // Saturated effective reading: the absolute key stays in ℕ.
-        cle.saturating_add_signed(*argument)
+        key.saturating_add_signed(*argument)
     }
 
     fn compose(&self, premier: &i64, second: &i64) -> i64 {
@@ -197,7 +197,7 @@ impl CycleGroup for ShiftGroup {
             Some(&min) => (
                 min as i64,
                 arcs.iter()
-                    .map(|(cle, cible)| (cle - min, *cible))
+                    .map(|(key, cible)| (key - min, *cible))
                     .collect(),
             ),
         }
@@ -225,9 +225,9 @@ impl<Argument: Clone> InputArc<Argument> {
     pub fn read_key<Key>(
         &self,
         groupe: &impl CycleGroup<Key = Key, Argument = Argument>,
-        cle: &Key,
+        key: &Key,
     ) -> Key {
-        groupe.apply(cle, &self.argument)
+        groupe.apply(key, &self.argument)
     }
 
     /// Composition of two readings: the argument accumulates (n₁ ⊕ n₂),

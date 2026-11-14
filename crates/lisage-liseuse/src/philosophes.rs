@@ -101,7 +101,7 @@ pub fn construire_r_n<P: Pool<Key = u64, Payload = bool>>(
                     (2 * i as u64 + 1, fourchette(&mot, n as usize, i)),
                 ]
             })
-            .map(|(cle, value)| (Value::Atom(Atom(cle)), Value::Atom(Atom(value))))
+            .map(|(key, value)| (Value::Atom(Atom(key)), Value::Atom(Atom(value))))
             .collect();
         let membre = compiler(pool, anchor, &schema, &Value::Map(map))
             .expect("reachable state compilable (internal invariant)");

@@ -9,14 +9,14 @@ use std::hash::Hash;
 use lisage_algebra::interface::{Level, NodeId};
 
 /// Level-memory key: (emitting node, level).
-pub type CleMemoire = (NodeId, Level);
+pub type KeyMemoire = (NodeId, Level);
 
 /// Versioned level memory: `M : (id(node), ℓ) ⇀ V` (spec § 3.1). The version
 /// is incremented at each write; it enters the computed-table key (lemma L1:
 /// `τ(n, h)` pure in `(id(n), h, version(M))`).
 #[derive(Clone, Debug)]
 pub struct MemoireNiveau<V: Clone + Eq + Hash + Debug> {
-    inputs: HashMap<CleMemoire, V>,
+    inputs: HashMap<KeyMemoire, V>,
     version: u64,
 }
 

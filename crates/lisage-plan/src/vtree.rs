@@ -11,9 +11,9 @@ use lisage_lang::Atom;
 use crate::ordre::TypeOrdre;
 
 impl TypeOrdre for Vtree {
-    type Cle = Atom;
+    type Key = Atom;
 
-    fn cles_canoniques(&self) -> Vec<Atom> {
+    fn keys_canoniques(&self) -> Vec<Atom> {
         self.ordre_plat()
     }
 

@@ -4,7 +4,7 @@
 //! Liseuse.
 
 use lisage_core::Anchor;
-use lisage_core::operations::{ClePresentes, existe, filtrer};
+use lisage_core::operations::{KeyPresentes, existe, filtrer};
 use lisage_core::pli::compter;
 use lisage_liseuse::philosophes::{
     cellules_legales, compter_r_n, construire_mangeurs, construire_r_n, mots_atteignables,
@@ -50,7 +50,7 @@ fn test_filter_cellule_zero_mange() {
             anchor,
             &schema,
             root,
-            Box::new(|cles: &ClePresentes| cles.contains(&0)),
+            Box::new(|keys: &KeyPresentes| keys.contains(&0)),
         )
         .unwrap();
         let mut output2 = pool_neuf(&schema);
@@ -91,7 +91,7 @@ fn test_exists_sur_r_n() {
             anchor,
             &schema,
             root,
-            Box::new(|cles: &ClePresentes| cles.contains(&0)),
+            Box::new(|keys: &KeyPresentes| keys.contains(&0)),
         )
         .unwrap();
         assert!(un_mange, "n={n} : a state where cell 0 eats exists");
@@ -102,7 +102,7 @@ fn test_exists_sur_r_n() {
             anchor,
             &schema,
             root,
-            Box::new(move |cles: &ClePresentes| (0..n_copie).all(|i| cles.contains(&i))),
+            Box::new(move |keys: &KeyPresentes| (0..n_copie).all(|i| keys.contains(&i))),
         )
         .unwrap();
         assert!(!toutes_mangent, "n={n} : no state where all the cells eat");

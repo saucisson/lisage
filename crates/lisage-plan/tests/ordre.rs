@@ -4,7 +4,7 @@
 
 use lisage_lang::Atom;
 use lisage_plan::ordre::{
-    Aligne, CleMap, ClesMap, DomaineAtomes, ErreurOrdre, MarqueOrdre, Order, Phase, StrategieAval,
+    Aligne, DomaineAtomes, ErreurOrdre, KeyMap, KeysMap, MarqueOrdre, Order, Phase, StrategieAval,
     TypeOrdre,
 };
 
@@ -22,7 +22,7 @@ struct MarqueInverse;
 
 impl MarqueOrdre<DomaineAtomes> for MarqueInverse {
     fn ordre(descripteur: &DomaineAtomes) -> Order<DomaineAtomes> {
-        let mut pi = descripteur.cles_canoniques();
+        let mut pi = descripteur.keys_canoniques();
         pi.reverse();
         Order::new(descripteur, pi).expect("the reversed order is a valid permutation")
     }
@@ -38,8 +38,8 @@ fn test_ordre_canonique_identite() {
     assert_eq!(ordre.position(&Atom(0)), Some(0));
     assert_eq!(ordre.position(&Atom(2)), Some(2));
     assert_eq!(ordre.position(&Atom(9)), None);
-    assert_eq!(ordre.cle(1), Some(&Atom(1)));
-    assert_eq!(ordre.cle(3), None);
+    assert_eq!(ordre.key(1), Some(&Atom(1)));
+    assert_eq!(ordre.key(3), None);
     assert!(ordre.contraintes().is_empty());
 }
 
@@ -54,7 +54,7 @@ fn test_nouvel_ordre_permutation_valide() {
         "π: canonical → position"
     );
     assert_eq!(ordre.position(&Atom(2)), Some(0));
-    assert_eq!(ordre.cle(0), Some(&Atom(2)));
+    assert_eq!(ordre.key(0), Some(&Atom(2)));
 }
 
 /// M3-1: π that is not a permutation is rejected (typed error).
@@ -82,18 +82,18 @@ fn test_nouvel_ordre_rejete_si_pas_une_permutation() {
 /// checked — for `Map(K, V)`, a key's presence precedes its value.
 #[test]
 fn test_contraintes_map_presence_avant_value() {
-    let cles = ClesMap(vec![Atom(0), Atom(1)]);
-    let canonique = Order::canonique(&cles);
+    let keys = KeysMap(vec![Atom(0), Atom(1)]);
+    let canonique = Order::canonique(&keys);
     assert_eq!(canonique.taille(), 4);
     assert_eq!(canonique.contraintes().len(), 2, "one constraint per key");
     // Canonical order: satisfies the constraints.
     assert!(
         Order::new(
-            &cles,
+            &keys,
             canonique
                 .permutation()
                 .iter()
-                .map(|&p| *canonique.cle(p).unwrap())
+                .map(|&p| *canonique.key(p).unwrap())
                 .collect::<Vec<_>>()
         )
         .is_ok()
@@ -101,32 +101,32 @@ fn test_contraintes_map_presence_avant_value() {
 
     // Value before presence for key 1: constraint violated.
     let violee = vec![
-        CleMap {
-            cle: Atom(0),
+        KeyMap {
+            key: Atom(0),
             phase: Phase::Presence,
         },
-        CleMap {
-            cle: Atom(0),
+        KeyMap {
+            key: Atom(0),
             phase: Phase::Value,
         },
-        CleMap {
-            cle: Atom(1),
+        KeyMap {
+            key: Atom(1),
             phase: Phase::Value,
         },
-        CleMap {
-            cle: Atom(1),
+        KeyMap {
+            key: Atom(1),
             phase: Phase::Presence,
         },
     ];
     assert_eq!(
-        Order::new(&cles, violee),
+        Order::new(&keys, violee),
         Err(ErreurOrdre::ContrainteViolee {
-            avant: CleMap {
-                cle: Atom(1),
+            avant: KeyMap {
+                key: Atom(1),
                 phase: Phase::Presence
             },
-            apres: CleMap {
-                cle: Atom(1),
+            apres: KeyMap {
+                key: Atom(1),
                 phase: Phase::Value
             },
         })
@@ -135,30 +135,30 @@ fn test_contraintes_map_presence_avant_value() {
     // Presence and value of the same key swapped in total disorder:
     // any permutation that inverts a (presence, value) pair is rejected.
     let inverse = Order::new(
-        &cles,
+        &keys,
         vec![
-            CleMap {
-                cle: Atom(1),
+            KeyMap {
+                key: Atom(1),
                 phase: Phase::Presence,
             },
-            CleMap {
-                cle: Atom(1),
+            KeyMap {
+                key: Atom(1),
                 phase: Phase::Value,
             },
-            CleMap {
-                cle: Atom(0),
+            KeyMap {
+                key: Atom(0),
                 phase: Phase::Presence,
             },
-            CleMap {
-                cle: Atom(0),
+            KeyMap {
+                key: Atom(0),
                 phase: Phase::Value,
             },
         ],
     )
     .unwrap();
     assert_eq!(
-        inverse.position(&CleMap {
-            cle: Atom(1),
+        inverse.position(&KeyMap {
+            key: Atom(1),
             phase: Phase::Presence
         }),
         Some(0)
@@ -204,7 +204,7 @@ fn test_alignement_comme_typage_composition_sous_meme_marque() {
 }
 
 /// Property (deterministic LCG): for any valid permutation π of a domain
-/// of n atoms, `position ∘ cle` is the identity and `permutation`
+/// of n atoms, `position ∘ key` is the identity and `permutation`
 /// is a bijection; Map constraints are satisfied by the canonical order.
 #[test]
 fn test_propriete_permutation_valide_bijection() {
@@ -236,8 +236,8 @@ fn test_propriete_permutation_valide_bijection() {
             .collect();
         positions.sort();
         assert_eq!(positions, (0..taille).collect::<Vec<_>>(), "π bijective");
-        for (index, cle) in pi.iter().enumerate() {
-            assert_eq!(ordre.cle(ordre.position(cle).unwrap()), Some(cle));
+        for (index, key) in pi.iter().enumerate() {
+            assert_eq!(ordre.key(ordre.position(key).unwrap()), Some(key));
             let _ = index;
         }
         let mut permutation = ordre.permutation();
@@ -246,8 +246,8 @@ fn test_propriete_permutation_valide_bijection() {
     }
 
     // Map constraints: the canonical order always satisfies them.
-    let cles = ClesMap((0..5).map(Atom).collect());
-    let canonique = Order::canonique(&cles);
+    let keys = KeysMap((0..5).map(Atom).collect());
+    let canonique = Order::canonique(&keys);
     for (avant, apres) in canonique.contraintes() {
         assert!(canonique.position(avant) < canonique.position(apres));
     }
@@ -257,25 +257,25 @@ fn test_propriete_permutation_valide_bijection() {
 fn test_aval_runtime_ordre_valide_adopte() {
     // Valid runtime π (permutation respecting presence < value):
     // OrdreRuntime strategy, sequence = provided π.
-    let cles = ClesMap(vec![Atom(0), Atom(1)]);
-    let presence_0 = CleMap {
-        cle: Atom(0),
+    let keys = KeysMap(vec![Atom(0), Atom(1)]);
+    let presence_0 = KeyMap {
+        key: Atom(0),
         phase: Phase::Presence,
     };
-    let value_0 = CleMap {
-        cle: Atom(0),
+    let value_0 = KeyMap {
+        key: Atom(0),
         phase: Phase::Value,
     };
-    let presence_1 = CleMap {
-        cle: Atom(1),
+    let presence_1 = KeyMap {
+        key: Atom(1),
         phase: Phase::Presence,
     };
-    let value_1 = CleMap {
-        cle: Atom(1),
+    let value_1 = KeyMap {
+        key: Atom(1),
         phase: Phase::Value,
     };
     let pi_runtime = vec![presence_1, value_1, presence_0, value_0];
-    let (ordre, strategie) = Order::avec_aval_runtime(&cles, pi_runtime.clone());
+    let (ordre, strategie) = Order::avec_aval_runtime(&keys, pi_runtime.clone());
     assert_eq!(strategie, StrategieAval::OrdreRuntime);
     assert_eq!(ordre.sequence(), pi_runtime.as_slice());
 }
@@ -284,27 +284,27 @@ fn test_aval_runtime_ordre_valide_adopte() {
 fn test_aval_runtime_contrainte_violee_repli_canonique() {
     // Runtime π that violates presence < value for key 0:
     // fallback to the canonical order (degraded reordering as fallback).
-    let cles = ClesMap(vec![Atom(0), Atom(1)]);
-    let presence_0 = CleMap {
-        cle: Atom(0),
+    let keys = KeysMap(vec![Atom(0), Atom(1)]);
+    let presence_0 = KeyMap {
+        key: Atom(0),
         phase: Phase::Presence,
     };
-    let value_0 = CleMap {
-        cle: Atom(0),
+    let value_0 = KeyMap {
+        key: Atom(0),
         phase: Phase::Value,
     };
-    let presence_1 = CleMap {
-        cle: Atom(1),
+    let presence_1 = KeyMap {
+        key: Atom(1),
         phase: Phase::Presence,
     };
-    let value_1 = CleMap {
-        cle: Atom(1),
+    let value_1 = KeyMap {
+        key: Atom(1),
         phase: Phase::Value,
     };
     let pi_invalide = vec![value_0, presence_0, presence_1, value_1];
-    let (ordre, strategie) = Order::avec_aval_runtime(&cles, pi_invalide);
+    let (ordre, strategie) = Order::avec_aval_runtime(&keys, pi_invalide);
     assert_eq!(strategie, StrategieAval::RepliCanonique);
-    let canonique = Order::canonique(&cles);
+    let canonique = Order::canonique(&keys);
     assert_eq!(ordre.sequence(), canonique.sequence());
     assert_eq!(ordre, canonique);
 }

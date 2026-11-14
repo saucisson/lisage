@@ -115,7 +115,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
         }
         if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
             let depart = &placement[&node];
-            for (cle, cible) in arcs {
+            for (key, cible) in arcs {
                 let arrivee = &placement[cible];
                 svg.push_str(&format!(
                     "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\"/>\n",
@@ -130,7 +130,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
                     (depart.x + arrivee.x) / 2,
                     (depart.y + arrivee.y) / 2,
                     couleurs.etiquette,
-                    echapper_xml(&cle.to_string())
+                    echapper_xml(&key.to_string())
                 ));
                 pile.push(*cible);
             }

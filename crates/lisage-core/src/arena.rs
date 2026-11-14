@@ -18,14 +18,14 @@ use crate::biplan::{IndexNiveaux, MetriquesPool, NodeEntry, Plan, StatsGc, seuil
 use crate::observer::{Observer, ReductionRule, TraceEvent};
 
 /// Hash-consing key: (controller, anchor, form).
-type CleInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
+type KeyInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
 
 /// Arena: canonical, content-addressed storage of forms. Holds the
 /// controller instance: its key algebra (parameterized by the schema, M1-3)
 /// decides normal forms, cardinalities and defaults.
 pub struct Arena<C: Controller> {
     nodes: Vec<NodeEntry<C::Key, C::Payload>>,
-    unique: HashMap<CleInterning<C::Key, C::Payload>, NodeId>,
+    unique: HashMap<KeyInterning<C::Key, C::Payload>, NodeId>,
     /// Shadow-plane index: level → live nodes of that level.
     index_niveaux: IndexNiveaux,
     metriques: MetriquesPool,
@@ -227,7 +227,7 @@ impl<C: Controller> Arena<C> {
         // Didactic workshop (backlog § 9): the controller can toggle
         // R-default and R-collapse one at a time.
         let default_active = self.controleur.default_active();
-        let cle_defaut = if default_active {
+        let key_defaut = if default_active {
             self.controleur.keys().default(level)
         } else {
             None
@@ -244,7 +244,7 @@ impl<C: Controller> Arena<C> {
         };
         // M4-3: generalized default (D-abs/D-trans) if the controller enables it.
         let reduit = if !self.controleur.collapse_active() {
-            reduire_sans_collapse(arcs, cle_defaut, &est_defaut)
+            reduire_sans_collapse(arcs, key_defaut, &est_defaut)
         } else if self.controleur.generalized_absorption() {
             // NodeId of D^default under this anchor, if already interned (used
             // for D-trans on empty form A = ∅).
@@ -253,9 +253,9 @@ impl<C: Controller> Arena<C> {
                     .get(&(Self::CONTROLLER, anchor, Form::Terminal(p.clone())))
                     .copied()
             });
-            crate_reduction_dabs(arcs, cle_defaut, &est_defaut, cardinalite, defaut)
+            crate_reduction_dabs(arcs, key_defaut, &est_defaut, cardinalite, defaut)
         } else {
-            reduire(arcs, cle_defaut, &est_defaut, cardinalite)
+            reduire(arcs, key_defaut, &est_defaut, cardinalite)
         };
         match reduit {
             Reduction::Collapse(cible) => Err(cible),
@@ -300,8 +300,8 @@ impl<C: Controller> Pool for Arena<C> {
             }
             terminal => terminal,
         };
-        let cle = (Self::CONTROLLER, anchor, forme.clone());
-        if let Some(node) = self.unique.get(&cle) {
+        let key = (Self::CONTROLLER, anchor, forme.clone());
+        if let Some(node) = self.unique.get(&key) {
             self.metriques.partages += 1;
             self.observer
                 .on_event(&TraceEvent::NodeShared { node: *node });
@@ -319,7 +319,7 @@ impl<C: Controller> Pool for Arena<C> {
         if let Some(level) = level {
             self.index_niveaux.entry(level).or_default().insert(node);
         }
-        self.unique.insert(cle, node);
+        self.unique.insert(key, node);
         self.metriques.creations += 1;
         self.observer
             .on_event(&TraceEvent::NodeCreated { node, level });
