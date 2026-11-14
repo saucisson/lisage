@@ -228,10 +228,10 @@ fn test_conversion_ancree_dans_piste_arbre() {
     // The arrow starts from the middle of the tree track (3 levels of 44 px,
     // i.e. y_track + 66): parsed y1, strictly under the root and its first
     // level — an anchoring on the root (y_track + 28) would fail here.
-    let y_racine = y_texte(&svg, ">record<");
+    let y_root = y_texte(&svg, ">record<");
     let y1 = y1_fleche_conversion(&svg);
     assert!(
-        y1 > y_racine + 44,
-        "arrow anchored at the middle of the track (y1={y1}, root={y_racine})"
+        y1 > y_root + 44,
+        "arrow anchored at the middle of the track (y1={y1}, root={y_root})"
     );
 }
