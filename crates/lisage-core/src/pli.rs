@@ -1,23 +1,23 @@
-//! Pli et semi-anneaux (M1-6, spec § 5, énoncés A4/A5/C7).
+//! Fold and semirings (M1-6, spec § 5, statements A4/A5/C7).
 //!
-//! **Deux algèbres déclarées (A5)** : le semi-anneau de **construction**
-//! (le merge des écrits) et le semi-anneau de **requête** (paramètre de la
-//! transduction) sont deux déclarations distinctes. La construction est
-//! `Bool` idempotent — **le hash-consing est ce choix** : [`union`] est
-//! l'union idempotente, elle détruit la multiplicité à l'écriture. Le
-//! semi-anneau de requête est le paramètre `S` de [`Pli`] : un pli est
-//! exact ssi sa lecture factorise par ce que la construction a préservé ;
-//! sur une construction Bool, seul le cardinal est exact (spec § 5.1).
+//! **Two declared algebras (A5)**: the **construction** semiring (the merge
+//! of writes) and the **query** semiring (parameter of the transduction) are
+//! two distinct declarations. The construction is idempotent `Bool` —
+//! **hash-consing is this choice**: [`union`] is the idempotent union, it
+//! destroys multiplicity at write time. The query semiring is the parameter
+//! `S` of [`Pli`]: a fold is exact iff its reading factors through what the
+//! construction preserved; on a Bool construction, only the cardinal is
+//! exact (spec § 5.1).
 //!
-//! **Pli** [`Pli<S>`] : `H` trivial, le terminal produit la base
-//! (`poids(⊤) = 1`, `poids(⊥) = 0`), `φ_aggr` la structure du semi-anneau.
-//! L'expansion-comptage **(A4)** : entre un nœud de niveau `ℓ` et un fils
-//! de niveau `ℓ'`, les niveaux `ℓ+1..ℓ'` ont été collapsés (toutes leurs
-//! valeurs mènent à la même continuation) ⇒ le poids de l'arc est
-//! multiplié par `∏ |Val(n)|`. L'arc par défaut implicite (R-default)
-//! contribue le poids de `D_δ` — sur l'instance de référence `D_δ =
-//! terminal(false)`, de poids nul (A6 : une construction levée paierait
-//! son poids ici).
+//! **Fold** [`Pli<S>`]: trivial `H`, the terminal produces the base
+//! (`weight(⊤) = 1`, `weight(⊥) = 0`), `φ_aggr` the structure of the
+//! semiring. The **expansion-counting** (A4): between a node of level `ℓ`
+//! and a child of level `ℓ'`, the levels `ℓ+1..ℓ'` have been collapsed (all
+//! their values lead to the same continuation) ⇒ the weight of the arc is
+//! multiplied by `∏ |Val(n)|`. The implicit default arc (R-default)
+//! contributes the weight of `D_δ` — on the reference instance `D_δ =
+//! terminal(false)`, of zero weight (A6: a lifted construction would pay its
+//! weight here).
 
 use std::collections::BTreeMap;
 use std::fmt::Debug;
@@ -30,25 +30,25 @@ use crate::error::CoreError;
 use crate::schema::{Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
-/// Semi-anneau de requête d'un pli (spec § 5) : `(S, ⊕, ×)` avec zéros et
-/// unités. `depuis_cardinalite` traduit `|Val(ℓ)|` dans `S` (A4).
+/// Query semiring of a fold (spec § 5): `(S, ⊕, ×)` with zeros and units.
+/// `depuis_cardinalite` translates `|Val(ℓ)|` into `S` (A4).
 pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
-    /// Empreinte du semi-anneau : entre dans le fingerprint de la mémo.
+    /// Fingerprint of the semiring: enters the memo fingerprint.
     const FINGERPRINT: u64;
 
-    /// Élément neutre de ⊕ (zéro).
+    /// Neutral element of ⊕ (zero).
     fn zero() -> Self;
-    /// Élément neutre de × (un).
+    /// Neutral element of × (one).
     fn un() -> Self;
-    /// Cardinalité d'un niveau, traduite dans le semi-anneau (A4).
+    /// Cardinality of a level, translated into the semiring (A4).
     fn depuis_cardinalite(cardinalite: u64) -> Self;
-    /// ⊕ (agrégation des fils).
+    /// ⊕ (aggregation of children).
     fn plus(&self, autre: &Self) -> Self;
-    /// × (poids des arcs par les sous-totaux).
+    /// × (weights of arcs by subtotals).
     fn fois(&self, autre: &Self) -> Self;
 }
 
-/// `(ℕ, +, ×)` : le semi-anneau du comptage cardinal (spec § 5).
+/// `(ℕ, +, ×)`: the cardinal counting semiring (spec § 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Naturel(pub u64);
 
@@ -72,7 +72,7 @@ impl SemiAnneau for Naturel {
     }
 }
 
-/// `(Bool, ∨, ∧)` : le semi-anneau des ∃-summaries (`exists`, spec § 5).
+/// `(Bool, ∨, ∧)`: the semiring of ∃-summaries (`exists`, spec § 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BoolOu(pub bool);
 
@@ -96,9 +96,9 @@ impl SemiAnneau for BoolOu {
     }
 }
 
-/// Pli (fold) sur un semi-anneau de requête `S` (spec § 5) : `H` trivial,
-/// le diagramme de sortie est la copie identité de l'entrée, et l'attribut
-/// synthétisé est la valeur du pli. `Pli<Naturel>` = `count`.
+/// Fold over a query semiring `S` (spec § 5): trivial `H`, the output
+/// diagram is the identity copy of the input, and the synthesized attribute
+/// is the value of the fold. `Pli<Naturel>` = `count`.
 pub struct Pli<S: SemiAnneau> {
     keys: SchemaKeys,
     nombre_niveaux: u32,
@@ -106,8 +106,8 @@ pub struct Pli<S: SemiAnneau> {
 }
 
 impl<S: SemiAnneau> Pli<S> {
-    /// Pli sur le schéma donné (les cardinalités des niveaux viennent de
-    /// l'algèbre de clés du schéma, A4).
+    /// Fold on the given schema (the level cardinalities come from the
+    /// schema's key algebra, A4).
     pub fn new(schema: Schema) -> Self {
         let nombre_niveaux = schema.nombre_niveaux();
         Pli {
@@ -117,25 +117,24 @@ impl<S: SemiAnneau> Pli<S> {
         }
     }
 
-    /// Poids d'un terminal : `poids(⊤) = 1`, `poids(⊥) = 0` (spec § 5).
+    /// Weight of a terminal: `weight(⊤) = 1`, `weight(⊥) = 0` (spec § 5).
     fn poids(&self, payload: bool) -> S {
         if payload { S::un() } else { S::zero() }
     }
 
-    /// (A4) multiplicateur de l'arc `v` du niveau `ℓ` vers un fils de
-    /// niveau `niveau_cible` (`None` = terminal) : produit des cardinalités
-    /// des niveaux sautés **sur le chemin** de l'arc. Un niveau valeur
-    /// sauté a été collapsé avec toutes ses valeurs explicites ⇒ facteur
-    /// `|Val(n)|` ; un niveau de présence sauté ne collapse que par son arc
-    /// par défaut (facteur 1) et son niveau valeur `n+1` est hors chemin.
+    /// (A4) multiplier of arc `v` of level `ℓ` towards a child of level
+    /// `niveau_cible` (`None` = terminal): product of the cardinalities of
+    /// the skipped levels **on the path** of the arc. A skipped value level
+    /// has been collapsed with all its explicit values ⇒ factor `|Val(n)|`;
+    /// a skipped presence level only collapses through its default arc
+    /// (factor 1) and its value level `n+1` is off the path.
     fn multiplicateur(&self, level: Level, arc: u64, niveau_cible: Option<Level>) -> S {
         let borne = match niveau_cible {
             Some(niveau) => niveau.0,
             None => self.nombre_niveaux,
         };
-        // Prochain niveau sur le chemin de l'arc : un niveau valeur est
-        // toujours suivi ; une présence suivie de l'arc par défaut saute
-        // le niveau valeur.
+        // Next level on the path of the arc: a value level is always followed;
+        // a presence followed by the default arc skips the value level.
         let mut n = match self.keys.default(level) {
             Some(defaut) if arc == defaut => level.0 + 2,
             _ => level.0 + 1,
@@ -143,7 +142,7 @@ impl<S: SemiAnneau> Pli<S> {
         let mut produit = S::un();
         while n < borne {
             if self.keys.default(Level(n)).is_some() {
-                // Niveau de présence sauté : collapse par défaut seul.
+                // Skipped presence level: collapse through default only.
                 n += 2;
             } else {
                 produit = produit.fois(&S::depuis_cardinalite(self.keys.cardinality(Level(n))));
@@ -176,8 +175,8 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
             let multiplicateur = self.multiplicateur(level, *arc, *niveau_cible);
             total = total.plus(&multiplicateur.fois(s));
         }
-        // Arc par défaut implicite (R-default) : sa continuation est D_δ,
-        // de poids `poids(false)` sur l'instance de référence (A6).
+        // Implicit default arc (R-default): its continuation is D_δ, of
+        // weight `weight(false)` on the reference instance (A6).
         if let Some(defaut) = self.keys.default(level)
             && !arcs.contains_key(&defaut)
         {
@@ -191,7 +190,7 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
     ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
-        // Copie identité : le pli ne transforme pas le diagramme.
+        // Identity copy: the fold does not transform the diagram.
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(
@@ -218,8 +217,8 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
     }
 }
 
-/// Comptage cardinal d'un diagramme (ensemble dénoté) : pli sur `(ℕ, +, ×)`,
-/// exact sur construction Bool (A5). Lève le résultat du canal synthétisé.
+/// Cardinal count of a diagram (denoted set): fold over `(ℕ, +, ×)`, exact
+/// on Bool construction (A5). Raises the result of the synthesized channel.
 pub fn compter<PIn, POut>(
     pool_entree: &PIn,
     pool_sortie: &mut POut,
@@ -236,12 +235,12 @@ where
     Ok(total.0)
 }
 
-/// Union de deux diagrammes à payload `bool` (merge de construction, A5) :
-/// l'union idempotente — **le hash-consing est ce choix Bool** : la
-/// multiplicité est détruite à l'écriture, seul le cardinal est exact.
-/// Style ZDD : le terminal `⊤` est le membre « tous les niveaux par
-/// défaut » (porté par l'arc `δ(ℓ)`), et un nœud de niveau supérieur à
-/// `ℓ` est la continuation de l'arc par défaut du niveau `ℓ`.
+/// Union of two diagrams with payload `bool` (construction merge, A5): the
+/// idempotent union — **hash-consing is this Bool choice**: multiplicity is
+/// destroyed at write time, only the cardinal is exact. ZDD style: the
+/// terminal `⊤` is the member "all levels by default" (carried by the arc
+/// `δ(ℓ)`), and a node of level higher than `ℓ` is the continuation of the
+/// default arc of level `ℓ`.
 pub fn union<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     keys: &SchemaKeys,
@@ -304,7 +303,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
                     },
                 ))
             } else if level_a < level_b {
-                // Le nœud b est la continuation de l'arc par défaut de a.
+                // Node b is the continuation of the default arc of a.
                 union_avec_autre(pool, keys, anchor, level_a, arcs_a, b)
             } else {
                 union_avec_autre(pool, keys, anchor, level_b, arcs_b, a)
@@ -313,11 +312,10 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
     }
 }
 
-/// Union d'un nœud de niveau `level` avec un autre diagramme `autre`
-/// (terminal `⊤`, ou nœud plus profond) : le chemin de `autre` passe par
-/// l'arc par défaut `δ(level)` si le niveau en a un (les arcs absents
-/// valent δ) ; sinon (niveau valeur) il passe par **toutes** les valeurs
-/// du niveau, explicites ou non.
+/// Union of a node of level `level` with another diagram `autre` (terminal
+/// `⊤`, or deeper node): the path of `autre` goes through the default arc
+/// `δ(level)` if the level has one (absent arcs equal δ); otherwise (value
+/// level) it goes through **all** values of the level, explicit or not.
 fn union_avec_autre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     keys: &SchemaKeys,

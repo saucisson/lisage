@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4: lisage-core translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: all French comments (`//`, `///`, `//!`) and macro string literals (`panic!`/`assert!`/`assert_eq!`/`debug_assert!`/`format!`/`write!`/`writeln!`/`unreachable!`/`expect`) in `crates/lisage-core/` (21 src files + 22 test files) translated to natural English. Public identifiers kept as-is (French) until dependent crates are processed. Remaining accents are in identifiers (`CanalAttr::Synthétise`), citations (`à la Ciardo`), and math notation (`D^défaut`).
+- **Evidence**: `cargo check --workspace` passes; `cargo test -p lisage-core` — 25 test suites, 0 failures; `cargo fmt -p lisage-core` clean. Accent grep on comment lines returns only identifier/notation references.
+- **Judgement calls**: translation done by three parallel subagents (src part 1, src part 2, tests) to handle the 1534-line volume; each verified with cargo check/test/fmt independently.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-3 docs part 1/8: specification translated to English (issue #106)
 
 - **Issue**: #106 (M6-3, milestone M6).

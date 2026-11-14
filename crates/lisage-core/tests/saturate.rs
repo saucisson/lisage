@@ -1,12 +1,12 @@
-//! Tests de `saturate` (M2-4, spec § 7, T2/T3) : point fixe croissant,
-//! terminaison, restriction par niveaux de la politique Statique, retrait
-//! des niveaux stabilisés par la politique AutoDetectee, et chaîne
-//! croissante multi-itérations via `saturer`.
+//! Tests for `saturate` (M2-4, spec § 7, T2/T3): increasing fixed point,
+//! termination, level restriction of the Statique policy, removal of the
+//! levels stabilized by the AutoDetectee policy, and multi-iteration
+//! increasing chain via `saturer`.
 //!
-//! Les diagrammes dénotent des familles d'ensembles (style ZDD) : le
-//! point fixe de `X ⊕ τ(X)` avec une étape émettant le singleton `{a}` est
-//! la famille `{X, {a}}` — on compare donc les nœuds (et les cardinaux
-//! via `compter`), pas les valeurs décompilées.
+//! The diagrams denote families of sets (ZDD style): the fixed point of
+//! `X ⊕ τ(X)` with a step emitting the singleton `{a}` is the family
+//! `{X, {a}}` — so we compare nodes (and cardinalities via `compter`), not
+//! decompiled values.
 
 use std::collections::BTreeMap;
 
@@ -19,14 +19,14 @@ use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, comp
 use lisage_core::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::{Atom, Value};
 
-/// Fingerprint de la transduction identité de test.
+/// Fingerprint of the test identity transduction.
 const FINGERPRINT_IDENTITE: u64 = 4001;
-/// Fingerprint de la transduction d'étape `EmetSingleton`.
+/// Fingerprint of the `EmetSingleton` step transduction.
 const FINGERPRINT_EMET_SINGLETON: u64 = 4002;
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Transduction identité : copie le diagramme (union avec soi-même).
+/// Identity transduction: copies the diagram (union with itself).
 #[derive(Clone)]
 struct Identite;
 
@@ -71,9 +71,9 @@ impl Transduction for Identite {
     }
 }
 
-/// Transduction d'étape qui émet toujours le singleton donné, quel que soit
-/// le nœud d'entrée : `τ(X) = {{ajout}}` pour tout `X` non terminal. L'union
-/// `X ⊕ {{ajout}}` fait croître la famille `X` jusqu'à contenir `{ajout}`.
+/// Step transduction that always emits the given singleton, whatever the
+/// input node: `τ(X) = {{ajout}}` for any non-terminal `X`. The union
+/// `X ⊕ {{ajout}}` grows the family `X` until it contains `{ajout}`.
 #[derive(Clone)]
 struct EmetSingleton {
     singleton: NodeId,
@@ -112,7 +112,7 @@ impl Transduction for EmetSingleton {
     }
 }
 
-/// Construit un pool neuf pour le schéma donné.
+/// Builds a fresh pool for the given schema.
 fn nouveau_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
@@ -120,7 +120,7 @@ fn nouveau_pool(schema: &Schema) -> PoolRef {
     )
 }
 
-/// Compile un ensemble d'atomes dans le pool.
+/// Compiles a set of atoms in the pool.
 fn compiler_ensemble(
     pool: &mut PoolRef,
     anchor: Anchor,
@@ -136,14 +136,14 @@ fn compiler_ensemble(
     .unwrap()
 }
 
-/// Cardinal d'un diagramme (nombre de membres de la famille dénotée).
+/// Cardinality of a diagram (number of members of the denoted family).
 fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
     let mut sortie = nouveau_pool(schema);
     compter(pool, &mut sortie, Anchor(0), schema, noeud).unwrap()
 }
 
-/// M2-4, T2 : `saturer` termine et atteint un point fixe — avec une étape
-/// identité, le point fixe est immédiat (1 itération) et `X ⊕ id(X) = X`.
+/// M2-4, T2: `saturer` terminates and reaches a fixed point — with an identity
+/// step, the fixed point is immediate (1 iteration) and `X ⊕ id(X) = X`.
 #[test]
 fn test_saturate_termine_et_point_fixe() {
     let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
@@ -166,13 +166,13 @@ fn test_saturate_termine_et_point_fixe() {
     let resultat = saturer(&mut params).unwrap();
     assert_eq!(
         resultat.iterations, 1,
-        "identité : point fixe immédiat (T2)"
+        "identity: immediate fixed point (T2)"
     );
     assert_eq!(resultat.noeud, initial, "X ⊕ id(X) = X");
 }
 
-/// M2-4 : les deux politiques atteignent le même point fixe lorsque
-/// `Statique` déclare tous les niveaux du schéma.
+/// M2-4: both policies reach the same fixed point when `Statique` declares
+/// all the levels of the schema.
 #[test]
 fn test_saturate_politiques_equivalentes() {
     let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
@@ -213,27 +213,27 @@ fn test_saturate_politiques_equivalentes() {
 
     assert_eq!(
         r_statique.noeud, initial_s,
-        "statique : point fixe = initial"
+        "statique: fixed point = initial"
     );
     assert_eq!(
         r_auto.noeud, initial_a,
-        "auto-détectée : point fixe = initial"
+        "auto-detected: fixed point = initial"
     );
     assert_eq!(r_statique.iterations, r_auto.iterations);
 }
 
-/// M2-4 : la politique `Statique` restreint réellement les niveaux actifs —
-/// avec une étape qui émet un singleton à la racine (niveau 0), exclure le
-/// niveau 0 de la liste statique laisse le point fixe inchangé, tandis que
-/// `AutoDetectee` (tous niveaux actifs) l'atteint avec le singleton ajouté.
-/// Ce test échoue si le paramètre `politique` est ignoré.
+/// M2-4: the `Statique` policy really restricts the active levels — with a
+/// step that emits a singleton at the root (level 0), excluding level 0 from
+/// the static list leaves the fixed point unchanged, while `AutoDetectee` (all
+/// levels active) reaches it with the singleton added. This test fails if the
+/// `politique` parameter is ignored.
 #[test]
 fn test_saturate_statique_restreint_les_niveaux() {
     let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
 
-    // Politique Statique excluant le niveau racine 0.
+    // Statique policy excluding the root level 0.
     let niveaux_sans_racine: Vec<Level> = (1..schema.nombre_niveaux()).map(Level).collect();
     let politique_statique = PolitiqueSaturation::Statique(niveaux_sans_racine);
     let mut pool_s = nouveau_pool(&schema);
@@ -255,12 +255,11 @@ fn test_saturate_statique_restreint_les_niveaux() {
     let r_statique = saturer(&mut params).unwrap();
     assert_eq!(
         r_statique.noeud, initial_s,
-        "niveau racine exclu : l'étape n'y est pas appliquée, point fixe = initial"
+        "root level excluded: the step is not applied there, fixed point = initial"
     );
     assert_eq!(r_statique.iterations, 1);
 
-    // Politique AutoDetectee : tous les niveaux actifs, le singleton est
-    // atteint.
+    // AutoDetectee policy: all levels active, the singleton is reached.
     let politique_auto = PolitiqueSaturation::AutoDetectee;
     let mut pool_a = nouveau_pool(&schema);
     let initial_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[0]);
@@ -282,18 +281,18 @@ fn test_saturate_statique_restreint_les_niveaux() {
     let r_auto = saturer(&mut params).unwrap();
     assert_eq!(
         r_auto.noeud, attendu_a,
-        "tous niveaux actifs : le point fixe contient le singleton émis"
+        "all levels active: the fixed point contains the emitted singleton"
     );
     assert!(
         r_auto.iterations >= 2,
-        "chaîne croissante : plusieurs itérations, got {}",
+        "increasing chain: several iterations, got {}",
         r_auto.iterations
     );
 }
 
-/// M2-4, T2 : `saturer` avec une étape non triviale — chaîne croissante
-/// `{{0}} → {{0},{2}}` en appelant `saturer` (plusieurs itérations de la
-/// boucle de point fixe, pas une boucle réécrite à la main).
+/// M2-4, T2: `saturer` with a non-trivial step — increasing chain
+/// `{{0}} → {{0},{2}}` by calling `saturer` (several iterations of the fixed
+/// point loop, not a hand-rewritten loop).
 #[test]
 fn test_saturate_chaine_croissante_multi_iterations() {
     let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
@@ -321,13 +320,13 @@ fn test_saturate_chaine_croissante_multi_iterations() {
     let resultat = saturer(&mut params).unwrap();
     assert!(
         resultat.iterations >= 2,
-        "chaîne croissante : plusieurs itérations, got {}",
+        "increasing chain: several iterations, got {}",
         resultat.iterations
     );
-    assert!(resultat.iterations <= BORNE_ITERATIONS, "terminaison (T2)");
+    assert!(resultat.iterations <= BORNE_ITERATIONS, "termination (T2)");
     assert_eq!(
         resultat.noeud, attendu,
-        "point fixe = union de l'initial et du singleton"
+        "fixed point = union of the initial and the singleton"
     );
     assert_eq!(cardinal(&pool, &schema, resultat.noeud), 2);
 }

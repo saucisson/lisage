@@ -1,28 +1,26 @@
-//! **Intégrale au pli** (backlog § 9 de la feuille de route, question
-//! ouverte 9 de la spec) : sur les clés-régions 1D (intervalles), le pli
-//! discret — somme des cardinalités — devient **intégrale de Lebesgue** :
-//! la mesure d'un intervalle `[a, b]` dans l'interprétation continue est
-//! sa longueur `b − a` (le point isolé a mesure nulle), et l'intégrale
-//! d'une densité constante 1 sur le diagramme est la mesure de l'ensemble
-//! dénoté.
+//! **Integral at the fold** (roadmap backlog § 9, open question 9 of the
+//! spec): on 1D region keys (intervals), the discrete fold — sum of
+//! cardinalities — becomes a **Lebesgue integral**: the measure of an
+//! interval `[a, b]` in the continuous interpretation is its length `b − a`
+//! (the isolated point has zero measure), and the integral of a constant
+//! density 1 over the diagram is the measure of the denoted set.
 //!
-//! L'intégrale se calcule avec la région courante comme contexte :
-//! `intégrale(nœud, région) = Σ_{arcs I → fils} intégrale(fils, région ∩ I)`,
-//! le terminal `⊤` rendant la mesure de la région courante, `⊥` rendant 0.
-//! Sur un diagramme à un seul niveau, c'est la somme des longueurs des
-//! intervalles menant à `⊤` — le différentiel contre le pli cardinal
-//! (somme des tailles) montre le passage count → mesure.
+//! The integral is computed with the current region as context:
+//! `integral(node, region) = Σ_{arcs I → child} integral(child, region ∩ I)`,
+//! the terminal `⊤` yielding the measure of the current region, `⊥` yielding
+//! 0. On a single-level diagram, it is the sum of the lengths of the
+//! intervals leading to `⊤` — the differential against the cardinal fold
+//! (sum of sizes) shows the count → measure passage.
 //!
-//! Variante **DBM** (spec Q9 (ii), « régions polyédriques ») : sur les
-//! clés-régions DBM à 2 variables, la mesure de Lebesgue est l'**aire** de
-//! la zone ∩ boîte (`DbmKeys::mesure_zone`, rendue doublée en `i128`), et
-//! l'intégrale de densité constante 1 sur le diagramme est l'aire de
-//! l'ensemble dénoté — `intégrale(nœud, région) = Σ_{arcs Z → fils}
-//! intégrale(fils, région ∩ Z)`.
+//! **DBM** variant (spec Q9 (ii), "polyhedral regions"): on 2-variable DBM
+//! region keys, the Lebesgue measure is the **area** of the zone ∩ box
+//! (`DbmKeys::mesure_zone`, returned doubled as `i128`), and the integral of
+//! constant density 1 over the diagram is the area of the denoted set —
+//! `integral(node, region) = Σ_{arcs Z → child} integral(child, region ∩ Z)`.
 //!
-//! Narration (ADR-0100 décision 6) : chaque appel récursif émet un
-//! événement `Attr` (canal `Synthétise`) vers l'observateur optionnel,
-//! avec la mesure calculée ; le test épingle ces événements.
+//! Narration (ADR-0100 decision 6): each recursive call emits an `Attr`
+//! event (channel `Synthétise`) to the optional observer, with the computed
+//! measure; the test pins these events.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -32,9 +30,9 @@ use crate::dbm::{Dbm, DbmKeys};
 use crate::observer::{CanalAttr, Observer, TraceEvent};
 use crate::region::Intervalle;
 
-/// Mesure de Lebesgue d'un intervalle dans l'interprétation continue :
-/// `longueur([a, b]) = b − a` ; l'intervalle vide et le point isolé ont
-/// mesure nulle.
+/// Lebesgue measure of an interval in the continuous interpretation:
+/// `length([a, b]) = b − a`; the empty interval and the isolated point have
+/// zero measure.
 pub fn mesure_intervalle(intervalle: &Intervalle) -> u64 {
     if intervalle.est_vide() {
         0
@@ -45,8 +43,8 @@ pub fn mesure_intervalle(intervalle: &Intervalle) -> u64 {
     }
 }
 
-/// Intersection de deux intervalles (meet ensembliste) : l'intervalle
-/// vide si disjoints.
+/// Intersection of two intervals (set-theoretic meet): the empty interval if
+/// disjoint.
 pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
     if a.est_vide() || b.est_vide() {
         return crate::region::VIDE;
@@ -57,12 +55,12 @@ pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
     )
 }
 
-/// Intégrale de la densité constante 1 sur l'ensemble dénoté par le
-/// diagramme à clés-régions 1D, restreint à la `region` courante
-/// (interprétation continue : mesure de Lebesgue, en `u64` saturé).
+/// Integral of the constant density 1 over the set denoted by the 1D
+/// region-key diagram, restricted to the current `region` (continuous
+/// interpretation: Lebesgue measure, saturated `u64`).
 ///
-/// `observateur` : canal de narration (ADR-0100) — chaque nœud visité émet
-/// un événement `Attr`/`Synthétise` avec la mesure calculée.
+/// `observateur`: narration channel (ADR-0100) — each visited node emits an
+/// `Attr`/`Synthétise` event with the computed measure.
 pub fn integrale_constante<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -117,13 +115,13 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
     Ok(total)
 }
 
-/// Intégrale de la densité constante 1 sur l'ensemble dénoté par le
-/// diagramme à clés-régions DBM (2 variables), restreint à la `region`
-/// courante, intersectée à la boîte bornée de `keys`. La mesure est
-/// l'aire **doublée** (`i128`, exacte) — voir [`DbmKeys::mesure_zone`].
+/// Integral of the constant density 1 over the set denoted by the DBM
+/// region-key diagram (2 variables), restricted to the current `region`,
+/// intersected with the bounded box of `keys`. The measure is the **doubled**
+/// area (`i128`, exact) — see [`DbmKeys::mesure_zone`].
 ///
-/// `observateur` : canal de narration (ADR-0100) — chaque nœud visité émet
-/// un événement `Attr`/`Synthétise` avec la mesure calculée.
+/// `observateur`: narration channel (ADR-0100) — each visited node emits an
+/// `Attr`/`Synthétise` event with the computed measure.
 pub fn integrale_dbm_constante<P: Pool<Key = Dbm, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -181,12 +179,12 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
     Ok(total)
 }
 
-/// Construit un diagramme à un seul niveau dénotant l'union des
-/// `intervalles` donnés (arcs vers `⊤`), le complémentaire allant vers
-/// `⊥` — instance-test de l'intégrale : la mesure de l'union est la somme
-/// des longueurs. **Précondition** : les intervalles sont deux à deux
-/// disjoints (assertion de debug) — sinon l'intégrale sommerait les
-/// longueurs individuelles et sur-compterait la mesure de l'union.
+/// Builds a single-level diagram denoting the union of the given
+/// `intervalles` (arcs to `⊤`), the complement going to `⊥` — test instance
+/// of the integral: the measure of the union is the sum of the lengths.
+/// **Precondition**: the intervals are pairwise disjoint (debug assertion) —
+/// otherwise the integral would sum the individual lengths and overcount the
+/// measure of the union.
 pub fn compiler_union<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &mut P,
     anchor: lisage_algebra::interface::Anchor,
@@ -198,7 +196,7 @@ pub fn compiler_union<P: Pool<Key = Intervalle, Payload = bool>>(
             let b = &pair[1];
             a.est_vide() || b.est_vide() || a.borne_sup() < b.borne_inf()
         }),
-        "compiler_union exige des intervalles disjoints (précondition)"
+        "compiler_union requires disjoint intervals (precondition)"
     );
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let arcs: BTreeMap<Intervalle, NodeId> = intervalles
