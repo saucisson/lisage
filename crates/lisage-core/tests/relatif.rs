@@ -1,9 +1,9 @@
-//! Tests des formes relatives (M4-2, énoncé C8, spec § 2.4.5) : activation
-//! du shift (ancre relative), ancres composées par fragment, groupe de
-//! transformations de clés (instance canonique GroupeShift, section
-//! min = 0), arc d'entrée (terme, handle). Modèle-test : la fenêtre
-//! glissante — la base de séquence vit sur l'arc d'entrée, la glisse est
-//! le déplacement d'ancre, le pool reste à O(1) formes.
+//! Tests for relative forms (M4-2, statement C8, spec § 2.4.5): shift
+//! activation (relative anchor), composite anchors per fragment, key
+//! transformation group (canonical instance GroupeShift, min = 0 section),
+//! entry arc (term, handle). Test model: the sliding window — the sequence
+//! base lives on the entry arc, the slide is the anchor displacement, the pool
+//! stays at O(1) forms.
 
 use std::collections::BTreeMap;
 
@@ -16,26 +16,26 @@ use lisage_algebra::relatif::{
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 
-/// Graine du LCG des tests de propriété (même constante que les autres suites).
+/// LCG seed for property tests (same constant as the other suites).
 const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
-/// Multiplicateur du LCG des tests de propriété.
+/// LCG multiplier for property tests.
 const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
-/// Incrément du LCG des tests de propriété.
+/// LCG increment for property tests.
 const INCREMENT_LCG: u64 = 1442695040888963407;
 
-/// Cardinalité déclarée du mock : assez grande pour ne jamais collapser.
+/// Declared mock cardinality: large enough to never collapse.
 const CARDINALITE_MOCK: u64 = 1_000_000;
-/// Taille de la fenêtre glissante du modèle-test.
+/// Size of the sliding window of the test model.
 const TAILLE_FENETRE: u64 = 4;
-/// Nombre de glisses de la fenêtre glissante du modèle-test.
+/// Number of slides of the sliding window of the test model.
 const NB_GLISSES: u64 = 50;
-/// Nombre de décalages par fragment du test de dégradation O(Σ kᵢ).
+/// Number of shifts per fragment in the O(Σ kᵢ) degradation test.
 const NB_DECALAGES_PAR_FRAGMENT: u64 = 8;
-/// Niveau du fragment « machine ».
+/// Level of the "machine" fragment.
 const NIVEAU_MACHINE: u32 = 1;
-/// Niveau du fragment « convoyeur ».
+/// Level of the "convoyeur" fragment.
 const NIVEAU_CONVOYEUR: u32 = 2;
-/// Position de base de l'ancre relative.
+/// Base position of the relative anchor.
 const POSITION_BASE: u32 = 100;
 
 struct MockKeys;
@@ -74,9 +74,9 @@ fn arena() -> Arena<MockController> {
     Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver))
 }
 
-/// M4-2 : ancre relative — activation du shift. La position absolue se lit
-/// `position + decalage`, la glisse décale, le retour en ancre absolue est
-/// saturé.
+/// M4-2: relative anchor — shift activation. The absolute position reads as
+/// `position + decalage`, the slide shifts, the return to an absolute anchor
+/// is saturated.
 #[test]
 fn test_ancre_relative_shift() {
     let ancre = AncreRelative::nouvelle(POSITION_BASE);
@@ -85,13 +85,13 @@ fn test_ancre_relative_shift() {
     let glissee = ancre.decalee(1).decalee(1).decalee(-1);
     assert_eq!(glissee.absolue(), POSITION_BASE as i64 + 1);
     assert_eq!(glissee.vers_ancre(), Anchor(POSITION_BASE + 1));
-    // Depuis une ancre absolue M1 : décalage nul.
+    // From an absolute M1 anchor: zero shift.
     let depuis = AncreRelative::depuis_ancre(Anchor(7));
     assert_eq!(depuis.decalage, 0);
     assert_eq!(depuis.absolue(), 7);
-    // Saturation de la conversion en ancre absolue : un décalage négatif
-    // sous la position 0 clamp à 0 (pas de wrap), un dépassement haut
-    // clamp à u32::MAX.
+    // Saturation of the conversion to an absolute anchor: a negative shift
+    // below position 0 clamps to 0 (no wrap), an overflow above clamps to
+    // u32::MAX.
     assert_eq!(
         AncreRelative::nouvelle(0).decalee(-1).vers_ancre(),
         Anchor(0)
@@ -102,20 +102,20 @@ fn test_ancre_relative_shift() {
     );
 }
 
-/// M4-2 : la lecture effective du shift est saturée dans ℕ (totale) :
-/// clé + argument négatif clamp à 0, dépassement haut clamp à u64::MAX.
+/// M4-2: the effective shift reading is saturated in ℕ (total): key + negative
+/// argument clamps to 0, overflow above clamps to u64::MAX.
 #[test]
 fn test_groupe_shift_saturation() {
     let groupe = GroupeShift;
-    assert_eq!(groupe.appliquer(&0, &-5), 0, "clamp bas à 0");
+    assert_eq!(groupe.appliquer(&0, &-5), 0, "low clamp to 0");
     assert_eq!(groupe.appliquer(&10, &-5), 5);
-    assert_eq!(groupe.appliquer(&u64::MAX, &1), u64::MAX, "clamp haut");
+    assert_eq!(groupe.appliquer(&u64::MAX, &1), u64::MAX, "high clamp");
     assert_eq!(groupe.appliquer(&u64::MAX, &-1), u64::MAX - 1);
 }
 
-/// M4-2 : ancres composées — enregistrement nommé de décalages, un par
-/// fragment ; zéro = début de fragment ; ordre lexicographique des noms ;
-/// composition point par point.
+/// M4-2: composite anchors — named recording of shifts, one per fragment;
+/// zero = fragment start; lexicographic order of names; pointwise
+/// composition.
 #[test]
 fn test_ancre_composee_fragments() {
     let machine = Fragment("machine".to_string());
@@ -125,35 +125,35 @@ fn test_ancre_composee_fragments() {
         .avec(convoyeur.clone(), -1);
     assert_eq!(ancre.decalage(&machine), 3);
     assert_eq!(ancre.decalage(&convoyeur), -1);
-    // Fragment absent : zéro = début de fragment.
+    // Absent fragment: zero = fragment start.
     assert_eq!(ancre.decalage(&Fragment("autre".to_string())), 0);
     assert!(!ancre.est_nulle());
-    // La glisse décale un seul fragment.
+    // The slide shifts a single fragment.
     let glissee = ancre.decalee(&machine, 2);
     assert_eq!(glissee.decalage(&machine), 5);
     assert_eq!(glissee.decalage(&convoyeur), -1);
-    // Composition point par point (lecture absolue = somme des arguments).
+    // Pointwise composition (absolute reading = sum of the arguments).
     let composee = ancre.composer(&glissee);
     assert_eq!(composee.decalage(&machine), 8);
     assert_eq!(composee.decalage(&convoyeur), -2);
-    // Ordre canonique : lexicographique des noms.
+    // Canonical order: lexicographic by name.
     let noms: Vec<&str> = ancre.fragments().map(|(f, _)| f.0.as_str()).collect();
     assert_eq!(noms, ["convoyeur", "machine"]);
     assert!(AncreComposee::nouveau().est_nulle());
 }
 
-/// M4-2, modèle-test : la **fenêtre glissante**. La base de séquence est
-/// l'argument sur l'arc d'entrée, la glisse est le déplacement d'ancre ;
-/// la fenêtre stockée en relatif (clés 0..W-1, section min = 0) est
-/// partagée : le pool reste à O(1) formes quand la base parcourt ℕ, et la
-/// lecture absolue redonne la fenêtre {base..base+W-1}.
+/// M4-2, test model: the **sliding window**. The sequence base is the
+/// argument on the entry arc, the slide is the anchor displacement; the window
+/// stored relatively (keys 0..W-1, min = 0 section) is shared: the pool stays
+/// at O(1) forms while the base ranges over ℕ, and the absolute reading gives
+/// back the window {base..base+W-1}.
 #[test]
 fn test_fenetre_glissante_pool_constant() {
     let groupe = GroupeShift;
     let mut pool = arena();
     let anchor = Anchor(0);
     let vrai = pool.intern(anchor, Form::Terminal(true));
-    // Fenêtre relative : clés 0..W-1 (section min = 0), toutes vraies.
+    // Relative window: keys 0..W-1 (min = 0 section), all true.
     let arcs: BTreeMap<u64, NodeId> = (0..TAILLE_FENETRE).map(|k| (k, vrai)).collect();
     let fenetre = pool.intern(
         anchor,
@@ -163,15 +163,15 @@ fn test_fenetre_glissante_pool_constant() {
         },
     );
     let noeuds_apres_fenetre = pool.node_count();
-    // Glisse : la base avance de 1 à chaque pas, la forme stockée est
-    // inchangée (R-share), seul l'argument de l'arc d'entrée change.
+    // Slide: the base advances by 1 at each step, the stored form is
+    // unchanged (R-share), only the entry arc's argument changes.
     for base in 0..NB_GLISSES as i64 {
         let arc = ArcEntree::nouvelle(base, pool.handle(fenetre, anchor));
-        // Lecture absolue : la fenêtre couvre {base..base+W-1}.
+        // Absolute reading: the window covers {base..base+W-1}.
         for k in 0..TAILLE_FENETRE {
             assert_eq!(arc.lire_cle(&groupe, &k), (base + k as i64) as u64);
         }
-        // Ré-interner la même forme relative : hit, aucun nœud créé.
+        // Re-intern the same relative form: hit, no node created.
         let meme = pool.intern(
             anchor,
             Form::Node {
@@ -179,17 +179,17 @@ fn test_fenetre_glissante_pool_constant() {
                 arcs: (0..TAILLE_FENETRE).map(|k| (k, vrai)).collect(),
             },
         );
-        assert_eq!(meme, fenetre, "forme relative partagée");
+        assert_eq!(meme, fenetre, "shared relative form");
     }
     assert_eq!(
         pool.node_count(),
         noeuds_apres_fenetre,
-        "le pool reste à O(1) formes pendant la glisse"
+        "the pool stays at O(1) forms during the slide"
     );
 }
 
-/// M4-2 : ancres composées — la dégradation reste en O(Σ kᵢ) points
-/// irréguliers, jamais en O(∏) : les formes se factorisent par fragment.
+/// M4-2: composite anchors — the degradation stays in O(Σ kᵢ) irregular
+/// points, never in O(∏): the forms factorize per fragment.
 #[test]
 fn test_ancres_composees_degradation_somme() {
     let mut pool = arena();
@@ -197,7 +197,7 @@ fn test_ancres_composees_degradation_somme() {
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let machine = Fragment("machine".to_string());
     let convoyeur = Fragment("convoyeur".to_string());
-    // k₁ formes pour le fragment machine, k₂ pour le fragment convoyeur.
+    // k₁ forms for the machine fragment, k₂ for the convoyeur fragment.
     for i in 0..NB_DECALAGES_PAR_FRAGMENT {
         pool.intern(
             anchor,
@@ -216,20 +216,20 @@ fn test_ancres_composees_degradation_somme() {
             },
         );
     }
-    // 1 terminal + k₁ + k₂ nœuds : la somme, pas le produit k₁ × k₂.
+    // 1 terminal + k₁ + k₂ nodes: the sum, not the product k₁ × k₂.
     let attendu = 1 + 2 * NB_DECALAGES_PAR_FRAGMENT as usize;
     assert_eq!(pool.node_count(), attendu);
     assert!(attendu < (1 + NB_DECALAGES_PAR_FRAGMENT as usize).pow(2));
-    // L'ancre composée porte les deux décalages nommés.
+    // The composite anchor carries the two named shifts.
     let ancre = AncreComposee::nouveau().avec(machine, 2).avec(convoyeur, 5);
     assert_eq!(ancre.decalage(&Fragment("machine".to_string())), 2);
     assert_eq!(ancre.decalage(&Fragment("convoyeur".to_string())), 5);
 }
 
-/// M4-2 (tier propriété, LCG) : contrat du groupe de transformations —
-/// section confluente (idempotente), homomorphisme f(n₁)∘f(n₂) =
-/// f(n₁ ⊕ n₂), inverse t⁻¹, noyau trivial (f injective), composition des
-/// arcs d'entrée. Valeurs bornées pour éviter la saturation.
+/// M4-2 (property tier, LCG): contract of the transformation group —
+/// confluent section (idempotent), homomorphism f(n₁)∘f(n₂) = f(n₁ ⊕ n₂),
+/// inverse t⁻¹, trivial kernel (f injective), composition of entry arcs.
+/// Bounded values to avoid saturation.
 #[test]
 fn test_propriete_groupe_shift() {
     let groupe = GroupeShift;
@@ -240,27 +240,27 @@ fn test_propriete_groupe_shift() {
             .wrapping_add(INCREMENT_LCG);
         graine >> 33
     };
-    // Borne des arguments/clés du test : pas de saturation.
+    // Bound on the test's arguments/keys: no saturation.
     const BORNE: u64 = 500;
 
     for _ in 0..1000 {
-        // Arcs aléatoires (clés dans [0, BORNE), cibles arbitraires).
+        // Random arcs (keys in [0, BORNE), arbitrary targets).
         let nb_arcs = 1 + suivant() % 8;
         let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
             .map(|_| (suivant() % BORNE, NodeId(suivant() as u32)))
             .collect();
-        // (iii) Confluence : la section est idempotente — appliquée à la
-        // forme normalisée, elle rend l'argument neutre et la même forme.
+        // (iii) Confluence: the section is idempotent — applied to the
+        // normalized form, it yields the neutral argument and the same form.
         let (n1, arcs_norm) = groupe.section_arcs(&arcs);
         let (n2, arcs_norm2) = groupe.section_arcs(&arcs_norm);
-        assert_eq!(n2, groupe.neutre(), "section idempotente");
+        assert_eq!(n2, groupe.neutre(), "idempotent section");
         assert_eq!(arcs_norm2, arcs_norm);
-        // La section min = 0 commence bien à la clé 0.
+        // The min = 0 section indeed starts at key 0.
         assert!(arcs_norm.contains_key(&0));
         assert_eq!(n1, *arcs.keys().next().unwrap() as i64);
 
-        // (v) Homomorphisme : f(n₁ ⊕ n₂) = f(n₁)∘f(n₂). Clé assez grande
-        // pour que les lectures intermédiaires ne saturent pas à 0.
+        // (v) Homomorphism: f(n₁ ⊕ n₂) = f(n₁)∘f(n₂). Key large enough that
+        // the intermediate readings do not saturate to 0.
         let cle_grande = BORNE + suivant() % BORNE;
         let a1 = (suivant() % (2 * BORNE)) as i64 - BORNE as i64;
         let a2 = (suivant() % (2 * BORNE)) as i64 - BORNE as i64;
@@ -270,21 +270,24 @@ fn test_propriete_groupe_shift() {
             groupe.appliquer(&groupe.appliquer(&cle_grande, &a1), &a2)
         );
 
-        // (i) Inverse : f(n) puis f(n)⁻¹ = identité (clé assez grande).
+        // (i) Inverse: f(n) then f(n)⁻¹ = identity (key large enough).
         let n = (suivant() % BORNE) as i64;
         assert_eq!(
             groupe.appliquer(&groupe.appliquer(&cle_grande, &n), &groupe.inverser(&n)),
             cle_grande
         );
 
-        // (vi) Noyau trivial : f injective sur les arguments.
+        // (vi) Trivial kernel: f injective over the arguments.
         let n1 = (suivant() % BORNE) as i64;
         let n2 = (suivant() % BORNE) as i64;
         if groupe.appliquer(&cle_grande, &n1) == groupe.appliquer(&cle_grande, &n2) {
-            assert_eq!(n1, n2, "f(n₁) = f(n₂) ⇒ n₁ = n₂ (stockage modulo le noyau)");
+            assert_eq!(
+                n1, n2,
+                "f(n₁) = f(n₂) ⇒ n₁ = n₂ (storage modulo the kernel)"
+            );
         }
 
-        // Arcs d'entrée : la lecture absolue compose les arguments.
+        // Entry arcs: the absolute reading composes the arguments.
         let handle = Handle {
             controller: ControllerId(11),
             anchor: Anchor(0),
