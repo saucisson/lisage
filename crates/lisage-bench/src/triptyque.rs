@@ -1,16 +1,16 @@
-//! Triptyque A/B/C sur modèles PNML (M5-2, énoncés C3/C4) : le même
-//! espace des marquages atteignables d'un réseau de Petri lu trois fois —
-//! - **voie A** = interprète de référence `lisage-lang` : ensemble explicite
-//!   (`pnml::espace_atteignable`), la vérité ensembliste ;
-//! - **voie B** = DD à ordre fixe : ordre canonique des places, compilé
-//!   dans `lisage-core` (union des maps de marquage) ;
-//! - **voie C** = DD à ordre runtime : permutation π des clés de places
-//!   fournie à l'exécution, soumise au planner `lisage-plan`
-//!   (`Order::avec_aval_runtime`) — adoptée telle quelle si valide, sinon
-//!   repli canonique signalé par la stratégie retournée.
+//! A/B/C triptych on PNML models (M5-2, statements C3/C4): the same
+//! reachable marking space of a Petri net read three times —
+//! - **path A** = reference interpreter `lisage-lang`: explicit set
+//!   (`pnml::espace_atteignable`), the set-theoretic truth;
+//! - **path B** = DD with fixed order: canonical order of the places, compiled
+//!   in `lisage-core` (union of the marking maps);
+//! - **path C** = DD with runtime order: permutation π of the place keys
+//!   supplied at run time, submitted to the `lisage-plan` planner
+//!   (`Order::avec_aval_runtime`) — adopted as-is if valid, otherwise
+//!   canonical fallback signalled by the returned strategy.
 //!
-//! La falsification C3/C4 tient ici : cardinal identique sur les trois
-//! voies, quelle que soit la stratégie d'aval adoptée par le planner.
+//! The C3/C4 falsification holds here: identical cardinal on the three
+//! paths, whatever the downstream strategy adopted by the planner.
 
 use std::collections::BTreeSet;
 
@@ -27,32 +27,32 @@ use lisage_plan::ordre::{CleMap, ClesMap, Order, Phase, StrategieAval};
 
 use crate::pnml::{self, ReseauPetri};
 
-/// Ancre du banc de mesures.
+/// Anchor of the measurement bench.
 const ANCRE_BANC: Anchor = Anchor(0);
 
-/// Erreur typée du triptyque (causes préservées).
+/// Typed error of the triptych (causes preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ErreurTriptyque {
-    /// Le réseau n'a aucune place : pas de schéma de marquage.
+    /// The net has no place: no marking schema.
     SansPlace,
-    /// π n'est pas une permutation des clés de places (clé manquante, en
-    /// double, ou étrangère au réseau).
+    /// π is not a permutation of the place keys (key missing, duplicated,
+    /// or foreign to the net).
     OrdreInvalide,
-    /// Erreur de compilation d'un marquage contre le schéma.
+    /// Error compiling a marking against the schema.
     Schema(SchemaError),
-    /// Erreur du cœur (union, pli) lors de la construction du DD.
+    /// Core error (union, pli) while building the DD.
     Core(CoreError),
 }
 
 impl std::fmt::Display for ErreurTriptyque {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurTriptyque::SansPlace => write!(formatter, "le réseau n'a aucune place"),
+            ErreurTriptyque::SansPlace => write!(formatter, "the net has no place"),
             ErreurTriptyque::OrdreInvalide => {
-                write!(formatter, "π n'est pas une permutation des clés de places")
+                write!(formatter, "π is not a permutation of the place keys")
             }
-            ErreurTriptyque::Schema(erreur) => write!(formatter, "erreur de schéma: {erreur}"),
-            ErreurTriptyque::Core(erreur) => write!(formatter, "erreur du cœur: {erreur}"),
+            ErreurTriptyque::Schema(erreur) => write!(formatter, "schema error: {erreur}"),
+            ErreurTriptyque::Core(erreur) => write!(formatter, "core error: {erreur}"),
         }
     }
 }
@@ -79,16 +79,16 @@ impl From<CoreError> for ErreurTriptyque {
     }
 }
 
-/// Mesure d'une voie du triptyque.
+/// Measurement of one path of the triptych.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct MesureVoie {
-    /// Cardinal de l'espace atteignable (nombre de marquages distincts).
+    /// Cardinal of the reachable space (number of distinct markings).
     pub cardinal: u64,
-    /// Nœuds vivants du diagramme (0 pour la voie A, ensembliste explicite).
+    /// Live nodes of the diagram (0 for path A, explicit set).
     pub noeuds_vivants: usize,
 }
 
-/// Voie A (référence) : cardinal de l'espace atteignable explicite.
+/// Path A (reference): cardinal of the explicit reachable space.
 pub fn voie_a(reseau: &ReseauPetri) -> MesureVoie {
     MesureVoie {
         cardinal: pnml::espace_atteignable(reseau).len() as u64,
@@ -96,8 +96,8 @@ pub fn voie_a(reseau: &ReseauPetri) -> MesureVoie {
     }
 }
 
-/// Voie B : DD de l'espace atteignable à **ordre fixe** (ordre canonique
-/// des places, clé = index de place).
+/// Path B: DD of the reachable space with **fixed order** (canonical
+/// order of the places, key = place index).
 pub fn voie_b(reseau: &ReseauPetri) -> Result<MesureVoie, ErreurTriptyque> {
     let ordre_canonique: Vec<Atom> = (0..reseau.nombre_places())
         .map(|index| Atom(index as u64))
@@ -105,21 +105,22 @@ pub fn voie_b(reseau: &ReseauPetri) -> Result<MesureVoie, ErreurTriptyque> {
     voie_dd(reseau, &ordre_canonique)
 }
 
-/// Résultat de la voie C : la mesure du DD construit à l'ordre adopté, et
-/// la stratégie d'aval du planner (ordre runtime adopté, ou repli canonique).
+/// Result of path C: the measurement of the DD built with the adopted order,
+/// and the planner's downstream strategy (runtime order adopted, or canonical
+/// fallback).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ResultatVoieC {
-    /// Mesure du DD à l'ordre adopté par le planner.
+    /// Measurement of the DD with the order adopted by the planner.
     pub mesure: MesureVoie,
-    /// Stratégie d'aval : `OrdreRuntime` si π était valide, `RepliCanonique`
-    /// sinon (ordre canonique adopté à la place).
+    /// Downstream strategy: `OrdreRuntime` if π was valid, `RepliCanonique`
+    /// otherwise (canonical order adopted instead).
     pub strategie: StrategieAval,
 }
 
-/// Voie C : DD de l'espace atteignable à **ordre runtime** — π des clés de
-/// places soumis au planner `lisage-plan` (`Order::avec_aval_runtime` sur
-/// le descripteur `ClesMap`) ; l'ordre adopté (runtime ou canonique) sert
-/// à construire le schéma.
+/// Path C: DD of the reachable space with **runtime order** — π of the
+/// place keys submitted to the `lisage-plan` planner (`Order::avec_aval_runtime`
+/// on the `ClesMap` descriptor); the adopted order (runtime or canonical) is
+/// used to build the schema.
 pub fn voie_c(
     reseau: &ReseauPetri,
     ordre_runtime: &[Atom],
@@ -131,7 +132,7 @@ pub fn voie_c(
         .map(|index| Atom(index as u64))
         .collect();
     let descripteur = ClesMap(cles);
-    // π runtime : présence puis valeur pour chaque clé, dans l'ordre demandé.
+    // π runtime: presence then value for each key, in the requested order.
     let pi_runtime: Vec<CleMap> = ordre_runtime
         .iter()
         .flat_map(|cle| {
@@ -160,8 +161,8 @@ pub fn voie_c(
     Ok(ResultatVoieC { mesure, strategie })
 }
 
-/// Construit le DD de l'espace atteignable dans l'ordre de clés donné,
-/// puis mesure (cardinal par pli, nœuds vivants après construction).
+/// Builds the DD of the reachable space in the given key order,
+/// then measures (cardinal via pli, live nodes after construction).
 fn voie_dd(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<MesureVoie, ErreurTriptyque> {
     if reseau.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
@@ -185,9 +186,9 @@ fn voie_dd(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<MesureVoie, Erre
     })
 }
 
-/// Schéma `Map(K, V)` d'un marquage de réseau : clés = places dans
-/// l'ordre donné (π), domaine des valeurs = `0..=max_jetons` borné par
-/// l'espace atteignable. π doit être une permutation des index de places.
+/// `Map(K, V)` schema of a net marking: keys = places in
+/// the given order (π), value domain = `0..=max_jetons` bounded by
+/// the reachable space. π must be a permutation of the place indexes.
 fn schema_petri(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<Schema, ErreurTriptyque> {
     let mut attendues: Vec<Atom> = (0..reseau.nombre_places())
         .map(|index| Atom(index as u64))
@@ -203,8 +204,8 @@ fn schema_petri(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<Schema, Err
     Ok(Schema::Map(ordre_cles.to_vec(), domaine))
 }
 
-/// Nombre maximal de jetons observés sur une place dans l'espace
-/// atteignable (borne du domaine des valeurs).
+/// Maximum number of tokens observed on a place in the
+/// reachable space (bound of the value domain).
 fn jetons_max(reseau: &ReseauPetri) -> u64 {
     pnml::espace_atteignable(reseau)
         .iter()
@@ -215,8 +216,8 @@ fn jetons_max(reseau: &ReseauPetri) -> u64 {
         .unwrap_or(0)
 }
 
-/// Compile l'espace atteignable en un DD : union des maps de marquage
-/// compilées une à une contre le schéma.
+/// Compiles the reachable space into a DD: union of the marking maps
+/// compiled one by one against the schema.
 fn compiler_espace(
     pool: &mut Arena<ReferenceController>,
     schema: &Schema,

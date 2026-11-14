@@ -1,12 +1,12 @@
-//! Installation des SDD sententiels sans extension *ad hoc* (M5-3, C6) :
-//! test de complétude du cadre (proposition § 1.2, contribution n° 6) —
-//! le vtree = ordre structuré (paramètre, `lisage-plan::vtree`), la tour de
-//! contrôleurs = une ancre locale par nœud du vtree dans le même pool
-//! (le handle (contrôleur, ancre, forme) rend la canonicité C1 modulaire),
-//! les projections inter-niveaux = opérations ensemblistes sur `lang/`.
+//! Installation of sentential SDDs without *ad hoc* extension (M5-3, C6):
+//! completeness test of the framework (proposition § 1.2, contribution n° 6) —
+//! the vtree = structured order (parameter, `lisage-plan::vtree`), the tower of
+//! controllers = one local anchor per vtree node in the same pool
+//! (the handle (controller, anchor, form) makes the C1 canonicity modular),
+//! the inter-level projections = set operations on `lang/`.
 //!
-//! La falsification : aucun mécanisme nouveau dans `lisage-core` — ce
-//! module ne fait qu'assembler schéma + ancres + hash-consing + pli.
+//! The falsification: no new mechanism in `lisage-core` — this
+//! module only assembles schema + anchors + hash-consing + pli.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -21,26 +21,26 @@ use lisage_core::schema::{
 };
 use lisage_lang::value::{Atom, Value};
 
-/// Erreur typée de l'installation SDD (causes préservées).
+/// Typed error of the SDD installation (causes preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ErreurSdd {
-    /// Vtree invalide (variable en double).
+    /// Invalid vtree (duplicated variable).
     Vtree(ErreurVtree),
-    /// Vtree sans aucune variable.
+    /// Vtree with no variable at all.
     SansVariable,
-    /// Erreur de compilation d'une projection contre son schéma.
+    /// Error compiling a projection against its schema.
     Schema(SchemaError),
-    /// Erreur du cœur (union, pli) lors de la construction.
+    /// Core error (union, pli) during the construction.
     Core(CoreError),
 }
 
 impl std::fmt::Display for ErreurSdd {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurSdd::Vtree(erreur) => write!(formatter, "vtree invalide: {erreur}"),
-            ErreurSdd::SansVariable => write!(formatter, "le vtree n'a aucune variable"),
-            ErreurSdd::Schema(erreur) => write!(formatter, "erreur de schéma: {erreur}"),
-            ErreurSdd::Core(erreur) => write!(formatter, "erreur du cœur: {erreur}"),
+            ErreurSdd::Vtree(erreur) => write!(formatter, "invalid vtree: {erreur}"),
+            ErreurSdd::SansVariable => write!(formatter, "the vtree has no variable"),
+            ErreurSdd::Schema(erreur) => write!(formatter, "schema error: {erreur}"),
+            ErreurSdd::Core(erreur) => write!(formatter, "core error: {erreur}"),
         }
     }
 }
@@ -74,29 +74,29 @@ impl From<CoreError> for ErreurSdd {
     }
 }
 
-/// Un niveau de la tour de contrôleurs : le DD local d'un nœud du vtree,
-/// construit sous l'ancre locale du nœud.
+/// One level of the controller tower: the local DD of a vtree node,
+/// built under the node's local anchor.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct NiveauSdd {
-    /// Ancre locale du nœud (contrôleur local, motif d'instance).
+    /// Local anchor of the node (local controller, instance pattern).
     pub ancre: Anchor,
-    /// Racine du DD local (ensemble projeté sur les variables du sous-arbre).
+    /// Root of the local DD (set projected on the variables of the subtree).
     pub racine: NodeId,
-    /// Cardinal du DD local (pli `(ℕ,+,×)`).
+    /// Cardinal of the local DD (pli `(ℕ,+,×)`).
     pub cardinal: u64,
 }
 
-/// Pool pour une installation SDD : le contrôleur porte le schéma **racine**
-/// (toutes les variables du vtree, domaine de l'ensemble complet) — les
-/// réductions R-default à l'internement sont pilotées par ce schéma.
+/// Pool for an SDD installation: the controller carries the **root** schema
+/// (all the vtree variables, domain of the complete set) — the
+/// R-default reductions at interning are driven by this schema.
 pub fn pool_pour_sdd(vtree: &Vtree, ensemble: &BTreeSet<Value>) -> Arena<ReferenceController> {
     let schema = Schema::Map(vtree.ordre_plat(), domaine_ensemble(ensemble));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
-/// Installation complète : un [`NiveauSdd`] par nœud du vtree, ancres en
-/// pré-ordre. Renvoie la racine du niveau racine. Le pool doit être créé par
-/// [`pool_pour_sdd`] (schéma racine = schéma du contrôleur).
+/// Complete installation: one [`NiveauSdd`] per vtree node, anchors in
+/// pre-order. Returns the root of the root level. The pool must be created by
+/// [`pool_pour_sdd`] (root schema = controller schema).
 pub fn installer_sdd(
     pool: &mut Arena<ReferenceController>,
     vtree: &Vtree,
@@ -108,8 +108,8 @@ pub fn installer_sdd(
     installer_niveau(pool, vtree, ensemble, &domaine, &mut compteur_ancres)
 }
 
-/// Installe un niveau du vtree : projection de l'ensemble sur les variables
-/// du sous-arbre, compilée sous l'ancre locale du nœud, puis récursion.
+/// Installs one vtree level: projection of the set on the variables
+/// of the subtree, compiled under the node's local anchor, then recursion.
 fn installer_niveau(
     pool: &mut Arena<ReferenceController>,
     vtree: &Vtree,
@@ -138,8 +138,8 @@ fn installer_niveau(
     })
 }
 
-/// Projette un ensemble de maps sur un sous-ensemble de clés (transduction
-/// inter-niveaux, niveau `lang/` : opération ensembliste pure).
+/// Projects a set of maps onto a subset of keys (inter-level
+/// transduction, `lang/` level: pure set operation).
 pub fn projeter(ensemble: &BTreeSet<Value>, cles: &[Atom]) -> BTreeSet<Value> {
     ensemble
         .iter()
@@ -160,9 +160,9 @@ pub fn projeter(ensemble: &BTreeSet<Value>, cles: &[Atom]) -> BTreeSet<Value> {
         .collect()
 }
 
-/// Domaine des valeurs de l'ensemble complet : `0..=max` observé sur toutes
-/// les maps (partagé par tous les niveaux, pour que le schéma du contrôleur
-/// et les schémas locaux aient les mêmes cardinalités de niveaux).
+/// Value domain of the complete set: `0..=max` observed over all
+/// the maps (shared by all levels, so that the controller schema
+/// and the local schemas have the same level cardinalities).
 fn domaine_ensemble(ensemble: &BTreeSet<Value>) -> Domaine {
     let max_valeur = ensemble
         .iter()
@@ -181,8 +181,8 @@ fn domaine_ensemble(ensemble: &BTreeSet<Value>) -> Domaine {
     Domaine::nouveau((0..=max_valeur).map(Atom).collect())
 }
 
-/// Compile une projection en DD local : union des maps projetées sous
-/// l'ancre locale du nœud (hash-consing par handle, C1 modulaire).
+/// Compiles a projection into a local DD: union of the projected maps under
+/// the node's local anchor (hash-consing by handle, modular C1).
 fn compiler_projection(
     pool: &mut Arena<ReferenceController>,
     schema: &Schema,
@@ -198,7 +198,7 @@ fn compiler_projection(
     Ok(racine)
 }
 
-/// Cardinal d'un DD local par pli `(ℕ,+,×)`.
+/// Cardinal of a local DD via the `(ℕ,+,×)` pli.
 fn compter_niveau(
     pool: &Arena<ReferenceController>,
     schema: &Schema,

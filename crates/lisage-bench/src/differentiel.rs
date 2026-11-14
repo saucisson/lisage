@@ -1,27 +1,27 @@
-//! Harnais différentiel A/B/C (M1-7), branché dès le premier commit :
-//! - voie A = interprète de référence `lisage-lang` (la vérité) ;
-//! - voie B = DD à ordre fixe (factice tant que M1-1..M1-6 n'est pas livré) ;
-//! - voie C = Lisage + planner (factice idem).
+//! A/B/C differential harness (M1-7), plugged in from the first commit:
+//! - path A = reference interpreter `lisage-lang` (the truth);
+//! - path B = DD with fixed order (placeholder until M1-1..M1-6 is delivered);
+//! - path C = Lisage + planner (placeholder likewise).
 //!
-//! Les tests différentiels réels sont écrits **rouges** (ignorés) avant
-//! l'implémentation du cœur et dé-ignorés dans l'issue qui livre la voie.
+//! The real differential tests are written **red** (ignored) before
+//! the core implementation and un-ignored in the issue that delivers the path.
 
 use std::collections::BTreeSet;
 
 use lisage_lang::interpreter;
 use lisage_lang::value::Value;
 
-/// Voie A (référence) : comptage ensembliste explicite, source de vérité.
+/// Path A (reference): explicit set counting, source of truth.
 pub fn voie_a_count(ensemble: &BTreeSet<Value>) -> u64 {
     interpreter::count(ensemble)
 }
 
-/// Voie B (DD ordre fixe) : factice tant que le cœur M1-1..M1-6 n'existe pas.
+/// Path B (fixed-order DD): placeholder until the M1-1..M1-6 core exists.
 pub fn voie_b_count(_ensemble: &BTreeSet<Value>) -> u64 {
     0
 }
 
-/// Voie C (Lisage + planner) : factice idem.
+/// Path C (Lisage + planner): placeholder likewise.
 pub fn voie_c_count(_ensemble: &BTreeSet<Value>) -> u64 {
     0
 }

@@ -1,28 +1,28 @@
-//! Témoin BDD **indépendant** (M1-8, énoncé C6, mode dégradé pur Rust) :
-//! mini-BDD écrit exprès pour ce témoin, sans partager de code avec
-//! `lisage-core` — table unique propre, construction de Shannon récursive.
-//! Le différentiel C6 compare le **nombre de nœuds** obtenu dans l'arène
-//! (configuration BDD classique de `lisage-core::bdd`) et chez ce témoin :
-//! reproduction à l'identique exigée. Le témoin externe CUDD/Sylvan (FFI)
-//! reste escaladé — voir `docs/spike-ffi-cudd-sylvan.md` et le commentaire
-//! `needs-human` de l'issue #14.
+//! **Independent** BDD witness (M1-8, statement C6, pure-Rust degraded mode):
+//! mini-BDD written on purpose for this witness, sharing no code with
+//! `lisage-core` — its own unique table, recursive Shannon construction.
+//! The C6 differential compares the **node count** obtained in the arena
+//! (classic BDD configuration of `lisage-core::bdd`) and at this witness:
+//! identical reproduction required. The external CUDD/Sylvan witness (FFI)
+//! remains escalated — see `docs/spike-ffi-cudd-sylvan.md` and the
+//! `needs-human` comment of issue #14.
 
 use std::collections::HashMap;
 
-/// Indice du terminal ⊥ (faux).
+/// Index of the ⊥ terminal (false).
 pub const TERMINAL_FAUX: u32 = 0;
-/// Indice du terminal ⊤ (vrai).
+/// Index of the ⊤ terminal (true).
 pub const TERMINAL_VRAI: u32 = 1;
 
-/// Mini-BDD : nœuds `(variable, bas, haut)` dans une table, terminaux en
-/// tête d'indices 0 et 1.
+/// Mini-BDD: nodes `(variable, low, high)` in a table, terminals at
+/// indices 0 and 1.
 pub struct MiniBdd {
     noeuds: Vec<(u32, u32, u32)>,
     table_unique: HashMap<(u32, u32, u32), u32>,
 }
 
 impl MiniBdd {
-    /// Témoin neuf, terminaux pré-installés.
+    /// Fresh witness, terminals pre-installed.
     pub fn new() -> Self {
         MiniBdd {
             noeuds: vec![(u32::MAX, 0, 0), (u32::MAX, 1, 1)],
@@ -45,8 +45,8 @@ impl MiniBdd {
         indice
     }
 
-    /// Construit le BDD d'une table de vérité (`table[a]`, bit ℓ de `a` =
-    /// variable ℓ) par expansion de Shannon récursive.
+    /// Builds the BDD of a truth table (`table[a]`, bit ℓ of `a` =
+    /// variable ℓ) by recursive Shannon expansion.
     pub fn compiler_table(&mut self, nombre_variables: u32, table: &[bool]) -> u32 {
         assert_eq!(table.len(), 1usize << nombre_variables);
         self.construire(0, nombre_variables, table)
@@ -60,7 +60,7 @@ impl MiniBdd {
                 TERMINAL_FAUX
             };
         }
-        // Bit ℓ de l'indice = variable ℓ : positions paires = arc 0.
+        // Bit ℓ of the index = variable ℓ: even positions = arc 0.
         let bas_table: Vec<bool> = table.iter().step_by(2).copied().collect();
         let haut_table: Vec<bool> = table.iter().skip(1).step_by(2).copied().collect();
         let bas = self.construire(variable + 1, nombre_variables, &bas_table);
@@ -68,8 +68,8 @@ impl MiniBdd {
         self.fabriquer_noeud(variable, bas, haut)
     }
 
-    /// Nombre de nœuds atteignables depuis `racine`, terminaux compris
-    /// (même convention que `lisage_core::bdd::compter_noeuds`).
+    /// Number of nodes reachable from `racine`, terminals included
+    /// (same convention as `lisage_core::bdd::compter_noeuds`).
     pub fn compter_noeuds(&self, racine: u32) -> u64 {
         let mut visite = std::collections::BTreeSet::new();
         let mut pile = vec![racine];
@@ -86,7 +86,7 @@ impl MiniBdd {
         visite.len() as u64
     }
 
-    /// Évalue le BDD d'indice `racine` sur une affectation.
+    /// Evaluates the BDD of index `racine` on an assignment.
     pub fn evaluer(&self, racine: u32, affectation: u64) -> bool {
         let mut noeud = racine;
         loop {
