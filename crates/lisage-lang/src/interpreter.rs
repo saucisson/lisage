@@ -41,12 +41,12 @@ pub fn member(set: &BTreeSet<Value>, value: &Value) -> bool {
 /// is the default algebra of the result, open question 3 of the spec).
 pub fn lookup(set: &BTreeSet<Value>, key: &Value) -> BTreeMap<Value, Option<Value>> {
     set.iter()
-        .map(|membre| {
-            let value = match membre {
+        .map(|member| {
+            let value = match member {
                 Value::Map(map) => map.get(key).cloned(),
                 _ => None,
             };
-            (membre.clone(), value)
+            (member.clone(), value)
         })
         .collect()
 }
@@ -55,12 +55,12 @@ pub fn lookup(set: &BTreeSet<Value>, key: &Value) -> BTreeMap<Value, Option<Valu
 /// bounded schema (T2) because the set of functions Δ → Y is finite there.
 /// The construction merge is the idempotent union (Bool choice, A5).
 pub fn saturate(
-    not: impl Fn(&BTreeSet<Value>) -> BTreeSet<Value>,
+    step: impl Fn(&BTreeSet<Value>) -> BTreeSet<Value>,
     initial: BTreeSet<Value>,
 ) -> BTreeSet<Value> {
     let mut current = initial;
     loop {
-        let next: BTreeSet<Value> = current.union(&not(&current)).cloned().collect();
+        let next: BTreeSet<Value> = current.union(&step(&current)).cloned().collect();
         if next == current {
             return current;
         }
