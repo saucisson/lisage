@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4a-3: lisage-core transduction+transfert translated to English (PR #203, issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in `crates/lisage-core/src/transduction.rs`, `crates/lisage-core/src/transfert.rs`, `crates/lisage-core/tests/transduction.rs`, `crates/lisage-core/tests/transfert.rs` to English. Public French identifiers are kept until dependent crates are translated.
+- **Evidence**: `cargo check -p lisage-core --tests` passes; `cargo test -p lisage-core` 146 passed, 0 failed; CI green on PR #203; review 0 BLOCKING after this WORKLOG entry was added.
+- **Judgement calls**: split of the original part 4a into five sub-parts (4a-1..4a-5) because the reviewer session hits its turn limit on diffs over ~500 lines.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-3 docs part 1/8: specification translated to English (issue #106)
 
 - **Issue**: #106 (M6-3, milestone M6).
