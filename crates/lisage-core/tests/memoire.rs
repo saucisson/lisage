@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::{Anchor, Controller, Form, Level, NodeId, PolitiqueMemoire, Pool};
+use lisage_algebra::interface::{Anchor, Controller, Form, Level, MemoryPolicy, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::memoire::{EffetMemoire, MemoireNiveau};
 use lisage_core::observer::NoOpObserver;
@@ -48,12 +48,12 @@ fn test_memoire_niveau_stockage_et_version() {
 fn test_effet_memoire_appliquer() {
     let mut memoire: MemoireNiveau<u64> = MemoireNiveau::new();
     let effet = EffetMemoire::une(NodeId(3), Level(1), 7);
-    effet.appliquer(&mut memoire);
+    effet.apply(&mut memoire);
     assert_eq!(memoire.version(), 1);
     assert_eq!(memoire.lire(NodeId(3), Level(1)), Some(&7));
 
     let effet_vide: EffetMemoire<u64> = EffetMemoire::new();
-    effet_vide.appliquer(&mut memoire);
+    effet_vide.apply(&mut memoire);
     assert_eq!(memoire.version(), 1, "empty effect: no bump");
 }
 
@@ -144,10 +144,8 @@ fn test_transduction_avec_memoire_ecrit() {
     );
 
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let mut runner = Transducteur::avec_politique(
-        EcritMemoire { lus: lus.clone() },
-        PolitiqueMemoire::ParNiveau,
-    );
+    let mut runner =
+        Transducteur::avec_politique(EcritMemoire { lus: lus.clone() }, MemoryPolicy::PerLevel);
     assert_eq!(runner.version_memoire(), 0, "empty memory at start");
     let (resultat, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
     assert_eq!(
@@ -175,7 +173,7 @@ fn test_transduction_avec_memoire_ecrit() {
     );
 }
 
-/// M2-3: the `Aucune` policy rejects memory effects (TO-FIX review).
+/// M2-3: the `NoMemory` policy rejects memory effects (TO-FIX review).
 #[test]
 fn test_politique_aucune_rejette_effet_memoire() {
     let mut entree = pool();
@@ -192,7 +190,7 @@ fn test_politique_aucune_rejette_effet_memoire() {
         },
     );
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
-    // Aucune policy (default): the memory effect must be rejected.
+    // NoMemory policy (default): the memory effect must be rejected.
     let mut runner = Transducteur::new(EcritMemoire { lus: lus.clone() });
     let resultat = runner.run(&entree, &mut sortie, anchor, a);
     assert!(
@@ -200,19 +198,19 @@ fn test_politique_aucune_rejette_effet_memoire() {
             resultat,
             Err(lisage_core::error::CoreError::MemoireNonAutorisee)
         ),
-        "Aucune policy ⇒ memory effect rejected, got {resultat:?}"
+        "NoMemory policy ⇒ memory effect rejected, got {resultat:?}"
     );
 }
 
-/// M2-3: the storage policy is declared by the controller (`Aucune` by
-/// default in M1, `ParNiveau` to allow the memory).
+/// M2-3: the storage policy is declared by the controller (`NoMemory` by
+/// default in M1, `PerLevel` to allow the memory).
 #[test]
 fn test_politique_memoire_du_controleur() {
     let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
     let controleur = ReferenceController::new(schema);
     assert_eq!(
-        controleur.politique_memoire(),
-        PolitiqueMemoire::Aucune,
+        controleur.memory_policy(),
+        MemoryPolicy::NoMemory,
         "default policy (M1): no level memory"
     );
 }

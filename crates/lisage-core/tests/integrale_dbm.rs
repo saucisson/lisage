@@ -23,13 +23,13 @@ const TAILLE_DOMAINE: u64 = 4;
 
 fn pool() -> PoolDbm {
     Arena::new(
-        DbmController::nouveau(DbmKeys::nouvelle(TAILLE_DOMAINE)),
+        DbmController::nouveau(DbmKeys::new(TAILLE_DOMAINE)),
         Box::new(NoOpObserver),
     )
 }
 
 fn keys() -> DbmKeys {
-    DbmKeys::nouvelle(TAILLE_DOMAINE)
+    DbmKeys::new(TAILLE_DOMAINE)
 }
 
 /// Full region of the box: no off-diagonal constraint.

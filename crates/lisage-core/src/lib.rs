@@ -28,8 +28,8 @@ pub mod transduction;
 pub mod transfert;
 
 pub use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, PolitiqueMemoire,
-    Pool, PoolError,
+    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, MemoryPolicy, NodeId, Pool,
+    PoolError,
 };
 
 /// Dummy placeholder to validate CI (M0-1).

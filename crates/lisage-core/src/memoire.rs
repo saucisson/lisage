@@ -88,7 +88,7 @@ impl<V: Clone + Eq + Hash + Debug> EffetMemoire<V> {
     }
 
     /// Applies the effect to the memory (increments the version per write).
-    pub fn appliquer(&self, memoire: &mut MemoireNiveau<V>) {
+    pub fn apply(&self, memoire: &mut MemoireNiveau<V>) {
         for (noeud, niveau, valeur) in &self.ecritures {
             memoire.ecrire(*noeud, *niveau, valeur.clone());
         }

@@ -214,17 +214,17 @@ where
         }
         let etape = RestreintAuxNiveaux::new(params.transduction.clone(), niveaux_actifs.clone());
         // Spec § 7: saturate steps can produce a memory effect
-        // (T3, M2-5) — ParNiveau policy. The memory lives for one pass:
+        // (T3, M2-5) — PerLevel policy. The memory lives for one pass:
         // the runner (and its memory) is recreated at each iteration.
         let mut runner = match &params.observateur {
             Some(observateur) => Transducteur::avec_observateur(
                 etape,
-                lisage_algebra::interface::PolitiqueMemoire::ParNiveau,
+                lisage_algebra::interface::MemoryPolicy::PerLevel,
                 Arc::clone(observateur),
             ),
             None => Transducteur::avec_politique(
                 etape,
-                lisage_algebra::interface::PolitiqueMemoire::ParNiveau,
+                lisage_algebra::interface::MemoryPolicy::PerLevel,
             ),
         };
         let (image, _) = runner.run_meme_pool(params.pool, params.anchor, courant)?;

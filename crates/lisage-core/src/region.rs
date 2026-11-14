@@ -91,7 +91,7 @@ pub struct RegionKeys {
 
 impl RegionKeys {
     /// Algebra for per-level domain sizes (index = level).
-    pub fn nouvelle(domaines: Vec<u64>) -> Self {
+    pub fn new(domaines: Vec<u64>) -> Self {
         RegionKeys { domaines }
     }
 

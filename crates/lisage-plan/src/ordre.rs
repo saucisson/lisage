@@ -321,7 +321,7 @@ pub trait MarqueOrdre<T: TypeOrdre>: Sized + Send + Sync {
 }
 
 /// Operand aligned on the order `O` of type `T`. Composition
-/// ([`Aligne::composer`]) requires the same `O` parameter on both sides:
+/// ([`Aligne::compose`]) requires the same `O` parameter on both sides:
 /// operands under different orders do not compile.
 pub struct Aligne<T: TypeOrdre, O: MarqueOrdre<T>, V> {
     valeur: V,
@@ -344,7 +344,7 @@ impl<T: TypeOrdre, O: MarqueOrdre<T>, V> Aligne<T, O, V> {
 
     /// Composition under common order: `autre` shares the same `(T, O)` —
     /// alignment is imposed by typing, not checked at runtime.
-    pub fn composer<U, W>(
+    pub fn compose<U, W>(
         &self,
         autre: &Aligne<T, O, U>,
         combinaison: impl FnOnce(&V, &U) -> W,

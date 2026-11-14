@@ -16,7 +16,7 @@ const ANCRE: Anchor = Anchor(0);
 
 fn pool(domaines: Vec<u64>) -> PoolRegion {
     Arena::new(
-        RegionController::nouveau(RegionKeys::nouvelle(domaines)),
+        RegionController::nouveau(RegionKeys::new(domaines)),
         Box::new(NoOpObserver),
     )
 }
@@ -38,7 +38,7 @@ fn test_intervalle_vide_normalise() {
 
 #[test]
 fn test_normal_form_canonique_et_idempotente() {
-    let keys = RegionKeys::nouvelle(vec![8]);
+    let keys = RegionKeys::new(vec![8]);
     // Any writing of an empty interval has the same normal form.
     assert_eq!(keys.normal_form(&Intervalle::nouveau(7, 2)), VIDE);
     assert_eq!(keys.normal_form(&VIDE), VIDE);
@@ -49,7 +49,7 @@ fn test_normal_form_canonique_et_idempotente() {
 
 #[test]
 fn test_cardinalite_et_defaut_par_niveau() {
-    let keys = RegionKeys::nouvelle(vec![8, 3]);
+    let keys = RegionKeys::new(vec![8, 3]);
     assert_eq!(keys.cardinality(Level(0)), 8);
     assert_eq!(keys.cardinality(Level(1)), 3);
     // δ(ℓ) = the empty interval, the continuous "absent".
@@ -109,7 +109,7 @@ fn test_propriete_normalisation_lcg() {
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
-    let keys = RegionKeys::nouvelle(vec![16]);
+    let keys = RegionKeys::new(vec![16]);
     let mut graine = GRAINE_LCG;
     for _ in 0..NOMBRE_CAS {
         let mut suivant = || {

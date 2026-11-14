@@ -82,14 +82,14 @@ pub trait KeyAlgebra: Send + Sync {
 /// controller, it decides which entries of `M : (node id, ℓ) ⇀ V` are kept
 /// between two visits to a level.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub enum PolitiqueMemoire {
+pub enum MemoryPolicy {
     /// No level memory: memory-effect transductions are rejected
     /// (default behavior, M1).
     #[default]
-    Aucune,
+    NoMemory,
     /// Memory kept per `(node, level)`: each visit to a level can read the
     /// state stored by a previous visit to the same node.
-    ParNiveau,
+    PerLevel,
 }
 
 /// Extended controller (proposal § 1.2): instance of the eight fields that
@@ -119,27 +119,27 @@ pub trait Controller: Send + Sync {
 
     /// R-collapse active? `false` switches the reduction off (didactic
     /// workshop, backlog § 9: each reduction toggled one by one).
-    fn collapse_actif(&self) -> bool {
+    fn collapse_active(&self) -> bool {
         true
     }
 
     /// R-default active? `false` switches off the absorption of the arc δ(ℓ)
     /// leading to D_δ (didactic workshop, same).
-    fn defaut_actif(&self) -> bool {
+    fn default_active(&self) -> bool {
         true
     }
 
     /// Level-memory storage policy (M2-3, T3): declared by the controller.
-    /// `Aucune` by default (M1); `ParNiveau` allows memory-effect transductions.
-    fn politique_memoire(&self) -> PolitiqueMemoire {
-        PolitiqueMemoire::Aucune
+    /// `NoMemory` by default (M1); `PerLevel` allows memory-effect transductions.
+    fn memory_policy(&self) -> MemoryPolicy {
+        MemoryPolicy::NoMemory
     }
 
     /// Generalized default (D-abs/D-trans, spec § 2.4.1, M4-3, claim A6):
     /// absorption of arcs toward D^default over **any subdomain** (not
     /// only δ(ℓ)) and transparent node (A = ∅ or all targets ≡ D →
     /// D). `false` by default: § 2.3 system (R-default on δ(ℓ) only).
-    fn absorption_generalisee(&self) -> bool {
+    fn generalized_absorption(&self) -> bool {
         false
     }
 
@@ -147,9 +147,9 @@ pub trait Controller: Send + Sync {
     /// spec § 2.4.5): normalizes forms modulo G by canonical section
     /// of orbits, the argument living on the incoming arc. `None` by default:
     /// no relative forms (M1, absolute encoding).
-    fn groupe_cles(
+    fn cycle_group(
         &self,
-    ) -> Option<&dyn crate::relatif::GroupeCles<Cle = Self::Key, Argument = i64>> {
+    ) -> Option<&dyn crate::relatif::CycleGroup<Key = Self::Key, Argument = i64>> {
         None
     }
 }

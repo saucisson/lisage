@@ -7,7 +7,7 @@
 //!
 //! - [`Reductions`]: R-collapse / R-default switches;
 //! - [`AtelierController`]: wrapping controller that toggles them (the pool
-//!   reads the `collapse_actif` / `defaut_actif` hooks at interning time);
+//!   reads the `collapse_active` / `default_active` hooks at interning time);
 //! - [`mesurer`]: three didactic metrics — the **shared nodes**
 //!   (R-share active, count of reachable handles), the **paths**
 //!   (number of root → terminal paths) and the **unfolded size** (number
@@ -42,9 +42,9 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Level, NodeId, PolitiqueMemoire, Pool, PoolError,
+    Anchor, Controller, ControllerId, Form, Level, MemoryPolicy, NodeId, Pool, PoolError,
 };
-use lisage_algebra::relatif::{AncreComposee, Fragment, GroupeCles};
+use lisage_algebra::relatif::{AncreComposee, CycleGroup, Fragment};
 
 use crate::observer::{CanalAttr, Observer, TraceEvent};
 
@@ -123,24 +123,24 @@ impl<C: Controller> Controller for AtelierController<C> {
         }
     }
 
-    fn collapse_actif(&self) -> bool {
+    fn collapse_active(&self) -> bool {
         self.reductions.collapse
     }
 
-    fn defaut_actif(&self) -> bool {
+    fn default_active(&self) -> bool {
         self.reductions.defaut
     }
 
-    fn politique_memoire(&self) -> PolitiqueMemoire {
-        self.inner.politique_memoire()
+    fn memory_policy(&self) -> MemoryPolicy {
+        self.inner.memory_policy()
     }
 
-    fn absorption_generalisee(&self) -> bool {
-        self.reductions.defaut && self.inner.absorption_generalisee()
+    fn generalized_absorption(&self) -> bool {
+        self.reductions.defaut && self.inner.generalized_absorption()
     }
 
-    fn groupe_cles(&self) -> Option<&dyn GroupeCles<Cle = Self::Key, Argument = i64>> {
-        self.inner.groupe_cles()
+    fn cycle_group(&self) -> Option<&dyn CycleGroup<Key = Self::Key, Argument = i64>> {
+        self.inner.cycle_group()
     }
 }
 
@@ -578,7 +578,7 @@ pub struct AncreFenetre {
 
 impl AncreFenetre {
     /// Anchor `{base, horizon}`: the two named offsets of the SWP protocol.
-    pub fn nouvelle(base: i64, horizon: i64) -> Self {
+    pub fn new(base: i64, horizon: i64) -> Self {
         AncreFenetre {
             inner: AncreComposee::nouveau()
                 .avec(fragment_base(), base)

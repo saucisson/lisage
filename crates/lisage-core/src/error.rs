@@ -19,7 +19,7 @@ pub enum CoreError {
     },
     /// Node level outside the schema (incompatible diagram).
     NiveauHorsSchema(Level),
-    /// Memory effect produced while the controller's policy is `Aucune`
+    /// Memory effect produced while the controller's policy is `NoMemory`
     /// (M2-3, T3).
     MemoireNonAutorisee,
     /// Fixpoint loop (`saturate`, M2-4) exceeding the safety bound (T2
@@ -46,7 +46,7 @@ impl std::fmt::Display for CoreError {
                 write!(formatter, "level outside schema: {niveau:?}")
             }
             CoreError::MemoireNonAutorisee => {
-                write!(formatter, "memory effect produced with the Aucune policy")
+                write!(formatter, "memory effect produced with the NoMemory policy")
             }
             CoreError::NonTerminaison { borne } => {
                 write!(

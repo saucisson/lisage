@@ -63,7 +63,7 @@ impl Controller for MockController {
     fn default_payload(&self, _level: Level) -> Option<Self::Payload> {
         Some(false)
     }
-    fn absorption_generalisee(&self) -> bool {
+    fn generalized_absorption(&self) -> bool {
         self.absorption
     }
 }
@@ -115,7 +115,7 @@ fn test_dabs_absorption_tout_sous_domaine() {
     );
 }
 
-/// M4-3: without D-abs (§ 2.3 system, `absorption_generalisee` false), only
+/// M4-3: without D-abs (§ 2.3 system, `generalized_absorption` false), only
 /// the δ(ℓ) = 0 arc toward D^def is absorbed — the 2 ↦ ⊥ arc remains.
 #[test]
 fn test_sans_dabs_rdefault_seul() {

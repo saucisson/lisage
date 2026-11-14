@@ -23,7 +23,7 @@ const TAILLE_DOMAINE: u64 = 12;
 
 fn pool() -> PoolRegion {
     Arena::new(
-        RegionController::nouveau(RegionKeys::nouvelle(vec![TAILLE_DOMAINE])),
+        RegionController::nouveau(RegionKeys::new(vec![TAILLE_DOMAINE])),
         Box::new(NoOpObserver),
     )
 }
