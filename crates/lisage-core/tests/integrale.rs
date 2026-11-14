@@ -19,11 +19,11 @@ use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
 type PoolRegion = Arena<RegionController>;
 
 const ANCRE: Anchor = Anchor(0);
-const TAILLE_DOMAINE: u64 = 12;
+const SIZE_DOMAIN: u64 = 12;
 
 fn pool() -> PoolRegion {
     Arena::new(
-        RegionController::new(RegionKeys::new(vec![TAILLE_DOMAINE])),
+        RegionController::new(RegionKeys::new(vec![SIZE_DOMAIN])),
         Box::new(NoOpObserver),
     )
 }
@@ -52,9 +52,9 @@ impl Observer for Collecteur {
     }
 }
 
-/// Full region of the universe: [0, TAILLE_DOMAINE).
+/// Full region of the universe: [0, SIZE_DOMAIN).
 fn region_pleine() -> Intervalle {
-    Intervalle::new(0, TAILLE_DOMAINE - 1)
+    Intervalle::new(0, SIZE_DOMAIN - 1)
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn test_mesure_intervalle_continue() {
     assert_eq!(mesure_intervalle(&VIDE), 0);
     assert_eq!(mesure_intervalle(&Intervalle::new(0, 11)), 11);
     // The discrete cardinal counts points: [2, 5] has 4.
-    assert_eq!(Intervalle::new(2, 5).taille(), 4);
+    assert_eq!(Intervalle::new(2, 5).size(), 4);
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn test_integrale_union_deux_intervalles() {
     // Continuous measure: (5−2) + (9−7) = 3 + 2 = 5.
     assert_eq!(mesure, 5, "integral = sum of lengths");
     // Discrete cardinal: (5−2+1) + (9−7+1) = 4 + 3 = 7.
-    let cardinal: u64 = intervalles.iter().map(Intervalle::taille).sum();
+    let cardinal: u64 = intervalles.iter().map(Intervalle::size).sum();
     assert_eq!(cardinal, 7, "cardinal = sum of sizes (points)");
     assert_ne!(mesure, cardinal, "count ≠ measure on the continuum");
 }
@@ -127,7 +127,7 @@ fn test_integrale_terminaux() {
     let pleine = region_pleine();
     assert_eq!(
         integrale_constante(&pool, vrai, &pleine, None).expect("interned node"),
-        TAILLE_DOMAINE - 1,
+        SIZE_DOMAIN - 1,
         "⊤ returns the measure of the full region"
     );
     assert_eq!(
@@ -189,15 +189,15 @@ fn test_propriete_integrale_contre_cardinal_lcg() {
                 .wrapping_add(INCREMENT_LCG);
             graine
         };
-        // Subset S of [0, TAILLE_DOMAINE) drawn with the LCG.
-        let ensemble: BTreeSet<u64> = (0..TAILLE_DOMAINE).filter(|_| suivant() % 2 == 1).collect();
+        // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
+        let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| suivant() % 2 == 1).collect();
         // Compression into disjoint intervals.
         let mut intervalles = Vec::new();
         let mut point = 0;
-        while point < TAILLE_DOMAINE {
+        while point < SIZE_DOMAIN {
             if ensemble.contains(&point) {
                 let mut fin = point;
-                while fin + 1 < TAILLE_DOMAINE && ensemble.contains(&(fin + 1)) {
+                while fin + 1 < SIZE_DOMAIN && ensemble.contains(&(fin + 1)) {
                     fin += 1;
                 }
                 intervalles.push(Intervalle::new(point, fin));
@@ -218,7 +218,7 @@ fn test_propriete_integrale_contre_cardinal_lcg() {
         assert_eq!(mesure, mesure_attendue, "integral == sum of lengths");
         // Analytic cardinal: |S|.
         let cardinal_attendu = ensemble.len() as u64;
-        let cardinal: u64 = intervalles.iter().map(Intervalle::taille).sum();
+        let cardinal: u64 = intervalles.iter().map(Intervalle::size).sum();
         assert_eq!(cardinal, cardinal_attendu, "cardinal == |S|");
         // On the continuum, measure ≤ cardinal (each point has measure 0).
         assert!(mesure <= cardinal);

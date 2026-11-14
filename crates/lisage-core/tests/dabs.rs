@@ -94,7 +94,7 @@ fn arena_23() -> Arena<MockController> {
 /// not just the δ(ℓ) = 0 arc. Here keys 0, 2 and 3 lead to ⊥ = D^def: they
 /// disappear, leaving {1 ↦ ⊤}.
 #[test]
-fn test_dabs_absorption_tout_sous_domaine() {
+fn test_dabs_absorption_tout_sous_domain() {
     let mut pool = arena_dabs();
     let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
     let vrai = pool.intern(ANCRE_TEST, Form::Terminal(true));

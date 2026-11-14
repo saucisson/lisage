@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::atelier::{
-    AtelierController, Reductions, compter_chemins, compter_nodes, compter_taille_depliee, mesurer,
+    AtelierController, Reductions, compter_chemins, compter_nodes, compter_size_depliee, mesurer,
 };
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd};
 use lisage_core::observer::NoOpObserver;
@@ -133,14 +133,11 @@ fn test_chemins_contre_nodes() {
     assert_eq!(compter_nodes(&pool, root).expect("interned node"), 4);
     assert_eq!(compter_chemins(&pool, root).expect("interned node"), 4);
     // Unfolded size: root (1) + 2 × n1 (1 + ⊤ + ⊥ = 3) = 7.
-    assert_eq!(
-        compter_taille_depliee(&pool, root).expect("interned node"),
-        7
-    );
+    assert_eq!(compter_size_depliee(&pool, root).expect("interned node"), 7);
     // A non-interned NodeId is a propagated error.
     assert!(compter_nodes(&pool, NodeId(u32::MAX)).is_err());
     assert!(compter_chemins(&pool, NodeId(u32::MAX)).is_err());
-    assert!(compter_taille_depliee(&pool, NodeId(u32::MAX)).is_err());
+    assert!(compter_size_depliee(&pool, NodeId(u32::MAX)).is_err());
     assert!(mesurer(&pool, NodeId(u32::MAX), None).is_err());
 }
 
@@ -254,7 +251,7 @@ fn test_narration_mesurer() {
                 canal: CanalAttr::Synthesized,
                 value,
                 ..
-            } if value == "nodes_partages=4 chemins=4 taille_depliee=7"
+            } if value == "nodes_partages=4 chemins=4 size_depliee=7"
         )),
         "the narration event carries the full report"
     );
@@ -268,25 +265,25 @@ fn test_narration_mesurer() {
 fn test_fenetre_absolu_croit_relatif_constant() {
     use lisage_core::atelier::comparer_encodages_fenetre;
 
-    const TAILLE: u64 = 4;
+    const SIZE: u64 = 4;
     // 10 bases: absolute = root + 10 windows + ⊤ = 12 nodes; relative = 3.
     // (R-collapse commuted: an all-true window would otherwise collapse.)
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport =
-        comparer_encodages_fenetre(&mut pool, ANCRE, TAILLE, 10, None).expect("interned nodes");
+        comparer_encodages_fenetre(&mut pool, ANCRE, SIZE, 10, None).expect("interned nodes");
     assert_eq!(rapport.absolu.nodes_partages, 12);
     assert_eq!(rapport.relatif.nodes_partages, 3);
     // Same logical object: same paths (10 bases × 4 keys) and same unfolded
     // size (root + 10 × (window + ⊤)).
     assert_eq!(rapport.absolu.chemins, 40);
     assert_eq!(rapport.relatif.chemins, 40);
-    assert_eq!(rapport.absolu.taille_depliee, 51);
-    assert_eq!(rapport.relatif.taille_depliee, 51);
+    assert_eq!(rapport.absolu.size_depliee, 51);
+    assert_eq!(rapport.relatif.size_depliee, 51);
 
     // 100 bases: the relative encoding stays at 3 nodes (constant), the absolute one grows to 102.
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport =
-        comparer_encodages_fenetre(&mut pool, ANCRE, TAILLE, 100, None).expect("interned nodes");
+        comparer_encodages_fenetre(&mut pool, ANCRE, SIZE, 100, None).expect("interned nodes");
     assert_eq!(
         rapport.relatif.nodes_partages, 3,
         "the relative encoding is O(1)"
@@ -375,8 +372,8 @@ fn test_ordre_change_nodes_pas_chemins() {
     // Same logical object: 2^4 = 16 paths and unfolded tree 2^5-1 = 31.
     assert_eq!(rapport.premier.chemins, 16);
     assert_eq!(rapport.second.chemins, 16);
-    assert_eq!(rapport.premier.taille_depliee, 31);
-    assert_eq!(rapport.second.taille_depliee, 31);
+    assert_eq!(rapport.premier.size_depliee, 31);
+    assert_eq!(rapport.second.size_depliee, 31);
 }
 
 /// The workshop's natural order is exactly the reference `compiler_bdd`
@@ -505,13 +502,13 @@ fn test_ancre_fenetre_glisse() {
 fn test_glisse_pool_constant_lectures_differentes() {
     use lisage_core::atelier::{AncreFenetre, comparer_ancres_fenetre, construire_fenetre_ancree};
 
-    const TAILLE: u64 = 4;
+    const SIZE: u64 = 4;
     // (R-collapse commuted: an all-true window would otherwise collapse.)
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport = comparer_ancres_fenetre(
         &mut pool,
         ANCRE,
-        TAILLE,
+        SIZE,
         &AncreFenetre::new(0, 4),
         &AncreFenetre::new(7, 4),
         None,
@@ -524,7 +521,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
     assert_eq!(rapport.avant, rapport.apres, "same metrics on both sides");
     assert_eq!(rapport.avant.nodes_partages, 3, "root + window + ⊤");
     assert_eq!(rapport.avant.chemins, 4, "one path per window key");
-    assert_eq!(rapport.avant.taille_depliee, 6);
+    assert_eq!(rapport.avant.size_depliee, 6);
     assert_eq!(
         rapport.nodes_pool, 4,
         "⊤ + shared window + one root per anchor"
@@ -536,16 +533,15 @@ fn test_glisse_pool_constant_lectures_differentes() {
     // the entry arc, the window form reached is always the same and the pool
     // creates only one root per slide — never a copy of the window.
     let nodes_avant = pool.node_count();
-    let (_, fenetre) =
-        construire_fenetre_ancree(&mut pool, ANCRE, TAILLE, &AncreFenetre::new(0, 4));
-    let ancre = AncreFenetre::new(100, TAILLE as i64);
+    let (_, fenetre) = construire_fenetre_ancree(&mut pool, ANCRE, SIZE, &AncreFenetre::new(0, 4));
+    let ancre = AncreFenetre::new(100, SIZE as i64);
     for delta in 0..50 {
         let glissee = ancre.glessee(delta);
         assert_eq!(
             glissee.fenetre_absolue(),
-            (100 + delta, 100 + delta + TAILLE as i64)
+            (100 + delta, 100 + delta + SIZE as i64)
         );
-        let (root, fenetre_glissee) = construire_fenetre_ancree(&mut pool, ANCRE, TAILLE, &glissee);
+        let (root, fenetre_glissee) = construire_fenetre_ancree(&mut pool, ANCRE, SIZE, &glissee);
         assert_eq!(fenetre_glissee, fenetre, "window form shared at each slide");
         assert_ne!(root, fenetre, "each base has its own root");
     }

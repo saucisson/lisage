@@ -16,7 +16,7 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
 use lisage_core::pli::{compter, union};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
 /// Test anchor.
@@ -71,12 +71,12 @@ impl Observer for RecordingObserver {
 /// key `2i` = `pc_i`, key `2i+1` = `left_i`; domain {0,1,2} (+ g for the
 /// left-handed).
 fn schema_anneau(n: u64, gaucher: bool) -> Schema {
-    let domaine = if gaucher {
-        Domaine::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE), Atom(GAUCHER)])
+    let domain = if gaucher {
+        Domain::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE), Atom(GAUCHER)])
     } else {
-        Domaine::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)])
+        Domain::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)])
     };
-    Schema::Map((0..PAS_CLE_INTERCALAGE * n).map(Atom).collect(), domaine)
+    Schema::Map((0..PAS_CLE_INTERCALAGE * n).map(Atom).collect(), domain)
 }
 
 /// `left_i` fork derived from the `pc` word (golden thread § 3).

@@ -277,7 +277,7 @@ impl<C: Controller> Pool for Arena<C> {
         let forme = self.forme_normalisee(form);
         let forme = match forme {
             Form::Node { level, arcs } => {
-                let taille_avant = arcs.len();
+                let size_avant = arcs.len();
                 match self.reduit(anchor, level, arcs) {
                     Err(cible) => {
                         self.observer.on_event(&TraceEvent::ReductionApplied {
@@ -287,7 +287,7 @@ impl<C: Controller> Pool for Arena<C> {
                         return cible;
                     }
                     Ok(Form::Node { arcs, .. }) => {
-                        if arcs.len() < taille_avant {
+                        if arcs.len() < size_avant {
                             self.observer.on_event(&TraceEvent::ReductionApplied {
                                 rule: ReductionRule::Default,
                                 level,

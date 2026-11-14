@@ -11,7 +11,7 @@ use lisage_core::arena::Arena;
 use lisage_core::observer::{CanalAttr, Observer, TraceEvent};
 use lisage_core::pli::Pli;
 use lisage_core::saturate::{ParametresSaturation, PolitiqueSaturation, saturer};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::Transducteur;
 use lisage_core::{Anchor, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
@@ -45,7 +45,7 @@ impl Observer for Collecteur {
 }
 
 fn schema_ensemble() -> Schema {
-    Schema::Set(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]))
+    Schema::Set(Domain::new(vec![Atom(0), Atom(1), Atom(2)]))
 }
 
 fn ensemble(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {

@@ -10,7 +10,7 @@ use lisage_algebra::vtree::{ErreurVtree, Vtree};
 use lisage_bench::sdd::{ErreurSdd, installer_sdd, pool_pour_sdd, projeter};
 use lisage_core::arena::Arena;
 use lisage_core::pli::{compter, union};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
 /// Test vtree: (x0, x1) on the left, (x2, x3) on the right.
@@ -64,7 +64,7 @@ fn pool_neuf() -> Arena<ReferenceController> {
 /// Cardinal of the flat DD of the set over the 4 keys (path B reference).
 fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Value>) -> u64 {
     let keys: Vec<Atom> = (0..4).map(Atom).collect();
-    let schema = Schema::Map(keys, Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Map(keys, Domain::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
     let ancre = Anchor(0);
     let mut root = pool.intern(ancre, Form::Terminal(false));

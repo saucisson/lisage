@@ -7,14 +7,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
 use lisage_lang::value::{Atom, Value};
 
 type PoolRef = Arena<ReferenceController>;
 
 fn pool() -> PoolRef {
-    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
@@ -235,16 +235,16 @@ fn test_memo_fingerprint_op_node() {
     let (_, b) = dag(&mut input, anchor);
     let mut runner = Transducteur::new(Identite);
     let (r1, _) = runner.run(&input, &mut output, anchor, b).unwrap();
-    let taille_apres_1 = runner.taille_memo();
+    let size_apres_1 = runner.size_memo();
     let (r2, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(r1, r2);
     assert_eq!(
-        runner.taille_memo(),
-        taille_apres_1,
+        runner.size_memo(),
+        size_apres_1,
         "second run: only memo hits"
     );
     // 4 distinct (node, h) pairs: b, a, ⊤, ⊥.
-    assert_eq!(taille_apres_1, 4);
+    assert_eq!(size_apres_1, 4);
 
     // Another operation (different fingerprint) on the same node: separate
     // memo. With H = depth, ⊤ is visited at two distinct h (1 via b's arc 1,
@@ -253,7 +253,7 @@ fn test_memo_fingerprint_op_node() {
     let (r3, _) = autre.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(output.resolve(r3).unwrap(), input.resolve(b).unwrap());
     assert_eq!(
-        autre.taille_memo(),
+        autre.size_memo(),
         5,
         "memo specific to the operation and to h: key (op, node, h)"
     );
@@ -263,7 +263,7 @@ fn test_memo_fingerprint_op_node() {
 /// schema): identity over a compiled set.
 #[test]
 fn test_transduction_sur_diagramme_compile() {
-    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),

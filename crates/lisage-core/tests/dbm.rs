@@ -14,9 +14,9 @@ type PoolDbm = Arena<DbmController>;
 
 const ANCRE: Anchor = Anchor(0);
 
-fn pool(taille_domaine: u64) -> PoolDbm {
+fn pool(size_domain: u64) -> PoolDbm {
     Arena::new(
-        DbmController::new(DbmKeys::new(taille_domaine)),
+        DbmController::new(DbmKeys::new(size_domain)),
         Box::new(NoOpObserver),
     )
 }
@@ -159,8 +159,8 @@ fn test_propriete_cloture_lcg() {
 /// region arc leads to the default D_δ = terminal(false): R-default.
 #[test]
 fn test_differentiel_appartenance_contre_enumeration() {
-    const TAILLE_DOMAINE: u64 = 4;
-    let mut pool = pool(TAILLE_DOMAINE);
+    const SIZE_DOMAIN: u64 = 4;
+    let mut pool = pool(SIZE_DOMAIN);
     let vrai_terminal = pool.intern(ANCRE, Form::Terminal(true));
     let faux_terminal = pool.intern(ANCRE, Form::Terminal(false));
     // x0 − x1 ≤ 0  ⇔  x0 ≤ x1; the complement is x1 − x0 ≤ −1.
@@ -185,8 +185,8 @@ fn test_differentiel_appartenance_contre_enumeration() {
         !arcs.contains_key(&INCOHERENT),
         "R-default removes the arc to the default"
     );
-    for x0 in 0..TAILLE_DOMAINE {
-        for x1 in 0..TAILLE_DOMAINE {
+    for x0 in 0..SIZE_DOMAIN {
+        for x1 in 0..SIZE_DOMAIN {
             let point = [x0, x1];
             let cible_naive = if x0 <= x1 {
                 vrai_terminal

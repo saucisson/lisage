@@ -99,7 +99,7 @@ impl std::error::Error for ErreurOracle {}
 /// [0, 1] there and cannot be bypassed by a literal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ParametresOracle {
-    taille_domaine: u64,
+    size_domain: u64,
     densite_attendue: Rationnel,
     cout_encodage: u64,
     requetes_aval: u64,
@@ -108,7 +108,7 @@ pub struct ParametresOracle {
 impl ParametresOracle {
     /// Validated parameters: the expected density must fit in [0, 1].
     pub fn new(
-        taille_domaine: u64,
+        size_domain: u64,
         densite_attendue: Rationnel,
         cout_encodage: u64,
         requetes_aval: u64,
@@ -119,7 +119,7 @@ impl ParametresOracle {
             return Err(ErreurOracle::DensiteHorsBornes);
         }
         Ok(ParametresOracle {
-            taille_domaine,
+            size_domain,
             densite_attendue,
             cout_encodage,
             requetes_aval,
@@ -127,8 +127,8 @@ impl ParametresOracle {
     }
 
     /// Domain size: number of swept keys.
-    pub fn taille_domaine(&self) -> u64 {
-        self.taille_domaine
+    pub fn size_domain(&self) -> u64 {
+        self.size_domain
     }
 
     /// Expected density (validated in [0, 1]).
@@ -151,7 +151,7 @@ impl ParametresOracle {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Prediction {
     /// Predicted diagram size (nodes, terminal included).
-    pub taille_predite: u64,
+    pub size_predite: u64,
     /// Predicted total cost (encoding units): size × encoding cost ×
     /// downstream queries.
     pub cout_total_predit: u64,
@@ -166,15 +166,14 @@ impl Oracle {
     /// terminal), `total cost = size × encoding_cost × downstream_queries`
     /// (saturated).
     pub fn predire(parametres: &ParametresOracle) -> Prediction {
-        let presents = (parametres.taille_domaine as u128)
-            * (parametres.densite_attendue.num as u128)
+        let presents = (parametres.size_domain as u128) * (parametres.densite_attendue.num as u128)
             / (parametres.densite_attendue.den as u128);
-        let taille_predite = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
-        let cout_total_predit = taille_predite
+        let size_predite = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
+        let cout_total_predit = size_predite
             .saturating_mul(parametres.cout_encodage)
             .saturating_mul(parametres.requetes_aval);
         Prediction {
-            taille_predite,
+            size_predite,
             cout_total_predit,
         }
     }

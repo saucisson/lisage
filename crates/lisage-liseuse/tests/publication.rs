@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 use lisage_core::arena::Arena;
 use lisage_core::observer::CanalAttr;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_core::{Anchor, NodeId};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::publication::{
@@ -17,7 +17,7 @@ type PoolRef = Arena<ReferenceController>;
 
 /// Test schema: `Set({0,1})`.
 fn schema_test() -> Schema {
-    Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]))
+    Schema::Set(Domain::new(vec![Atom(0), Atom(1)]))
 }
 
 /// Builds the diagram of the set `{0}` in a new pool.

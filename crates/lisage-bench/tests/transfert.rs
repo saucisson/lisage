@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, MemoryPolicy, NodeId};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler, decompiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiler, decompiler};
 use lisage_core::transduction::Transducteur;
 use lisage_core::transfert::TransfertNonLocal;
 use lisage_lang::value::{Atom, Value};
@@ -18,15 +18,15 @@ use proptest::prelude::*;
 /// Number of keys of the random map.
 const NOMBRE_CLES: u64 = 3;
 /// Size of the value domain.
-const TAILLE_DOMAINE: u64 = 4;
+const SIZE_DOMAIN: u64 = 4;
 
 type PoolRef = Arena<ReferenceController>;
 
-/// `Map` schema with `NOMBRE_CLES` keys over the domain `{0..TAILLE_DOMAINE}`.
+/// `Map` schema with `NOMBRE_CLES` keys over the domain `{0..SIZE_DOMAIN}`.
 fn schema_test() -> Schema {
     Schema::Map(
         (0..NOMBRE_CLES).map(Atom).collect(),
-        Domaine::new((0..TAILLE_DOMAINE).map(Atom).collect()),
+        Domain::new((0..SIZE_DOMAIN).map(Atom).collect()),
     )
 }
 
@@ -79,7 +79,7 @@ proptest! {
     /// The other keys are always unchanged.
     #[test]
     fn test_transfert_semantique(
-        values in prop::collection::vec(0u64..TAILLE_DOMAINE, NOMBRE_CLES as usize),
+        values in prop::collection::vec(0u64..SIZE_DOMAIN, NOMBRE_CLES as usize),
         source in 0u64..NOMBRE_CLES,
         destination in 0u64..NOMBRE_CLES,
     ) {
@@ -105,7 +105,7 @@ proptest! {
         // The transfer is active only if the source has at least 1 unit.
         if value_source >= 1 {
             attendu.insert(source, value_source - 1);
-            if value_destination + 1 < TAILLE_DOMAINE {
+            if value_destination + 1 < SIZE_DOMAIN {
                 attendu.insert(destination, value_destination + 1);
             }
         }

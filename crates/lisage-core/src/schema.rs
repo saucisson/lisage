@@ -28,17 +28,17 @@ pub const PAS_NIVEAU_MAP: u32 = 2;
 
 /// Bounded atom domain: finite enumeration, with optional default.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Domaine {
+pub struct Domain {
     /// Values of the domain, in canonical order.
     pub values: Vec<Atom>,
     /// Default δ of the domain, if declared.
     pub defaut: Option<Atom>,
 }
 
-impl Domaine {
+impl Domain {
     /// Domain without default.
     pub fn new(values: Vec<Atom>) -> Self {
-        Domaine {
+        Domain {
             values,
             defaut: None,
         }
@@ -50,7 +50,7 @@ impl Domaine {
     }
 
     /// Number of values in the domain.
-    pub fn taille(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.values.len()
     }
 }
@@ -59,17 +59,17 @@ impl Domaine {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Schema {
     /// `Atom(D)`: bounded domain of atoms.
-    Atom(Domaine),
+    Atom(Domain),
     /// `Set(Atom(D))`: set of atoms from a bounded domain.
-    Set(Domaine),
+    Set(Domain),
     /// `Map(K, V)`: ordered keys to a bounded value domain.
-    Map(Vec<Atom>, Domaine),
+    Map(Vec<Atom>, Domain),
     /// `Seq(D, N)`: sequence of at most `N` elements of a bounded domain `D`
     /// (M2-1, `list` constructor). The end marker is a required key.
-    Seq(Domaine, u32),
+    Seq(Domain, u32),
     /// `Tag(K, V)`: typed union — discriminant level (keys `K`) then value
     /// level `V` (M2-2). A single useful arc per node (C2).
-    Tag(Vec<Atom>, Domaine),
+    Tag(Vec<Atom>, Domain),
 }
 
 impl Schema {
@@ -77,7 +77,7 @@ impl Schema {
     pub fn nombre_niveaux(&self) -> u32 {
         match self {
             Schema::Atom(_) => 1,
-            Schema::Set(domaine) => domaine.taille() as u32,
+            Schema::Set(domain) => domain.size() as u32,
             Schema::Map(liste_keys, _) => PAS_NIVEAU_MAP * liste_keys.len() as u32,
             Schema::Seq(_, longueur_max) => longueur_max + 1,
             Schema::Tag(liste, _) => PAS_NIVEAU_MAP * liste.len() as u32,
@@ -106,7 +106,7 @@ pub enum SchemaError {
         recu: &'static str,
     },
     /// Atom outside the domain declared by the schema.
-    HorsDomaine(Atom),
+    HorsDomain(Atom),
     /// Diagram node incompatible with the schema (decompilation).
     NodeInattendu {
         /// Shape expected at this position.
@@ -124,7 +124,7 @@ impl std::fmt::Display for SchemaError {
             SchemaError::TypeMismatch { attendu, recu } => {
                 write!(formatter, "type mismatch: expected {attendu}, got {recu}")
             }
-            SchemaError::HorsDomaine(atome) => write!(formatter, "atom outside domain: {atome:?}"),
+            SchemaError::HorsDomain(atome) => write!(formatter, "atom outside domain: {atome:?}"),
             SchemaError::NodeInattendu { attendu, node } => {
                 write!(
                     formatter,
@@ -173,27 +173,27 @@ impl KeyAlgebra for SchemaKeys {
 
     fn cardinality(&self, level: Level) -> u64 {
         match &self.schema {
-            Schema::Atom(domaine) => domaine.taille() as u64,
+            Schema::Atom(domain) => domain.size() as u64,
             Schema::Set(_) => CARDINALITE_PRESENCE,
-            Schema::Map(_, domaine_values) => {
+            Schema::Map(_, domain_values) => {
                 if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
                     CARDINALITE_PRESENCE
                 } else {
-                    domaine_values.taille() as u64
+                    domain_values.size() as u64
                 }
             }
-            Schema::Seq(domaine, longueur_max) => {
+            Schema::Seq(domain, longueur_max) => {
                 if level.0 < *longueur_max {
-                    domaine.taille() as u64 + 1 // +1 for the end marker
+                    domain.size() as u64 + 1 // +1 for the end marker
                 } else {
                     CARDINALITE_PRESENCE
                 }
             }
-            Schema::Tag(liste, domaine_values) => {
+            Schema::Tag(liste, domain_values) => {
                 if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
                     liste.len() as u64
                 } else {
-                    domaine_values.taille() as u64
+                    domain_values.size() as u64
                 }
             }
         }
@@ -201,7 +201,7 @@ impl KeyAlgebra for SchemaKeys {
 
     fn default(&self, level: Level) -> Option<Self::Key> {
         match &self.schema {
-            Schema::Atom(domaine) => domaine.defaut.map(|atome| atome.0),
+            Schema::Atom(domain) => domain.defaut.map(|atome| atome.0),
             Schema::Set(_) => Some(ABSENT),
             Schema::Map(_, _) => {
                 if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
@@ -250,7 +250,7 @@ impl Controller for ReferenceController {
 
     fn default_payload(&self, level: Level) -> Option<Self::Payload> {
         match &self.schema {
-            Schema::Atom(domaine) => domaine.defaut.map(|_| false),
+            Schema::Atom(domain) => domain.defaut.map(|_| false),
             Schema::Set(_) => Some(false),
             Schema::Map(_, _) => {
                 if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
@@ -274,9 +274,9 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
     value: &Value,
 ) -> Result<NodeId, SchemaError> {
     match (schema, value) {
-        (Schema::Atom(domaine), Value::Atom(atome)) => {
-            if !domaine.contient(*atome) {
-                return Err(SchemaError::HorsDomaine(*atome));
+        (Schema::Atom(domain), Value::Atom(atome)) => {
+            if !domain.contient(*atome) {
+                return Err(SchemaError::HorsDomain(*atome));
             }
             let terminal = pool.intern(anchor, Form::Terminal(true));
             Ok(pool.intern(
@@ -287,11 +287,11 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                 },
             ))
         }
-        (Schema::Set(domaine), Value::Set(elements)) => {
+        (Schema::Set(domain), Value::Set(elements)) => {
             for element in elements {
                 match element {
-                    Value::Atom(atome) if domaine.contient(*atome) => {}
-                    Value::Atom(atome) => return Err(SchemaError::HorsDomaine(*atome)),
+                    Value::Atom(atome) if domain.contient(*atome) => {}
+                    Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
                     autre => {
                         return Err(SchemaError::TypeMismatch {
                             attendu: "set of atoms",
@@ -300,19 +300,19 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                     }
                 }
             }
-            compiler_ensemble(pool, anchor, domaine, elements, 0)
+            compiler_ensemble(pool, anchor, domain, elements, 0)
         }
-        (Schema::Map(liste_keys, domaine_values), Value::Map(map)) => {
-            valider_map(liste_keys, domaine_values, map)?;
+        (Schema::Map(liste_keys, domain_values), Value::Map(map)) => {
+            valider_map(liste_keys, domain_values, map)?;
             compiler_map(pool, anchor, liste_keys, map, 0)
         }
-        (Schema::Seq(domaine, longueur_max), Value::Seq(elements)) => {
-            valider_seq(domaine, *longueur_max, elements)?;
-            compiler_seq(pool, anchor, domaine, *longueur_max, elements)
+        (Schema::Seq(domain, longueur_max), Value::Seq(elements)) => {
+            valider_seq(domain, *longueur_max, elements)?;
+            compiler_seq(pool, anchor, domain, *longueur_max, elements)
         }
-        (Schema::Tag(liste, domaine_values), Value::Tag(discriminant, payload)) => {
-            valider_tag(liste, domaine_values, *discriminant, payload)?;
-            compiler_tag(pool, anchor, liste, domaine_values, *discriminant, payload)
+        (Schema::Tag(liste, domain_values), Value::Tag(discriminant, payload)) => {
+            valider_tag(liste, domain_values, *discriminant, payload)?;
+            compiler_tag(pool, anchor, liste, domain_values, *discriminant, payload)
         }
         (schema, value) => Err(SchemaError::TypeMismatch {
             attendu: forme_schema(schema),
@@ -325,7 +325,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
 /// the faulty atom is the one reported).
 fn valider_map(
     liste_keys: &[Atom],
-    domaine_values: &Domaine,
+    domain_values: &Domain,
     map: &BTreeMap<Value, Value>,
 ) -> Result<(), SchemaError> {
     for (key, value) in map {
@@ -336,7 +336,7 @@ fn valider_map(
             });
         };
         if !liste_keys.contains(atome_key) {
-            return Err(SchemaError::HorsDomaine(*atome_key));
+            return Err(SchemaError::HorsDomain(*atome_key));
         }
         let Value::Atom(atome_value) = value else {
             return Err(SchemaError::TypeMismatch {
@@ -344,8 +344,8 @@ fn valider_map(
                 recu: forme_value(value),
             });
         };
-        if !domaine_values.contient(*atome_value) {
-            return Err(SchemaError::HorsDomaine(*atome_value));
+        if !domain_values.contient(*atome_value) {
+            return Err(SchemaError::HorsDomain(*atome_value));
         }
     }
     Ok(())
@@ -374,15 +374,15 @@ fn forme_value(value: &Value) -> &'static str {
 fn compiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    domaine: &Domaine,
+    domain: &Domain,
     elements: &BTreeSet<Value>,
     index: usize,
 ) -> Result<NodeId, SchemaError> {
-    if index == domaine.taille() {
+    if index == domain.size() {
         return Ok(pool.intern(anchor, Form::Terminal(true)));
     }
-    let suite = compiler_ensemble(pool, anchor, domaine, elements, index + 1)?;
-    let present = elements.contains(&Value::Atom(domaine.values[index]));
+    let suite = compiler_ensemble(pool, anchor, domain, elements, index + 1)?;
+    let present = elements.contains(&Value::Atom(domain.values[index]));
     let arc = if present { PRESENT } else { ABSENT };
     Ok(pool.intern(
         anchor,
@@ -435,11 +435,7 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
 
 /// Validates a sequence against the Seq schema (elements in the domain,
 /// bounded length).
-fn valider_seq(
-    domaine: &Domaine,
-    longueur_max: u32,
-    elements: &[Value],
-) -> Result<(), SchemaError> {
+fn valider_seq(domain: &Domain, longueur_max: u32, elements: &[Value]) -> Result<(), SchemaError> {
     if elements.len() > longueur_max as usize {
         return Err(SchemaError::TypeMismatch {
             attendu: "bounded-length sequence",
@@ -448,8 +444,8 @@ fn valider_seq(
     }
     for element in elements {
         match element {
-            Value::Atom(atome) if domaine.contient(*atome) => {}
-            Value::Atom(atome) => return Err(SchemaError::HorsDomaine(*atome)),
+            Value::Atom(atome) if domain.contient(*atome) => {}
+            Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
             autre => {
                 return Err(SchemaError::TypeMismatch {
                     attendu: "atomic element",
@@ -462,8 +458,8 @@ fn valider_seq(
 }
 
 /// Arc key of the end marker in a sequence (value = domain size).
-fn key_fin(domaine: &Domaine) -> u64 {
-    domaine.taille() as u64
+fn key_fin(domain: &Domain) -> u64 {
+    domain.size() as u64
 }
 
 /// Compiles a sequence by **positions** (universe sweep, M2-1):
@@ -472,17 +468,17 @@ fn key_fin(domaine: &Domaine) -> u64 {
 fn compiler_seq<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    domaine: &Domaine,
+    domain: &Domain,
     longueur_max: u32,
     elements: &[Value],
 ) -> Result<NodeId, SchemaError> {
-    compiler_seq_position(pool, anchor, domaine, longueur_max, elements, 0)
+    compiler_seq_position(pool, anchor, domain, longueur_max, elements, 0)
 }
 
 fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    domaine: &Domaine,
+    domain: &Domain,
     longueur_max: u32,
     elements: &[Value],
     position: u32,
@@ -498,14 +494,14 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
             },
         ));
     }
-    let suite = compiler_seq_position(pool, anchor, domaine, longueur_max, elements, position + 1)?;
+    let suite = compiler_seq_position(pool, anchor, domain, longueur_max, elements, position + 1)?;
     let arc = if (position as usize) < elements.len() {
         match &elements[position as usize] {
             Value::Atom(atome) => atome.0,
             _ => unreachable!("validated by valider_seq"),
         }
     } else {
-        key_fin(domaine) // end marker
+        key_fin(domain) // end marker
     };
     Ok(pool.intern(
         anchor,
@@ -519,16 +515,16 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
 /// Validates a tag against the schema (discriminant in the list, payload in the domain).
 fn valider_tag(
     liste: &[Atom],
-    domaine_values: &Domaine,
+    domain_values: &Domain,
     discriminant: Atom,
     payload: &Value,
 ) -> Result<(), SchemaError> {
     if !liste.contains(&discriminant) {
-        return Err(SchemaError::HorsDomaine(discriminant));
+        return Err(SchemaError::HorsDomain(discriminant));
     }
     match payload {
-        Value::Atom(atome) if domaine_values.contient(*atome) => Ok(()),
-        Value::Atom(atome) => Err(SchemaError::HorsDomaine(*atome)),
+        Value::Atom(atome) if domain_values.contient(*atome) => Ok(()),
+        Value::Atom(atome) => Err(SchemaError::HorsDomain(*atome)),
         autre => Err(SchemaError::TypeMismatch {
             attendu: "atomic payload",
             recu: forme_value(autre),
@@ -542,7 +538,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     liste: &[Atom],
-    domaine_values: &Domaine,
+    domain_values: &Domain,
     discriminant: Atom,
     payload: &Value,
 ) -> Result<NodeId, SchemaError> {
@@ -561,7 +557,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
         },
     );
     let index = liste.iter().position(|a| *a == discriminant).unwrap();
-    let _ = domaine_values;
+    let _ = domain_values;
     Ok(pool.intern(
         anchor,
         Form::Node {
@@ -579,12 +575,12 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
     node: NodeId,
 ) -> Result<Value, SchemaError> {
     match schema {
-        Schema::Atom(domaine) => {
+        Schema::Atom(domain) => {
             // Single-element domain: R-collapse reduces the atomic node
             // to the acceptance terminal.
             if matches!(pool.resolve(node), Ok(Form::Terminal(true))) {
-                return match domaine.values.first() {
-                    Some(atome) if domaine.taille() == 1 => Ok(Value::Atom(*atome)),
+                return match domain.values.first() {
+                    Some(atome) if domain.size() == 1 => Ok(Value::Atom(*atome)),
                     _ => Err(SchemaError::NodeInattendu {
                         attendu: "atomic-level node",
                         node,
@@ -606,10 +602,10 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             for (key, cible) in arcs {
                 if matches!(pool.resolve(*cible), Ok(Form::Terminal(true))) {
                     let atome = Atom(*key);
-                    if domaine.contient(atome) {
+                    if domain.contient(atome) {
                         return Ok(Value::Atom(atome));
                     }
-                    return Err(SchemaError::HorsDomaine(atome));
+                    return Err(SchemaError::HorsDomain(atome));
                 }
             }
             Err(SchemaError::NodeInattendu {
@@ -617,9 +613,9 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
                 node,
             })
         }
-        Schema::Set(domaine) => {
+        Schema::Set(domain) => {
             let mut elements = BTreeSet::new();
-            decompiler_ensemble(pool, domaine, node, &mut elements)?;
+            decompiler_ensemble(pool, domain, node, &mut elements)?;
             Ok(Value::Set(elements))
         }
         Schema::Map(liste_keys, _) => {
@@ -627,19 +623,19 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             decompiler_map(pool, liste_keys, node, &mut map)?;
             Ok(Value::Map(map))
         }
-        Schema::Seq(domaine, longueur_max) => {
+        Schema::Seq(domain, longueur_max) => {
             let mut elements = Vec::new();
-            decompiler_seq(pool, domaine, *longueur_max, node, &mut elements)?;
+            decompiler_seq(pool, domain, *longueur_max, node, &mut elements)?;
             Ok(Value::Seq(elements))
         }
-        Schema::Tag(liste, domaine_values) => decompiler_tag(pool, liste, domaine_values, node),
+        Schema::Tag(liste, domain_values) => decompiler_tag(pool, liste, domain_values, node),
     }
 }
 
 fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     liste: &[Atom],
-    domaine_values: &Domaine,
+    domain_values: &Domain,
     node: NodeId,
 ) -> Result<Value, SchemaError> {
     let Form::Node { level, arcs } = pool.resolve(node)? else {
@@ -689,15 +685,15 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
         });
     };
     let atome = Atom(value);
-    if !domaine_values.contient(atome) {
-        return Err(SchemaError::HorsDomaine(atome));
+    if !domain_values.contient(atome) {
+        return Err(SchemaError::HorsDomain(atome));
     }
     Ok(Value::Tag(discriminant, Box::new(Value::Atom(atome))))
 }
 
 fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    domaine: &Domaine,
+    domain: &Domain,
     longueur_max: u32,
     mut node: NodeId,
     elements: &mut Vec<Value>,
@@ -734,14 +730,14 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
                         node,
                     });
                 };
-                if arc == key_fin(domaine) {
+                if arc == key_fin(domain) {
                     // Early end marker: the sequence stops here.
                     node = suite;
                     continue;
                 }
                 let atome = Atom(arc);
-                if !domaine.contient(atome) {
-                    return Err(SchemaError::HorsDomaine(atome));
+                if !domain.contient(atome) {
+                    return Err(SchemaError::HorsDomain(atome));
                 }
                 elements.push(Value::Atom(atome));
                 node = suite;
@@ -752,7 +748,7 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
 
 fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    domaine: &Domaine,
+    domain: &Domain,
     mut node: NodeId,
     elements: &mut BTreeSet<Value>,
 ) -> Result<(), SchemaError> {
@@ -767,14 +763,14 @@ fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
             }
             Form::Node { level, arcs } => {
                 let index = level.0 as usize;
-                if index >= domaine.taille() {
+                if index >= domain.size() {
                     return Err(SchemaError::NodeInattendu {
                         attendu: "domain presence level",
                         node,
                     });
                 }
                 if let Some(&suite) = arcs.get(&PRESENT) {
-                    elements.insert(Value::Atom(domaine.values[index]));
+                    elements.insert(Value::Atom(domain.values[index]));
                     node = suite;
                 } else if let Some(&suite) = arcs.get(&ABSENT) {
                     node = suite;

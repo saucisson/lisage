@@ -7,12 +7,12 @@ use lisage_algebra::interface::{Anchor, Form, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{
-    ABSENT, Domaine, PRESENT, ReferenceController, Schema, SchemaError, compiler, decompiler,
+    ABSENT, Domain, PRESENT, ReferenceController, Schema, SchemaError, compiler, decompiler,
 };
 use lisage_lang::value::{Atom, Value};
 
-fn domaine(values: &[u64]) -> Domaine {
-    Domaine::new(values.iter().map(|&v| Atom(v)).collect())
+fn domain(values: &[u64]) -> Domain {
+    Domain::new(values.iter().map(|&v| Atom(v)).collect())
 }
 
 fn arena(schema: Schema) -> Arena<ReferenceController> {
@@ -27,7 +27,7 @@ fn atome(v: u64) -> Value {
 /// into a chain of presences: k_a? → val(a)=1 → k_b? → val(b)=0 → ⊤.
 #[test]
 fn test_compilation_map_exemple_spec() {
-    let schema = Schema::Map(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
+    let schema = Schema::Map(vec![Atom(0), Atom(1)], domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let map = Value::Map(BTreeMap::from([(atome(0), atome(1)), (atome(1), atome(0))]));
@@ -61,7 +61,7 @@ fn test_compilation_map_exemple_spec() {
 /// over {a, b} compiles into a single node k_a? → present → ⊤.
 #[test]
 fn test_ensemble_absents_collapses() {
-    let schema = Schema::Set(domaine(&[0, 1]));
+    let schema = Schema::Set(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let ensemble = Value::Set(BTreeSet::from([atome(0)]));
@@ -79,7 +79,7 @@ fn test_ensemble_absents_collapses() {
 /// The empty map compiles to ⊤; an absent key skips its presence level.
 #[test]
 fn test_map_vide_et_key_absente() {
-    let schema = Schema::Map(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
+    let schema = Schema::Map(vec![Atom(0), Atom(1)], domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let vide = Value::Map(BTreeMap::new());
@@ -109,7 +109,7 @@ fn test_map_vide_et_key_absente() {
 /// Typed errors: incompatible type, atom out of domain.
 #[test]
 fn test_erreurs_typees() {
-    let schema = Schema::Set(domaine(&[0, 1]));
+    let schema = Schema::Set(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let erreur = compiler(&mut pool, anchor, &schema, &atome(0)).unwrap_err();
@@ -122,13 +122,13 @@ fn test_erreurs_typees() {
     );
     let hors = Value::Set(BTreeSet::from([atome(9)]));
     let erreur = compiler(&mut pool, anchor, &schema, &hors).unwrap_err();
-    assert_eq!(erreur, SchemaError::HorsDomaine(Atom(9)));
+    assert_eq!(erreur, SchemaError::HorsDomain(Atom(9)));
 }
 
 /// Schema Atom(D): a single level, Val = D.
 #[test]
 fn test_schema_atome() {
-    let schema = Schema::Atom(domaine(&[0, 1, 2]));
+    let schema = Schema::Atom(domain(&[0, 1, 2]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let root = compiler(&mut pool, anchor, &schema, &atome(2)).unwrap();
@@ -146,7 +146,7 @@ fn test_schema_atome() {
 /// full set to the complete chain of presences.
 #[test]
 fn test_ensemble_vide_et_plein() {
-    let schema = Schema::Set(domaine(&[0, 1]));
+    let schema = Schema::Set(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let vide = Value::Set(BTreeSet::new());
@@ -174,35 +174,35 @@ fn test_ensemble_vide_et_plein() {
 /// Map validation distinguishes an out-of-domain key from an out-of-domain
 /// value (the error carries the offending atom).
 #[test]
-fn test_erreur_value_hors_domaine_map() {
-    let schema = Schema::Map(vec![Atom(0)], domaine(&[0, 1]));
+fn test_erreur_value_hors_domain_map() {
+    let schema = Schema::Map(vec![Atom(0)], domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let map = Value::Map(BTreeMap::from([(atome(0), atome(9))]));
     let erreur = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
-    assert_eq!(erreur, SchemaError::HorsDomaine(Atom(9)));
+    assert_eq!(erreur, SchemaError::HorsDomain(Atom(9)));
     let map = Value::Map(BTreeMap::from([(atome(7), atome(0))]));
     let erreur = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
-    assert_eq!(erreur, SchemaError::HorsDomaine(Atom(7)));
+    assert_eq!(erreur, SchemaError::HorsDomain(Atom(7)));
 }
 
 /// Round-trip: decompile(compile(v)) = v.
 #[test]
 fn test_round_trip() {
-    let schema = Schema::Map(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
+    let schema = Schema::Map(vec![Atom(0), Atom(1)], domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let map = Value::Map(BTreeMap::from([(atome(0), atome(1))]));
     let root = compiler(&mut pool, anchor, &schema, &map).unwrap();
     assert_eq!(decompiler(&pool, &schema, root).unwrap(), map);
 
-    let schema = Schema::Set(domaine(&[0, 1, 2]));
+    let schema = Schema::Set(domain(&[0, 1, 2]));
     let mut pool = arena(schema.clone());
     let ensemble = Value::Set(BTreeSet::from([atome(0), atome(2)]));
     let root = compiler(&mut pool, anchor, &schema, &ensemble).unwrap();
     assert_eq!(decompiler(&pool, &schema, root).unwrap(), ensemble);
 
-    let schema = Schema::Atom(domaine(&[0, 1]));
+    let schema = Schema::Atom(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let root = compiler(&mut pool, anchor, &schema, &atome(1)).unwrap();
     assert_eq!(decompiler(&pool, &schema, root).unwrap(), atome(1));
@@ -212,7 +212,7 @@ fn test_round_trip() {
 /// same value compiles twice to the same node.
 #[test]
 fn test_canonicite_compilation() {
-    let schema = Schema::Set(domaine(&[0, 1]));
+    let schema = Schema::Set(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let a = Value::Set(BTreeSet::from([atome(0)]));
@@ -227,7 +227,7 @@ fn test_canonicite_compilation() {
 /// M2-1 : Seq — compilation par positions et round-trip.
 #[test]
 fn test_seq_compilation_round_trip() {
-    let schema = Schema::Seq(domaine(&[0, 1, 2]), 3);
+    let schema = Schema::Seq(domain(&[0, 1, 2]), 3);
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
 
@@ -250,7 +250,7 @@ fn test_seq_compilation_round_trip() {
 /// M2-1: Seq — canonicity (same sequence = same node).
 #[test]
 fn test_seq_canonicite() {
-    let schema = Schema::Seq(domaine(&[0, 1]), 2);
+    let schema = Schema::Seq(domain(&[0, 1]), 2);
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let seq = Value::Seq(vec![atome(0), atome(1)]);
@@ -265,23 +265,23 @@ fn test_seq_canonicite() {
 /// M2-1 : Seq — erreur si longueur > max.
 #[test]
 fn test_seq_trop_longue() {
-    let schema = Schema::Seq(domaine(&[0, 1]), 2);
+    let schema = Schema::Seq(domain(&[0, 1]), 2);
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let seq = Value::Seq(vec![atome(0), atome(1), atome(0)]);
     assert!(compiler(&mut pool, anchor, &schema, &seq).is_err());
 }
 
-/// M2-1 : Seq — erreur si atome hors domaine.
+/// M2-1 : Seq — erreur si atome hors domain.
 #[test]
-fn test_seq_hors_domaine() {
-    let schema = Schema::Seq(domaine(&[0, 1]), 2);
+fn test_seq_hors_domain() {
+    let schema = Schema::Seq(domain(&[0, 1]), 2);
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let seq = Value::Seq(vec![atome(5)]);
     assert!(matches!(
         compiler(&mut pool, anchor, &schema, &seq),
-        Err(SchemaError::HorsDomaine(_))
+        Err(SchemaError::HorsDomain(_))
     ));
 }
 
@@ -292,7 +292,7 @@ fn test_seq_marqueur_fin_key_requise() {
     use lisage_algebra::interface::{KeyAlgebra, Level};
     use lisage_core::schema::SchemaKeys;
 
-    let schema = Schema::Seq(domaine(&[0, 1, 2]), 3);
+    let schema = Schema::Seq(domain(&[0, 1, 2]), 3);
     let keys = SchemaKeys::new(schema);
     for niveau in 0..4 {
         assert_eq!(
@@ -309,7 +309,7 @@ fn test_seq_marqueur_fin_key_requise() {
 /// M2-2: Tag — typed union compilation and round-trip (C2).
 #[test]
 fn test_tag_compilation_round_trip() {
-    let schema = Schema::Tag(vec![Atom(0), Atom(1), Atom(2)], domaine(&[10, 20]));
+    let schema = Schema::Tag(vec![Atom(0), Atom(1), Atom(2)], domain(&[10, 20]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
 
@@ -326,7 +326,7 @@ fn test_tag_compilation_round_trip() {
 #[test]
 fn test_tag_canonicite_c2() {
     use lisage_algebra::interface::Pool;
-    let schema = Schema::Tag(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
+    let schema = Schema::Tag(vec![Atom(0), Atom(1)], domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let tag = Value::Tag(Atom(0), Box::new(atome(1)));
@@ -344,12 +344,12 @@ fn test_tag_canonicite_c2() {
 /// M2-2: Tag — discriminant out of the list error.
 #[test]
 fn test_tag_discriminant_invalide() {
-    let schema = Schema::Tag(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
+    let schema = Schema::Tag(vec![Atom(0), Atom(1)], domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let tag = Value::Tag(Atom(5), Box::new(atome(0)));
     assert!(matches!(
         compiler(&mut pool, anchor, &schema, &tag),
-        Err(SchemaError::HorsDomaine(_))
+        Err(SchemaError::HorsDomain(_))
     ));
 }

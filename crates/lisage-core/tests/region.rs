@@ -14,9 +14,9 @@ type PoolRegion = Arena<RegionController>;
 
 const ANCRE: Anchor = Anchor(0);
 
-fn pool(domaines: Vec<u64>) -> PoolRegion {
+fn pool(domains: Vec<u64>) -> PoolRegion {
     Arena::new(
-        RegionController::new(RegionKeys::new(domaines)),
+        RegionController::new(RegionKeys::new(domains)),
         Box::new(NoOpObserver),
     )
 }
@@ -26,14 +26,14 @@ fn test_intervalle_vide_normalise() {
     let vide = Intervalle::new(5, 3);
     assert_eq!(vide, VIDE);
     assert!(vide.est_vide());
-    assert_eq!(vide.taille(), 0);
+    assert_eq!(vide.size(), 0);
     assert!(!vide.contient(3));
     let point = Intervalle::point(4);
     assert!(!point.est_vide());
-    assert_eq!(point.taille(), 1);
+    assert_eq!(point.size(), 1);
     assert!(point.contient(4));
     assert!(!point.contient(5));
-    assert_eq!(Intervalle::new(2, 5).taille(), 4);
+    assert_eq!(Intervalle::new(2, 5).size(), 4);
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn test_partage_pool_c1_relatif() {
     );
 }
 
-/// Property (LCG): the normal form is idempotent, and taille/est_vide/
+/// Property (LCG): the normal form is idempotent, and size/est_vide/
 /// contient are consistent with the normalized representation.
 #[test]
 fn test_propriete_normalisation_lcg() {
@@ -124,10 +124,7 @@ fn test_propriete_normalisation_lcg() {
         let normalisee = keys.normal_form(&intervalle);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
         assert_eq!(normalisee.est_vide(), inf > sup);
-        assert_eq!(
-            normalisee.taille(),
-            if inf > sup { 0 } else { sup - inf + 1 }
-        );
+        assert_eq!(normalisee.size(), if inf > sup { 0 } else { sup - inf + 1 });
         let point = suivant() % 16;
         assert_eq!(
             normalisee.contient(point),
@@ -146,8 +143,8 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
-    const TAILLE_DOMAINE: u64 = 12;
-    let mut pool = pool(vec![TAILLE_DOMAINE]);
+    const SIZE_DOMAIN: u64 = 12;
+    let mut pool = pool(vec![SIZE_DOMAIN]);
     let vrai_terminal = pool.intern(ANCRE, Form::Terminal(true));
     let faux_terminal = pool.intern(ANCRE, Form::Terminal(false));
     let mut graine = GRAINE_LCG;
@@ -158,15 +155,15 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
                 .wrapping_add(INCREMENT_LCG);
             graine
         };
-        // Subset S of [0, TAILLE_DOMAINE) drawn with the LCG.
-        let ensemble: BTreeSet<u64> = (0..TAILLE_DOMAINE).filter(|_| suivant() % 2 == 1).collect();
+        // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
+        let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| suivant() % 2 == 1).collect();
         // Compression of S and its complement into disjoint intervals.
         let mut arcs = BTreeMap::new();
         let mut point = 0;
-        while point < TAILLE_DOMAINE {
+        while point < SIZE_DOMAIN {
             let dans_s = ensemble.contains(&point);
             let mut fin = point;
-            while fin + 1 < TAILLE_DOMAINE && ensemble.contains(&(fin + 1)) == dans_s {
+            while fin + 1 < SIZE_DOMAIN && ensemble.contains(&(fin + 1)) == dans_s {
                 fin += 1;
             }
             arcs.insert(
@@ -187,7 +184,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
         let compte_dd: u64 = match pool.resolve(root).expect("interned node") {
             Form::Terminal(value) => {
                 // R-collapse: S empty or full, the node reduces to the terminal.
-                if *value { TAILLE_DOMAINE } else { 0 }
+                if *value { SIZE_DOMAIN } else { 0 }
             }
             Form::Node { arcs, .. } => {
                 assert!(
@@ -196,7 +193,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
                 );
                 arcs.iter()
                     .filter(|(_, cible)| **cible == vrai_terminal)
-                    .map(|(intervalle, _)| intervalle.taille())
+                    .map(|(intervalle, _)| intervalle.size())
                     .sum()
             }
         };

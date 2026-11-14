@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use lisage_core::Anchor;
 use lisage_core::arena::Arena;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::svg::rendre_svg;
 use lisage_liseuse::trace::{JsonlObserver, TRACE_VERSION, serialiser_evenement};
@@ -13,7 +13,7 @@ use lisage_liseuse::trace::{JsonlObserver, TRACE_VERSION, serialiser_evenement};
 type PoolRef = Arena<ReferenceController>;
 
 fn schema_ensemble() -> Schema {
-    Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]))
+    Schema::Set(Domain::new(vec![Atom(0), Atom(1)]))
 }
 
 fn ensemble(

@@ -14,11 +14,11 @@ use lisage_core::observer::NoOpObserver;
 type PoolDbm = Arena<DbmController>;
 
 const ANCRE: Anchor = Anchor(0);
-const TAILLE_DOMAINE: u64 = 4;
+const SIZE_DOMAIN: u64 = 4;
 
 fn pool() -> PoolDbm {
     Arena::new(
-        DbmController::new(DbmKeys::new(TAILLE_DOMAINE)),
+        DbmController::new(DbmKeys::new(SIZE_DOMAIN)),
         Box::new(NoOpObserver),
     )
 }
@@ -44,7 +44,7 @@ fn test_intersection_meet_canonique() {
 
 #[test]
 fn test_couverture_boite_bornee() {
-    let keys = DbmKeys::new(TAILLE_DOMAINE);
+    let keys = DbmKeys::new(SIZE_DOMAIN);
     let dessous = Dbm::new(2, &[(0, 1, 0)]);
     let dessus = Dbm::new(2, &[(1, 0, -1)]);
     // The partition {x ≤ y, x > y} covers the box [0, 4)².
@@ -67,8 +67,8 @@ fn test_bande_differentiel_contre_enumeration() {
     let root = compiler_bande(&mut pool, ANCRE);
     // Four nodes: true, false, level 1, the root — against 16 points.
     assert_eq!(compter_nodes(&pool, root), 4);
-    for x in 0..TAILLE_DOMAINE {
-        for y in 0..TAILLE_DOMAINE {
+    for x in 0..SIZE_DOMAIN {
+        for y in 0..SIZE_DOMAIN {
             let point = [x, y];
             let attendu = i128::from(x) - i128::from(y) <= 1 && i128::from(y) - i128::from(x) <= 2;
             let lu = evaluer(&pool, root, &point).expect("interned node");
@@ -94,7 +94,7 @@ fn test_partage_pool_bande() {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2);
-    let keys = DbmKeys::new(TAILLE_DOMAINE);
+    let keys = DbmKeys::new(SIZE_DOMAIN);
     let regions: Vec<Dbm> = arcs.keys().cloned().collect();
     assert!(keys.couverture(&regions), "the level-0 arcs cover the box");
 }
@@ -133,7 +133,7 @@ fn test_propriete_intersection_lcg() {
         let meet = a.intersection(&b);
         assert_eq!(meet, b.intersection(&a), "commutativity");
         assert_eq!(a.intersection(&a), a, "idempotence");
-        let point = [suivant() % TAILLE_DOMAINE, suivant() % TAILLE_DOMAINE];
+        let point = [suivant() % SIZE_DOMAIN, suivant() % SIZE_DOMAIN];
         if meet.contient(&point) {
             assert!(a.contient(&point) && b.contient(&point));
         }
@@ -144,7 +144,7 @@ fn test_propriete_intersection_lcg() {
 /// and default are those of the DBM algebra (coverage is tested separately).
 #[test]
 fn test_contrat_key_niveau() {
-    let keys = DbmKeys::new(TAILLE_DOMAINE);
-    assert_eq!(keys.cardinality(Level(0)), TAILLE_DOMAINE);
+    let keys = DbmKeys::new(SIZE_DOMAIN);
+    assert_eq!(keys.cardinality(Level(0)), SIZE_DOMAIN);
     assert_eq!(keys.default(Level(0)), Some(INCOHERENT));
 }

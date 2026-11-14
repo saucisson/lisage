@@ -33,9 +33,9 @@ pub trait TypeOrdre {
 /// Descriptor of type `Atom(D)` / `Set(D)`: order over the atoms of the
 /// bounded domain (canonical = sorted atoms, no constraint).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct DomaineAtomes(pub Vec<Atom>);
+pub struct DomainAtomes(pub Vec<Atom>);
 
-impl TypeOrdre for DomaineAtomes {
+impl TypeOrdre for DomainAtomes {
     type Key = Atom;
 
     fn keys_canoniques(&self) -> Vec<Atom> {
@@ -269,7 +269,7 @@ impl<T: TypeOrdre> Order<T> {
     }
 
     /// Number of keys in the order.
-    pub fn taille(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.sequence.len()
     }
 

@@ -19,11 +19,11 @@ pub struct Theme {
     /// Font (serif for article layout).
     pub police: &'static str,
     /// Title size in pixels.
-    pub taille_titre: u32,
+    pub size_titre: u32,
     /// Node text size in pixels.
-    pub taille_texte: u32,
+    pub size_texte: u32,
     /// Legend size in pixels.
-    pub taille_legende: u32,
+    pub size_legende: u32,
     /// Ink color (outlines, text).
     pub encre: &'static str,
     /// Arc color.
@@ -43,9 +43,9 @@ impl Theme {
     pub fn publication() -> Self {
         Theme {
             police: "serif",
-            taille_titre: 16,
-            taille_texte: 12,
-            taille_legende: 11,
+            size_titre: 16,
+            size_texte: 12,
+            size_legende: 11,
             encre: "#1a1a1a",
             arete: "#444444",
             etiquette: "#666666",
@@ -80,7 +80,7 @@ const HAUTEUR_LEGENDE: u32 = 18;
 /// Width of the legend column in pixels.
 const LARGEUR_LEGENDE: u32 = 220;
 /// Size of a channel color swatch in pixels.
-const TAILLE_PAVE_LEGENDE: u32 = 12;
+const SIZE_PAVE_LEGENDE: u32 = 12;
 /// Horizontal offset between the swatch and its label in pixels.
 const DECALAGE_ETIQUETTE_LEGENDE: u32 = 18;
 /// Vertical offset of the swatch relative to the text line in pixels.
@@ -99,7 +99,7 @@ pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
     for (index, (_canal, etiquette, couleur)) in LEGENDE_CANAUX.iter().enumerate() {
         let ligne_y = y + index as u32 * HAUTEUR_LEGENDE;
         svg.push_str(&format!(
-            "<rect x=\"{x}\" y=\"{}\" width=\"{TAILLE_PAVE_LEGENDE}\" height=\"{TAILLE_PAVE_LEGENDE}\" fill=\"{couleur}\"/>\n",
+            "<rect x=\"{x}\" y=\"{}\" width=\"{SIZE_PAVE_LEGENDE}\" height=\"{SIZE_PAVE_LEGENDE}\" fill=\"{couleur}\"/>\n",
             ligne_y - DECALAGE_PAVE_LEGENDE
         ));
         svg.push_str(&format!(
@@ -107,7 +107,7 @@ pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
             x + DECALAGE_ETIQUETTE_LEGENDE,
             ligne_y,
             theme.police,
-            theme.taille_legende,
+            theme.size_legende,
             theme.encre,
             echapper_xml(etiquette)
         ));
@@ -143,7 +143,7 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"{BASELINE_TITRE}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>\n",
         theme.police,
-        theme.taille_titre,
+        theme.size_titre,
         theme.encre,
         echapper_xml(titre)
     ));

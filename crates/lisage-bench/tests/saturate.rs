@@ -11,13 +11,13 @@ use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::compter;
 use lisage_core::saturate::{ParametresSaturation, PolitiqueSaturation, saturer};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
 /// Size of the atom domain of the random schemas.
-const TAILLE_DOMAINE: u64 = 3;
+const SIZE_DOMAIN: u64 = 3;
 /// Fingerprint of the PBT step transduction.
 const FINGERPRINT_ETAPE: u64 = 4003;
 
@@ -65,7 +65,7 @@ impl Transduction for EmetSingleton {
 
 /// `Set` schema over the domain `{0, 1, 2}`.
 fn schema_test() -> Schema {
-    Schema::Set(Domaine::new((0..TAILLE_DOMAINE).map(Atom).collect()))
+    Schema::Set(Domain::new((0..SIZE_DOMAIN).map(Atom).collect()))
 }
 
 /// Builds a fresh pool for the given schema.
@@ -105,8 +105,8 @@ proptest! {
     /// of `D` (increasing chain).
     #[test]
     fn test_saturate_point_fixe_idempotent(
-        initial in prop::collection::vec(0u64..TAILLE_DOMAINE, 0..TAILLE_DOMAINE as usize),
-        ajout in 0u64..TAILLE_DOMAINE,
+        initial in prop::collection::vec(0u64..SIZE_DOMAIN, 0..SIZE_DOMAIN as usize),
+        ajout in 0u64..SIZE_DOMAIN,
     ) {
         let schema = schema_test();
         let keys = SchemaKeys::new(schema.clone());
