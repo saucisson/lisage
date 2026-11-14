@@ -17,7 +17,7 @@ pub const TERMINAL_VRAI: u32 = 1;
 /// Mini-BDD: nodes `(variable, low, high)` in a table, terminals at
 /// indices 0 and 1.
 pub struct MiniBdd {
-    noeuds: Vec<(u32, u32, u32)>,
+    nodes: Vec<(u32, u32, u32)>,
     table_unique: HashMap<(u32, u32, u32), u32>,
 }
 
@@ -25,13 +25,13 @@ impl MiniBdd {
     /// Fresh witness, terminals pre-installed.
     pub fn new() -> Self {
         MiniBdd {
-            noeuds: vec![(u32::MAX, 0, 0), (u32::MAX, 1, 1)],
+            nodes: vec![(u32::MAX, 0, 0), (u32::MAX, 1, 1)],
             table_unique: HashMap::new(),
         }
     }
 
     /// `mk(var, bas, haut)` : partage + collapse (bas == haut ⇒ bas).
-    fn fabriquer_noeud(&mut self, variable: u32, bas: u32, haut: u32) -> u32 {
+    fn fabriquer_node(&mut self, variable: u32, bas: u32, haut: u32) -> u32 {
         if bas == haut {
             return bas;
         }
@@ -39,8 +39,8 @@ impl MiniBdd {
         if let Some(&indice) = self.table_unique.get(&triplet) {
             return indice;
         }
-        let indice = self.noeuds.len() as u32;
-        self.noeuds.push(triplet);
+        let indice = self.nodes.len() as u32;
+        self.nodes.push(triplet);
         self.table_unique.insert(triplet, indice);
         indice
     }
@@ -65,19 +65,19 @@ impl MiniBdd {
         let haut_table: Vec<bool> = table.iter().skip(1).step_by(2).copied().collect();
         let bas = self.construire(variable + 1, nombre_variables, &bas_table);
         let haut = self.construire(variable + 1, nombre_variables, &haut_table);
-        self.fabriquer_noeud(variable, bas, haut)
+        self.fabriquer_node(variable, bas, haut)
     }
 
     /// Number of nodes reachable from `root`, terminals included
-    /// (same convention as `lisage_core::bdd::compter_noeuds`).
-    pub fn compter_noeuds(&self, root: u32) -> u64 {
+    /// (same convention as `lisage_core::bdd::compter_nodes`).
+    pub fn compter_nodes(&self, root: u32) -> u64 {
         let mut visite = std::collections::BTreeSet::new();
         let mut pile = vec![root];
-        while let Some(noeud) = pile.pop() {
-            if !visite.insert(noeud) {
+        while let Some(node) = pile.pop() {
+            if !visite.insert(node) {
                 continue;
             }
-            let (variable, bas, haut) = self.noeuds[noeud as usize];
+            let (variable, bas, haut) = self.nodes[node as usize];
             if variable != u32::MAX {
                 pile.push(bas);
                 pile.push(haut);
@@ -88,14 +88,14 @@ impl MiniBdd {
 
     /// Evaluates the BDD of index `root` on an assignment.
     pub fn evaluer(&self, root: u32, affectation: u64) -> bool {
-        let mut noeud = root;
+        let mut node = root;
         loop {
-            let (variable, bas, haut) = self.noeuds[noeud as usize];
+            let (variable, bas, haut) = self.nodes[node as usize];
             if variable == u32::MAX {
                 return haut == TERMINAL_VRAI;
             }
             let bit = (affectation >> variable) & 1;
-            noeud = if bit == 0 { bas } else { haut };
+            node = if bit == 0 { bas } else { haut };
         }
     }
 }

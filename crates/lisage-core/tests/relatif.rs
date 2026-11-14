@@ -159,7 +159,7 @@ fn test_fenetre_glissante_pool_constant() {
             arcs,
         },
     );
-    let noeuds_apres_fenetre = pool.node_count();
+    let nodes_apres_fenetre = pool.node_count();
     // Slide: the base advances by 1 at each step, the stored form is
     // unchanged (R-share), only the entry arc's argument changes.
     for base in 0..NB_GLISSES as i64 {
@@ -180,7 +180,7 @@ fn test_fenetre_glissante_pool_constant() {
     }
     assert_eq!(
         pool.node_count(),
-        noeuds_apres_fenetre,
+        nodes_apres_fenetre,
         "the pool stays at O(1) forms during the slide"
     );
 }

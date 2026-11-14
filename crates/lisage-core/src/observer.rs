@@ -43,19 +43,19 @@ pub enum TraceEvent {
         /// Channel of the attribute.
         canal: CanalAttr,
         /// Node concerned.
-        noeud: NodeId,
+        node: NodeId,
         /// Value (`Debug` format), displayed as-is.
         valeur: String,
     },
     /// Memo hit: the (op, node, h, version) tuple was in the computed table.
     MemoHit {
         /// Node whose visit hit.
-        noeud: NodeId,
+        node: NodeId,
     },
     /// Memo miss: full visit of the subtree.
     MemoMiss {
         /// Node whose visit missed.
-        noeud: NodeId,
+        node: NodeId,
     },
     /// GC of the two-plane pool (M4-1): live, collected, profiled compaction.
     Gc {

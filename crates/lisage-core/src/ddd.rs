@@ -28,9 +28,9 @@ pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
     root: NodeId,
     point: &[u64],
 ) -> Result<Option<bool>, PoolError> {
-    let mut noeud = root;
+    let mut node = root;
     loop {
-        match pool.resolve(noeud)? {
+        match pool.resolve(node)? {
             Form::Terminal(payload) => return Ok(Some(*payload)),
             Form::Node { arcs, .. } => {
                 match arcs
@@ -38,7 +38,7 @@ pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
                     .find(|(region, _)| region.contient(point))
                     .map(|(_, cible)| *cible)
                 {
-                    Some(cible) => noeud = cible,
+                    Some(cible) => node = cible,
                     None => return Ok(None),
                 }
             }
@@ -47,14 +47,14 @@ pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
 }
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
-pub fn compter_noeuds<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
+pub fn compter_nodes<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
     let mut visite = BTreeSet::new();
     let mut pile = vec![root];
-    while let Some(noeud) = pile.pop() {
-        if !visite.insert(noeud) {
+    while let Some(node) = pile.pop() {
+        if !visite.insert(node) {
             continue;
         }
-        if let Ok(Form::Node { arcs, .. }) = pool.resolve(noeud) {
+        if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
             pile.extend(arcs.values().copied());
         }
     }

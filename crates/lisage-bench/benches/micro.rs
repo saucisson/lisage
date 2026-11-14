@@ -5,7 +5,7 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use lisage_algebra::interface::Anchor;
 use lisage_bench::temoin_bdd::MiniBdd;
 use lisage_core::arena::Arena;
-use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_noeuds};
+use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_nodes};
 use lisage_core::observer::NoOpObserver;
 
 /// Number of variables of the classic BDD baseline (M1-8).
@@ -45,12 +45,12 @@ fn bench_bdd_classique(c: &mut Criterion) {
                 Box::new(NoOpObserver),
             );
             let root = compiler_bdd(&mut pool, Anchor(0), &keys, &table);
-            let noeuds = compter_noeuds(&pool, root);
+            let nodes = compter_nodes(&pool, root);
             let mut temoin = MiniBdd::new();
             let root_temoin = temoin.compiler_table(BASELINE_VARIABLES, &table);
-            assert_eq!(noeuds, temoin.compter_noeuds(root_temoin));
+            assert_eq!(nodes, temoin.compter_nodes(root_temoin));
             assert!(temoin.evaluer(root_temoin, 0) == table[0]);
-            noeuds
+            nodes
         })
     });
 }

@@ -85,14 +85,14 @@ pub struct MesureVoie {
     /// Cardinal of the reachable space (number of distinct markings).
     pub cardinal: u64,
     /// Live nodes of the diagram (0 for path A, explicit set).
-    pub noeuds_vivants: usize,
+    pub nodes_vivants: usize,
 }
 
 /// Path A (reference): cardinal of the explicit reachable space.
 pub fn voie_a(reseau: &ReseauPetri) -> MesureVoie {
     MesureVoie {
         cardinal: pnml::espace_atteignable(reseau).len() as u64,
-        noeuds_vivants: 0,
+        nodes_vivants: 0,
     }
 }
 
@@ -174,7 +174,7 @@ fn voie_dd(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<MesureVoie, Erre
         Box::new(NoOpObserver),
     );
     let root = compiler_espace(&mut pool, &schema, &espace)?;
-    let noeuds_vivants = pool.vivants();
+    let nodes_vivants = pool.vivants();
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
@@ -182,7 +182,7 @@ fn voie_dd(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<MesureVoie, Erre
     let cardinal = compter(&pool, &mut output, ANCRE_BANC, &schema, root)?;
     Ok(MesureVoie {
         cardinal,
-        noeuds_vivants,
+        nodes_vivants,
     })
 }
 

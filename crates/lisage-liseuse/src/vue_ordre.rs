@@ -108,11 +108,11 @@ pub struct FicheControleur {
 
 /// Node of an order tree (vtree): a label and its children.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct NoeudVtree {
+pub struct NodeVtree {
     /// Node label (fragment of the decomposition).
     pub libelle: String,
     /// Children (subtrees).
-    pub enfants: Vec<NoeudVtree>,
+    pub enfants: Vec<NodeVtree>,
 }
 
 /// Order track `O`: linear (levels in sweep order) or
@@ -122,7 +122,7 @@ pub enum PisteOrdre {
     /// Linear O: level labels in order.
     Lineaire(Vec<String>),
     /// Structured O: tree (vtree).
-    Arbre(NoeudVtree),
+    Arbre(NodeVtree),
 }
 
 /// Controller kingdom: a card + an order track.
@@ -149,8 +149,8 @@ pub struct ConversionVue {
 }
 
 /// Height in pixels of a tree (vtree).
-fn hauteur_arbre(noeud: &NoeudVtree) -> u32 {
-    let hauteur_enfants = noeud.enfants.iter().map(hauteur_arbre).max().unwrap_or(0);
+fn hauteur_arbre(node: &NodeVtree) -> u32 {
+    let hauteur_enfants = node.enfants.iter().map(hauteur_arbre).max().unwrap_or(0);
     HAUTEUR_NIVEAU_ARBRE + hauteur_enfants
 }
 
@@ -229,7 +229,7 @@ fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, l
 
 /// Renders a tree (vtree): the node centered, the children spread in width.
 /// Returns the rendered height.
-fn rendre_arbre(svg: &mut String, noeud: &NoeudVtree, x: u32, y: u32, largeur: u32) -> u32 {
+fn rendre_arbre(svg: &mut String, node: &NodeVtree, x: u32, y: u32, largeur: u32) -> u32 {
     let centre_x = x + largeur / 2;
     svg.push_str(&format!(
         "<rect x=\"{}\" y=\"{y}\" width=\"{LARGEUR_BOITE}\" height=\"{HAUTEUR_BOITE}\" fill=\"{FOND_BOITE}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n",
@@ -238,16 +238,16 @@ fn rendre_arbre(svg: &mut String, noeud: &NoeudVtree, x: u32, y: u32, largeur: u
     svg.push_str(&format!(
         "<text x=\"{centre_x}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_PISTE}\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
         y + BASELINE_BOITE,
-        echapper_xml(&noeud.libelle)
+        echapper_xml(&node.libelle)
     ));
-    if noeud.enfants.is_empty() {
+    if node.enfants.is_empty() {
         return HAUTEUR_NIVEAU_ARBRE;
     }
-    let nombre = noeud.enfants.len() as u32;
+    let nombre = node.enfants.len() as u32;
     let pas = largeur / nombre;
     let y_enfants = y + HAUTEUR_NIVEAU_ARBRE;
     let mut hauteur_max = 0;
-    for (index, enfant) in noeud.enfants.iter().enumerate() {
+    for (index, enfant) in node.enfants.iter().enumerate() {
         let enfant_x = x + index as u32 * pas;
         let enfant_centre = enfant_x + pas / 2;
         svg.push_str(&format!(
@@ -386,9 +386,9 @@ mod tests {
                     encodage: String::new(),
                     attribution: String::new(),
                 },
-                piste: PisteOrdre::Arbre(NoeudVtree {
+                piste: PisteOrdre::Arbre(NodeVtree {
                     libelle: "r".to_string(),
-                    enfants: vec![NoeudVtree {
+                    enfants: vec![NodeVtree {
                         libelle: "e".to_string(),
                         enfants: vec![],
                     }],

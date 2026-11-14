@@ -24,23 +24,23 @@ fn atome(valeur: u64) -> Value {
 /// payload of the reached terminal.
 fn payload_terminal(
     pool: &PoolOutput,
-    mut noeud: NodeId,
+    mut node: NodeId,
     liste_cles: &[Atom],
     map: &BTreeMap<Value, Value>,
 ) -> Option<u64> {
     loop {
-        match pool.resolve(noeud).unwrap() {
+        match pool.resolve(node).unwrap() {
             Form::Terminal(payload) => return *payload,
             Form::Node { level, arcs } => {
                 let index = (level.0 / 2) as usize;
                 let cle = Value::Atom(liste_cles[index]);
                 if level.0.is_multiple_of(2) {
                     match map.get(&cle) {
-                        Some(_) => noeud = *arcs.get(&PRESENT).expect("arc present"),
+                        Some(_) => node = *arcs.get(&PRESENT).expect("arc present"),
                         // Implicit default arc ⇒ D_δ = ε(None); explicit
                         // arc (grafted subtree) ⇒ follow it.
                         None => match arcs.get(&ABSENT) {
-                            Some(&suite) => noeud = suite,
+                            Some(&suite) => node = suite,
                             None => return None,
                         },
                     }
@@ -48,7 +48,7 @@ fn payload_terminal(
                     let Some(Value::Atom(valeur)) = map.get(&cle) else {
                         panic!("key present with atomic value")
                     };
-                    noeud = *arcs.get(&valeur.0).expect("arc valeur");
+                    node = *arcs.get(&valeur.0).expect("arc valeur");
                 }
             }
         }

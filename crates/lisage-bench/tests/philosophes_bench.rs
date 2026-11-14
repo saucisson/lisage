@@ -239,7 +239,7 @@ fn test_bench_sept_formes_o1_et_bord() {
         }
     }
     let mut comptes_formes = Vec::new();
-    let mut noeuds_plats = Vec::new();
+    let mut nodes_plats = Vec::new();
     let mut creations = 0u64;
     for &(n, _) in R_ATTENDUS {
         let schema = schema_anneau(n, false);
@@ -263,7 +263,7 @@ fn test_bench_sept_formes_o1_et_bord() {
         comptes_formes.push(vus.len());
         // Flat prototype edge: live nodes of the pool (no GC here,
         // the live peak = live after construction).
-        noeuds_plats.push(pool.vivants());
+        nodes_plats.push(pool.vivants());
         creations += pool.metriques().creations;
         let _ = root;
     }
@@ -274,12 +274,12 @@ fn test_bench_sept_formes_o1_et_bord() {
     );
     // The flat prototype edge is pinned exactly (explicit falsification)
     // and grows with n.
-    for (&(n, attendu), &mesure) in BORD_PLAT.iter().zip(&noeuds_plats) {
+    for (&(n, attendu), &mesure) in BORD_PLAT.iter().zip(&nodes_plats) {
         assert_eq!(mesure, attendu, "n={n}: flat edge = {attendu} live");
     }
     assert!(
-        noeuds_plats.windows(2).all(|w| w[1] > w[0]),
-        "the flat prototype grows with n: {noeuds_plats:?}"
+        nodes_plats.windows(2).all(|w| w[1] > w[0]),
+        "the flat prototype grows with n: {nodes_plats:?}"
     );
     // Firings = NodeCreated events == pool creation counter.
     let firings = *observateur.firings.lock().unwrap();

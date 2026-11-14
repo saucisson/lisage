@@ -28,7 +28,7 @@ const NIVEAU_TEST: u32 = 1;
 const ANCRE_TEST: Anchor = Anchor(0);
 
 /// Node 0 plays the role of the default diagram D^def in property tests.
-const NOEUD_DEFAUT: NodeId = NodeId(0);
+const NODE_DEFAUT: NodeId = NodeId(0);
 
 struct MockKeys {
     avec_defaut: bool,
@@ -98,7 +98,7 @@ fn test_dabs_absorption_tout_sous_domaine() {
     let mut pool = arena_dabs();
     let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
     let vrai = pool.intern(ANCRE_TEST, Form::Terminal(true));
-    let noeud = pool.intern(
+    let node = pool.intern(
         ANCRE_TEST,
         Form::Node {
             level: Level(NIVEAU_TEST),
@@ -106,7 +106,7 @@ fn test_dabs_absorption_tout_sous_domaine() {
         },
     );
     assert_eq!(
-        pool.resolve(noeud),
+        pool.resolve(node),
         Ok(&Form::Node {
             level: Level(NIVEAU_TEST),
             arcs: BTreeMap::from([(1, vrai)]),
@@ -122,7 +122,7 @@ fn test_sans_dabs_rdefault_seul() {
     let mut pool = arena_23();
     let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
     let vrai = pool.intern(ANCRE_TEST, Form::Terminal(true));
-    let noeud = pool.intern(
+    let node = pool.intern(
         ANCRE_TEST,
         Form::Node {
             level: Level(NIVEAU_TEST),
@@ -130,7 +130,7 @@ fn test_sans_dabs_rdefault_seul() {
         },
     );
     assert_eq!(
-        pool.resolve(noeud),
+        pool.resolve(node),
         Ok(&Form::Node {
             level: Level(NIVEAU_TEST),
             arcs: BTreeMap::from([(1, vrai), (2, faux)]),
@@ -145,15 +145,15 @@ fn test_sans_dabs_rdefault_seul() {
 fn test_dtrans_forme_vide_collapse() {
     let mut pool = arena_dabs();
     let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
-    let noeud = pool.intern(
+    let node = pool.intern(
         ANCRE_TEST,
         Form::Node {
             level: Level(NIVEAU_TEST),
             arcs: BTreeMap::from([(3, faux)]),
         },
     );
-    assert_eq!(noeud, faux, "D-trans: ν(ℓ, {{3 ↦ D^def}}) = D^def");
-    assert_eq!(pool.resolve(noeud), Ok(&Form::Terminal(false)));
+    assert_eq!(node, faux, "D-trans: ν(ℓ, {{3 ↦ D^def}}) = D^def");
+    assert_eq!(pool.resolve(node), Ok(&Form::Terminal(false)));
 }
 
 /// M4-3 (D-trans) "all targets ≡ D": a single explicit arc on δ collapses
@@ -203,7 +203,7 @@ fn test_sans_cle_defaut_pas_dabs() {
         Box::new(NoOpObserver),
     );
     let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
-    let noeud = pool.intern(
+    let node = pool.intern(
         ANCRE_TEST,
         Form::Node {
             level: Level(NIVEAU_TEST),
@@ -211,7 +211,7 @@ fn test_sans_cle_defaut_pas_dabs() {
         },
     );
     assert_eq!(
-        pool.resolve(noeud),
+        pool.resolve(node),
         Ok(&Form::Node {
             level: Level(NIVEAU_TEST),
             arcs: BTreeMap::from([(1, faux), (2, faux)]),
@@ -224,15 +224,15 @@ fn test_sans_cle_defaut_pas_dabs() {
 /// collapses into D^def, even without any arc to designate it.
 #[test]
 fn test_dtrans_forme_vide_litterale() {
-    let est_defaut = |node: NodeId| node == NOEUD_DEFAUT;
+    let est_defaut = |node: NodeId| node == NODE_DEFAUT;
     let resultat = reduire_dabs(
         BTreeMap::new(),
         Some(0),
         &est_defaut,
         CARDINALITE_MOCK,
-        Some(NOEUD_DEFAUT),
+        Some(NODE_DEFAUT),
     );
-    assert_eq!(resultat, Reduction::Collapse(NOEUD_DEFAUT));
+    assert_eq!(resultat, Reduction::Collapse(NODE_DEFAUT));
     // Without a designated D^def: the empty form remains an empty form.
     let resultat = reduire_dabs(
         BTreeMap::new(),
@@ -250,7 +250,7 @@ fn test_dtrans_forme_vide_litterale() {
 /// target D^def or a covered target.
 #[test]
 fn test_propriete_dabs_confluence() {
-    let est_defaut = |node: NodeId| node == NOEUD_DEFAUT;
+    let est_defaut = |node: NodeId| node == NODE_DEFAUT;
     let mut graine = GRAINE_LCG;
     let mut suivant = move || {
         graine = graine
@@ -270,7 +270,7 @@ fn test_propriete_dabs_confluence() {
             .collect();
         let cle_defaut = if suivant() % 2 == 0 { Some(0) } else { None };
 
-        let defaut = cle_defaut.map(|_| NOEUD_DEFAUT);
+        let defaut = cle_defaut.map(|_| NODE_DEFAUT);
         let premier = reduire_dabs(
             arcs.clone(),
             cle_defaut,

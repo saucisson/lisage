@@ -38,19 +38,19 @@ fn test_compilation_map_exemple_spec() {
         panic!("the root must be a presence node");
     };
     assert_eq!(*level, Level(0));
-    let noeud_valeur_a = arcs[&PRESENT];
-    let Form::Node { level, arcs } = pool.resolve(noeud_valeur_a).unwrap() else {
+    let node_valeur_a = arcs[&PRESENT];
+    let Form::Node { level, arcs } = pool.resolve(node_valeur_a).unwrap() else {
         panic!("value node expected");
     };
     assert_eq!(*level, Level(1));
     assert_eq!(arcs.len(), 1);
-    let noeud_presence_b = arcs[&PRESENT];
-    let Form::Node { level, arcs } = pool.resolve(noeud_presence_b).unwrap() else {
+    let node_presence_b = arcs[&PRESENT];
+    let Form::Node { level, arcs } = pool.resolve(node_presence_b).unwrap() else {
         panic!("presence node expected");
     };
     assert_eq!(*level, Level(2));
-    let noeud_valeur_b = arcs[&PRESENT];
-    let Form::Node { level, arcs } = pool.resolve(noeud_valeur_b).unwrap() else {
+    let node_valeur_b = arcs[&PRESENT];
+    let Form::Node { level, arcs } = pool.resolve(node_valeur_b).unwrap() else {
         panic!("value node expected");
     };
     assert_eq!(*level, Level(3));
@@ -90,7 +90,7 @@ fn test_map_vide_et_cle_absente() {
     let map = Value::Map(BTreeMap::from([(atome(1), atome(0))]));
     let root = compiler(&mut pool, anchor, &schema, &map).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    let noeud_valeur_b = pool.intern(
+    let node_valeur_b = pool.intern(
         anchor,
         Form::Node {
             level: Level(3),
@@ -101,7 +101,7 @@ fn test_map_vide_et_cle_absente() {
         pool.resolve(root).unwrap(),
         &Form::Node {
             level: Level(2),
-            arcs: BTreeMap::from([(PRESENT, noeud_valeur_b)]),
+            arcs: BTreeMap::from([(PRESENT, node_valeur_b)]),
         }
     );
 }
@@ -155,7 +155,7 @@ fn test_ensemble_vide_et_plein() {
     let plein = Value::Set(BTreeSet::from([atome(0), atome(1)]));
     let root_plein = compiler(&mut pool, anchor, &schema, &plein).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    let noeud_presence_b = pool.intern(
+    let node_presence_b = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
@@ -166,7 +166,7 @@ fn test_ensemble_vide_et_plein() {
         pool.resolve(root_plein).unwrap(),
         &Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(PRESENT, noeud_presence_b)]),
+            arcs: BTreeMap::from([(PRESENT, node_presence_b)]),
         }
     );
 }

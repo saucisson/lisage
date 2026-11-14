@@ -9,10 +9,10 @@ use lisage_algebra::reduction::{Reduction, reduire, reduire_inverse};
 use proptest::prelude::*;
 
 /// Node 0 plays the role of the default diagram D_δ in the tests.
-const NOEUD_DEFAUT: NodeId = NodeId(0);
+const NODE_DEFAUT: NodeId = NodeId(0);
 
 fn est_defaut(node: NodeId) -> bool {
-    node == NOEUD_DEFAUT
+    node == NODE_DEFAUT
 }
 
 fn vers_arcs(paires: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
@@ -35,7 +35,7 @@ fn test_collapse_niveau_valeur_exemple_spec() {
 fn test_r_default_arc_absent_vers_defaut() {
     // presence: absent ↦ ⊥ (D_δ) is removed, present ↦ X stays.
     let x = NodeId(5);
-    let arcs = BTreeMap::from([(0, NOEUD_DEFAUT), (1, x)]);
+    let arcs = BTreeMap::from([(0, NODE_DEFAUT), (1, x)]);
     let resultat = reduire(arcs, Some(0), &est_defaut, 2);
     assert_eq!(resultat, Reduction::Forme(BTreeMap::from([(1, x)])));
 }
@@ -52,9 +52,9 @@ fn test_pas_de_collapse_si_cible_non_defaut() {
 #[test]
 fn test_collapse_si_tout_vaut_le_defaut() {
     // {absent ↦ ⊥, present ↦ ⊥} ⇒ collapse to ⊥.
-    let arcs = BTreeMap::from([(0, NOEUD_DEFAUT), (1, NOEUD_DEFAUT)]);
+    let arcs = BTreeMap::from([(0, NODE_DEFAUT), (1, NODE_DEFAUT)]);
     let resultat = reduire(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(resultat, Reduction::Collapse(NOEUD_DEFAUT));
+    assert_eq!(resultat, Reduction::Collapse(NODE_DEFAUT));
 }
 
 proptest! {

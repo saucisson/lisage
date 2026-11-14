@@ -25,11 +25,9 @@ use std::time::Instant;
 use lisage_algebra::interface::{Anchor, Form, Pool, PoolError};
 use lisage_core::arena::Arena;
 use lisage_core::atelier::{
-    AtelierController, Encodage, Reductions, compter_chemins, compter_noeuds, construire_fenetre,
+    AtelierController, Encodage, Reductions, compter_chemins, compter_nodes, construire_fenetre,
 };
-use lisage_core::bdd::{
-    BddController, BddKeys, compiler_bdd, compter_noeuds as compter_noeuds_bdd,
-};
+use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_nodes as compter_nodes_bdd};
 use lisage_core::error::CoreError;
 use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
 use lisage_core::pli::{compter as compter_pli, union};
@@ -148,7 +146,7 @@ pub struct MesureConfrontation {
     pub rss_max_ko: u64,
     /// Nodes of the built diagram, terminals included (convention
     /// documented per tool in the protocol).
-    pub noeuds: u64,
+    pub nodes: u64,
     /// Cross-check value: identical across all tools for the
     /// same workload (counted cardinal, satisfactions). Any divergence
     /// between tools invalidates the measurement.
@@ -270,7 +268,7 @@ fn echapper_json(chaine: &str) -> String {
 /// Serializes a measurement as one JSON line (without the trailing `\n`). The
 /// key order is fixed and pinned by test: `outil`, `variante`, `charge`,
 /// `parametres`, `encodage` (window only), `temps_ms`, `rss_max_ko`,
-/// `noeuds`, `verifie`.
+/// `nodes`, `verifie`.
 pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
     let mut ligne = String::with_capacity(256);
     ligne.push('{');
@@ -299,8 +297,8 @@ pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
         ));
     }
     ligne.push_str(&format!(
-        ",\"temps_ms\":{:.3},\"rss_max_ko\":{},\"noeuds\":{},\"verifie\":{}",
-        mesure.temps_ms, mesure.rss_max_ko, mesure.noeuds, mesure.verifie
+        ",\"temps_ms\":{:.3},\"rss_max_ko\":{},\"nodes\":{},\"verifie\":{}",
+        mesure.temps_ms, mesure.rss_max_ko, mesure.nodes, mesure.verifie
     ));
     ligne.push('}');
     ligne
@@ -366,17 +364,17 @@ fn charge_alea_lcg(
     let table = table_lcg(nombre_variables);
     let expected_satisfactions = table.iter().filter(|valeur| **valeur).count() as u64;
     let root = compiler_bdd(&mut pool, ANCRE_MESURE, &keys, &table);
-    let noeuds = compter_noeuds_bdd(&pool, root);
+    let nodes = compter_nodes_bdd(&pool, root);
     let duree = debut.elapsed();
     // C6 falsification: the arena and the independent mini-BDD witness must
     // count the same number of nodes on the same table.
     let mut temoin = crate::temoin_bdd::MiniBdd::new();
     let root_temoin = temoin.compiler_table(nombre_variables, &table);
-    let noeuds_temoin = temoin.compter_noeuds(root_temoin);
-    if noeuds != noeuds_temoin {
+    let nodes_temoin = temoin.compter_nodes(root_temoin);
+    if nodes != nodes_temoin {
         return Err(ErreurConfrontation::VerifieEchoue {
-            attendu: noeuds_temoin,
-            obtenu: noeuds,
+            attendu: nodes_temoin,
+            obtenu: nodes,
         });
     }
     if temoin.evaluer(root_temoin, 0) != table[0] {
@@ -388,11 +386,11 @@ fn charge_alea_lcg(
     if let Some(observateur) = observateur {
         observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: root,
+            node: root,
             valeur: format!(
                 "workload={} nodes={} check={}",
                 Charge::AleaLcg.etiquette(),
-                noeuds,
+                nodes,
                 expected_satisfactions
             ),
         });
@@ -404,7 +402,7 @@ fn charge_alea_lcg(
         encodage: None,
         temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
-        noeuds,
+        nodes,
         verifie: expected_satisfactions,
     })
 }
@@ -466,7 +464,7 @@ fn charge_philosophes(
         root = union(&mut pool, &keys, ANCRE_MESURE, root, membre)?;
     }
     let verifie = compter_pli(&pool, &mut output, ANCRE_MESURE, &schema, root)?;
-    let noeuds = compter_noeuds(&pool, root)?;
+    let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != attendu {
         return Err(ErreurConfrontation::VerifieEchoue {
@@ -477,11 +475,11 @@ fn charge_philosophes(
     if let Some(observateur) = observateur {
         observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: root,
+            node: root,
             valeur: format!(
                 "workload={} nodes={} check={}",
                 Charge::Philosophes.etiquette(),
-                noeuds,
+                nodes,
                 verifie
             ),
         });
@@ -493,7 +491,7 @@ fn charge_philosophes(
         encodage: None,
         temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
-        noeuds,
+        nodes,
         verifie,
     })
 }
@@ -589,7 +587,7 @@ fn charge_fenetre(
     let debut = Instant::now();
     let root = construire_fenetre(&mut pool, ANCRE_MESURE, encodage, taille, nb_bases);
     let verifie = compter_chemins(&pool, root)?;
-    let noeuds = compter_noeuds(&pool, root)?;
+    let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != attendu {
         return Err(ErreurConfrontation::VerifieEchoue {
@@ -600,12 +598,12 @@ fn charge_fenetre(
     if let Some(observateur) = observateur {
         observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: root,
+            node: root,
             valeur: format!(
                 "workload={} encoding={} nodes={} check={}",
                 Charge::Fenetre.etiquette(),
                 etiquette_encodage(&encodage),
-                noeuds,
+                nodes,
                 verifie
             ),
         });
@@ -620,7 +618,7 @@ fn charge_fenetre(
         encodage: Some(encodage),
         temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
-        noeuds,
+        nodes,
         verifie,
     })
 }

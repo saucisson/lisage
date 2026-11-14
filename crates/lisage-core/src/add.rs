@@ -121,14 +121,14 @@ fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
     let cle = Value::Atom(liste_cles[index]);
     let arcs = match map.get(&cle) {
         Some(Value::Atom(valeur)) => {
-            let noeud_valeur = pool.intern(
+            let node_valeur = pool.intern(
                 anchor,
                 Form::Node {
                     level: Schema::niveau_valeur(index),
                     arcs: BTreeMap::from([(valeur.0, suite)]),
                 },
             );
-            BTreeMap::from([(PRESENT, noeud_valeur)])
+            BTreeMap::from([(PRESENT, node_valeur)])
         }
         _ => BTreeMap::from([(ABSENT, suite)]),
     };
@@ -249,12 +249,12 @@ fn merge_avec_autre<P: Pool<Key = u64, Payload = u64>>(
 pub fn somme_poids<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
     schema: &Schema,
-    noeud: NodeId,
+    node: NodeId,
 ) -> Result<u64, CoreError> {
     let keys = SchemaKeys::new(schema.clone());
     let nombre_niveaux = schema.nombre_niveaux();
     let mut memo = HashMap::new();
-    somme(pool, &keys, nombre_niveaux, noeud, &mut memo)
+    somme(pool, &keys, nombre_niveaux, node, &mut memo)
 }
 
 /// Recursive weighted sum with memo on nodes.
@@ -262,13 +262,13 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
     keys: &SchemaKeys,
     nombre_niveaux: u32,
-    noeud: NodeId,
+    node: NodeId,
     memo: &mut HashMap<NodeId, u64>,
 ) -> Result<u64, CoreError> {
-    if let Some(total) = memo.get(&noeud) {
+    if let Some(total) = memo.get(&node) {
         return Ok(*total);
     }
-    let forme = pool.resolve(noeud)?.clone();
+    let forme = pool.resolve(node)?.clone();
     let total = match forme {
         Form::Terminal(poids) => poids,
         Form::Node { level, arcs } => {
@@ -286,7 +286,7 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
             total
         }
     };
-    memo.insert(noeud, total);
+    memo.insert(node, total);
     Ok(total)
 }
 

@@ -57,9 +57,9 @@ fn compiler_map(
 fn decompiler_map(
     pool: &PoolRef,
     schema: &Schema,
-    noeud: lisage_algebra::interface::NodeId,
+    node: lisage_algebra::interface::NodeId,
 ) -> BTreeMap<u64, u64> {
-    match decompiler(pool, schema, noeud).unwrap() {
+    match decompiler(pool, schema, node).unwrap() {
         Value::Map(map) => map
             .into_iter()
             .map(|(k, v)| match (k, v) {
@@ -72,9 +72,9 @@ fn decompiler_map(
 }
 
 /// Cardinality of a diagram (number of members of the denoted family).
-fn cardinal(pool: &PoolRef, schema: &Schema, noeud: lisage_algebra::interface::NodeId) -> u64 {
+fn cardinal(pool: &PoolRef, schema: &Schema, node: lisage_algebra::interface::NodeId) -> u64 {
     let mut output = new_pool(schema);
-    compter(pool, &mut output, Anchor(0), schema, noeud).unwrap()
+    compter(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
 
 /// M2-5, T3: the non-local transfer `a -= 1; b += 1` between two non-adjacent
@@ -194,7 +194,7 @@ fn test_transfert_sous_saturate_termine() {
         "a:2,b:0 → a:1,b:1 → a:0,b:2 → fixed"
     );
     assert_eq!(
-        cardinal(&pool, &schema, resultat.noeud),
+        cardinal(&pool, &schema, resultat.node),
         3,
         "family of the three reached states"
     );

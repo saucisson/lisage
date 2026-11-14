@@ -114,19 +114,19 @@ impl Lookup {
         Schema::niveau_valeur(self.index_cle)
     }
 
-    /// Graft (spec § 6.4): replaces the terminals of the `noeud` sub-diagram
+    /// Graft (spec § 6.4): replaces the terminals of the `node` sub-diagram
     /// with `ε(payload)`, internal nodes rebuilt identically.
     fn greffer<P: Pool<Key = u64, Payload = Option<u64>>>(
         pool: &mut P,
         anchor: Anchor,
-        noeud: NodeId,
+        node: NodeId,
         payload: Option<u64>,
         memo: &mut BTreeMap<NodeId, NodeId>,
     ) -> NodeId {
-        if let Some(&n) = memo.get(&noeud) {
+        if let Some(&n) = memo.get(&node) {
             return n;
         }
-        let forme = pool.resolve(noeud).unwrap().clone();
+        let forme = pool.resolve(node).unwrap().clone();
         let resultat = match forme {
             Form::Terminal(_) => pool.intern(anchor, Form::Terminal(payload)),
             Form::Node { level, arcs } => {
@@ -137,7 +137,7 @@ impl Lookup {
                 pool.intern(anchor, Form::Node { level, arcs })
             }
         };
-        memo.insert(noeud, resultat);
+        memo.insert(node, resultat);
         resultat
     }
 }
@@ -219,7 +219,7 @@ impl Transduction for Lookup {
                         let branche = Self::greffer(pool, anchor, enfant, Some(v.0), &mut memo);
                         greffon.insert(v.0, branche);
                     }
-                    let noeud_valeur = pool.intern(
+                    let node_valeur = pool.intern(
                         anchor,
                         Form::Node {
                             level: self.niveau_valeur(),
@@ -231,7 +231,7 @@ impl Transduction for Lookup {
                         .filter(|(v, _)| *v != PRESENT)
                         .map(|(v, (n, _))| (v, n))
                         .collect();
-                    arcs_output.insert(PRESENT, noeud_valeur);
+                    arcs_output.insert(PRESENT, node_valeur);
                     return (
                         pool.intern(
                             anchor,

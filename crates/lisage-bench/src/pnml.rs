@@ -65,7 +65,7 @@ pub struct TransitionId(pub String);
 
 /// End of an arc: always a node of the net.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum NoeudId {
+pub enum NodeId {
     Place(PlaceId),
     Transition(TransitionId),
 }
@@ -145,17 +145,17 @@ impl std::error::Error for PnmlError {}
 
 /// XML node: element with attributes and children, or text.
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum XmlNoeud {
+enum XmlNode {
     Element {
         nom: String,
         attributs: BTreeMap<String, String>,
-        enfants: Vec<XmlNoeud>,
+        enfants: Vec<XmlNode>,
     },
     Texte(String),
 }
 
-/// Parses an XML document into a [`XmlNoeud`] tree.
-fn parser_xml(document: &str) -> Result<XmlNoeud, PnmlError> {
+/// Parses an XML document into a [`XmlNode`] tree.
+fn parser_xml(document: &str) -> Result<XmlNode, PnmlError> {
     let octets: Vec<char> = document.chars().collect();
     let mut position = 0;
     let root = parser_element(&octets, &mut position)?;
@@ -313,7 +313,7 @@ fn lire_balise_fermante(octets: &[char], position: &mut usize, nom: &str) -> Res
 }
 
 /// Parses a complete element (recursive).
-fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNoeud, PnmlError> {
+fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNode, PnmlError> {
     sauter_espaces(octets, position);
     if octets.get(*position) != Some(&'<') {
         return Err(PnmlError::XmlMalForme {
@@ -328,14 +328,14 @@ fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNoeud, Pnm
     }
     let (nom, attributs, auto_fermante) = lire_balise_ouvrante(octets, position)?;
     if auto_fermante {
-        return Ok(XmlNoeud::Element {
+        return Ok(XmlNode::Element {
             nom,
             attributs,
             enfants: Vec::new(),
         });
     }
     let enfants = parser_enfants(octets, position, &nom)?;
-    Ok(XmlNoeud::Element {
+    Ok(XmlNode::Element {
         nom,
         attributs,
         enfants,
@@ -347,7 +347,7 @@ fn parser_enfants(
     octets: &[char],
     position: &mut usize,
     nom: &str,
-) -> Result<Vec<XmlNoeud>, PnmlError> {
+) -> Result<Vec<XmlNode>, PnmlError> {
     let mut enfants = Vec::new();
     loop {
         sauter_espaces(octets, position);
@@ -366,7 +366,7 @@ fn parser_enfants(
         } else {
             let texte = lire_texte(octets, position);
             if !texte.is_empty() {
-                enfants.push(XmlNoeud::Texte(texte));
+                enfants.push(XmlNode::Texte(texte));
             }
         }
     }
@@ -394,8 +394,8 @@ pub struct Transition {
 /// Oriented arc place↔transition (weight 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Arc {
-    pub source: NoeudId,
-    pub cible: NoeudId,
+    pub source: NodeId,
+    pub cible: NodeId,
 }
 
 /// Raw PNML document, distinct type at the boundary (ADR-0006).
@@ -414,7 +414,7 @@ impl ReseauPetri {
     /// Parses a complete PNML document.
     pub fn depuis_pnml(document: &PnmlDocument) -> Result<ReseauPetri, PnmlError> {
         let root = parser_xml(&document.0)?;
-        let XmlNoeud::Element { nom, enfants, .. } = &root else {
+        let XmlNode::Element { nom, enfants, .. } = &root else {
             return Err(PnmlError::ElementInattendu {
                 attendu: ELEMENT_PNML,
                 trouve: "text".to_string(),
@@ -429,7 +429,7 @@ impl ReseauPetri {
         let net = enfants
             .iter()
             .find_map(|enfant| match enfant {
-                XmlNoeud::Element { nom, enfants, .. } if nom == ELEMENT_NET => Some(enfants),
+                XmlNode::Element { nom, enfants, .. } if nom == ELEMENT_NET => Some(enfants),
                 _ => None,
             })
             .ok_or_else(|| PnmlError::ElementInattendu {
@@ -440,7 +440,7 @@ impl ReseauPetri {
         let mut transitions = Vec::new();
         let mut arcs_bruts = Vec::new();
         for enfant in net {
-            let XmlNoeud::Element {
+            let XmlNode::Element {
                 nom,
                 attributs,
                 enfants,
@@ -487,7 +487,7 @@ struct ArcBrut {
     cible: String,
 }
 
-/// Resolves arc identifiers into [`NoeudId`] and checks that each
+/// Resolves arc identifiers into [`NodeId`] and checks that each
 /// arc links a place and a transition whose both ends
 /// exist.
 fn resoudre_arcs(
@@ -506,8 +506,8 @@ fn resoudre_arc(
     transitions: &[Transition],
     brut: &ArcBrut,
 ) -> Result<Arc, PnmlError> {
-    let source = resoudre_noeud(places, transitions, &brut.source);
-    let cible = resoudre_noeud(places, transitions, &brut.cible);
+    let source = resoudre_node(places, transitions, &brut.source);
+    let cible = resoudre_node(places, transitions, &brut.cible);
     let (source, cible) = match (source, cible) {
         (Some(source), Some(cible)) => (source, cible),
         _ => {
@@ -519,7 +519,7 @@ fn resoudre_arc(
     };
     let badly_oriented = matches!(
         (&source, &cible),
-        (NoeudId::Place(_), NoeudId::Place(_)) | (NoeudId::Transition(_), NoeudId::Transition(_))
+        (NodeId::Place(_), NodeId::Place(_)) | (NodeId::Transition(_), NodeId::Transition(_))
     );
     if badly_oriented {
         return Err(PnmlError::ArcMalOriente {
@@ -530,16 +530,16 @@ fn resoudre_arc(
     Ok(Arc { source, cible })
 }
 
-fn resoudre_noeud(
+fn resoudre_node(
     places: &[Place],
     transitions: &[Transition],
     identifiant: &str,
-) -> Option<NoeudId> {
+) -> Option<NodeId> {
     if places.iter().any(|p| p.identifiant.0 == identifiant) {
-        return Some(NoeudId::Place(PlaceId(identifiant.to_string())));
+        return Some(NodeId::Place(PlaceId(identifiant.to_string())));
     }
     if transitions.iter().any(|t| t.identifiant.0 == identifiant) {
-        return Some(NoeudId::Transition(TransitionId(identifiant.to_string())));
+        return Some(NodeId::Transition(TransitionId(identifiant.to_string())));
     }
     None
 }
@@ -561,9 +561,9 @@ fn attribut_obligatoire(
 /// Text of a `<name><text>…</text></name>` or
 /// `<initialMarking><text>…</text></initialMarking>` element: the text is
 /// either a direct child, or inside a `<text>` sub-element.
-fn lire_texte_enfant(enfants: &[XmlNoeud], element: &str) -> Option<String> {
+fn lire_texte_enfant(enfants: &[XmlNode], element: &str) -> Option<String> {
     for enfant in enfants {
-        let XmlNoeud::Element { nom, enfants, .. } = enfant else {
+        let XmlNode::Element { nom, enfants, .. } = enfant else {
             continue;
         };
         if nom != element {
@@ -574,12 +574,12 @@ fn lire_texte_enfant(enfants: &[XmlNoeud], element: &str) -> Option<String> {
     None
 }
 
-fn texte_direct_ou_dans_text(noeud: &XmlNoeud) -> Option<String> {
-    match noeud {
-        XmlNoeud::Texte(texte) => Some(texte.clone()),
-        XmlNoeud::Element { nom, enfants, .. } if nom == ELEMENT_TEXT => {
+fn texte_direct_ou_dans_text(node: &XmlNode) -> Option<String> {
+    match node {
+        XmlNode::Texte(texte) => Some(texte.clone()),
+        XmlNode::Element { nom, enfants, .. } if nom == ELEMENT_TEXT => {
             enfants.iter().find_map(|e| match e {
-                XmlNoeud::Texte(texte) => Some(texte.clone()),
+                XmlNode::Texte(texte) => Some(texte.clone()),
                 _ => None,
             })
         }
@@ -587,13 +587,13 @@ fn texte_direct_ou_dans_text(noeud: &XmlNoeud) -> Option<String> {
     }
 }
 
-fn lire_nom_optionnel(enfants: &[XmlNoeud]) -> Option<String> {
+fn lire_nom_optionnel(enfants: &[XmlNode]) -> Option<String> {
     lire_texte_enfant(enfants, ELEMENT_NAME)
 }
 
 fn parser_place(
     attributs: &BTreeMap<String, String>,
-    enfants: &[XmlNoeud],
+    enfants: &[XmlNode],
 ) -> Result<Place, PnmlError> {
     let identifiant = PlaceId(attribut_obligatoire(attributs, ELEMENT_PLACE, ATTRIBUT_ID)?);
     let nom = lire_nom_optionnel(enfants);
@@ -615,7 +615,7 @@ fn parser_place(
 
 fn parser_transition(
     attributs: &BTreeMap<String, String>,
-    enfants: &[XmlNoeud],
+    enfants: &[XmlNode],
 ) -> Result<Transition, PnmlError> {
     let identifiant = TransitionId(attribut_obligatoire(
         attributs,
@@ -685,7 +685,7 @@ fn places_entrantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> V
         .arcs
         .iter()
         .filter_map(|arc| match (&arc.source, &arc.cible) {
-            (NoeudId::Place(p), NoeudId::Transition(t)) if t == transition => Some(p),
+            (NodeId::Place(p), NodeId::Transition(t)) if t == transition => Some(p),
             _ => None,
         })
         .collect()
@@ -697,7 +697,7 @@ fn places_sortantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> V
         .arcs
         .iter()
         .filter_map(|arc| match (&arc.source, &arc.cible) {
-            (NoeudId::Transition(t), NoeudId::Place(p)) if t == transition => Some(p),
+            (NodeId::Transition(t), NodeId::Place(p)) if t == transition => Some(p),
             _ => None,
         })
         .collect()

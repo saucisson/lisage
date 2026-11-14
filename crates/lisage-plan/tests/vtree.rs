@@ -8,9 +8,9 @@ use lisage_plan::ordre::{ErreurOrdre, Order};
 
 /// Test vtree: (x0, x1) on the left, (x2, x3) on the right.
 fn vtree_test() -> Vtree {
-    Vtree::noeud(
-        Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
-        Vtree::noeud(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
+    Vtree::node(
+        Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
+        Vtree::node(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
     )
 }
 
@@ -34,9 +34,9 @@ fn test_pi_valide_adopte() {
 /// gives flat order [2, 0, 1], and π = [0, 1, 2] violates constraint 2 < 0.
 #[test]
 fn test_autre_vtree_autre_ordre() {
-    let vtree = Vtree::noeud(
+    let vtree = Vtree::node(
         Vtree::feuille(Atom(2)),
-        Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
+        Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
     );
     let ordre = Order::canonique(&vtree);
     assert_eq!(ordre.sequence(), &[Atom(2), Atom(0), Atom(1)]);
@@ -74,7 +74,7 @@ fn test_pi_pas_une_permutation_rejete() {
 /// Invalid vtree: duplicate variable, typed error.
 #[test]
 fn test_vtree_variable_en_double_rejete() {
-    let vtree = Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(0)));
+    let vtree = Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(0)));
     assert_eq!(
         vtree.valider().unwrap_err(),
         ErreurVtree::VariableEnDouble(Atom(0))
@@ -91,7 +91,7 @@ fn vtree_aleatoire(graine: &mut u64, nombre_variables: u64) -> Vtree {
             return Vtree::feuille(variables[0]);
         }
         let point_coupe = (suivant(graine) % (variables.len() as u64 - 1)) as usize + 1;
-        Vtree::noeud(
+        Vtree::node(
             construire(graine, &variables[..point_coupe]),
             construire(graine, &variables[point_coupe..]),
         )
@@ -110,7 +110,7 @@ fn vtree_aleatoire(graine: &mut u64, nombre_variables: u64) -> Vtree {
 /// `contraintes_ordre`) that `sequence` places every left variable before
 /// every right variable at each internal node.
 fn verifier_gauche_avant_droite(vtree: &Vtree, sequence: &[Atom]) {
-    if let Vtree::Noeud { gauche, droite } = vtree {
+    if let Vtree::Node { gauche, droite } = vtree {
         for variable_gauche in gauche.ordre_plat() {
             for variable_droite in droite.ordre_plat() {
                 let position_gauche = sequence.iter().position(|a| *a == variable_gauche).unwrap();

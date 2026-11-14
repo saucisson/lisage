@@ -179,7 +179,7 @@ impl TransfertNonLocal {
         if self.domaine.contient(Atom(montant))
             && let Some((suite, _)) = arcs.remove(&ABSENT)
         {
-            let noeud_valeur = pool.intern(
+            let node_valeur = pool.intern(
                 anchor,
                 Form::Node {
                     level: self.niveau_destination(),
@@ -189,12 +189,12 @@ impl TransfertNonLocal {
             // Collision with an existing PRESENT arc (family): union.
             match arcs.remove(&PRESENT) {
                 Some((ancien, _)) => {
-                    let fusion = union(pool, &self.keys, anchor, ancien, noeud_valeur)
+                    let fusion = union(pool, &self.keys, anchor, ancien, node_valeur)
                         .expect("union of sub-arcs of the same pool");
                     arcs.insert(PRESENT, (fusion, ()));
                 }
                 None => {
-                    arcs.insert(PRESENT, (noeud_valeur, ()));
+                    arcs.insert(PRESENT, (node_valeur, ()));
                 }
             }
         }

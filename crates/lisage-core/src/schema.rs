@@ -108,11 +108,11 @@ pub enum SchemaError {
     /// Atom outside the domain declared by the schema.
     HorsDomaine(Atom),
     /// Diagram node incompatible with the schema (decompilation).
-    NoeudInattendu {
+    NodeInattendu {
         /// Shape expected at this position.
         attendu: &'static str,
         /// Node encountered.
-        noeud: NodeId,
+        node: NodeId,
     },
     /// Error propagated from the pool port.
     Pool(PoolError),
@@ -125,10 +125,10 @@ impl std::fmt::Display for SchemaError {
                 write!(formatter, "type mismatch: expected {attendu}, got {recu}")
             }
             SchemaError::HorsDomaine(atome) => write!(formatter, "atom outside domain: {atome:?}"),
-            SchemaError::NoeudInattendu { attendu, noeud } => {
+            SchemaError::NodeInattendu { attendu, node } => {
                 write!(
                     formatter,
-                    "unexpected node: expected {attendu}, node {noeud:?}"
+                    "unexpected node: expected {attendu}, node {node:?}"
                 )
             }
             SchemaError::Pool(error) => write!(formatter, "pool error: {error}"),
@@ -407,14 +407,14 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
     let cle = Value::Atom(liste_cles[index]);
     let arcs = match map.get(&cle) {
         Some(Value::Atom(valeur)) => {
-            let noeud_valeur = pool.intern(
+            let node_valeur = pool.intern(
                 anchor,
                 Form::Node {
                     level: Schema::niveau_valeur(index),
                     arcs: BTreeMap::from([(valeur.0, suite)]),
                 },
             );
-            BTreeMap::from([(PRESENT, noeud_valeur)])
+            BTreeMap::from([(PRESENT, node_valeur)])
         }
         Some(autre) => {
             return Err(SchemaError::TypeMismatch {
@@ -553,7 +553,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
             recu: forme_valeur(payload),
         });
     };
-    let noeud_valeur = pool.intern(
+    let node_valeur = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
@@ -566,7 +566,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(index as u64, noeud_valeur)]),
+            arcs: BTreeMap::from([(index as u64, node_valeur)]),
         },
     ))
 }
@@ -576,31 +576,31 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
 pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     schema: &Schema,
-    noeud: NodeId,
+    node: NodeId,
 ) -> Result<Value, SchemaError> {
     match schema {
         Schema::Atom(domaine) => {
             // Single-element domain: R-collapse reduces the atomic node
             // to the acceptance terminal.
-            if matches!(pool.resolve(noeud), Ok(Form::Terminal(true))) {
+            if matches!(pool.resolve(node), Ok(Form::Terminal(true))) {
                 return match domaine.valeurs.first() {
                     Some(atome) if domaine.taille() == 1 => Ok(Value::Atom(*atome)),
-                    _ => Err(SchemaError::NoeudInattendu {
+                    _ => Err(SchemaError::NodeInattendu {
                         attendu: "atomic-level node",
-                        noeud,
+                        node,
                     }),
                 };
             }
-            let Form::Node { level, arcs } = pool.resolve(noeud)? else {
-                return Err(SchemaError::NoeudInattendu {
+            let Form::Node { level, arcs } = pool.resolve(node)? else {
+                return Err(SchemaError::NodeInattendu {
                     attendu: "atomic-level node",
-                    noeud,
+                    node,
                 });
             };
             if *level != Level(0) {
-                return Err(SchemaError::NoeudInattendu {
+                return Err(SchemaError::NodeInattendu {
                     attendu: "level 0",
-                    noeud,
+                    node,
                 });
             }
             for (cle, cible) in arcs {
@@ -612,27 +612,27 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
                     return Err(SchemaError::HorsDomaine(atome));
                 }
             }
-            Err(SchemaError::NoeudInattendu {
+            Err(SchemaError::NodeInattendu {
                 attendu: "arc to terminal true",
-                noeud,
+                node,
             })
         }
         Schema::Set(domaine) => {
             let mut elements = BTreeSet::new();
-            decompiler_ensemble(pool, domaine, noeud, &mut elements)?;
+            decompiler_ensemble(pool, domaine, node, &mut elements)?;
             Ok(Value::Set(elements))
         }
         Schema::Map(liste_cles, _) => {
             let mut map = BTreeMap::new();
-            decompiler_map(pool, liste_cles, noeud, &mut map)?;
+            decompiler_map(pool, liste_cles, node, &mut map)?;
             Ok(Value::Map(map))
         }
         Schema::Seq(domaine, longueur_max) => {
             let mut elements = Vec::new();
-            decompiler_seq(pool, domaine, *longueur_max, noeud, &mut elements)?;
+            decompiler_seq(pool, domaine, *longueur_max, node, &mut elements)?;
             Ok(Value::Seq(elements))
         }
-        Schema::Tag(liste, domaine_valeurs) => decompiler_tag(pool, liste, domaine_valeurs, noeud),
+        Schema::Tag(liste, domaine_valeurs) => decompiler_tag(pool, liste, domaine_valeurs, node),
     }
 }
 
@@ -640,52 +640,52 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     liste: &[Atom],
     domaine_valeurs: &Domaine,
-    noeud: NodeId,
+    node: NodeId,
 ) -> Result<Value, SchemaError> {
-    let Form::Node { level, arcs } = pool.resolve(noeud)? else {
-        return Err(SchemaError::NoeudInattendu {
+    let Form::Node { level, arcs } = pool.resolve(node)? else {
+        return Err(SchemaError::NodeInattendu {
             attendu: "discriminant node",
-            noeud,
+            node,
         });
     };
     if *level != Level(0) {
-        return Err(SchemaError::NoeudInattendu {
+        return Err(SchemaError::NodeInattendu {
             attendu: "discriminant level (0)",
-            noeud,
+            node,
         });
     }
-    let Some((&index, &noeud_valeur)) = arcs.iter().next() else {
-        return Err(SchemaError::NoeudInattendu {
+    let Some((&index, &node_valeur)) = arcs.iter().next() else {
+        return Err(SchemaError::NodeInattendu {
             attendu: "discriminant arc",
-            noeud,
+            node,
         });
     };
     let discriminant = *liste
         .get(index as usize)
-        .ok_or(SchemaError::NoeudInattendu {
+        .ok_or(SchemaError::NodeInattendu {
             attendu: "valid discriminant index",
-            noeud,
+            node,
         })?;
     let Form::Node {
         level: niveau_valeur,
         arcs: arcs_valeur,
-    } = pool.resolve(noeud_valeur)?
+    } = pool.resolve(node_valeur)?
     else {
-        return Err(SchemaError::NoeudInattendu {
+        return Err(SchemaError::NodeInattendu {
             attendu: "value node",
-            noeud: noeud_valeur,
+            node: node_valeur,
         });
     };
     if *niveau_valeur != Level(1) {
-        return Err(SchemaError::NoeudInattendu {
+        return Err(SchemaError::NodeInattendu {
             attendu: "value level (1)",
-            noeud: noeud_valeur,
+            node: node_valeur,
         });
     }
     let Some((&valeur, _)) = arcs_valeur.iter().next() else {
-        return Err(SchemaError::NoeudInattendu {
+        return Err(SchemaError::NodeInattendu {
             attendu: "value arc",
-            noeud: noeud_valeur,
+            node: node_valeur,
         });
     };
     let atome = Atom(valeur);
@@ -699,23 +699,23 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     domaine: &Domaine,
     longueur_max: u32,
-    mut noeud: NodeId,
+    mut node: NodeId,
     elements: &mut Vec<Value>,
 ) -> Result<(), SchemaError> {
     loop {
-        match pool.resolve(noeud)? {
+        match pool.resolve(node)? {
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
-                return Err(SchemaError::NoeudInattendu {
+                return Err(SchemaError::NodeInattendu {
                     attendu: "terminal true or position node",
-                    noeud,
+                    node,
                 });
             }
             Form::Node { level, arcs } => {
                 if level.0 > longueur_max {
-                    return Err(SchemaError::NoeudInattendu {
+                    return Err(SchemaError::NodeInattendu {
                         attendu: "position level or end marker",
-                        noeud,
+                        node,
                     });
                 }
                 if level.0 == longueur_max {
@@ -723,20 +723,20 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
                     if arcs.contains_key(&PRESENT) {
                         return Ok(());
                     }
-                    return Err(SchemaError::NoeudInattendu {
+                    return Err(SchemaError::NodeInattendu {
                         attendu: "end marker present",
-                        noeud,
+                        node,
                     });
                 }
                 let Some((&arc, &suite)) = arcs.iter().next() else {
-                    return Err(SchemaError::NoeudInattendu {
+                    return Err(SchemaError::NodeInattendu {
                         attendu: "position arc",
-                        noeud,
+                        node,
                     });
                 };
                 if arc == cle_fin(domaine) {
                     // Early end marker: the sequence stops here.
-                    noeud = suite;
+                    node = suite;
                     continue;
                 }
                 let atome = Atom(arc);
@@ -744,7 +744,7 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
                     return Err(SchemaError::HorsDomaine(atome));
                 }
                 elements.push(Value::Atom(atome));
-                noeud = suite;
+                node = suite;
             }
         }
     }
@@ -753,35 +753,35 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
 fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     domaine: &Domaine,
-    mut noeud: NodeId,
+    mut node: NodeId,
     elements: &mut BTreeSet<Value>,
 ) -> Result<(), SchemaError> {
     loop {
-        match pool.resolve(noeud)? {
+        match pool.resolve(node)? {
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
-                return Err(SchemaError::NoeudInattendu {
+                return Err(SchemaError::NodeInattendu {
                     attendu: "terminal true (empty set) or presence node",
-                    noeud,
+                    node,
                 });
             }
             Form::Node { level, arcs } => {
                 let index = level.0 as usize;
                 if index >= domaine.taille() {
-                    return Err(SchemaError::NoeudInattendu {
+                    return Err(SchemaError::NodeInattendu {
                         attendu: "domain presence level",
-                        noeud,
+                        node,
                     });
                 }
                 if let Some(&suite) = arcs.get(&PRESENT) {
                     elements.insert(Value::Atom(domaine.valeurs[index]));
-                    noeud = suite;
+                    node = suite;
                 } else if let Some(&suite) = arcs.get(&ABSENT) {
-                    noeud = suite;
+                    node = suite;
                 } else {
-                    return Err(SchemaError::NoeudInattendu {
+                    return Err(SchemaError::NodeInattendu {
                         attendu: "presence arc",
-                        noeud,
+                        node,
                     });
                 }
             }
@@ -792,63 +792,63 @@ fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
 fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     liste_cles: &[Atom],
-    mut noeud: NodeId,
+    mut node: NodeId,
     map: &mut BTreeMap<Value, Value>,
 ) -> Result<(), SchemaError> {
     loop {
-        match pool.resolve(noeud)? {
+        match pool.resolve(node)? {
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
-                return Err(SchemaError::NoeudInattendu {
+                return Err(SchemaError::NodeInattendu {
                     attendu: "terminal true (empty map) or presence node",
-                    noeud,
+                    node,
                 });
             }
             Form::Node { level, arcs } => {
                 if !level.0.is_multiple_of(PAS_NIVEAU_MAP) {
-                    return Err(SchemaError::NoeudInattendu {
+                    return Err(SchemaError::NodeInattendu {
                         attendu: "presence level",
-                        noeud,
+                        node,
                     });
                 }
                 let index = (level.0 / PAS_NIVEAU_MAP) as usize;
                 if index >= liste_cles.len() {
-                    return Err(SchemaError::NoeudInattendu {
+                    return Err(SchemaError::NodeInattendu {
                         attendu: "presence level of a key",
-                        noeud,
+                        node,
                     });
                 }
-                if let Some(&noeud_valeur) = arcs.get(&PRESENT) {
+                if let Some(&node_valeur) = arcs.get(&PRESENT) {
                     let Form::Node {
                         level: niveau_valeur,
                         arcs: arcs_valeur,
-                    } = pool.resolve(noeud_valeur)?
+                    } = pool.resolve(node_valeur)?
                     else {
-                        return Err(SchemaError::NoeudInattendu {
+                        return Err(SchemaError::NodeInattendu {
                             attendu: "value-level node",
-                            noeud: noeud_valeur,
+                            node: node_valeur,
                         });
                     };
                     if *niveau_valeur != Schema::niveau_valeur(index) {
-                        return Err(SchemaError::NoeudInattendu {
+                        return Err(SchemaError::NodeInattendu {
                             attendu: "value level of the key",
-                            noeud: noeud_valeur,
+                            node: node_valeur,
                         });
                     }
                     let Some((&valeur, &suite)) = arcs_valeur.iter().next() else {
-                        return Err(SchemaError::NoeudInattendu {
+                        return Err(SchemaError::NodeInattendu {
                             attendu: "value arc",
-                            noeud: noeud_valeur,
+                            node: node_valeur,
                         });
                     };
                     map.insert(Value::Atom(liste_cles[index]), Value::Atom(Atom(valeur)));
-                    noeud = suite;
+                    node = suite;
                 } else if let Some(&suite) = arcs.get(&ABSENT) {
-                    noeud = suite;
+                    node = suite;
                 } else {
-                    return Err(SchemaError::NoeudInattendu {
+                    return Err(SchemaError::NodeInattendu {
                         attendu: "presence arc",
-                        noeud,
+                        node,
                     });
                 }
             }

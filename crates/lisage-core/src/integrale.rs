@@ -74,22 +74,22 @@ pub fn integrale_constante<P: Pool<Key = Intervalle, Payload = bool>>(
 
 fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &P,
-    noeud: NodeId,
+    node: NodeId,
     region: &Intervalle,
     observateur: Option<&dyn Observer>,
     memo: &mut HashMap<(NodeId, Intervalle), u64>,
 ) -> Result<u64, PoolError> {
-    if let Some(total) = memo.get(&(noeud, *region)) {
+    if let Some(total) = memo.get(&(node, *region)) {
         if let Some(obs) = observateur {
             obs.on_event(&TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
-                noeud,
+                node,
                 valeur: format!("measure_memo={total}"),
             });
         }
         return Ok(*total);
     }
-    let total = match pool.resolve(noeud)?.clone() {
+    let total = match pool.resolve(node)?.clone() {
         Form::Terminal(true) => mesure_intervalle(region),
         Form::Terminal(false) => 0,
         Form::Node { arcs, .. } => {
@@ -108,11 +108,11 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud,
+            node,
             valeur: format!("measure={total}"),
         });
     }
-    memo.insert((noeud, *region), total);
+    memo.insert((node, *region), total);
     Ok(total)
 }
 
@@ -136,23 +136,23 @@ pub fn integrale_dbm_constante<P: Pool<Key = Dbm, Payload = bool>>(
 
 fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
     pool: &P,
-    noeud: NodeId,
+    node: NodeId,
     region: &Dbm,
     keys: &DbmKeys,
     observateur: Option<&dyn Observer>,
     memo: &mut HashMap<(NodeId, Dbm), i128>,
 ) -> Result<i128, PoolError> {
-    if let Some(total) = memo.get(&(noeud, region.clone())) {
+    if let Some(total) = memo.get(&(node, region.clone())) {
         if let Some(obs) = observateur {
             obs.on_event(&TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
-                noeud,
+                node,
                 valeur: format!("measure_memo={total}"),
             });
         }
         return Ok(*total);
     }
-    let total = match pool.resolve(noeud)?.clone() {
+    let total = match pool.resolve(node)?.clone() {
         Form::Terminal(true) => keys.mesure_zone(region),
         Form::Terminal(false) => 0,
         Form::Node { arcs, .. } => {
@@ -172,11 +172,11 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud,
+            node,
             valeur: format!("measure={total}"),
         });
     }
-    memo.insert((noeud, region.clone()), total);
+    memo.insert((node, region.clone()), total);
     Ok(total)
 }
 

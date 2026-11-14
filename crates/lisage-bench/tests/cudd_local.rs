@@ -13,14 +13,14 @@
 
 use lisage_algebra::interface::Anchor;
 use lisage_core::arena::Arena;
-use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_noeuds};
+use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_nodes};
 use lisage_core::observer::NoOpObserver;
 use proptest::prelude::*;
 use std::process::Command;
 
 /// Calls the `cudd_count` binary in the Docker container and returns the
 /// CUDD node count for the given truth table.
-fn cudd_compter_noeuds(nombre_variables: u32, table: &[bool]) -> Option<usize> {
+fn cudd_compter_nodes(nombre_variables: u32, table: &[bool]) -> Option<usize> {
     let mut input = format!("{}\n", nombre_variables);
     for &valeur in table {
         input.push_str(if valeur { "1 " } else { "0 " });
@@ -81,14 +81,14 @@ proptest! {
         let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
         let anchor = Anchor(0);
         let root = compiler_bdd(&mut pool, anchor, &keys, &table);
-        let noeuds_arene = compter_noeuds(&pool, root);
+        let nodes_arene = compter_nodes(&pool, root);
 
-        let noeuds_cudd = cudd_compter_noeuds(nombre_variables, &table)
+        let nodes_cudd = cudd_compter_nodes(nombre_variables, &table)
             .expect("call to the lisage-cudd Docker container failed");
 
         prop_assert_eq!(
-            noeuds_arene,
-            noeuds_cudd as u64,
+            nodes_arene,
+            nodes_cudd as u64,
             "local C6: identical reproduction of the node count against real CUDD"
         );
     }

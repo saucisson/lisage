@@ -14,7 +14,7 @@ use lisage_core::observer::{CanalAttr, TraceEvent};
 use lisage_core::{Form, NodeId, Pool};
 
 use crate::svg::{
-    DEMI_LARGEUR, HAUTEUR_NIVEAU, LARGEUR_NOEUD, MARGE_GAUCHE, MARGE_HAUT, Placement, echapper_xml,
+    DEMI_LARGEUR, HAUTEUR_NIVEAU, LARGEUR_NODE, MARGE_GAUCHE, MARGE_HAUT, Placement, echapper_xml,
     placer,
 };
 
@@ -43,7 +43,7 @@ const COULEUR_CURSEUR: &str = "#000";
 /// Background of terminals.
 const COULEUR_FOND_TERMINAL: &str = "#eee";
 /// Background of internal nodes.
-const COULEUR_FOND_NOEUD: &str = "#fff";
+const COULEUR_FOND_NODE: &str = "#fff";
 /// Height of the timeline in pixels.
 const HAUTEUR_FRISE: u32 = 46;
 
@@ -52,7 +52,7 @@ const HAUTEUR_FRISE: u32 = 46;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EtatTrace {
     /// Nodes seen (created or shared) up to the position.
-    pub noeuds: BTreeSet<NodeId>,
+    pub nodes: BTreeSet<NodeId>,
     /// Attributes seen `(channel, node, value)`, in emission order.
     pub attributs: Vec<(CanalAttr, NodeId, String)>,
     /// Number of `MemoHit` up to the position.
@@ -76,8 +76,8 @@ pub struct DiffTrace {
 /// Differential between two states: additions and ghosts.
 pub fn diff(avant: &EtatTrace, apres: &EtatTrace) -> DiffTrace {
     DiffTrace {
-        ajoutes: apres.noeuds.difference(&avant.noeuds).copied().collect(),
-        fantomes: avant.noeuds.difference(&apres.noeuds).copied().collect(),
+        ajoutes: apres.nodes.difference(&avant.nodes).copied().collect(),
+        fantomes: avant.nodes.difference(&apres.nodes).copied().collect(),
     }
 }
 
@@ -118,14 +118,14 @@ impl Scrubber {
         for evenement in &self.evenements[..self.position] {
             match evenement {
                 TraceEvent::NodeCreated { node, .. } | TraceEvent::NodeShared { node } => {
-                    etat.noeuds.insert(*node);
+                    etat.nodes.insert(*node);
                 }
                 TraceEvent::Attr {
                     canal,
-                    noeud,
+                    node,
                     valeur,
                 } => {
-                    etat.attributs.push((*canal, *noeud, valeur.clone()));
+                    etat.attributs.push((*canal, *node, valeur.clone()));
                 }
                 TraceEvent::MemoHit { .. } => etat.memo_hits += 1,
                 TraceEvent::MemoMiss { .. } => etat.memo_misses += 1,
@@ -157,10 +157,10 @@ fn couleur_canal(canal: CanalAttr) -> &'static str {
 
 /// Border color of a node according to the **last** attribute channel seen
 /// on this node (memory > synthesized > inherited > default).
-fn couleur_noeud(etat: &EtatTrace, noeud: NodeId) -> &'static str {
+fn couleur_node(etat: &EtatTrace, node: NodeId) -> &'static str {
     let mut couleur = COULEUR_DEFAUT;
     for (canal, n, _) in &etat.attributs {
-        if *n == noeud {
+        if *n == node {
             couleur = couleur_canal(*canal);
         }
     }
@@ -232,12 +232,12 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
 ) {
     let mut pile = vec![root];
     let mut deja_vu = BTreeSet::new();
-    while let Some(noeud) = pile.pop() {
-        if !deja_vu.insert(noeud) {
+    while let Some(node) = pile.pop() {
+        if !deja_vu.insert(node) {
             continue;
         }
-        if let Ok(Form::Node { arcs, .. }) = pool.resolve(noeud) {
-            let depart = &placement[&noeud];
+        if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
+            let depart = &placement[&node];
             for (cle, cible) in arcs {
                 let arrivee = &placement[cible];
                 svg.push_str(&format!(
@@ -260,10 +260,10 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
 }
 
 /// Renders a node (terminal or internal); as a ghost (dashed) if requested.
-fn rendre_noeud<P: Pool<Key = u64, Payload = bool>>(
+fn rendre_node<P: Pool<Key = u64, Payload = bool>>(
     svg: &mut String,
     pool: &P,
-    noeud: NodeId,
+    node: NodeId,
     position: &Placement,
     fantome: bool,
     etat: &EtatTrace,
@@ -272,7 +272,7 @@ fn rendre_noeud<P: Pool<Key = u64, Payload = bool>>(
     let couleur = if fantome {
         COULEUR_FANTOME
     } else {
-        couleur_noeud(etat, noeud)
+        couleur_node(etat, node)
     };
     let style = if fantome {
         format!("stroke=\"{couleur}\" stroke-dasharray=\"4 3\"")
@@ -281,10 +281,10 @@ fn rendre_noeud<P: Pool<Key = u64, Payload = bool>>(
     };
     let x = position.x - DEMI_LARGEUR;
     let y = position.y + y_decalage - 14;
-    match pool.resolve(noeud) {
+    match pool.resolve(node) {
         Ok(Form::Terminal(payload)) => {
             svg.push_str(&format!(
-                "<rect x=\"{x}\" y=\"{y}\" width=\"{LARGEUR_NOEUD}\" height=\"28\" fill=\"{COULEUR_FOND_TERMINAL}\" {style}/>\n"
+                "<rect x=\"{x}\" y=\"{y}\" width=\"{LARGEUR_NODE}\" height=\"28\" fill=\"{COULEUR_FOND_TERMINAL}\" {style}/>\n"
             ));
             svg.push_str(&format!(
                 "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">{}</text>\n",
@@ -295,14 +295,14 @@ fn rendre_noeud<P: Pool<Key = u64, Payload = bool>>(
         }
         Ok(Form::Node { level, .. }) => {
             svg.push_str(&format!(
-                "<rect x=\"{x}\" y=\"{y}\" width=\"{LARGEUR_NOEUD}\" height=\"28\" fill=\"{COULEUR_FOND_NOEUD}\" {style}/>\n"
+                "<rect x=\"{x}\" y=\"{y}\" width=\"{LARGEUR_NODE}\" height=\"28\" fill=\"{COULEUR_FOND_NODE}\" {style}/>\n"
             ));
             svg.push_str(&format!(
                 "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">ℓ{} n{}</text>\n",
                 position.x,
                 position.y + y_decalage + 4,
                 level.0,
-                noeud.0
+                node.0
             ));
         }
         Err(_) => {
@@ -314,7 +314,7 @@ fn rendre_noeud<P: Pool<Key = u64, Payload = bool>>(
 }
 
 /// Renders all the nodes of the placement, ghosts as watermark.
-fn rendre_noeuds<P: Pool<Key = u64, Payload = bool>>(
+fn rendre_nodes<P: Pool<Key = u64, Payload = bool>>(
     svg: &mut String,
     pool: &P,
     placement: &BTreeMap<NodeId, Placement>,
@@ -322,13 +322,13 @@ fn rendre_noeuds<P: Pool<Key = u64, Payload = bool>>(
     etat: &EtatTrace,
     y_decalage: u32,
 ) {
-    for (noeud, position) in placement {
-        rendre_noeud(
+    for (node, position) in placement {
+        rendre_node(
             svg,
             pool,
-            *noeud,
+            *node,
             position,
-            diff.fantomes.contains(noeud),
+            diff.fantomes.contains(node),
             etat,
             y_decalage,
         );
@@ -355,7 +355,7 @@ pub fn rendre_svg_pas_a_pas<P: Pool<Key = u64, Payload = bool>>(
     rendre_frise(&mut svg, scrubber, largeur);
     let y_decalage = HAUTEUR_FRISE + 8;
     rendre_arcs(&mut svg, pool, root, &placement, y_decalage);
-    rendre_noeuds(&mut svg, pool, &placement, diff, &etat, y_decalage);
+    rendre_nodes(&mut svg, pool, &placement, diff, &etat, y_decalage);
     svg.push_str("</svg>\n");
     svg
 }
