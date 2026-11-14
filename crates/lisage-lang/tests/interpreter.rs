@@ -120,21 +120,21 @@ fn test_hof_iterate() {
 fn test_hof_iterate_property_lcg() {
     // Property: iterate(f, n, x) == n manual applications of f,
     // for n drawn from a deterministic LCG (same constants as lisage-plan).
-    const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
-    const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
+    const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+    const MULTIPLIER_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NUMBER_CAS: u64 = 50;
+    const NUMBER_CASES: u64 = 50;
     const BOUND_N: u64 = 12;
     const BOUND_X: u64 = 100;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = move || {
-        graine = graine
-            .wrapping_mul(MULTIPLICATEUR_LCG)
+        seed = seed
+            .wrapping_mul(MULTIPLIER_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine >> 33
+        seed >> 33
     };
     let increment = |v: &u64| (v + 1) % BOUND_X;
-    for _cas in 0..NUMBER_CAS {
+    for _case in 0..NUMBER_CASES {
         let n = next() % BOUND_N;
         let x = next() % BOUND_X;
         let mut expected = x;
