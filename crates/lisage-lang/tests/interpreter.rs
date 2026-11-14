@@ -51,7 +51,7 @@ fn test_lookup_key_absent() {
 #[test]
 fn test_filter_example_spec() {
     // p(m) = (m(a) = 1 ∨ a missing), spec § 4.
-    let keeps = filter(&example_spec(), |membre| match membre {
+    let keeps = filter(&example_spec(), |member| match member {
         Value::Map(map) => map.get(&atom(0)) != Some(&atom(0)),
         _ => false,
     });
@@ -69,26 +69,26 @@ fn test_exists_and_map() {
 }
 
 #[test]
-fn test_saturate_done_and_idempotent() {
+fn test_saturate_terminates_and_idempotent() {
     // step: adds the map {a↦1, b↦1} if missing.
-    let not_ = |current: &BTreeSet<Value>| {
+    let step_ = |current: &BTreeSet<Value>| {
         let mut next = current.clone();
         next.insert(map_of(&[(0, 1), (1, 1)]));
         next
     };
     let init: BTreeSet<Value> = BTreeSet::new();
-    let point_fixe = saturate(not_, init.clone());
-    assert_eq!(count(&point_fixe), 1);
-    assert_eq!(saturate(not_, point_fixe.clone()), point_fixe);
+    let fixpoint = saturate(step_, init.clone());
+    assert_eq!(count(&fixpoint), 1);
+    assert_eq!(saturate(step_, fixpoint.clone()), fixpoint);
 }
 
 #[test]
 fn test_union_intersection_difference() {
     let s = example_spec();
     let complementary: BTreeSet<Value> = [map_of(&[(0, 1), (1, 1)])].into_iter().collect();
-    let reunion = union(&s, &complementary);
-    assert_eq!(count(&reunion), 3);
-    assert!(member(&reunion, &map_of(&[(0, 1), (1, 1)])));
+    let union_all = union(&s, &complementary);
+    assert_eq!(count(&union_all), 3);
+    assert!(member(&union_all, &map_of(&[(0, 1), (1, 1)])));
     let intersection_s = intersection(&s, &complementary);
     assert_eq!(count(&intersection_s), 0);
     let difference_s = difference(&s, &complementary);
