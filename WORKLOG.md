@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4a-6 review fix: revert local renames + translate mesure= strings (issue #108)
+
+- **Issue**: #108 (M6-5). Review of PR #208 reported 2 BLOCKING findings.
+- **Done**: reverts the local identifier renames in `saturate.rs` (`input_node`/`node` → `noeud_entree`/`noeud`, comments stay translated — identifiers are M6-6 scope); translates the unaccented French string literals `mesure={total}` / `mesure_memo={total}` in `src/integrale.rs` to `measure=` / `measure_memo=` and updates the pinned copies in `tests/integrale.rs` / `tests/integrale_dbm.rs`.
+- **Evidence**: `cargo test -p lisage-core --test integrale --test integrale_dbm --test saturate` ok (18 passed); `cargo fmt -p lisage-core -- --check` clean; grep `mesure=` returns nothing outside kept identifiers.
+- **Judgement calls**: unaccented French strings are invisible to the accent grep — the reviewer catches them; JSONL wire fields (`noeud`, `valeur`…) stay French as contract.
 ## 2026-11-14 - M6-5 part 4a-6: lisage-core saturate+integrale translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
