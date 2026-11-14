@@ -194,7 +194,7 @@ fn test_dtrans_couverture() {
 /// M4-3: without a default key (δ(ℓ) = None), D-abs does not apply — the
 /// absent arcs would not be worth D^def.
 #[test]
-fn test_sans_cle_defaut_pas_dabs() {
+fn test_sans_key_defaut_pas_dabs() {
     let mut pool = Arena::new(
         MockController {
             keys: MockKeys { avec_defaut: false },

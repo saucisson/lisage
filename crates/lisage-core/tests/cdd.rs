@@ -221,7 +221,7 @@ fn test_propriete_intersection_lcg() {
 /// The key contract remains declared on the controller side: cardinality and
 /// level default are those of the CDD algebra (coverage is tested separately).
 #[test]
-fn test_contrat_cle_niveau() {
+fn test_contrat_key_niveau() {
     let keys = CddKeys::new(TAILLE_DOMAINE);
     assert_eq!(keys.cardinality(Level(0)), TAILLE_DOMAINE);
     assert_eq!(keys.default(Level(0)), Some(VIDE));
