@@ -14,7 +14,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use lisage_algebra::interface::{Anchor, Form, Level, NodeId, PolitiqueMemoire, Pool};
+use lisage_algebra::interface::{Anchor, Form, Level, MemoryPolicy, NodeId, Pool};
 
 use crate::error::CoreError;
 use crate::memoire::{EffetMemoire, MemoireNiveau};
@@ -103,20 +103,20 @@ pub struct Transducteur<T: Transduction> {
     transduction: T,
     memo: HashMap<CleMemo<T::H>, (NodeId, T::S)>,
     memoire: MemoireNiveau<T::M>,
-    politique: PolitiqueMemoire,
+    politique: MemoryPolicy,
     observateur: Option<Arc<dyn Observer>>,
 }
 
 impl<T: Transduction> Transducteur<T> {
     /// New runner for the given transduction, empty memory (version 0),
-    /// policy `Aucune` (M1: no level memory), no observer.
+    /// policy `NoMemory` (M1: no level memory), no observer.
     pub fn new(transduction: T) -> Self {
-        Self::avec_politique(transduction, PolitiqueMemoire::Aucune)
+        Self::avec_politique(transduction, MemoryPolicy::NoMemory)
     }
 
     /// Runner with a level-memory storage policy
     /// declared by the controller (M2-3, T3).
-    pub fn avec_politique(transduction: T, politique: PolitiqueMemoire) -> Self {
+    pub fn avec_politique(transduction: T, politique: MemoryPolicy) -> Self {
         Transducteur {
             transduction,
             memo: HashMap::new(),
@@ -130,7 +130,7 @@ impl<T: Transduction> Transducteur<T> {
     /// and the `Attr` of the three channels during execution.
     pub fn avec_observateur(
         transduction: T,
-        politique: PolitiqueMemoire,
+        politique: MemoryPolicy,
         observateur: Arc<dyn Observer>,
     ) -> Self {
         Transducteur {
@@ -266,7 +266,7 @@ impl<T: Transduction> Transducteur<T> {
                     noeud_entree: noeud,
                 };
                 let (noeud_resultat, effet) = self.transduction.phi_out(pool_sortie, ctx);
-                if self.politique == PolitiqueMemoire::Aucune && !effet.ecritures.is_empty() {
+                if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoireNonAutorisee);
                 }
                 if !effet.ecritures.is_empty() {
@@ -276,7 +276,7 @@ impl<T: Transduction> Transducteur<T> {
                         valeur: format!("{:?}", effet.ecritures),
                     });
                 }
-                effet.appliquer(&mut self.memoire);
+                effet.apply(&mut self.memoire);
                 (noeud_resultat, s)
             }
         };
@@ -344,7 +344,7 @@ impl<T: Transduction> Transducteur<T> {
                     noeud_entree: noeud,
                 };
                 let (noeud_resultat, effet) = self.transduction.phi_out(pool, ctx);
-                if self.politique == PolitiqueMemoire::Aucune && !effet.ecritures.is_empty() {
+                if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoireNonAutorisee);
                 }
                 if !effet.ecritures.is_empty() {
@@ -354,7 +354,7 @@ impl<T: Transduction> Transducteur<T> {
                         valeur: format!("{:?}", effet.ecritures),
                     });
                 }
-                effet.appliquer(&mut self.memoire);
+                effet.apply(&mut self.memoire);
                 (noeud_resultat, s)
             }
         };

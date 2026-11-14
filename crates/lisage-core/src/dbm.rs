@@ -174,7 +174,7 @@ pub struct DbmKeys {
 
 impl DbmKeys {
     /// Algebra for variables with bounded domain `[0, taille_domaine)`.
-    pub fn nouvelle(taille_domaine: u64) -> Self {
+    pub fn new(taille_domaine: u64) -> Self {
         DbmKeys { taille_domaine }
     }
 

@@ -226,26 +226,26 @@ impl<C: Controller> Arena<C> {
     ) -> Result<Form<C::Key, C::Payload>, NodeId> {
         // Didactic workshop (backlog § 9): the controller can toggle
         // R-default and R-collapse one at a time.
-        let defaut_actif = self.controleur.defaut_actif();
-        let cle_defaut = if defaut_actif {
+        let default_active = self.controleur.default_active();
+        let cle_defaut = if default_active {
             self.controleur.keys().default(level)
         } else {
             None
         };
         let cardinalite = self.controleur.keys().cardinality(level);
-        let payload_defaut = if defaut_actif {
+        let payload_defaut = if default_active {
             self.controleur.default_payload(level)
         } else {
             None
         };
         let est_defaut = |node: NodeId| -> bool {
-            defaut_actif
+            default_active
                 && matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(payload))
         };
         // M4-3: generalized default (D-abs/D-trans) if the controller enables it.
-        let reduit = if !self.controleur.collapse_actif() {
+        let reduit = if !self.controleur.collapse_active() {
             reduire_sans_collapse(arcs, cle_defaut, &est_defaut)
-        } else if self.controleur.absorption_generalisee() {
+        } else if self.controleur.generalized_absorption() {
             // NodeId of D^default under this anchor, if already interned (used
             // for D-trans on empty form A = ∅).
             let defaut = payload_defaut.as_ref().and_then(|p| {

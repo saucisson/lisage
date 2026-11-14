@@ -21,7 +21,7 @@ const TAILLE_DOMAINE: u64 = 4;
 
 fn pool() -> PoolCdd {
     Arena::new(
-        CddController::nouveau(CddKeys::nouvelle(TAILLE_DOMAINE)),
+        CddController::nouveau(CddKeys::new(TAILLE_DOMAINE)),
         Box::new(NoOpObserver),
     )
 }
@@ -104,7 +104,7 @@ fn test_intersection_distributive() {
 
 #[test]
 fn test_couverture_boite_bornee() {
-    let keys = CddKeys::nouvelle(TAILLE_DOMAINE);
+    let keys = CddKeys::new(TAILLE_DOMAINE);
     let a = Dbm::nouveau(2, &[(0, 1, 0)]);
     let b = Dbm::nouveau(2, &[(1, 0, -2)]);
     let union = Cdd::nouveau(&[a, b]);
@@ -155,7 +155,7 @@ fn test_partage_pool_union() {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2);
-    let keys = CddKeys::nouvelle(TAILLE_DOMAINE);
+    let keys = CddKeys::new(TAILLE_DOMAINE);
     let regions: Vec<Cdd> = arcs.keys().cloned().collect();
     assert!(keys.couverture(&regions), "the level-0 arcs cover the box");
 }
@@ -222,7 +222,7 @@ fn test_propriete_intersection_lcg() {
 /// level default are those of the CDD algebra (coverage is tested separately).
 #[test]
 fn test_contrat_cle_niveau() {
-    let keys = CddKeys::nouvelle(TAILLE_DOMAINE);
+    let keys = CddKeys::new(TAILLE_DOMAINE);
     assert_eq!(keys.cardinality(Level(0)), TAILLE_DOMAINE);
     assert_eq!(keys.default(Level(0)), Some(VIDE));
 }

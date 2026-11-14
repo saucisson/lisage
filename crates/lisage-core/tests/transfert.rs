@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::{Anchor, PolitiqueMemoire};
+use lisage_algebra::interface::{Anchor, MemoryPolicy};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{compter, union};
@@ -87,7 +87,7 @@ fn test_transfert_a_vers_b_non_adjacent() {
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0), (2, 1)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
     let attendu = BTreeMap::from([(0, 1), (1, 1), (2, 1)]);
@@ -107,7 +107,7 @@ fn test_transfert_sans_unite() {
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
     assert_eq!(resultat, initial, "m(a) = 0: no transfer");
@@ -125,7 +125,7 @@ fn test_transfert_memoire_et_largeur() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     assert_eq!(transfert.largeur(), LARGEUR_TRANSFERT);
-    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
     let _ = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
     // The decrement was produced: one memory entry, version bumped (L1).
@@ -148,7 +148,7 @@ fn test_transfert_destination_hors_domaine() {
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 3)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
     let attendu = BTreeMap::from([(0, 1), (1, 3)]);
@@ -219,7 +219,7 @@ fn test_transfert_collision_source_union() {
     assert_eq!(cardinal(&pool, &schema, famille), 2);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
     assert_eq!(
         cardinal(&pool, &schema, resultat),
@@ -243,7 +243,7 @@ fn test_transfert_collision_destination_union() {
     assert_eq!(cardinal(&pool, &schema, famille), 2);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
     assert_eq!(
         cardinal(&pool, &schema, resultat),
@@ -268,7 +268,7 @@ fn test_transfert_destination_absente_dans_famille() {
     assert_eq!(cardinal(&pool, &schema, famille), 2);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
 
     let attendu = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);

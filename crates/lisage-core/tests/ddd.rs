@@ -18,7 +18,7 @@ const TAILLE_DOMAINE: u64 = 4;
 
 fn pool() -> PoolDbm {
     Arena::new(
-        DbmController::nouveau(DbmKeys::nouvelle(TAILLE_DOMAINE)),
+        DbmController::nouveau(DbmKeys::new(TAILLE_DOMAINE)),
         Box::new(NoOpObserver),
     )
 }
@@ -44,7 +44,7 @@ fn test_intersection_meet_canonique() {
 
 #[test]
 fn test_couverture_boite_bornee() {
-    let keys = DbmKeys::nouvelle(TAILLE_DOMAINE);
+    let keys = DbmKeys::new(TAILLE_DOMAINE);
     let dessous = Dbm::nouveau(2, &[(0, 1, 0)]);
     let dessus = Dbm::nouveau(2, &[(1, 0, -1)]);
     // The partition {x ≤ y, x > y} covers the box [0, 4)².
@@ -94,7 +94,7 @@ fn test_partage_pool_bande() {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2);
-    let keys = DbmKeys::nouvelle(TAILLE_DOMAINE);
+    let keys = DbmKeys::new(TAILLE_DOMAINE);
     let regions: Vec<Dbm> = arcs.keys().cloned().collect();
     assert!(keys.couverture(&regions), "the level-0 arcs cover the box");
 }
@@ -144,7 +144,7 @@ fn test_propriete_intersection_lcg() {
 /// and default are those of the DBM algebra (coverage is tested separately).
 #[test]
 fn test_contrat_cle_niveau() {
-    let keys = DbmKeys::nouvelle(TAILLE_DOMAINE);
+    let keys = DbmKeys::new(TAILLE_DOMAINE);
     assert_eq!(keys.cardinality(Level(0)), TAILLE_DOMAINE);
     assert_eq!(keys.default(Level(0)), Some(INCOHERENT));
 }

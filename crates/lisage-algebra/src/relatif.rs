@@ -54,7 +54,7 @@ impl AncreComposee {
 
     /// Pointwise composition of offsets (absolute reading = composition of
     /// arguments, O(1) per step).
-    pub fn composer(&self, autre: &AncreComposee) -> Self {
+    pub fn compose(&self, autre: &AncreComposee) -> Self {
         let mut resultat = self.clone();
         for (fragment, decalage) in &autre.decalages {
             let courant = resultat.decalage(fragment);
@@ -92,7 +92,7 @@ const DECALAGE_NUL: i64 = 0;
 
 impl AncreRelative {
     /// Relative anchor at `position`, with null offset.
-    pub fn nouvelle(position: u32) -> Self {
+    pub fn new(position: u32) -> Self {
         AncreRelative {
             position,
             decalage: DECALAGE_NUL,
@@ -101,7 +101,7 @@ impl AncreRelative {
 
     /// From an absolute anchor (M1): null offset.
     pub fn depuis_ancre(ancre: Anchor) -> Self {
-        Self::nouvelle(ancre.0)
+        Self::new(ancre.0)
     }
 
     /// New relative anchor, shifted by `delta` (the sliding window's slide
@@ -133,23 +133,23 @@ impl AncreRelative {
 /// f(n₁)∘f(n₂) = f(n₁ ⊕ n₂); (vi) the argument is stored **modulo the kernel
 /// of f**. The function lives in the controller, the incoming arc carries
 /// the argument; the pool stays blind.
-pub trait GroupeCles {
+pub trait CycleGroup {
     /// Stored key (domain on which G acts).
-    type Cle: Clone + Ord + Hash + Debug;
+    type Key: Clone + Ord + Hash + Debug;
     /// Transformation argument (the term of the incoming arc).
     type Argument: Clone + Eq + Hash + Debug;
 
     /// Action: effective key = f(n)(stored key).
-    fn appliquer(&self, cle: &Self::Cle, argument: &Self::Argument) -> Self::Cle;
+    fn apply(&self, cle: &Self::Key, argument: &Self::Argument) -> Self::Key;
 
     /// Composition law of arguments: f(n₁)∘f(n₂) = f(n₁ ⊕ n₂).
-    fn composer(&self, premier: &Self::Argument, second: &Self::Argument) -> Self::Argument;
+    fn compose(&self, premier: &Self::Argument, second: &Self::Argument) -> Self::Argument;
 
     /// Neutral argument (identity transformation).
-    fn neutre(&self) -> Self::Argument;
+    fn neutral(&self) -> Self::Argument;
 
     /// Inverse t⁻¹ of the transformation with the given argument.
-    fn inverser(&self, argument: &Self::Argument) -> Self::Argument;
+    fn invert(&self, argument: &Self::Argument) -> Self::Argument;
 
     /// Canonical section of orbits (confluent): normalizes the arcs
     /// of a form modulo G. Returns `(argument, normalized arcs)` —
@@ -157,8 +157,8 @@ pub trait GroupeCles {
     /// section of the orbit.
     fn section_arcs(
         &self,
-        arcs: &BTreeMap<Self::Cle, NodeId>,
-    ) -> (Self::Argument, BTreeMap<Self::Cle, NodeId>);
+        arcs: &BTreeMap<Self::Key, NodeId>,
+    ) -> (Self::Argument, BTreeMap<Self::Key, NodeId>);
 }
 
 /// Canonical instance: the +n shift, G = (ℤ, +) acting on `u64` keys,
@@ -166,33 +166,33 @@ pub trait GroupeCles {
 /// argument `n` is the minimum of the keys (Wireshark: relative sequence
 /// numbers, industrial precedent for clause (vi)).
 #[derive(Clone, Copy, Debug, Default)]
-pub struct GroupeShift;
+pub struct ShiftGroup;
 
-impl GroupeCles for GroupeShift {
-    type Cle = u64;
+impl CycleGroup for ShiftGroup {
+    type Key = u64;
     type Argument = i64;
 
-    fn appliquer(&self, cle: &u64, argument: &i64) -> u64 {
+    fn apply(&self, cle: &u64, argument: &i64) -> u64 {
         // Saturated effective reading: the absolute key stays in ℕ.
         cle.saturating_add_signed(*argument)
     }
 
-    fn composer(&self, premier: &i64, second: &i64) -> i64 {
+    fn compose(&self, premier: &i64, second: &i64) -> i64 {
         premier.saturating_add(*second)
     }
 
-    fn neutre(&self) -> i64 {
+    fn neutral(&self) -> i64 {
         DECALAGE_NUL
     }
 
-    fn inverser(&self, argument: &i64) -> i64 {
+    fn invert(&self, argument: &i64) -> i64 {
         argument.saturating_neg()
     }
 
     fn section_arcs(&self, arcs: &BTreeMap<u64, NodeId>) -> (i64, BTreeMap<u64, NodeId>) {
         match arcs.keys().next() {
             // Form without arc: neutral argument, form unchanged.
-            None => (self.neutre(), arcs.clone()),
+            None => (self.neutral(), arcs.clone()),
             // Section min = 0: subtract the minimum from all keys.
             Some(&min) => (
                 min as i64,
@@ -208,37 +208,37 @@ impl GroupeCles for GroupeShift {
 /// not a bare node (spec § 2.4.5 "The root arc"). Two DDs sharing
 /// all their nodes but differing in entry are two distinct DDs.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct ArcEntree<Argument> {
+pub struct InputArc<Argument> {
     /// Transformation argument (term f(n) carried by the arc).
     pub argument: Argument,
     /// Handle of the root.
     pub handle: Handle,
 }
 
-impl<Argument: Clone> ArcEntree<Argument> {
+impl<Argument: Clone> InputArc<Argument> {
     /// New entry arc (argument, handle).
-    pub fn nouvelle(argument: Argument, handle: Handle) -> Self {
-        ArcEntree { argument, handle }
+    pub fn new(argument: Argument, handle: Handle) -> Self {
+        InputArc { argument, handle }
     }
 
     /// Absolute reading of a stored key: effective key = f(n)(key).
-    pub fn lire_cle<Cle>(
+    pub fn read_key<Key>(
         &self,
-        groupe: &impl GroupeCles<Cle = Cle, Argument = Argument>,
-        cle: &Cle,
-    ) -> Cle {
-        groupe.appliquer(cle, &self.argument)
+        groupe: &impl CycleGroup<Key = Key, Argument = Argument>,
+        cle: &Key,
+    ) -> Key {
+        groupe.apply(cle, &self.argument)
     }
 
     /// Composition of two readings: the argument accumulates (n₁ ⊕ n₂),
     /// O(1) per step (invariant of Q6); the final handle is that of the second.
-    pub fn composer(
+    pub fn compose(
         &self,
-        groupe: &impl GroupeCles<Argument = Argument>,
-        autre: &ArcEntree<Argument>,
-    ) -> ArcEntree<Argument> {
-        ArcEntree {
-            argument: groupe.composer(&self.argument, &autre.argument),
+        groupe: &impl CycleGroup<Argument = Argument>,
+        autre: &InputArc<Argument>,
+    ) -> InputArc<Argument> {
+        InputArc {
+            argument: groupe.compose(&self.argument, &autre.argument),
             handle: autre.handle,
         }
     }

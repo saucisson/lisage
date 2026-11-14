@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 2: lisage-algebra public API renamed to English (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames the French public identifiers of lisage-algebra and their workspace call sites (27 files): `PolitiqueMemoire` → `MemoryPolicy` (`Aucune` → `NoMemory`, `ParNiveau` → `PerLevel`), `politique_memoire` → `memory_policy`, `collapse_actif` → `collapse_active`, `defaut_actif` → `default_active`, `absorption_generalisee` → `generalized_absorption`, `groupe_cles` → `cycle_group`, `GroupeCles` → `CycleGroup` (assoc type `Cle` → `Key`), `GroupeShift` → `ShiftGroup`, `ArcEntree` → `InputArc`, `lire_cle` → `read_key`, `appliquer` → `apply`, `composer` → `compose`, `neutre` → `neutral`, `inverser` → `invert`, `nouvelle` → `new`.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
+- **Judgement calls**: `Aucune` → `NoMemory` (not `None`, to avoid clashing with `Option::None`); `ArcEntree` → `InputArc` per glossary "arc d'entrée → input edge".
 ## 2026-11-14 - M6-6 part 1: CanalAttr variants renamed to English (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

@@ -16,7 +16,7 @@ const ANCRE: Anchor = Anchor(0);
 
 fn pool(taille_domaine: u64) -> PoolDbm {
     Arena::new(
-        DbmController::nouveau(DbmKeys::nouvelle(taille_domaine)),
+        DbmController::nouveau(DbmKeys::new(taille_domaine)),
         Box::new(NoOpObserver),
     )
 }
@@ -60,7 +60,7 @@ fn test_dbm_contient() {
 
 #[test]
 fn test_cardinalite_et_defaut() {
-    let keys = DbmKeys::nouvelle(4);
+    let keys = DbmKeys::new(4);
     assert_eq!(keys.cardinality(Level(0)), 4);
     assert_eq!(keys.cardinality(Level(7)), 4);
     // δ(ℓ) = the empty region, the continuous "absent".
@@ -122,7 +122,7 @@ fn test_propriete_cloture_lcg() {
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
-    let keys = DbmKeys::nouvelle(6);
+    let keys = DbmKeys::new(6);
     let mut graine = GRAINE_LCG;
     let mut suivant = || {
         graine = graine

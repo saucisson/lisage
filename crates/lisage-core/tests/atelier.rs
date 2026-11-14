@@ -29,7 +29,7 @@ fn pool_bdd(reductions: Reductions) -> PoolBdd {
 fn pool_region(reductions: Reductions) -> PoolRegion {
     Arena::new(
         AtelierController::nouveau(
-            RegionController::nouveau(RegionKeys::nouvelle(vec![3])),
+            RegionController::nouveau(RegionKeys::new(vec![3])),
             reductions,
         ),
         Box::new(NoOpObserver),
@@ -479,7 +479,7 @@ fn test_narration_comparaison_ordres() {
 fn test_ancre_fenetre_glisse() {
     use lisage_core::atelier::AncreFenetre;
 
-    let ancre = AncreFenetre::nouvelle(0, 4);
+    let ancre = AncreFenetre::new(0, 4);
     assert_eq!(ancre.base(), 0);
     assert_eq!(ancre.horizon(), 4);
     assert_eq!(ancre.fenetre_absolue(), (0, 4));
@@ -515,8 +515,8 @@ fn test_glisse_pool_constant_lectures_differentes() {
         &mut pool,
         ANCRE,
         TAILLE,
-        &AncreFenetre::nouvelle(0, 4),
-        &AncreFenetre::nouvelle(7, 4),
+        &AncreFenetre::new(0, 4),
+        &AncreFenetre::new(7, 4),
         None,
     )
     .expect("interned nodes");
@@ -540,8 +540,8 @@ fn test_glisse_pool_constant_lectures_differentes() {
     // creates only one root per slide — never a copy of the window.
     let noeuds_avant = pool.node_count();
     let (_, fenetre) =
-        construire_fenetre_ancree(&mut pool, ANCRE, TAILLE, &AncreFenetre::nouvelle(0, 4));
-    let ancre = AncreFenetre::nouvelle(100, TAILLE as i64);
+        construire_fenetre_ancree(&mut pool, ANCRE, TAILLE, &AncreFenetre::new(0, 4));
+    let ancre = AncreFenetre::new(100, TAILLE as i64);
     for delta in 0..50 {
         let glissee = ancre.glessee(delta);
         assert_eq!(
@@ -581,7 +581,7 @@ fn test_propriete_glisse_composition_lcg() {
         let a = suivant() as i64 % 1000;
         let b = suivant() as i64 % 1000;
         let horizon = suivant() as i64 % 16 + 1;
-        let ancre = AncreFenetre::nouvelle(0, horizon);
+        let ancre = AncreFenetre::new(0, horizon);
         assert_eq!(
             ancre.glessee(a).glessee(b),
             ancre.glessee(a + b),
@@ -623,8 +623,8 @@ fn test_narration_comparaison_ancres() {
         &mut pool,
         ANCRE,
         4,
-        &AncreFenetre::nouvelle(0, 4),
-        &AncreFenetre::nouvelle(2, 4),
+        &AncreFenetre::new(0, 4),
+        &AncreFenetre::new(2, 4),
         Some(&collecteur),
     )
     .expect("interned nodes");

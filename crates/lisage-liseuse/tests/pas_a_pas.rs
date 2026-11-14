@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
-use lisage_core::PolitiqueMemoire;
+use lisage_core::MemoryPolicy;
 use lisage_core::arena::Arena;
 use lisage_core::observer::{CanalAttr, Observer, TraceEvent};
 use lisage_core::pli::Pli;
@@ -117,7 +117,7 @@ fn test_runner_emet_memo_et_attr() {
     let collecteur = Collecteur::new();
     let mut runner = Transducteur::avec_observateur(
         Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
-        PolitiqueMemoire::Aucune,
+        MemoryPolicy::NoMemory,
         Arc::new(collecteur.clone()),
     );
     let mut sortie = Arena::new(
@@ -337,7 +337,7 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     let collecteur = Collecteur::new();
     let mut runner = Transducteur::avec_observateur(
         Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
-        PolitiqueMemoire::Aucune,
+        MemoryPolicy::NoMemory,
         Arc::new(collecteur.clone()),
     );
     let mut sortie = Arena::new(

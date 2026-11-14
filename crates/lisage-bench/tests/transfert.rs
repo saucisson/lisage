@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::{Anchor, NodeId, PolitiqueMemoire};
+use lisage_algebra::interface::{Anchor, MemoryPolicy, NodeId};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler, decompiler};
@@ -95,7 +95,7 @@ proptest! {
             usize::try_from(source).unwrap(),
             usize::try_from(destination).unwrap(),
         );
-        let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
+        let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
         let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
         let obtenu = decompiler_map(&pool, &schema, resultat);

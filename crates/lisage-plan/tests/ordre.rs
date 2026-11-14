@@ -191,15 +191,15 @@ fn test_alignement_comme_typage_composition_sous_meme_marque() {
 
     let a = Aligne::<DomaineAtomes, MarqueCanonique, u32>::nouveau(2);
     let b = Aligne::<DomaineAtomes, MarqueCanonique, u32>::nouveau(3);
-    let somme = a.composer(&b, |x, y| x + y);
+    let somme = a.compose(&b, |x, y| x + y);
     assert_eq!(*somme.valeur(), 5);
 
-    // The inverse mark carries another order: composer requires the same
+    // The inverse mark carries another order: compose requires the same
     // mark on both sides (positive typing test; the negative case is a
     // compile-time rejection).
     let c = Aligne::<DomaineAtomes, MarqueInverse, u32>::nouveau(10);
     let d = Aligne::<DomaineAtomes, MarqueInverse, u32>::nouveau(1);
-    assert_eq!(*c.composer(&d, |x, y| x - y).valeur(), 9);
+    assert_eq!(*c.compose(&d, |x, y| x - y).valeur(), 9);
     assert!(!MarqueCanonique::ordre(&domaine).alignes(&MarqueInverse::ordre(&domaine)));
 }
 
