@@ -44,6 +44,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-14 - M6-5 crates/ translated to English, part 1: lisage-lang (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: `crates/lisage-lang` translated to English (identifiers, comments, strings). Part of the per-crate split of PR #182: the full ~29 000-line diff exceeds what the reviewer session can process (turn limit), so crates/ is shipped crate by crate in dependency order, each part compile-checked (`cargo check --workspace` green). The human authorized oversized PRs for M6; the split is a reviewer-feasibility measure, not a scope change.
+- **Evidence**: `cargo check --workspace` green on this branch; `cargo test -p lisage-lang` green. Full `make check` deferred to the last part.
+- **Judgement calls**: per-crate split in topological order (lang first) so every part compiles standalone.
+- **Escalations**: none.
+
 ## 2026-11-13 - M6-0 audit: machine-checkable inventory of French-language content (issue #103)
 
 - **Issue**: #103 (M6-0, milestone M6 "English-only documentation and code").
