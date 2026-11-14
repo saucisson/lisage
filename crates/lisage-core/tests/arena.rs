@@ -154,7 +154,7 @@ impl Controller for NormalizingController {
 }
 
 #[test]
-fn test_normalisation_cles_avant_hachage() {
+fn test_normalisation_keys_avant_hachage() {
     let mut arena: Arena<NormalizingController> = Arena::new(
         NormalizingController {
             keys: NormalizingKeys,

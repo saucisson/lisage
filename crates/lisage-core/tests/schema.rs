@@ -78,7 +78,7 @@ fn test_ensemble_absents_collapses() {
 
 /// The empty map compiles to ⊤; an absent key skips its presence level.
 #[test]
-fn test_map_vide_et_cle_absente() {
+fn test_map_vide_et_key_absente() {
     let schema = Schema::Map(vec![Atom(0), Atom(1)], domaine(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
@@ -288,7 +288,7 @@ fn test_seq_hors_domaine() {
 /// M2-1: Seq — the end marker is a required key: `default()` returns `None`
 /// for all levels of a Seq schema (no absorbable default).
 #[test]
-fn test_seq_marqueur_fin_cle_requise() {
+fn test_seq_marqueur_fin_key_requise() {
     use lisage_algebra::interface::{KeyAlgebra, Level};
     use lisage_core::schema::SchemaKeys;
 

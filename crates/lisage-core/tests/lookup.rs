@@ -92,7 +92,7 @@ fn payload_terminal(
 
 /// Two-key map over V = {0,1}: lookup finds the value of both keys.
 #[test]
-fn test_lookup_cles_presentes() {
+fn test_lookup_keys_presentes() {
     let liste_keys = vec![Atom(0), Atom(1)];
     let domaine_values = Domaine::new(vec![Atom(0), Atom(1)]);
     let schema = Schema::Map(liste_keys.clone(), domaine_values.clone());
@@ -124,7 +124,7 @@ fn test_lookup_cles_presentes() {
 
 /// Key absent from the map: the terminal is None (D_δ of the output pool).
 #[test]
-fn test_lookup_cle_absente() {
+fn test_lookup_key_absente() {
     let liste_keys = vec![Atom(0), Atom(1)];
     let domaine_values = Domaine::new(vec![Atom(0), Atom(1)]);
     let schema = Schema::Map(liste_keys.clone(), domaine_values.clone());
