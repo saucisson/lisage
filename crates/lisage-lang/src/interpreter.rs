@@ -1,92 +1,90 @@
-//! Interprète de référence (M1-7) : la vérité sémantique, en pur `lang/`
-//! sans aucun diagramme de décision. C'est la voie A du triptyque : toute
-//! voie DD (B, C) est différentielle contre cette sémantique explicite.
+//! Reference interpreter (M1-7): the semantic truth, in pure `lang/`
+//! without any decision diagram. It is path A of the triptych: every
+//! DD path (B, C) is differential against this explicit semantics.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::value::Value;
 
-/// Compte les membres d'un ensemble — pli sur le semi-anneau (ℕ, +, ×),
-/// exact ici car la construction explicite a préservé les multiplicités.
-pub fn count(ensemble: &BTreeSet<Value>) -> u64 {
-    ensemble.len() as u64
+/// Counts the members of a set — fold over the semiring (ℕ, +, ×),
+/// exact here because the explicit construction preserved multiplicities.
+pub fn count(set: &BTreeSet<Value>) -> u64 {
+    set.len() as u64
 }
 
-/// Teste l'existence d'un membre satisfaisant le prédicat — pli sur
+/// Tests the existence of a member satisfying the predicate — fold over
 /// (Bool, ∨, ∧), spec § 5.
-pub fn exists(ensemble: &BTreeSet<Value>, predicat: impl Fn(&Value) -> bool) -> bool {
-    ensemble.iter().any(predicat)
+pub fn exists(set: &BTreeSet<Value>, predicate: impl Fn(&Value) -> bool) -> bool {
+    set.iter().any(predicate)
 }
 
-/// Garde les membres satisfaisant le prédicat (image réciproque, spec § 4).
-pub fn filter(ensemble: &BTreeSet<Value>, predicat: impl Fn(&Value) -> bool) -> BTreeSet<Value> {
-    ensemble
-        .iter()
-        .filter(|valeur| predicat(valeur))
+/// Keeps the members satisfying the predicate (preimage, spec § 4).
+pub fn filter(set: &BTreeSet<Value>, predicate: impl Fn(&Value) -> bool) -> BTreeSet<Value> {
+    set.iter()
+        .filter(|value| predicate(value))
         .cloned()
         .collect()
 }
 
-/// Image d'un ensemble par une fonction (transduction à canal hérité seul).
-pub fn map(ensemble: &BTreeSet<Value>, fonction: impl Fn(&Value) -> Value) -> BTreeSet<Value> {
-    ensemble.iter().map(fonction).collect()
+/// Image of a set under a function (transduction with inherited channel only).
+pub fn map(set: &BTreeSet<Value>, function: impl Fn(&Value) -> Value) -> BTreeSet<Value> {
+    set.iter().map(function).collect()
 }
 
-/// Adhésion d'une valeur explicite à un ensemble.
-pub fn member(ensemble: &BTreeSet<Value>, valeur: &Value) -> bool {
-    ensemble.contains(valeur)
+/// Membership of an explicit value in a set.
+pub fn member(set: &BTreeSet<Value>, value: &Value) -> bool {
+    set.contains(value)
 }
 
-/// `lookup(k)` (spec § 6) : chaque map membre `m` reçoit en payload `m(k)`.
-/// Le résultat est fonctionnel ; `None` quand la clé est absente (l'`Option`
-/// est l'algèbre de défauts du résultat, question ouverte 3 de la spec).
-pub fn lookup(ensemble: &BTreeSet<Value>, cle: &Value) -> BTreeMap<Value, Option<Value>> {
-    ensemble
-        .iter()
+/// `lookup(k)` (spec § 6): each member map `m` receives payload `m(k)`.
+/// The result is functional; `None` when the key is absent (the `Option`
+/// is the default algebra of the result, open question 3 of the spec).
+pub fn lookup(set: &BTreeSet<Value>, key: &Value) -> BTreeMap<Value, Option<Value>> {
+    set.iter()
         .map(|membre| {
-            let valeur = match membre {
-                Value::Map(map) => map.get(cle).cloned(),
+            let value = match membre {
+                Value::Map(map) => map.get(key).cloned(),
                 _ => None,
             };
-            (membre.clone(), valeur)
+            (membre.clone(), value)
         })
         .collect()
 }
 
-/// Point fixe croissant `saturate(pas, init)` (spec § 7) : termine sur schéma
-/// borné (T2) car l'ensemble des fonctions Δ → Y y est fini. Le merge de
-/// construction est l'union idempotente (choix Bool, A5).
+/// Increasing fixed point `saturate(step, init)` (spec § 7): terminates on a
+/// bounded schema (T2) because the set of functions Δ → Y is finite there.
+/// The construction merge is the idempotent union (Bool choice, A5).
 pub fn saturate(
-    pas: impl Fn(&BTreeSet<Value>) -> BTreeSet<Value>,
+    not: impl Fn(&BTreeSet<Value>) -> BTreeSet<Value>,
     initial: BTreeSet<Value>,
 ) -> BTreeSet<Value> {
-    let mut courant = initial;
+    let mut current = initial;
     loop {
-        let suivant: BTreeSet<Value> = courant.union(&pas(&courant)).cloned().collect();
-        if suivant == courant {
-            return courant;
+        let next: BTreeSet<Value> = current.union(&not(&current)).cloned().collect();
+        if next == current {
+            return current;
         }
-        courant = suivant;
+        current = next;
     }
 }
 
-/// Union de deux ensembles explicites (algèbre des ensembles, niveau 1).
+/// Union of two explicit sets (set algebra, level 1).
 pub fn union(a: &BTreeSet<Value>, b: &BTreeSet<Value>) -> BTreeSet<Value> {
     a.union(b).cloned().collect()
 }
 
-/// Intersection de deux ensembles explicites.
+/// Intersection of two explicit sets.
 pub fn intersection(a: &BTreeSet<Value>, b: &BTreeSet<Value>) -> BTreeSet<Value> {
     a.intersection(b).cloned().collect()
 }
 
-/// Différence ensembliste `a \ b`.
+/// Set difference `a \ b`.
 pub fn difference(a: &BTreeSet<Value>, b: &BTreeSet<Value>) -> BTreeSet<Value> {
     a.difference(b).cloned().collect()
 }
 
-/// **Composition** de fonctions (HOF, M5-1) : `composer(f, g)(x) = f(g(x))`.
-pub fn composer<F, G, V>(f: F, g: G) -> impl Fn(&V) -> V
+/// **Composition** of functions (HOF, M5-1): `composed(f, g)(x) = f(g(x))`.
+pub fn composed<F, G, V>(f: F, g: G) -> impl Fn(&V) -> V
 where
     F: Fn(&V) -> V,
     G: Fn(&V) -> V,
@@ -95,9 +93,9 @@ where
     move |x| f(&g(x))
 }
 
-/// **Application** (HOF) : `appliquer(f, x) = f(x)` — la fonction passée en
-/// argument, appliquée à la valeur.
-pub fn appliquer<F, V>(f: F, x: &V) -> V
+/// **Application** (HOF): `apply(f, x) = f(x)` — the function passed as
+/// argument, applied to the value.
+pub fn apply<F, V>(f: F, x: &V) -> V
 where
     F: Fn(&V) -> V,
     V: Clone,
@@ -105,15 +103,15 @@ where
     f(x)
 }
 
-/// **Itération** (HOF) : `iterer(f, n, x) = f^n(x)` — n applications de f.
-pub fn iterer<F, V>(f: &F, n: u64, x: V) -> V
+/// **Iteration** (HOF): `iterate(f, n, x) = f^n(x)` — n applications of f.
+pub fn iterate<F, V>(f: &F, n: u64, x: V) -> V
 where
     F: Fn(&V) -> V,
     V: Clone,
 {
-    let mut courant = x;
+    let mut current = x;
     for _ in 0..n {
-        courant = f(&courant);
+        current = f(&current);
     }
-    courant
+    current
 }

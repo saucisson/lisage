@@ -1,7 +1,7 @@
-//! Lisage lang — niveau 1 : types, interprète de référence.
+//! Lisage lang — level 1: types, reference interpreter.
 //!
-//! L'interprète de référence (M1-7) est la vérité sémantique, en pur
-//! `lang/` sans aucun diagramme de décision : voie A du triptyque.
+//! The reference interpreter (M1-7) is the semantic truth, in pure
+//! `lang/` without any decision diagram: path A of the triptych.
 
 pub mod error;
 pub mod interpreter;

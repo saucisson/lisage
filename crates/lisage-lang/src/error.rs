@@ -1,21 +1,21 @@
-//! Erreurs du niveau 1 (roadmap § 10) : `Result` typés, causes préservées
-//! (les invariants internes de `core/`/`algebra/` sont des asserts).
+//! Level 1 errors (roadmap § 10): typed `Result`s, causes preserved
+//! (the internal invariants of `core/`/`algebra/` are asserts).
 
-/// Nom de clé du langage, type distinct à la frontière (ADR-0006).
+/// Key name of the language, distinct type at the boundary (ADR-0006).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct KeyName(pub String);
 
-/// Erreur typée du langage de référence.
+/// Typed error of the reference language.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum LangError {
-    /// `lookup` sur une clé hors de l'univers déclaré.
+    /// `lookup` on a key outside the declared universe.
     KeyOutsideUniverse(KeyName),
-    /// Valeur d'un type inattendu à un point du calcul.
+    /// Value of an unexpected type at a point in the computation.
     TypeMismatch {
         expected: &'static str,
         found: &'static str,
     },
-    /// Univers vide : aucun niveau de présence à balayer.
+    /// Empty universe: no presence level to sweep.
     EmptyUniverse,
 }
 
@@ -23,12 +23,12 @@ impl std::fmt::Display for LangError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LangError::KeyOutsideUniverse(key) => {
-                write!(formatter, "clé hors de l'univers déclaré: {}", key.0)
+                write!(formatter, "key outside the declared universe: {}", key.0)
             }
             LangError::TypeMismatch { expected, found } => {
-                write!(formatter, "type attendu {expected}, trouvé {found}")
+                write!(formatter, "expected type {expected}, found {found}")
             }
-            LangError::EmptyUniverse => write!(formatter, "univers vide"),
+            LangError::EmptyUniverse => write!(formatter, "empty universe"),
         }
     }
 }
