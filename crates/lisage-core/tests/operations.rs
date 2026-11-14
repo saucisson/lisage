@@ -170,9 +170,9 @@ fn test_existe_schema_non_map_erreur_typee() {
 }
 
 /// `filter` on a node whose level exceeds the schema: typed error
-/// `NiveauHorsSchema` (instead of an out-of-bounds index).
+/// `LevelHorsSchema` (instead of an out-of-bounds index).
 #[test]
-fn test_filtre_niveau_hors_schema_erreur_typee() {
+fn test_filtre_level_hors_schema_erreur_typee() {
     let schema = schema_map();
     let mut input = pool(&schema);
     let mut output = pool(&schema);
@@ -197,5 +197,5 @@ fn test_filtre_niveau_hors_schema_erreur_typee() {
         malforme,
         Box::new(|_: &KeyPresentes| true),
     );
-    assert_eq!(resultat.unwrap_err(), CoreError::NiveauHorsSchema(Level(4)));
+    assert_eq!(resultat.unwrap_err(), CoreError::LevelHorsSchema(Level(4)));
 }

@@ -6,7 +6,7 @@
 
 use lisage_core::Anchor;
 use lisage_core::arena::Arena;
-use lisage_core::atelier::{AtelierController, Reductions, mesurer};
+use lisage_core::atelier::{AtelierController, Reductions, measure};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::ReferenceController;
 
@@ -14,14 +14,14 @@ use lisage_liseuse::philosophes::{construire_r_n, mots_atteignables, pool_neuf, 
 
 const ANCRE: Anchor = Anchor(0);
 
-fn mesurer_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
+fn measure_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
     let schema = schema_anneau(n);
     let mut pool: Arena<AtelierController<ReferenceController>> = Arena::new(
         AtelierController::new(ReferenceController::new(schema.clone()), reductions),
         Box::new(NoOpObserver),
     );
     let root = construire_r_n(&mut pool, ANCRE, n);
-    let rapport = mesurer(&pool, root, None).expect("interned node");
+    let rapport = measure(&pool, root, None).expect("interned node");
     (
         rapport.nodes_partages,
         rapport.chemins,
@@ -35,7 +35,7 @@ fn mesurer_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
 /// is visible to the naked eye.
 #[test]
 fn test_r3_partage_contre_size_depliee() {
-    let (nodes, chemins, size_depliee) = mesurer_r_n(3, Reductions::TOUTES);
+    let (nodes, chemins, size_depliee) = measure_r_n(3, Reductions::TOUTES);
     assert_eq!(chemins, 20, "one path per reachable state of R₃");
     assert_eq!(mots_atteignables(3).len() as u64, 20);
     assert_eq!(size_depliee, 126, "sum of the lengths of the 20 paths");
@@ -50,14 +50,14 @@ fn test_r3_partage_contre_size_depliee() {
 /// two metrics on the same construction.
 #[test]
 fn test_commutation_ne_reduit_jamais() {
-    let (nodes_toutes, chemins_toutes, size_toutes) = mesurer_r_n(3, Reductions::TOUTES);
-    let (nodes_aucune, chemins_aucune, size_aucune) = mesurer_r_n(3, Reductions::AUCUNE);
+    let (nodes_toutes, chemins_toutes, size_toutes) = measure_r_n(3, Reductions::TOUTES);
+    let (nodes_aucune, chemins_aucune, size_aucune) = measure_r_n(3, Reductions::AUCUNE);
     assert!(nodes_aucune >= nodes_toutes);
     assert!(chemins_aucune >= chemins_toutes);
     assert!(size_aucune >= size_toutes);
-    let (nodes_sans_collapse, _, _) = mesurer_r_n(3, Reductions::sans_collapse());
+    let (nodes_sans_collapse, _, _) = measure_r_n(3, Reductions::sans_collapse());
     assert!(nodes_sans_collapse >= nodes_toutes);
-    let (nodes_sans_defaut, _, _) = mesurer_r_n(3, Reductions::sans_defaut());
+    let (nodes_sans_defaut, _, _) = measure_r_n(3, Reductions::sans_defaut());
     assert!(nodes_sans_defaut >= nodes_toutes);
 }
 
@@ -68,8 +68,8 @@ fn test_enveloppe_transparente_quand_tout_actif() {
     let schema = schema_anneau(3);
     let mut reference = pool_neuf(&schema);
     let root_ref = construire_r_n(&mut reference, ANCRE, 3);
-    let rapport_ref = mesurer(&reference, root_ref, None).expect("interned node");
-    let (nodes, chemins, size) = mesurer_r_n(3, Reductions::TOUTES);
+    let rapport_ref = measure(&reference, root_ref, None).expect("interned node");
+    let (nodes, chemins, size) = measure_r_n(3, Reductions::TOUTES);
     assert_eq!(rapport_ref.nodes_partages, nodes);
     assert_eq!(rapport_ref.chemins, chemins);
     assert_eq!(rapport_ref.size_depliee, size);

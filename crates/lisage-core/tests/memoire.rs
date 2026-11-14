@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Anchor, Controller, Form, Level, MemoryPolicy, NodeId, Pool};
 use lisage_core::arena::Arena;
-use lisage_core::memoire::{EffetMemoire, MemoireNiveau};
+use lisage_core::memoire::{EffetMemoire, MemoireLevel};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema};
 use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
@@ -21,8 +21,8 @@ fn pool() -> PoolRef {
 
 /// M2-3: the level memory stores and versions (L1).
 #[test]
-fn test_memoire_niveau_stockage_et_version() {
-    let mut memoire: MemoireNiveau<u64> = MemoireNiveau::new();
+fn test_memoire_level_stockage_et_version() {
+    let mut memoire: MemoireLevel<u64> = MemoireLevel::new();
     assert_eq!(memoire.version(), 0);
     assert_eq!(memoire.lire(NodeId(0), Level(0)), None);
 
@@ -46,7 +46,7 @@ fn test_memoire_niveau_stockage_et_version() {
 /// M2-3: the memory effect applies and bumps the version.
 #[test]
 fn test_effet_memoire_appliquer() {
-    let mut memoire: MemoireNiveau<u64> = MemoireNiveau::new();
+    let mut memoire: MemoireLevel<u64> = MemoireLevel::new();
     let effet = EffetMemoire::une(NodeId(3), Level(1), 7);
     effet.apply(&mut memoire);
     assert_eq!(memoire.version(), 1);

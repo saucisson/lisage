@@ -174,10 +174,10 @@ fn test_transfert_sous_saturate_termine() {
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let niveaux: Vec<lisage_algebra::interface::Level> = (0..schema.nombre_niveaux())
+    let levels: Vec<lisage_algebra::interface::Level> = (0..schema.nombre_levels())
         .map(lisage_algebra::interface::Level)
         .collect();
-    let politique = PolitiqueSaturation::Statique(niveaux);
+    let politique = PolitiqueSaturation::Statique(levels);
     let mut params = ParametresSaturation {
         transduction: &transfert,
         politique: &politique,
@@ -185,7 +185,7 @@ fn test_transfert_sous_saturate_termine() {
         keys: &keys,
         anchor,
         initial,
-        nombre_niveaux: schema.nombre_niveaux(),
+        nombre_levels: schema.nombre_levels(),
         observateur: None,
     };
     let resultat = saturer(&mut params).unwrap();

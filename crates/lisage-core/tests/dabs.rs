@@ -23,7 +23,7 @@ const INCREMENT_LCG: u64 = 1442695040888963407;
 /// Mock cardinality: 4 values per level.
 const CARDINALITE_MOCK: u64 = 4;
 /// Test level.
-const NIVEAU_TEST: u32 = 1;
+const LEVEL_TEST: u32 = 1;
 /// Test anchor.
 const ANCRE_TEST: Anchor = Anchor(0);
 
@@ -101,14 +101,14 @@ fn test_dabs_absorption_tout_sous_domain() {
     let node = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(0, faux), (1, vrai), (2, faux), (3, faux)]),
         },
     );
     assert_eq!(
         pool.resolve(node),
         Ok(&Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, vrai)]),
         }),
         "D-abs: the arcs 0, 2, 3 toward D^def are absorbed"
@@ -125,14 +125,14 @@ fn test_sans_dabs_rdefault_seul() {
     let node = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(0, faux), (1, vrai), (2, faux)]),
         },
     );
     assert_eq!(
         pool.resolve(node),
         Ok(&Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, vrai), (2, faux)]),
         }),
         "R-default: only the δ(ℓ) = 0 arc is absorbed"
@@ -148,7 +148,7 @@ fn test_dtrans_forme_vide_collapse() {
     let node = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(3, faux)]),
         },
     );
@@ -168,7 +168,7 @@ fn test_dtrans_couverture() {
     let seul_delta = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(0, vrai)]),
         },
     );
@@ -177,14 +177,14 @@ fn test_dtrans_couverture() {
     let deux_arcs = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, vrai), (2, vrai)]),
         },
     );
     assert_eq!(
         pool.resolve(deux_arcs),
         Ok(&Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, vrai), (2, vrai)]),
         }),
         "outside coverage: both arcs remain (presence)"
@@ -206,14 +206,14 @@ fn test_sans_key_defaut_pas_dabs() {
     let node = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, faux), (2, faux)]),
         },
     );
     assert_eq!(
         pool.resolve(node),
         Ok(&Form::Node {
-            level: Level(NIVEAU_TEST),
+            level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, faux), (2, faux)]),
         }),
         "no δ(ℓ): no absorption"

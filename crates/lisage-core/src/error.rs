@@ -18,7 +18,7 @@ pub enum CoreError {
         recu: &'static str,
     },
     /// Node level outside the schema (incompatible diagram).
-    NiveauHorsSchema(Level),
+    LevelHorsSchema(Level),
     /// Memory effect produced while the controller's policy is `NoMemory`
     /// (M2-3, T3).
     MemoireNonAutorisee,
@@ -42,8 +42,8 @@ impl std::fmt::Display for CoreError {
                     "unexpected schema: expected {attendu}, got {recu}"
                 )
             }
-            CoreError::NiveauHorsSchema(niveau) => {
-                write!(formatter, "level outside schema: {niveau:?}")
+            CoreError::LevelHorsSchema(level) => {
+                write!(formatter, "level outside schema: {level:?}")
             }
             CoreError::MemoireNonAutorisee => {
                 write!(formatter, "memory effect produced with the NoMemory policy")

@@ -55,7 +55,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
         TraceEvent::NodeCreated { node, level } => (
             "NodeCreated",
             match level {
-                Some(niveau) => format!("\"noeud\":{},\"level\":{}", node.0, niveau.0),
+                Some(level) => format!("\"noeud\":{},\"level\":{}", node.0, level.0),
                 None => format!("\"noeud\":{},\"level\":null", node.0),
             },
         ),

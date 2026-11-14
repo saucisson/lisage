@@ -84,21 +84,21 @@ fn test_cardinal_identique_sur_les_trois_voies() {
     ];
     for (pnml, cardinal_attendu) in attendus {
         let reseau = reseau(pnml);
-        let mesure_a = voie_a(&reseau);
-        let mesure_b = voie_b(&reseau).unwrap();
+        let measure_a = voie_a(&reseau);
+        let measure_b = voie_b(&reseau).unwrap();
         let resultat_c_canonique =
             voie_c(&reseau, &ordre_canonique(reseau.nombre_places())).unwrap();
         let resultat_c_inverse = voie_c(&reseau, &ordre_inverse(reseau.nombre_places())).unwrap();
-        let mesure_c_canonique = resultat_c_canonique.mesure;
-        let mesure_c_inverse = resultat_c_inverse.mesure;
-        assert_eq!(mesure_a.cardinal, cardinal_attendu, "path A on {pnml}");
-        assert_eq!(mesure_b.cardinal, cardinal_attendu, "path B on {pnml}");
+        let measure_c_canonique = resultat_c_canonique.measure;
+        let measure_c_inverse = resultat_c_inverse.measure;
+        assert_eq!(measure_a.cardinal, cardinal_attendu, "path A on {pnml}");
+        assert_eq!(measure_b.cardinal, cardinal_attendu, "path B on {pnml}");
         assert_eq!(
-            mesure_c_canonique.cardinal, cardinal_attendu,
+            measure_c_canonique.cardinal, cardinal_attendu,
             "canonical path C on {pnml}"
         );
         assert_eq!(
-            mesure_c_inverse.cardinal, cardinal_attendu,
+            measure_c_inverse.cardinal, cardinal_attendu,
             "reversed path C on {pnml}"
         );
     }
@@ -114,7 +114,7 @@ fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
     assert!(
         voie_c(&reseau, &ordre_inverse(reseau.nombre_places()))
             .unwrap()
-            .mesure
+            .measure
             .nodes_vivants
             > 0
     );
@@ -124,9 +124,9 @@ fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
 #[test]
 fn test_voie_c_canonique_egale_voie_b() {
     let reseau = reseau(PNML_CYCLE2);
-    let mesure_b = voie_b(&reseau).unwrap();
+    let measure_b = voie_b(&reseau).unwrap();
     let resultat_c = voie_c(&reseau, &ordre_canonique(reseau.nombre_places())).unwrap();
-    assert_eq!(mesure_b, resultat_c.mesure);
+    assert_eq!(measure_b, resultat_c.measure);
     assert_eq!(resultat_c.strategie, StrategieAval::OrdreRuntime);
 }
 
@@ -141,7 +141,7 @@ fn test_voie_c_ordre_invalide_repli_canonique() {
     for ordre in [key_manquante, key_double, key_etrangere] {
         let resultat = voie_c(&reseau, &ordre).unwrap();
         assert_eq!(resultat.strategie, StrategieAval::RepliCanonique);
-        assert_eq!(resultat.mesure.cardinal, 3);
+        assert_eq!(resultat.measure.cardinal, 3);
     }
 }
 
@@ -151,7 +151,7 @@ fn test_voie_c_ordre_runtime_adopte() {
     let reseau = reseau(PNML_CYCLE2);
     let resultat = voie_c(&reseau, &ordre_inverse(reseau.nombre_places())).unwrap();
     assert_eq!(resultat.strategie, StrategieAval::OrdreRuntime);
-    assert_eq!(resultat.mesure.cardinal, 6);
+    assert_eq!(resultat.measure.cardinal, 6);
 }
 
 /// Net without a place: typed error on paths B and C.

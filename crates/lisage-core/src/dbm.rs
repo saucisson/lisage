@@ -12,7 +12,7 @@
 //!
 //! Bounds are stored as `i128` internally: the closure sum of `i64`
 //! bounds cannot overflow. The 2D Lebesgue measure (area of the
-//! zone ∩ box, [`DbmKeys::mesure_zone`]) and the fold integral over DBM
+//! zone ∩ box, [`DbmKeys::measure_zone`]) and the fold integral over DBM
 //! keys (`crate::integrale::integrale_dbm_constante`) complete this fragment
 //! on the measure side; the semiring with polynomial densities remains
 //! outside the fragment.
@@ -203,7 +203,7 @@ impl DbmKeys {
     /// `(N − t)²/2` if `0 ≤ t < N`, `N² − (N + t)²/2` if `−N < t < 0`.
     /// Empty zone → 0. (Spec Q9 (ii):
     /// "polyhedral regions" — the exact 2D case; n > 2 outside fragment.)
-    pub fn mesure_zone(&self, zone: &Dbm) -> i128 {
+    pub fn measure_zone(&self, zone: &Dbm) -> i128 {
         if zone.est_vide() {
             return 0;
         }

@@ -18,7 +18,7 @@ const HAUTEUR_LIGNE_FICHE: u32 = 16;
 /// Height of a linear track in pixels.
 const HAUTEUR_PISTE: u32 = 56;
 /// Height of a tree level (vtree) in pixels.
-const HAUTEUR_NIVEAU_ARBRE: u32 = 44;
+const HAUTEUR_LEVEL_ARBRE: u32 = 44;
 /// Width of a track box in pixels.
 const LARGEUR_BOITE: u32 = 110;
 /// Track color (level borders).
@@ -151,7 +151,7 @@ pub struct ConversionVue {
 /// Height in pixels of a tree (vtree).
 fn hauteur_arbre(node: &NodeVtree) -> u32 {
     let hauteur_enfants = node.enfants.iter().map(hauteur_arbre).max().unwrap_or(0);
-    HAUTEUR_NIVEAU_ARBRE + hauteur_enfants
+    HAUTEUR_LEVEL_ARBRE + hauteur_enfants
 }
 
 /// Height in pixels of a track.
@@ -199,11 +199,11 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
 
 /// Renders a linear track: the levels in sweep order, in
 /// boxes linked by arrows.
-fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, largeur: u32) {
+fn rendre_piste_lineaire(svg: &mut String, levels: &[String], x: u32, y: u32, largeur: u32) {
     let y_boite = y + DECALAGE;
-    let nombre = niveaux.len().max(1) as u32;
+    let nombre = levels.len().max(1) as u32;
     let pas = largeur / nombre;
-    for (index, libelle) in niveaux.iter().enumerate() {
+    for (index, libelle) in levels.iter().enumerate() {
         let boite_x = x + index as u32 * pas + DECALAGE_BOITE;
         let boite_largeur = pas.saturating_sub(DECALAGE).min(LARGEUR_BOITE);
         svg.push_str(&format!(
@@ -215,7 +215,7 @@ fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, l
             y_boite + BASELINE_BOITE,
             echapper_xml(libelle)
         ));
-        if index + 1 < niveaux.len() {
+        if index + 1 < levels.len() {
             svg.push_str(&format!(
                 "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\" marker-end=\"url(#fleche)\"/>\n",
                 boite_x + boite_largeur,
@@ -241,11 +241,11 @@ fn rendre_arbre(svg: &mut String, node: &NodeVtree, x: u32, y: u32, largeur: u32
         echapper_xml(&node.libelle)
     ));
     if node.enfants.is_empty() {
-        return HAUTEUR_NIVEAU_ARBRE;
+        return HAUTEUR_LEVEL_ARBRE;
     }
     let nombre = node.enfants.len() as u32;
     let pas = largeur / nombre;
-    let y_enfants = y + HAUTEUR_NIVEAU_ARBRE;
+    let y_enfants = y + HAUTEUR_LEVEL_ARBRE;
     let mut hauteur_max = 0;
     for (index, enfant) in node.enfants.iter().enumerate() {
         let enfant_x = x + index as u32 * pas;
@@ -257,14 +257,14 @@ fn rendre_arbre(svg: &mut String, node: &NodeVtree, x: u32, y: u32, largeur: u32
         let hauteur = rendre_arbre(svg, enfant, enfant_x, y_enfants, pas);
         hauteur_max = hauteur_max.max(hauteur);
     }
-    HAUTEUR_NIVEAU_ARBRE + hauteur_max
+    HAUTEUR_LEVEL_ARBRE + hauteur_max
 }
 
 /// Renders an order track (linear or tree); returns the rendered height.
 fn rendre_piste(svg: &mut String, piste: &PisteOrdre, x: u32, y: u32, largeur: u32) -> u32 {
     match piste {
-        PisteOrdre::Lineaire(niveaux) => {
-            rendre_piste_lineaire(svg, niveaux, x, y, largeur);
+        PisteOrdre::Lineaire(levels) => {
+            rendre_piste_lineaire(svg, levels, x, y, largeur);
             HAUTEUR_PISTE
         }
         PisteOrdre::Arbre(root) => rendre_arbre(svg, root, x, y, largeur),

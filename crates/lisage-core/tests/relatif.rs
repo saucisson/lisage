@@ -32,9 +32,9 @@ const NB_GLISSES: u64 = 50;
 /// Number of shifts per fragment in the O(Σ kᵢ) degradation test.
 const NB_DECALAGES_PAR_FRAGMENT: u64 = 8;
 /// Level of the "machine" fragment.
-const NIVEAU_MACHINE: u32 = 1;
+const LEVEL_MACHINE: u32 = 1;
 /// Level of the "convoyeur" fragment.
-const NIVEAU_CONVOYEUR: u32 = 2;
+const LEVEL_CONVOYEUR: u32 = 2;
 /// Base position of the relative anchor.
 const POSITION_BASE: u32 = 100;
 
@@ -199,7 +199,7 @@ fn test_ancres_composees_degradation_somme() {
         pool.intern(
             anchor,
             Form::Node {
-                level: Level(NIVEAU_MACHINE),
+                level: Level(LEVEL_MACHINE),
                 arcs: BTreeMap::from([(i, vrai)]),
             },
         );
@@ -208,7 +208,7 @@ fn test_ancres_composees_degradation_somme() {
         pool.intern(
             anchor,
             Form::Node {
-                level: Level(NIVEAU_CONVOYEUR),
+                level: Level(LEVEL_CONVOYEUR),
                 arcs: BTreeMap::from([(j, vrai)]),
             },
         );

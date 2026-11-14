@@ -23,7 +23,7 @@ fn vers_arcs(paires: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
 }
 
 #[test]
-fn test_collapse_niveau_value_exemple_spec() {
+fn test_collapse_level_value_exemple_spec() {
     // val(a): 0 and 1 lead to the same sub-DD ⇒ R-collapse (spec § 2.3 example).
     let x = NodeId(5);
     let arcs = BTreeMap::from([(0, x), (1, x)]);

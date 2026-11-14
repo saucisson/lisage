@@ -32,7 +32,7 @@ use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
-use crate::memoire::{EffetMemoire, MemoireNiveau};
+use crate::memoire::{EffetMemoire, MemoireLevel};
 use crate::pli::union;
 use crate::schema::{ABSENT, Domain, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
@@ -94,13 +94,13 @@ impl TransfertNonLocal {
     }
 
     /// Value level of the source key.
-    fn niveau_source(&self) -> Level {
-        Schema::niveau_value(self.index_source)
+    fn level_source(&self) -> Level {
+        Schema::level_value(self.index_source)
     }
 
     /// Value level of the destination key.
-    fn niveau_destination(&self) -> Level {
-        Schema::niveau_value(self.index_destination)
+    fn level_destination(&self) -> Level {
+        Schema::level_value(self.index_destination)
     }
 
     /// Inserts the remapped arc `key ↦ (n, s)` into `remap`; on key collision
@@ -135,7 +135,7 @@ impl TransfertNonLocal {
         &self,
         pool: &mut P,
         anchor: Anchor,
-        memoire: &MemoireNiveau<bool>,
+        memoire: &MemoireLevel<bool>,
         node_input: NodeId,
         level: Level,
         arcs: BTreeMap<u64, (NodeId, ())>,
@@ -182,7 +182,7 @@ impl TransfertNonLocal {
             let node_value = pool.intern(
                 anchor,
                 Form::Node {
-                    level: self.niveau_destination(),
+                    level: self.level_destination(),
                     arcs: BTreeMap::from([(montant, suite)]),
                 },
             );
@@ -244,7 +244,7 @@ impl Transduction for TransfertNonLocal {
     }
 
     fn phi_disp(&self, level: Level, h: &EtatTransfert, arc: u64) -> EtatTransfert {
-        if level == self.niveau_source() {
+        if level == self.level_source() {
             // φ_disp(val(a), h, v) = v ≥ 1 ? h_transfert(1) : stop:
             // the token is born at the value of a (1 unit to transfer).
             if arc >= 1 {
@@ -279,16 +279,16 @@ impl Transduction for TransfertNonLocal {
             memoire,
             node_input,
         } = ctx;
-        let (arcs, effet) = if level == self.niveau_source() {
+        let (arcs, effet) = if level == self.level_source() {
             self.decremente_source(pool, anchor, memoire, node_input, level, arcs)
-        } else if level == Schema::niveau_presence(self.index_destination)
+        } else if level == Schema::level_presence(self.index_destination)
             && matches!(h, EtatTransfert::Transfert(_))
         {
             (
                 self.pose_presence_destination(pool, anchor, h, arcs),
                 EffetMemoire::new(),
             )
-        } else if level == self.niveau_destination() && matches!(h, EtatTransfert::Transfert(_)) {
+        } else if level == self.level_destination() && matches!(h, EtatTransfert::Transfert(_)) {
             (
                 self.pose_value_destination(pool, anchor, h, arcs),
                 EffetMemoire::new(),

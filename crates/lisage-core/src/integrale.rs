@@ -14,7 +14,7 @@
 //!
 //! **DBM** variant (spec Q9 (ii), "polyhedral regions"): on DBM
 //! region-keys with 2 variables, the Lebesgue measure is the **area** of
-//! the zone ∩ box (`DbmKeys::mesure_zone`, returned doubled in `i128`), and
+//! the zone ∩ box (`DbmKeys::measure_zone`, returned doubled in `i128`), and
 //! the integral of constant density 1 over the diagram is the area of the
 //! denoted set — `integral(node, region) = Σ_{arcs Z → child}
 //! integral(child, region ∩ Z)`.
@@ -34,7 +34,7 @@ use crate::region::Intervalle;
 /// Lebesgue measure of an interval in the continuous interpretation:
 /// `length([a, b]) = b − a`; the empty interval and the isolated point
 /// have measure zero.
-pub fn mesure_intervalle(intervalle: &Intervalle) -> u64 {
+pub fn measure_intervalle(intervalle: &Intervalle) -> u64 {
     if intervalle.est_vide() {
         0
     } else {
@@ -90,7 +90,7 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
         return Ok(*total);
     }
     let total = match pool.resolve(node)?.clone() {
-        Form::Terminal(true) => mesure_intervalle(region),
+        Form::Terminal(true) => measure_intervalle(region),
         Form::Terminal(false) => 0,
         Form::Node { arcs, .. } => {
             let mut somme = 0u64;
@@ -119,7 +119,7 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
 /// Integral of the constant density 1 over the set denoted by the DBM
 /// region-key diagram (2 variables), restricted to the current `region`,
 /// intersected with the bounded box of `keys`. The measure is the
-/// **doubled** area (`i128`, exact) — see [`DbmKeys::mesure_zone`].
+/// **doubled** area (`i128`, exact) — see [`DbmKeys::measure_zone`].
 ///
 /// `observateur`: narration channel (ADR-0100) — each visited node emits
 /// an `Attr`/`Synthesized` event with the computed measure.
@@ -153,7 +153,7 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
         return Ok(*total);
     }
     let total = match pool.resolve(node)?.clone() {
-        Form::Terminal(true) => keys.mesure_zone(region),
+        Form::Terminal(true) => keys.measure_zone(region),
         Form::Terminal(false) => 0,
         Form::Node { arcs, .. } => {
             let mut somme = 0i128;

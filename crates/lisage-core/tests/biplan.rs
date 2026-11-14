@@ -15,17 +15,17 @@ use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
 /// Test anchor (arbitrary but named value).
 const ANCRE_TEST: Anchor = Anchor(0);
 /// Level of the root node of the small diagram.
-const NIVEAU_ROOT: u32 = 1;
+const LEVEL_ROOT: u32 = 1;
 /// Level of the orphan node of the small diagram.
-const NIVEAU_ORPHELIN: u32 = 2;
+const LEVEL_ORPHELIN: u32 = 2;
 /// Number of orphans added to exceed the compaction threshold.
 const NB_ORPHELINS: u64 = 20;
 /// Base level of the orphans of the profiled compaction.
-const NIVEAU_BASE_ORPHELINS: u32 = 10;
+const LEVEL_BASE_ORPHELINS: u32 = 10;
 /// Level of the node interned in the shadow plane.
-const NIVEAU_OMBRE: u32 = 3;
+const LEVEL_OMBRE: u32 = 3;
 /// Level absent from the index (empty-set test).
-const NIVEAU_ABSENT: u32 = 9;
+const LEVEL_ABSENT: u32 = 9;
 
 /// LCG seed of the property tests (same constant as the other suites).
 const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -90,14 +90,14 @@ fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
     let root = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_ROOT),
+            level: Level(LEVEL_ROOT),
             arcs: BTreeMap::from([(0, faux), (1, vrai)]),
         },
     );
     let orphelin = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_ORPHELIN),
+            level: Level(LEVEL_ORPHELIN),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
@@ -115,7 +115,7 @@ fn test_plans_et_index_ombre() {
     let ombre = pool.intern_plan(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_OMBRE),
+            level: Level(LEVEL_OMBRE),
             arcs: BTreeMap::from([(1, root)]),
         },
         Plan::Ombre,
@@ -123,9 +123,9 @@ fn test_plans_et_index_ombre() {
     assert_eq!(pool.plan_de(ombre), Some(Plan::Ombre));
     assert_eq!(pool.plan_de(orphelin), Some(Plan::Principal));
     // Shadow-plane index: level 1 contains the root.
-    assert!(pool.index_niveau(Level(NIVEAU_ROOT)).contains(&root));
-    assert!(pool.index_niveau(Level(NIVEAU_OMBRE)).contains(&ombre));
-    assert!(pool.index_niveau(Level(NIVEAU_ABSENT)).is_empty());
+    assert!(pool.index_level(Level(LEVEL_ROOT)).contains(&root));
+    assert!(pool.index_level(Level(LEVEL_OMBRE)).contains(&ombre));
+    assert!(pool.index_level(Level(LEVEL_ABSENT)).is_empty());
 }
 
 /// M4-1: mark-and-sweep GC — only nodes reached from the roots survive;
@@ -151,18 +151,14 @@ fn test_gc_mark_sweep() {
         Err(PoolError::UnknownNode(orphelin)),
         "collected node = tombstone"
     );
-    assert!(
-        !pool
-            .index_niveau(Level(NIVEAU_ORPHELIN))
-            .contains(&orphelin)
-    );
+    assert!(!pool.index_level(Level(LEVEL_ORPHELIN)).contains(&orphelin));
     // Re-interning the orphan's form creates a new node (cache miss).
     let vrai = pool.terminal(ANCRE_TEST, true);
     let faux = pool.terminal(ANCRE_TEST, false);
     let recree = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_ORPHELIN),
+            level: Level(LEVEL_ORPHELIN),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
@@ -184,7 +180,7 @@ fn test_compaction_profilee() {
         orphelins.push(pool.intern(
             ANCRE_TEST,
             Form::Node {
-                level: Level(NIVEAU_BASE_ORPHELINS + i as u32),
+                level: Level(LEVEL_BASE_ORPHELINS + i as u32),
                 arcs: BTreeMap::from([(1, root)]),
             },
         ));
@@ -204,7 +200,7 @@ fn test_compaction_profilee() {
     let new = remap[root.0 as usize].expect("live root remapped");
     assert_ne!(new, root);
     assert!(pool.resolve(new).is_ok());
-    assert!(pool.index_niveau(Level(NIVEAU_ROOT)).contains(&new));
+    assert!(pool.index_level(Level(LEVEL_ROOT)).contains(&new));
     // Le seuil n'est pas atteint avec peu de morts.
     assert!(!seuil_atteint(1, 100));
     assert_eq!(SEUIL_COMPACTION_NUM, 1);
@@ -347,7 +343,7 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
             pool.intern(
                 ANCRE_TEST,
                 Form::Node {
-                    level: Level(NIVEAU_BASE_ORPHELINS + i as u32),
+                    level: Level(LEVEL_BASE_ORPHELINS + i as u32),
                     arcs: BTreeMap::from([(1, root)]),
                 },
             );
@@ -378,7 +374,7 @@ fn test_gc_deux_fois_vivants_exacts() {
         courant = pool.intern(
             ANCRE_TEST,
             Form::Node {
-                level: Level(NIVEAU_BASE_ORPHELINS + i as u32 + 100),
+                level: Level(LEVEL_BASE_ORPHELINS + i as u32 + 100),
                 arcs: BTreeMap::from([(1, courant)]),
             },
         );

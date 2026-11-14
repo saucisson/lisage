@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use lisage_algebra::interface::{Anchor, Form, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::integrale::{
-    compiler_union, integrale_constante, intersection, mesure_intervalle,
+    compiler_union, integrale_constante, intersection, measure_intervalle,
 };
 use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
 use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
@@ -58,12 +58,12 @@ fn region_pleine() -> Intervalle {
 }
 
 #[test]
-fn test_mesure_intervalle_continue() {
+fn test_measure_intervalle_continue() {
     // Continuous length: [a, b] has measure b − a (the point has measure 0).
-    assert_eq!(mesure_intervalle(&Intervalle::new(2, 5)), 3);
-    assert_eq!(mesure_intervalle(&Intervalle::point(4)), 0);
-    assert_eq!(mesure_intervalle(&VIDE), 0);
-    assert_eq!(mesure_intervalle(&Intervalle::new(0, 11)), 11);
+    assert_eq!(measure_intervalle(&Intervalle::new(2, 5)), 3);
+    assert_eq!(measure_intervalle(&Intervalle::point(4)), 0);
+    assert_eq!(measure_intervalle(&VIDE), 0);
+    assert_eq!(measure_intervalle(&Intervalle::new(0, 11)), 11);
     // The discrete cardinal counts points: [2, 5] has 4.
     assert_eq!(Intervalle::new(2, 5).size(), 4);
 }
@@ -91,13 +91,13 @@ fn test_integrale_union_deux_intervalles() {
     let mut pool = pool();
     let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
     let root = compiler_union(&mut pool, ANCRE, &intervalles);
-    let mesure = integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
+    let measure = integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
     // Continuous measure: (5−2) + (9−7) = 3 + 2 = 5.
-    assert_eq!(mesure, 5, "integral = sum of lengths");
+    assert_eq!(measure, 5, "integral = sum of lengths");
     // Discrete cardinal: (5−2+1) + (9−7+1) = 4 + 3 = 7.
     let cardinal: u64 = intervalles.iter().map(Intervalle::size).sum();
     assert_eq!(cardinal, 7, "cardinal = sum of sizes (points)");
-    assert_ne!(mesure, cardinal, "count ≠ measure on the continuum");
+    assert_ne!(measure, cardinal, "count ≠ measure on the continuum");
 }
 
 /// The integral restricted to a sub-region only counts the part of the
@@ -109,12 +109,12 @@ fn test_integrale_restreinte_a_une_region() {
     let root = compiler_union(&mut pool, ANCRE, &intervalles);
     // Restriction to [5, 11]: measure of [2,8] ∩ [5,11] = [5,8], length 3.
     let sous_region = Intervalle::new(5, 11);
-    let mesure = integrale_constante(&pool, root, &sous_region, None).expect("interned node");
-    assert_eq!(mesure, 3);
+    let measure = integrale_constante(&pool, root, &sous_region, None).expect("interned node");
+    assert_eq!(measure, 3);
     // Restriction to a disjoint region: zero measure.
     let disjointe = Intervalle::new(9, 11);
-    let mesure_nulle = integrale_constante(&pool, root, &disjointe, None).expect("interned node");
-    assert_eq!(mesure_nulle, 0);
+    let measure_nulle = integrale_constante(&pool, root, &disjointe, None).expect("interned node");
+    assert_eq!(measure_nulle, 0);
 }
 
 /// The terminal ⊤ alone returns the measure of the whole current region;
@@ -146,9 +146,9 @@ fn test_narration_evenements_attr_synthesized() {
     let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
     let root = compiler_union(&mut pool, ANCRE, &intervalles);
     let collecteur = Collecteur::new();
-    let mesure = integrale_constante(&pool, root, &region_pleine(), Some(&collecteur))
+    let measure = integrale_constante(&pool, root, &region_pleine(), Some(&collecteur))
         .expect("interned node");
-    assert_eq!(mesure, 5);
+    assert_eq!(measure, 5);
     let events = collecteur.events();
     // At least one Attr/Synthesized event emitted, with the final measure.
     let attrs: Vec<&TraceEvent> = events
@@ -208,19 +208,19 @@ fn test_propriete_integrale_contre_cardinal_lcg() {
         }
         let mut pool = pool();
         let root = compiler_union(&mut pool, ANCRE, &intervalles);
-        let mesure =
+        let measure =
             integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
         // Analytic measure: sum of (end − start) of the intervals.
-        let mesure_attendue: u64 = intervalles
+        let measure_attendue: u64 = intervalles
             .iter()
             .map(|i| i.borne_sup().saturating_sub(i.borne_inf()))
             .sum();
-        assert_eq!(mesure, mesure_attendue, "integral == sum of lengths");
+        assert_eq!(measure, measure_attendue, "integral == sum of lengths");
         // Analytic cardinal: |S|.
         let cardinal_attendu = ensemble.len() as u64;
         let cardinal: u64 = intervalles.iter().map(Intervalle::size).sum();
         assert_eq!(cardinal, cardinal_attendu, "cardinal == |S|");
         // On the continuum, measure ≤ cardinal (each point has measure 0).
-        assert!(mesure <= cardinal);
+        assert!(measure <= cardinal);
     }
 }

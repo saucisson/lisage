@@ -8,7 +8,7 @@
 //! - [`Reductions`]: R-collapse / R-default switches;
 //! - [`AtelierController`]: wrapping controller that toggles them (the pool
 //!   reads the `collapse_active` / `default_active` hooks at interning time);
-//! - [`mesurer`]: three didactic metrics — the **shared nodes**
+//! - [`measure`]: three didactic metrics — the **shared nodes**
 //!   (R-share active, count of reachable handles), the **paths**
 //!   (number of root → terminal paths) and the **unfolded size** (number
 //!   of nodes in the unfolded tree, each arc duplicating the target subtree:
@@ -160,7 +160,7 @@ pub struct RapportAtelier {
 /// the pool error (an unknown `NodeId` is an error, not a silent value).
 /// `observateur`: narration channel (ADR-0100) — an `Attr`/`Synthesized`
 /// event carries the full report.
-pub fn mesurer<P: Pool>(
+pub fn measure<P: Pool>(
     pool: &P,
     root: NodeId,
     observateur: Option<&dyn Observer>,
@@ -257,9 +257,9 @@ pub fn compter_size_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, Pool
 }
 
 /// Level of the sliding-window root.
-const NIVEAU_ROOT: u32 = 0;
+const LEVEL_ROOT: u32 = 0;
 /// Level of the window node of the sliding window.
-const NIVEAU_FENETRE: u32 = 1;
+const LEVEL_FENETRE: u32 = 1;
 
 /// **Encoding parameter** (didactic workshop, backlog § 9: "playing with the
 /// controller parameters — ordering, absolute/relative encoding, realm,
@@ -298,7 +298,7 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
         let fenetre = pool.intern(
             anchor,
             Form::Node {
-                level: Level(NIVEAU_FENETRE),
+                level: Level(LEVEL_FENETRE),
                 arcs: (0..size).map(|k| (base + k, vrai)).collect(),
             },
         );
@@ -307,7 +307,7 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
     pool.intern(
         anchor,
         Form::Node {
-            level: Level(NIVEAU_ROOT),
+            level: Level(LEVEL_ROOT),
             arcs,
         },
     )
@@ -324,7 +324,7 @@ fn interner_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     pool.intern(
         anchor,
         Form::Node {
-            level: Level(NIVEAU_FENETRE),
+            level: Level(LEVEL_FENETRE),
             arcs: (0..size).map(|k| (k, vrai)).collect(),
         },
     )
@@ -345,7 +345,7 @@ pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     pool.intern(
         anchor,
         Form::Node {
-            level: Level(NIVEAU_ROOT),
+            level: Level(LEVEL_ROOT),
             arcs,
         },
     )
@@ -378,8 +378,8 @@ pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
 ) -> Result<RapportComparaison, PoolError> {
     let root_absolue = construire_fenetre(pool, anchor, Encodage::Absolu, size, nb_bases);
     let root_relative = construire_fenetre(pool, anchor, Encodage::Relatif, size, nb_bases);
-    let absolu = mesurer(pool, root_absolue, observateur)?;
-    let relatif = mesurer(pool, root_relative, observateur)?;
+    let absolu = measure(pool, root_absolue, observateur)?;
+    let relatif = measure(pool, root_relative, observateur)?;
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
@@ -437,9 +437,9 @@ impl Ordre {
         self.permutation.len() as u32
     }
 
-    /// Variable decided at level `niveau`.
-    pub fn variable_au_niveau(&self, niveau: u32) -> u32 {
-        self.permutation[niveau as usize]
+    /// Variable decided at level `level`.
+    pub fn variable_au_level(&self, level: u32) -> u32 {
+        self.permutation[level as usize]
     }
 
     /// Didactic label `[v₀, v₁, …]` for narration.
@@ -451,7 +451,7 @@ impl Ordre {
 
 /// Compiles a truth table into a classic BDD under the given `ordre`:
 /// top-down Shannon expansion, level ℓ decides variable
-/// `ordre.variable_au_niveau(ℓ)`. `table[a]` = value of the function on
+/// `ordre.variable_au_level(ℓ)`. `table[a]` = value of the function on
 /// assignment `a` (bit ℓ of `a` = variable ℓ); the length must be
 /// `2^n`.
 pub fn compiler_bdd_ordre<P: Pool<Key = u64, Payload = bool>>(
@@ -472,13 +472,13 @@ pub fn compiler_bdd_ordre<P: Pool<Key = u64, Payload = bool>>(
     let table_locale: Vec<bool> = (0..table.len())
         .map(|indice| {
             let mut original = 0usize;
-            for niveau in 0..nombre_variables {
-                original |= ((indice >> niveau) & 1) << ordre.variable_au_niveau(niveau) as usize;
+            for level in 0..nombre_variables {
+                original |= ((indice >> level) & 1) << ordre.variable_au_level(level) as usize;
             }
             table[original]
         })
         .collect();
-    shannon(pool, anchor, Level(NIVEAU_ROOT), &table_locale)
+    shannon(pool, anchor, Level(LEVEL_ROOT), &table_locale)
 }
 
 /// Top-down Shannon expansion: `table` is indexed by the bits of the
@@ -535,8 +535,8 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
     );
     let root_premier = compiler_bdd_ordre(pool, anchor, ordre_premier, table);
     let root_second = compiler_bdd_ordre(pool, anchor, ordre_second, table);
-    let premier = mesurer(pool, root_premier, observateur)?;
-    let second = mesurer(pool, root_second, observateur)?;
+    let premier = measure(pool, root_premier, observateur)?;
+    let second = measure(pool, root_second, observateur)?;
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
@@ -637,7 +637,7 @@ pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
     let root = pool.intern(
         anchor,
         Form::Node {
-            level: Level(NIVEAU_ROOT),
+            level: Level(LEVEL_ROOT),
             arcs: BTreeMap::from([(ancre.key_input(), fenetre)]),
         },
     );
@@ -684,8 +684,8 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
     let (root_apres, fenetre_apres) = construire_fenetre_ancree(pool, anchor, size, ancre_apres);
     let nodes_pool = pool.node_count() as u64;
     let meme_forme = fenetre_avant == fenetre_apres;
-    let avant = mesurer(pool, root_avant, observateur)?;
-    let apres = mesurer(pool, root_apres, observateur)?;
+    let avant = measure(pool, root_avant, observateur)?;
+    let apres = measure(pool, root_apres, observateur)?;
     if let Some(obs) = observateur {
         let (debut_avant, fin_avant) = ancre_avant.fenetre_absolue();
         let (debut_apres, fin_apres) = ancre_apres.fenetre_absolue();

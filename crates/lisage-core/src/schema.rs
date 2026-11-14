@@ -24,7 +24,7 @@ pub const PRESENT: u64 = 1;
 pub const CARDINALITE_PRESENCE: u64 = 2;
 /// Stride between the levels of a map: presence of key `i` at level `2i`,
 /// value at level `2i+1`.
-pub const PAS_NIVEAU_MAP: u32 = 2;
+pub const PAS_LEVEL_MAP: u32 = 2;
 
 /// Bounded atom domain: finite enumeration, with optional default.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -74,24 +74,24 @@ pub enum Schema {
 
 impl Schema {
     /// Number of levels of the universe sweep.
-    pub fn nombre_niveaux(&self) -> u32 {
+    pub fn nombre_levels(&self) -> u32 {
         match self {
             Schema::Atom(_) => 1,
             Schema::Set(domain) => domain.size() as u32,
-            Schema::Map(liste_keys, _) => PAS_NIVEAU_MAP * liste_keys.len() as u32,
+            Schema::Map(liste_keys, _) => PAS_LEVEL_MAP * liste_keys.len() as u32,
             Schema::Seq(_, longueur_max) => longueur_max + 1,
-            Schema::Tag(liste, _) => PAS_NIVEAU_MAP * liste.len() as u32,
+            Schema::Tag(liste, _) => PAS_LEVEL_MAP * liste.len() as u32,
         }
     }
 
     /// Presence level of the i-th key of a map.
-    pub fn niveau_presence(index: usize) -> Level {
-        Level(PAS_NIVEAU_MAP * index as u32)
+    pub fn level_presence(index: usize) -> Level {
+        Level(PAS_LEVEL_MAP * index as u32)
     }
 
     /// Value level of the i-th key of a map.
-    pub fn niveau_value(index: usize) -> Level {
-        Level(PAS_NIVEAU_MAP * index as u32 + 1)
+    pub fn level_value(index: usize) -> Level {
+        Level(PAS_LEVEL_MAP * index as u32 + 1)
     }
 }
 
@@ -176,7 +176,7 @@ impl KeyAlgebra for SchemaKeys {
             Schema::Atom(domain) => domain.size() as u64,
             Schema::Set(_) => CARDINALITE_PRESENCE,
             Schema::Map(_, domain_values) => {
-                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
                     CARDINALITE_PRESENCE
                 } else {
                     domain_values.size() as u64
@@ -190,7 +190,7 @@ impl KeyAlgebra for SchemaKeys {
                 }
             }
             Schema::Tag(liste, domain_values) => {
-                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
                     liste.len() as u64
                 } else {
                     domain_values.size() as u64
@@ -204,7 +204,7 @@ impl KeyAlgebra for SchemaKeys {
             Schema::Atom(domain) => domain.defaut.map(|atome| atome.0),
             Schema::Set(_) => Some(ABSENT),
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
                     Some(ABSENT)
                 } else {
                     None
@@ -253,7 +253,7 @@ impl Controller for ReferenceController {
             Schema::Atom(domain) => domain.defaut.map(|_| false),
             Schema::Set(_) => Some(false),
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
                     Some(false)
                 } else {
                     None
@@ -410,7 +410,7 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
             let node_value = pool.intern(
                 anchor,
                 Form::Node {
-                    level: Schema::niveau_value(index),
+                    level: Schema::level_value(index),
                     arcs: BTreeMap::from([(value.0, suite)]),
                 },
             );
@@ -427,7 +427,7 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
     Ok(pool.intern(
         anchor,
         Form::Node {
-            level: Schema::niveau_presence(index),
+            level: Schema::level_presence(index),
             arcs,
         },
     ))
@@ -663,7 +663,7 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
             node,
         })?;
     let Form::Node {
-        level: niveau_value,
+        level: level_value,
         arcs: arcs_value,
     } = pool.resolve(node_value)?
     else {
@@ -672,7 +672,7 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
             node: node_value,
         });
     };
-    if *niveau_value != Level(1) {
+    if *level_value != Level(1) {
         return Err(SchemaError::NodeInattendu {
             attendu: "value level (1)",
             node: node_value,
@@ -801,13 +801,13 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                 });
             }
             Form::Node { level, arcs } => {
-                if !level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+                if !level.0.is_multiple_of(PAS_LEVEL_MAP) {
                     return Err(SchemaError::NodeInattendu {
                         attendu: "presence level",
                         node,
                     });
                 }
-                let index = (level.0 / PAS_NIVEAU_MAP) as usize;
+                let index = (level.0 / PAS_LEVEL_MAP) as usize;
                 if index >= liste_keys.len() {
                     return Err(SchemaError::NodeInattendu {
                         attendu: "presence level of a key",
@@ -816,7 +816,7 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                 }
                 if let Some(&node_value) = arcs.get(&PRESENT) {
                     let Form::Node {
-                        level: niveau_value,
+                        level: level_value,
                         arcs: arcs_value,
                     } = pool.resolve(node_value)?
                     else {
@@ -825,7 +825,7 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                             node: node_value,
                         });
                     };
-                    if *niveau_value != Schema::niveau_value(index) {
+                    if *level_value != Schema::level_value(index) {
                         return Err(SchemaError::NodeInattendu {
                             attendu: "value level of the key",
                             node: node_value,

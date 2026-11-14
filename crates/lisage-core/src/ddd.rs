@@ -72,7 +72,7 @@ pub fn compter_nodes<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, root: NodeId)
 pub fn compiler_bande<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: Anchor) -> NodeId {
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let faux = pool.intern(anchor, Form::Terminal(false));
-    let niveau_1 = pool.intern(
+    let level_1 = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
@@ -84,7 +84,7 @@ pub fn compiler_bande<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: 
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([
-                (Dbm::new(2, &[(0, 1, 1)]), niveau_1),
+                (Dbm::new(2, &[(0, 1, 1)]), level_1),
                 (Dbm::new(2, &[(1, 0, -2)]), faux),
             ]),
         },

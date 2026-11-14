@@ -2,7 +2,7 @@
 //! 10 Nov. 2026: witnesses in local Docker containers, outside CI): on the
 //! lisage side, the time/memory measurement harness over the BDD, MDD
 //! variants and the sliding-window encodings. This module runs **one workload
-//! exactly once** and returns a [`MesureConfrontation`]; the
+//! exactly once** and returns a [`MeasureConfrontation`]; the
 //! `confrontation` binary serializes it as one JSON line on stdout; the
 //! orchestrator `python -m scripts bench-confrontation` runs the repetitions
 //! (a fresh process per measurement: the peak RSS of the whole process does
@@ -12,7 +12,7 @@
 //! Boolean, libDDD for the Paris-school DDDs, Meddly for MDDs)
 //! with the same convention: same input, same object built, same
 //! cross-check value. The full protocol (fairness, metrics,
-//! reproduction) lives in `docs/bench-confrontation-temoins-et-mesures.md`.
+//! reproduction) lives in `docs/bench-confrontation-temoins-et-measures.md`.
 //!
 //! Measured block, identical across all tools: input reading +
 //! diagram construction + verification counting. Library initialization
@@ -35,7 +35,7 @@ use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, Sche
 use lisage_lang::value::{Atom, Value};
 
 /// Measurement anchor (a single anchor per measurement, harness convention).
-const ANCRE_MESURE: Anchor = Anchor(0);
+const ANCRE_MEASURE: Anchor = Anchor(0);
 /// `think`.
 const PENSE: u64 = 0;
 /// `hungry` (intermediate value of the pc domain).
@@ -129,7 +129,7 @@ fn etiquette_encodage(encodage: &Encodage) -> &'static str {
 
 /// One confrontation measurement: the result of a workload run once.
 #[derive(Clone, PartialEq, Debug)]
-pub struct MesureConfrontation {
+pub struct MeasureConfrontation {
     /// Measured diagram variant.
     pub variante: Variante,
     /// Workload run.
@@ -267,17 +267,17 @@ fn echapper_json(chaine: &str) -> String {
 /// key order is fixed and pinned by test: `outil`, `variante`, `charge`,
 /// `parametres`, `encodage` (window only), `temps_ms`, `rss_max_ko`,
 /// `nodes`, `verifie`.
-pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
+pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
     let mut ligne = String::with_capacity(256);
     ligne.push('{');
     ligne.push_str(&format!(
         "\"outil\":\"{}\",\"variante\":\"{}\",\"charge\":\"{}\"",
         echapper_json(OUTIL),
-        mesure.variante.etiquette(),
-        mesure.charge.etiquette()
+        measure.variante.etiquette(),
+        measure.charge.etiquette()
     ));
     ligne.push_str(",\"parametres\":{");
-    for (indice, (key, value)) in mesure.parametres.iter().enumerate() {
+    for (indice, (key, value)) in measure.parametres.iter().enumerate() {
         if indice > 0 {
             ligne.push(',');
         }
@@ -288,7 +288,7 @@ pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
         ));
     }
     ligne.push('}');
-    if let Some(encodage) = &mesure.encodage {
+    if let Some(encodage) = &measure.encodage {
         ligne.push_str(&format!(
             ",\"encodage\":\"{}\"",
             etiquette_encodage(encodage)
@@ -296,7 +296,7 @@ pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
     }
     ligne.push_str(&format!(
         ",\"temps_ms\":{:.3},\"rss_max_ko\":{},\"noeuds\":{},\"verifie\":{}",
-        mesure.temps_ms, mesure.rss_max_ko, mesure.nodes, mesure.verifie
+        measure.temps_ms, measure.rss_max_ko, measure.nodes, measure.verifie
     ));
     ligne.push('}');
     ligne
@@ -349,7 +349,7 @@ fn table_lcg(nombre_variables: u32) -> Vec<bool> {
 fn charge_alea_lcg(
     nombre_variables: u32,
     observateur: Option<&dyn Observer>,
-) -> Result<MesureConfrontation, ErreurConfrontation> {
+) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if nombre_variables == 0 || nombre_variables > VARIABLES_MAXIMALES_ALEA {
         return Err(ErreurConfrontation::ParametresInvalides {
             charge: Charge::AleaLcg.etiquette(),
@@ -361,7 +361,7 @@ fn charge_alea_lcg(
     let debut = Instant::now();
     let table = table_lcg(nombre_variables);
     let expected_satisfactions = table.iter().filter(|value| **value).count() as u64;
-    let root = compiler_bdd(&mut pool, ANCRE_MESURE, &keys, &table);
+    let root = compiler_bdd(&mut pool, ANCRE_MEASURE, &keys, &table);
     let nodes = compter_nodes_bdd(&pool, root);
     let duree = debut.elapsed();
     // C6 falsification: the arena and the independent mini-BDD witness must
@@ -393,7 +393,7 @@ fn charge_alea_lcg(
             ),
         });
     }
-    Ok(MesureConfrontation {
+    Ok(MeasureConfrontation {
         variante: Variante::Bdd,
         charge: Charge::AleaLcg,
         parametres: vec![("n".to_string(), nombre_variables.to_string())],
@@ -419,7 +419,7 @@ fn charge_philosophes(
     nombre_philosophes: u64,
     chemin: &str,
     observateur: Option<&dyn Observer>,
-) -> Result<MesureConfrontation, ErreurConfrontation> {
+) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if nombre_philosophes == 0 || nombre_philosophes > PHILOSOPHES_MAXIMAUX {
         return Err(ErreurConfrontation::ParametresInvalides {
             charge: Charge::Philosophes.etiquette(),
@@ -451,17 +451,17 @@ fn charge_philosophes(
         })?;
     let etats = lire_etats(nombre_philosophes, &contenu)?;
     let attendu = etats.len() as u64;
-    let mut root = pool.intern(ANCRE_MESURE, Form::Terminal(false));
+    let mut root = pool.intern(ANCRE_MEASURE, Form::Terminal(false));
     for etat in &etats {
         let map: BTreeMap<Value, Value> = etat
             .iter()
             .enumerate()
             .map(|(indice, value)| (Value::Atom(Atom(indice as u64)), Value::Atom(Atom(*value))))
             .collect();
-        let membre = compiler(&mut pool, ANCRE_MESURE, &schema, &Value::Map(map))?;
-        root = union(&mut pool, &keys, ANCRE_MESURE, root, membre)?;
+        let membre = compiler(&mut pool, ANCRE_MEASURE, &schema, &Value::Map(map))?;
+        root = union(&mut pool, &keys, ANCRE_MEASURE, root, membre)?;
     }
-    let verifie = compter_pli(&pool, &mut output, ANCRE_MESURE, &schema, root)?;
+    let verifie = compter_pli(&pool, &mut output, ANCRE_MEASURE, &schema, root)?;
     let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != attendu {
@@ -482,7 +482,7 @@ fn charge_philosophes(
             ),
         });
     }
-    Ok(MesureConfrontation {
+    Ok(MeasureConfrontation {
         variante: Variante::Mdd,
         charge: Charge::Philosophes,
         parametres: vec![("n".to_string(), nombre_philosophes.to_string())],
@@ -567,7 +567,7 @@ fn charge_fenetre(
     nb_bases: u64,
     encodage: Encodage,
     observateur: Option<&dyn Observer>,
-) -> Result<MesureConfrontation, ErreurConfrontation> {
+) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if size == 0 || nb_bases == 0 {
         return Err(ErreurConfrontation::ParametresInvalides {
             charge: Charge::Fenetre.etiquette(),
@@ -583,7 +583,7 @@ fn charge_fenetre(
         Box::new(NoOpObserver),
     );
     let debut = Instant::now();
-    let root = construire_fenetre(&mut pool, ANCRE_MESURE, encodage, size, nb_bases);
+    let root = construire_fenetre(&mut pool, ANCRE_MEASURE, encodage, size, nb_bases);
     let verifie = compter_chemins(&pool, root)?;
     let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
@@ -606,7 +606,7 @@ fn charge_fenetre(
             ),
         });
     }
-    Ok(MesureConfrontation {
+    Ok(MeasureConfrontation {
         variante: Variante::Mdd,
         charge: Charge::Fenetre,
         parametres: vec![
@@ -630,7 +630,7 @@ pub fn executer(
     charge: &Charge,
     parametres: &[String],
     observateur: Option<&dyn Observer>,
-) -> Result<MesureConfrontation, ErreurConfrontation> {
+) -> Result<MeasureConfrontation, ErreurConfrontation> {
     match charge {
         Charge::AleaLcg => {
             let seul =

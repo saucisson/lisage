@@ -294,11 +294,11 @@ fn test_seq_marqueur_fin_key_requise() {
 
     let schema = Schema::Seq(domain(&[0, 1, 2]), 3);
     let keys = SchemaKeys::new(schema);
-    for niveau in 0..4 {
+    for level in 0..4 {
         assert_eq!(
-            keys.default(Level(niveau)),
+            keys.default(Level(level)),
             None,
-            "level {niveau}: no default (required key)"
+            "level {level}: no default (required key)"
         );
     }
     // Cardinality: |D|+1 per position, 2 at the marker level.

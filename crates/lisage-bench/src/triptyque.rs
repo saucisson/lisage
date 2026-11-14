@@ -79,7 +79,7 @@ impl From<CoreError> for ErreurTriptyque {
 
 /// Measurement of one path of the triptych.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct MesureVoie {
+pub struct MeasureVoie {
     /// Cardinal of the reachable space (number of distinct markings).
     pub cardinal: u64,
     /// Live nodes of the diagram (0 for path A, explicit set).
@@ -87,8 +87,8 @@ pub struct MesureVoie {
 }
 
 /// Path A (reference): cardinal of the explicit reachable space.
-pub fn voie_a(reseau: &ReseauPetri) -> MesureVoie {
-    MesureVoie {
+pub fn voie_a(reseau: &ReseauPetri) -> MeasureVoie {
+    MeasureVoie {
         cardinal: pnml::espace_atteignable(reseau).len() as u64,
         nodes_vivants: 0,
     }
@@ -96,7 +96,7 @@ pub fn voie_a(reseau: &ReseauPetri) -> MesureVoie {
 
 /// Path B: DD of the reachable space with **fixed order** (canonical
 /// order of the places, key = place index).
-pub fn voie_b(reseau: &ReseauPetri) -> Result<MesureVoie, ErreurTriptyque> {
+pub fn voie_b(reseau: &ReseauPetri) -> Result<MeasureVoie, ErreurTriptyque> {
     let ordre_canonique: Vec<Atom> = (0..reseau.nombre_places())
         .map(|index| Atom(index as u64))
         .collect();
@@ -109,7 +109,7 @@ pub fn voie_b(reseau: &ReseauPetri) -> Result<MesureVoie, ErreurTriptyque> {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ResultatVoieC {
     /// Measurement of the DD with the order adopted by the planner.
-    pub mesure: MesureVoie,
+    pub measure: MeasureVoie,
     /// Downstream strategy: `OrdreRuntime` if π was valid, `RepliCanonique`
     /// otherwise (canonical order adopted instead).
     pub strategie: StrategieAval,
@@ -155,13 +155,13 @@ pub fn voie_c(
             Phase::Value => None,
         })
         .collect();
-    let mesure = voie_dd(reseau, &ordre_adopte)?;
-    Ok(ResultatVoieC { mesure, strategie })
+    let measure = voie_dd(reseau, &ordre_adopte)?;
+    Ok(ResultatVoieC { measure, strategie })
 }
 
 /// Builds the DD of the reachable space in the given key order,
 /// then measures (cardinal via pli, live nodes after construction).
-fn voie_dd(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<MesureVoie, ErreurTriptyque> {
+fn voie_dd(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, ErreurTriptyque> {
     if reseau.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
     }
@@ -178,7 +178,7 @@ fn voie_dd(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<MesureVoie, Erre
         Box::new(NoOpObserver),
     );
     let cardinal = compter(&pool, &mut output, ANCRE_BANC, &schema, root)?;
-    Ok(MesureVoie {
+    Ok(MeasureVoie {
         cardinal,
         nodes_vivants,
     })

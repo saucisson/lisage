@@ -64,24 +64,24 @@ impl Observer for Collecteur {
 /// Analytic area (doubled): a 2D DBM is a band −b ≤ x−y ≤ a, and the area
 /// of the band ∩ [0, N]² is f(−b) − f(a), with f(t) = area of {x−y > t}.
 #[test]
-fn test_mesure_zone_analytique() {
+fn test_measure_zone_analytique() {
     let keys = keys();
     // Full box: area N², doubled 2N² = 32.
-    assert_eq!(keys.mesure_zone(&boite()), 32);
+    assert_eq!(keys.measure_zone(&boite()), 32);
     // Empty zone → 0.
-    assert_eq!(keys.mesure_zone(&INCOHERENT), 0);
+    assert_eq!(keys.measure_zone(&INCOHERENT), 0);
     // Band −2 ≤ x−y ≤ 1: 16 − (4−1)²/2 − (4−2)²/2 = 16 − 4.5 − 2 = 9.5 → 19.
     let bande = Dbm::new(2, &[(0, 1, 1), (1, 0, 2)]);
-    assert_eq!(keys.mesure_zone(&bande), 19);
+    assert_eq!(keys.measure_zone(&bande), 19);
     // Diagonal x = y: zero area.
     let diagonale = Dbm::new(2, &[(0, 1, 0), (1, 0, 0)]);
-    assert_eq!(keys.mesure_zone(&diagonale), 0);
+    assert_eq!(keys.measure_zone(&diagonale), 0);
     // Constraint outside the box (a ≥ N): the full box.
     let large = Dbm::new(2, &[(0, 1, 5)]);
-    assert_eq!(keys.mesure_zone(&large), 32);
+    assert_eq!(keys.measure_zone(&large), 32);
     // Half-band 0 ≤ x−y ≤ 1: 16 − 8 − 4.5 = 3.5 → 7 (half-integer area).
     let demi = Dbm::new(2, &[(0, 1, 1), (1, 0, 0)]);
-    assert_eq!(keys.mesure_zone(&demi), 7);
+    assert_eq!(keys.measure_zone(&demi), 7);
 }
 
 /// The integral of density 1 over the band diagram equals the analytic
@@ -90,9 +90,9 @@ fn test_mesure_zone_analytique() {
 fn test_integrale_bande_aire_analytique() {
     let mut pool = pool();
     let root = compiler_bande(&mut pool, ANCRE);
-    let mesure =
+    let measure =
         integrale_dbm_constante(&pool, root, &boite(), &keys(), None).expect("interned node");
-    assert_eq!(mesure, 19, "integral = doubled area of the band ∩ box");
+    assert_eq!(measure, 19, "integral = doubled area of the band ∩ box");
     // A non-interned NodeId is a propagated error, not a silent value.
     assert!(integrale_dbm_constante(&pool, NodeId(u32::MAX), &boite(), &keys(), None).is_err());
 }
@@ -105,14 +105,14 @@ fn test_integrale_restreinte_a_une_region() {
     let root = compiler_bande(&mut pool, ANCRE);
     // Restriction to {x − y ≤ 0}: band ∩ {−2 ≤ x−y ≤ 0}, area 6 → 12.
     let sous_region = Dbm::new(2, &[(0, 1, 0)]);
-    let mesure =
+    let measure =
         integrale_dbm_constante(&pool, root, &sous_region, &keys(), None).expect("interned node");
-    assert_eq!(mesure, 12);
+    assert_eq!(measure, 12);
     // Restriction to a region disjoint from the band: zero measure.
     let disjointe = Dbm::new(2, &[(1, 0, -3)]); // x − y ≥ 3
-    let mesure_nulle =
+    let measure_nulle =
         integrale_dbm_constante(&pool, root, &disjointe, &keys(), None).expect("interned node");
-    assert_eq!(mesure_nulle, 0);
+    assert_eq!(measure_nulle, 0);
 }
 
 /// The terminal ⊤ alone returns the area of the whole current region (full
@@ -139,7 +139,7 @@ fn test_integrale_terminaux_dbm() {
 /// continuous area (9.5) — measure ≤ cardinal, and the two are computed
 /// independently.
 #[test]
-fn test_differentiel_cardinal_contre_mesure() {
+fn test_differentiel_cardinal_contre_measure() {
     let mut pool = pool();
     let root = compiler_bande(&mut pool, ANCRE);
     let cardinal: u64 = (0..SIZE_DOMAIN)
@@ -151,11 +151,11 @@ fn test_differentiel_cardinal_contre_mesure() {
         })
         .count() as u64;
     assert_eq!(cardinal, 12, "integer points of the band in [0,4)²");
-    let mesure =
+    let measure =
         integrale_dbm_constante(&pool, root, &boite(), &keys(), None).expect("interned node");
-    assert_eq!(mesure, 19);
+    assert_eq!(measure, 19);
     assert!(
-        mesure <= 2 * i128::from(cardinal),
+        measure <= 2 * i128::from(cardinal),
         "doubled area ≤ 2 × cardinal (each point has measure zero)"
     );
 }
@@ -167,9 +167,9 @@ fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
     let root = compiler_bande(&mut pool, ANCRE);
     let collecteur = Collecteur::new();
-    let mesure = integrale_dbm_constante(&pool, root, &boite(), &keys(), Some(&collecteur))
+    let measure = integrale_dbm_constante(&pool, root, &boite(), &keys(), Some(&collecteur))
         .expect("interned node");
-    assert_eq!(mesure, 19);
+    assert_eq!(measure, 19);
     let events = collecteur.events();
     let attrs: Vec<&TraceEvent> = events
         .iter()
@@ -196,7 +196,7 @@ fn test_narration_evenements_attr_synthesized() {
 /// measure(A ∩ B) ≤ min(measure(A), measure(B)) — and the empty zone has
 /// measure zero.
 #[test]
-fn test_propriete_mesure_intersection_lcg() {
+fn test_propriete_measure_intersection_lcg() {
     const GRAINE_LCG: u64 = 0xDEAD_BEEF_CAFE_F00D;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
@@ -226,10 +226,10 @@ fn test_propriete_mesure_intersection_lcg() {
         let a = tire(&mut suivant);
         let b = tire(&mut suivant);
         let meet = a.intersection(&b);
-        let mesure_meet = keys.mesure_zone(&meet);
-        assert_eq!(keys.mesure_zone(&INCOHERENT), 0);
+        let measure_meet = keys.measure_zone(&meet);
+        assert_eq!(keys.measure_zone(&INCOHERENT), 0);
         assert!(
-            mesure_meet <= keys.mesure_zone(&a) && mesure_meet <= keys.mesure_zone(&b),
+            measure_meet <= keys.measure_zone(&a) && measure_meet <= keys.measure_zone(&b),
             "monotonicity: measure(A ∩ B) ≤ min(measure(A), measure(B))"
         );
     }

@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use lisage_bench::confrontation::{
-    Charge, ErreurConfrontation, MesureConfrontation, OUTIL, Variante, executer, serialiser_ligne,
+    Charge, ErreurConfrontation, MeasureConfrontation, OUTIL, Variante, executer, serialiser_ligne,
 };
 use lisage_core::atelier::Encodage;
 
@@ -112,14 +112,14 @@ fn ecrire_fichier_etats(nombre: u64) -> PathBuf {
 #[test]
 fn test_alea_lcg_satisfactions_epinglees() {
     for (n, satisfait) in [(4, SATISFACTIONS_LCG_N4), (12, SATISFACTIONS_LCG_N12)] {
-        let mesure = executer(&Charge::AleaLcg, &[n.to_string()], None).expect("workload run");
+        let measure = executer(&Charge::AleaLcg, &[n.to_string()], None).expect("workload run");
         assert_eq!(OUTIL, "lisage");
-        assert_eq!(mesure.variante, Variante::Bdd);
-        assert_eq!(mesure.charge, Charge::AleaLcg);
-        assert_eq!(mesure.verifie, satisfait, "n={n}: pinned satisfactions");
-        assert!(mesure.nodes > 0, "n={n}: non-empty diagram");
-        assert!(mesure.temps_ms.is_finite(), "n={n}: measured time");
-        assert!(mesure.rss_max_ko > 0, "n={n}: VmHWM read");
+        assert_eq!(measure.variante, Variante::Bdd);
+        assert_eq!(measure.charge, Charge::AleaLcg);
+        assert_eq!(measure.verifie, satisfait, "n={n}: pinned satisfactions");
+        assert!(measure.nodes > 0, "n={n}: non-empty diagram");
+        assert!(measure.temps_ms.is_finite(), "n={n}: measured time");
+        assert!(measure.rss_max_ko > 0, "n={n}: VmHWM read");
     }
 }
 
@@ -143,13 +143,13 @@ fn test_philosophes_fil_rouge_epingle() {
     for &(nombre, attendu) in R_ATTENDUS {
         let chemin = ecrire_fichier_etats(nombre);
         let parametres = vec![nombre.to_string(), chemin.display().to_string()];
-        let mesure = executer(&Charge::Philosophes, &parametres, None).expect("workload run");
-        assert_eq!(mesure.verifie, attendu, "n={nombre}: pinned |R_n|");
-        assert_eq!(mesure.variante, Variante::Mdd);
+        let measure = executer(&Charge::Philosophes, &parametres, None).expect("workload run");
+        assert_eq!(measure.verifie, attendu, "n={nombre}: pinned |R_n|");
+        assert_eq!(measure.variante, Variante::Mdd);
         if nombre == 3 {
-            assert_eq!(mesure.nodes, NODES_R3, "R_3: 33 shared nodes");
+            assert_eq!(measure.nodes, NODES_R3, "R_3: 33 shared nodes");
         }
-        assert!(mesure.rss_max_ko > 0);
+        assert!(measure.rss_max_ko > 0);
     }
 }
 
@@ -233,7 +233,7 @@ fn test_charges_inconnues_refusees() {
 /// only for the window. Pinned character by character.
 #[test]
 fn test_serialisation_ligne_epinglee() {
-    let mesure = MesureConfrontation {
+    let measure = MeasureConfrontation {
         variante: Variante::Mdd,
         charge: Charge::Fenetre,
         parametres: vec![
@@ -249,10 +249,10 @@ fn test_serialisation_ligne_epinglee() {
     let attendu = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\"encodage\":\"relatif\",\
 \"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
-    assert_eq!(serialiser_ligne(&mesure), attendu);
-    let sans_encodage = MesureConfrontation {
+    assert_eq!(serialiser_ligne(&measure), attendu);
+    let sans_encodage = MeasureConfrontation {
         encodage: None,
-        ..mesure
+        ..measure
     };
     let attendu_sans = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\
@@ -296,23 +296,23 @@ fn test_narration_charge_epinglee() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let mesure =
+    let measure =
         executer(&Charge::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("workload run");
     let attendu = format!(
         "workload=alea-lcg nodes={} check={}",
-        mesure.nodes, SATISFACTIONS_LCG_N4
+        measure.nodes, SATISFACTIONS_LCG_N4
     );
     // The three workloads emit their summary: philosophes and
     // fenetre are pinned here too (a regression that would lose them
     // would fail this test).
     let chemin = ecrire_fichier_etats(3);
-    let mesure_philo = executer(
+    let measure_philo = executer(
         &Charge::Philosophes,
         &["3".to_string(), chemin.display().to_string()],
         Some(&collecteur),
     )
     .expect("philosophes workload run");
-    let mesure_fenetre = executer(
+    let measure_fenetre = executer(
         &Charge::Fenetre,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
         Some(&collecteur),
@@ -322,11 +322,11 @@ fn test_narration_charge_epinglee() {
         attendu,
         format!(
             "workload=philosophes nodes={} check={}",
-            mesure_philo.nodes, mesure_philo.verifie
+            measure_philo.nodes, measure_philo.verifie
         ),
         format!(
             "workload=fenetre encoding=relatif nodes={} check={}",
-            mesure_fenetre.nodes, mesure_fenetre.verifie
+            measure_fenetre.nodes, measure_fenetre.verifie
         ),
     ];
     let events = collecteur.evenements.lock().expect("mutex").clone();
