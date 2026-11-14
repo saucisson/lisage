@@ -123,6 +123,14 @@ One entry per commit or pull request:
 - **Judgement calls**: none beyond the split itself.
 - **Escalations**: none.
 
+## 2026-11-14 - M6-5 crates/ translated to English, part 2: lisage-algebra (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: `crates/lisage-algebra` translated to English (doc-comments, inline comments, error strings). Part 2 of the per-crate split in dependency order (algebra depends on lang, done in part 1). Public identifiers kept in French for now — they are used by core/plan/bench/liseuse and will be translated when those crates are processed, to keep `cargo check --workspace` green at every step.
+- **Evidence**: `cargo check --workspace` green on this branch; `cargo test -p lisage-algebra` green (0 tests in this crate). Full `make check` deferred to the last part.
+- **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-5 crates/ translated to English, part 1: lisage-lang (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
