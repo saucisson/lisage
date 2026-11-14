@@ -23,17 +23,17 @@
     <path d="M 407,390 L 407,434" marker-end="url(#ar)"/>
     <path d="M 437,434 L 437,390" marker-end="url(#ar)"/>
   </g>
-  <!-- arcs d'ancre (pointillés) -->
+  <!-- anchor arcs (dashed) -->
   <g stroke="#64748b" stroke-width="1.4" stroke-dasharray="5,4" fill="none">
     <path d="M 462,127 C 590,130 690,138 772,148" marker-end="url(#ar2)"/>
     <path d="M 462,224 C 640,270 700,360 772,398" marker-end="url(#ar2)"/>
     <path d="M 462,373 C 590,378 690,396 772,404" marker-end="url(#ar2)"/>
     <path d="M 462,460 C 640,440 700,250 772,166" marker-end="url(#ar2)"/>
   </g>
-  <!-- nœuds -->
+  <!-- nodes -->
   <rect x="72" y="258" width="88" height="48" rx="10" fill="#1f2937"/>
   <text x="116" y="284" text-anchor="middle" font-size="20" font-weight="bold" fill="#fff">S</text>
-  <text x="116" y="299" text-anchor="middle" font-size="9" fill="#cbd5e1">racine · cellule 0</text>
+  <text x="116" y="299" text-anchor="middle" font-size="9" fill="#cbd5e1">root · cell 0</text>
   <rect x="382" y="112" width="80" height="42" rx="10" fill="#2563eb"/>
   <text x="422" y="139" text-anchor="middle" font-size="18" font-weight="bold" fill="#fff">A₀</text>
   <rect x="382" y="198" width="80" height="42" rx="10" fill="#2563eb"/>
@@ -45,11 +45,11 @@
   <text x="422" y="461" text-anchor="middle" font-size="18" font-weight="bold" fill="#fff">B₁</text>
   <rect x="772" y="136" width="64" height="48" rx="10" fill="#15803d"/>
   <text x="804" y="160" text-anchor="middle" font-size="18" font-weight="bold" fill="#fff">⊤</text>
-  <text x="804" y="176" text-anchor="middle" font-size="9" fill="#dcfce7">accepte</text>
+  <text x="804" y="176" text-anchor="middle" font-size="9" fill="#dcfce7">accept</text>
   <rect x="772" y="388" width="64" height="48" rx="10" fill="#b91c1c"/>
   <text x="804" y="412" text-anchor="middle" font-size="18" font-weight="bold" fill="#fff">⊥</text>
-  <text x="804" y="428" text-anchor="middle" font-size="9" fill="#fee2e2">rejette</text>
-  <!-- étiquettes d'arcs -->
+  <text x="804" y="428" text-anchor="middle" font-size="9" fill="#fee2e2">reject</text>
+  <!-- arc labels -->
   <g font-size="13" fill="#334155" paint-order="stroke" stroke="#fff" stroke-width="4">
     <text x="252" y="176" text-anchor="middle">(t,f) · (h,f)</text>
     <text x="252" y="244" text-anchor="middle">(e,m)</text>
@@ -62,29 +62,29 @@
     <text x="452" y="417" text-anchor="start">(t,p) · (h,p)</text>
   </g>
   <g font-size="12" font-style="italic" fill="#64748b" paint-order="stroke" stroke="#fff" stroke-width="4">
-    <text x="600" y="122" text-anchor="middle">ancre</text>
-    <text x="616" y="304" text-anchor="middle">ancre</text>
-    <text x="600" y="382" text-anchor="middle">ancre</text>
-    <text x="616" y="366" text-anchor="middle">ancre</text>
+    <text x="600" y="122" text-anchor="middle">anchor</text>
+    <text x="616" y="304" text-anchor="middle">anchor</text>
+    <text x="600" y="382" text-anchor="middle">anchor</text>
+    <text x="616" y="366" text-anchor="middle">anchor</text>
   </g>
-  <text x="556" y="112" font-size="12" font-style="italic" fill="#2563eb">ligne A : promesse pc(n−1) ≠ eat</text>
-  <text x="556" y="360" font-size="12" font-style="italic" fill="#b45309">ligne B : promesse pc(n−1) = eat</text>
-  <!-- légende -->
+  <text x="556" y="112" font-size="12" font-style="italic" fill="#2563eb">line A: promise pc(n−1) ≠ eat</text>
+  <text x="556" y="360" font-size="12" font-style="italic" fill="#b45309">line B: promise pc(n−1) = eat</text>
+  <!-- legend -->
   <g font-size="12" fill="#334155">
     <rect x="72" y="540" width="16" height="16" rx="4" fill="#1f2937"/>
-    <text x="96" y="553">S : racine, cellule 0 (la fourchette encode la promesse)</text>
+    <text x="96" y="553">S: root, cell 0 (the bracket encodes the promise)</text>
     <rect x="72" y="566" width="16" height="16" rx="4" fill="#2563eb"/>
-    <text x="96" y="579">ligne A (A₀, A₁) : le dernier ne mange pas</text>
+    <text x="96" y="579">line A (A₀, A₁): the last one does not eat</text>
     <rect x="72" y="592" width="16" height="16" rx="4" fill="#b45309"/>
-    <text x="96" y="605">ligne B (B₀, B₁) : le dernier mange</text>
+    <text x="96" y="605">line B (B₀, B₁): the last one eats</text>
     <line x1="480" y1="548" x2="520" y2="548" stroke="#334155" stroke-width="1.6"/>
-    <text x="528" y="553">arc de décision : clé (terme, forme), shift +1 par cellule</text>
+    <text x="528" y="553">decision arc: key (term, form), shift +1 per cell</text>
     <line x1="480" y1="574" x2="520" y2="574" stroke="#64748b" stroke-width="1.4" stroke-dasharray="5,4"/>
-    <text x="528" y="579">arc d'ancre : vérification de la promesse (A₀→⊤, A₁→⊥, B₀→⊥, B₁→⊤)</text>
+    <text x="528" y="579">anchor arc: promise check (A₀→⊤, A₁→⊥, B₀→⊥, B₁→⊤)</text>
     <rect x="480" y="592" width="16" height="16" rx="4" fill="#15803d"/>
-    <text x="504" y="605">⊤ accepte</text>
+    <text x="504" y="605">⊤ accept</text>
     <rect x="590" y="592" width="16" height="16" rx="4" fill="#b91c1c"/>
-    <text x="614" y="605">⊥ rejette</text>
+    <text x="614" y="605">⊥ reject</text>
   </g>
-  <text x="450" y="522" text-anchor="middle" font-size="11" font-style="italic" fill="#64748b">Le paramètre n ne vit dans aucun nœud : il vit sur le shift de l'arc d'entrée. R₅ et R₅₀ partagent ces 7 nœuds.</text>
+  <text x="450" y="522" text-anchor="middle" font-size="11" font-style="italic" fill="#64748b">The parameter n lives in no node: it lives on the shift of the entry arc. R₅ and R₅₀ share these 7 nodes.</text>
 </svg>
