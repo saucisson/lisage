@@ -78,7 +78,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
         TraceEvent::Attr { canal, node, value } => (
             "Attr",
             format!(
-                "\"canal\":\"{}\",\"noeud\":{},@@WIRE_VALUE@@:\"{}\"",
+                "\"canal\":\"{}\",\"noeud\":{},\"valeur\":\"{}\"",
                 nom_canal(*canal),
                 node.0,
                 echapper_json(value)
