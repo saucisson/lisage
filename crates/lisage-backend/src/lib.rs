@@ -1,1 +1,1 @@
-//! Lisage backend — témoins : sylvan | cudd, mode dégradé.
+//! Lisage backend — witnesses: sylvan | cudd, degraded mode.
