@@ -28,8 +28,8 @@ fn main() -> ExitCode {
         return ExitCode::from(CODE_USAGE);
     };
     match executer(&charge, parametres, None) {
-        Ok(mesure) => {
-            println!("{}", serialiser_ligne(&mesure));
+        Ok(measure) => {
+            println!("{}", serialiser_ligne(&measure));
             ExitCode::SUCCESS
         }
         Err(erreur) => {

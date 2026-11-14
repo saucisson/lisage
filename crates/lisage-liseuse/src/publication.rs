@@ -7,7 +7,7 @@ use lisage_core::observer::CanalAttr;
 use lisage_core::{NodeId, Pool};
 
 use crate::svg::{
-    Couleurs, DEMI_LARGEUR, HAUTEUR_NIVEAU, MARGE_GAUCHE, MARGE_HAUT, dessiner_corps, echapper_xml,
+    Couleurs, DEMI_LARGEUR, HAUTEUR_LEVEL, MARGE_GAUCHE, MARGE_HAUT, dessiner_corps, echapper_xml,
     placer,
 };
 
@@ -125,13 +125,13 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     theme: &Theme,
     avec_legende: bool,
 ) -> String {
-    let (placement, nombre_niveaux) = placer(pool, root);
+    let (placement, nombre_levels) = placer(pool, root);
     let largeur_diagramme =
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
     let largeur_legende = if avec_legende { LARGEUR_LEGENDE } else { 0 };
     let largeur = largeur_diagramme + largeur_legende;
     let hauteur_legende = LEGENDE_CANAUX.len() as u32 * HAUTEUR_LEGENDE;
-    let hauteur = (MARGE_HAUT + (nombre_niveaux + 1) * HAUTEUR_NIVEAU + MARGE_BAS)
+    let hauteur = (MARGE_HAUT + (nombre_levels + 1) * HAUTEUR_LEVEL + MARGE_BAS)
         .max(hauteur_legende + MARGE_HAUT);
     let mut svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
@@ -169,7 +169,7 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
     root: NodeId,
     titre: &str,
 ) -> String {
-    let (placement, _nombre_niveaux) = placer(pool, root);
+    let (placement, _nombre_levels) = placer(pool, root);
     let mut pgf = String::new();
     pgf.push_str(
         "\\documentclass[tikz,border=5pt]{standalone}\n\\usepackage{tikz}\n\\begin{document}\n",

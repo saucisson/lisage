@@ -230,10 +230,10 @@ fn test_saturate_emet_rounds() {
     let initial = ensemble(&mut pool, anchor, &schema, &[0]);
 
     let collecteur = Collecteur::new();
-    let niveaux: Vec<lisage_core::Level> = (0..schema.nombre_niveaux())
+    let levels: Vec<lisage_core::Level> = (0..schema.nombre_levels())
         .map(lisage_core::Level)
         .collect();
-    let politique = PolitiqueSaturation::Statique(niveaux);
+    let politique = PolitiqueSaturation::Statique(levels);
     let mut params = ParametresSaturation {
         transduction: &Identite,
         politique: &politique,
@@ -241,7 +241,7 @@ fn test_saturate_emet_rounds() {
         keys: &keys,
         anchor,
         initial,
-        nombre_niveaux: schema.nombre_niveaux(),
+        nombre_levels: schema.nombre_levels(),
         observateur: Some(Arc::new(collecteur.clone())),
     };
     let resultat = saturer(&mut params).unwrap();

@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 10: `niveau`/`mesure` identifiers renamed to `level`/`measure` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `niveau`/`Niveau`/`NIVEAU` and `mesure`/`Mesure`/`MESURE`/`mesurer` stem and compound (niveaux, nombre_niveaux, mesure_zone, MesureConfrontation…) to `level`/`Level`/`LEVEL` and `measure`/`Measure`/`MEASURE`, workspace-wide (56 files), per glossary (niveau → level, mesure → measurement). Three over-eager shorthand fixes repaired by hand (`level: level_a`, `level: level_value` patterns restored after a blanket `level: level` → `level` pass truncated them).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for niveau|mesure|mesurer returns 0.
+- **Judgement calls**: `mesurer` → `measure` (glossary: mesurer → measure); no wire literals involved.
 ## 2026-11-14 - M6-6 part 9: `domaine`/`taille` identifiers renamed to `domain`/`size` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

@@ -100,7 +100,7 @@ impl SemiAnneau for BoolOu {
 /// is the fold value. `Pli<Naturel>` = `count`.
 pub struct Pli<S: SemiAnneau> {
     keys: SchemaKeys,
-    nombre_niveaux: u32,
+    nombre_levels: u32,
     _semi_anneau: PhantomData<S>,
 }
 
@@ -108,10 +108,10 @@ impl<S: SemiAnneau> Pli<S> {
     /// Fold over the given schema (the level cardinalities come from the
     /// schema's key algebra, A4).
     pub fn new(schema: Schema) -> Self {
-        let nombre_niveaux = schema.nombre_niveaux();
+        let nombre_levels = schema.nombre_levels();
         Pli {
             keys: SchemaKeys::new(schema),
-            nombre_niveaux,
+            nombre_levels,
             _semi_anneau: PhantomData,
         }
     }
@@ -122,15 +122,15 @@ impl<S: SemiAnneau> Pli<S> {
     }
 
     /// (A4) multiplier of arc `v` from level `ℓ` to a child of level
-    /// `niveau_cible` (`None` = terminal): product of the cardinalities of
+    /// `level_cible` (`None` = terminal): product of the cardinalities of
     /// the levels skipped **on the arc's path**. A skipped value level was
     /// collapsed with all its explicit values ⇒ factor `|Val(n)|`; a
     /// skipped presence level only collapses through its default arc
     /// (factor 1) and its value level `n+1` is off the path.
-    fn multiplicateur(&self, level: Level, arc: u64, niveau_cible: Option<Level>) -> S {
-        let borne = match niveau_cible {
-            Some(niveau) => niveau.0,
-            None => self.nombre_niveaux,
+    fn multiplicateur(&self, level: Level, arc: u64, level_cible: Option<Level>) -> S {
+        let borne = match level_cible {
+            Some(level) => level.0,
+            None => self.nombre_levels,
         };
         // Next level on the arc's path: a value level is always followed; a
         // presence followed by the default arc skips the value level.
@@ -170,8 +170,8 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
 
     fn phi_aggr(&self, level: Level, _h: &(), arcs: &BTreeMap<u64, (Option<Level>, S)>) -> S {
         let mut total = S::zero();
-        for (arc, (niveau_cible, s)) in arcs {
-            let multiplicateur = self.multiplicateur(level, *arc, *niveau_cible);
+        for (arc, (level_cible, s)) in arcs {
+            let multiplicateur = self.multiplicateur(level, *arc, *level_cible);
             total = total.plus(&multiplicateur.fois(s));
         }
         // Implicit default arc (R-default): its continuation is D_δ, of

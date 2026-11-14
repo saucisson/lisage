@@ -54,7 +54,7 @@ fn compiler_ensemble(
 /// `val(a)` level is collapsed, the explicit path is unique but `|S| = 2`
 /// (A4: the level cardinal enters the aggregation).
 #[test]
-fn test_count_niveau_collapsed_a4_exemple_spec() {
+fn test_count_level_collapsed_a4_exemple_spec() {
     let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);

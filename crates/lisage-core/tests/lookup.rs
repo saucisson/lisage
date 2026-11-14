@@ -143,7 +143,7 @@ fn test_lookup_key_absente() {
 /// Value domain of cardinality 1: the val(k) level is collapsed at compile
 /// time; φ_out re-explicits it (T-EXPAND) and grafts Some(v).
 #[test]
-fn test_lookup_niveau_value_collapsed_t_expand() {
+fn test_lookup_level_value_collapsed_t_expand() {
     let liste_keys = vec![Atom(0)];
     let domain_values = Domain::new(vec![Atom(0)]);
     let schema = Schema::Map(liste_keys.clone(), domain_values.clone());

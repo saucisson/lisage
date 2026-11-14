@@ -17,7 +17,7 @@ use std::sync::Arc;
 use lisage_algebra::interface::{Anchor, Form, Level, MemoryPolicy, NodeId, Pool};
 
 use crate::error::CoreError;
-use crate::memoire::{EffetMemoire, MemoireNiveau};
+use crate::memoire::{EffetMemoire, MemoireLevel};
 use crate::observer::{CanalAttr, Observer, TraceEvent};
 
 /// Memo key: (operation fingerprint, node, inherited attribute,
@@ -36,7 +36,7 @@ pub struct ContextePhiOut<'a, H, S, M: Clone + Eq + Hash + Debug> {
     /// Already-transduced children: `{v ↦ (D', s)}`.
     pub arcs: BTreeMap<u64, (NodeId, S)>,
     /// Level memory in read (M2-3).
-    pub memoire: &'a MemoireNiveau<M>,
+    pub memoire: &'a MemoireLevel<M>,
     /// Input node being visited (key of the level memory).
     pub node_input: NodeId,
 }
@@ -102,7 +102,7 @@ pub trait Transduction: Send + Sync {
 pub struct Transducteur<T: Transduction> {
     transduction: T,
     memo: HashMap<KeyMemo<T::H>, (NodeId, T::S)>,
-    memoire: MemoireNiveau<T::M>,
+    memoire: MemoireLevel<T::M>,
     politique: MemoryPolicy,
     observateur: Option<Arc<dyn Observer>>,
 }
@@ -120,7 +120,7 @@ impl<T: Transduction> Transducteur<T> {
         Transducteur {
             transduction,
             memo: HashMap::new(),
-            memoire: MemoireNiveau::new(),
+            memoire: MemoireLevel::new(),
             politique,
             observateur: None,
         }
@@ -136,7 +136,7 @@ impl<T: Transduction> Transducteur<T> {
         Transducteur {
             transduction,
             memo: HashMap::new(),
-            memoire: MemoireNiveau::new(),
+            memoire: MemoireLevel::new(),
             politique,
             observateur: Some(observateur),
         }
@@ -150,7 +150,7 @@ impl<T: Transduction> Transducteur<T> {
     }
 
     /// Access to the embedded transduction (to inspect the state of a
-    /// wrapper, e.g. levels modified by `RestreintAuxNiveaux`).
+    /// wrapper, e.g. levels modified by `RestreintAuxLevelx`).
     pub fn transduction(&self) -> &T {
         &self.transduction
     }
@@ -166,7 +166,7 @@ impl<T: Transduction> Transducteur<T> {
     }
 
     /// Access to the level memory (for tests: produced entries).
-    pub fn memoire(&self) -> &MemoireNiveau<T::M> {
+    pub fn memoire(&self) -> &MemoireLevel<T::M> {
         &self.memoire
     }
 
@@ -243,13 +243,13 @@ impl<T: Transduction> Transducteur<T> {
                     });
                     let (cible_resultat, s_arc) =
                         self.run_avec(pool_input, pool_output, anchor, cible, h_arc)?;
-                    let niveau_cible = match pool_input.resolve(cible) {
+                    let level_cible = match pool_input.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
                         Err(erreur) => return Err(erreur.into()),
                     };
                     enfants.insert(arc, (cible_resultat, s_arc.clone()));
-                    s_arcs.insert(arc, (niveau_cible, s_arc));
+                    s_arcs.insert(arc, (level_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {
@@ -321,13 +321,13 @@ impl<T: Transduction> Transducteur<T> {
                     });
                     let (cible_resultat, s_arc) =
                         self.run_avec_meme_pool(pool, anchor, cible, h_arc)?;
-                    let niveau_cible = match pool.resolve(cible) {
+                    let level_cible = match pool.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
                         Err(erreur) => return Err(erreur.into()),
                     };
                     enfants.insert(arc, (cible_resultat, s_arc.clone()));
-                    s_arcs.insert(arc, (niveau_cible, s_arc));
+                    s_arcs.insert(arc, (level_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {

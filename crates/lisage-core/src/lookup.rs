@@ -106,12 +106,12 @@ impl Lookup {
         }
     }
 
-    fn niveau_presence(&self) -> Level {
-        Schema::niveau_presence(self.index_key)
+    fn level_presence(&self) -> Level {
+        Schema::level_presence(self.index_key)
     }
 
-    fn niveau_value(&self) -> Level {
-        Schema::niveau_value(self.index_key)
+    fn level_value(&self) -> Level {
+        Schema::level_value(self.index_key)
     }
 
     /// Graft (spec § 6.4): replaces the terminals of the `node` sub-diagram
@@ -161,14 +161,14 @@ impl Transduction for Lookup {
     fn phi_disp(&self, level: Level, h: &Mode, arc: u64) -> Mode {
         match h {
             Mode::Cherche => {
-                if level == self.niveau_presence() && arc == PRESENT {
+                if level == self.level_presence() && arc == PRESENT {
                     Mode::Extrait
                 } else {
                     Mode::Cherche
                 }
             }
             Mode::Extrait => {
-                if level == self.niveau_value() {
+                if level == self.level_value() {
                     Mode::Stop(arc)
                 } else {
                     Mode::Extrait
@@ -205,14 +205,14 @@ impl Transduction for Lookup {
         // the `present` child is not a `val(k)` node (collapsed level), we
         // re-explicit the value level and graft `Some(v)` onto each
         // continuation, for each value `v` of the domain.
-        if *h == Mode::Cherche && level == self.niveau_presence() {
+        if *h == Mode::Cherche && level == self.level_presence() {
             let enfant_present = arcs.get(&PRESENT).map(|(n, _)| *n);
             if let Some(enfant) = enfant_present {
-                let enfant_est_niveau_value = matches!(
+                let enfant_est_level_value = matches!(
                     pool.resolve(enfant),
-                    Ok(Form::Node { level: l, .. }) if *l == self.niveau_value()
+                    Ok(Form::Node { level: l, .. }) if *l == self.level_value()
                 );
-                if !enfant_est_niveau_value {
+                if !enfant_est_level_value {
                     let mut greffon = BTreeMap::new();
                     for v in &self.domain_values.values {
                         let mut memo = BTreeMap::new();
@@ -222,7 +222,7 @@ impl Transduction for Lookup {
                     let node_value = pool.intern(
                         anchor,
                         Form::Node {
-                            level: self.niveau_value(),
+                            level: self.level_value(),
                             arcs: greffon,
                         },
                     );

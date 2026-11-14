@@ -83,18 +83,18 @@ impl TypeOrdre for KeysMap {
     type Key = KeyMap;
 
     fn keys_canoniques(&self) -> Vec<KeyMap> {
-        let mut niveaux = Vec::new();
+        let mut levels = Vec::new();
         for key in self.keys_triees() {
-            niveaux.push(KeyMap {
+            levels.push(KeyMap {
                 key,
                 phase: Phase::Presence,
             });
-            niveaux.push(KeyMap {
+            levels.push(KeyMap {
                 key,
                 phase: Phase::Value,
             });
         }
-        niveaux
+        levels
     }
 
     fn contraintes(&self) -> Vec<(KeyMap, KeyMap)> {

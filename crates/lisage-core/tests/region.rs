@@ -48,7 +48,7 @@ fn test_normal_form_canonique_et_idempotente() {
 }
 
 #[test]
-fn test_cardinalite_et_defaut_par_niveau() {
+fn test_cardinalite_et_defaut_par_level() {
     let keys = RegionKeys::new(vec![8, 3]);
     assert_eq!(keys.cardinality(Level(0)), 8);
     assert_eq!(keys.cardinality(Level(1)), 3);
@@ -63,13 +63,13 @@ fn test_cardinalite_et_defaut_par_niveau() {
 fn test_partage_pool_c1_relatif() {
     let mut pool = pool(vec![8]);
     let terminal = pool.intern(ANCRE, Form::Terminal(true));
-    let niveau = Level(0);
+    let level = Level(0);
     let forme_vide_a = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(VIDE, terminal)]),
     };
     let forme_vide_b = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(Intervalle::new(9, 2), terminal)]),
     };
     assert_eq!(
@@ -78,11 +78,11 @@ fn test_partage_pool_c1_relatif() {
         "empty interval under two writings = same node"
     );
     let forme_point_a = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(Intervalle::point(3), terminal)]),
     };
     let forme_point_b = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(Intervalle::new(3, 3), terminal)]),
     };
     assert_eq!(
@@ -91,7 +91,7 @@ fn test_partage_pool_c1_relatif() {
         "point written two ways = same node"
     );
     let forme_autre = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(Intervalle::point(4), terminal)]),
     };
     assert_ne!(

@@ -216,12 +216,12 @@ fn test_events_reduction_applied() {
     let anchor = Anchor(0);
     let defaut = arena.terminal(anchor, false); // D_δ = NodeId(0)
     let autre = arena.terminal(anchor, true);
-    let niveau = Level(3);
+    let level = Level(3);
     // R-collapse: all arcs lead to D_δ and δ is explicit ⇒ Collapse(D_δ).
     let cible = arena.intern(
         anchor,
         Form::Node {
-            level: niveau,
+            level,
             arcs: BTreeMap::from([(0, defaut), (1, defaut)]),
         },
     );
@@ -230,7 +230,7 @@ fn test_events_reduction_applied() {
     let node = arena.intern(
         anchor,
         Form::Node {
-            level: niveau,
+            level,
             arcs: BTreeMap::from([(0, defaut), (1, autre)]),
         },
     );
@@ -239,14 +239,14 @@ fn test_events_reduction_applied() {
     assert!(
         events.contains(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Collapse,
-            level: niveau,
+            level,
         }),
         "the ReductionApplied{{Collapse}} event must be emitted (pinned trace)"
     );
     assert!(
         events.contains(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Default,
-            level: niveau,
+            level,
         }),
         "the ReductionApplied{{Default}} event must be emitted (pinned trace)"
     );

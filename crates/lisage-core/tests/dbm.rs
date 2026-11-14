@@ -73,15 +73,15 @@ fn test_cardinalite_et_defaut() {
 fn test_partage_pool_c1_relatif() {
     let mut pool = pool(4);
     let terminal = pool.intern(ANCRE, Form::Terminal(true));
-    let niveau = Level(0);
+    let level = Level(0);
     let region_a = Dbm::new(2, &[(0, 1, 2), (1, 0, 3)]);
     let region_b = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 9)]);
     let forme_a = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(region_a, terminal)]),
     };
     let forme_b = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(region_b, terminal)]),
     };
     assert_eq!(
@@ -90,11 +90,11 @@ fn test_partage_pool_c1_relatif() {
         "same region under two writings = same node"
     );
     let forme_vide_a = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(INCOHERENT, terminal)]),
     };
     let forme_vide_b = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 1), (1, 0, -2)]), terminal)]),
     };
     assert_eq!(
@@ -103,7 +103,7 @@ fn test_partage_pool_c1_relatif() {
         "empty region under two writings = same node"
     );
     let forme_autre = Form::Node {
-        level: niveau,
+        level,
         arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 0)]), terminal)]),
     };
     assert_ne!(

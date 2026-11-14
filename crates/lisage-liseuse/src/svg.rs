@@ -10,7 +10,7 @@ use lisage_core::{Form, Level, NodeId, Pool};
 /// Node width in pixels.
 pub(crate) const LARGEUR_NODE: u32 = 56;
 /// Level height in pixels.
-pub(crate) const HAUTEUR_NIVEAU: u32 = 90;
+pub(crate) const HAUTEUR_LEVEL: u32 = 90;
 /// Top margin (title) in pixels.
 pub(crate) const MARGE_HAUT: u32 = 40;
 /// Left margin in pixels.
@@ -40,7 +40,7 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     root: NodeId,
 ) -> (BTreeMap<NodeId, Placement>, u32) {
-    let mut niveaux: BTreeMap<u32, Vec<NodeId>> = BTreeMap::new();
+    let mut levels: BTreeMap<u32, Vec<NodeId>> = BTreeMap::new();
     let mut visites: Vec<NodeId> = Vec::new();
     let mut pile = vec![root];
     let mut deja_vu = std::collections::BTreeSet::new();
@@ -50,24 +50,24 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
         }
         visites.push(node);
         if let Ok(Form::Node { level, arcs }) = pool.resolve(node) {
-            niveaux.entry(level.0).or_default().push(node);
+            levels.entry(level.0).or_default().push(node);
             // Push in reverse order to visit the arcs in increasing order.
             for cible in arcs.values().rev() {
                 pile.push(*cible);
             }
         }
     }
-    let nombre_niveaux = niveaux.len() as u32;
+    let nombre_levels = levels.len() as u32;
     let mut placement = BTreeMap::new();
-    for (index_niveau, (_niveau, nodes)) in niveaux.iter().enumerate() {
-        let y = MARGE_HAUT + index_niveau as u32 * HAUTEUR_NIVEAU + HAUTEUR_NIVEAU / 2;
+    for (index_level, (_level, nodes)) in levels.iter().enumerate() {
+        let y = MARGE_HAUT + index_level as u32 * HAUTEUR_LEVEL + HAUTEUR_LEVEL / 2;
         for (index, node) in nodes.iter().enumerate() {
             let x = MARGE_GAUCHE + index as u32 * (LARGEUR_NODE + 24) + DEMI_LARGEUR;
             placement.insert(*node, Placement { x, y });
         }
     }
     // Terminals: bottom line.
-    let y_terminal = MARGE_HAUT + nombre_niveaux * HAUTEUR_NIVEAU + HAUTEUR_NIVEAU / 2;
+    let y_terminal = MARGE_HAUT + nombre_levels * HAUTEUR_LEVEL + HAUTEUR_LEVEL / 2;
     let mut index_terminal = 0u32;
     for node in &visites {
         if !placement.contains_key(node) {
@@ -76,7 +76,7 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
             index_terminal += 1;
         }
     }
-    (placement, nombre_niveaux)
+    (placement, nombre_levels)
 }
 
 /// Color palette of the SVG rendering.
@@ -178,10 +178,10 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
 
 /// Renders the sub-diagram reachable from `root` as static SVG.
 pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> String {
-    let (placement, nombre_niveaux) = placer(pool, root);
+    let (placement, nombre_levels) = placer(pool, root);
     let largeur =
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
-    let hauteur = MARGE_HAUT + (nombre_niveaux + 1) * HAUTEUR_NIVEAU + 20;
+    let hauteur = MARGE_HAUT + (nombre_levels + 1) * HAUTEUR_LEVEL + 20;
     let mut svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
     );
@@ -194,6 +194,6 @@ pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) ->
 }
 
 /// Displayed level rule (for tests and the legend).
-pub fn etiquette_niveau(niveau: Level) -> String {
-    format!("ℓ{}", niveau.0)
+pub fn etiquette_level(level: Level) -> String {
+    format!("ℓ{}", level.0)
 }

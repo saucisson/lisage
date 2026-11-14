@@ -48,9 +48,9 @@ fn nouvelle_arena() -> Arena<MockController> {
     Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver))
 }
 
-fn forme_aleatoire(paires: Vec<(u8, u32)>, niveau: u8) -> Form<u64, bool> {
+fn forme_aleatoire(paires: Vec<(u8, u32)>, level: u8) -> Form<u64, bool> {
     Form::Node {
-        level: Level(u32::from(niveau)),
+        level: Level(u32::from(level)),
         arcs: paires
             .into_iter()
             .map(|(key, cible)| (u64::from(key), NodeId(cible)))
@@ -62,8 +62,8 @@ proptest! {
     /// C1: deterministic interning — the same form interned twice
     /// (same arena or distinct arenas) gives the same handle.
     #[test]
-    fn test_c1_unicite_handles(paires in prop::collection::vec((0u8..3, 0u32..4), 0..5), niveau in 0u8..4) {
-        let forme = forme_aleatoire(paires, niveau);
+    fn test_c1_unicite_handles(paires in prop::collection::vec((0u8..3, 0u32..4), 0..5), level in 0u8..4) {
+        let forme = forme_aleatoire(paires, level);
         let anchor = Anchor(0);
         let mut arena_a = nouvelle_arena();
         let mut arena_b = nouvelle_arena();
@@ -79,7 +79,7 @@ proptest! {
     /// reduced form (after R-collapse/R-default) share the same handle; two
     /// distinct reduced forms have distinct handles.
     #[test]
-    fn test_c1_canonicite_par_handle(paires_a in prop::collection::vec((0u8..3, 0u32..2), 0..5), paires_b in prop::collection::vec((0u8..3, 0u32..2), 0..5), niveau in 0u8..4) {
+    fn test_c1_canonicite_par_handle(paires_a in prop::collection::vec((0u8..3, 0u32..2), 0..5), paires_b in prop::collection::vec((0u8..3, 0u32..2), 0..5), level in 0u8..4) {
         use lisage_algebra::reduction::{reduire, Reduction};
         let est_defaut = |node: NodeId| node == NodeId(0);
         let reduite = |paires: Vec<(u8, u32)>| -> Reduction<u64> {
@@ -90,8 +90,8 @@ proptest! {
             reduire(arcs, Some(0), &est_defaut, 2)
         };
         prop_assume!(!paires_a.is_empty() && !paires_b.is_empty());
-        let forme_a = forme_aleatoire(paires_a.clone(), niveau);
-        let forme_b = forme_aleatoire(paires_b.clone(), niveau);
+        let forme_a = forme_aleatoire(paires_a.clone(), level);
+        let forme_b = forme_aleatoire(paires_b.clone(), level);
         let reduite_a = reduite(paires_a);
         let reduite_b = reduite(paires_b);
         let mut arena = nouvelle_arena();

@@ -180,8 +180,8 @@ impl Oracle {
 
     /// Differential guardrail (C4): compares the prediction to the actual
     /// measurement. Conforming if the measurement fits in [predicted/2, 2 × predicted].
-    pub fn garde_fou(predit: u64, mesure: u64) -> VerdictGardeFou {
-        VerdictGardeFou::new(predit, mesure)
+    pub fn garde_fou(predit: u64, measure: u64) -> VerdictGardeFou {
+        VerdictGardeFou::new(predit, measure)
     }
 }
 
@@ -191,13 +191,13 @@ pub struct VerdictGardeFou {
     /// Cost predicted by the model.
     pub predit: u64,
     /// Cost actually measured.
-    pub mesure: u64,
+    pub measure: u64,
 }
 
 impl VerdictGardeFou {
     /// Verdict between a prediction and a measurement.
-    pub fn new(predit: u64, mesure: u64) -> Self {
-        VerdictGardeFou { predit, mesure }
+    pub fn new(predit: u64, measure: u64) -> Self {
+        VerdictGardeFou { predit, measure }
     }
 
     /// Ratio measure/predicted in exact arithmetic. By convention of
@@ -205,7 +205,7 @@ impl VerdictGardeFou {
     /// saturated value); `est_conforme` does not go through `ratio` and
     /// handles `predicted == 0` directly.
     pub fn ratio(&self) -> Rationnel {
-        Rationnel::new(self.mesure, self.predit)
+        Rationnel::new(self.measure, self.predit)
     }
 
     /// Conforming if the measurement fits in [BORNE_INFERIEURE × predicted,
@@ -215,10 +215,10 @@ impl VerdictGardeFou {
     /// falsified (C4).
     pub fn est_conforme(&self) -> bool {
         let predit = self.predit as u128;
-        let mesure = self.mesure as u128;
+        let measure = self.measure as u128;
         // BORNE_INFERIEURE <= measure/predicted <=> min.num·predicted <= measure·min.den
         // measure/predicted <= BORNE_SUPERIEURE <=> measure·max.den <= max.num·predicted
-        (BORNE_INFERIEURE.num as u128) * predit <= mesure * (BORNE_INFERIEURE.den as u128)
-            && mesure * (BORNE_SUPERIEURE.den as u128) <= (BORNE_SUPERIEURE.num as u128) * predit
+        (BORNE_INFERIEURE.num as u128) * predit <= measure * (BORNE_INFERIEURE.den as u128)
+            && measure * (BORNE_SUPERIEURE.den as u128) <= (BORNE_SUPERIEURE.num as u128) * predit
     }
 }

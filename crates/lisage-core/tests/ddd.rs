@@ -143,7 +143,7 @@ fn test_propriete_intersection_lcg() {
 /// The key contract stays declared on the controller side: level cardinality
 /// and default are those of the DBM algebra (coverage is tested separately).
 #[test]
-fn test_contrat_key_niveau() {
+fn test_contrat_key_level() {
     let keys = DbmKeys::new(SIZE_DOMAIN);
     assert_eq!(keys.cardinality(Level(0)), SIZE_DOMAIN);
     assert_eq!(keys.default(Level(0)), Some(INCOHERENT));

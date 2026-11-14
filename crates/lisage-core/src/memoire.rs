@@ -15,21 +15,21 @@ pub type KeyMemoire = (NodeId, Level);
 /// is incremented at each write; it enters the computed-table key (lemma L1:
 /// `τ(n, h)` pure in `(id(n), h, version(M))`).
 #[derive(Clone, Debug)]
-pub struct MemoireNiveau<V: Clone + Eq + Hash + Debug> {
+pub struct MemoireLevel<V: Clone + Eq + Hash + Debug> {
     inputs: HashMap<KeyMemoire, V>,
     version: u64,
 }
 
-impl<V: Clone + Eq + Hash + Debug> Default for MemoireNiveau<V> {
+impl<V: Clone + Eq + Hash + Debug> Default for MemoireLevel<V> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
+impl<V: Clone + Eq + Hash + Debug> MemoireLevel<V> {
     /// Empty memory, version 0.
     pub fn new() -> Self {
-        MemoireNiveau {
+        MemoireLevel {
             inputs: HashMap::new(),
             version: 0,
         }
@@ -40,16 +40,16 @@ impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
         self.version
     }
 
-    /// Read: value stored at `(node, niveau)`, if present.
-    pub fn lire(&self, node: NodeId, niveau: Level) -> Option<&V> {
-        self.inputs.get(&(node, niveau))
+    /// Read: value stored at `(node, level)`, if present.
+    pub fn lire(&self, node: NodeId, level: Level) -> Option<&V> {
+        self.inputs.get(&(node, level))
     }
 
-    /// Write: stores `value` at `(node, niveau)` and increments the version
+    /// Write: stores `value` at `(node, level)` and increments the version
     /// (L1). Returns the old value if it existed.
-    pub fn ecrire(&mut self, node: NodeId, niveau: Level, value: V) -> Option<V> {
+    pub fn ecrire(&mut self, node: NodeId, level: Level, value: V) -> Option<V> {
         self.version += 1;
-        self.inputs.insert((node, niveau), value)
+        self.inputs.insert((node, level), value)
     }
 
     /// Number of stored entries (for tests).
@@ -62,7 +62,7 @@ impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
 /// to apply after the node restructuring.
 #[derive(Clone, Debug)]
 pub struct EffetMemoire<V: Clone + Eq + Hash + Debug> {
-    /// Writes `(node, niveau, value)` to apply in the memory.
+    /// Writes `(node, level, value)` to apply in the memory.
     pub ecritures: Vec<(NodeId, Level, V)>,
 }
 
@@ -81,16 +81,16 @@ impl<V: Clone + Eq + Hash + Debug> EffetMemoire<V> {
     }
 
     /// Effect with a single write.
-    pub fn une(node: NodeId, niveau: Level, value: V) -> Self {
+    pub fn une(node: NodeId, level: Level, value: V) -> Self {
         EffetMemoire {
-            ecritures: vec![(node, niveau, value)],
+            ecritures: vec![(node, level, value)],
         }
     }
 
     /// Applies the effect to the memory (increments the version per write).
-    pub fn apply(&self, memoire: &mut MemoireNiveau<V>) {
-        for (node, niveau, value) in &self.ecritures {
-            memoire.ecrire(*node, *niveau, value.clone());
+    pub fn apply(&self, memoire: &mut MemoireLevel<V>) {
+        for (node, level, value) in &self.ecritures {
+            memoire.ecrire(*node, *level, value.clone());
         }
     }
 }

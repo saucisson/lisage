@@ -24,7 +24,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::error::CoreError;
 use crate::pli::{BoolOu, SemiAnneau};
-use crate::schema::{PAS_NIVEAU_MAP, PRESENT, Schema};
+use crate::schema::{PAS_LEVEL_MAP, PRESENT, Schema};
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
 /// Base of the fingerprint namespace of the guard/image family.
@@ -98,7 +98,7 @@ fn forme_schema(schema: &Schema) -> &'static str {
 
 /// Checks that all levels of the diagram are in the schema (otherwise
 /// `disperser_chemin` would index out of bounds): typed `CoreError`.
-fn valider_niveaux<P: Pool<Key = u64, Payload = bool>>(
+fn valider_levels<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     schema: &Schema,
     node: NodeId,
@@ -110,11 +110,11 @@ fn valider_niveaux<P: Pool<Key = u64, Payload = bool>>(
     match pool.resolve(node)? {
         Form::Terminal(_) => Ok(()),
         Form::Node { level, arcs } => {
-            if level.0 >= schema.nombre_niveaux() {
-                return Err(CoreError::NiveauHorsSchema(*level));
+            if level.0 >= schema.nombre_levels() {
+                return Err(CoreError::LevelHorsSchema(*level));
             }
             for cible in arcs.values() {
-                valider_niveaux(pool, schema, *cible, visite)?;
+                valider_levels(pool, schema, *cible, visite)?;
             }
             Ok(())
         }
@@ -140,9 +140,9 @@ impl Image {
 /// level changes nothing).
 fn disperser_chemin(liste_keys: &[u64], level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
     let mut h = h.clone();
-    if level.0.is_multiple_of(PAS_NIVEAU_MAP) && arc == PRESENT {
-        let index = (level.0 / PAS_NIVEAU_MAP) as usize;
-        // Guaranteed by `valider_niveaux` before the transduction.
+    if level.0.is_multiple_of(PAS_LEVEL_MAP) && arc == PRESENT {
+        let index = (level.0 / PAS_LEVEL_MAP) as usize;
+        // Guaranteed by `valider_levels` before the transduction.
         if let Some(&key) = liste_keys.get(index) {
             h.insert(key);
         }
@@ -350,7 +350,7 @@ where
 {
     let transduction = Existe::new(schema, predicat)?;
     let mut visite = BTreeSet::new();
-    valider_niveaux(pool_input, schema, node, &mut visite)?;
+    valider_levels(pool_input, schema, node, &mut visite)?;
     let mut runner = Transducteur::new(transduction);
     let (_, verdict) = runner.run(pool_input, pool_output, anchor, node)?;
     Ok(verdict.0)
@@ -372,7 +372,7 @@ where
 {
     let transduction = Filtre::new(schema, predicat)?;
     let mut visite = BTreeSet::new();
-    valider_niveaux(pool_input, schema, node, &mut visite)?;
+    valider_levels(pool_input, schema, node, &mut visite)?;
     let mut runner = Transducteur::new(transduction);
     let (resultat, _) = runner.run(pool_input, pool_output, anchor, node)?;
     Ok(resultat)

@@ -111,8 +111,8 @@ proptest! {
         let schema = schema_test();
         let keys = SchemaKeys::new(schema.clone());
         let anchor = Anchor(0);
-        let niveaux: Vec<Level> = (0..schema.nombre_niveaux()).map(Level).collect();
-        let politique = PolitiqueSaturation::Statique(niveaux);
+        let levels: Vec<Level> = (0..schema.nombre_levels()).map(Level).collect();
+        let politique = PolitiqueSaturation::Statique(levels);
 
         let mut pool = new_pool(&schema);
         let node_initial = compiler_ensemble(&mut pool, anchor, &schema, &initial);
@@ -126,7 +126,7 @@ proptest! {
             keys: &keys,
             anchor,
             initial: node_initial,
-            nombre_niveaux: schema.nombre_niveaux(),
+            nombre_levels: schema.nombre_levels(),
             observateur: None,
         };
         let premier = saturer(&mut params).unwrap();
@@ -148,7 +148,7 @@ proptest! {
             keys: &keys,
             anchor,
             initial: premier.node,
-            nombre_niveaux: schema.nombre_niveaux(),
+            nombre_levels: schema.nombre_levels(),
             observateur: None,
         };
         let second = saturer(&mut params).unwrap();

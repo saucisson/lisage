@@ -26,7 +26,7 @@ use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 /// bounded schema; the bound is only there to detect a regression).
 pub const BORNE_ITERATIONS: u32 = 1_000;
 
-/// Fingerprint salt of the [`RestreintAuxNiveaux`] wrapper: domain-separates
+/// Fingerprint salt of the [`RestreintAuxLevelx`] wrapper: domain-separates
 /// the wrapper's fingerprint from that of the inner transduction.
 const SEL_FINGERPRINT_WRAPPER: u64 = 0x5A7A_0000_0000_0000;
 
@@ -59,7 +59,7 @@ pub struct ParametresSaturation<'a, T, P> {
     /// Initial node `D`.
     pub initial: NodeId,
     /// Number of levels of the schema (for AutoDetectee: all levels).
-    pub nombre_niveaux: u32,
+    pub nombre_levels: u32,
     /// Trace observer (M2-6): receives one `Round` per iteration and the
     /// events of the step runner. `None` = no trace.
     pub observateur: Option<Arc<dyn Observer>>,
@@ -77,45 +77,45 @@ pub struct ResultatSaturation {
 /// Wrapper transduction that restricts a step transduction to a set of
 /// active levels: at active levels, it delegates to the inner transduction
 /// and records the modified levels; at the others, identity copy.
-pub struct RestreintAuxNiveaux<T> {
+pub struct RestreintAuxLevelx<T> {
     inner: T,
-    niveaux_actifs: Vec<Level>,
-    niveaux_modifies: Mutex<BTreeSet<Level>>,
+    levels_actifs: Vec<Level>,
+    levels_modifies: Mutex<BTreeSet<Level>>,
 }
 
-impl<T: Clone> Clone for RestreintAuxNiveaux<T> {
+impl<T: Clone> Clone for RestreintAuxLevelx<T> {
     fn clone(&self) -> Self {
         // The clone starts from a fresh tracking: `saturer` creates a new
         // wrapper at each iteration anyway.
-        RestreintAuxNiveaux {
+        RestreintAuxLevelx {
             inner: self.inner.clone(),
-            niveaux_actifs: self.niveaux_actifs.clone(),
-            niveaux_modifies: Mutex::new(BTreeSet::new()),
+            levels_actifs: self.levels_actifs.clone(),
+            levels_modifies: Mutex::new(BTreeSet::new()),
         }
     }
 }
 
-impl<T> RestreintAuxNiveaux<T> {
-    /// New wrapper: `inner` restricted to the `niveaux_actifs`.
-    pub fn new(inner: T, niveaux_actifs: Vec<Level>) -> Self {
-        RestreintAuxNiveaux {
+impl<T> RestreintAuxLevelx<T> {
+    /// New wrapper: `inner` restricted to the `levels_actifs`.
+    pub fn new(inner: T, levels_actifs: Vec<Level>) -> Self {
+        RestreintAuxLevelx {
             inner,
-            niveaux_actifs,
-            niveaux_modifies: Mutex::new(BTreeSet::new()),
+            levels_actifs,
+            levels_modifies: Mutex::new(BTreeSet::new()),
         }
     }
 
     /// Levels at which `φ_out` produced a node different from the input
     /// since the wrapper was created (AutoDetectee policy).
-    pub fn niveaux_modifies(&self) -> BTreeSet<Level> {
-        self.niveaux_modifies
+    pub fn levels_modifies(&self) -> BTreeSet<Level> {
+        self.levels_modifies
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
 }
 
-impl<T: Transduction> Transduction for RestreintAuxNiveaux<T> {
+impl<T: Transduction> Transduction for RestreintAuxLevelx<T> {
     type H = T::H;
     type S = T::S;
     type Out = T::Out;
@@ -143,12 +143,12 @@ impl<T: Transduction> Transduction for RestreintAuxNiveaux<T> {
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
     ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
-        if self.niveaux_actifs.contains(&ctx.level) {
+        if self.levels_actifs.contains(&ctx.level) {
             let node_input = ctx.node_input;
             let level = ctx.level;
             let (node, effet) = self.inner.phi_out(pool, ctx);
             if node != node_input {
-                self.niveaux_modifies
+                self.levels_modifies
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .insert(level);
@@ -195,9 +195,9 @@ where
     P: Pool<Key = u64, Payload = bool>,
 {
     // Active levels according to the policy.
-    let mut niveaux_actifs: Vec<Level> = match params.politique {
-        PolitiqueSaturation::Statique(niveaux) => niveaux.clone(),
-        PolitiqueSaturation::AutoDetectee => (0..params.nombre_niveaux).map(Level).collect(),
+    let mut levels_actifs: Vec<Level> = match params.politique {
+        PolitiqueSaturation::Statique(levels) => levels.clone(),
+        PolitiqueSaturation::AutoDetectee => (0..params.nombre_levels).map(Level).collect(),
     };
 
     let mut courant = params.initial;
@@ -212,7 +212,7 @@ where
         if let Some(observateur) = &params.observateur {
             observateur.on_event(&TraceEvent::Round { numero: iterations });
         }
-        let etape = RestreintAuxNiveaux::new(params.transduction.clone(), niveaux_actifs.clone());
+        let etape = RestreintAuxLevelx::new(params.transduction.clone(), levels_actifs.clone());
         // Spec § 7: saturate steps can produce a memory effect
         // (T3, M2-5) — PerLevel policy. The memory lives for one pass:
         // the runner (and its memory) is recreated at each iteration.
@@ -238,9 +238,9 @@ where
         if matches!(params.politique, PolitiqueSaturation::AutoDetectee) {
             // Hamez policy: a level not modified by the iteration is removed
             // from the active set.
-            let modifies = runner.transduction().niveaux_modifies();
-            niveaux_actifs.retain(|niveau| modifies.contains(niveau));
-            if niveaux_actifs.is_empty() {
+            let modifies = runner.transduction().levels_modifies();
+            levels_actifs.retain(|level| modifies.contains(level));
+            if levels_actifs.is_empty() {
                 return Ok(ResultatSaturation {
                     node: suivant,
                     iterations,

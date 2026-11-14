@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::atelier::{
-    AtelierController, Reductions, compter_chemins, compter_nodes, compter_size_depliee, mesurer,
+    AtelierController, Reductions, compter_chemins, compter_nodes, compter_size_depliee, measure,
 };
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd};
 use lisage_core::observer::NoOpObserver;
@@ -48,7 +48,7 @@ fn test_collapse_commute() {
         },
     );
     assert_eq!(root_avec, faux, "R-collapse: the node reduces to ⊥");
-    let rapport = mesurer(&avec, root_avec, None).expect("interned node");
+    let rapport = measure(&avec, root_avec, None).expect("interned node");
     assert_eq!(rapport.nodes_partages, 1);
     assert_eq!(rapport.chemins, 1);
 
@@ -62,7 +62,7 @@ fn test_collapse_commute() {
         },
     );
     assert_ne!(root_sans, faux, "without R-collapse: the node is kept");
-    let rapport = mesurer(&sans, root_sans, None).expect("interned node");
+    let rapport = measure(&sans, root_sans, None).expect("interned node");
     assert_eq!(rapport.nodes_partages, 2, "node + terminal ⊥");
     assert_eq!(rapport.chemins, 2, "two paths to ⊥");
 }
@@ -85,7 +85,7 @@ fn test_defaut_commute() {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 1, "R-default: the VIDE arc to ⊥ is absorbed");
-    let rapport = mesurer(&avec, root_avec, None).expect("interned node");
+    let rapport = measure(&avec, root_avec, None).expect("interned node");
     assert_eq!(rapport.nodes_partages, 2, "node + ⊤");
     assert_eq!(rapport.chemins, 1);
 
@@ -103,7 +103,7 @@ fn test_defaut_commute() {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2, "without R-default: the VIDE arc is kept");
-    let rapport = mesurer(&sans, root_sans, None).expect("interned node");
+    let rapport = measure(&sans, root_sans, None).expect("interned node");
     assert_eq!(rapport.nodes_partages, 3, "node + ⊤ + ⊥");
     assert_eq!(rapport.chemins, 2);
 }
@@ -138,7 +138,7 @@ fn test_chemins_contre_nodes() {
     assert!(compter_nodes(&pool, NodeId(u32::MAX)).is_err());
     assert!(compter_chemins(&pool, NodeId(u32::MAX)).is_err());
     assert!(compter_size_depliee(&pool, NodeId(u32::MAX)).is_err());
-    assert!(mesurer(&pool, NodeId(u32::MAX), None).is_err());
+    assert!(measure(&pool, NodeId(u32::MAX), None).is_err());
 }
 
 /// Property (LCG): on random BDDs, disabling reductions can only increase
@@ -189,8 +189,8 @@ fn test_propriete_commutation_lcg() {
         let root_avec = arbre(&mut avec, 3, amorce);
         let mut sans = pool_bdd(Reductions::AUCUNE);
         let root_sans = arbre(&mut sans, 3, amorce);
-        let rapport_avec = mesurer(&avec, root_avec, None).expect("interned node");
-        let rapport_sans = mesurer(&sans, root_sans, None).expect("interned node");
+        let rapport_avec = measure(&avec, root_avec, None).expect("interned node");
+        let rapport_sans = measure(&sans, root_sans, None).expect("interned node");
         assert!(rapport_avec.chemins >= 1, "at least one path");
         assert!(
             rapport_sans.nodes_partages >= rapport_avec.nodes_partages,
@@ -203,10 +203,10 @@ fn test_propriete_commutation_lcg() {
     }
 }
 
-/// Narration (ADR-0100 decision 6): `mesurer` emits an `Attr`/`Synthesized`
+/// Narration (ADR-0100 decision 6): `measure` emits an `Attr`/`Synthesized`
 /// event carrying the full report — pinned by a collecting observer.
 #[test]
-fn test_narration_mesurer() {
+fn test_narration_measure() {
     use std::sync::{Arc, Mutex};
 
     use lisage_core::observer::{CanalAttr, TraceEvent};
@@ -241,7 +241,7 @@ fn test_narration_mesurer() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = mesurer(&pool, root, Some(&collecteur)).expect("interned node");
+    let rapport = measure(&pool, root, Some(&collecteur)).expect("interned node");
     assert_eq!(rapport.nodes_partages, 4);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(

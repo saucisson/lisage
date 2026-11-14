@@ -274,8 +274,8 @@ fn test_bench_sept_formes_o1_et_bord() {
     );
     // The flat prototype edge is pinned exactly (explicit falsification)
     // and grows with n.
-    for (&(n, attendu), &mesure) in BORD_PLAT.iter().zip(&nodes_plats) {
-        assert_eq!(mesure, attendu, "n={n}: flat edge = {attendu} live");
+    for (&(n, attendu), &measure) in BORD_PLAT.iter().zip(&nodes_plats) {
+        assert_eq!(measure, attendu, "n={n}: flat edge = {attendu} live");
     }
     assert!(
         nodes_plats.windows(2).all(|w| w[1] > w[0]),

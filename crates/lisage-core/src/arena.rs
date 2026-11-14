@@ -14,7 +14,7 @@ use lisage_algebra::reduction::{
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::biplan::{IndexNiveaux, MetriquesPool, NodeEntry, Plan, StatsGc, seuil_atteint};
+use crate::biplan::{IndexLevelx, MetriquesPool, NodeEntry, Plan, StatsGc, seuil_atteint};
 use crate::observer::{Observer, ReductionRule, TraceEvent};
 
 /// Hash-consing key: (controller, anchor, form).
@@ -27,7 +27,7 @@ pub struct Arena<C: Controller> {
     nodes: Vec<NodeEntry<C::Key, C::Payload>>,
     unique: HashMap<KeyInterning<C::Key, C::Payload>, NodeId>,
     /// Shadow-plane index: level → live nodes of that level.
-    index_niveaux: IndexNiveaux,
+    index_levels: IndexLevelx,
     metriques: MetriquesPool,
     /// Remapping table of the last compaction (empty otherwise).
     remap: Vec<Option<NodeId>>,
@@ -41,7 +41,7 @@ impl<C: Controller> Arena<C> {
         Arena {
             nodes: Vec::new(),
             unique: HashMap::new(),
-            index_niveaux: IndexNiveaux::new(),
+            index_levels: IndexLevelx::new(),
             metriques: MetriquesPool::default(),
             remap: Vec::new(),
             observer,
@@ -85,10 +85,10 @@ impl<C: Controller> Arena<C> {
     }
 
     /// Live nodes of a level (shadow-plane index).
-    pub fn index_niveau(&self, level: Level) -> &BTreeSet<NodeId> {
+    pub fn index_level(&self, level: Level) -> &BTreeSet<NodeId> {
         static VIDE: std::sync::LazyLock<BTreeSet<NodeId>> =
             std::sync::LazyLock::new(BTreeSet::new);
-        self.index_niveaux.get(&level).unwrap_or(&VIDE)
+        self.index_levels.get(&level).unwrap_or(&VIDE)
     }
 
     /// Pool metrics (cache + GC).
@@ -137,7 +137,7 @@ impl<C: Controller> Arena<C> {
         // Removal of tombstones from the unique table and the shadow index.
         self.unique
             .retain(|_, node| self.nodes[node.0 as usize].forme.is_some());
-        for ensemble in self.index_niveaux.values_mut() {
+        for ensemble in self.index_levels.values_mut() {
             ensemble.retain(|node| self.nodes[node.0 as usize].forme.is_some());
         }
         // Live nodes counted on actually-live entries (not derived from the
@@ -191,7 +191,7 @@ impl<C: Controller> Arena<C> {
                 *node = *new;
             }
         }
-        for ensemble in self.index_niveaux.values_mut() {
+        for ensemble in self.index_levels.values_mut() {
             *ensemble = ensemble
                 .iter()
                 .filter_map(|node| remap.get(node.0 as usize).copied().flatten())
@@ -317,7 +317,7 @@ impl<C: Controller> Pool for Arena<C> {
             forme: Some(forme),
         });
         if let Some(level) = level {
-            self.index_niveaux.entry(level).or_default().insert(node);
+            self.index_levels.entry(level).or_default().insert(node);
         }
         self.unique.insert(key, node);
         self.metriques.creations += 1;

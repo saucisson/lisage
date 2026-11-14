@@ -14,7 +14,7 @@ use lisage_algebra::interface::{
 };
 
 use crate::error::CoreError;
-use crate::schema::{ABSENT, PAS_NIVEAU_MAP, PRESENT, Schema, SchemaError, SchemaKeys};
+use crate::schema::{ABSENT, PAS_LEVEL_MAP, PRESENT, Schema, SchemaError, SchemaKeys};
 use lisage_lang::value::{Atom, Value};
 
 /// Fingerprint of the ADD controller (distinct from `ReferenceController`).
@@ -54,7 +54,7 @@ impl Controller for AddController {
     fn default_payload(&self, level: Level) -> Option<Self::Payload> {
         match &self.schema {
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(PAS_NIVEAU_MAP) {
+                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
                     Some(0)
                 } else {
                     None
@@ -124,7 +124,7 @@ fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
             let node_value = pool.intern(
                 anchor,
                 Form::Node {
-                    level: Schema::niveau_value(index),
+                    level: Schema::level_value(index),
                     arcs: BTreeMap::from([(value.0, suite)]),
                 },
             );
@@ -135,7 +135,7 @@ fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
     pool.intern(
         anchor,
         Form::Node {
-            level: Schema::niveau_presence(index),
+            level: Schema::level_presence(index),
             arcs,
         },
     )
@@ -252,16 +252,16 @@ pub fn somme_poids<P: Pool<Key = u64, Payload = u64>>(
     node: NodeId,
 ) -> Result<u64, CoreError> {
     let keys = SchemaKeys::new(schema.clone());
-    let nombre_niveaux = schema.nombre_niveaux();
+    let nombre_levels = schema.nombre_levels();
     let mut memo = HashMap::new();
-    somme(pool, &keys, nombre_niveaux, node, &mut memo)
+    somme(pool, &keys, nombre_levels, node, &mut memo)
 }
 
 /// Recursive weighted sum with memo on nodes.
 fn somme<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
     keys: &SchemaKeys,
-    nombre_niveaux: u32,
+    nombre_levels: u32,
     node: NodeId,
     memo: &mut HashMap<NodeId, u64>,
 ) -> Result<u64, CoreError> {
@@ -274,13 +274,12 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
         Form::Node { level, arcs } => {
             let mut total = 0u64;
             for (arc, cible) in &arcs {
-                let niveau_cible = match pool.resolve(*cible)?.clone() {
-                    Form::Node { level: niveau, .. } => Some(niveau),
+                let level_cible = match pool.resolve(*cible)?.clone() {
+                    Form::Node { level, .. } => Some(level),
                     Form::Terminal(_) => None,
                 };
-                let multiplicateur =
-                    multiplicateur(keys, nombre_niveaux, level, *arc, niveau_cible);
-                total += multiplicateur * somme(pool, keys, nombre_niveaux, *cible, memo)?;
+                let multiplicateur = multiplicateur(keys, nombre_levels, level, *arc, level_cible);
+                total += multiplicateur * somme(pool, keys, nombre_levels, *cible, memo)?;
             }
             // Implicit default arc: D_δ = terminal(0), of zero weight.
             total
@@ -291,27 +290,27 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
 }
 
 /// (A4) multiplier of arc `arc` from level `level` to a child of level
-/// `niveau_cible` (`None` = terminal): product of the cardinalities of the
+/// `level_cible` (`None` = terminal): product of the cardinalities of the
 /// value levels skipped on the path (mirror of `Pli::multiplicateur`).
 fn multiplicateur(
     keys: &SchemaKeys,
-    nombre_niveaux: u32,
+    nombre_levels: u32,
     level: Level,
     arc: u64,
-    niveau_cible: Option<Level>,
+    level_cible: Option<Level>,
 ) -> u64 {
-    let borne = match niveau_cible {
-        Some(niveau) => niveau.0,
-        None => nombre_niveaux,
+    let borne = match level_cible {
+        Some(level) => level.0,
+        None => nombre_levels,
     };
     let mut n = match keys.default(level) {
-        Some(defaut) if arc == defaut => level.0 + PAS_NIVEAU_MAP,
+        Some(defaut) if arc == defaut => level.0 + PAS_LEVEL_MAP,
         _ => level.0 + 1,
     };
     let mut produit = 1u64;
     while n < borne {
         if keys.default(Level(n)).is_some() {
-            n += PAS_NIVEAU_MAP;
+            n += PAS_LEVEL_MAP;
         } else {
             produit *= keys.cardinality(Level(n));
             n += 1;

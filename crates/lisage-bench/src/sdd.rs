@@ -75,7 +75,7 @@ impl From<CoreError> for ErreurSdd {
 /// One level of the controller tower: the local DD of a vtree node,
 /// built under the node's local anchor.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct NiveauSdd {
+pub struct LevelSdd {
     /// Local anchor of the node (local controller, instance pattern).
     pub ancre: Anchor,
     /// Root of the local DD (set projected on the variables of the subtree).
@@ -92,29 +92,29 @@ pub fn pool_pour_sdd(vtree: &Vtree, ensemble: &BTreeSet<Value>) -> Arena<Referen
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
-/// Complete installation: one [`NiveauSdd`] per vtree node, anchors in
+/// Complete installation: one [`LevelSdd`] per vtree node, anchors in
 /// pre-order. Returns the root of the root level. The pool must be created by
 /// [`pool_pour_sdd`] (root schema = controller schema).
 pub fn installer_sdd(
     pool: &mut Arena<ReferenceController>,
     vtree: &Vtree,
     ensemble: &BTreeSet<Value>,
-) -> Result<NiveauSdd, ErreurSdd> {
+) -> Result<LevelSdd, ErreurSdd> {
     vtree.valider()?;
     let domain = domain_ensemble(ensemble);
     let mut compteur_ancres = 0u32;
-    installer_niveau(pool, vtree, ensemble, &domain, &mut compteur_ancres)
+    installer_level(pool, vtree, ensemble, &domain, &mut compteur_ancres)
 }
 
 /// Installs one vtree level: projection of the set on the variables
 /// of the subtree, compiled under the node's local anchor, then recursion.
-fn installer_niveau(
+fn installer_level(
     pool: &mut Arena<ReferenceController>,
     vtree: &Vtree,
     ensemble: &BTreeSet<Value>,
     domain: &Domain,
     compteur_ancres: &mut u32,
-) -> Result<NiveauSdd, ErreurSdd> {
+) -> Result<LevelSdd, ErreurSdd> {
     let variables = vtree.ordre_plat();
     if variables.is_empty() {
         return Err(ErreurSdd::SansVariable);
@@ -124,12 +124,12 @@ fn installer_niveau(
     let projection = projeter(ensemble, &variables);
     let schema = Schema::Map(variables, domain.clone());
     let root = compiler_projection(pool, &schema, &projection, ancre)?;
-    let cardinal = compter_niveau(pool, &schema, root, ancre)?;
+    let cardinal = compter_level(pool, &schema, root, ancre)?;
     if let Vtree::Node { gauche, droite } = vtree {
-        installer_niveau(pool, gauche, &projection, domain, compteur_ancres)?;
-        installer_niveau(pool, droite, &projection, domain, compteur_ancres)?;
+        installer_level(pool, gauche, &projection, domain, compteur_ancres)?;
+        installer_level(pool, droite, &projection, domain, compteur_ancres)?;
     }
-    Ok(NiveauSdd {
+    Ok(LevelSdd {
         ancre,
         root,
         cardinal,
@@ -197,7 +197,7 @@ fn compiler_projection(
 }
 
 /// Cardinal of a local DD via the `(ℕ,+,×)` pli.
-fn compter_niveau(
+fn compter_level(
     pool: &Arena<ReferenceController>,
     schema: &Schema,
     root: NodeId,

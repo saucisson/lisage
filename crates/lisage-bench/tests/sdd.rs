@@ -83,8 +83,8 @@ fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Valu
 fn test_cardinal_global_egal_produit_des_locaux_si_decomposable() {
     let ensemble = ensemble_decomposable();
     let mut pool = pool_neuf();
-    let niveau = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
-    assert_eq!(niveau.cardinal, 4);
+    let level = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
+    assert_eq!(level.cardinal, 4);
     let gauche = installer_sdd(
         &mut pool,
         &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
@@ -99,7 +99,7 @@ fn test_cardinal_global_egal_produit_des_locaux_si_decomposable() {
     .unwrap();
     assert_eq!(gauche.cardinal, 2);
     assert_eq!(droite.cardinal, 2);
-    assert_eq!(niveau.cardinal, gauche.cardinal * droite.cardinal);
+    assert_eq!(level.cardinal, gauche.cardinal * droite.cardinal);
     assert_eq!(cardinal_plat(&mut pool, &ensemble), 4);
 }
 
@@ -110,8 +110,8 @@ fn test_cardinal_global_egal_produit_des_locaux_si_decomposable() {
 fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
     let ensemble = ensemble_non_decomposable();
     let mut pool = pool_neuf();
-    let niveau = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
-    assert_eq!(niveau.cardinal, 8);
+    let level = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
+    assert_eq!(level.cardinal, 8);
     let gauche = installer_sdd(
         &mut pool,
         &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
@@ -126,7 +126,7 @@ fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
     .unwrap();
     assert_eq!(gauche.cardinal, 4);
     assert_eq!(droite.cardinal, 4);
-    assert!(gauche.cardinal * droite.cardinal >= niveau.cardinal);
+    assert!(gauche.cardinal * droite.cardinal >= level.cardinal);
     assert_eq!(cardinal_plat(&mut pool, &ensemble), 8);
 }
 
