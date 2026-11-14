@@ -130,11 +130,11 @@ fn test_sept_formes_contre_r_n() {
         let mut atteignables = std::collections::BTreeSet::new();
         let mut terminaux_vus = std::collections::BTreeSet::new();
         let mut pile = vec![root];
-        while let Some(noeud) = pile.pop() {
-            if !atteignables.insert(noeud) {
+        while let Some(node) = pile.pop() {
+            if !atteignables.insert(node) {
                 continue;
             }
-            match input.resolve(noeud).unwrap() {
+            match input.resolve(node).unwrap() {
                 Form::Terminal(payload) => {
                     terminaux_vus.insert(*payload);
                 }

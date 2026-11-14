@@ -8,7 +8,7 @@
 use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::dbm::{Dbm, DbmController, DbmKeys, INCOHERENT};
-use lisage_core::ddd::{compiler_bande, compter_noeuds, evaluer};
+use lisage_core::ddd::{compiler_bande, compter_nodes, evaluer};
 use lisage_core::observer::NoOpObserver;
 
 type PoolDbm = Arena<DbmController>;
@@ -66,7 +66,7 @@ fn test_bande_differentiel_contre_enumeration() {
     let mut pool = pool();
     let root = compiler_bande(&mut pool, ANCRE);
     // Four nodes: true, false, level 1, the root — against 16 points.
-    assert_eq!(compter_noeuds(&pool, root), 4);
+    assert_eq!(compter_nodes(&pool, root), 4);
     for x in 0..TAILLE_DOMAINE {
         for y in 0..TAILLE_DOMAINE {
             let point = [x, y];

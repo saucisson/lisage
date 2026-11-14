@@ -69,7 +69,7 @@ pub struct ParametresSaturation<'a, T, P> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ResultatSaturation {
     /// Fixpoint node reached.
-    pub noeud: NodeId,
+    pub node: NodeId,
     /// Number of iterations of the fixpoint loop.
     pub iterations: u32,
 }
@@ -146,14 +146,14 @@ impl<T: Transduction> Transduction for RestreintAuxNiveaux<T> {
         if self.niveaux_actifs.contains(&ctx.level) {
             let node_input = ctx.node_input;
             let level = ctx.level;
-            let (noeud, effet) = self.inner.phi_out(pool, ctx);
-            if noeud != node_input {
+            let (node, effet) = self.inner.phi_out(pool, ctx);
+            if node != node_input {
                 self.niveaux_modifies
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .insert(level);
             }
-            (noeud, effet)
+            (node, effet)
         } else {
             let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
             (
@@ -231,7 +231,7 @@ where
         let suivant = union(params.pool, params.keys, params.anchor, courant, image)?;
         if suivant == courant {
             return Ok(ResultatSaturation {
-                noeud: courant,
+                node: courant,
                 iterations,
             });
         }
@@ -242,7 +242,7 @@ where
             niveaux_actifs.retain(|niveau| modifies.contains(niveau));
             if niveaux_actifs.is_empty() {
                 return Ok(ResultatSaturation {
-                    noeud: suivant,
+                    node: suivant,
                     iterations,
                 });
             }

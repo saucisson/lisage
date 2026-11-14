@@ -59,8 +59,8 @@ fn compiler_map(
 }
 
 /// Decompiles a node into a map `key ↦ value`.
-fn decompiler_map(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> BTreeMap<u64, u64> {
-    match decompiler(pool, schema, noeud).unwrap() {
+fn decompiler_map(pool: &PoolRef, schema: &Schema, node: NodeId) -> BTreeMap<u64, u64> {
+    match decompiler(pool, schema, node).unwrap() {
         Value::Map(map) => map
             .into_iter()
             .map(|(k, v)| match (k, v) {

@@ -33,7 +33,7 @@ pub struct Theme {
     /// Figure background.
     pub fond: &'static str,
     /// Node background.
-    pub fond_noeud: &'static str,
+    pub fond_node: &'static str,
     /// Terminal background.
     pub fond_terminal: &'static str,
 }
@@ -50,7 +50,7 @@ impl Theme {
             arete: "#444444",
             etiquette: "#666666",
             fond: "#ffffff",
-            fond_noeud: "#ffffff",
+            fond_node: "#ffffff",
             fond_terminal: "#f4f4f4",
         }
     }
@@ -61,7 +61,7 @@ impl Theme {
             encre: self.encre,
             arete: self.arete,
             etiquette: self.etiquette,
-            fond_noeud: self.fond_noeud,
+            fond_node: self.fond_node,
             fond_terminal: self.fond_terminal,
         }
     }
@@ -180,21 +180,21 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
         echapper_pgf(titre)
     ));
     // Nodes.
-    for (noeud, position) in &placement {
+    for (node, position) in &placement {
         let x = position.x as f64 * ECHELLE_PGF_CM_PAR_PIXEL;
         let y = -(position.y as f64 * ECHELLE_PGF_CM_PAR_PIXEL);
-        match pool.resolve(*noeud) {
+        match pool.resolve(*node) {
             Ok(lisage_core::Form::Terminal(payload)) => {
                 let label = if *payload { "$\\top$" } else { "$\\bot$" };
                 pgf.push_str(&format!(
                     "\\node[draw, rectangle, minimum width=1.2cm] (n{}) at ({x:.2},{y:.2}) {{{label}}};\n",
-                    noeud.0
+                    node.0
                 ));
             }
             Ok(lisage_core::Form::Node { level, .. }) => {
                 pgf.push_str(&format!(
                     "\\node[draw, rectangle, minimum width=1.2cm] (n{}) at ({x:.2},{y:.2}) {{$\\ell{}$}};\n",
-                    noeud.0,
+                    node.0,
                     level.0
                 ));
             }
@@ -204,15 +204,15 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
     // Arcs.
     let mut pile = vec![root];
     let mut deja_vu = std::collections::BTreeSet::new();
-    while let Some(noeud) = pile.pop() {
-        if !deja_vu.insert(noeud) {
+    while let Some(node) = pile.pop() {
+        if !deja_vu.insert(node) {
             continue;
         }
-        if let Ok(lisage_core::Form::Node { arcs, .. }) = pool.resolve(noeud) {
+        if let Ok(lisage_core::Form::Node { arcs, .. }) = pool.resolve(node) {
             for (cle, cible) in arcs {
                 pgf.push_str(&format!(
                     "\\draw[->] (n{}) -- (n{}) node[midway, above, font=\\ttfamily\\scriptsize] {{{}}};\n",
-                    noeud.0,
+                    node.0,
                     cible.0,
                     echapper_pgf(&cle.to_string())
                 ));

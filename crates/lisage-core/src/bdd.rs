@@ -127,14 +127,14 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
 }
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
-pub fn compter_noeuds<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
+pub fn compter_nodes<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
     let mut visite = BTreeSet::new();
     let mut pile = vec![root];
-    while let Some(noeud) = pile.pop() {
-        if !visite.insert(noeud) {
+    while let Some(node) = pile.pop() {
+        if !visite.insert(node) {
             continue;
         }
-        if let Ok(Form::Node { arcs, .. }) = pool.resolve(noeud) {
+        if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
             pile.extend(arcs.values().copied());
         }
     }
@@ -147,13 +147,13 @@ pub fn evaluer<P: Pool<Key = u64, Payload = bool>>(
     root: NodeId,
     affectation: u64,
 ) -> Result<bool, PoolError> {
-    let mut noeud = root;
+    let mut node = root;
     loop {
-        match pool.resolve(noeud)? {
+        match pool.resolve(node)? {
             Form::Terminal(payload) => return Ok(*payload),
             Form::Node { level, arcs } => {
                 let bit = (affectation >> level.0) & 1;
-                noeud = *arcs.get(&bit).ok_or(PoolError::UnknownNode(noeud))?;
+                node = *arcs.get(&bit).ok_or(PoolError::UnknownNode(node))?;
             }
         }
     }

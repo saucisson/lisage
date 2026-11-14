@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::atelier::{
-    AtelierController, Reductions, compter_chemins, compter_noeuds, compter_taille_depliee, mesurer,
+    AtelierController, Reductions, compter_chemins, compter_nodes, compter_taille_depliee, mesurer,
 };
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd};
 use lisage_core::observer::NoOpObserver;
@@ -49,7 +49,7 @@ fn test_collapse_commute() {
     );
     assert_eq!(root_avec, faux, "R-collapse: the node reduces to ⊥");
     let rapport = mesurer(&avec, root_avec, None).expect("interned node");
-    assert_eq!(rapport.noeuds_partages, 1);
+    assert_eq!(rapport.nodes_partages, 1);
     assert_eq!(rapport.chemins, 1);
 
     let mut sans = pool_bdd(Reductions::sans_collapse());
@@ -63,7 +63,7 @@ fn test_collapse_commute() {
     );
     assert_ne!(root_sans, faux, "without R-collapse: the node is kept");
     let rapport = mesurer(&sans, root_sans, None).expect("interned node");
-    assert_eq!(rapport.noeuds_partages, 2, "node + terminal ⊥");
+    assert_eq!(rapport.nodes_partages, 2, "node + terminal ⊥");
     assert_eq!(rapport.chemins, 2, "two paths to ⊥");
 }
 
@@ -86,7 +86,7 @@ fn test_defaut_commute() {
     };
     assert_eq!(arcs.len(), 1, "R-default: the VIDE arc to ⊥ is absorbed");
     let rapport = mesurer(&avec, root_avec, None).expect("interned node");
-    assert_eq!(rapport.noeuds_partages, 2, "node + ⊤");
+    assert_eq!(rapport.nodes_partages, 2, "node + ⊤");
     assert_eq!(rapport.chemins, 1);
 
     let mut sans = pool_region(Reductions::sans_defaut());
@@ -104,7 +104,7 @@ fn test_defaut_commute() {
     };
     assert_eq!(arcs.len(), 2, "without R-default: the VIDE arc is kept");
     let rapport = mesurer(&sans, root_sans, None).expect("interned node");
-    assert_eq!(rapport.noeuds_partages, 3, "node + ⊤ + ⊥");
+    assert_eq!(rapport.nodes_partages, 3, "node + ⊤ + ⊥");
     assert_eq!(rapport.chemins, 2);
 }
 
@@ -112,7 +112,7 @@ fn test_defaut_commute() {
 /// root × n1 arc combination is a path of the unfolded DAG, even when the
 /// sub-paths are shared.
 #[test]
-fn test_chemins_contre_noeuds() {
+fn test_chemins_contre_nodes() {
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let vrai = pool.intern(ANCRE, Form::Terminal(true));
     let faux = pool.intern(ANCRE, Form::Terminal(false));
@@ -130,7 +130,7 @@ fn test_chemins_contre_noeuds() {
             arcs: BTreeMap::from([(0, n1), (1, n1)]),
         },
     );
-    assert_eq!(compter_noeuds(&pool, root).expect("interned node"), 4);
+    assert_eq!(compter_nodes(&pool, root).expect("interned node"), 4);
     assert_eq!(compter_chemins(&pool, root).expect("interned node"), 4);
     // Unfolded size: root (1) + 2 × n1 (1 + ⊤ + ⊥ = 3) = 7.
     assert_eq!(
@@ -138,7 +138,7 @@ fn test_chemins_contre_noeuds() {
         7
     );
     // A non-interned NodeId is a propagated error.
-    assert!(compter_noeuds(&pool, NodeId(u32::MAX)).is_err());
+    assert!(compter_nodes(&pool, NodeId(u32::MAX)).is_err());
     assert!(compter_chemins(&pool, NodeId(u32::MAX)).is_err());
     assert!(compter_taille_depliee(&pool, NodeId(u32::MAX)).is_err());
     assert!(mesurer(&pool, NodeId(u32::MAX), None).is_err());
@@ -196,7 +196,7 @@ fn test_propriete_commutation_lcg() {
         let rapport_sans = mesurer(&sans, root_sans, None).expect("interned node");
         assert!(rapport_avec.chemins >= 1, "at least one path");
         assert!(
-            rapport_sans.noeuds_partages >= rapport_avec.noeuds_partages,
+            rapport_sans.nodes_partages >= rapport_avec.nodes_partages,
             "without reduction: nodes ≥ (same form)"
         );
         assert!(
@@ -245,7 +245,7 @@ fn test_narration_mesurer() {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
     let rapport = mesurer(&pool, root, Some(&collecteur)).expect("interned node");
-    assert_eq!(rapport.noeuds_partages, 4);
+    assert_eq!(rapport.nodes_partages, 4);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
@@ -254,7 +254,7 @@ fn test_narration_mesurer() {
                 canal: CanalAttr::Synthesized,
                 valeur,
                 ..
-            } if valeur == "noeuds_partages=4 chemins=4 taille_depliee=7"
+            } if valeur == "nodes_partages=4 chemins=4 taille_depliee=7"
         )),
         "the narration event carries the full report"
     );
@@ -274,8 +274,8 @@ fn test_fenetre_absolu_croit_relatif_constant() {
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport =
         comparer_encodages_fenetre(&mut pool, ANCRE, TAILLE, 10, None).expect("interned nodes");
-    assert_eq!(rapport.absolu.noeuds_partages, 12);
-    assert_eq!(rapport.relatif.noeuds_partages, 3);
+    assert_eq!(rapport.absolu.nodes_partages, 12);
+    assert_eq!(rapport.relatif.nodes_partages, 3);
     // Same logical object: same paths (10 bases × 4 keys) and same unfolded
     // size (root + 10 × (window + ⊤)).
     assert_eq!(rapport.absolu.chemins, 40);
@@ -288,11 +288,11 @@ fn test_fenetre_absolu_croit_relatif_constant() {
     let rapport =
         comparer_encodages_fenetre(&mut pool, ANCRE, TAILLE, 100, None).expect("interned nodes");
     assert_eq!(
-        rapport.relatif.noeuds_partages, 3,
+        rapport.relatif.nodes_partages, 3,
         "the relative encoding is O(1)"
     );
     assert_eq!(
-        rapport.absolu.noeuds_partages, 102,
+        rapport.absolu.nodes_partages, 102,
         "the absolute encoding grows with the bases"
     );
     assert_eq!(rapport.relatif.chemins, 400);
@@ -323,7 +323,7 @@ fn test_narration_comparaison_encodages() {
     };
     let rapport = comparer_encodages_fenetre(&mut pool, ANCRE, 4, 10, Some(&collecteur))
         .expect("interned nodes");
-    assert_eq!(rapport.relatif.noeuds_partages, 3);
+    assert_eq!(rapport.relatif.nodes_partages, 3);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
@@ -332,7 +332,7 @@ fn test_narration_comparaison_encodages() {
                 canal: CanalAttr::Synthesized,
                 valeur,
                 ..
-            } if valeur == "encodage=relatif_vs_absolu noeuds=3 contre 12"
+            } if valeur == "encodage=relatif_vs_absolu nodes=3 contre 12"
         )),
         "the narration event carries the encoding comparison"
     );
@@ -356,7 +356,7 @@ fn table_ou_deux_paires() -> Vec<bool> {
 /// (R-collapse commuted: otherwise the paths would merge.)
 /// Natural order [0,1,2,3]: 10 nodes; interleaved [0,2,1,3]: 12 nodes.
 #[test]
-fn test_ordre_change_noeuds_pas_chemins() {
+fn test_ordre_change_nodes_pas_chemins() {
     use lisage_core::atelier::{Ordre, comparer_ordres};
 
     let table = table_ou_deux_paires();
@@ -370,8 +370,8 @@ fn test_ordre_change_noeuds_pas_chemins() {
         None,
     )
     .expect("interned nodes");
-    assert_eq!(rapport.premier.noeuds_partages, 10, "natural order");
-    assert_eq!(rapport.second.noeuds_partages, 12, "interleaved order");
+    assert_eq!(rapport.premier.nodes_partages, 10, "natural order");
+    assert_eq!(rapport.second.nodes_partages, 12, "interleaved order");
     // Same logical object: 2^4 = 16 paths and unfolded tree 2^5-1 = 31.
     assert_eq!(rapport.premier.chemins, 16);
     assert_eq!(rapport.second.chemins, 16);
@@ -415,8 +415,8 @@ fn test_ordre_intercale_croissance_six_variables() {
         None,
     )
     .expect("interned nodes");
-    assert_eq!(rapport.premier.noeuds_partages, 15, "natural order");
-    assert_eq!(rapport.second.noeuds_partages, 25, "interleaved order");
+    assert_eq!(rapport.premier.nodes_partages, 15, "natural order");
+    assert_eq!(rapport.second.nodes_partages, 25, "interleaved order");
     assert_eq!(rapport.premier.chemins, 64);
     assert_eq!(rapport.second.chemins, 64);
 }
@@ -454,7 +454,7 @@ fn test_narration_comparaison_ordres() {
         Some(&collecteur),
     )
     .expect("interned nodes");
-    assert_eq!(rapport.premier.noeuds_partages, 10);
+    assert_eq!(rapport.premier.nodes_partages, 10);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
@@ -463,7 +463,7 @@ fn test_narration_comparaison_ordres() {
                 canal: CanalAttr::Synthesized,
                 valeur,
                 ..
-            } if valeur == "ordre=[0,1,2,3]_vs_[0,2,1,3] noeuds=10 contre 12"
+            } if valeur == "ordre=[0,1,2,3]_vs_[0,2,1,3] nodes=10 contre 12"
         )),
         "the narration event carries the order comparison"
     );
@@ -522,11 +522,11 @@ fn test_glisse_pool_constant_lectures_differentes() {
         "both anchors reach the same window form"
     );
     assert_eq!(rapport.avant, rapport.apres, "same metrics on both sides");
-    assert_eq!(rapport.avant.noeuds_partages, 3, "root + window + ⊤");
+    assert_eq!(rapport.avant.nodes_partages, 3, "root + window + ⊤");
     assert_eq!(rapport.avant.chemins, 4, "one path per window key");
     assert_eq!(rapport.avant.taille_depliee, 6);
     assert_eq!(
-        rapport.noeuds_pool, 4,
+        rapport.nodes_pool, 4,
         "⊤ + shared window + one root per anchor"
     );
     assert_eq!(rapport.lecture_avant, (0, 4));
@@ -535,7 +535,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
     // 50 slides (bases 100..150, all new): at each step the base enters via
     // the entry arc, the window form reached is always the same and the pool
     // creates only one root per slide — never a copy of the window.
-    let noeuds_avant = pool.node_count();
+    let nodes_avant = pool.node_count();
     let (_, fenetre) =
         construire_fenetre_ancree(&mut pool, ANCRE, TAILLE, &AncreFenetre::new(0, 4));
     let ancre = AncreFenetre::new(100, TAILLE as i64);
@@ -551,7 +551,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
     }
     assert_eq!(
         pool.node_count(),
-        noeuds_avant + 50,
+        nodes_avant + 50,
         "a single root per slide: the window form is never duplicated"
     );
 }
@@ -624,7 +624,7 @@ fn test_narration_comparaison_ancres() {
         Some(&collecteur),
     )
     .expect("interned nodes");
-    assert_eq!(rapport.avant.noeuds_partages, 3);
+    assert_eq!(rapport.avant.nodes_partages, 3);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
@@ -633,7 +633,7 @@ fn test_narration_comparaison_ancres() {
                 canal: CanalAttr::Synthesized,
                 valeur,
                 ..
-            } if valeur == "ancre={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} noeuds=3 contre 3 lecture=[0..4) contre [2..6) pool=4"
+            } if valeur == "ancre={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} nodes=3 contre 3 lecture=[0..4) contre [2..6) pool=4"
         )),
         "the narration event carries the anchor comparison"
     );

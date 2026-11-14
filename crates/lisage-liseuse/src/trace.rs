@@ -77,19 +77,19 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
         ),
         TraceEvent::Attr {
             canal,
-            noeud,
+            node,
             valeur,
         } => (
             "Attr",
             format!(
-                "\"canal\":\"{}\",\"noeud\":{},\"valeur\":\"{}\"",
+                "\"canal\":\"{}\",\"node\":{},\"valeur\":\"{}\"",
                 nom_canal(*canal),
-                noeud.0,
+                node.0,
                 echapper_json(valeur)
             ),
         ),
-        TraceEvent::MemoHit { noeud } => ("MemoHit", format!("\"noeud\":{}", noeud.0)),
-        TraceEvent::MemoMiss { noeud } => ("MemoMiss", format!("\"noeud\":{}", noeud.0)),
+        TraceEvent::MemoHit { node } => ("MemoHit", format!("\"node\":{}", node.0)),
+        TraceEvent::MemoMiss { node } => ("MemoMiss", format!("\"node\":{}", node.0)),
         TraceEvent::Gc {
             vivants,
             collectes,

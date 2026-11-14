@@ -224,14 +224,14 @@ pub fn compter<PIn, POut>(
     pool_output: &mut POut,
     anchor: Anchor,
     schema: &Schema,
-    noeud: NodeId,
+    node: NodeId,
 ) -> Result<u64, CoreError>
 where
     PIn: Pool<Key = u64, Payload = bool>,
     POut: Pool<Key = u64, Payload = bool>,
 {
     let mut runner = Transducteur::new(Pli::<Naturel>::new(schema.clone()));
-    let (_, total) = runner.run(pool_input, pool_output, anchor, noeud)?;
+    let (_, total) = runner.run(pool_input, pool_output, anchor, node)?;
     Ok(total.0)
 }
 

@@ -9,7 +9,7 @@
 use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::cdd::{
-    Cdd, CddController, CddKeys, VIDE, compiler_union_horloges, compter_noeuds, evaluer,
+    Cdd, CddController, CddKeys, VIDE, compiler_union_horloges, compter_nodes, evaluer,
 };
 use lisage_core::dbm::Dbm;
 use lisage_core::observer::NoOpObserver;
@@ -125,9 +125,9 @@ fn test_union_horloges_differentiel_contre_enumeration() {
     let mut pool = pool();
     let root = compiler_union_horloges(&mut pool, ANCRE);
     // Three nodes: true, false, the root — vs 16 points.
-    assert_eq!(compter_noeuds(&pool, root).expect("interned node"), 3);
+    assert_eq!(compter_nodes(&pool, root).expect("interned node"), 3);
     // A non-interned NodeId is a propagated error, not a silent leaf.
-    assert!(compter_noeuds(&pool, NodeId(u32::MAX)).is_err());
+    assert!(compter_nodes(&pool, NodeId(u32::MAX)).is_err());
     for x in 0..TAILLE_DOMAINE {
         for y in 0..TAILLE_DOMAINE {
             let point = [x, y];

@@ -36,7 +36,7 @@ pub enum Vtree {
     /// Leaf: one variable.
     Feuille(Atom),
     /// Internal node: left subtree, right subtree.
-    Noeud {
+    Node {
         /// Subtree of left variables.
         gauche: Box<Vtree>,
         /// Subtree of right variables.
@@ -51,8 +51,8 @@ impl Vtree {
     }
 
     /// Builds an internal node.
-    pub fn noeud(gauche: Vtree, droite: Vtree) -> Self {
-        Vtree::Noeud {
+    pub fn node(gauche: Vtree, droite: Vtree) -> Self {
+        Vtree::Node {
             gauche: Box::new(gauche),
             droite: Box::new(droite),
         }
@@ -63,7 +63,7 @@ impl Vtree {
     pub fn ordre_plat(&self) -> Vec<Atom> {
         match self {
             Vtree::Feuille(variable) => vec![*variable],
-            Vtree::Noeud { gauche, droite } => {
+            Vtree::Node { gauche, droite } => {
                 let mut ordre = gauche.ordre_plat();
                 ordre.extend(droite.ordre_plat());
                 ordre
@@ -80,7 +80,7 @@ impl Vtree {
     pub fn profondeur(&self) -> usize {
         match self {
             Vtree::Feuille(_) => 1,
-            Vtree::Noeud { gauche, droite } => 1 + gauche.profondeur().max(droite.profondeur()),
+            Vtree::Node { gauche, droite } => 1 + gauche.profondeur().max(droite.profondeur()),
         }
     }
 
@@ -101,7 +101,7 @@ impl Vtree {
                 vues.push(*variable);
                 Ok(())
             }
-            Vtree::Noeud { gauche, droite } => {
+            Vtree::Node { gauche, droite } => {
                 gauche.collecter_doublons(vues)?;
                 droite.collecter_doublons(vues)
             }
@@ -118,7 +118,7 @@ impl Vtree {
 
     /// Accumulates the (left × right) constraints of each internal node.
     fn collecter_contraintes(&self, contraintes: &mut Vec<(Atom, Atom)>) {
-        if let Vtree::Noeud { gauche, droite } = self {
+        if let Vtree::Node { gauche, droite } = self {
             for variable_gauche in gauche.ordre_plat() {
                 for variable_droite in droite.ordre_plat() {
                     contraintes.push((variable_gauche, variable_droite));

@@ -82,7 +82,7 @@ fn test_svg_publication_deterministe() {
 
 /// The PGF is a standalone TikZ document: diagram nodes and arcs, title.
 #[test]
-fn test_pgf_autonome_avec_noeuds_et_arcs() {
+fn test_pgf_autonome_avec_nodes_et_arcs() {
     let (pool, root) = diagramme_test();
     let pgf = rendre_pgf(&pool, root, "figure A");
     assert!(pgf.contains("\\documentclass[tikz,border=5pt]{standalone}"));
@@ -92,8 +92,8 @@ fn test_pgf_autonome_avec_noeuds_et_arcs() {
     assert!(pgf.contains("figure A"));
     // The diagram {0} over Set({0,1}) has 1 level node + the terminal ⊤
     // (the terminal ⊥ is collapsed by R-default), and 1 arc.
-    let nombre_noeuds = pgf.matches("\\node[draw, rectangle").count();
-    assert_eq!(nombre_noeuds, 2);
+    let nombre_nodes = pgf.matches("\\node[draw, rectangle").count();
+    assert_eq!(nombre_nodes, 2);
     assert_eq!(pgf.matches("\\draw[->]").count(), 1);
     // LaTeX escaping of the title.
     let pgf_echappe = rendre_pgf(&pool, root, "100% _special_");

@@ -127,7 +127,7 @@ fn installer_niveau(
     let schema = Schema::Map(variables, domaine.clone());
     let root = compiler_projection(pool, &schema, &projection, ancre)?;
     let cardinal = compter_niveau(pool, &schema, root, ancre)?;
-    if let Vtree::Noeud { gauche, droite } = vtree {
+    if let Vtree::Node { gauche, droite } = vtree {
         installer_niveau(pool, gauche, &projection, domaine, compteur_ancres)?;
         installer_niveau(pool, droite, &projection, domaine, compteur_ancres)?;
     }

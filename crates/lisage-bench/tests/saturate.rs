@@ -93,9 +93,9 @@ fn compiler_ensemble(
 }
 
 /// Cardinal of a diagram (number of members of the denoted family).
-fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
+fn cardinal(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
     let mut output = new_pool(schema);
-    compter(pool, &mut output, Anchor(0), schema, noeud).unwrap()
+    compter(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
 
 proptest! {
@@ -115,7 +115,7 @@ proptest! {
         let politique = PolitiqueSaturation::Statique(niveaux);
 
         let mut pool = new_pool(&schema);
-        let noeud_initial = compiler_ensemble(&mut pool, anchor, &schema, &initial);
+        let node_initial = compiler_ensemble(&mut pool, anchor, &schema, &initial);
         let singleton = compiler_ensemble(&mut pool, anchor, &schema, &[ajout]);
         let etape = EmetSingleton { singleton };
 
@@ -125,15 +125,15 @@ proptest! {
             pool: &mut pool,
             keys: &keys,
             anchor,
-            initial: noeud_initial,
+            initial: node_initial,
             nombre_niveaux: schema.nombre_niveaux(),
             observateur: None,
         };
         let premier = saturer(&mut params).unwrap();
 
         // Increasing chain: the fixpoint contains the initial family.
-        let cardinal_initial = cardinal(&pool, &schema, noeud_initial);
-        let cardinal_fixe = cardinal(&pool, &schema, premier.noeud);
+        let cardinal_initial = cardinal(&pool, &schema, node_initial);
+        let cardinal_fixe = cardinal(&pool, &schema, premier.node);
         prop_assert!(
             cardinal_fixe >= cardinal_initial,
             "fixpoint ⊇ initial: {cardinal_fixe} >= {cardinal_initial}"
@@ -147,12 +147,12 @@ proptest! {
             pool: &mut pool,
             keys: &keys,
             anchor,
-            initial: premier.noeud,
+            initial: premier.node,
             nombre_niveaux: schema.nombre_niveaux(),
             observateur: None,
         };
         let second = saturer(&mut params).unwrap();
         prop_assert_eq!(second.iterations, 1, "fixpoint: 1 iteration");
-        prop_assert_eq!(second.noeud, premier.noeud, "fixpoint idempotence");
+        prop_assert_eq!(second.node, premier.node, "fixpoint idempotence");
     }
 }

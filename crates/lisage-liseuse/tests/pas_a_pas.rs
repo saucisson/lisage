@@ -65,20 +65,20 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
     assert_eq!(TRACE_VERSION, 2);
     let attr = serialiser_evenement(&TraceEvent::Attr {
         canal: CanalAttr::Inherited,
-        noeud: NodeId(3),
+        node: NodeId(3),
         valeur: "Transfert(1)".to_string(),
     });
     assert_eq!(
         attr,
-        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
+        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"herite\",\"node\":3,\"valeur\":\"Transfert(1)\"}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::MemoHit { noeud: NodeId(7) }),
-        "{\"v\":2,\"type\":\"MemoHit\",\"noeud\":7}"
+        serialiser_evenement(&TraceEvent::MemoHit { node: NodeId(7) }),
+        "{\"v\":2,\"type\":\"MemoHit\",\"node\":7}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::MemoMiss { noeud: NodeId(8) }),
-        "{\"v\":2,\"type\":\"MemoMiss\",\"noeud\":8}"
+        serialiser_evenement(&TraceEvent::MemoMiss { node: NodeId(8) }),
+        "{\"v\":2,\"type\":\"MemoMiss\",\"node\":8}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Round { numero: 2 }),
@@ -95,10 +95,10 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
     assert_eq!(
         serialiser_evenement(&TraceEvent::Attr {
             canal: CanalAttr::Memory,
-            noeud: NodeId(1),
+            node: NodeId(1),
             valeur: "true".to_string(),
         }),
-        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
+        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"memoire\",\"node\":1,\"valeur\":\"true\"}"
     );
 }
 
@@ -268,16 +268,16 @@ fn test_scrubber_replay_et_diff() {
         },
         TraceEvent::Attr {
             canal: CanalAttr::Inherited,
-            noeud: NodeId(1),
+            node: NodeId(1),
             valeur: "0".to_string(),
         },
-        TraceEvent::MemoMiss { noeud: NodeId(1) },
+        TraceEvent::MemoMiss { node: NodeId(1) },
         TraceEvent::Round { numero: 1 },
         TraceEvent::NodeCreated {
             node: NodeId(2),
             level: Some(lisage_core::Level(1)),
         },
-        TraceEvent::MemoHit { noeud: NodeId(1) },
+        TraceEvent::MemoHit { node: NodeId(1) },
         TraceEvent::Round { numero: 2 },
     ];
     let mut scrubber = Scrubber::new(evenements);
@@ -285,7 +285,7 @@ fn test_scrubber_replay_et_diff() {
 
     scrubber.aller_a(3);
     let etat3 = scrubber.etat();
-    assert_eq!(etat3.noeuds, BTreeSet::from([NodeId(1)]));
+    assert_eq!(etat3.nodes, BTreeSet::from([NodeId(1)]));
     assert_eq!(etat3.attributs.len(), 1);
     assert_eq!(etat3.memo_misses, 1);
     assert_eq!(etat3.memo_hits, 0);
@@ -296,7 +296,7 @@ fn test_scrubber_replay_et_diff() {
     scrubber.aller_a(100); // clamped to the length
     assert_eq!(scrubber.position(), 7);
     let etat7 = scrubber.etat();
-    assert_eq!(etat7.noeuds, BTreeSet::from([NodeId(1), NodeId(2)]));
+    assert_eq!(etat7.nodes, BTreeSet::from([NodeId(1), NodeId(2)]));
     assert_eq!(etat7.memo_hits, 1);
     assert_eq!(etat7.rounds, 2);
 
@@ -424,19 +424,16 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
         let longueur = 1 + (suivant() % 40) as usize;
         let evenements: Vec<TraceEvent> = (0..longueur)
             .map(|_| {
-                let noeud = NodeId(1 + (suivant() % 6) as u32);
+                let node = NodeId(1 + (suivant() % 6) as u32);
                 match suivant() % 5 {
-                    0 => TraceEvent::NodeCreated {
-                        node: noeud,
-                        level: None,
-                    },
+                    0 => TraceEvent::NodeCreated { node, level: None },
                     1 => TraceEvent::Attr {
                         canal: CanalAttr::Inherited,
-                        noeud,
+                        node,
                         valeur: "x".to_string(),
                     },
-                    2 => TraceEvent::MemoHit { noeud },
-                    3 => TraceEvent::MemoMiss { noeud },
+                    2 => TraceEvent::MemoHit { node },
+                    3 => TraceEvent::MemoMiss { node },
                     _ => TraceEvent::Round {
                         numero: 1 + (suivant() % 3) as u32,
                     },
@@ -449,7 +446,7 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
             scrubber.aller_a(position);
             let etat = scrubber.etat();
             assert!(
-                precedent.noeuds.iter().all(|n| etat.noeuds.contains(n)),
+                precedent.nodes.iter().all(|n| etat.nodes.contains(n)),
                 "node monotonicity at position {position}"
             );
             assert!(precedent.memo_hits <= etat.memo_hits);

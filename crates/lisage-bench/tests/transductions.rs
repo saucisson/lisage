@@ -114,17 +114,17 @@ impl Transduction for CompteChemins {
 /// are specific to each pool).
 fn formes_egales(
     pool_a: &PoolRef,
-    noeud_a: NodeId,
+    node_a: NodeId,
     pool_b: &PoolRef,
-    noeud_b: NodeId,
+    node_b: NodeId,
     visites: &mut std::collections::HashMap<(NodeId, NodeId), bool>,
 ) -> bool {
-    if let Some(&vu) = visites.get(&(noeud_a, noeud_b)) {
+    if let Some(&vu) = visites.get(&(node_a, node_b)) {
         return vu;
     }
     let egales = match (
-        pool_a.resolve(noeud_a).unwrap(),
-        pool_b.resolve(noeud_b).unwrap(),
+        pool_a.resolve(node_a).unwrap(),
+        pool_b.resolve(node_b).unwrap(),
     ) {
         (Form::Terminal(pa), Form::Terminal(pb)) => pa == pb,
         (
@@ -145,13 +145,13 @@ fn formes_egales(
         }
         _ => false,
     };
-    visites.insert((noeud_a, noeud_b), egales);
+    visites.insert((node_a, node_b), egales);
     egales
 }
 
 /// Naive recursive count of accepting paths (independent oracle).
-fn compte_naif(pool: &PoolRef, noeud: NodeId) -> u64 {
-    match pool.resolve(noeud).unwrap() {
+fn compte_naif(pool: &PoolRef, node: NodeId) -> u64 {
+    match pool.resolve(node).unwrap() {
         Form::Terminal(payload) => u64::from(*payload),
         Form::Node { arcs, .. } => arcs.values().map(|&c| compte_naif(pool, c)).sum(),
     }
@@ -162,19 +162,19 @@ fn compte_naif(pool: &PoolRef, noeud: NodeId) -> u64 {
 fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> NodeId {
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let faux = pool.intern(anchor, Form::Terminal(false));
-    let mut noeuds = vec![vrai, faux];
+    let mut nodes = vec![vrai, faux];
     for (niveau, cible) in paires {
-        let cible = noeuds[usize::try_from(cible).unwrap() % noeuds.len()];
-        let noeud = pool.intern(
+        let cible = nodes[usize::try_from(cible).unwrap() % nodes.len()];
+        let node = pool.intern(
             anchor,
             Form::Node {
                 level: Level(u32::from(niveau % 4)),
                 arcs: BTreeMap::from([(u64::from(niveau % 2), cible)]),
             },
         );
-        noeuds.push(noeud);
+        nodes.push(node);
     }
-    *noeuds.last().unwrap()
+    *nodes.last().unwrap()
 }
 
 proptest! {

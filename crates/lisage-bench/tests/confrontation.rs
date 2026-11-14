@@ -22,13 +22,13 @@ const PRECEDENTE: u64 = 2;
 /// |R_n| of the golden thread for n = 3..7 (verified by simulation, M4-4).
 const R_ATTENDUS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152), (6, 416), (7, 1136)];
 /// Shared nodes of R_3 (didactic workshop, fragment 1: 33 nodes).
-const NOEUDS_R3: u64 = 33;
+const NODES_R3: u64 = 33;
 /// Paths of the test window: 10 bases × 4 positions.
 const CHEMINS_FENETRE: u64 = 40;
 /// Nodes of the absolute window (didactic workshop, fragment 2).
-const NOEUDS_FENETRE_ABSOLUE: u64 = 12;
+const NODES_FENETRE_ABSOLUE: u64 = 12;
 /// Nodes of the relative window: a single shared form, O(1).
-const NOEUDS_FENETRE_RELATIVE: u64 = 3;
+const NODES_FENETRE_RELATIVE: u64 = 3;
 /// Satisfactions of the LCG table for n = 4 (pinned, deterministic).
 const SATISFACTIONS_LCG_N4: u64 = 7;
 /// Satisfactions of the LCG table for n = 12 (pinned, deterministic —
@@ -117,7 +117,7 @@ fn test_alea_lcg_satisfactions_epinglees() {
         assert_eq!(mesure.variante, Variante::Bdd);
         assert_eq!(mesure.charge, Charge::AleaLcg);
         assert_eq!(mesure.verifie, satisfait, "n={n}: pinned satisfactions");
-        assert!(mesure.noeuds > 0, "n={n}: non-empty diagram");
+        assert!(mesure.nodes > 0, "n={n}: non-empty diagram");
         assert!(mesure.temps_ms.is_finite(), "n={n}: measured time");
         assert!(mesure.rss_max_ko > 0, "n={n}: VmHWM read");
     }
@@ -147,7 +147,7 @@ fn test_philosophes_fil_rouge_epingle() {
         assert_eq!(mesure.verifie, attendu, "n={nombre}: pinned |R_n|");
         assert_eq!(mesure.variante, Variante::Mdd);
         if nombre == 3 {
-            assert_eq!(mesure.noeuds, NOEUDS_R3, "R_3: 33 shared nodes");
+            assert_eq!(mesure.nodes, NODES_R3, "R_3: 33 shared nodes");
         }
         assert!(mesure.rss_max_ko > 0);
     }
@@ -210,8 +210,8 @@ fn test_fenetre_encodages_epingles() {
     .expect("relative");
     assert_eq!(absolu.verifie, CHEMINS_FENETRE);
     assert_eq!(relatif.verifie, CHEMINS_FENETRE);
-    assert_eq!(absolu.noeuds, NOEUDS_FENETRE_ABSOLUE);
-    assert_eq!(relatif.noeuds, NOEUDS_FENETRE_RELATIVE);
+    assert_eq!(absolu.nodes, NODES_FENETRE_ABSOLUE);
+    assert_eq!(relatif.nodes, NODES_FENETRE_RELATIVE);
     assert_eq!(absolu.encodage, Some(Encodage::Absolu));
     assert_eq!(relatif.encodage, Some(Encodage::Relatif));
 }
@@ -243,12 +243,12 @@ fn test_serialisation_ligne_epinglee() {
         encodage: Some(Encodage::Relatif),
         temps_ms: 1.25,
         rss_max_ko: 4096,
-        noeuds: 3,
+        nodes: 3,
         verifie: 40,
     };
     let attendu = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\"encodage\":\"relatif\",\
-\"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
+\"temps_ms\":1.250,\"rss_max_ko\":4096,\"nodes\":3,\"verifie\":40}";
     assert_eq!(serialiser_ligne(&mesure), attendu);
     let sans_encodage = MesureConfrontation {
         encodage: None,
@@ -256,7 +256,7 @@ fn test_serialisation_ligne_epinglee() {
     };
     let attendu_sans = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\
-\"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
+\"temps_ms\":1.250,\"rss_max_ko\":4096,\"nodes\":3,\"verifie\":40}";
     assert_eq!(serialiser_ligne(&sans_encodage), attendu_sans);
 }
 
@@ -300,7 +300,7 @@ fn test_narration_charge_epinglee() {
         executer(&Charge::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("workload run");
     let attendu = format!(
         "workload=alea-lcg nodes={} check={}",
-        mesure.noeuds, SATISFACTIONS_LCG_N4
+        mesure.nodes, SATISFACTIONS_LCG_N4
     );
     // The three workloads emit their summary: philosophes and
     // fenetre are pinned here too (a regression that would lose them
@@ -322,11 +322,11 @@ fn test_narration_charge_epinglee() {
         attendu,
         format!(
             "workload=philosophes nodes={} check={}",
-            mesure_philo.noeuds, mesure_philo.verifie
+            mesure_philo.nodes, mesure_philo.verifie
         ),
         format!(
             "workload=fenetre encoding=relatif nodes={} check={}",
-            mesure_fenetre.noeuds, mesure_fenetre.verifie
+            mesure_fenetre.nodes, mesure_fenetre.verifie
         ),
     ];
     let events = collecteur.evenements.lock().expect("mutex").clone();

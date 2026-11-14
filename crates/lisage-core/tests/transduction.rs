@@ -228,7 +228,7 @@ fn test_canal_synthetise_comptage() {
 /// Memo (op, node, h): a second run recomputes nothing (memo hit), and two
 /// operations with distinct fingerprints have separate entries.
 #[test]
-fn test_memo_fingerprint_op_noeud() {
+fn test_memo_fingerprint_op_node() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);

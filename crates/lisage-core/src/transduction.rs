@@ -178,14 +178,14 @@ impl<T: Transduction> Transducteur<T> {
         pool_input: &PIn,
         pool_output: &mut POut,
         anchor: Anchor,
-        noeud: NodeId,
+        node: NodeId,
     ) -> Result<(NodeId, T::S), CoreError>
     where
         PIn: Pool<Key = u64, Payload = bool>,
         POut: Pool<Key = u64, Payload = T::Out>,
     {
         let h = self.transduction.h0();
-        self.run_avec(pool_input, pool_output, anchor, noeud, h)
+        self.run_avec(pool_input, pool_output, anchor, node, h)
     }
 
     /// Single-pool variant: reads and writes in the same pool (payload `Out`
@@ -195,14 +195,14 @@ impl<T: Transduction> Transducteur<T> {
         &mut self,
         pool: &mut P,
         anchor: Anchor,
-        noeud: NodeId,
+        node: NodeId,
     ) -> Result<(NodeId, T::S), CoreError>
     where
         P: Pool<Key = u64, Payload = bool>,
         T: Transduction<Out = bool>,
     {
         let h = self.transduction.h0();
-        self.run_avec_meme_pool(pool, anchor, noeud, h)
+        self.run_avec_meme_pool(pool, anchor, node, h)
     }
 
     fn run_avec<PIn, POut>(
@@ -210,7 +210,7 @@ impl<T: Transduction> Transducteur<T> {
         pool_input: &PIn,
         pool_output: &mut POut,
         anchor: Anchor,
-        noeud: NodeId,
+        node: NodeId,
         h: T::H,
     ) -> Result<(NodeId, T::S), CoreError>
     where
@@ -219,16 +219,16 @@ impl<T: Transduction> Transducteur<T> {
     {
         let cle = (
             self.transduction.fingerprint(),
-            noeud,
+            node,
             h.clone(),
             self.memoire.version(),
         );
         if let Some((resultat, s)) = self.memo.get(&cle) {
-            self.notifier(TraceEvent::MemoHit { noeud });
+            self.notifier(TraceEvent::MemoHit { node });
             return Ok((*resultat, s.clone()));
         }
-        self.notifier(TraceEvent::MemoMiss { noeud });
-        let forme = pool_input.resolve(noeud)?.clone();
+        self.notifier(TraceEvent::MemoMiss { node });
+        let forme = pool_input.resolve(node)?.clone();
         let (resultat, s) = match forme {
             Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
             Form::Node { level, arcs } => {
@@ -238,7 +238,7 @@ impl<T: Transduction> Transducteur<T> {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
                     self.notifier(TraceEvent::Attr {
                         canal: CanalAttr::Inherited,
-                        noeud,
+                        node,
                         valeur: format!("{h_arc:?}"),
                     });
                     let (cible_resultat, s_arc) =
@@ -254,7 +254,7 @@ impl<T: Transduction> Transducteur<T> {
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {
                     canal: CanalAttr::Synthesized,
-                    noeud,
+                    node,
                     valeur: format!("{s:?}"),
                 });
                 let ctx = ContextePhiOut {
@@ -263,21 +263,21 @@ impl<T: Transduction> Transducteur<T> {
                     h: &h,
                     arcs: enfants,
                     memoire: &self.memoire,
-                    node_input: noeud,
+                    node_input: node,
                 };
-                let (noeud_resultat, effet) = self.transduction.phi_out(pool_output, ctx);
+                let (node_resultat, effet) = self.transduction.phi_out(pool_output, ctx);
                 if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoireNonAutorisee);
                 }
                 if !effet.ecritures.is_empty() {
                     self.notifier(TraceEvent::Attr {
                         canal: CanalAttr::Memory,
-                        noeud,
+                        node,
                         valeur: format!("{:?}", effet.ecritures),
                     });
                 }
                 effet.apply(&mut self.memoire);
-                (noeud_resultat, s)
+                (node_resultat, s)
             }
         };
         self.memo.insert(cle, (resultat, s.clone()));
@@ -288,7 +288,7 @@ impl<T: Transduction> Transducteur<T> {
         &mut self,
         pool: &mut P,
         anchor: Anchor,
-        noeud: NodeId,
+        node: NodeId,
         h: T::H,
     ) -> Result<(NodeId, T::S), CoreError>
     where
@@ -297,16 +297,16 @@ impl<T: Transduction> Transducteur<T> {
     {
         let cle = (
             self.transduction.fingerprint(),
-            noeud,
+            node,
             h.clone(),
             self.memoire.version(),
         );
         if let Some((resultat, s)) = self.memo.get(&cle) {
-            self.notifier(TraceEvent::MemoHit { noeud });
+            self.notifier(TraceEvent::MemoHit { node });
             return Ok((*resultat, s.clone()));
         }
-        self.notifier(TraceEvent::MemoMiss { noeud });
-        let forme = pool.resolve(noeud)?.clone();
+        self.notifier(TraceEvent::MemoMiss { node });
+        let forme = pool.resolve(node)?.clone();
         let (resultat, s) = match forme {
             Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
             Form::Node { level, arcs } => {
@@ -316,7 +316,7 @@ impl<T: Transduction> Transducteur<T> {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
                     self.notifier(TraceEvent::Attr {
                         canal: CanalAttr::Inherited,
-                        noeud,
+                        node,
                         valeur: format!("{h_arc:?}"),
                     });
                     let (cible_resultat, s_arc) =
@@ -332,7 +332,7 @@ impl<T: Transduction> Transducteur<T> {
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {
                     canal: CanalAttr::Synthesized,
-                    noeud,
+                    node,
                     valeur: format!("{s:?}"),
                 });
                 let ctx = ContextePhiOut {
@@ -341,21 +341,21 @@ impl<T: Transduction> Transducteur<T> {
                     h: &h,
                     arcs: enfants,
                     memoire: &self.memoire,
-                    node_input: noeud,
+                    node_input: node,
                 };
-                let (noeud_resultat, effet) = self.transduction.phi_out(pool, ctx);
+                let (node_resultat, effet) = self.transduction.phi_out(pool, ctx);
                 if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoireNonAutorisee);
                 }
                 if !effet.ecritures.is_empty() {
                     self.notifier(TraceEvent::Attr {
                         canal: CanalAttr::Memory,
-                        noeud,
+                        node,
                         valeur: format!("{:?}", effet.ecritures),
                     });
                 }
                 effet.apply(&mut self.memoire);
-                (noeud_resultat, s)
+                (node_resultat, s)
             }
         };
         self.memo.insert(cle, (resultat, s.clone()));

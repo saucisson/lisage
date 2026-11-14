@@ -7,7 +7,7 @@
 use lisage_algebra::interface::Anchor;
 use lisage_bench::temoin_bdd::MiniBdd;
 use lisage_core::arena::Arena;
-use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_noeuds, evaluer};
+use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_nodes, evaluer};
 use lisage_core::observer::NoOpObserver;
 use proptest::prelude::*;
 
@@ -27,14 +27,14 @@ proptest! {
         let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
         let anchor = Anchor(0);
         let root = compiler_bdd(&mut pool, anchor, &keys, &table);
-        let noeuds_arene = compter_noeuds(&pool, root);
+        let nodes_arene = compter_nodes(&pool, root);
 
         let mut temoin = MiniBdd::new();
         let root_temoin = temoin.compiler_table(nombre_variables, &table);
-        let noeuds_temoin = temoin.compter_noeuds(root_temoin);
+        let nodes_temoin = temoin.compter_nodes(root_temoin);
 
         prop_assert_eq!(
-            noeuds_arene, noeuds_temoin,
+            nodes_arene, nodes_temoin,
             "C6: identical reproduction of the node count"
         );
         for a in 0..(1u64 << nombre_variables) {

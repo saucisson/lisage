@@ -3,7 +3,7 @@
 
 use lisage_algebra::interface::Anchor;
 use lisage_core::arena::Arena;
-use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_noeuds, evaluer};
+use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_nodes, evaluer};
 use lisage_core::observer::NoOpObserver;
 
 type PoolBdd = Arena<BddController>;
@@ -30,8 +30,8 @@ fn test_bdd_constantes_un_seul_terminal() {
     let root_faux = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, false));
     let root_vrai = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, true));
     // R-collapse: no variable, a single terminal visited.
-    assert_eq!(compter_noeuds(&pool, root_faux), 1);
-    assert_eq!(compter_noeuds(&pool, root_vrai), 1);
+    assert_eq!(compter_nodes(&pool, root_faux), 1);
+    assert_eq!(compter_nodes(&pool, root_vrai), 1);
     assert!(!evaluer(&pool, root_faux, 0b101).unwrap());
     assert!(evaluer(&pool, root_vrai, 0b101).unwrap());
 }
@@ -44,7 +44,7 @@ fn test_bdd_xor2_compte_et_evalue() {
     let table = table_xor2();
     let root = compiler_bdd(&mut pool, anchor, &keys, &table);
     // XOR(x0, x1) : root x0 + deux nœuds x1 distincts + ⊥/⊤ = 5 nœuds.
-    assert_eq!(compter_noeuds(&pool, root), 5);
+    assert_eq!(compter_nodes(&pool, root), 5);
     for a in 0..4u64 {
         assert_eq!(
             evaluer(&pool, root, a).unwrap(),
@@ -63,5 +63,5 @@ fn test_bdd_projection_collapse() {
     // are constant, R-collapse reduces them — root x0 → (⊥, ⊤), 3 nodes.
     let table = (0..4u64).map(|a| a & 1 == 1).collect::<Vec<bool>>();
     let root = compiler_bdd(&mut pool, anchor, &keys, &table);
-    assert_eq!(compter_noeuds(&pool, root), 3);
+    assert_eq!(compter_nodes(&pool, root), 3);
 }

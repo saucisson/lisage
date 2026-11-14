@@ -40,16 +40,16 @@ impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
         self.version
     }
 
-    /// Read: value stored at `(noeud, niveau)`, if present.
-    pub fn lire(&self, noeud: NodeId, niveau: Level) -> Option<&V> {
-        self.inputs.get(&(noeud, niveau))
+    /// Read: value stored at `(node, niveau)`, if present.
+    pub fn lire(&self, node: NodeId, niveau: Level) -> Option<&V> {
+        self.inputs.get(&(node, niveau))
     }
 
-    /// Write: stores `valeur` at `(noeud, niveau)` and increments the version
+    /// Write: stores `valeur` at `(node, niveau)` and increments the version
     /// (L1). Returns the old value if it existed.
-    pub fn ecrire(&mut self, noeud: NodeId, niveau: Level, valeur: V) -> Option<V> {
+    pub fn ecrire(&mut self, node: NodeId, niveau: Level, valeur: V) -> Option<V> {
         self.version += 1;
-        self.inputs.insert((noeud, niveau), valeur)
+        self.inputs.insert((node, niveau), valeur)
     }
 
     /// Number of stored entries (for tests).
@@ -62,7 +62,7 @@ impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
 /// to apply after the node restructuring.
 #[derive(Clone, Debug)]
 pub struct EffetMemoire<V: Clone + Eq + Hash + Debug> {
-    /// Writes `(noeud, niveau, valeur)` to apply in the memory.
+    /// Writes `(node, niveau, valeur)` to apply in the memory.
     pub ecritures: Vec<(NodeId, Level, V)>,
 }
 
@@ -81,16 +81,16 @@ impl<V: Clone + Eq + Hash + Debug> EffetMemoire<V> {
     }
 
     /// Effect with a single write.
-    pub fn une(noeud: NodeId, niveau: Level, valeur: V) -> Self {
+    pub fn une(node: NodeId, niveau: Level, valeur: V) -> Self {
         EffetMemoire {
-            ecritures: vec![(noeud, niveau, valeur)],
+            ecritures: vec![(node, niveau, valeur)],
         }
     }
 
     /// Applies the effect to the memory (increments the version per write).
     pub fn apply(&self, memoire: &mut MemoireNiveau<V>) {
-        for (noeud, niveau, valeur) in &self.ecritures {
-            memoire.ecrire(*noeud, *niveau, valeur.clone());
+        for (node, niveau, valeur) in &self.ecritures {
+            memoire.ecrire(*node, *niveau, valeur.clone());
         }
     }
 }

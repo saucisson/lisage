@@ -15,9 +15,9 @@ use lisage_lang::value::{Atom, Value};
 
 /// Test vtree: (x0, x1) on the left, (x2, x3) on the right.
 fn vtree_test() -> Vtree {
-    Vtree::noeud(
-        Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
-        Vtree::noeud(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
+    Vtree::node(
+        Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
+        Vtree::node(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
     )
 }
 
@@ -87,13 +87,13 @@ fn test_cardinal_global_egal_produit_des_locaux_si_decomposable() {
     assert_eq!(niveau.cardinal, 4);
     let gauche = installer_sdd(
         &mut pool,
-        &Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
+        &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
         &ensemble,
     )
     .unwrap();
     let droite = installer_sdd(
         &mut pool,
-        &Vtree::noeud(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
+        &Vtree::node(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
         &ensemble,
     )
     .unwrap();
@@ -114,13 +114,13 @@ fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
     assert_eq!(niveau.cardinal, 8);
     let gauche = installer_sdd(
         &mut pool,
-        &Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
+        &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
         &ensemble,
     )
     .unwrap();
     let droite = installer_sdd(
         &mut pool,
-        &Vtree::noeud(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
+        &Vtree::node(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
         &ensemble,
     )
     .unwrap();
@@ -174,7 +174,7 @@ fn test_projection() {
 /// Invalid vtree (duplicated variable): typed error at installation.
 #[test]
 fn test_vtree_invalide_rejete() {
-    let vtree = Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(0)));
+    let vtree = Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(0)));
     let mut pool = pool_neuf();
     assert_eq!(
         installer_sdd(&mut pool, &vtree, &BTreeSet::new()).unwrap_err(),

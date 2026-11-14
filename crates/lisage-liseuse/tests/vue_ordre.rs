@@ -3,7 +3,7 @@
 //! side, arrowed conversions with cost — deterministic static SVG rendering.
 
 use lisage_liseuse::vue_ordre::{
-    ConversionVue, FicheControleur, NoeudVtree, PisteOrdre, RoyaumeVue, rendre_svg_vue_ordre,
+    ConversionVue, FicheControleur, NodeVtree, PisteOrdre, RoyaumeVue, rendre_svg_vue_ordre,
 };
 
 /// Extracts a numeric attribute from an SVG element (ex. `y="42"` → 42).
@@ -125,23 +125,23 @@ fn test_vue_ordre_fiche_piste_lineaire_royaumes_et_conversion() {
 /// M3-4: a structured order renders as a tree (vtree), no special case.
 #[test]
 fn test_vue_ordre_piste_arbre_vtree() {
-    let arbre = NoeudVtree {
+    let arbre = NodeVtree {
         libelle: "record".to_string(),
         enfants: vec![
-            NoeudVtree {
+            NodeVtree {
                 libelle: "machine".to_string(),
                 enfants: vec![
-                    NoeudVtree {
+                    NodeVtree {
                         libelle: "cell".to_string(),
                         enfants: vec![],
                     },
-                    NoeudVtree {
+                    NodeVtree {
                         libelle: "state".to_string(),
                         enfants: vec![],
                     },
                 ],
             },
-            NoeudVtree {
+            NodeVtree {
                 libelle: "conveyor".to_string(),
                 enfants: vec![],
             },
@@ -190,17 +190,17 @@ fn test_vue_ordre_deterministe_et_conversion_inconnue_ignoree() {
 /// linear track.
 #[test]
 fn test_conversion_ancree_dans_piste_arbre() {
-    let arbre = NoeudVtree {
+    let arbre = NodeVtree {
         libelle: "record".to_string(),
         enfants: vec![
-            NoeudVtree {
+            NodeVtree {
                 libelle: "gauche".to_string(),
-                enfants: vec![NoeudVtree {
+                enfants: vec![NodeVtree {
                     libelle: "feuille".to_string(),
                     enfants: vec![],
                 }],
             },
-            NoeudVtree {
+            NodeVtree {
                 libelle: "droite".to_string(),
                 enfants: vec![],
             },

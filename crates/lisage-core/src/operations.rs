@@ -101,13 +101,13 @@ fn forme_schema(schema: &Schema) -> &'static str {
 fn valider_niveaux<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     schema: &Schema,
-    noeud: NodeId,
+    node: NodeId,
     visite: &mut BTreeSet<NodeId>,
 ) -> Result<(), CoreError> {
-    if !visite.insert(noeud) {
+    if !visite.insert(node) {
         return Ok(());
     }
-    match pool.resolve(noeud)? {
+    match pool.resolve(node)? {
         Form::Terminal(_) => Ok(()),
         Form::Node { level, arcs } => {
             if level.0 >= schema.nombre_niveaux() {
@@ -335,13 +335,13 @@ impl Transduction for Image {
     }
 }
 
-/// `exists(p)` on the set of maps denoted by `noeud` (schema `Map`).
+/// `exists(p)` on the set of maps denoted by `node` (schema `Map`).
 pub fn existe<PIn, POut>(
     pool_input: &PIn,
     pool_output: &mut POut,
     anchor: Anchor,
     schema: &Schema,
-    noeud: NodeId,
+    node: NodeId,
     predicat: PredicatMap,
 ) -> Result<bool, CoreError>
 where
@@ -350,20 +350,20 @@ where
 {
     let transduction = Existe::new(schema, predicat)?;
     let mut visite = BTreeSet::new();
-    valider_niveaux(pool_input, schema, noeud, &mut visite)?;
+    valider_niveaux(pool_input, schema, node, &mut visite)?;
     let mut runner = Transducteur::new(transduction);
-    let (_, verdict) = runner.run(pool_input, pool_output, anchor, noeud)?;
+    let (_, verdict) = runner.run(pool_input, pool_output, anchor, node)?;
     Ok(verdict.0)
 }
 
-/// `filter(p)` on the set of maps denoted by `noeud`: returns the diagram
+/// `filter(p)` on the set of maps denoted by `node`: returns the diagram
 /// of the filtered set (canonical, A3).
 pub fn filtrer<PIn, POut>(
     pool_input: &PIn,
     pool_output: &mut POut,
     anchor: Anchor,
     schema: &Schema,
-    noeud: NodeId,
+    node: NodeId,
     predicat: PredicatMap,
 ) -> Result<NodeId, CoreError>
 where
@@ -372,18 +372,18 @@ where
 {
     let transduction = Filtre::new(schema, predicat)?;
     let mut visite = BTreeSet::new();
-    valider_niveaux(pool_input, schema, noeud, &mut visite)?;
+    valider_niveaux(pool_input, schema, node, &mut visite)?;
     let mut runner = Transducteur::new(transduction);
-    let (resultat, _) = runner.run(pool_input, pool_output, anchor, noeud)?;
+    let (resultat, _) = runner.run(pool_input, pool_output, anchor, node)?;
     Ok(resultat)
 }
 
-/// `map(f)` on the set of atoms denoted by `noeud` (schema `Atom`).
+/// `map(f)` on the set of atoms denoted by `node` (schema `Atom`).
 pub fn image<PIn, POut>(
     pool_input: &PIn,
     pool_output: &mut POut,
     anchor: Anchor,
-    noeud: NodeId,
+    node: NodeId,
     fonction: Box<dyn Fn(u64) -> u64 + Send + Sync>,
 ) -> Result<NodeId, CoreError>
 where
@@ -391,6 +391,6 @@ where
     POut: Pool<Key = u64, Payload = bool>,
 {
     let mut runner = Transducteur::new(Image::new(fonction));
-    let (resultat, _) = runner.run(pool_input, pool_output, anchor, noeud)?;
+    let (resultat, _) = runner.run(pool_input, pool_output, anchor, node)?;
     Ok(resultat)
 }

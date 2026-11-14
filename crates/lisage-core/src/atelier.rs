@@ -148,7 +148,7 @@ impl<C: Controller> Controller for AtelierController<C> {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct RapportAtelier {
     /// Distinct reachable nodes (R-share active): the shared diagram.
-    pub noeuds_partages: u64,
+    pub nodes_partages: u64,
     /// Root → terminal paths in the DAG.
     pub chemins: u64,
     /// Nodes of the unfolded tree (each arc duplicating the target subtree):
@@ -166,17 +166,17 @@ pub fn mesurer<P: Pool>(
     observateur: Option<&dyn Observer>,
 ) -> Result<RapportAtelier, PoolError> {
     let rapport = RapportAtelier {
-        noeuds_partages: compter_noeuds(pool, root)?,
+        nodes_partages: compter_nodes(pool, root)?,
         chemins: compter_chemins(pool, root)?,
         taille_depliee: compter_taille_depliee(pool, root)?,
     };
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: root,
+            node: root,
             valeur: format!(
-                "noeuds_partages={} chemins={} taille_depliee={}",
-                rapport.noeuds_partages, rapport.chemins, rapport.taille_depliee
+                "nodes_partages={} chemins={} taille_depliee={}",
+                rapport.nodes_partages, rapport.chemins, rapport.taille_depliee
             ),
         });
     }
@@ -184,14 +184,14 @@ pub fn mesurer<P: Pool>(
 }
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
-pub fn compter_noeuds<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
+pub fn compter_nodes<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     let mut visite = BTreeSet::new();
     let mut pile = vec![root];
-    while let Some(noeud) = pile.pop() {
-        if !visite.insert(noeud) {
+    while let Some(node) = pile.pop() {
+        if !visite.insert(node) {
             continue;
         }
-        if let Form::Node { arcs, .. } = pool.resolve(noeud)? {
+        if let Form::Node { arcs, .. } = pool.resolve(node)? {
             pile.extend(arcs.values().copied());
         }
     }
@@ -204,13 +204,13 @@ pub fn compter_noeuds<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError>
 pub fn compter_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     fn chemins<P: Pool>(
         pool: &P,
-        noeud: NodeId,
+        node: NodeId,
         memo: &mut HashMap<NodeId, u64>,
     ) -> Result<u64, PoolError> {
-        if let Some(total) = memo.get(&noeud) {
+        if let Some(total) = memo.get(&node) {
             return Ok(*total);
         }
-        let total = match pool.resolve(noeud)? {
+        let total = match pool.resolve(node)? {
             Form::Terminal(_) => 1,
             Form::Node { arcs, .. } => {
                 let mut somme = 0u64;
@@ -220,7 +220,7 @@ pub fn compter_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError
                 somme
             }
         };
-        memo.insert(noeud, total);
+        memo.insert(node, total);
         Ok(total)
     }
     let mut memo = HashMap::new();
@@ -233,13 +233,13 @@ pub fn compter_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError
 pub fn compter_taille_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     fn taille<P: Pool>(
         pool: &P,
-        noeud: NodeId,
+        node: NodeId,
         memo: &mut HashMap<NodeId, u64>,
     ) -> Result<u64, PoolError> {
-        if let Some(total) = memo.get(&noeud) {
+        if let Some(total) = memo.get(&node) {
             return Ok(*total);
         }
-        let total = match pool.resolve(noeud)? {
+        let total = match pool.resolve(node)? {
             Form::Terminal(_) => 1,
             Form::Node { arcs, .. } => {
                 let mut somme = 1u64;
@@ -249,7 +249,7 @@ pub fn compter_taille_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, Po
                 somme
             }
         };
-        memo.insert(noeud, total);
+        memo.insert(node, total);
         Ok(total)
     }
     let mut memo = HashMap::new();
@@ -383,10 +383,10 @@ pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: root_relative,
+            node: root_relative,
             valeur: format!(
-                "encodage=relatif_vs_absolu noeuds={} contre {}",
-                relatif.noeuds_partages, absolu.noeuds_partages
+                "encodage=relatif_vs_absolu nodes={} contre {}",
+                relatif.nodes_partages, absolu.nodes_partages
             ),
         });
     }
@@ -540,13 +540,13 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: root_second,
+            node: root_second,
             valeur: format!(
-                "ordre={}_vs_{} noeuds={} contre {}",
+                "ordre={}_vs_{} nodes={} contre {}",
                 ordre_premier.etiquette(),
                 ordre_second.etiquette(),
-                premier.noeuds_partages,
-                second.noeuds_partages
+                premier.nodes_partages,
+                second.nodes_partages
             ),
         });
     }
@@ -656,7 +656,7 @@ pub struct RapportComparaisonAncres {
     pub meme_forme: bool,
     /// Node count of the pool after both readings (one root per
     /// anchor, a single window shape).
-    pub noeuds_pool: u64,
+    pub nodes_pool: u64,
     /// Absolute reading `[base, base + horizon)` under the first anchor.
     pub lecture_avant: (i64, i64),
     /// Absolute reading `[base, base + horizon)` under the second anchor.
@@ -682,7 +682,7 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
     // window shape reached on both sides must be the same node.
     let (root_avant, fenetre_avant) = construire_fenetre_ancree(pool, anchor, taille, ancre_avant);
     let (root_apres, fenetre_apres) = construire_fenetre_ancree(pool, anchor, taille, ancre_apres);
-    let noeuds_pool = pool.node_count() as u64;
+    let nodes_pool = pool.node_count() as u64;
     let meme_forme = fenetre_avant == fenetre_apres;
     let avant = mesurer(pool, root_avant, observateur)?;
     let apres = mesurer(pool, root_apres, observateur)?;
@@ -691,18 +691,18 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
         let (debut_apres, fin_apres) = ancre_apres.fenetre_absolue();
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
-            noeud: root_apres,
+            node: root_apres,
             valeur: format!(
-                "ancre={}_vs_{} noeuds={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
+                "ancre={}_vs_{} nodes={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
                 ancre_avant.etiquette(),
                 ancre_apres.etiquette(),
-                avant.noeuds_partages,
-                apres.noeuds_partages,
+                avant.nodes_partages,
+                apres.nodes_partages,
                 debut_avant,
                 fin_avant,
                 debut_apres,
                 fin_apres,
-                noeuds_pool,
+                nodes_pool,
             ),
         });
     }
@@ -710,7 +710,7 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
         avant,
         apres,
         meme_forme,
-        noeuds_pool,
+        nodes_pool,
         lecture_avant: ancre_avant.fenetre_absolue(),
         lecture_apres: ancre_apres.fenetre_absolue(),
     })

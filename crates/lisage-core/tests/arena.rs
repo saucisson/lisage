@@ -189,7 +189,7 @@ fn test_events_trace_narration() {
     let anchor = Anchor(0);
     let node = arena.intern(anchor, Form::Terminal(true));
     arena.intern(anchor, Form::Terminal(true));
-    let noeud = arena.intern(
+    let node2 = arena.intern(
         anchor,
         Form::Node {
             level: Level(5),
@@ -203,7 +203,7 @@ fn test_events_trace_narration() {
             TraceEvent::NodeCreated { node, level: None },
             TraceEvent::NodeShared { node },
             TraceEvent::NodeCreated {
-                node: noeud,
+                node: node2,
                 level: Some(Level(5))
             },
         ]
@@ -227,14 +227,14 @@ fn test_events_reduction_applied() {
     );
     assert_eq!(cible, defaut);
     // R-default: the δ(ℓ) arc leads to D_δ, it is removed, the form is kept.
-    let noeud = arena.intern(
+    let node = arena.intern(
         anchor,
         Form::Node {
             level: niveau,
             arcs: BTreeMap::from([(0, defaut), (1, autre)]),
         },
     );
-    assert_ne!(noeud, defaut);
+    assert_ne!(node, defaut);
     let events = trace.events.lock().unwrap();
     assert!(
         events.contains(&TraceEvent::ReductionApplied {

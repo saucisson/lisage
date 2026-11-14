@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 6: `noeud` identifiers renamed to `node` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `noeud` stem (lowercase, `Noeud`, `NOEUD`, compounds like `noeuds_partages`, `NodeVtree`) to `node`/`Node`/`NODE`, workspace-wide (57 files), per glossary (nœud → node). One shadowing collision fixed by hand: `tests/arena.rs` used distinct `node` and `noeud` bindings, the second is now `node2`; one clippy `redundant_field_names` fixed with the shorthand.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for `noeud` returns 0.
+- **Judgement calls**: blanket stem rename, collisions resolved by renaming the shadowing binding (`node2`) rather than reverting.
 ## 2026-11-14 - M6-6 part 5: `entree`/`sortie` identifiers renamed to `input`/`output` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

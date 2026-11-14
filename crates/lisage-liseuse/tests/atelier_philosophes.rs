@@ -23,7 +23,7 @@ fn mesurer_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
     let root = construire_r_n(&mut pool, ANCRE, n);
     let rapport = mesurer(&pool, root, None).expect("interned node");
     (
-        rapport.noeuds_partages,
+        rapport.nodes_partages,
         rapport.chemins,
         rapport.taille_depliee,
     )
@@ -35,14 +35,14 @@ fn mesurer_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
 /// is visible to the naked eye.
 #[test]
 fn test_r3_partage_contre_taille_depliee() {
-    let (noeuds, chemins, taille_depliee) = mesurer_r_n(3, Reductions::TOUTES);
+    let (nodes, chemins, taille_depliee) = mesurer_r_n(3, Reductions::TOUTES);
     assert_eq!(chemins, 20, "one path per reachable state of R₃");
     assert_eq!(mots_atteignables(3).len() as u64, 20);
     assert_eq!(taille_depliee, 126, "sum of the lengths of the 20 paths");
-    assert_eq!(noeuds, 33, "shared nodes of R₃ in flat encoding");
+    assert_eq!(nodes, 33, "shared nodes of R₃ in flat encoding");
     assert!(
-        noeuds < taille_depliee,
-        "sharing (R-share) fits in {noeuds} nodes against {taille_depliee} unfolded"
+        nodes < taille_depliee,
+        "sharing (R-share) fits in {nodes} nodes against {taille_depliee} unfolded"
     );
 }
 
@@ -50,15 +50,15 @@ fn test_r3_partage_contre_taille_depliee() {
 /// two metrics on the same construction.
 #[test]
 fn test_commutation_ne_reduit_jamais() {
-    let (noeuds_toutes, chemins_toutes, taille_toutes) = mesurer_r_n(3, Reductions::TOUTES);
-    let (noeuds_aucune, chemins_aucune, taille_aucune) = mesurer_r_n(3, Reductions::AUCUNE);
-    assert!(noeuds_aucune >= noeuds_toutes);
+    let (nodes_toutes, chemins_toutes, taille_toutes) = mesurer_r_n(3, Reductions::TOUTES);
+    let (nodes_aucune, chemins_aucune, taille_aucune) = mesurer_r_n(3, Reductions::AUCUNE);
+    assert!(nodes_aucune >= nodes_toutes);
     assert!(chemins_aucune >= chemins_toutes);
     assert!(taille_aucune >= taille_toutes);
-    let (noeuds_sans_collapse, _, _) = mesurer_r_n(3, Reductions::sans_collapse());
-    assert!(noeuds_sans_collapse >= noeuds_toutes);
-    let (noeuds_sans_defaut, _, _) = mesurer_r_n(3, Reductions::sans_defaut());
-    assert!(noeuds_sans_defaut >= noeuds_toutes);
+    let (nodes_sans_collapse, _, _) = mesurer_r_n(3, Reductions::sans_collapse());
+    assert!(nodes_sans_collapse >= nodes_toutes);
+    let (nodes_sans_defaut, _, _) = mesurer_r_n(3, Reductions::sans_defaut());
+    assert!(nodes_sans_defaut >= nodes_toutes);
 }
 
 /// The reference pool (without the workshop wrapper) gives the same diagram as
@@ -69,8 +69,8 @@ fn test_enveloppe_transparente_quand_tout_actif() {
     let mut reference = pool_neuf(&schema);
     let root_ref = construire_r_n(&mut reference, ANCRE, 3);
     let rapport_ref = mesurer(&reference, root_ref, None).expect("interned node");
-    let (noeuds, chemins, taille) = mesurer_r_n(3, Reductions::TOUTES);
-    assert_eq!(rapport_ref.noeuds_partages, noeuds);
+    let (nodes, chemins, taille) = mesurer_r_n(3, Reductions::TOUTES);
+    assert_eq!(rapport_ref.nodes_partages, nodes);
     assert_eq!(rapport_ref.chemins, chemins);
     assert_eq!(rapport_ref.taille_depliee, taille);
 }

@@ -137,9 +137,9 @@ fn compiler_ensemble(
 }
 
 /// Cardinality of a diagram (number of members of the denoted family).
-fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
+fn cardinal(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
     let mut output = new_pool(schema);
-    compter(pool, &mut output, Anchor(0), schema, noeud).unwrap()
+    compter(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
 
 /// M2-4, T2: `saturer` terminates and reaches a fixpoint — with an identity
@@ -165,7 +165,7 @@ fn test_saturate_termine_et_point_fixe() {
     };
     let resultat = saturer(&mut params).unwrap();
     assert_eq!(resultat.iterations, 1, "identity: immediate fixpoint (T2)");
-    assert_eq!(resultat.noeud, initial, "X ⊕ id(X) = X");
+    assert_eq!(resultat.node, initial, "X ⊕ id(X) = X");
 }
 
 /// M2-4: both policies reach the same fixpoint when `Statique` declares
@@ -208,8 +208,8 @@ fn test_saturate_politiques_equivalentes() {
     };
     let r_auto = saturer(&mut params).unwrap();
 
-    assert_eq!(r_statique.noeud, initial_s, "static: fixpoint = initial");
-    assert_eq!(r_auto.noeud, initial_a, "auto-detected: fixpoint = initial");
+    assert_eq!(r_statique.node, initial_s, "static: fixpoint = initial");
+    assert_eq!(r_auto.node, initial_a, "auto-detected: fixpoint = initial");
     assert_eq!(r_statique.iterations, r_auto.iterations);
 }
 
@@ -245,7 +245,7 @@ fn test_saturate_statique_restreint_les_niveaux() {
     };
     let r_statique = saturer(&mut params).unwrap();
     assert_eq!(
-        r_statique.noeud, initial_s,
+        r_statique.node, initial_s,
         "root level excluded: the step is not applied there, fixpoint = initial"
     );
     assert_eq!(r_statique.iterations, 1);
@@ -271,7 +271,7 @@ fn test_saturate_statique_restreint_les_niveaux() {
     };
     let r_auto = saturer(&mut params).unwrap();
     assert_eq!(
-        r_auto.noeud, attendu_a,
+        r_auto.node, attendu_a,
         "all levels active: the fixpoint contains the emitted singleton"
     );
     assert!(
@@ -316,8 +316,8 @@ fn test_saturate_chaine_croissante_multi_iterations() {
     );
     assert!(resultat.iterations <= BORNE_ITERATIONS, "termination (T2)");
     assert_eq!(
-        resultat.noeud, attendu,
+        resultat.node, attendu,
         "fixpoint = union of the initial and the singleton"
     );
-    assert_eq!(cardinal(&pool, &schema, resultat.noeud), 2);
+    assert_eq!(cardinal(&pool, &schema, resultat.node), 2);
 }
