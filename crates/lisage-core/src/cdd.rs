@@ -1,25 +1,25 @@
-//! Instance-test **CDD** (*Clock Decision Diagrams*, école UPPAAL, Larsen et
-//! al. ; backlog § 9 de la feuille de route, question ouverte 9 de la spec,
-//! veine #83 après les fragments intervalles, DBM et l'instance-test
-//! DDD-différence) : les **unions non convexes de zones DBM** comme
-//! clés-régions d'horloges — le cas « δ = différences d'horloges, ensembles
-//! non convexes » de l'état de l'art.
+//! **CDD** (*Clock Decision Diagrams*) test instance (UPPAAL school, Larsen et
+//! al.; backlog § 9 of the roadmap, open question 9 of the spec,
+//! vein #83 after the intervals, DBM fragments and the
+//! DDD-difference test instance): the **non-convex unions of DBM zones** as
+//! clock region-keys — the "δ = clock differences, non-convex sets" case of
+//! the state of the art.
 //!
-//! Spec Q9 (i) : « unions non convexes sans forme normale connue » — la
-//! non-canonicité est **assumée** (style DDD) : la forme normale de l'union
-//! est le tri + dédup des zones clôturées (égalité syntaxique des écritures
-//! normalisées), pas l'égalité ensembliste. Deux écritures d'un même
-//! ensemble non convexe (par exemple une zone incluse dans une autre) peu-
-//! vent rester des clés distinctes : C1 tient relativement à cette forme
-//! normale, pas à l'ensemble dénoté. L'appartenance d'un point, elle, est
-//! décidable sémantiquement (appartenance à l'une des zones).
+//! Spec Q9 (i): "non-convex unions with no known normal form" — the
+//! non-canonicity is **assumed** (DDD style): the normal form of the union
+//! is the sort + dedup of the closed zones (syntactic equality of the
+//! normalized writings), not set-theoretic equality. Two writings of the same
+//! non-convex set (for example a zone included in another) can
+//! remain distinct keys: C1 holds relative to this
+//! normal form, not to the denoted set. Point membership, for its part, is
+//! semantically decidable (membership in one of the zones).
 //!
-//! Le contrat de clés (forme normale, couverture, intersection) reste déclaré
-//! côté contrôleur (`Cdd`, `CddKeys`) ; le pool ne change pas. Le balayage
-//! d'univers ne compile que si l'univers est borné à régions énumérables
-//! (spec Q9) : la construction du diagramme passe par les régions explicites,
-//! jamais par l'énumération des points — royaume libre DDD assumé sur le
-//! continu.
+//! The key contract (normal form, coverage, intersection) remains declared
+//! controller-side (`Cdd`, `CddKeys`); the pool does not change. The
+//! universe sweep only compiles if the universe is bounded to enumerable
+//! regions (spec Q9): the diagram construction goes through explicit regions,
+//! never through point enumeration — free DDD realm assumed on the
+//! continuum.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -29,20 +29,20 @@ use lisage_algebra::interface::{
 
 use crate::dbm::Dbm;
 
-/// Union vide canonique : zéro zone — l'« absent » continu δ(ℓ).
+/// Canonical empty union: zero zones — the continuous "absent" δ(ℓ).
 pub const VIDE: Cdd = Cdd { zones: Vec::new() };
 
-/// Clé-région non convexe : union finie de zones DBM clôturées sur
-/// `nombre_variables` horloges. Toute construction passe par [`Cdd::nouveau`],
-/// qui normalise : zones vides retirées, tri, dédup — la forme normale
-/// *syntaxique* de l'union (non-canonicité assumée, spec Q9 (i)).
+/// Non-convex region-key: finite union of closed DBM zones over
+/// `nombre_variables` clocks. Every construction goes through [`Cdd::nouveau`],
+/// which normalizes: empty zones removed, sort, dedup — the
+/// *syntactic* normal form of the union (assumed non-canonicity, spec Q9 (i)).
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Cdd {
     zones: Vec<Dbm>,
 }
 
 impl Cdd {
-    /// Union des `zones` données, normalisée (vides retirées, tri, dédup).
+    /// Union of the given `zones`, normalized (empties removed, sort, dedup).
     pub fn nouveau(zones: &[Dbm]) -> Self {
         let mut normalisees: Vec<Dbm> = zones
             .iter()
@@ -54,26 +54,26 @@ impl Cdd {
         Cdd { zones: normalisees }
     }
 
-    /// Les zones de l'union, triées et dédupliquées.
+    /// The zones of the union, sorted and deduplicated.
     pub fn zones(&self) -> &[Dbm] {
         &self.zones
     }
 
-    /// L'union est-elle vide (zéro zone) ?
+    /// Is the union empty (zero zones)?
     pub fn est_vide(&self) -> bool {
         self.zones.is_empty()
     }
 
-    /// Le point `point[i] = x_i` appartient-il à l'union (sémantique,
-    /// décidable : appartenance à l'une des zones) ?
+    /// Does the point `point[i] = x_i` belong to the union (semantics,
+    /// decidable: membership in one of the zones)?
     pub fn contient(&self, point: &[u64]) -> bool {
         self.zones.iter().any(|zone| zone.contient(point))
     }
 
-    /// Intersection (meet) de deux unions : distributivité — l'union des
-    /// meets point à point des zones, puis normalisation (les meets vides
-    /// sont retirés). Le meet de deux unions de zones est une union de
-    /// zones : le treillis est clos.
+    /// Intersection (meet) of two unions: distributivity — the union of the
+    /// point-by-point meets of the zones, then normalization (empty meets
+    /// are removed). The meet of two unions of zones is a union of
+    /// zones: the lattice is closed.
     pub fn intersection(&self, autre: &Cdd) -> Cdd {
         let mut zones: Vec<Dbm> = Vec::new();
         for a in &self.zones {
@@ -88,37 +88,37 @@ impl Cdd {
     }
 }
 
-/// Algèbre de clés-régions CDD sur domaine borné par variable :
-/// `Val(ℓ) = [0, taille_domaine)`, une clé = une union finie de zones DBM de
-/// la boîte, `δ(ℓ)` = l'union vide [`VIDE`].
+/// CDD region-key algebra over a per-variable bounded domain:
+/// `Val(ℓ) = [0, taille_domaine)`, a key = a finite union of DBM zones of
+/// the box, `δ(ℓ)` = the empty union [`VIDE`].
 #[derive(Clone)]
 pub struct CddKeys {
     taille_domaine: u64,
 }
 
 impl CddKeys {
-    /// Algèbre pour des variables à domaine borné `[0, taille_domaine)`.
+    /// Algebra for variables with bounded domain `[0, taille_domaine)`.
     pub fn nouvelle(taille_domaine: u64) -> Self {
         CddKeys { taille_domaine }
     }
 
-    /// Taille du domaine d'une variable, `Val(ℓ) = [0, taille)`.
+    /// Domain size of a variable, `Val(ℓ) = [0, taille)`.
     pub fn taille_domaine(&self) -> u64 {
         self.taille_domaine
     }
 
-    /// Couverture : la famille d'unions couvre-t-elle toute la boîte bornée
-    /// `[0, taille_domaine)^n` (n = dimension des zones) ?
+    /// Coverage: does the family of unions cover the whole bounded box
+    /// `[0, taille_domaine)^n` (n = dimension of the zones)?
     ///
-    /// Contrat de clés déclaré côté contrôleur (feuille de route § 9 :
-    /// « forme normale, couverture, intersection »). Décidable par
-    /// balayage d'univers **seulement si l'univers est borné à régions
-    /// énumérables** (spec Q9) : sur le domaine continu, le balayage ne
-    /// compile pas et le royaume libre DDD est assumé — la couverture se
-    /// déclare alors par les arcs explicites du diagramme.
+    /// Key contract declared controller-side (roadmap § 9:
+    /// "normal form, coverage, intersection"). Decidable by
+    /// universe sweep **only if the universe is bounded to
+    /// enumerable regions** (spec Q9): on the continuous domain, the sweep
+    /// does not compile and the free DDD realm is assumed — coverage is
+    /// then declared by the explicit arcs of the diagram.
     pub fn couverture(&self, regions: &[Cdd]) -> bool {
-        // L'union vide ne couvre rien ; la dimension est celle des zones
-        // d'une union non vide (une famille d'unions vides ne couvre pas).
+        // The empty union covers nothing; the dimension is that of the zones
+        // of a non-empty union (a family of empty unions covers nothing).
         let Some(n) = regions
             .iter()
             .find(|region| !region.est_vide())
@@ -132,18 +132,18 @@ impl CddKeys {
                 assert_eq!(
                     zone.nombre_variables(),
                     n,
-                    "couverture d'une famille hétérogène (invariant interne)"
+                    "coverage of a heterogeneous family (internal invariant)"
                 );
             }
         }
         let taille = self.taille_domaine;
-        // Balayage d'univers de la boîte bornée (odomètre sur n variables).
+        // Universe sweep of the bounded box (odometer over n variables).
         let mut point = vec![0u64; n];
         loop {
             if !regions.iter().any(|region| region.contient(&point)) {
                 return false;
             }
-            // Incrémentation odométrique.
+            // Odometer increment.
             let mut i = n;
             loop {
                 if i == 0 {
@@ -176,15 +176,15 @@ impl KeyAlgebra for CddKeys {
     }
 }
 
-/// Contrôleur à clés-régions CDD : payload booléen, `D_δ` = union vide →
-/// `false` (miroir de la présence `Set` : l'arc absent mène à
-/// `terminal(false)` et R-default le supprime).
+/// CDD region-key controller: boolean payload, `D_δ` = empty union →
+/// `false` (mirror of `Set` presence: the absent arc leads to
+/// `terminal(false)` and R-default removes it).
 pub struct CddController {
     keys: CddKeys,
 }
 
 impl CddController {
-    /// Contrôleur pour l'algèbre de clés-régions CDD donnée.
+    /// Controller for the given CDD region-key algebra.
     pub fn nouveau(keys: CddKeys) -> Self {
         CddController { keys }
     }
@@ -206,9 +206,9 @@ impl Controller for CddController {
     }
 }
 
-/// Évalue un CDD sur un point du domaine : à chaque nœud, suit l'arc dont
-/// l'union contient le point. `Ok(None)` si aucun arc ne couvre le point :
-/// l'arc absent vaut δ(ℓ), l'« absent » continu.
+/// Evaluates a CDD on a domain point: at each node, follows the arc whose
+/// union contains the point. `Ok(None)` if no arc covers the point:
+/// the absent arc is δ(ℓ), the continuous "absent".
 pub fn evaluer<P: Pool<Key = Cdd, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -232,9 +232,9 @@ pub fn evaluer<P: Pool<Key = Cdd, Payload = bool>>(
     }
 }
 
-/// Compte les nœuds distincts atteignables depuis `racine`, terminaux
-/// compris. Propage l'erreur du pool : un `NodeId` non interné est une
-/// erreur, pas une feuille silencieuse.
+/// Counts the distinct nodes reachable from `racine`, terminals
+/// included. Propagates the pool error: a non-interned `NodeId` is an
+/// error, not a silent leaf.
 pub fn compter_noeuds<P: Pool<Key = Cdd, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -252,14 +252,14 @@ pub fn compter_noeuds<P: Pool<Key = Cdd, Payload = bool>>(
     Ok(visite.len() as u64)
 }
 
-/// Instance-test : la région non convexe `{x − y ≤ 0} ∪ {x − y ≥ 2}` sur deux
-/// horloges — ce qu'aucune DBM seule n'exprime — compilée en un seul niveau
-/// par régions explicites (aucun balayage d'univers à la construction) :
+/// Test instance: the non-convex region `{x − y ≤ 0} ∪ {x − y ≥ 2}` over two
+/// clocks — what no single DBM expresses — compiled in a single level
+/// by explicit regions (no universe sweep at construction):
 ///
-/// - l'arc d'union non convexe mène à `true` ;
-/// - l'arc complémentaire `{x − y = 1}` (la bande ouverte `0 < x − y < 2`
-///   sur le domaine entier borné) mène à `false` ; les deux arcs couvrent la
-///   boîte.
+/// - the non-convex union arc leads to `true`;
+/// - the complementary arc `{x − y = 1}` (the open band `0 < x − y < 2`
+///   over the bounded integer domain) leads to `false`; the two arcs cover
+///   the box.
 pub fn compiler_union_horloges<P: Pool<Key = Cdd, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
