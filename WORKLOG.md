@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4a-4: lisage-core cdd+dabs translated to English (PR #204, issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in `crates/lisage-core/src/cdd.rs`, `crates/lisage-core/tests/cdd.rs` and `crates/lisage-core/tests/dabs.rs` to English. Public French identifiers are kept until dependent crates are translated (M6-6).
+- **Evidence**: `cargo fmt -p lisage-core -- --check` clean; `cargo test -p lisage-core` 146 passed, 0 failed. Full-workspace `make check` not run on this branch (crate-scoped gates only); it runs on `daily` after all M6-5 pull requests merge.
+- **Judgement calls**: comments/strings translated now, identifier renames deferred to M6-6.
 ## 2026-11-14 - M6-5 part 4a-3: lisage-core transduction+transfert translated to English (PR #203, issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
