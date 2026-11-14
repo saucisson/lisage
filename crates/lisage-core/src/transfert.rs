@@ -1,32 +1,32 @@
-//! Événements non locaux (M2-5, spec § 7, énoncé T3) : compilation d'une
-//! transition de largeur `w` en transduction à **mémoire de niveau**, avec
-//! un surcoût polynomial en `w`.
+//! Non-local events (M2-5, spec § 7, statement T3): compiling a transition of
+//! width `w` into a transduction with **level memory**, with
+//! a polynomial overhead in `w`.
 //!
-//! Exemple de référence (spec § 7) : le transfert `t : m(a) -= 1; m(b) += 1`
-//! sur une `Map` — la transition touche les niveaux des deux clés `a` et
-//! `b`, non adjacents. La sémantique est non locale (lire `a`, écrire `b`),
-//! mais chaque *segment* est local : l'attribut hérité `H` porte le jeton
-//! de transfert de `val(a)` vers `val(b)` à travers les niveaux
-//! intermédiaires, et la mémoire de niveau `M` enregistre au nœud émetteur
-//! que le décrément a déjà été produit (idempotence par `(nœud, niveau)`).
+//! Reference example (spec § 7): the transfer `t : m(a) -= 1; m(b) += 1`
+//! on a `Map` — the transition touches the levels of the two keys `a` and
+//! `b`, non-adjacent. The semantics is non-local (read `a`, write `b`),
+//! but each *segment* is local: the inherited attribute `H` carries the
+//! transfer token from `val(a)` to `val(b)` through the
+//! intermediate levels, and the level memory `M` records at the emitting node
+//! that the decrement has already been produced (idempotence by `(node, level)`).
 //!
-//! **Sémantique par arc** (spec § 7, `φ_disp(val(a), h, v) = v ≥ 1 ?
-//! h_transfert : stop`) : la source est décrémentée dès que `m(a) ≥ 1` ;
-//! la destination reçoit `m(b) + 1` si cette valeur est dans le domaine,
-//! sinon son arc est conservé (le décrément de la source reste appliqué —
-//! cas épinglé par `test_transfert_destination_hors_domaine`).
+//! **Per-arc semantics** (spec § 7, `φ_disp(val(a), h, v) = v ≥ 1 ?
+//! h_transfert : stop`): the source is decremented as soon as `m(a) ≥ 1`;
+//! the destination receives `m(b) + 1` if this value is in the domain,
+//! otherwise its arc is kept (the source decrement still applies —
+//! case pinned by `test_transfert_destination_hors_domaine`).
 //!
-//! **Surcoût poly(w) (T3)** : la transduction visite chaque nœud une fois
-//! (mémo L1) et fait un travail O(1) par nœud ; `H` est un état O(1) par
-//! niveau et `M` stocke au plus une entrée par `(nœud, niveau)` touché,
-//! soit O(w) entrées par nœud. La compilation ne réifie aucune variable
-//! intermédiaire (contrairement à Zhao/Ciardo) : `M` et `H` cousent les
+//! **Poly(w) overhead (T3)**: the transduction visits each node once
+//! (memo L1) and does O(1) work per node; `H` is an O(1) state per
+//! level and `M` stores at most one entry per touched `(node, level)`,
+//! i.e. O(w) entries per node. The compilation does not reify any
+//! intermediate variable (unlike Zhao/Ciardo): `M` and `H` stitch the
 //! segments.
 //!
-//! **Périmètre** : la destination doit exister dans le diagramme (clé
-//! présente, ou nœud de présence conservé par une clé ultérieure) — le cas
-//! « destination absente et collapsée » relève de l'explicitation d'axe
-//! (T-EXPAND, § lookup), hors de ce jalon.
+//! **Scope**: the destination must exist in the diagram (key
+//! present, or presence node kept by a later key) — the
+//! "absent and collapsed destination" case falls under axis
+//! explicitation (T-EXPAND, § lookup), outside this milestone.
 
 use std::collections::BTreeMap;
 
@@ -38,25 +38,25 @@ use crate::schema::{ABSENT, Domaine, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::Atom;
 
-/// Fingerprint de base de la transduction de transfert.
+/// Base fingerprint of the transfer transduction.
 const FINGERPRINT_TRANSFERT: u64 = 5001;
-/// Nombre de niveaux touchés par un transfert entre deux clés : présence +
-/// valeur de la source, présence + valeur de la destination.
+/// Number of levels touched by a transfer between two keys: presence +
+/// value of the source, presence + value of the destination.
 pub const LARGEUR_TRANSFERT: u32 = 4;
 
-/// Attribut hérité du transfert : état du jeton entre les niveaux.
+/// Inherited attribute of the transfer: state of the token between levels.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum EtatTransfert {
-    /// Descente normale : aucun transfert en cours.
+    /// Normal descent: no transfer in progress.
     Normal,
-    /// Transfert en cours : montant à ajouter à la valeur de la clé
-    /// destination (1 unité transférée).
+    /// Transfer in progress: amount to add to the value of the
+    /// destination key (1 unit transferred).
     Transfert(u64),
 }
 
-/// Transition non locale `m(a) -= 1; m(b) += 1` compilée en transduction à
-/// mémoire de niveau (T3). Requiert `index_source < index_destination` : le
-/// jeton hérité descend de `val(a)` vers `val(b)`.
+/// Non-local transition `m(a) -= 1; m(b) += 1` compiled into a level-memory
+/// transduction (T3). Requires `index_source < index_destination`: the
+/// inherited token descends from `val(a)` to `val(b)`.
 #[derive(Clone)]
 pub struct TransfertNonLocal {
     index_source: usize,
@@ -66,19 +66,19 @@ pub struct TransfertNonLocal {
 }
 
 impl TransfertNonLocal {
-    /// Transfert de la clé `index_source` vers la clé `index_destination`
-    /// (dans l'ordre des clés de la `Map`) du schéma donné.
+    /// Transfer from key `index_source` to key `index_destination`
+    /// (in the key order of the `Map`) of the given schema.
     ///
     /// # Panics
-    /// Si le schéma n'est pas une `Map`, ou si `index_source >=
-    /// index_destination` (le jeton hérité ne remonte pas).
+    /// If the schema is not a `Map`, or if `index_source >=
+    /// index_destination` (the inherited token does not go upward).
     pub fn new(schema: &Schema, index_source: usize, index_destination: usize) -> Self {
         assert!(
             index_source < index_destination,
-            "le transfert exige source < destination (jeton hérité descendant)"
+            "transfer requires source < destination (downward inherited token)"
         );
         let Schema::Map(_, domaine) = schema else {
-            panic!("TransfertNonLocal exige un schéma Map");
+            panic!("TransfertNonLocal requires a Map schema");
         };
         TransfertNonLocal {
             index_source,
@@ -88,24 +88,24 @@ impl TransfertNonLocal {
         }
     }
 
-    /// Largeur `w` de la transition : niveaux touchés (T3, surcoût poly(w)).
+    /// Width `w` of the transition: touched levels (T3, poly(w) overhead).
     pub fn largeur(&self) -> u32 {
         LARGEUR_TRANSFERT
     }
 
-    /// Niveau valeur de la clé source.
+    /// Value level of the source key.
     fn niveau_source(&self) -> Level {
         Schema::niveau_valeur(self.index_source)
     }
 
-    /// Niveau valeur de la clé destination.
+    /// Value level of the destination key.
     fn niveau_destination(&self) -> Level {
         Schema::niveau_valeur(self.index_destination)
     }
 
-    /// Insère l'arc remapé `cle ↦ (n, s)` dans `remap` ; en cas de collision
-    /// de clé (famille : deux arcs remapés vers la même cible), les deux
-    /// sous-arbres sont **unionés**, jamais écrasés.
+    /// Inserts the remapped arc `cle ↦ (n, s)` into `remap`; on key collision
+    /// (family: two arcs remapped to the same target), the two
+    /// subtrees are **unioned**, never overwritten.
     fn inserer_remap<P: Pool<Key = u64, Payload = bool>>(
         pool: &mut P,
         keys: &SchemaKeys,
@@ -118,7 +118,7 @@ impl TransfertNonLocal {
         match remap.remove(&cle) {
             Some((ancien, _)) => {
                 let fusion = union(pool, keys, anchor, ancien, n)
-                    .expect("union de sous-arcs d'un même pool");
+                    .expect("union of sub-arcs of the same pool");
                 remap.insert(cle, (fusion, s));
             }
             None => {
@@ -127,10 +127,10 @@ impl TransfertNonLocal {
         }
     }
 
-    /// Décrément de la source (niveau `val(a)`) : remap `v → v-1` si
-    /// `v ≥ 1` (spec § 7 : `φ_disp(val(a), h, v) = v ≥ 1 ? h_transfert : stop`),
-    /// et effet mémoire `M[id(n), val(a)] ← true` si un décrément a été
-    /// produit (idempotence par `(nœud, niveau)`).
+    /// Decrement of the source (level `val(a)`): remap `v → v-1` if
+    /// `v ≥ 1` (spec § 7: `φ_disp(val(a), h, v) = v ≥ 1 ? h_transfert : stop`),
+    /// and memory effect `M[id(n), val(a)] ← true` if a decrement was
+    /// produced (idempotence by `(node, level)`).
     fn decremente_source<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
@@ -140,7 +140,7 @@ impl TransfertNonLocal {
         level: Level,
         arcs: BTreeMap<u64, (NodeId, ())>,
     ) -> (BTreeMap<u64, (NodeId, ())>, EffetMemoire<bool>) {
-        // Déjà produit par ce nœud à cette visite ? (idempotence M).
+        // Already produced by this node at this visit? (idempotence M).
         if memoire.lire(noeud_entree, level) == Some(&true) {
             return (arcs, EffetMemoire::new());
         }
@@ -162,9 +162,9 @@ impl TransfertNonLocal {
         (remap, effet)
     }
 
-    /// Pose de la destination **absente** (niveau `k_b?`) : l'arc `ABSENT`
-    /// devient `PRESENT` vers un nœud valeur neuf portant le montant
-    /// transféré (spec § 7 : `φ_disp(k_b?, h_transfert(w), ·) = h_pose(w+1)`).
+    /// Placement of the **absent** destination (level `k_b?`): the `ABSENT`
+    /// arc becomes `PRESENT` towards a new value node carrying the
+    /// transferred amount (spec § 7: `φ_disp(k_b?, h_transfert(w), ·) = h_pose(w+1)`).
     fn pose_presence_destination<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
@@ -186,11 +186,11 @@ impl TransfertNonLocal {
                     arcs: BTreeMap::from([(montant, suite)]),
                 },
             );
-            // Collision avec un arc PRESENT existant (famille) : union.
+            // Collision with an existing PRESENT arc (family): union.
             match arcs.remove(&PRESENT) {
                 Some((ancien, _)) => {
                     let fusion = union(pool, &self.keys, anchor, ancien, noeud_valeur)
-                        .expect("union de sous-arcs d'un même pool");
+                        .expect("union of sub-arcs of the same pool");
                     arcs.insert(PRESENT, (fusion, ()));
                 }
                 None => {
@@ -201,10 +201,10 @@ impl TransfertNonLocal {
         arcs
     }
 
-    /// Pose sur la valeur de la destination (niveau `val(b)`) : remap
-    /// `u → u + montant` si la cible est dans le domaine ; sinon l'arc est
-    /// conservé tel quel (sémantique **par arc** : le décrément de la source
-    /// reste appliqué, épinglé par `test_transfert_destination_hors_domaine`).
+    /// Placement on the value of the destination (level `val(b)`): remap
+    /// `u → u + amount` if the target is in the domain; otherwise the arc is
+    /// kept as is (**per-arc** semantics: the source decrement
+    /// still applies, pinned by `test_transfert_destination_hors_domaine`).
     fn pose_valeur_destination<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
@@ -245,15 +245,15 @@ impl Transduction for TransfertNonLocal {
 
     fn phi_disp(&self, level: Level, h: &EtatTransfert, arc: u64) -> EtatTransfert {
         if level == self.niveau_source() {
-            // φ_disp(val(a), h, v) = v ≥ 1 ? h_transfert(1) : stop :
-            // le jeton naît à la valeur de a (1 unité à transférer).
+            // φ_disp(val(a), h, v) = v ≥ 1 ? h_transfert(1) : stop:
+            // the token is born at the value of a (1 unit to transfer).
             if arc >= 1 {
                 EtatTransfert::Transfert(1)
             } else {
                 EtatTransfert::Normal
             }
         } else {
-            // Le jeton traverse les niveaux intermédiaires inchangé.
+            // The token crosses the intermediate levels unchanged.
             h.clone()
         }
     }
