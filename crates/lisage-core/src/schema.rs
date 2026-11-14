@@ -1,13 +1,13 @@
-//! Schémas de référence (M1-3, spec § 1 et § 2.1) : `Atom(D)` borné,
-//! `Set(T)`, `Map(K, V)` bornés, compilation **balayage d'univers** (un
-//! niveau de présence par clé, δ = absent, sans marqueur).
+//! Reference schemas (M1-3, spec § 1 and § 2.1): bounded `Atom(D)`,
+//! `Set(T)`, `Map(K, V)`, **universe sweep** compilation (one presence level
+//! per key, δ = absent, no marker).
 //!
-//! Niveaux : `Atom(D)` = un niveau `Val = D` ; `Set(D)` = un niveau de
-//! présence par élément (`Val = {absent, présent}`, δ = absent) ; `Map(K,V)`
-//! = par clé `k_i` un niveau présence `2i` (δ = absent) puis un niveau valeur
-//! `2i+1` (`Val = V`, δ = ⊥). Compilation : seul l'arc choisi est interné,
-//! l'autre mène au défaut porteur D_δ = terminal(false) sur les présences
-//! (R-collapse saute les absents, style ZDD).
+//! Levels: `Atom(D)` = one level `Val = D`; `Set(D)` = one presence level
+//! per element (`Val = {absent, present}`, δ = absent); `Map(K,V)`
+//! = per key `k_i` a presence level `2i` (δ = absent) then a value level
+//! `2i+1` (`Val = V`, δ = ⊥). Compilation: only the chosen arc is interned,
+//! the other leads to the carrier default D_δ = terminal(false) on presences
+//! (R-collapse skips absents, ZDD style).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,27 +16,27 @@ use lisage_algebra::interface::{
 };
 use lisage_lang::value::{Atom, Value};
 
-/// Clé d'arc de présence : absent (défaut δ) ou présent.
+/// Presence arc key: absent (default δ) or present.
 pub const ABSENT: u64 = 0;
-/// Clé d'arc de présence : présent.
+/// Presence arc key: present.
 pub const PRESENT: u64 = 1;
-/// Cardinalité d'un niveau de présence : {absent, présent}.
+/// Cardinality of a presence level: {absent, present}.
 pub const CARDINALITE_PRESENCE: u64 = 2;
-/// Pas entre les niveaux d'une map : présence de la clé `i` au niveau `2i`,
-/// valeur au niveau `2i+1`.
+/// Stride between the levels of a map: presence of key `i` at level `2i`,
+/// value at level `2i+1`.
 pub const PAS_NIVEAU_MAP: u32 = 2;
 
-/// Domaine d'atomes borné : énumération finie, avec défaut éventuel.
+/// Bounded atom domain: finite enumeration, with optional default.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Domaine {
-    /// Valeurs du domaine, dans l'ordre canonique.
+    /// Values of the domain, in canonical order.
     pub valeurs: Vec<Atom>,
-    /// Défaut δ du domaine, si déclaré.
+    /// Default δ of the domain, if declared.
     pub defaut: Option<Atom>,
 }
 
 impl Domaine {
-    /// Domaine sans défaut.
+    /// Domain without default.
     pub fn nouveau(valeurs: Vec<Atom>) -> Self {
         Domaine {
             valeurs,
@@ -44,36 +44,36 @@ impl Domaine {
         }
     }
 
-    /// Le domaine contient-il cet atome ?
+    /// Does the domain contain this atom?
     pub fn contient(&self, atome: Atom) -> bool {
         self.valeurs.contains(&atome)
     }
 
-    /// Nombre de valeurs du domaine.
+    /// Number of values in the domain.
     pub fn taille(&self) -> usize {
         self.valeurs.len()
     }
 }
 
-/// Schéma de référence (algèbre de types Σ bornée, spec § 1).
+/// Reference schema (bounded type algebra Σ, spec § 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Schema {
-    /// `Atom(D)` : domaine borné d'atomes.
+    /// `Atom(D)`: bounded domain of atoms.
     Atom(Domaine),
-    /// `Set(Atom(D))` : ensemble d'atomes d'un domaine borné.
+    /// `Set(Atom(D))`: set of atoms from a bounded domain.
     Set(Domaine),
-    /// `Map(K, V)` : clés ordonnées vers un domaine de valeurs borné.
+    /// `Map(K, V)`: ordered keys to a bounded value domain.
     Map(Vec<Atom>, Domaine),
-    /// `Seq(D, N)` : séquence d'au plus `N` éléments d'un domaine borné `D`
-    /// (M2-1, constructeur `list`). Le marqueur de fin est une clé requise.
+    /// `Seq(D, N)`: sequence of at most `N` elements of a bounded domain `D`
+    /// (M2-1, `list` constructor). The end marker is a required key.
     Seq(Domaine, u32),
-    /// `Tag(K, V)` : union typée — niveau discriminant (clés `K`) puis niveau
-    /// valeur `V` (M2-2). Un seul arc utile par nœud (C2).
+    /// `Tag(K, V)`: typed union — discriminant level (keys `K`) then value
+    /// level `V` (M2-2). A single useful arc per node (C2).
     Tag(Vec<Atom>, Domaine),
 }
 
 impl Schema {
-    /// Nombre de niveaux du balayage d'univers.
+    /// Number of levels of the universe sweep.
     pub fn nombre_niveaux(&self) -> u32 {
         match self {
             Schema::Atom(_) => 1,
@@ -84,37 +84,37 @@ impl Schema {
         }
     }
 
-    /// Niveau de présence de la i-ème clé d'une map.
+    /// Presence level of the i-th key of a map.
     pub fn niveau_presence(index: usize) -> Level {
         Level(PAS_NIVEAU_MAP * index as u32)
     }
 
-    /// Niveau valeur de la i-ème clé d'une map.
+    /// Value level of the i-th key of a map.
     pub fn niveau_valeur(index: usize) -> Level {
         Level(PAS_NIVEAU_MAP * index as u32 + 1)
     }
 }
 
-/// Erreur typée de compilation/décompilation d'un schéma.
+/// Typed error of schema compilation/decompilation.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum SchemaError {
-    /// La valeur ne correspond pas au schéma (forme de Σ différente).
+    /// The value does not match the schema (different Σ shape).
     TypeMismatch {
-        /// Forme attendue par le schéma.
+        /// Shape expected by the schema.
         attendu: &'static str,
-        /// Forme reçue.
+        /// Shape received.
         recu: &'static str,
     },
-    /// Atome hors du domaine déclaré par le schéma.
+    /// Atom outside the domain declared by the schema.
     HorsDomaine(Atom),
-    /// Nœud du diagramme incompatible avec le schéma (décompilation).
+    /// Diagram node incompatible with the schema (decompilation).
     NoeudInattendu {
-        /// Forme attendue à cette position.
+        /// Shape expected at this position.
         attendu: &'static str,
-        /// Nœud rencontré.
+        /// Node encountered.
         noeud: NodeId,
     },
-    /// Erreur remontée du port pool.
+    /// Error propagated from the pool port.
     Pool(PoolError),
 }
 
@@ -122,19 +122,16 @@ impl std::fmt::Display for SchemaError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SchemaError::TypeMismatch { attendu, recu } => {
-                write!(
-                    formatter,
-                    "type incompatible: attendu {attendu}, reçu {recu}"
-                )
+                write!(formatter, "type mismatch: expected {attendu}, got {recu}")
             }
-            SchemaError::HorsDomaine(atome) => write!(formatter, "atome hors domaine: {atome:?}"),
+            SchemaError::HorsDomaine(atome) => write!(formatter, "atom outside domain: {atome:?}"),
             SchemaError::NoeudInattendu { attendu, noeud } => {
                 write!(
                     formatter,
-                    "nœud inattendu: attendu {attendu}, nœud {noeud:?}"
+                    "unexpected node: expected {attendu}, node {noeud:?}"
                 )
             }
-            SchemaError::Pool(error) => write!(formatter, "erreur du pool: {error}"),
+            SchemaError::Pool(error) => write!(formatter, "pool error: {error}"),
         }
     }
 }
@@ -154,14 +151,14 @@ impl From<PoolError> for SchemaError {
     }
 }
 
-/// Algèbre de clés d'un schéma : `Val(ℓ)` et δ(ℓ) par niveau du balayage.
+/// Key algebra of a schema: `Val(ℓ)` and δ(ℓ) per level of the sweep.
 #[derive(Clone)]
 pub struct SchemaKeys {
     schema: Schema,
 }
 
 impl SchemaKeys {
-    /// Algèbre de clés pour le schéma donné.
+    /// Key algebra for the given schema.
     pub fn new(schema: Schema) -> Self {
         SchemaKeys { schema }
     }
@@ -187,7 +184,7 @@ impl KeyAlgebra for SchemaKeys {
             }
             Schema::Seq(domaine, longueur_max) => {
                 if level.0 < *longueur_max {
-                    domaine.taille() as u64 + 1 // +1 pour le marqueur de fin
+                    domaine.taille() as u64 + 1 // +1 for the end marker
                 } else {
                     CARDINALITE_PRESENCE
                 }
@@ -213,29 +210,28 @@ impl KeyAlgebra for SchemaKeys {
                     None
                 }
             }
-            Schema::Seq(_, _) => None, // marqueur de fin = clé requise, pas de défaut
-            Schema::Tag(_, _) => None, // discriminant = clé requise
+            Schema::Seq(_, _) => None, // end marker = required key, no default
+            Schema::Tag(_, _) => None, // discriminant = required key
         }
     }
 }
 
-/// Contrôleur de l'instance de référence : porte le schéma, désigne D_δ =
-/// terminal(false) (l'ensemble vide) pour les niveaux de présence et les
-/// domaines d'atomes avec défaut ; δ = ⊥ (pas de défaut) pour les niveaux
-/// valeur (spec § 2.1).
+/// Controller of the reference instance: carries the schema, designates D_δ =
+/// terminal(false) (the empty set) for presence levels and atom domains
+/// with default; δ = ⊥ (no default) for value levels (spec § 2.1).
 pub struct ReferenceController {
     schema: Schema,
     keys: SchemaKeys,
 }
 
 impl ReferenceController {
-    /// Contrôleur pour le schéma donné.
+    /// Controller for the given schema.
     pub fn new(schema: Schema) -> Self {
         let keys = SchemaKeys::new(schema.clone());
         ReferenceController { schema, keys }
     }
 
-    /// Schéma de cette instance.
+    /// Schema of this instance.
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
@@ -269,8 +265,8 @@ impl Controller for ReferenceController {
     }
 }
 
-/// Compile une valeur en diagramme (balayage d'univers) ; le terminal
-/// d'acceptation a pour payload `true` (lecture ensembliste).
+/// Compiles a value into a diagram (universe sweep); the acceptance terminal
+/// has payload `true` (set-theoretic reading).
 pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -298,7 +294,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                     Value::Atom(atome) => return Err(SchemaError::HorsDomaine(*atome)),
                     autre => {
                         return Err(SchemaError::TypeMismatch {
-                            attendu: "ensemble d'atomes",
+                            attendu: "set of atoms",
                             recu: forme_valeur(autre),
                         });
                     }
@@ -325,8 +321,8 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
     }
 }
 
-/// Valide les clés et valeurs d'une map contre le schéma (erreurs typées,
-/// l'atome fautif est celui rapporté).
+/// Validates the keys and values of a map against the schema (typed errors,
+/// the faulty atom is the one reported).
 fn valider_map(
     liste_cles: &[Atom],
     domaine_valeurs: &Domaine,
@@ -335,7 +331,7 @@ fn valider_map(
     for (cle, valeur) in map {
         let Value::Atom(atome_cle) = cle else {
             return Err(SchemaError::TypeMismatch {
-                attendu: "clé atomique",
+                attendu: "atomic key",
                 recu: forme_valeur(cle),
             });
         };
@@ -344,7 +340,7 @@ fn valider_map(
         }
         let Value::Atom(atome_valeur) = valeur else {
             return Err(SchemaError::TypeMismatch {
-                attendu: "valeur atomique",
+                attendu: "atomic value",
                 recu: forme_valeur(valeur),
             });
         };
@@ -357,21 +353,21 @@ fn valider_map(
 
 fn forme_schema(schema: &Schema) -> &'static str {
     match schema {
-        Schema::Atom(_) => "atome",
-        Schema::Set(_) => "ensemble",
+        Schema::Atom(_) => "atom",
+        Schema::Set(_) => "set",
         Schema::Map(_, _) => "map",
-        Schema::Seq(_, _) => "séquence",
-        Schema::Tag(_, _) => "union typée",
+        Schema::Seq(_, _) => "sequence",
+        Schema::Tag(_, _) => "typed union",
     }
 }
 
 fn forme_valeur(valeur: &Value) -> &'static str {
     match valeur {
-        Value::Atom(_) => "atome",
-        Value::Set(_) => "ensemble",
+        Value::Atom(_) => "atom",
+        Value::Set(_) => "set",
         Value::Map(_) => "map",
-        Value::Seq(_) => "séquence",
-        Value::Tag(_, _) => "union typée",
+        Value::Seq(_) => "sequence",
+        Value::Tag(_, _) => "typed union",
     }
 }
 
@@ -422,7 +418,7 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
         }
         Some(autre) => {
             return Err(SchemaError::TypeMismatch {
-                attendu: "valeur atomique",
+                attendu: "atomic value",
                 recu: forme_valeur(autre),
             });
         }
@@ -437,8 +433,8 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
     ))
 }
 
-/// Valide une séquence contre le schéma Seq (éléments dans le domaine,
-/// longueur bornée).
+/// Validates a sequence against the Seq schema (elements in the domain,
+/// bounded length).
 fn valider_seq(
     domaine: &Domaine,
     longueur_max: u32,
@@ -446,8 +442,8 @@ fn valider_seq(
 ) -> Result<(), SchemaError> {
     if elements.len() > longueur_max as usize {
         return Err(SchemaError::TypeMismatch {
-            attendu: "séquence de longueur bornée",
-            recu: "séquence trop longue",
+            attendu: "bounded-length sequence",
+            recu: "sequence too long",
         });
     }
     for element in elements {
@@ -456,7 +452,7 @@ fn valider_seq(
             Value::Atom(atome) => return Err(SchemaError::HorsDomaine(*atome)),
             autre => {
                 return Err(SchemaError::TypeMismatch {
-                    attendu: "élément atomique",
+                    attendu: "atomic element",
                     recu: forme_valeur(autre),
                 });
             }
@@ -465,14 +461,14 @@ fn valider_seq(
     Ok(())
 }
 
-/// Clé d'arc du marqueur de fin dans une séquence (valeur = taille du domaine).
+/// Arc key of the end marker in a sequence (value = domain size).
 fn cle_fin(domaine: &Domaine) -> u64 {
     domaine.taille() as u64
 }
 
-/// Compile une séquence par **positions** (balayage d'univers, M2-1) :
-/// chaque position `i` a un niveau de cardinalité `|D|+1` (valeurs du
-/// domaine + marqueur de fin). Le marqueur de fin mène au terminal true.
+/// Compiles a sequence by **positions** (universe sweep, M2-1):
+/// each position `i` has a level of cardinality `|D|+1` (domain
+/// values + end marker). The end marker leads to terminal true.
 fn compiler_seq<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -492,7 +488,7 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
     position: u32,
 ) -> Result<NodeId, SchemaError> {
     if position >= longueur_max {
-        // Niveau marqueur de fin : clé requise, présent = fin de séquence.
+        // End-marker level: required key, present = end of sequence.
         let terminal = pool.intern(anchor, Form::Terminal(true));
         return Ok(pool.intern(
             anchor,
@@ -506,10 +502,10 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
     let arc = if (position as usize) < elements.len() {
         match &elements[position as usize] {
             Value::Atom(atome) => atome.0,
-            _ => unreachable!("validé par valider_seq"),
+            _ => unreachable!("validated by valider_seq"),
         }
     } else {
-        cle_fin(domaine) // marqueur de fin
+        cle_fin(domaine) // end marker
     };
     Ok(pool.intern(
         anchor,
@@ -520,7 +516,7 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
     ))
 }
 
-/// Valide un tag contre le schéma (discriminant dans la liste, payload dans le domaine).
+/// Validates a tag against the schema (discriminant in the list, payload in the domain).
 fn valider_tag(
     liste: &[Atom],
     domaine_valeurs: &Domaine,
@@ -534,14 +530,14 @@ fn valider_tag(
         Value::Atom(atome) if domaine_valeurs.contient(*atome) => Ok(()),
         Value::Atom(atome) => Err(SchemaError::HorsDomaine(*atome)),
         autre => Err(SchemaError::TypeMismatch {
-            attendu: "payload atomique",
+            attendu: "atomic payload",
             recu: forme_valeur(autre),
         }),
     }
 }
 
-/// Compile un tag : niveau discriminant (un arc = un variant) puis niveau
-/// valeur. Un seul arc utile par nœud (C2).
+/// Compiles a tag: discriminant level (one arc = one variant) then value
+/// level. A single useful arc per node (C2).
 fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -553,7 +549,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
     let terminal = pool.intern(anchor, Form::Terminal(true));
     let Value::Atom(atome_valeur) = payload else {
         return Err(SchemaError::TypeMismatch {
-            attendu: "payload atomique",
+            attendu: "atomic payload",
             recu: forme_valeur(payload),
         });
     };
@@ -575,8 +571,8 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
     ))
 }
 
-/// Décompile un diagramme en valeur (inverse de [`compiler`]) : utile pour
-/// les tests de round-trip et les diagnostics.
+/// Decompiles a diagram into a value (inverse of [`compiler`]): useful for
+/// round-trip tests and diagnostics.
 pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     schema: &Schema,
@@ -584,26 +580,26 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
 ) -> Result<Value, SchemaError> {
     match schema {
         Schema::Atom(domaine) => {
-            // Domaine à un seul élément : R-collapse réduit le nœud atomique
-            // au terminal d'acceptation.
+            // Single-element domain: R-collapse reduces the atomic node
+            // to the acceptance terminal.
             if matches!(pool.resolve(noeud), Ok(Form::Terminal(true))) {
                 return match domaine.valeurs.first() {
                     Some(atome) if domaine.taille() == 1 => Ok(Value::Atom(*atome)),
                     _ => Err(SchemaError::NoeudInattendu {
-                        attendu: "nœud de niveau atomique",
+                        attendu: "atomic-level node",
                         noeud,
                     }),
                 };
             }
             let Form::Node { level, arcs } = pool.resolve(noeud)? else {
                 return Err(SchemaError::NoeudInattendu {
-                    attendu: "nœud de niveau atomique",
+                    attendu: "atomic-level node",
                     noeud,
                 });
             };
             if *level != Level(0) {
                 return Err(SchemaError::NoeudInattendu {
-                    attendu: "niveau 0",
+                    attendu: "level 0",
                     noeud,
                 });
             }
@@ -617,7 +613,7 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
                 }
             }
             Err(SchemaError::NoeudInattendu {
-                attendu: "arc vers terminal true",
+                attendu: "arc to terminal true",
                 noeud,
             })
         }
@@ -648,26 +644,26 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
 ) -> Result<Value, SchemaError> {
     let Form::Node { level, arcs } = pool.resolve(noeud)? else {
         return Err(SchemaError::NoeudInattendu {
-            attendu: "nœud discriminant",
+            attendu: "discriminant node",
             noeud,
         });
     };
     if *level != Level(0) {
         return Err(SchemaError::NoeudInattendu {
-            attendu: "niveau discriminant (0)",
+            attendu: "discriminant level (0)",
             noeud,
         });
     }
     let Some((&index, &noeud_valeur)) = arcs.iter().next() else {
         return Err(SchemaError::NoeudInattendu {
-            attendu: "arc discriminant",
+            attendu: "discriminant arc",
             noeud,
         });
     };
     let discriminant = *liste
         .get(index as usize)
         .ok_or(SchemaError::NoeudInattendu {
-            attendu: "index de discriminant valide",
+            attendu: "valid discriminant index",
             noeud,
         })?;
     let Form::Node {
@@ -676,19 +672,19 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
     } = pool.resolve(noeud_valeur)?
     else {
         return Err(SchemaError::NoeudInattendu {
-            attendu: "nœud valeur",
+            attendu: "value node",
             noeud: noeud_valeur,
         });
     };
     if *niveau_valeur != Level(1) {
         return Err(SchemaError::NoeudInattendu {
-            attendu: "niveau valeur (1)",
+            attendu: "value level (1)",
             noeud: noeud_valeur,
         });
     }
     let Some((&valeur, _)) = arcs_valeur.iter().next() else {
         return Err(SchemaError::NoeudInattendu {
-            attendu: "arc valeur",
+            attendu: "value arc",
             noeud: noeud_valeur,
         });
     };
@@ -711,35 +707,35 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
                 return Err(SchemaError::NoeudInattendu {
-                    attendu: "terminal true ou nœud de position",
+                    attendu: "terminal true or position node",
                     noeud,
                 });
             }
             Form::Node { level, arcs } => {
                 if level.0 > longueur_max {
                     return Err(SchemaError::NoeudInattendu {
-                        attendu: "niveau de position ou marqueur de fin",
+                        attendu: "position level or end marker",
                         noeud,
                     });
                 }
                 if level.0 == longueur_max {
-                    // Niveau marqueur de fin.
+                    // End-marker level.
                     if arcs.contains_key(&PRESENT) {
                         return Ok(());
                     }
                     return Err(SchemaError::NoeudInattendu {
-                        attendu: "marqueur de fin présent",
+                        attendu: "end marker present",
                         noeud,
                     });
                 }
                 let Some((&arc, &suite)) = arcs.iter().next() else {
                     return Err(SchemaError::NoeudInattendu {
-                        attendu: "arc de position",
+                        attendu: "position arc",
                         noeud,
                     });
                 };
                 if arc == cle_fin(domaine) {
-                    // Marqueur de fin anticipé : la séquence s'arrête ici.
+                    // Early end marker: the sequence stops here.
                     noeud = suite;
                     continue;
                 }
@@ -765,7 +761,7 @@ fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
                 return Err(SchemaError::NoeudInattendu {
-                    attendu: "terminal true (ensemble vide) ou nœud de présence",
+                    attendu: "terminal true (empty set) or presence node",
                     noeud,
                 });
             }
@@ -773,7 +769,7 @@ fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
                 let index = level.0 as usize;
                 if index >= domaine.taille() {
                     return Err(SchemaError::NoeudInattendu {
-                        attendu: "niveau de présence du domaine",
+                        attendu: "domain presence level",
                         noeud,
                     });
                 }
@@ -784,7 +780,7 @@ fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
                     noeud = suite;
                 } else {
                     return Err(SchemaError::NoeudInattendu {
-                        attendu: "arc de présence",
+                        attendu: "presence arc",
                         noeud,
                     });
                 }
@@ -804,21 +800,21 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
                 return Err(SchemaError::NoeudInattendu {
-                    attendu: "terminal true (map vide) ou nœud de présence",
+                    attendu: "terminal true (empty map) or presence node",
                     noeud,
                 });
             }
             Form::Node { level, arcs } => {
                 if !level.0.is_multiple_of(PAS_NIVEAU_MAP) {
                     return Err(SchemaError::NoeudInattendu {
-                        attendu: "niveau de présence",
+                        attendu: "presence level",
                         noeud,
                     });
                 }
                 let index = (level.0 / PAS_NIVEAU_MAP) as usize;
                 if index >= liste_cles.len() {
                     return Err(SchemaError::NoeudInattendu {
-                        attendu: "niveau de présence d'une clé",
+                        attendu: "presence level of a key",
                         noeud,
                     });
                 }
@@ -829,19 +825,19 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                     } = pool.resolve(noeud_valeur)?
                     else {
                         return Err(SchemaError::NoeudInattendu {
-                            attendu: "nœud de niveau valeur",
+                            attendu: "value-level node",
                             noeud: noeud_valeur,
                         });
                     };
                     if *niveau_valeur != Schema::niveau_valeur(index) {
                         return Err(SchemaError::NoeudInattendu {
-                            attendu: "niveau valeur de la clé",
+                            attendu: "value level of the key",
                             noeud: noeud_valeur,
                         });
                     }
                     let Some((&valeur, &suite)) = arcs_valeur.iter().next() else {
                         return Err(SchemaError::NoeudInattendu {
-                            attendu: "arc de valeur",
+                            attendu: "value arc",
                             noeud: noeud_valeur,
                         });
                     };
@@ -851,7 +847,7 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                     noeud = suite;
                 } else {
                     return Err(SchemaError::NoeudInattendu {
-                        attendu: "arc de présence",
+                        attendu: "presence arc",
                         noeud,
                     });
                 }
