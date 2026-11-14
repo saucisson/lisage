@@ -1,5 +1,5 @@
-//! PBT des schémas de référence (M1-3) : round-trip compilation →
-//! décompilation, et canonicité (valeurs distinctes ⇒ nœuds distincts).
+//! PBT of the reference schemas (M1-3): round-trip compilation →
+//! decompilation, and canonicity (distinct values ⇒ distinct nodes).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -61,7 +61,7 @@ fn schema_atome() -> BoxedStrategy<(Schema, Value)> {
         .boxed()
 }
 
-/// Deux valeurs valides pour le même schéma.
+/// Two valid values for the same schema.
 fn schema_et_deux_valeurs() -> BoxedStrategy<(Schema, Value, Value)> {
     prop_oneof![
         (
@@ -115,7 +115,7 @@ fn schema_et_deux_valeurs() -> BoxedStrategy<(Schema, Value, Value)> {
 }
 
 proptest! {
-    /// Round-trip : décompiler(compiler(v)) = v pour les trois schémas bornés.
+    /// Round-trip: decompiler(compiler(v)) = v for the three bounded schemas.
     #[test]
     fn test_round_trip_compilation((schema, valeur) in prop_oneof![schema_ensemble(), schema_map(), schema_atome()]) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
@@ -124,8 +124,8 @@ proptest! {
         prop_assert_eq!(decompiler(&pool, &schema, racine).unwrap(), valeur);
     }
 
-    /// Canonicité (C1) : deux valeurs distinctes compilent vers des nœuds
-    /// distincts ; la même valeur compile deux fois vers le même nœud.
+    /// Canonicity (C1): two distinct values compile to distinct
+    /// nodes; the same value compiled twice gives the same node.
     #[test]
     fn test_canonicite_compilation((schema, valeur_a, valeur_b) in schema_et_deux_valeurs()) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
@@ -135,14 +135,14 @@ proptest! {
         let racine_b = compiler(&mut pool, anchor, &schema, &valeur_b).unwrap();
         prop_assert_eq!(racine_a1, racine_a2);
         if valeur_a != valeur_b {
-            prop_assert_ne!(racine_a1, racine_b, "valeurs distinctes ⇒ nœuds distincts (C1)");
+            prop_assert_ne!(racine_a1, racine_b, "distinct values ⇒ distinct nodes (C1)");
         }
     }
 }
 
-/// M2-1, T5 : propriété — pour toute séquence aléatoire sur un domaine borné,
-/// compiler puis décompiler redonne la séquence (round-trip), et deux
-/// séquences égales compilent vers le même nœud (canonicité).
+/// M2-1, T5: property — for any random sequence over a bounded domain,
+/// compile then decompile gives the sequence back (round-trip), and two
+/// equal sequences compile to the same node (canonicity).
 #[test]
 fn test_t5_seq_round_trip_propriete() {
     use lisage_core::arena::Arena;
@@ -158,7 +158,7 @@ fn test_t5_seq_round_trip_propriete() {
         let schema = Schema::Seq(domaine.clone(), longueur_max);
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = lisage_algebra::interface::Anchor(0);
-        // Tronque à la longueur max et filtre dans le domaine.
+        // Truncate to the max length and filter into the domain.
         let seq: Vec<Value> = elements.iter()
             .take(longueur_max as usize)
             .filter(|&&v| v < domaine_taille)
@@ -168,8 +168,8 @@ fn test_t5_seq_round_trip_propriete() {
         let racine = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
         let retour = decompiler(&pool, &schema, racine).unwrap();
         prop_assert_eq!(retour, valeur.clone(), "round-trip Seq");
-        // Canonicité.
+        // Canonicity.
         let racine2 = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
-        prop_assert_eq!(racine, racine2, "canonicité Seq");
+        prop_assert_eq!(racine, racine2, "canonicity Seq");
     });
 }

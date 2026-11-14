@@ -1,6 +1,6 @@
-//! PBT de confluence des réductions § 2.3 (M1-2, énoncé C1) :
-//! `reduce∘reduce = reduce` (idempotence) et commutation des quotients
-//! (R-collapse et R-default commutent, quel que soit l'ordre).
+//! PBT of the confluence of the reductions § 2.3 (M1-2, statement C1):
+//! `reduce∘reduce = reduce` (idempotence) and commutation of the quotients
+//! (R-collapse and R-default commute, whatever the order).
 
 use std::collections::BTreeMap;
 
@@ -8,7 +8,7 @@ use lisage_algebra::interface::NodeId;
 use lisage_algebra::reduction::{Reduction, reduire, reduire_inverse};
 use proptest::prelude::*;
 
-/// Le nœud 0 joue le rôle du diagramme de défaut D_δ dans les tests.
+/// Node 0 plays the role of the default diagram D_δ in the tests.
 const NOEUD_DEFAUT: NodeId = NodeId(0);
 
 fn est_defaut(node: NodeId) -> bool {
@@ -24,7 +24,7 @@ fn vers_arcs(paires: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
 
 #[test]
 fn test_collapse_niveau_valeur_exemple_spec() {
-    // val(a) : 0 et 1 mènent au même sous-DD ⇒ R-collapse (exemple spec § 2.3).
+    // val(a): 0 and 1 lead to the same sub-DD ⇒ R-collapse (spec § 2.3 example).
     let x = NodeId(5);
     let arcs = BTreeMap::from([(0, x), (1, x)]);
     let resultat = reduire(arcs, None, &est_defaut, 2);
@@ -33,7 +33,7 @@ fn test_collapse_niveau_valeur_exemple_spec() {
 
 #[test]
 fn test_r_default_arc_absent_vers_defaut() {
-    // présence : absent ↦ ⊥ (D_δ) est supprimé, present ↦ X reste.
+    // presence: absent ↦ ⊥ (D_δ) is removed, present ↦ X stays.
     let x = NodeId(5);
     let arcs = BTreeMap::from([(0, NOEUD_DEFAUT), (1, x)]);
     let resultat = reduire(arcs, Some(0), &est_defaut, 2);
@@ -42,7 +42,7 @@ fn test_r_default_arc_absent_vers_defaut() {
 
 #[test]
 fn test_pas_de_collapse_si_cible_non_defaut() {
-    // {present ↦ X} avec défaut implicite ⊥ et X ≠ ⊥ : pas de collapse.
+    // {present ↦ X} with implicit default ⊥ and X ≠ ⊥: no collapse.
     let x = NodeId(5);
     let arcs = BTreeMap::from([(1, x)]);
     let resultat = reduire(arcs, Some(0), &est_defaut, 2);
@@ -51,15 +51,15 @@ fn test_pas_de_collapse_si_cible_non_defaut() {
 
 #[test]
 fn test_collapse_si_tout_vaut_le_defaut() {
-    // {absent ↦ ⊥, present ↦ ⊥} ⇒ collapse en ⊥.
+    // {absent ↦ ⊥, present ↦ ⊥} ⇒ collapse to ⊥.
     let arcs = BTreeMap::from([(0, NOEUD_DEFAUT), (1, NOEUD_DEFAUT)]);
     let resultat = reduire(arcs, Some(0), &est_defaut, 2);
     assert_eq!(resultat, Reduction::Collapse(NOEUD_DEFAUT));
 }
 
 proptest! {
-    /// Confluence : `reduce∘reduce = reduce` — la forme réduite est un point
-    /// fixe de la réduction.
+    /// Confluence: `reduce∘reduce = reduce` — the reduced form is a
+    /// fixpoint of the reduction.
     #[test]
     fn test_confluence_idempotence(
         paires in prop::collection::vec((0u8..4, 0u32..6), 0..6),
@@ -75,8 +75,8 @@ proptest! {
         }
     }
 
-    /// Commutation des quotients : R-collapse puis R-default == R-default
-    /// puis R-collapse.
+    /// Commutation of the quotients: R-collapse then R-default == R-default
+    /// then R-collapse.
     #[test]
     fn test_confluence_commutation(
         paires in prop::collection::vec((0u8..4, 0u32..6), 0..6),
@@ -87,6 +87,6 @@ proptest! {
         let cle = cle_defaut.map(u64::from);
         let direct = reduire(arcs.clone(), cle, &est_defaut, cardinalite);
         let inverse = reduire_inverse(arcs, cle, &est_defaut, cardinalite);
-        prop_assert_eq!(direct, inverse, "les deux ordres de réduction commutent");
+        prop_assert_eq!(direct, inverse, "the two reduction orders commute");
     }
 }

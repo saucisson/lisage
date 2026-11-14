@@ -1,11 +1,12 @@
-//! Charte de test (M0-4) + différentiel A/B/C branché dès M1-7.
+//! Test charter (M0-4) + A/B/C differential plugged in from M1-7.
 //!
-//! Triptyque : voie A = interprète de référence (vérité), voie B = DD ordre
-//! fixe, voie C = Lisage + planner. Convention de nommage `test_c<n>_*`.
+//! Triptych: path A = reference interpreter (truth), path B = fixed-order
+//! DD, path C = Lisage + planner. Naming convention `test_c<n>_*`.
 //!
-//! Les tests différentiels réels contre les voies B/C sont écrits **rouges**
-//! avant l'implémentation du cœur (M1-1..M1-6) : ils sont `#[ignore]` tant
-//! que la voie visée est factice, et dé-ignorés dans l'issue qui la livre.
+//! The real differential tests against paths B/C are written **red**
+//! before the core implementation (M1-1..M1-6): they are `#[ignore]` as long
+//! as the targeted path is a placeholder, and un-ignored in the issue that
+//! delivers it.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,14 +17,14 @@ use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
 proptest! {
-    /// C0 (factice) : les trois voies s'accordent sur n'importe quel entier.
+    /// C0 (placeholder): the three paths agree on any integer.
     #[test]
     fn test_c0_triptyque_accord(entier in 0u32..1000) {
         let a = voie_a(entier);
         let b = voie_b(entier);
         let c = voie_c(entier);
-        prop_assert_eq!(a, b, "voie A (référence) != voie B");
-        prop_assert_eq!(a, c, "voie A (référence) != voie C");
+        prop_assert_eq!(a, b, "path A (reference) != path B");
+        prop_assert_eq!(a, c, "path A (reference) != path C");
     }
 }
 
@@ -47,7 +48,7 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
     )
 }
 
-/// Petit ensemble de maps engendré aléatoirement (univers {0,1} × clés {0,1}).
+/// Small set of maps generated randomly (universe {0,1} × keys {0,1}).
 fn ensemble_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
     maps.into_iter()
         .map(|(a, b, c, d)| {
@@ -64,22 +65,22 @@ fn ensemble_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
 }
 
 #[test]
-#[ignore = "rouge (M1-7) : voie B factice jusqu'à M1-6 (#13)"]
+#[ignore = "red (M1-7): path B placeholder until M1-6 (#13)"]
 fn test_c1_differentiel_count_voie_a_vs_b() {
     let ensemble = ensemble_aleatoire(vec![(1, 1, 1, 0), (1, 0, 1, 0)]);
     assert_eq!(voie_a_count(&ensemble), voie_b_count(&ensemble));
 }
 
 #[test]
-#[ignore = "rouge (M1-7) : voie C factice jusqu'à M1-6 (#13)"]
+#[ignore = "red (M1-7): path C placeholder until M1-6 (#13)"]
 fn test_c1_differentiel_count_voie_a_vs_c() {
     let ensemble = ensemble_aleatoire(vec![(1, 1, 1, 0), (1, 0, 1, 0)]);
     assert_eq!(voie_a_count(&ensemble), voie_c_count(&ensemble));
 }
 
 proptest! {
-    /// Voie A (vérité) : le comptage explicite égale la cardinalité ; le
-    /// différentiel contre B/C sera dé-ignoré quand les voies DD existeront.
+    /// Path A (truth): the explicit count equals the cardinal; the
+    /// differential against B/C will be un-ignored when the DD paths exist.
     #[test]
     fn test_voie_a_count_egale_cardinalite(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
         let ensemble = ensemble_aleatoire(maps);
@@ -87,7 +88,7 @@ proptest! {
         prop_assert_eq!(voie_a_count(&ensemble), ensemble.len() as u64);
     }
 
-    /// Voie A : `filter` ne garde qu'un sous-ensemble (count monotone).
+    /// Path A: `filter` keeps only a subset (monotone count).
     #[test]
     fn test_voie_a_filter_count(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
         let ensemble = ensemble_aleatoire(maps);
@@ -95,7 +96,7 @@ proptest! {
         prop_assert!(count(&garde) <= count(&ensemble));
     }
 
-    /// Voie A : `lookup(k)` d'un membre m vaut m(k) (None si absente).
+    /// Path A: `lookup(k)` of a member m equals m(k) (None if absent).
     #[test]
     fn test_voie_a_lookup(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
         let ensemble = ensemble_aleatoire(maps);

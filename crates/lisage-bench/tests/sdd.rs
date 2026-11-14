@@ -1,7 +1,7 @@
-//! Tests de l'installation des SDD sententiels sans extension ad hoc
-//! (M5-3, C6) : vtree = ordre structuré, tour de contrôleurs = ancre locale
-//! par nœud, canonicité C1 par handle, cardinal global = produit des
-//! cardinaux locaux quand la fonction est décomposable selon le vtree.
+//! Tests of the sentential SDD installation without ad hoc extension
+//! (M5-3, C6): vtree = structured order, controller tower = local anchor
+//! per node, C1 canonicity by handle, global cardinal = product of the
+//! local cardinals when the function is decomposable along the vtree.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -13,7 +13,7 @@ use lisage_core::pli::{compter, union};
 use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
-/// Vtree de test : (x0, x1) à gauche, (x2, x3) à droite.
+/// Test vtree: (x0, x1) on the left, (x2, x3) on the right.
 fn vtree_test() -> Vtree {
     Vtree::noeud(
         Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
@@ -21,7 +21,7 @@ fn vtree_test() -> Vtree {
     )
 }
 
-/// Construit une `Value::Map` à partir de paires (clé, valeur).
+/// Builds a `Value::Map` from (key, value) pairs.
 fn map_de(paires: &[(u64, u64)]) -> Value {
     Value::Map(
         paires
@@ -31,8 +31,8 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
     )
 }
 
-/// Ensemble décomposable selon le vtree : S = A × B avec A = {x0 = x1}
-/// (2 maps sur {0,1}) et B = {x2 = x3} (2 maps sur {2,3}) — 4 maps sur 4 clés.
+/// Set decomposable along the vtree: S = A × B with A = {x0 = x1}
+/// (2 maps over {0,1}) and B = {x2 = x3} (2 maps over {2,3}) — 4 maps over 4 keys.
 fn ensemble_decomposable() -> BTreeSet<Value> {
     let mut ensemble = BTreeSet::new();
     for a in 0..=1u64 {
@@ -43,7 +43,7 @@ fn ensemble_decomposable() -> BTreeSet<Value> {
     ensemble
 }
 
-/// Ensemble non décomposable : {x0 = x2} — 8 maps sur 4 clés.
+/// Non-decomposable set: {x0 = x2} — 8 maps over 4 keys.
 fn ensemble_non_decomposable() -> BTreeSet<Value> {
     let mut ensemble = BTreeSet::new();
     for c in 0..=1u64 {
@@ -56,12 +56,12 @@ fn ensemble_non_decomposable() -> BTreeSet<Value> {
     ensemble
 }
 
-/// Pool pour un test : schéma racine du vtree de test sur {0,1}.
+/// Pool for a test: root schema of the test vtree over {0,1}.
 fn pool_neuf() -> Arena<ReferenceController> {
     pool_pour_sdd(&vtree_test(), &ensemble_decomposable())
 }
 
-/// Cardinal du DD plat de l'ensemble sur les 4 clés (référence voie B).
+/// Cardinal of the flat DD of the set over the 4 keys (path B reference).
 fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Value>) -> u64 {
     let cles: Vec<Atom> = (0..4).map(Atom).collect();
     let schema = Schema::Map(cles, Domaine::nouveau(vec![Atom(0), Atom(1)]));
@@ -76,9 +76,9 @@ fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Valu
     compter(pool, &mut sortie, ancre, &schema, racine).unwrap()
 }
 
-/// Falsification C6 : cardinal global du DD plat == cardinal de
-/// l'installation hiérarchique, et pour un ensemble décomposable selon le
-/// vtree, cardinal racine == produit des cardinaux des deux sous-arbres.
+/// C6 falsification: global cardinal of the flat DD == cardinal of the
+/// hierarchical installation, and for a set decomposable along the
+/// vtree, root cardinal == product of the cardinals of the two subtrees.
 #[test]
 fn test_cardinal_global_egal_produit_des_locaux_si_decomposable() {
     let ensemble = ensemble_decomposable();
@@ -103,9 +103,9 @@ fn test_cardinal_global_egal_produit_des_locaux_si_decomposable() {
     assert_eq!(cardinal_plat(&mut pool, &ensemble), 4);
 }
 
-/// Ensemble non décomposable : le produit des cardinaux locaux majore le
-/// cardinal global (sur-approximation de la décomposition), le cardinal
-/// global restant exact et égal au DD plat.
+/// Non-decomposable set: the product of the local cardinals upper-bounds the
+/// global cardinal (over-approximation of the decomposition), the global
+/// cardinal remaining exact and equal to the flat DD.
 #[test]
 fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
     let ensemble = ensemble_non_decomposable();
@@ -130,8 +130,8 @@ fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
     assert_eq!(cardinal_plat(&mut pool, &ensemble), 8);
 }
 
-/// Canonicité C1 par handle : réinstaller le même vtree sur le même
-/// ensemble dans le même pool redonne les mêmes handles (hash-consing).
+/// C1 canonicity by handle: reinstalling the same vtree on the same
+/// set in the same pool gives the same handles (hash-consing).
 #[test]
 fn test_canonicite_par_handle_reinstallation_identique() {
     let ensemble = ensemble_decomposable();
@@ -141,8 +141,8 @@ fn test_canonicite_par_handle_reinstallation_identique() {
     assert_eq!(premier, second);
 }
 
-/// Canonicité C1 : même forme sous deux ancres distinctes = deux handles
-/// distincts (classes du quotient), même forme sous la même ancre = même
+/// C1 canonicity: same form under two distinct anchors = two
+/// distinct handles (quotient classes), same form under the same anchor = same
 /// handle.
 #[test]
 fn test_canonicite_deux_ancres_distinctes() {
@@ -155,7 +155,7 @@ fn test_canonicite_deux_ancres_distinctes() {
     assert_ne!(meme_ancre_a, autre_ancre);
 }
 
-/// Projection : ne garde que les clés demandées.
+/// Projection: keeps only the requested keys.
 #[test]
 fn test_projection() {
     let ensemble = ensemble_decomposable();
@@ -163,7 +163,7 @@ fn test_projection() {
     assert_eq!(projection.len(), 2);
     for valeur in &projection {
         let Value::Map(map) = valeur else {
-            panic!("la projection n'est pas une map");
+            panic!("the projection is not a map");
         };
         assert_eq!(map.len(), 2);
         assert!(map.contains_key(&Value::Atom(Atom(0))));
@@ -171,7 +171,7 @@ fn test_projection() {
     }
 }
 
-/// Vtree invalide (variable en double) : erreur typée à l'installation.
+/// Invalid vtree (duplicated variable): typed error at installation.
 #[test]
 fn test_vtree_invalide_rejete() {
     let vtree = Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(0)));

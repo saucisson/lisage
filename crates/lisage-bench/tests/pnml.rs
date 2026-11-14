@@ -1,7 +1,7 @@
-//! Tests du parseur PNML et de la conversion vers `lang/` (M5-2) :
-//! parsing d'un modèle jouet, marquage initial, sémantique pas-à-pas,
-//! espace atteignable calculé par l'interprète de référence (voie A),
-//! erreurs typées, et propriétés (ADR-0012) sur réseaux générés.
+//! Tests of the PNML parser and the conversion to `lang/` (M5-2):
+//! parsing of a toy model, initial marking, step semantics,
+//! reachable space computed by the reference interpreter (path A),
+//! typed errors, and properties (ADR-0012) on generated nets.
 
 use std::collections::BTreeSet;
 
@@ -12,8 +12,8 @@ use lisage_bench::pnml::{
 use lisage_lang::value::Atom;
 use proptest::prelude::*;
 
-/// Modèle jouet : une place source avec un jeton, deux transitions
-/// vers deux places puits. Espace atteignable = 3 marquages.
+/// Toy model: a source place with one token, two transitions
+/// to two sink places. Reachable space = 3 markings.
 const PNML_JOUET: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <pnml xmlns="http://www.pnml.org/version-2009/grammar/pnml">
   <net id="net1">
@@ -32,8 +32,8 @@ const PNML_JOUET: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
   </net>
 </pnml>"#;
 
-/// Modèle à deux jetons sur une place, une transition en boucle :
-/// p0 (2 jetons), t : p0 → p0. Espace atteignable = 1 marquage.
+/// Model with two tokens on one place, one loop transition:
+/// p0 (2 tokens), t : p0 → p0. Reachable space = 1 marking.
 const PNML_BOUCL: &str = r#"<pnml><net>
   <place id="p0"><initialMarking><text>2</text></initialMarking></place>
   <transition id="t"/>
@@ -87,7 +87,7 @@ fn test_sensibilisation_et_tir() {
 fn test_espace_atteignable_voie_a() {
     let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
     let espace = espace_atteignable(&reseau);
-    // 3 marquages : initial, après t1, après t2.
+    // 3 markings: initial, after t1, after t2.
     assert_eq!(espace.len(), 3);
     let initial = marquage_initial(&reseau);
     assert!(espace.contains(&initial));
@@ -138,7 +138,7 @@ fn test_erreur_arc_vers_inconnu() {
 
 #[test]
 fn test_erreur_arc_mal_oriente() {
-    // Deux transitions reliées : arc mal orienté, rejeté au parsing.
+    // Two linked transitions: badly oriented arc, rejected at parsing.
     let document = "<pnml><net><transition id=\"t1\"/><transition id=\"t2\"/><arc source=\"t1\" target=\"t2\"/></net></pnml>";
     let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(resultat, Err(PnmlError::ArcMalOriente { .. })));
@@ -153,7 +153,7 @@ fn test_erreur_poids_non_supporte() {
 
 #[test]
 fn test_erreur_element_inattendu() {
-    // Racine autre que <pnml>.
+    // Root other than <pnml>.
     let resultat = ReseauPetri::depuis_pnml(&PnmlDocument("<foo/>".to_string()));
     assert!(matches!(
         resultat,
@@ -162,7 +162,7 @@ fn test_erreur_element_inattendu() {
             ..
         })
     ));
-    // <pnml> sans <net>.
+    // <pnml> without <net>.
     let resultat = ReseauPetri::depuis_pnml(&PnmlDocument("<pnml/>".to_string()));
     assert!(matches!(
         resultat,
@@ -184,13 +184,13 @@ fn test_erreur_nombre_invalide() {
 }
 
 // ---------------------------------------------------------------------------
-// Propriétés (ADR-0012) : réseaux générés, invariants sémantiques
+// Properties (ADR-0012): generated nets, semantic invariants
 // ---------------------------------------------------------------------------
 
-/// Génère un document PNML aléatoire : `nombre_places` places (marquage
-/// initial 0..=2), `nombre_transitions` transitions, chaque transition
-/// reliée à une place entrante et une place sortante (éventuellement
-/// la même).
+/// Generates a random PNML document: `nombre_places` places (initial
+/// marking 0..=2), `nombre_transitions` transitions, each transition
+/// linked to an input place and an output place (possibly
+/// the same).
 fn reseau_aleatoire(
     nombre_places: usize,
     nombre_transitions: usize,
@@ -217,8 +217,8 @@ fn reseau_aleatoire(
 }
 
 proptest! {
-    /// L'espace atteignable est un point fixe : aucun successeur hors de
-    /// l'espace, et il contient le marquage initial.
+    /// The reachable space is a fixpoint: no successor outside the
+    /// space, and it contains the initial marking.
     #[test]
     fn propriete_espace_atteignable_point_fixe(
         nombre_places in 1usize..=4,
@@ -239,9 +239,9 @@ proptest! {
         prop_assert!(successeurs.is_subset(&espace));
     }
 
-    /// Tirer une transition sensibilisée préserve le nombre total de
-    /// jetons quand chaque place entrante a aussi un arc sortant
-    /// (réseau en boucle) — invariant du tir.
+    /// Firing an enabled transition preserves the total number of
+    /// tokens when each input place also has an outgoing arc
+    /// (loop net) — firing invariant.
     #[test]
     fn propriete_tir_sensibilise_produit_successeur_valide(
         nombre_places in 1usize..=4,
@@ -261,10 +261,10 @@ proptest! {
         for transition in &reseau.transitions {
             if est_sensibilisee(&reseau, &transition.identifiant, &initial) {
                 let suivant = tirer(&reseau, &transition.identifiant, &initial);
-                // Le marquage résultant a une entrée par place.
+                // The resulting marking has one entry per place.
                 prop_assert_eq!(suivant.len(), nombre_places);
-                // Invariant documenté : le tir déplace un jeton (poids 1
-                // en entrée et en sortie), le total est préservé.
+                // Documented invariant: firing moves one token (weight 1
+                // in input and in output), the total is preserved.
                 let total_apres: u64 = suivant.values().map(|a| a.0).sum();
                 prop_assert_eq!(total_apres, total_avant);
             }

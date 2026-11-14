@@ -1,6 +1,6 @@
-//! PBT du moteur de transductions (M1-4, L3) : identité (mêmes formes en
-//! sortie), comptage des chemins acceptants (transduction vs comptage naïf
-//! récursif), et sanité de la mémo (op, nœud).
+//! PBT of the transduction engine (M1-4, L3): identity (same forms on
+//! output), counting of accepting paths (transduction vs naive
+//! recursive count), and memo sanity (op, node).
 
 use std::collections::BTreeMap;
 
@@ -110,8 +110,8 @@ impl Transduction for CompteChemins {
     }
 }
 
-/// Égalité structurelle de deux formes dans deux pools distincts (les NodeId
-/// sont propres à chaque pool).
+/// Structural equality of two forms in two distinct pools (the NodeIds
+/// are specific to each pool).
 fn formes_egales(
     pool_a: &PoolRef,
     noeud_a: NodeId,
@@ -149,7 +149,7 @@ fn formes_egales(
     egales
 }
 
-/// Comptage naïf récursif des chemins acceptants (oracle indépendant).
+/// Naive recursive count of accepting paths (independent oracle).
 fn compte_naif(pool: &PoolRef, noeud: NodeId) -> u64 {
     match pool.resolve(noeud).unwrap() {
         Form::Terminal(payload) => u64::from(*payload),
@@ -157,8 +157,8 @@ fn compte_naif(pool: &PoolRef, noeud: NodeId) -> u64 {
     }
 }
 
-/// Construit un DAG aléatoire dans le pool d'entrée : terminaux puis nœuds
-/// de niveaux 0..3, arcs vers des nœuds d'index strictement inférieur.
+/// Builds a random DAG in the input pool: terminals then nodes
+/// of levels 0..3, arcs towards nodes of strictly lower index.
 fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> NodeId {
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let faux = pool.intern(anchor, Form::Terminal(false));
@@ -178,7 +178,7 @@ fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> 
 }
 
 proptest! {
-    /// Identité : la transduction reconstruit les mêmes formes en sortie.
+    /// Identity: the transduction rebuilds the same forms on output.
     #[test]
     fn test_identite_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
         let mut entree = nouveau_pool();
@@ -196,7 +196,7 @@ proptest! {
         ));
     }
 
-    /// Comptage : la transduction (φ_aggr = somme) égale le comptage naïf.
+    /// Counting: the transduction (φ_aggr = sum) equals the naive count.
     #[test]
     fn test_comptage_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
         let mut entree = nouveau_pool();
@@ -214,7 +214,7 @@ proptest! {
             &mut std::collections::HashMap::new()
         ));
         prop_assert_eq!(compte, attendu);
-        // Mémo saine : une seconde exécution ne change rien.
+        // Sound memo: a second run changes nothing.
         let taille = runner.taille_memo();
         let (r2, c2) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
         prop_assert_eq!(r2, resultat);

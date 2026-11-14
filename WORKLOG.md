@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 bench part 2: lisage-bench tests+benches translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in all `crates/lisage-bench/tests/*.rs` (confrontation, philosophes_bench, metriques, sdd, saturate, pnml, handles, cudd_local, triptyque, transfert, lookup, schemas, operations, differentiel, transductions, temoins, frontieres, reductions, pli, memoire, collapse) and `benches/micro.rs` to English. lisage-bench is now accent-free except the kept `Synthétise` identifier.
+- **Evidence**: accent grep returns 0 across `crates/lisage-bench/` except `Synthétise`; `cargo check -p lisage-bench --tests --benches` passes; `cargo test -p lisage-bench` all suites ok (0 failed); `cargo fmt -p lisage-bench -- --check` clean.
+- **Judgement calls**: comments/strings translated now, public identifiers deferred.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-5 bench part 1: lisage-bench src translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).

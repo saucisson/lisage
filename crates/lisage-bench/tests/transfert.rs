@@ -1,8 +1,8 @@
-//! PBT des événements non locaux (M2-5, T3) : pour toute map aléatoire et
-//! tout couple de clés source < destination, le transfert compilé en
-//! transduction à mémoire de niveau vérifie la sémantique `m(a) -= 1;
-//! m(b) += 1` (si `m(a) ≥ 1` et `m(b)+1` dans le domaine), et laisse les
-//! autres clés inchangées.
+//! PBT of non-local events (M2-5, T3): for any random map and
+//! any pair of keys source < destination, the transfer compiled as a
+//! level-memory transduction checks the semantics `m(a) -= 1;
+//! m(b) += 1` (if `m(a) ≥ 1` and `m(b)+1` in the domain), and leaves the
+//! other keys unchanged.
 
 use std::collections::BTreeMap;
 
@@ -15,14 +15,14 @@ use lisage_core::transfert::TransfertNonLocal;
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
-/// Nombre de clés de la map aléatoire.
+/// Number of keys of the random map.
 const NOMBRE_CLES: u64 = 3;
-/// Taille du domaine des valeurs.
+/// Size of the value domain.
 const TAILLE_DOMAINE: u64 = 4;
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Schéma `Map` à `NOMBRE_CLES` clés sur le domaine `{0..TAILLE_DOMAINE}`.
+/// `Map` schema with `NOMBRE_CLES` keys over the domain `{0..TAILLE_DOMAINE}`.
 fn schema_test() -> Schema {
     Schema::Map(
         (0..NOMBRE_CLES).map(Atom).collect(),
@@ -37,7 +37,7 @@ fn nouveau_pool(schema: &Schema) -> PoolRef {
     )
 }
 
-/// Compile une map `clé ↦ valeur` dans le pool.
+/// Compiles a map `key ↦ value` into the pool.
 fn compiler_map(
     pool: &mut PoolRef,
     anchor: Anchor,
@@ -58,25 +58,25 @@ fn compiler_map(
     .unwrap()
 }
 
-/// Décompile un nœud en map `clé ↦ valeur`.
+/// Decompiles a node into a map `key ↦ value`.
 fn decompiler_map(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> BTreeMap<u64, u64> {
     match decompiler(pool, schema, noeud).unwrap() {
         Value::Map(map) => map
             .into_iter()
             .map(|(k, v)| match (k, v) {
                 (Value::Atom(Atom(k)), Value::Atom(Atom(v))) => (k, v),
-                _ => panic!("atomes attendus"),
+                _ => panic!("atoms expected"),
             })
             .collect(),
-        _ => panic!("map attendue"),
+        _ => panic!("map expected"),
     }
 }
 
 proptest! {
-    /// Sémantique par arc du transfert non local (T3) sur map complète
-    /// (toutes les clés présentes) : `m(a) -= 1` si `m(a) ≥ 1` ; `m(b) += 1`
-    /// si de plus `m(b) + 1` est dans le domaine, sinon `m(b)` inchangé.
-    /// Les autres clés sont toujours inchangées.
+    /// Arc semantics of the non-local transfer (T3) on a complete map
+    /// (all keys present): `m(a) -= 1` if `m(a) ≥ 1`; `m(b) += 1`
+    /// if moreover `m(b) + 1` is in the domain, otherwise `m(b)` unchanged.
+    /// The other keys are always unchanged.
     #[test]
     fn test_transfert_semantique(
         valeurs in prop::collection::vec(0u64..TAILLE_DOMAINE, NOMBRE_CLES as usize),
@@ -102,7 +102,7 @@ proptest! {
         let mut attendu = entrees.clone();
         let valeur_source = entrees[&source];
         let valeur_destination = entrees[&destination];
-        // Le transfert n'est actif que si la source a au moins 1 unité.
+        // The transfer is active only if the source has at least 1 unit.
         if valeur_source >= 1 {
             attendu.insert(source, valeur_source - 1);
             if valeur_destination + 1 < TAILLE_DOMAINE {
