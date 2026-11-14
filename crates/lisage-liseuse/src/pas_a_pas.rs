@@ -1,13 +1,12 @@
-//! Liseuse v1 — vue **pas à pas** (M2-6, doc liseuse § 6) : scrubber sur la
-//! trace, canaux colorés (hérité bleu / synthétisé orange / mémoire violet),
-//! `MemoHit`/`MemoMiss`, rounds de saturation, et différentiel avant/après
-//! avec **fantômes** (nœuds absorbés rendus en filigrane).
+//! Liseuse v1 — **step by step** view (M2-6, liseuse doc § 6): scrubber on the
+//! trace, colored channels (inherited blue / synthesized orange / memory purple),
+//! `MemoHit`/`MemoMiss`, saturation rounds, and before/after differential
+//! with **ghosts** (absorbed nodes rendered as watermark).
 //!
-//! Le scrubber est une position `k` sur la trace ; l'état à `k` est le
-//! replay des événements `0..k`. Le rendu SVG statique à une position
-//! donnée embarque la frise (timeline) des événements — la version JS
-//! interactive est hors périmètre (doc § 7 : la sortie SVG statique reste
-//! complète).
+//! The scrubber is a position `k` on the trace; the state at `k` is the
+//! replay of events `0..k`. The static SVG rendering at a given position
+//! embeds the event timeline — the interactive JS version is out of scope
+//! (doc § 7: the static SVG output remains complete).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -19,62 +18,62 @@ use crate::svg::{
     placer,
 };
 
-/// Couleur du canal hérité (bleu).
+/// Color of the inherited channel (blue).
 const COULEUR_HERITE: &str = "#2980b9";
-/// Couleur du canal synthétisé (orange).
+/// Color of the synthesized channel (orange).
 const COULEUR_SYNTHETISE: &str = "#e67e22";
-/// Couleur de la mémoire de niveau (violet).
+/// Color of the level memory (purple).
 const COULEUR_MEMOIRE: &str = "#8e44ad";
-/// Couleur des fantômes (filigrane gris).
+/// Color of ghosts (gray watermark).
 const COULEUR_FANTOME: &str = "#bbb";
-/// Couleur par défaut des nœuds sans attribut (M2-6).
+/// Default color of nodes without attribute (M2-6).
 const COULEUR_DEFAUT: &str = "#333";
-/// Couleur d'un `MemoHit` sur la frise (vert).
+/// Color of a `MemoHit` on the timeline (green).
 const COULEUR_MEMO_HIT: &str = "#27ae60";
-/// Couleur d'un `MemoMiss` sur la frise (rouge).
+/// Color of a `MemoMiss` on the timeline (red).
 const COULEUR_MEMO_MISS: &str = "#c0392b";
-/// Couleur des autres événements sur la frise (gris neutre).
+/// Color of the other events on the timeline (neutral gray).
 const COULEUR_AUTRE: &str = "#999";
-/// Couleur des arcs du diagramme.
+/// Color of the diagram arcs.
 const COULEUR_ARC: &str = "#555";
-/// Couleur des étiquettes d'arcs.
+/// Color of the arc labels.
 const COULEUR_ETIQUETTE: &str = "#777";
-/// Couleur du curseur de position sur la frise (noir).
+/// Color of the position cursor on the timeline (black).
 const COULEUR_CURSEUR: &str = "#000";
-/// Fond des terminaux.
+/// Background of terminals.
 const COULEUR_FOND_TERMINAL: &str = "#eee";
-/// Fond des nœuds internes.
+/// Background of internal nodes.
 const COULEUR_FOND_NOEUD: &str = "#fff";
-/// Hauteur de la frise (timeline) en pixels.
+/// Height of the timeline in pixels.
 const HAUTEUR_FRISE: u32 = 46;
 
-/// État de la trace à une position de scrubber : replay des événements
+/// State of the trace at a scrubber position: replay of events
 /// `0..k`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EtatTrace {
-    /// Nœuds vus (créés ou partagés) jusqu'à la position.
+    /// Nodes seen (created or shared) up to the position.
     pub noeuds: BTreeSet<NodeId>,
-    /// Attributs vus `(canal, nœud, valeur)`, dans l'ordre d'émission.
+    /// Attributes seen `(channel, node, value)`, in emission order.
     pub attributs: Vec<(CanalAttr, NodeId, String)>,
-    /// Nombre de `MemoHit` jusqu'à la position.
+    /// Number of `MemoHit` up to the position.
     pub memo_hits: usize,
-    /// Nombre de `MemoMiss` jusqu'à la position.
+    /// Number of `MemoMiss` up to the position.
     pub memo_misses: usize,
-    /// Numéro du dernier round de saturation vu (0 = aucun).
+    /// Number of the last saturation round seen (0 = none).
     pub rounds: u32,
 }
 
-/// Différentiel avant/après entre deux états de trace : `fantomes` =
-/// nœuds présents avant mais plus après (rendus en filigrane).
+/// Before/after differential between two trace states: `fantomes` =
+/// nodes present before but not after (rendered as watermark).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DiffTrace {
-    /// Nœuds présents après mais pas avant.
+    /// Nodes present after but not before.
     pub ajoutes: BTreeSet<NodeId>,
-    /// Nœuds présents avant mais plus après (fantômes).
+    /// Nodes present before but not after (ghosts).
     pub fantomes: BTreeSet<NodeId>,
 }
 
-/// Différentiel entre deux états : ajouts et fantômes.
+/// Differential between two states: additions and ghosts.
 pub fn diff(avant: &EtatTrace, apres: &EtatTrace) -> DiffTrace {
     DiffTrace {
         ajoutes: apres.noeuds.difference(&avant.noeuds).copied().collect(),
@@ -82,14 +81,14 @@ pub fn diff(avant: &EtatTrace, apres: &EtatTrace) -> DiffTrace {
     }
 }
 
-/// Scrubber : position sur une trace d'événements + replay de l'état.
+/// Scrubber: position on an event trace + state replay.
 pub struct Scrubber {
     evenements: Vec<TraceEvent>,
     position: usize,
 }
 
 impl Scrubber {
-    /// Scrubber neuf sur la trace donnée, positionné au début.
+    /// New scrubber on the given trace, positioned at the start.
     pub fn new(evenements: Vec<TraceEvent>) -> Self {
         Scrubber {
             evenements,
@@ -97,23 +96,23 @@ impl Scrubber {
         }
     }
 
-    /// Nombre d'événements de la trace.
+    /// Number of events in the trace.
     pub fn longueur(&self) -> usize {
         self.evenements.len()
     }
 
-    /// Position courante du scrubber.
+    /// Current position of the scrubber.
     pub fn position(&self) -> usize {
         self.position
     }
 
-    /// Déplace le scrubber à `position` (bornée à la longueur de la trace).
+    /// Moves the scrubber to `position` (clamped to the trace length).
     pub fn aller_a(&mut self, position: usize) {
         self.position = position.min(self.evenements.len());
     }
 
-    /// Replay des événements `0..position` : état de la trace à la position
-    /// courante.
+    /// Replay of events `0..position`: state of the trace at the current
+    /// position.
     pub fn etat(&self) -> EtatTrace {
         let mut etat = EtatTrace::default();
         for evenement in &self.evenements[..self.position] {
@@ -139,7 +138,7 @@ impl Scrubber {
         etat
     }
 
-    /// Différentiel entre la position courante et la position `autre`.
+    /// Differential between the current position and position `autre`.
     pub fn diff_vers(&self, autre: usize) -> DiffTrace {
         let mut autre_scrubber = Scrubber::new(self.evenements.clone());
         autre_scrubber.aller_a(autre);
@@ -147,7 +146,7 @@ impl Scrubber {
     }
 }
 
-/// Couleur d'un canal d'attribut.
+/// Color of an attribute channel.
 fn couleur_canal(canal: CanalAttr) -> &'static str {
     match canal {
         CanalAttr::Herite => COULEUR_HERITE,
@@ -156,8 +155,8 @@ fn couleur_canal(canal: CanalAttr) -> &'static str {
     }
 }
 
-/// Couleur de bordure d'un nœud selon le **dernier** canal d'attribut vu
-/// sur ce nœud (mémoire > synthétisé > hérité > défaut).
+/// Border color of a node according to the **last** attribute channel seen
+/// on this node (memory > synthesized > inherited > default).
 fn couleur_noeud(etat: &EtatTrace, noeud: NodeId) -> &'static str {
     let mut couleur = COULEUR_DEFAUT;
     for (canal, n, _) in &etat.attributs {
@@ -168,7 +167,7 @@ fn couleur_noeud(etat: &EtatTrace, noeud: NodeId) -> &'static str {
     couleur
 }
 
-/// Hauteur et couleur d'un tiret de la frise selon le type d'événement.
+/// Height and color of a timeline tick according to the event type.
 fn tiret_frise(evenement: &TraceEvent) -> (u32, &'static str) {
     match evenement {
         TraceEvent::Round { .. } => (HAUTEUR_FRISE - 16, COULEUR_MEMOIRE),
@@ -179,13 +178,13 @@ fn tiret_frise(evenement: &TraceEvent) -> (u32, &'static str) {
     }
 }
 
-/// Ouvre le document SVG et rend le titre (position, rounds, compteurs memo).
+/// Opens the SVG document and renders the title (position, rounds, memo counters).
 fn ouvrir_svg(svg: &mut String, largeur: u32, hauteur: u32, scrubber: &Scrubber, etat: &EtatTrace) {
     svg.push_str(&format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
     ));
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"20\" font-family=\"serif\" font-size=\"14\">pas à pas — position {}/{}, rounds {}, memo {}/{}</text>\n",
+        "<text x=\"{MARGE_GAUCHE}\" y=\"20\" font-family=\"serif\" font-size=\"14\">step by step — position {}/{}, rounds {}, memo {}/{}</text>\n",
         scrubber.position(),
         scrubber.longueur(),
         etat.rounds,
@@ -194,8 +193,8 @@ fn ouvrir_svg(svg: &mut String, largeur: u32, hauteur: u32, scrubber: &Scrubber,
     ));
 }
 
-/// Rend la frise (timeline) : un tiret par événement, et le curseur de
-/// position courante surligné.
+/// Renders the timeline: one tick per event, and the cursor of the
+/// current position highlighted.
 fn rendre_frise(svg: &mut String, scrubber: &Scrubber, largeur: u32) {
     let y_frise = MARGE_HAUT + 8;
     let largeur_frise = largeur - 2 * MARGE_GAUCHE;
@@ -223,7 +222,7 @@ fn rendre_frise(svg: &mut String, scrubber: &Scrubber, largeur: u32) {
     }
 }
 
-/// Rend les arcs du diagramme (sous les nœuds) avec leurs étiquettes.
+/// Renders the diagram arcs (under the nodes) with their labels.
 fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
     svg: &mut String,
     pool: &P,
@@ -260,7 +259,7 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
     }
 }
 
-/// Rend un nœud (terminal ou interne) ; en fantôme (pointillés) si demandé.
+/// Renders a node (terminal or internal); as a ghost (dashed) if requested.
 fn rendre_noeud<P: Pool<Key = u64, Payload = bool>>(
     svg: &mut String,
     pool: &P,
@@ -307,14 +306,14 @@ fn rendre_noeud<P: Pool<Key = u64, Payload = bool>>(
             ));
         }
         Err(_) => {
-            // Inatteignable : le placement est dérivé du même pool via
-            // `placer`, donc `resolve` a déjà réussi sur ce nœud.
-            debug_assert!(false, "échec de resolve sur un nœud du placement");
+            // Unreachable: the placement is derived from the same pool via
+            // `placer`, so `resolve` already succeeded on this node.
+            debug_assert!(false, "resolve failed on a node of the placement");
         }
     }
 }
 
-/// Rend tous les nœuds du placement, fantômes en filigrane.
+/// Renders all the nodes of the placement, ghosts as watermark.
 fn rendre_noeuds<P: Pool<Key = u64, Payload = bool>>(
     svg: &mut String,
     pool: &P,
@@ -336,10 +335,10 @@ fn rendre_noeuds<P: Pool<Key = u64, Payload = bool>>(
     }
 }
 
-/// Rend en SVG statique la vue pas à pas à la position du scrubber :
-/// frise des événements (rounds en barres verticales, position courante
-/// surlignée), diagramme avec canaux colorés, fantômes en filigrane, et
-/// tableau de bord (hits/misses/rounds).
+/// Renders in static SVG the step-by-step view at the scrubber position:
+/// event timeline (rounds as vertical bars, current position
+/// highlighted), diagram with colored channels, ghosts as watermark, and
+/// dashboard (hits/misses/rounds).
 pub fn rendre_svg_pas_a_pas<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -361,12 +360,12 @@ pub fn rendre_svg_pas_a_pas<P: Pool<Key = u64, Payload = bool>>(
     svg
 }
 
-/// Légende des canaux (couleurs) pour le rendu pas à pas.
+/// Legend of the channels (colors) for the step-by-step rendering.
 pub fn legende_canaux() -> BTreeMap<&'static str, &'static str> {
     BTreeMap::from([
-        ("herite", COULEUR_HERITE),
-        ("synthetise", COULEUR_SYNTHETISE),
-        ("memoire", COULEUR_MEMOIRE),
-        ("fantome", COULEUR_FANTOME),
+        ("inherited", COULEUR_HERITE),
+        ("synthesized", COULEUR_SYNTHETISE),
+        ("memory", COULEUR_MEMOIRE),
+        ("ghost", COULEUR_FANTOME),
     ])
 }

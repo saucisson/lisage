@@ -1,24 +1,24 @@
-//! Liseuse v0 — rendu **SVG statique** du diagramme (M1-9) : les niveaux en
-//! lignes horizontales (niveau = clé de l'ordre), les nœuds rangés en x par
-//! ordre de parcours déterministe, les terminaux en bas. Aucune dépendance
-//! externe ; échappement XML minimal.
+//! Liseuse v0 — **static SVG** rendering of the diagram (M1-9): levels in
+//! horizontal lines (level = key of the order), nodes arranged in x by
+//! deterministic traversal order, terminals at the bottom. No external
+//! dependency; minimal XML escaping.
 
 use std::collections::BTreeMap;
 
 use lisage_core::{Form, Level, NodeId, Pool};
 
-/// Largeur d'un nœud en pixels.
+/// Node width in pixels.
 pub(crate) const LARGEUR_NOEUD: u32 = 56;
-/// Hauteur d'un niveau en pixels.
+/// Level height in pixels.
 pub(crate) const HAUTEUR_NIVEAU: u32 = 90;
-/// Marge haute (titre) en pixels.
+/// Top margin (title) in pixels.
 pub(crate) const MARGE_HAUT: u32 = 40;
-/// Marge gauche en pixels.
+/// Left margin in pixels.
 pub(crate) const MARGE_GAUCHE: u32 = 40;
-/// Demi-largeur d'un nœud.
+/// Half node width.
 pub(crate) const DEMI_LARGEUR: u32 = LARGEUR_NOEUD / 2;
 
-/// Échappement XML minimal.
+/// Minimal XML escaping.
 pub(crate) fn echapper_xml(texte: &str) -> String {
     texte
         .replace('&', "&amp;")
@@ -27,15 +27,15 @@ pub(crate) fn echapper_xml(texte: &str) -> String {
         .replace('"', "&quot;")
 }
 
-/// Position d'un nœud : `(x, y)` du centre.
+/// Position of a node: `(x, y)` of the center.
 pub(crate) struct Placement {
     pub(crate) x: u32,
     pub(crate) y: u32,
 }
 
-/// Collecte les nœuds atteignables depuis `racine`, groupés par niveau, et
-/// calcule un placement déterministe (parcours en profondeur, x croissant
-/// par ordre de première visite dans chaque niveau).
+/// Collects the nodes reachable from `racine`, grouped by level, and
+/// computes a deterministic placement (depth-first traversal, x increasing
+/// by order of first visit in each level).
 pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -51,7 +51,7 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
         visites.push(noeud);
         if let Ok(Form::Node { level, arcs }) = pool.resolve(noeud) {
             niveaux.entry(level.0).or_default().push(noeud);
-            // Empile dans l'ordre inverse pour visiter les arcs en ordre croissant.
+            // Push in reverse order to visit the arcs in increasing order.
             for cible in arcs.values().rev() {
                 pile.push(*cible);
             }
@@ -66,7 +66,7 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
             placement.insert(*noeud, Placement { x, y });
         }
     }
-    // Terminaux : ligne du bas.
+    // Terminals: bottom line.
     let y_terminal = MARGE_HAUT + nombre_niveaux * HAUTEUR_NIVEAU + HAUTEUR_NIVEAU / 2;
     let mut index_terminal = 0u32;
     for noeud in &visites {
@@ -79,7 +79,7 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
     (placement, nombre_niveaux)
 }
 
-/// Palette de couleurs du rendu SVG.
+/// Color palette of the SVG rendering.
 pub(crate) struct Couleurs {
     pub(crate) encre: &'static str,
     pub(crate) arete: &'static str,
@@ -88,7 +88,7 @@ pub(crate) struct Couleurs {
     pub(crate) fond_terminal: &'static str,
 }
 
-/// Couleurs par défaut du rendu de débogage.
+/// Default colors of the debug rendering.
 pub(crate) const COULEURS_DEBUG: Couleurs = Couleurs {
     encre: "#333",
     arete: "#555",
@@ -97,8 +97,8 @@ pub(crate) const COULEURS_DEBUG: Couleurs = Couleurs {
     fond_terminal: "#eee",
 };
 
-/// Dessine les arcs puis les nœuds du sous-diagramme atteignable depuis
-/// `racine`, avec le placement donné et la palette donnée.
+/// Draws the arcs then the nodes of the sub-diagram reachable from
+/// `racine`, with the given placement and palette.
 pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -106,7 +106,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
     couleurs: &Couleurs,
 ) -> String {
     let mut svg = String::new();
-    // Arcs d'abord (sous les nœuds).
+    // Arcs first (under the nodes).
     let mut pile = vec![racine];
     let mut deja_vu = std::collections::BTreeSet::new();
     while let Some(noeud) = pile.pop() {
@@ -136,7 +136,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
             }
         }
     }
-    // Nœuds ensuite.
+    // Nodes next.
     for (noeud, position) in placement {
         match pool.resolve(*noeud) {
             Ok(Form::Terminal(payload)) => {
@@ -176,7 +176,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
     svg
 }
 
-/// Rend le sous-diagramme atteignable depuis `racine` en SVG statique.
+/// Renders the sub-diagram reachable from `racine` as static SVG.
 pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) -> String {
     let (placement, nombre_niveaux) = placer(pool, racine);
     let largeur =
@@ -186,14 +186,14 @@ pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) 
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
     );
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"14\">diagramme (niveaux = clés)</text>\n"
+        "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"14\">diagram (levels = keys)</text>\n"
     ));
     svg.push_str(&dessiner_corps(pool, racine, &placement, &COULEURS_DEBUG));
     svg.push_str("</svg>\n");
     svg
 }
 
-/// Règle de niveau affichée (pour les tests et la légende).
+/// Displayed level rule (for tests and the legend).
 pub fn etiquette_niveau(niveau: Level) -> String {
     format!("ℓ{}", niveau.0)
 }

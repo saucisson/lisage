@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 liseuse part 1: lisage-liseuse src+tests translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in all of `crates/lisage-liseuse/` — src (vue_ordre, pas_a_pas, vue_memoire, publication, philosophes, trace, svg) and tests (vue_ordre, pas_a_pas, philosophes, vue_memoire, liseuse_v0, publication, atelier_philosophes). SVG label literals translated in src and pinned copies updated in tests in sync (`D^def`, `convert … (cost …)`, `step by step — position …`, `memory and quotient view`, `alive=/dead=`, legend keys `inherited`/`synthesized`/`memory`/`ghost`, `inherited (φ_disp)` etc.); JSONL v2 wire field names (`canal`, `noeud`, `valeur`, `vivants`…) kept as contract. `bench-results/philosophes-n5.svg` regenerated for the new SVG title `diagram (levels = keys)`.
+- **Evidence**: accent grep returns 0 across `crates/lisage-liseuse/` except the kept `Synthétise` identifier; `cargo check -p lisage-liseuse --tests` passes; `cargo test -p lisage-liseuse` all 8 suites ok (29 passed, 0 failed); `cargo fmt -p lisage-liseuse -- --check` clean. Full-workspace `make check` not run at this stage (crate-scoped gates only); it is run after all M6-5 pull requests merge into `daily`.
+- **Judgement calls**: comments/strings translated now, public identifiers deferred; JSONL wire contract untouched.
 ## 2026-11-14 - M6-5 bench part 2: lisage-bench tests+benches translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).

@@ -1,7 +1,7 @@
-//! Tests de la Liseuse v1 — vue pas à pas (M2-6) : sérialisation JSONL v2
-//! des nouveaux événements (`Attr`, `MemoHit`/`MemoMiss`, `Round`),
-//! scrubber (replay de l'état à une position), différentiel avant/après
-//! avec fantômes, et rendu SVG aux canaux colorés.
+//! Liseuse v1 tests — step-by-step view (M2-6): JSONL v2 serialization
+//! of the new events (`Attr`, `MemoHit`/`MemoMiss`, `Round`),
+//! scrubber (state replay at a position), before/after differential
+//! with ghosts, and SVG rendering with colored channels.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
@@ -20,7 +20,7 @@ use lisage_liseuse::trace::{TRACE_VERSION, serialiser_evenement};
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Observateur qui collecte les événements typés en mémoire.
+/// Observer that collects the typed events in memory.
 #[derive(Clone, Default)]
 struct Collecteur {
     evenements: Arc<Mutex<Vec<TraceEvent>>>,
@@ -58,8 +58,8 @@ fn ensemble(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64])
     .unwrap()
 }
 
-/// M2-6 : le schéma de trace est versionné v2 et sérialise les nouveaux
-/// événements pas à pas.
+/// M2-6: the trace schema is versioned v2 and serializes the new
+/// step-by-step events.
 #[test]
 fn test_serialisation_v2_evenements_pas_a_pas() {
     assert_eq!(TRACE_VERSION, 2);
@@ -102,8 +102,8 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
     );
 }
 
-/// M2-6 : le runner émet `MemoMiss`/`MemoHit` et les `Attr` des canaux
-/// hérité/synthétisé pendant une transduction observée.
+/// M2-6: the runner emits `MemoMiss`/`MemoHit` and the `Attr` of the
+/// inherited/synthesized channels during an observed transduction.
 #[test]
 fn test_runner_emet_memo_et_attr() {
     let schema = schema_ensemble();
@@ -125,7 +125,7 @@ fn test_runner_emet_memo_et_attr() {
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let _ = runner.run(&pool, &mut sortie, anchor, racine).unwrap();
-    // Re-run pour déclencher des MemoHit.
+    // Re-run to trigger MemoHit.
     let _ = runner.run(&pool, &mut sortie, anchor, racine).unwrap();
 
     let evenements = collecteur.prendre();
@@ -133,13 +133,13 @@ fn test_runner_emet_memo_et_attr() {
         evenements
             .iter()
             .any(|e| matches!(e, TraceEvent::MemoMiss { .. })),
-        "au moins un MemoMiss"
+        "at least one MemoMiss"
     );
     assert!(
         evenements
             .iter()
             .any(|e| matches!(e, TraceEvent::MemoHit { .. })),
-        "au moins un MemoHit au second run"
+        "at least one MemoHit on the second run"
     );
     assert!(
         evenements.iter().any(|e| matches!(
@@ -149,7 +149,7 @@ fn test_runner_emet_memo_et_attr() {
                 ..
             }
         )),
-        "canal hérité émis"
+        "inherited channel emitted"
     );
     assert!(
         evenements.iter().any(|e| matches!(
@@ -159,11 +159,11 @@ fn test_runner_emet_memo_et_attr() {
                 ..
             }
         )),
-        "canal synthétisé émis"
+        "synthesized channel emitted"
     );
 }
 
-/// Transduction identité (cloneable) pour le test de saturate.
+/// Identity transduction (cloneable) for the saturate test.
 #[derive(Clone)]
 struct Identite;
 
@@ -216,8 +216,8 @@ impl lisage_core::transduction::Transduction for Identite {
     }
 }
 
-/// M2-6 : `saturate` émet un `Round` par itération quand un observateur est
-/// fourni.
+/// M2-6: `saturate` emits one `Round` per iteration when an observer is
+/// provided.
 #[test]
 fn test_saturate_emet_rounds() {
     let schema = schema_ensemble();
@@ -253,12 +253,12 @@ fn test_saturate_emet_rounds() {
             _ => None,
         })
         .collect();
-    assert_eq!(rounds, vec![1], "identité : 1 round (point fixe immédiat)");
+    assert_eq!(rounds, vec![1], "identity: 1 round (immediate fixpoint)");
     assert_eq!(resultat.iterations, 1);
 }
 
-/// M2-6 : le scrubber rejoue l'état à une position donnée (nœuds, attributs,
-/// compteurs memo, rounds).
+/// M2-6: the scrubber replays the state at a given position (nodes, attributes,
+/// memo counters, rounds).
 #[test]
 fn test_scrubber_replay_et_diff() {
     let evenements = vec![
@@ -289,26 +289,23 @@ fn test_scrubber_replay_et_diff() {
     assert_eq!(etat3.attributs.len(), 1);
     assert_eq!(etat3.memo_misses, 1);
     assert_eq!(etat3.memo_hits, 0);
-    assert_eq!(
-        etat3.rounds, 0,
-        "le Round d'index 3 n'est pas encore rejoué"
-    );
+    assert_eq!(etat3.rounds, 0, "the Round at index 3 is not replayed yet");
     scrubber.aller_a(4);
     assert_eq!(scrubber.etat().rounds, 1);
 
-    scrubber.aller_a(100); // borné à la longueur
+    scrubber.aller_a(100); // clamped to the length
     assert_eq!(scrubber.position(), 7);
     let etat7 = scrubber.etat();
     assert_eq!(etat7.noeuds, BTreeSet::from([NodeId(1), NodeId(2)]));
     assert_eq!(etat7.memo_hits, 1);
     assert_eq!(etat7.rounds, 2);
 
-    // Différentiel avant/après depuis la fin : le nœud 2 est un fantôme
-    // à la position 3, pas d'ajout.
+    // Before/after differential from the end: node 2 is a ghost
+    // at position 3, no addition.
     let diff = scrubber.diff_vers(3);
     assert!(diff.ajoutes.is_empty());
     assert_eq!(diff.fantomes, BTreeSet::from([NodeId(2)]));
-    // Diff inverse : le nœud 2 est un fantôme.
+    // Inverse diff: node 2 is a ghost.
     let mut retour = Scrubber::new(vec![
         TraceEvent::NodeCreated {
             node: NodeId(1),
@@ -325,8 +322,8 @@ fn test_scrubber_replay_et_diff() {
     assert_eq!(diff_inv.fantomes, BTreeSet::from([NodeId(2)]));
 }
 
-/// M2-6 : le rendu SVG pas à pas colore les canaux, marque les fantômes en
-/// pointillés, trace la frise avec les rounds, et est déterministe.
+/// M2-6: the step-by-step SVG rendering colors the channels, marks the ghosts
+/// as dashed, draws the timeline with the rounds, and is deterministic.
 #[test]
 fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     let schema = schema_ensemble();
@@ -350,8 +347,8 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     let _ = runner.run(&pool, &mut sortie, anchor, racine).unwrap();
     let mut evenements = collecteur.prendre();
     evenements.insert(0, TraceEvent::Round { numero: 1 });
-    // Le runner n'observe pas le pool : on ajoute les NodeCreated du
-    // diagramme d'entrée pour que l'état ait des nœuds.
+    // The runner does not observe the pool: we add the NodeCreated of the
+    // input diagram so that the state has nodes.
     let mut pile = vec![racine];
     let mut deja_vu = BTreeSet::new();
     while let Some(n) = pile.pop() {
@@ -373,39 +370,42 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     scrubber.aller_a(scrubber.longueur());
     let diff_vide = DiffTrace::default();
     let svg = rendre_svg_pas_a_pas(&pool, racine, &scrubber, &diff_vide);
-    // Canaux colorés présents (hérité bleu, synthétisé orange).
+    // Colored channels present (inherited blue, synthesized orange).
     let legende = legende_canaux();
-    assert!(svg.contains(legende["herite"]), "canal hérité coloré");
     assert!(
-        svg.contains(legende["synthetise"]),
-        "canal synthétisé coloré"
+        svg.contains(legende["inherited"]),
+        "inherited channel colored"
     );
-    // Frise : barre de round en violet + position courante.
-    assert!(svg.contains(legende["memoire"]), "barre de round / mémoire");
-    assert!(svg.contains("pas à pas"), "tableau de bord en titre");
+    assert!(
+        svg.contains(legende["synthesized"]),
+        "synthesized channel colored"
+    );
+    // Timeline: round bar in purple + current position.
+    assert!(svg.contains(legende["memory"]), "round bar / memory");
+    assert!(svg.contains("step by step"), "dashboard as title");
 
-    // Fantôme : diff avec un état vide au début → tous les nœuds fantômes
-    // ne sont pas dans le diff (ajouts), testons l'inverse : diff vers 0.
+    // Ghost: diff with an empty state at the start → all the nodes are ghosts
+    // not in the diff (additions), let's test the reverse: diff towards 0.
     let diff_fantomes = scrubber.diff_vers(0);
     assert!(
         !diff_fantomes.fantomes.is_empty(),
-        "nœuds présents = fantômes si on revient à 0"
+        "present nodes = ghosts when going back to 0"
     );
     let svg_fantomes = rendre_svg_pas_a_pas(&pool, racine, &scrubber, &diff_fantomes);
     assert!(
         svg_fantomes.contains("stroke-dasharray=\"4 3\""),
-        "fantômes en pointillés"
+        "ghosts dashed"
     );
 
-    // Déterminisme.
+    // Determinism.
     let svg2 = rendre_svg_pas_a_pas(&pool, racine, &scrubber, &diff_vide);
-    assert_eq!(svg, svg2, "rendu déterministe");
+    assert_eq!(svg, svg2, "deterministic rendering");
 }
 
-/// Propriété du scrubber (générateur LCG déterministe, sans proptest) :
-/// le replay est monotone par préfixe (l'état à k est inclus dans l'état à
-/// k+1 pour les nœuds et les compteurs) et le diff est antisymétrique
-/// (`diff(a→b).ajoutes == diff(b→a).fantomes` et inversement).
+/// Scrubber property (deterministic LCG generator, no proptest):
+/// the replay is monotone by prefix (the state at k is included in the state at
+/// k+1 for nodes and counters) and the diff is antisymmetric
+/// (`diff(a→b).ajoutes == diff(b→a).fantomes` and vice versa).
 #[test]
 fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
     const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -450,13 +450,13 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
             let etat = scrubber.etat();
             assert!(
                 precedent.noeuds.iter().all(|n| etat.noeuds.contains(n)),
-                "monotonie des nœuds à la position {position}"
+                "node monotonicity at position {position}"
             );
             assert!(precedent.memo_hits <= etat.memo_hits);
             assert!(precedent.memo_misses <= etat.memo_misses);
             assert!(precedent.rounds <= etat.rounds);
             assert!(precedent.attributs.len() <= etat.attributs.len());
-            // Antisymétrie du diff entre positions k-1 et k.
+            // Antisymmetry of the diff between positions k-1 and k.
             let diff_avant = diff(&precedent, &etat);
             let diff_arriere = diff(&etat, &precedent);
             assert_eq!(diff_avant.ajoutes, diff_arriere.fantomes);

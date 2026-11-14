@@ -1,5 +1,5 @@
-//! Tests du mode publication (M5-5) : SVG autonome au thème serif avec
-//! légende auto-générée depuis la légende des canaux, et export PGF/TikZ.
+//! Publication mode tests (M5-5): standalone SVG in the serif theme with
+//! legend auto-generated from the channel legend, and PGF/TikZ export.
 
 use std::collections::BTreeSet;
 
@@ -15,12 +15,12 @@ use lisage_liseuse::publication::{
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Schéma de test : `Set({0,1})`.
+/// Test schema: `Set({0,1})`.
 fn schema_test() -> Schema {
     Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]))
 }
 
-/// Construit le diagramme de l'ensemble `{0}` dans un pool neuf.
+/// Builds the diagram of the set `{0}` in a new pool.
 fn diagramme_test() -> (PoolRef, NodeId) {
     let schema = schema_test();
     let mut pool = Arena::new(
@@ -32,7 +32,7 @@ fn diagramme_test() -> (PoolRef, NodeId) {
     (pool, racine)
 }
 
-/// Le SVG de publication est autonome, au thème serif, avec le titre échappé.
+/// The publication SVG is standalone, in the serif theme, with the escaped title.
 #[test]
 fn test_svg_publication_theme_serif_et_titre() {
     let (pool, racine) = diagramme_test();
@@ -45,8 +45,8 @@ fn test_svg_publication_theme_serif_et_titre() {
     assert!(svg.ends_with("</svg>\n"));
 }
 
-/// La légende est auto-générée depuis la légende des canaux : un pavé et une
-/// étiquette par canal, avec la couleur déclarée.
+/// The legend is auto-generated from the channel legend: one swatch and one
+/// label per channel, with the declared color.
 #[test]
 fn test_legende_auto_depuis_legende_des_canaux() {
     let theme = Theme::publication();
@@ -55,22 +55,22 @@ fn test_legende_auto_depuis_legende_des_canaux() {
     for (canal, etiquette, couleur) in LEGENDE_CANAUX {
         assert!(
             legende.contains(&format!("fill=\"{couleur}\"")),
-            "couleur de {canal:?}"
+            "color of {canal:?}"
         );
-        assert!(legende.contains(etiquette), "étiquette de {canal:?}");
+        assert!(legende.contains(etiquette), "label of {canal:?}");
     }
-    // Le SVG de publication avec légende embarque les trois canaux.
+    // The publication SVG with legend embeds the three channels.
     let (pool, racine) = diagramme_test();
     let svg = rendre_svg_publication(&pool, racine, "fig", &theme, true);
     for (_canal, etiquette, _couleur) in LEGENDE_CANAUX {
         assert!(svg.contains(etiquette));
     }
-    // Sans légende : aucun pavé de canal.
+    // Without legend: no channel swatch.
     let svg_sans = rendre_svg_publication(&pool, racine, "fig", &theme, false);
-    assert!(!svg_sans.contains("hérité (φ_disp)"));
+    assert!(!svg_sans.contains("inherited (φ_disp)"));
 }
 
-/// Le rendu de publication est déterministe (deux appels identiques).
+/// The publication rendering is deterministic (two identical calls).
 #[test]
 fn test_svg_publication_deterministe() {
     let (pool, racine) = diagramme_test();
@@ -80,7 +80,7 @@ fn test_svg_publication_deterministe() {
     assert_eq!(premier, second);
 }
 
-/// Le PGF est un document TikZ autonome : nœuds et arcs du diagramme, titre.
+/// The PGF is a standalone TikZ document: diagram nodes and arcs, title.
 #[test]
 fn test_pgf_autonome_avec_noeuds_et_arcs() {
     let (pool, racine) = diagramme_test();
@@ -90,21 +90,21 @@ fn test_pgf_autonome_avec_noeuds_et_arcs() {
     assert!(pgf.contains("\\end{tikzpicture}"));
     assert!(pgf.contains("\\end{document}"));
     assert!(pgf.contains("figure A"));
-    // Le diagramme {0} sur Set({0,1}) a 1 nœud de niveau + le terminal ⊤
-    // (le terminal ⊥ est collapsé par R-default), et 1 arc.
+    // The diagram {0} over Set({0,1}) has 1 level node + the terminal ⊤
+    // (the terminal ⊥ is collapsed by R-default), and 1 arc.
     let nombre_noeuds = pgf.matches("\\node[draw, rectangle").count();
     assert_eq!(nombre_noeuds, 2);
     assert_eq!(pgf.matches("\\draw[->]").count(), 1);
-    // Échappement LaTeX du titre.
+    // LaTeX escaping of the title.
     let pgf_echappe = rendre_pgf(&pool, racine, "100% _special_");
     assert!(pgf_echappe.contains("100\\% \\_special\\_"));
-    // Régression : le backslash doit être échappé en dernier, sinon les
-    // accolades de `\textbackslash{}` sont ré-échappées.
+    // Regression: the backslash must be escaped last, otherwise the
+    // braces of `\textbackslash{}` are re-escaped.
     let pgf_backslash = rendre_pgf(&pool, racine, "a\\b");
     assert!(pgf_backslash.contains("a\\textbackslash{}b"));
 }
 
-/// Le canal `CanalAttr` couvert par la légende est bien celui de l'observateur.
+/// The `CanalAttr` channel covered by the legend is the observer's one.
 #[test]
 fn test_legende_couvre_les_trois_canaux() {
     let canaux: Vec<CanalAttr> = LEGENDE_CANAUX.iter().map(|(canal, _, _)| *canal).collect();
