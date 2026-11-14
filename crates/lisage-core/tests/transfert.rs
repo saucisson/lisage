@@ -25,7 +25,7 @@ fn schema_map() -> Schema {
     )
 }
 
-fn nouveau_pool(schema: &Schema) -> PoolRef {
+fn new_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
@@ -73,7 +73,7 @@ fn decompiler_map(
 
 /// Cardinality of a diagram (number of members of the denoted family).
 fn cardinal(pool: &PoolRef, schema: &Schema, noeud: lisage_algebra::interface::NodeId) -> u64 {
-    let mut sortie = nouveau_pool(schema);
+    let mut sortie = new_pool(schema);
     compter(pool, &mut sortie, Anchor(0), schema, noeud).unwrap()
 }
 
@@ -83,7 +83,7 @@ fn cardinal(pool: &PoolRef, schema: &Schema, noeud: lisage_algebra::interface::N
 fn test_transfert_a_vers_b_non_adjacent() {
     let schema = schema_map();
     let anchor = Anchor(0);
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0), (2, 1)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
@@ -103,7 +103,7 @@ fn test_transfert_a_vers_b_non_adjacent() {
 fn test_transfert_sans_unite() {
     let schema = schema_map();
     let anchor = Anchor(0);
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
@@ -120,7 +120,7 @@ fn test_transfert_sans_unite() {
 fn test_transfert_memoire_et_largeur() {
     let schema = schema_map();
     let anchor = Anchor(0);
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
@@ -143,7 +143,7 @@ fn test_transfert_memoire_et_largeur() {
 fn test_transfert_destination_hors_domaine() {
     let schema = schema_map();
     let anchor = Anchor(0);
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     // m(a) = 2, m(b) = 3 = max of the domain {0,1,2,3}.
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 3)]);
 
@@ -170,7 +170,7 @@ fn test_transfert_sous_saturate_termine() {
     );
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
@@ -212,7 +212,7 @@ fn test_transfert_collision_source_union() {
     );
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let m1 = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 0)]);
     let m2 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (1, 0)]);
     let famille = union(&mut pool, &keys, anchor, m1, m2).unwrap();
@@ -236,7 +236,7 @@ fn test_transfert_collision_destination_union() {
     let schema = schema_map();
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let m1 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (1, 2)]);
     let m2 = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 3)]);
     let famille = union(&mut pool, &keys, anchor, m1, m2).unwrap();
@@ -261,7 +261,7 @@ fn test_transfert_destination_absente_dans_famille() {
     let schema = schema_map();
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let m1 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (1, 0), (2, 2)]);
     let m2 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (2, 2)]);
     let famille = union(&mut pool, &keys, anchor, m1, m2).unwrap();

@@ -31,7 +31,7 @@ fn schema_test() -> Schema {
 }
 
 /// Builds a fresh pool for the given schema.
-fn nouveau_pool(schema: &Schema) -> PoolRef {
+fn new_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
@@ -61,7 +61,7 @@ fn compiler_ensemble(
 #[test]
 fn test_metriques_cache_hash_consing() {
     let schema = schema_test();
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let premier = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_PARTAGE);
     let metriques = pool.metriques();
     let creations_apres_premier = metriques.creations;
@@ -91,7 +91,7 @@ fn test_metriques_cache_hash_consing() {
 #[test]
 fn test_metriques_gc_et_compaction() {
     let schema = schema_test();
-    let mut pool = nouveau_pool(&schema);
+    let mut pool = new_pool(&schema);
     let racine = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_RACINE);
     // Orphans: many forms not reachable from the root.
     for i in 0..NB_ORPHELINS {

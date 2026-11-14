@@ -14,7 +14,7 @@ use proptest::prelude::*;
 
 type PoolRef = Arena<ReferenceController>;
 
-fn nouveau_pool() -> PoolRef {
+fn new_pool() -> PoolRef {
     let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
@@ -181,8 +181,8 @@ proptest! {
     /// Identity: the transduction rebuilds the same forms on output.
     #[test]
     fn test_identite_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
-        let mut entree = nouveau_pool();
-        let mut sortie = nouveau_pool();
+        let mut entree = new_pool();
+        let mut sortie = new_pool();
         let anchor = Anchor(0);
         let racine = dag_aleatoire(&mut entree, anchor, paires);
         let mut runner = Transducteur::new(Identite);
@@ -199,8 +199,8 @@ proptest! {
     /// Counting: the transduction (φ_aggr = sum) equals the naive count.
     #[test]
     fn test_comptage_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
-        let mut entree = nouveau_pool();
-        let mut sortie = nouveau_pool();
+        let mut entree = new_pool();
+        let mut sortie = new_pool();
         let anchor = Anchor(0);
         let racine = dag_aleatoire(&mut entree, anchor, paires);
         let attendu = compte_naif(&entree, racine);

@@ -176,16 +176,16 @@ impl<C: Controller> Arena<C> {
     fn compacter(&mut self) -> Vec<Option<NodeId>> {
         self.remap.clear();
         let mut remap: Vec<Option<NodeId>> = Vec::with_capacity(self.nodes.len());
-        let mut nouveaux: Vec<EntreeNoeud<C::Key, C::Payload>> = Vec::new();
+        let mut new_nodes: Vec<EntreeNoeud<C::Key, C::Payload>> = Vec::new();
         for entree in self.nodes.drain(..) {
             if entree.forme.is_some() {
-                remap.push(Some(NodeId(nouveaux.len() as u32)));
-                nouveaux.push(entree);
+                remap.push(Some(NodeId(new_nodes.len() as u32)));
+                new_nodes.push(entree);
             } else {
                 remap.push(None);
             }
         }
-        self.nodes = nouveaux;
+        self.nodes = new_nodes;
         for node in self.unique.values_mut() {
             if let Some(Some(new)) = remap.get(node.0 as usize) {
                 *node = *new;
