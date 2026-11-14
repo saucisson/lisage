@@ -49,7 +49,7 @@ fn nom_canal(canal: CanalAttr) -> &'static str {
     }
 }
 
-/// Serializes a trace event as one JSONL line (sans le `\n` final).
+/// Serializes a trace event as one JSONL line (without the trailing `\n`).
 pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
     let (type_evenement, champs) = match evenement {
         TraceEvent::NodeCreated { node, level } => (

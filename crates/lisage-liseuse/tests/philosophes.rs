@@ -225,7 +225,7 @@ fn test_propriete_mots_atteignables_jusqua_n12() {
         for mot in &mots {
             assert!(
                 (0..n).all(|i| !(mot[i] == 2 && mot[(i + 1) % n] == 2)),
-                "n={n} : invariant circulaire sur {mot:?}"
+                "n={n} : circular invariant on {mot:?}"
             );
         }
     }
