@@ -163,7 +163,7 @@ fn test_differentiel_cardinal_contre_mesure() {
 /// Narration (ADR-0100 decision 6): the DBM integral emits one
 /// `Attr`/`Synthétise` event per visited node, with the computed measure.
 #[test]
-fn test_narration_evenements_attr_synthétise() {
+fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
     let racine = compiler_bande(&mut pool, ANCRE);
     let collecteur = Collecteur::nouveau();
