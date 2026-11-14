@@ -1,7 +1,7 @@
 [package]
 name = "lisage-plan"
 version = "0.1.0"
-description = "Oracle de rentabilité, conversions, plan de représentation"
+description = "Profitability oracle, conversions, representation plan"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
