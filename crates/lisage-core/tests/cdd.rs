@@ -123,16 +123,16 @@ fn test_couverture_boite_bornee() {
 #[test]
 fn test_union_horloges_differentiel_contre_enumeration() {
     let mut pool = pool();
-    let racine = compiler_union_horloges(&mut pool, ANCRE);
+    let root = compiler_union_horloges(&mut pool, ANCRE);
     // Three nodes: true, false, the root — vs 16 points.
-    assert_eq!(compter_noeuds(&pool, racine).expect("interned node"), 3);
+    assert_eq!(compter_noeuds(&pool, root).expect("interned node"), 3);
     // A non-interned NodeId is a propagated error, not a silent leaf.
     assert!(compter_noeuds(&pool, NodeId(u32::MAX)).is_err());
     for x in 0..TAILLE_DOMAINE {
         for y in 0..TAILLE_DOMAINE {
             let point = [x, y];
             let attendu = i128::from(x) - i128::from(y) <= 0 || i128::from(x) - i128::from(y) >= 2;
-            let lu = evaluer(&pool, racine, &point).expect("interned node");
+            let lu = evaluer(&pool, root, &point).expect("interned node");
             assert_eq!(
                 lu.unwrap_or(false),
                 attendu,
@@ -147,11 +147,11 @@ fn test_union_horloges_differentiel_contre_enumeration() {
 #[test]
 fn test_partage_pool_union() {
     let mut pool = pool();
-    let racine_a = compiler_union_horloges(&mut pool, ANCRE);
-    let racine_b = compiler_union_horloges(&mut pool, ANCRE);
-    assert_eq!(racine_a, racine_b, "same union = same root");
+    let root_a = compiler_union_horloges(&mut pool, ANCRE);
+    let root_b = compiler_union_horloges(&mut pool, ANCRE);
+    assert_eq!(root_a, root_b, "same union = same root");
     // The root indeed has two arcs at level 0 (union + complement).
-    let Form::Node { arcs, .. } = pool.resolve(racine_a).expect("interned node") else {
+    let Form::Node { arcs, .. } = pool.resolve(root_a).expect("interned node") else {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2);

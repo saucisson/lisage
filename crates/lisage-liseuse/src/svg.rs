@@ -33,16 +33,16 @@ pub(crate) struct Placement {
     pub(crate) y: u32,
 }
 
-/// Collects the nodes reachable from `racine`, grouped by level, and
+/// Collects the nodes reachable from `root`, grouped by level, and
 /// computes a deterministic placement (depth-first traversal, x increasing
 /// by order of first visit in each level).
 pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
 ) -> (BTreeMap<NodeId, Placement>, u32) {
     let mut niveaux: BTreeMap<u32, Vec<NodeId>> = BTreeMap::new();
     let mut visites: Vec<NodeId> = Vec::new();
-    let mut pile = vec![racine];
+    let mut pile = vec![root];
     let mut deja_vu = std::collections::BTreeSet::new();
     while let Some(noeud) = pile.pop() {
         if !deja_vu.insert(noeud) {
@@ -98,16 +98,16 @@ pub(crate) const COULEURS_DEBUG: Couleurs = Couleurs {
 };
 
 /// Draws the arcs then the nodes of the sub-diagram reachable from
-/// `racine`, with the given placement and palette.
+/// `root`, with the given placement and palette.
 pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     placement: &BTreeMap<NodeId, Placement>,
     couleurs: &Couleurs,
 ) -> String {
     let mut svg = String::new();
     // Arcs first (under the nodes).
-    let mut pile = vec![racine];
+    let mut pile = vec![root];
     let mut deja_vu = std::collections::BTreeSet::new();
     while let Some(noeud) = pile.pop() {
         if !deja_vu.insert(noeud) {
@@ -176,9 +176,9 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
     svg
 }
 
-/// Renders the sub-diagram reachable from `racine` as static SVG.
-pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) -> String {
-    let (placement, nombre_niveaux) = placer(pool, racine);
+/// Renders the sub-diagram reachable from `root` as static SVG.
+pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> String {
+    let (placement, nombre_niveaux) = placer(pool, root);
     let largeur =
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
     let hauteur = MARGE_HAUT + (nombre_niveaux + 1) * HAUTEUR_NIVEAU + 20;
@@ -188,7 +188,7 @@ pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) 
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"14\">diagram (levels = keys)</text>\n"
     ));
-    svg.push_str(&dessiner_corps(pool, racine, &placement, &COULEURS_DEBUG));
+    svg.push_str(&dessiner_corps(pool, root, &placement, &COULEURS_DEBUG));
     svg.push_str("</svg>\n");
     svg
 }

@@ -64,12 +64,12 @@ pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
 /// an `Attr`/`Synthesized` event with the computed measure.
 pub fn integrale_constante<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     region: &Intervalle,
     observateur: Option<&dyn Observer>,
 ) -> Result<u64, PoolError> {
     let mut memo: HashMap<(NodeId, Intervalle), u64> = HashMap::new();
-    integrale(pool, racine, region, observateur, &mut memo)
+    integrale(pool, root, region, observateur, &mut memo)
 }
 
 fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
@@ -125,13 +125,13 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
 /// an `Attr`/`Synthesized` event with the computed measure.
 pub fn integrale_dbm_constante<P: Pool<Key = Dbm, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     region: &Dbm,
     keys: &DbmKeys,
     observateur: Option<&dyn Observer>,
 ) -> Result<i128, PoolError> {
     let mut memo: HashMap<(NodeId, Dbm), i128> = HashMap::new();
-    integrale_dbm(pool, racine, region, keys, observateur, &mut memo)
+    integrale_dbm(pool, root, region, keys, observateur, &mut memo)
 }
 
 fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(

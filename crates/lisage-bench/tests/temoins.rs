@@ -26,12 +26,12 @@ proptest! {
         let keys = BddKeys::new(nombre_variables);
         let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
         let anchor = Anchor(0);
-        let racine = compiler_bdd(&mut pool, anchor, &keys, &table);
-        let noeuds_arene = compter_noeuds(&pool, racine);
+        let root = compiler_bdd(&mut pool, anchor, &keys, &table);
+        let noeuds_arene = compter_noeuds(&pool, root);
 
         let mut temoin = MiniBdd::new();
-        let racine_temoin = temoin.compiler_table(nombre_variables, &table);
-        let noeuds_temoin = temoin.compter_noeuds(racine_temoin);
+        let root_temoin = temoin.compiler_table(nombre_variables, &table);
+        let noeuds_temoin = temoin.compter_noeuds(root_temoin);
 
         prop_assert_eq!(
             noeuds_arene, noeuds_temoin,
@@ -39,8 +39,8 @@ proptest! {
         );
         for a in 0..(1u64 << nombre_variables) {
             let attendu = table[a as usize];
-            prop_assert_eq!(evaluer(&pool, racine, a).unwrap(), attendu, "arena, assignment {}", a);
-            prop_assert_eq!(temoin.evaluer(racine_temoin, a), attendu, "witness, assignment {}", a);
+            prop_assert_eq!(evaluer(&pool, root, a).unwrap(), attendu, "arena, assignment {}", a);
+            prop_assert_eq!(temoin.evaluer(root_temoin, a), attendu, "witness, assignment {}", a);
         }
     }
 }

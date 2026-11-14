@@ -68,11 +68,11 @@ impl MiniBdd {
         self.fabriquer_noeud(variable, bas, haut)
     }
 
-    /// Number of nodes reachable from `racine`, terminals included
+    /// Number of nodes reachable from `root`, terminals included
     /// (same convention as `lisage_core::bdd::compter_noeuds`).
-    pub fn compter_noeuds(&self, racine: u32) -> u64 {
+    pub fn compter_noeuds(&self, root: u32) -> u64 {
         let mut visite = std::collections::BTreeSet::new();
-        let mut pile = vec![racine];
+        let mut pile = vec![root];
         while let Some(noeud) = pile.pop() {
             if !visite.insert(noeud) {
                 continue;
@@ -86,9 +86,9 @@ impl MiniBdd {
         visite.len() as u64
     }
 
-    /// Evaluates the BDD of index `racine` on an assignment.
-    pub fn evaluer(&self, racine: u32, affectation: u64) -> bool {
-        let mut noeud = racine;
+    /// Evaluates the BDD of index `root` on an assignment.
+    pub fn evaluer(&self, root: u32, affectation: u64) -> bool {
+        let mut noeud = root;
         loop {
             let (variable, bas, haut) = self.noeuds[noeud as usize];
             if variable == u32::MAX {

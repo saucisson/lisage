@@ -166,7 +166,7 @@ fn test_differentiel_appartenance_contre_enumeration() {
     // x0 − x1 ≤ 0  ⇔  x0 ≤ x1; the complement is x1 − x0 ≤ −1.
     let region_dessous = Dbm::new(2, &[(0, 1, 0)]);
     let region_dessus = Dbm::new(2, &[(1, 0, -1)]);
-    let racine = pool.intern(
+    let root = pool.intern(
         ANCRE,
         Form::Node {
             level: Level(0),
@@ -177,7 +177,7 @@ fn test_differentiel_appartenance_contre_enumeration() {
             ]),
         },
     );
-    let forme = pool.resolve(racine).expect("interned node");
+    let forme = pool.resolve(root).expect("interned node");
     let Form::Node { arcs, .. } = forme else {
         panic!("two distinct regions: no R-collapse");
     };

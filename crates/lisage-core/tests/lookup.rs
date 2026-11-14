@@ -44,13 +44,13 @@ fn executer_lookup(
         Box::new(NoOpObserver),
     );
     let anchor = Anchor(0);
-    let racine = compiler(&mut entree, anchor, schema, valeur).unwrap();
+    let root = compiler(&mut entree, anchor, schema, valeur).unwrap();
     let mut runner = Transducteur::new(Lookup::new(
         cle,
         liste_cles.to_vec(),
         domaine_valeurs.clone(),
     ));
-    let (resultat, fragment) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+    let (resultat, fragment) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
     (sortie, resultat, fragment)
 }
 

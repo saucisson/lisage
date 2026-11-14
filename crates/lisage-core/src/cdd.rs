@@ -211,10 +211,10 @@ impl Controller for CddController {
 /// the absent arc is δ(ℓ), the continuous "absent".
 pub fn evaluer<P: Pool<Key = Cdd, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     point: &[u64],
 ) -> Result<Option<bool>, PoolError> {
-    let mut noeud = racine;
+    let mut noeud = root;
     loop {
         match pool.resolve(noeud)? {
             Form::Terminal(payload) => return Ok(Some(*payload)),
@@ -232,15 +232,15 @@ pub fn evaluer<P: Pool<Key = Cdd, Payload = bool>>(
     }
 }
 
-/// Counts the distinct nodes reachable from `racine`, terminals
+/// Counts the distinct nodes reachable from `root`, terminals
 /// included. Propagates the pool error: a non-interned `NodeId` is an
 /// error, not a silent leaf.
 pub fn compter_noeuds<P: Pool<Key = Cdd, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
 ) -> Result<u64, PoolError> {
     let mut visite = BTreeSet::new();
-    let mut pile = vec![racine];
+    let mut pile = vec![root];
     while let Some(noeud) = pile.pop() {
         if !visite.insert(noeud) {
             continue;

@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 4: `racine` identifiers renamed to `root` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `racine` stem (bare word, `racine_*` compounds, `*_racine` suffixes, `racines` plural, `racine2`) to `root`/`roots`, workspace-wide (48 files), per glossary (racine → root).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
+- **Judgement calls**: prefix/suffix compounds renamed in the same pass so no `racine` stem survives a grep.
 ## 2026-11-14 - M6-6 part 3: `nouveau` constructors renamed to `new` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

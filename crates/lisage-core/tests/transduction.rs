@@ -280,11 +280,11 @@ fn test_transduction_sur_diagramme_compile() {
         Value::Atom(Atom(0)),
         Value::Atom(Atom(1)),
     ]));
-    let racine = compiler(&mut entree, anchor, &schema, &ensemble).unwrap();
+    let root = compiler(&mut entree, anchor, &schema, &ensemble).unwrap();
     let mut runner = Transducteur::new(Identite);
-    let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+    let (resultat, _) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
     assert_eq!(
         sortie.resolve(resultat).unwrap(),
-        entree.resolve(racine).unwrap()
+        entree.resolve(root).unwrap()
     );
 }

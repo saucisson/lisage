@@ -40,29 +40,29 @@ fn test_collapse_commute() {
     // 1-variable BDD: {0 → ⊥, 1 → ⊥}.
     let mut avec = pool_bdd(Reductions::TOUTES);
     let faux = avec.intern(ANCRE, Form::Terminal(false));
-    let racine_avec = avec.intern(
+    let root_avec = avec.intern(
         ANCRE,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, faux), (1, faux)]),
         },
     );
-    assert_eq!(racine_avec, faux, "R-collapse: the node reduces to ⊥");
-    let rapport = mesurer(&avec, racine_avec, None).expect("interned node");
+    assert_eq!(root_avec, faux, "R-collapse: the node reduces to ⊥");
+    let rapport = mesurer(&avec, root_avec, None).expect("interned node");
     assert_eq!(rapport.noeuds_partages, 1);
     assert_eq!(rapport.chemins, 1);
 
     let mut sans = pool_bdd(Reductions::sans_collapse());
     let faux = sans.intern(ANCRE, Form::Terminal(false));
-    let racine_sans = sans.intern(
+    let root_sans = sans.intern(
         ANCRE,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, faux), (1, faux)]),
         },
     );
-    assert_ne!(racine_sans, faux, "without R-collapse: the node is kept");
-    let rapport = mesurer(&sans, racine_sans, None).expect("interned node");
+    assert_ne!(root_sans, faux, "without R-collapse: the node is kept");
+    let rapport = mesurer(&sans, root_sans, None).expect("interned node");
     assert_eq!(rapport.noeuds_partages, 2, "node + terminal ⊥");
     assert_eq!(rapport.chemins, 2, "two paths to ⊥");
 }
@@ -74,36 +74,36 @@ fn test_defaut_commute() {
     let mut avec = pool_region(Reductions::TOUTES);
     let vrai = avec.intern(ANCRE, Form::Terminal(true));
     let faux = avec.intern(ANCRE, Form::Terminal(false));
-    let racine_avec = avec.intern(
+    let root_avec = avec.intern(
         ANCRE,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(Intervalle::point(0), vrai), (VIDE, faux)]),
         },
     );
-    let Form::Node { arcs, .. } = avec.resolve(racine_avec).expect("interned node") else {
+    let Form::Node { arcs, .. } = avec.resolve(root_avec).expect("interned node") else {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 1, "R-default: the VIDE arc to ⊥ is absorbed");
-    let rapport = mesurer(&avec, racine_avec, None).expect("interned node");
+    let rapport = mesurer(&avec, root_avec, None).expect("interned node");
     assert_eq!(rapport.noeuds_partages, 2, "node + ⊤");
     assert_eq!(rapport.chemins, 1);
 
     let mut sans = pool_region(Reductions::sans_defaut());
     let vrai = sans.intern(ANCRE, Form::Terminal(true));
     let faux = sans.intern(ANCRE, Form::Terminal(false));
-    let racine_sans = sans.intern(
+    let root_sans = sans.intern(
         ANCRE,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(Intervalle::point(0), vrai), (VIDE, faux)]),
         },
     );
-    let Form::Node { arcs, .. } = sans.resolve(racine_sans).expect("interned node") else {
+    let Form::Node { arcs, .. } = sans.resolve(root_sans).expect("interned node") else {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2, "without R-default: the VIDE arc is kept");
-    let rapport = mesurer(&sans, racine_sans, None).expect("interned node");
+    let rapport = mesurer(&sans, root_sans, None).expect("interned node");
     assert_eq!(rapport.noeuds_partages, 3, "node + ⊤ + ⊥");
     assert_eq!(rapport.chemins, 2);
 }
@@ -123,18 +123,18 @@ fn test_chemins_contre_noeuds() {
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
-    let racine = pool.intern(
+    let root = pool.intern(
         ANCRE,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, n1), (1, n1)]),
         },
     );
-    assert_eq!(compter_noeuds(&pool, racine).expect("interned node"), 4);
-    assert_eq!(compter_chemins(&pool, racine).expect("interned node"), 4);
+    assert_eq!(compter_noeuds(&pool, root).expect("interned node"), 4);
+    assert_eq!(compter_chemins(&pool, root).expect("interned node"), 4);
     // Unfolded size: root (1) + 2 × n1 (1 + ⊤ + ⊥ = 3) = 7.
     assert_eq!(
-        compter_taille_depliee(&pool, racine).expect("interned node"),
+        compter_taille_depliee(&pool, root).expect("interned node"),
         7
     );
     // A non-interned NodeId is a propagated error.
@@ -189,11 +189,11 @@ fn test_propriete_commutation_lcg() {
     for _ in 0..NOMBRE_CAS {
         let amorce = suivant();
         let mut avec = pool_bdd(Reductions::TOUTES);
-        let racine_avec = arbre(&mut avec, 3, amorce);
+        let root_avec = arbre(&mut avec, 3, amorce);
         let mut sans = pool_bdd(Reductions::AUCUNE);
-        let racine_sans = arbre(&mut sans, 3, amorce);
-        let rapport_avec = mesurer(&avec, racine_avec, None).expect("interned node");
-        let rapport_sans = mesurer(&sans, racine_sans, None).expect("interned node");
+        let root_sans = arbre(&mut sans, 3, amorce);
+        let rapport_avec = mesurer(&avec, root_avec, None).expect("interned node");
+        let rapport_sans = mesurer(&sans, root_sans, None).expect("interned node");
         assert!(rapport_avec.chemins >= 1, "at least one path");
         assert!(
             rapport_sans.noeuds_partages >= rapport_avec.noeuds_partages,
@@ -234,7 +234,7 @@ fn test_narration_mesurer() {
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
-    let racine = pool.intern(
+    let root = pool.intern(
         ANCRE,
         Form::Node {
             level: Level(0),
@@ -244,7 +244,7 @@ fn test_narration_mesurer() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = mesurer(&pool, racine, Some(&collecteur)).expect("interned node");
+    let rapport = mesurer(&pool, root, Some(&collecteur)).expect("interned node");
     assert_eq!(rapport.noeuds_partages, 4);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
@@ -545,10 +545,9 @@ fn test_glisse_pool_constant_lectures_differentes() {
             glissee.fenetre_absolue(),
             (100 + delta, 100 + delta + TAILLE as i64)
         );
-        let (racine, fenetre_glissee) =
-            construire_fenetre_ancree(&mut pool, ANCRE, TAILLE, &glissee);
+        let (root, fenetre_glissee) = construire_fenetre_ancree(&mut pool, ANCRE, TAILLE, &glissee);
         assert_eq!(fenetre_glissee, fenetre, "window form shared at each slide");
-        assert_ne!(racine, fenetre, "each base has its own root");
+        assert_ne!(root, fenetre, "each base has its own root");
     }
     assert_eq!(
         pool.node_count(),

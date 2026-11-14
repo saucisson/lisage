@@ -67,13 +67,13 @@ fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Valu
     let schema = Schema::Map(cles, Domaine::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
     let ancre = Anchor(0);
-    let mut racine = pool.intern(ancre, Form::Terminal(false));
+    let mut root = pool.intern(ancre, Form::Terminal(false));
     for valeur in ensemble {
         let membre = compiler(pool, ancre, &schema, valeur).unwrap();
-        racine = union(pool, &keys, ancre, racine, membre).unwrap();
+        root = union(pool, &keys, ancre, root, membre).unwrap();
     }
     let mut sortie = pool_pour_sdd(&vtree_test(), ensemble);
-    compter(pool, &mut sortie, ancre, &schema, racine).unwrap()
+    compter(pool, &mut sortie, ancre, &schema, root).unwrap()
 }
 
 /// C6 falsification: global cardinal of the flat DD == cardinal of the

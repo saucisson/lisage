@@ -81,7 +81,7 @@ pub struct NiveauSdd {
     /// Local anchor of the node (local controller, instance pattern).
     pub ancre: Anchor,
     /// Root of the local DD (set projected on the variables of the subtree).
-    pub racine: NodeId,
+    pub root: NodeId,
     /// Cardinal of the local DD (pli `(ℕ,+,×)`).
     pub cardinal: u64,
 }
@@ -125,15 +125,15 @@ fn installer_niveau(
     *compteur_ancres += 1;
     let projection = projeter(ensemble, &variables);
     let schema = Schema::Map(variables, domaine.clone());
-    let racine = compiler_projection(pool, &schema, &projection, ancre)?;
-    let cardinal = compter_niveau(pool, &schema, racine, ancre)?;
+    let root = compiler_projection(pool, &schema, &projection, ancre)?;
+    let cardinal = compter_niveau(pool, &schema, root, ancre)?;
     if let Vtree::Noeud { gauche, droite } = vtree {
         installer_niveau(pool, gauche, &projection, domaine, compteur_ancres)?;
         installer_niveau(pool, droite, &projection, domaine, compteur_ancres)?;
     }
     Ok(NiveauSdd {
         ancre,
-        racine,
+        root,
         cardinal,
     })
 }
@@ -190,24 +190,24 @@ fn compiler_projection(
     ancre: Anchor,
 ) -> Result<NodeId, ErreurSdd> {
     let keys = SchemaKeys::new(schema.clone());
-    let mut racine = pool.intern(ancre, Form::Terminal(false));
+    let mut root = pool.intern(ancre, Form::Terminal(false));
     for valeur in projection {
         let membre = compiler(pool, ancre, schema, valeur)?;
-        racine = union(pool, &keys, ancre, racine, membre)?;
+        root = union(pool, &keys, ancre, root, membre)?;
     }
-    Ok(racine)
+    Ok(root)
 }
 
 /// Cardinal of a local DD via the `(ℕ,+,×)` pli.
 fn compter_niveau(
     pool: &Arena<ReferenceController>,
     schema: &Schema,
-    racine: NodeId,
+    root: NodeId,
     ancre: Anchor,
 ) -> Result<u64, ErreurSdd> {
     let mut sortie = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    Ok(compter(pool, &mut sortie, ancre, schema, racine)?)
+    Ok(compter(pool, &mut sortie, ancre, schema, root)?)
 }

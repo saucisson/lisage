@@ -173,13 +173,13 @@ fn voie_dd(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<MesureVoie, Erre
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let racine = compiler_espace(&mut pool, &schema, &espace)?;
+    let root = compiler_espace(&mut pool, &schema, &espace)?;
     let noeuds_vivants = pool.vivants();
     let mut sortie = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let cardinal = compter(&pool, &mut sortie, ANCRE_BANC, &schema, racine)?;
+    let cardinal = compter(&pool, &mut sortie, ANCRE_BANC, &schema, root)?;
     Ok(MesureVoie {
         cardinal,
         noeuds_vivants,
@@ -224,10 +224,10 @@ fn compiler_espace(
     espace: &BTreeSet<Value>,
 ) -> Result<NodeId, ErreurTriptyque> {
     let keys = SchemaKeys::new(schema.clone());
-    let mut racine = pool.intern(ANCRE_BANC, Form::Terminal(false));
+    let mut root = pool.intern(ANCRE_BANC, Form::Terminal(false));
     for valeur in espace {
         let membre = compiler(pool, ANCRE_BANC, schema, valeur)?;
-        racine = union(pool, &keys, ANCRE_BANC, racine, membre)?;
+        root = union(pool, &keys, ANCRE_BANC, root, membre)?;
     }
-    Ok(racine)
+    Ok(root)
 }

@@ -20,8 +20,8 @@ fn mesurer_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
         AtelierController::new(ReferenceController::new(schema.clone()), reductions),
         Box::new(NoOpObserver),
     );
-    let racine = construire_r_n(&mut pool, ANCRE, n);
-    let rapport = mesurer(&pool, racine, None).expect("interned node");
+    let root = construire_r_n(&mut pool, ANCRE, n);
+    let rapport = mesurer(&pool, root, None).expect("interned node");
     (
         rapport.noeuds_partages,
         rapport.chemins,
@@ -67,8 +67,8 @@ fn test_commutation_ne_reduit_jamais() {
 fn test_enveloppe_transparente_quand_tout_actif() {
     let schema = schema_anneau(3);
     let mut reference = pool_neuf(&schema);
-    let racine_ref = construire_r_n(&mut reference, ANCRE, 3);
-    let rapport_ref = mesurer(&reference, racine_ref, None).expect("interned node");
+    let root_ref = construire_r_n(&mut reference, ANCRE, 3);
+    let rapport_ref = mesurer(&reference, root_ref, None).expect("interned node");
     let (noeuds, chemins, taille) = mesurer_r_n(3, Reductions::TOUTES);
     assert_eq!(rapport_ref.noeuds_partages, noeuds);
     assert_eq!(rapport_ref.chemins, chemins);

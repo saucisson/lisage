@@ -25,10 +25,10 @@ use crate::dbm::Dbm;
 /// point: the absent arc means δ(ℓ), the continuous "absent".
 pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
     pool: &P,
-    racine: NodeId,
+    root: NodeId,
     point: &[u64],
 ) -> Result<Option<bool>, PoolError> {
-    let mut noeud = racine;
+    let mut noeud = root;
     loop {
         match pool.resolve(noeud)? {
             Form::Terminal(payload) => return Ok(Some(*payload)),
@@ -46,10 +46,10 @@ pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
     }
 }
 
-/// Counts the distinct nodes reachable from `racine`, terminals included.
-pub fn compter_noeuds<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, racine: NodeId) -> u64 {
+/// Counts the distinct nodes reachable from `root`, terminals included.
+pub fn compter_noeuds<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
     let mut visite = BTreeSet::new();
-    let mut pile = vec![racine];
+    let mut pile = vec![root];
     while let Some(noeud) = pile.pop() {
         if !visite.insert(noeud) {
             continue;

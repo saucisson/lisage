@@ -87,7 +87,7 @@ fn arena() -> Arena<MockController> {
 fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
     let faux = pool.terminal(ANCRE_TEST, false);
     let vrai = pool.terminal(ANCRE_TEST, true);
-    let racine = pool.intern(
+    let root = pool.intern(
         ANCRE_TEST,
         Form::Node {
             level: Level(NIVEAU_RACINE),
@@ -101,29 +101,29 @@ fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
-    (racine, orphelin)
+    (root, orphelin)
 }
 
 /// M4-1: main/shadow planes and the shadow-plane index (level → forms).
 #[test]
 fn test_plans_et_index_ombre() {
     let mut pool = arena();
-    let (racine, orphelin) = petit_diagramme(&mut pool);
+    let (root, orphelin) = petit_diagramme(&mut pool);
     // By default, everything is in the main plane.
-    assert_eq!(pool.plan_de(racine), Some(Plan::Principal));
+    assert_eq!(pool.plan_de(root), Some(Plan::Principal));
     // A node interned in the shadow plane stays there.
     let ombre = pool.intern_plan(
         ANCRE_TEST,
         Form::Node {
             level: Level(NIVEAU_OMBRE),
-            arcs: BTreeMap::from([(1, racine)]),
+            arcs: BTreeMap::from([(1, root)]),
         },
         Plan::Ombre,
     );
     assert_eq!(pool.plan_de(ombre), Some(Plan::Ombre));
     assert_eq!(pool.plan_de(orphelin), Some(Plan::Principal));
     // Shadow-plane index: level 1 contains the root.
-    assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&racine));
+    assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&root));
     assert!(pool.index_niveau(Level(NIVEAU_OMBRE)).contains(&ombre));
     assert!(pool.index_niveau(Level(NIVEAU_ABSENT)).is_empty());
 }
@@ -134,9 +134,9 @@ fn test_plans_et_index_ombre() {
 #[test]
 fn test_gc_mark_sweep() {
     let mut pool = arena();
-    let (racine, orphelin) = petit_diagramme(&mut pool);
+    let (root, orphelin) = petit_diagramme(&mut pool);
     let avant = pool.node_count();
-    let stats = pool.gc(&[racine]);
+    let stats = pool.gc(&[root]);
     // R-default removed the default arc: reachable = root + true.
     assert_eq!(stats.vivants, 2, "root + true terminal");
     assert_eq!(stats.collectes, (avant as u64) - 2);
@@ -177,7 +177,7 @@ fn test_gc_mark_sweep() {
 #[test]
 fn test_compaction_profilee() {
     let mut pool = arena();
-    let (racine, _orphelin) = petit_diagramme(&mut pool);
+    let (root, _orphelin) = petit_diagramme(&mut pool);
     // Many orphans to exceed the SEUIL_COMPACTION threshold.
     let mut orphelins = Vec::new();
     for i in 0..NB_ORPHELINS {
@@ -185,7 +185,7 @@ fn test_compaction_profilee() {
             ANCRE_TEST,
             Form::Node {
                 level: Level(NIVEAU_BASE_ORPHELINS + i as u32),
-                arcs: BTreeMap::from([(1, racine)]),
+                arcs: BTreeMap::from([(1, root)]),
             },
         ));
     }
@@ -194,15 +194,15 @@ fn test_compaction_profilee() {
         seuil_atteint(NB_ORPHELINS, total),
         "compaction threshold reached"
     );
-    let stats = pool.gc(&[racine]);
+    let stats = pool.gc(&[root]);
     assert!(stats.compaction, "profiled compaction triggered");
     assert_eq!(pool.vivants(), 2);
     assert_eq!(pool.node_count(), 2, "tombstones compacted");
     // Compaction invalidates old NodeIds: the live root is remapped to a new
     // id, resolvable and indexed at level 1.
     let remap = pool.dernier_remap();
-    let new = remap[racine.0 as usize].expect("live root remapped");
-    assert_ne!(new, racine);
+    let new = remap[root.0 as usize].expect("live root remapped");
+    assert_ne!(new, root);
     assert!(pool.resolve(new).is_ok());
     assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&new));
     // Le seuil n'est pas atteint avec peu de morts.
@@ -226,13 +226,13 @@ fn test_metriques_cache_et_evenement_gc() {
         MockController { keys: MockKeys },
         Box::new(Pont(observateur.clone())),
     );
-    let (racine, orphelin) = petit_diagramme(&mut pool);
+    let (root, orphelin) = petit_diagramme(&mut pool);
     // Re-intern the exact form of the root: hit (R-share, same handle).
-    let Form::Node { level, arcs } = pool.resolve(racine).unwrap().clone() else {
+    let Form::Node { level, arcs } = pool.resolve(root).unwrap().clone() else {
         panic!("the root is a node");
     };
     let partage = pool.intern(ANCRE_TEST, Form::Node { level, arcs });
-    assert_eq!(partage, racine, "R-partage: meme handle");
+    assert_eq!(partage, root, "R-partage: meme handle");
     let metriques = pool.metriques();
     assert!(
         metriques.creations >= 4,
@@ -245,7 +245,7 @@ fn test_metriques_cache_et_evenement_gc() {
         metriques.partages
     );
     assert!(pool.metriques().taux_hit() > 0);
-    let stats = pool.gc(&[racine]);
+    let stats = pool.gc(&[root]);
     let metriques = pool.metriques();
     assert_eq!(metriques.gc, 1);
     assert_eq!(metriques.vivants, stats.vivants);
@@ -273,15 +273,15 @@ fn test_metriques_cache_et_evenement_gc() {
 #[test]
 fn test_intern_plan_hit_cache_replanifie() {
     let mut pool = arena();
-    let (racine, _orphelin) = petit_diagramme(&mut pool);
-    assert_eq!(pool.plan_de(racine), Some(Plan::Principal));
-    let Form::Node { level, arcs } = pool.resolve(racine).unwrap().clone() else {
+    let (root, _orphelin) = petit_diagramme(&mut pool);
+    assert_eq!(pool.plan_de(root), Some(Plan::Principal));
+    let Form::Node { level, arcs } = pool.resolve(root).unwrap().clone() else {
         panic!("the root is a node");
     };
     // Cache hit with shadow plan: same handle, plan moved.
     let meme = pool.intern_plan(ANCRE_TEST, Form::Node { level, arcs }, Plan::Ombre);
-    assert_eq!(meme, racine, "R-partage: meme handle");
-    assert_eq!(pool.plan_de(racine), Some(Plan::Ombre));
+    assert_eq!(meme, root, "R-partage: meme handle");
+    assert_eq!(pool.plan_de(root), Some(Plan::Ombre));
 }
 
 /// M4-1 (property tier, LCG): invariants of the compaction threshold, the
@@ -341,19 +341,19 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
     // reflect the last GC.
     for _ in 0..100 {
         let mut pool = arena();
-        let (racine, _orphelin) = petit_diagramme(&mut pool);
+        let (root, _orphelin) = petit_diagramme(&mut pool);
         let nb_orphelins = suivant() % 30;
         for i in 0..nb_orphelins {
             pool.intern(
                 ANCRE_TEST,
                 Form::Node {
                     level: Level(NIVEAU_BASE_ORPHELINS + i as u32),
-                    arcs: BTreeMap::from([(1, racine)]),
+                    arcs: BTreeMap::from([(1, root)]),
                 },
             );
         }
         let total = pool.node_count() as u64;
-        let stats = pool.gc(&[racine]);
+        let stats = pool.gc(&[root]);
         assert_eq!(stats.vivants + stats.collectes, total);
         assert_eq!(stats.vivants, pool.vivants() as u64);
         let metriques = pool.metriques();
@@ -369,11 +369,11 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
 #[test]
 fn test_gc_deux_fois_vivants_exacts() {
     let mut pool = arena();
-    let (racine, _orphelin) = petit_diagramme(&mut pool);
+    let (root, _orphelin) = petit_diagramme(&mut pool);
     // Chain of nodes all reachable from the root: the first GC only
     // collects the orphan and the false terminal (2 dead out of a large
     // total), the threshold is not reached, the tombstones remain.
-    let mut courant = racine;
+    let mut courant = root;
     for i in 0..NB_ORPHELINS {
         courant = pool.intern(
             ANCRE_TEST,
@@ -385,13 +385,13 @@ fn test_gc_deux_fois_vivants_exacts() {
     }
     // Roots = root + chain end: the whole chain is reachable,
     // only the orphan and the false terminal are collected.
-    let premier = pool.gc(&[racine, courant]);
+    let premier = pool.gc(&[root, courant]);
     assert!(!premier.compaction, "few dead: no compaction");
     assert!(pool.node_count() > pool.vivants(), "tombstones kept");
     // Second GC: the living must not count the tombstones of the
     // first GC — vivants + collectes == live entries before the GC.
     let vivantes_avant = pool.vivants() as u64;
-    let stats = pool.gc(&[racine, courant]);
+    let stats = pool.gc(&[root, courant]);
     assert_eq!(stats.vivants, pool.vivants() as u64);
     assert_eq!(stats.vivants + stats.collectes, vivantes_avant);
     let metriques = pool.metriques();

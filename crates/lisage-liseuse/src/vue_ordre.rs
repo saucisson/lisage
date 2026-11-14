@@ -158,7 +158,7 @@ fn hauteur_arbre(noeud: &NoeudVtree) -> u32 {
 fn hauteur_piste(piste: &PisteOrdre) -> u32 {
     match piste {
         PisteOrdre::Lineaire(_) => HAUTEUR_PISTE,
-        PisteOrdre::Arbre(racine) => hauteur_arbre(racine),
+        PisteOrdre::Arbre(root) => hauteur_arbre(root),
     }
 }
 
@@ -267,7 +267,7 @@ fn rendre_piste(svg: &mut String, piste: &PisteOrdre, x: u32, y: u32, largeur: u
             rendre_piste_lineaire(svg, niveaux, x, y, largeur);
             HAUTEUR_PISTE
         }
-        PisteOrdre::Arbre(racine) => rendre_arbre(svg, racine, x, y, largeur),
+        PisteOrdre::Arbre(root) => rendre_arbre(svg, root, x, y, largeur),
     }
 }
 

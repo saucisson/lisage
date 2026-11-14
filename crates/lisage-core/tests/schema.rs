@@ -31,10 +31,10 @@ fn test_compilation_map_exemple_spec() {
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let map = Value::Map(BTreeMap::from([(atome(0), atome(1)), (atome(1), atome(0))]));
-    let racine = compiler(&mut pool, anchor, &schema, &map).unwrap();
+    let root = compiler(&mut pool, anchor, &schema, &map).unwrap();
 
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    let Form::Node { level, arcs } = pool.resolve(racine).unwrap() else {
+    let Form::Node { level, arcs } = pool.resolve(root).unwrap() else {
         panic!("the root must be a presence node");
     };
     assert_eq!(*level, Level(0));
@@ -65,10 +65,10 @@ fn test_ensemble_absents_collapses() {
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let ensemble = Value::Set(BTreeSet::from([atome(0)]));
-    let racine = compiler(&mut pool, anchor, &schema, &ensemble).unwrap();
+    let root = compiler(&mut pool, anchor, &schema, &ensemble).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
     assert_eq!(
-        pool.resolve(racine).unwrap(),
+        pool.resolve(root).unwrap(),
         &Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(PRESENT, terminal)]),
@@ -83,12 +83,12 @@ fn test_map_vide_et_cle_absente() {
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let vide = Value::Map(BTreeMap::new());
-    let racine = compiler(&mut pool, anchor, &schema, &vide).unwrap();
-    assert_eq!(pool.resolve(racine).unwrap(), &Form::Terminal(true));
+    let root = compiler(&mut pool, anchor, &schema, &vide).unwrap();
+    assert_eq!(pool.resolve(root).unwrap(), &Form::Terminal(true));
 
     // {b ↦ 0}: a's presence level is skipped (R-collapse).
     let map = Value::Map(BTreeMap::from([(atome(1), atome(0))]));
-    let racine = compiler(&mut pool, anchor, &schema, &map).unwrap();
+    let root = compiler(&mut pool, anchor, &schema, &map).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
     let noeud_valeur_b = pool.intern(
         anchor,
@@ -98,7 +98,7 @@ fn test_map_vide_et_cle_absente() {
         },
     );
     assert_eq!(
-        pool.resolve(racine).unwrap(),
+        pool.resolve(root).unwrap(),
         &Form::Node {
             level: Level(2),
             arcs: BTreeMap::from([(PRESENT, noeud_valeur_b)]),
@@ -131,10 +131,10 @@ fn test_schema_atome() {
     let schema = Schema::Atom(domaine(&[0, 1, 2]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
-    let racine = compiler(&mut pool, anchor, &schema, &atome(2)).unwrap();
+    let root = compiler(&mut pool, anchor, &schema, &atome(2)).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
     assert_eq!(
-        pool.resolve(racine).unwrap(),
+        pool.resolve(root).unwrap(),
         &Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(2, terminal)]),
@@ -150,10 +150,10 @@ fn test_ensemble_vide_et_plein() {
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let vide = Value::Set(BTreeSet::new());
-    let racine_vide = compiler(&mut pool, anchor, &schema, &vide).unwrap();
-    assert_eq!(pool.resolve(racine_vide).unwrap(), &Form::Terminal(true));
+    let root_vide = compiler(&mut pool, anchor, &schema, &vide).unwrap();
+    assert_eq!(pool.resolve(root_vide).unwrap(), &Form::Terminal(true));
     let plein = Value::Set(BTreeSet::from([atome(0), atome(1)]));
-    let racine_plein = compiler(&mut pool, anchor, &schema, &plein).unwrap();
+    let root_plein = compiler(&mut pool, anchor, &schema, &plein).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
     let noeud_presence_b = pool.intern(
         anchor,
@@ -163,7 +163,7 @@ fn test_ensemble_vide_et_plein() {
         },
     );
     assert_eq!(
-        pool.resolve(racine_plein).unwrap(),
+        pool.resolve(root_plein).unwrap(),
         &Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(PRESENT, noeud_presence_b)]),
@@ -193,19 +193,19 @@ fn test_round_trip() {
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let map = Value::Map(BTreeMap::from([(atome(0), atome(1))]));
-    let racine = compiler(&mut pool, anchor, &schema, &map).unwrap();
-    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), map);
+    let root = compiler(&mut pool, anchor, &schema, &map).unwrap();
+    assert_eq!(decompiler(&pool, &schema, root).unwrap(), map);
 
     let schema = Schema::Set(domaine(&[0, 1, 2]));
     let mut pool = arena(schema.clone());
     let ensemble = Value::Set(BTreeSet::from([atome(0), atome(2)]));
-    let racine = compiler(&mut pool, anchor, &schema, &ensemble).unwrap();
-    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), ensemble);
+    let root = compiler(&mut pool, anchor, &schema, &ensemble).unwrap();
+    assert_eq!(decompiler(&pool, &schema, root).unwrap(), ensemble);
 
     let schema = Schema::Atom(domaine(&[0, 1]));
     let mut pool = arena(schema.clone());
-    let racine = compiler(&mut pool, anchor, &schema, &atome(1)).unwrap();
-    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), atome(1));
+    let root = compiler(&mut pool, anchor, &schema, &atome(1)).unwrap();
+    assert_eq!(decompiler(&pool, &schema, root).unwrap(), atome(1));
 }
 
 /// C1 applied to schemas: two distinct values compile to distinct nodes; the
@@ -217,11 +217,11 @@ fn test_canonicite_compilation() {
     let anchor = Anchor(0);
     let a = Value::Set(BTreeSet::from([atome(0)]));
     let b = Value::Set(BTreeSet::from([atome(1)]));
-    let racine_a1 = compiler(&mut pool, anchor, &schema, &a).unwrap();
-    let racine_a2 = compiler(&mut pool, anchor, &schema, &a).unwrap();
-    let racine_b = compiler(&mut pool, anchor, &schema, &b).unwrap();
-    assert_eq!(racine_a1, racine_a2);
-    assert_ne!(racine_a1, racine_b);
+    let root_a1 = compiler(&mut pool, anchor, &schema, &a).unwrap();
+    let root_a2 = compiler(&mut pool, anchor, &schema, &a).unwrap();
+    let root_b = compiler(&mut pool, anchor, &schema, &b).unwrap();
+    assert_eq!(root_a1, root_a2);
+    assert_ne!(root_a1, root_b);
 }
 
 /// M2-1 : Seq — compilation par positions et round-trip.
@@ -233,18 +233,18 @@ fn test_seq_compilation_round_trip() {
 
     // Empty sequence.
     let seq_vide = Value::Seq(vec![]);
-    let racine = compiler(&mut pool, anchor, &schema, &seq_vide).unwrap();
-    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), seq_vide);
+    let root = compiler(&mut pool, anchor, &schema, &seq_vide).unwrap();
+    assert_eq!(decompiler(&pool, &schema, root).unwrap(), seq_vide);
 
     // Sequence [1, 2].
     let seq = Value::Seq(vec![atome(1), atome(2)]);
-    let racine = compiler(&mut pool, anchor, &schema, &seq).unwrap();
-    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), seq);
+    let root = compiler(&mut pool, anchor, &schema, &seq).unwrap();
+    assert_eq!(decompiler(&pool, &schema, root).unwrap(), seq);
 
     // Full sequence [0, 1, 2].
     let seq_pleine = Value::Seq(vec![atome(0), atome(1), atome(2)]);
-    let racine = compiler(&mut pool, anchor, &schema, &seq_pleine).unwrap();
-    assert_eq!(decompiler(&pool, &schema, racine).unwrap(), seq_pleine);
+    let root = compiler(&mut pool, anchor, &schema, &seq_pleine).unwrap();
+    assert_eq!(decompiler(&pool, &schema, root).unwrap(), seq_pleine);
 }
 
 /// M2-1: Seq — canonicity (same sequence = same node).
@@ -316,8 +316,8 @@ fn test_tag_compilation_round_trip() {
     for discriminant in [0u64, 1, 2] {
         for valeur in [10u64, 20] {
             let tag = Value::Tag(Atom(discriminant), Box::new(atome(valeur)));
-            let racine = compiler(&mut pool, anchor, &schema, &tag).unwrap();
-            assert_eq!(decompiler(&pool, &schema, racine).unwrap(), tag);
+            let root = compiler(&mut pool, anchor, &schema, &tag).unwrap();
+            assert_eq!(decompiler(&pool, &schema, root).unwrap(), tag);
         }
     }
 }

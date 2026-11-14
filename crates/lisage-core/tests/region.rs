@@ -177,14 +177,14 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
         }
         // The absent arc leads to the default D_δ = terminal(false): R-default.
         arcs.insert(VIDE, faux_terminal);
-        let racine = pool.intern(
+        let root = pool.intern(
             ANCRE,
             Form::Node {
                 level: Level(0),
                 arcs,
             },
         );
-        let compte_dd: u64 = match pool.resolve(racine).expect("interned node") {
+        let compte_dd: u64 = match pool.resolve(root).expect("interned node") {
             Form::Terminal(valeur) => {
                 // R-collapse: S empty or full, the node reduces to the terminal.
                 if *valeur { TAILLE_DOMAINE } else { 0 }

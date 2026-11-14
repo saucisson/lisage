@@ -184,12 +184,12 @@ proptest! {
         let mut entree = new_pool();
         let mut sortie = new_pool();
         let anchor = Anchor(0);
-        let racine = dag_aleatoire(&mut entree, anchor, paires);
+        let root = dag_aleatoire(&mut entree, anchor, paires);
         let mut runner = Transducteur::new(Identite);
-        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
         prop_assert!(formes_egales(
             &entree,
-            racine,
+            root,
             &sortie,
             resultat,
             &mut std::collections::HashMap::new()
@@ -202,13 +202,13 @@ proptest! {
         let mut entree = new_pool();
         let mut sortie = new_pool();
         let anchor = Anchor(0);
-        let racine = dag_aleatoire(&mut entree, anchor, paires);
-        let attendu = compte_naif(&entree, racine);
+        let root = dag_aleatoire(&mut entree, anchor, paires);
+        let attendu = compte_naif(&entree, root);
         let mut runner = Transducteur::new(CompteChemins);
-        let (resultat, compte) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+        let (resultat, compte) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
         prop_assert!(formes_egales(
             &entree,
-            racine,
+            root,
             &sortie,
             resultat,
             &mut std::collections::HashMap::new()
@@ -216,7 +216,7 @@ proptest! {
         prop_assert_eq!(compte, attendu);
         // Sound memo: a second run changes nothing.
         let taille = runner.taille_memo();
-        let (r2, c2) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
+        let (r2, c2) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
         prop_assert_eq!(r2, resultat);
         prop_assert_eq!(c2, compte);
         prop_assert_eq!(runner.taille_memo(), taille);

@@ -92,7 +92,7 @@ fn test_metriques_cache_hash_consing() {
 fn test_metriques_gc_et_compaction() {
     let schema = schema_test();
     let mut pool = new_pool(&schema);
-    let racine = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_RACINE);
+    let root = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_RACINE);
     // Orphans: many forms not reachable from the root.
     for i in 0..NB_ORPHELINS {
         compiler_ensemble(
@@ -103,7 +103,7 @@ fn test_metriques_gc_et_compaction() {
         );
     }
     let total = pool.node_count() as u64;
-    let stats = pool.gc(&[racine]);
+    let stats = pool.gc(&[root]);
     assert!(stats.collectes > 0, "orphans are collected");
     assert_eq!(stats.vivants + stats.collectes, total);
 

@@ -80,8 +80,8 @@ proptest! {
         let keys = BddKeys::new(nombre_variables);
         let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
         let anchor = Anchor(0);
-        let racine = compiler_bdd(&mut pool, anchor, &keys, &table);
-        let noeuds_arene = compter_noeuds(&pool, racine);
+        let root = compiler_bdd(&mut pool, anchor, &keys, &table);
+        let noeuds_arene = compter_noeuds(&pool, root);
 
         let noeuds_cudd = cudd_compter_noeuds(nombre_variables, &table)
             .expect("call to the lisage-cudd Docker container failed");

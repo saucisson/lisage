@@ -158,7 +158,7 @@ enum XmlNoeud {
 fn parser_xml(document: &str) -> Result<XmlNoeud, PnmlError> {
     let octets: Vec<char> = document.chars().collect();
     let mut position = 0;
-    let racine = parser_element(&octets, &mut position)?;
+    let root = parser_element(&octets, &mut position)?;
     sauter_espaces(&octets, &mut position);
     if position != octets.len() {
         return Err(PnmlError::XmlMalForme {
@@ -166,7 +166,7 @@ fn parser_xml(document: &str) -> Result<XmlNoeud, PnmlError> {
             detail: "content after the root element".to_string(),
         });
     }
-    Ok(racine)
+    Ok(root)
 }
 
 fn sauter_espaces(octets: &[char], position: &mut usize) {
@@ -413,8 +413,8 @@ pub struct ReseauPetri {
 impl ReseauPetri {
     /// Parses a complete PNML document.
     pub fn depuis_pnml(document: &PnmlDocument) -> Result<ReseauPetri, PnmlError> {
-        let racine = parser_xml(&document.0)?;
-        let XmlNoeud::Element { nom, enfants, .. } = &racine else {
+        let root = parser_xml(&document.0)?;
+        let XmlNoeud::Element { nom, enfants, .. } = &root else {
             return Err(PnmlError::ElementInattendu {
                 attendu: ELEMENT_PNML,
                 trouve: "text".to_string(),

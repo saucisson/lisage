@@ -44,12 +44,12 @@ fn bench_bdd_classique(c: &mut Criterion) {
                 BddController::new(BASELINE_VARIABLES),
                 Box::new(NoOpObserver),
             );
-            let racine = compiler_bdd(&mut pool, Anchor(0), &keys, &table);
-            let noeuds = compter_noeuds(&pool, racine);
+            let root = compiler_bdd(&mut pool, Anchor(0), &keys, &table);
+            let noeuds = compter_noeuds(&pool, root);
             let mut temoin = MiniBdd::new();
-            let racine_temoin = temoin.compiler_table(BASELINE_VARIABLES, &table);
-            assert_eq!(noeuds, temoin.compter_noeuds(racine_temoin));
-            assert!(temoin.evaluer(racine_temoin, 0) == table[0]);
+            let root_temoin = temoin.compiler_table(BASELINE_VARIABLES, &table);
+            assert_eq!(noeuds, temoin.compter_noeuds(root_temoin));
+            assert!(temoin.evaluer(root_temoin, 0) == table[0]);
             noeuds
         })
     });

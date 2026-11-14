@@ -75,8 +75,8 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
-        let dd = compter(&entree, &mut sortie, anchor, &schema, racine).unwrap();
+        let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+        let dd = compter(&entree, &mut sortie, anchor, &schema, root).unwrap();
         prop_assert_eq!(dd, count(&ensemble), "DD path (A4 fold) != path A (count)");
     }
 }
