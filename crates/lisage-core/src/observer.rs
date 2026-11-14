@@ -18,11 +18,11 @@ pub enum ReductionRule {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum CanalAttr {
     /// **Inherited** attribute (downward, `φ_disp`) — rendered in blue.
-    Herite,
+    Inherited,
     /// **Synthesized** attribute (upward, `φ_aggr`) — rendered in orange.
-    Synthétise,
+    Synthesized,
     /// **Level memory** (written by `φ_out`) — rendered in purple.
-    Memoire,
+    Memory,
 }
 
 /// Typed events emitted by the pool during diagram construction and by the

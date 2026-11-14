@@ -387,7 +387,7 @@ fn charge_alea_lcg(
     }
     if let Some(observateur) = observateur {
         observateur.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
+            canal: CanalAttr::Synthesized,
             noeud: racine,
             valeur: format!(
                 "workload={} nodes={} check={}",
@@ -476,7 +476,7 @@ fn charge_philosophes(
     }
     if let Some(observateur) = observateur {
         observateur.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
+            canal: CanalAttr::Synthesized,
             noeud: racine,
             valeur: format!(
                 "workload={} nodes={} check={}",
@@ -599,7 +599,7 @@ fn charge_fenetre(
     }
     if let Some(observateur) = observateur {
         observateur.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
+            canal: CanalAttr::Synthesized,
             noeud: racine,
             valeur: format!(
                 "workload={} encoding={} nodes={} check={}",
@@ -629,7 +629,7 @@ fn charge_fenetre(
 /// `alea-lcg <n>`, `philosophes <n> <path>`,
 /// `fenetre <taille> <nb_bases> [absolu|relatif]` (absolu by default).
 /// `observateur`: narration channel (ADR-0100) — an
-/// `Attr`/`Synthétise` event carries the workload summary.
+/// `Attr`/`Synthesized` event carries the workload summary.
 pub fn executer(
     charge: &Charge,
     parametres: &[String],

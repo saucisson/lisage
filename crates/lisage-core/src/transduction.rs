@@ -237,7 +237,7 @@ impl<T: Transduction> Transducteur<T> {
                 for (arc, cible) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
                     self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Herite,
+                        canal: CanalAttr::Inherited,
                         noeud,
                         valeur: format!("{h_arc:?}"),
                     });
@@ -253,7 +253,7 @@ impl<T: Transduction> Transducteur<T> {
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {
-                    canal: CanalAttr::Synthétise,
+                    canal: CanalAttr::Synthesized,
                     noeud,
                     valeur: format!("{s:?}"),
                 });
@@ -271,7 +271,7 @@ impl<T: Transduction> Transducteur<T> {
                 }
                 if !effet.ecritures.is_empty() {
                     self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Memoire,
+                        canal: CanalAttr::Memory,
                         noeud,
                         valeur: format!("{:?}", effet.ecritures),
                     });
@@ -315,7 +315,7 @@ impl<T: Transduction> Transducteur<T> {
                 for (arc, cible) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
                     self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Herite,
+                        canal: CanalAttr::Inherited,
                         noeud,
                         valeur: format!("{h_arc:?}"),
                     });
@@ -331,7 +331,7 @@ impl<T: Transduction> Transducteur<T> {
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {
-                    canal: CanalAttr::Synthétise,
+                    canal: CanalAttr::Synthesized,
                     noeud,
                     valeur: format!("{s:?}"),
                 });
@@ -349,7 +349,7 @@ impl<T: Transduction> Transducteur<T> {
                 }
                 if !effet.ecritures.is_empty() {
                     self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Memoire,
+                        canal: CanalAttr::Memory,
                         noeud,
                         valeur: format!("{:?}", effet.ecritures),
                     });

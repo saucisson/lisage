@@ -64,7 +64,7 @@ fn ensemble(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64])
 fn test_serialisation_v2_evenements_pas_a_pas() {
     assert_eq!(TRACE_VERSION, 2);
     let attr = serialiser_evenement(&TraceEvent::Attr {
-        canal: CanalAttr::Herite,
+        canal: CanalAttr::Inherited,
         noeud: NodeId(3),
         valeur: "Transfert(1)".to_string(),
     });
@@ -94,7 +94,7 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Attr {
-            canal: CanalAttr::Memoire,
+            canal: CanalAttr::Memory,
             noeud: NodeId(1),
             valeur: "true".to_string(),
         }),
@@ -145,7 +145,7 @@ fn test_runner_emet_memo_et_attr() {
         evenements.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Herite,
+                canal: CanalAttr::Inherited,
                 ..
             }
         )),
@@ -155,7 +155,7 @@ fn test_runner_emet_memo_et_attr() {
         evenements.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthétise,
+                canal: CanalAttr::Synthesized,
                 ..
             }
         )),
@@ -267,7 +267,7 @@ fn test_scrubber_replay_et_diff() {
             level: Some(lisage_core::Level(0)),
         },
         TraceEvent::Attr {
-            canal: CanalAttr::Herite,
+            canal: CanalAttr::Inherited,
             noeud: NodeId(1),
             valeur: "0".to_string(),
         },
@@ -431,7 +431,7 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
                         level: None,
                     },
                     1 => TraceEvent::Attr {
-                        canal: CanalAttr::Herite,
+                        canal: CanalAttr::Inherited,
                         noeud,
                         valeur: "x".to_string(),
                     },

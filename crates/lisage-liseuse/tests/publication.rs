@@ -110,6 +110,10 @@ fn test_legende_couvre_les_trois_canaux() {
     let canaux: Vec<CanalAttr> = LEGENDE_CANAUX.iter().map(|(canal, _, _)| *canal).collect();
     assert_eq!(
         canaux,
-        vec![CanalAttr::Herite, CanalAttr::Synthétise, CanalAttr::Memoire]
+        vec![
+            CanalAttr::Inherited,
+            CanalAttr::Synthesized,
+            CanalAttr::Memory
+        ]
     );
 }

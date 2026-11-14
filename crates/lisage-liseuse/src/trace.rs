@@ -43,9 +43,9 @@ fn nom_regle(regle: ReductionRule) -> &'static str {
 /// JSON name of an attribute channel (M2-6).
 fn nom_canal(canal: CanalAttr) -> &'static str {
     match canal {
-        CanalAttr::Herite => "herite",
-        CanalAttr::Synthétise => "synthetise",
-        CanalAttr::Memoire => "memoire",
+        CanalAttr::Inherited => "herite",
+        CanalAttr::Synthesized => "synthetise",
+        CanalAttr::Memory => "memoire",
     }
 }
 

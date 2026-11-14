@@ -209,7 +209,7 @@ fn test_propriete_commutation_lcg() {
     }
 }
 
-/// Narration (ADR-0100 decision 6): `mesurer` emits an `Attr`/`Synthétise`
+/// Narration (ADR-0100 decision 6): `mesurer` emits an `Attr`/`Synthesized`
 /// event carrying the full report — pinned by a collecting observer.
 #[test]
 fn test_narration_mesurer() {
@@ -254,7 +254,7 @@ fn test_narration_mesurer() {
         events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthétise,
+                canal: CanalAttr::Synthesized,
                 valeur,
                 ..
             } if valeur == "noeuds_partages=4 chemins=4 taille_depliee=7"
@@ -301,7 +301,7 @@ fn test_fenetre_absolu_croit_relatif_constant() {
     assert_eq!(rapport.relatif.chemins, 400);
 }
 
-/// Narration (ADR-0100): the encoding comparison emits an `Attr`/`Synthétise`
+/// Narration (ADR-0100): the encoding comparison emits an `Attr`/`Synthesized`
 /// event carrying the two node counts.
 #[test]
 fn test_narration_comparaison_encodages() {
@@ -332,7 +332,7 @@ fn test_narration_comparaison_encodages() {
         events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthétise,
+                canal: CanalAttr::Synthesized,
                 valeur,
                 ..
             } if valeur == "encodage=relatif_vs_absolu noeuds=3 contre 12"
@@ -424,7 +424,7 @@ fn test_ordre_intercale_croissance_six_variables() {
     assert_eq!(rapport.second.chemins, 64);
 }
 
-/// Narration (ADR-0100): the order comparison emits an `Attr`/`Synthétise`
+/// Narration (ADR-0100): the order comparison emits an `Attr`/`Synthesized`
 /// event carrying the two order labels and the two node counts.
 #[test]
 fn test_narration_comparaison_ordres() {
@@ -463,7 +463,7 @@ fn test_narration_comparaison_ordres() {
         events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthétise,
+                canal: CanalAttr::Synthesized,
                 valeur,
                 ..
             } if valeur == "ordre=[0,1,2,3]_vs_[0,2,1,3] noeuds=10 contre 12"
@@ -596,7 +596,7 @@ fn test_propriete_glisse_composition_lcg() {
 }
 
 /// Narration (ADR-0100): the composite anchor comparison emits an
-/// `Attr`/`Synthétise` event carrying the two labels, the two node counts and
+/// `Attr`/`Synthesized` event carrying the two labels, the two node counts and
 /// the two absolute readings.
 #[test]
 fn test_narration_comparaison_ancres() {
@@ -634,7 +634,7 @@ fn test_narration_comparaison_ancres() {
         events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthétise,
+                canal: CanalAttr::Synthesized,
                 valeur,
                 ..
             } if valeur == "ancre={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} noeuds=3 contre 3 lecture=[0..4) contre [2..6) pool=4"
