@@ -37,14 +37,14 @@ fn compiler_map(
     pool: &mut PoolRef,
     anchor: Anchor,
     schema: &Schema,
-    entrees: &[(u64, u64)],
+    inputs: &[(u64, u64)],
 ) -> lisage_algebra::interface::NodeId {
     compiler(
         pool,
         anchor,
         schema,
         &Value::Map(
-            entrees
+            inputs
                 .iter()
                 .map(|(k, v)| (Value::Atom(Atom(*k)), Value::Atom(Atom(*v))))
                 .collect(),
@@ -73,8 +73,8 @@ fn decompiler_map(
 
 /// Cardinality of a diagram (number of members of the denoted family).
 fn cardinal(pool: &PoolRef, schema: &Schema, noeud: lisage_algebra::interface::NodeId) -> u64 {
-    let mut sortie = new_pool(schema);
-    compter(pool, &mut sortie, Anchor(0), schema, noeud).unwrap()
+    let mut output = new_pool(schema);
+    compter(pool, &mut output, Anchor(0), schema, noeud).unwrap()
 }
 
 /// M2-5, T3: the non-local transfer `a -= 1; b += 1` between two non-adjacent

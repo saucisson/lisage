@@ -72,8 +72,8 @@ fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Valu
         let membre = compiler(pool, ancre, &schema, valeur).unwrap();
         root = union(pool, &keys, ancre, root, membre).unwrap();
     }
-    let mut sortie = pool_pour_sdd(&vtree_test(), ensemble);
-    compter(pool, &mut sortie, ancre, &schema, root).unwrap()
+    let mut output = pool_pour_sdd(&vtree_test(), ensemble);
+    compter(pool, &mut output, ancre, &schema, root).unwrap()
 }
 
 /// C6 falsification: global cardinal of the flat DD == cardinal of the

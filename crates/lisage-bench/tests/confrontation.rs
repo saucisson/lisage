@@ -170,7 +170,7 @@ fn test_philosophes_borne_refusee() {
 /// inconsistent state length, out-of-domain value) → typed error,
 /// never swallowed.
 #[test]
-fn test_philosophes_entrees_invalides() {
+fn test_philosophers_inputs_invalid() {
     let cas = [
         "",
         "x 3\n",
@@ -189,8 +189,8 @@ fn test_philosophes_entrees_invalides() {
         let erreur = executer(&Charge::Philosophes, &parametres, None);
         assert!(erreur.is_err(), "invalid input rejected: {contenu:?}");
         assert!(
-            matches!(erreur, Err(ErreurConfrontation::EntreeInvalide { .. })),
-            "typed error EntreeInvalide, not swallowed: {erreur:?}"
+            matches!(erreur, Err(ErreurConfrontation::InvalidInput { .. })),
+            "typed error InvalidInput, not swallowed: {erreur:?}"
         );
     }
 }

@@ -147,12 +147,12 @@ fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
 }
 
 /// Counts |R_n| via the `(ℕ,+,×)` pli on the given schema.
-fn compter_r_n(pool_entree: &PoolRef, schema: &Schema, root: NodeId) -> u64 {
-    let mut sortie = Arena::new(
+fn compter_r_n(pool_input: &PoolRef, schema: &Schema, root: NodeId) -> u64 {
+    let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    compter(pool_entree, &mut sortie, ANCRE_TEST, schema, root).unwrap()
+    compter(pool_input, &mut output, ANCRE_TEST, schema, root).unwrap()
 }
 
 /// M4-4: |R_n| via DD pli == enumeration == golden-thread values

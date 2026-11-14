@@ -112,14 +112,14 @@ pub fn construire_r_n<P: Pool<Key = u64, Payload = bool>>(
 
 /// Counts |R_n| by fold `(ℕ,+,×)` (DD path).
 pub fn compter_r_n(
-    pool_entree: &Arena<ReferenceController>,
-    pool_sortie: &mut Arena<ReferenceController>,
+    pool_input: &Arena<ReferenceController>,
+    pool_output: &mut Arena<ReferenceController>,
     anchor: Anchor,
     n: u64,
     root: NodeId,
 ) -> u64 {
     let schema = schema_anneau(n);
-    compter(pool_entree, pool_sortie, anchor, &schema, root).expect("internal count")
+    compter(pool_input, pool_output, anchor, &schema, root).expect("internal count")
 }
 
 /// The 5 legal cells (forms of the minimal automaton of the language of

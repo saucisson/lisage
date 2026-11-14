@@ -91,11 +91,11 @@ impl Transduction for EcritMemoire {
         // Read the memory: if a value was already stored at this (node, level),
         // it is visible here and counted (test: φ_out observes the state stored
         // by a previous visit of the same node).
-        if let Some(v) = ctx.memoire.lire(ctx.noeud_entree, ctx.level) {
+        if let Some(v) = ctx.memoire.lire(ctx.node_input, ctx.level) {
             self.lus.fetch_add(*v, std::sync::atomic::Ordering::SeqCst);
         }
         // Write h into the memory at (input_node, level).
-        let effet = EffetMemoire::une(ctx.noeud_entree, ctx.level, *ctx.h);
+        let effet = EffetMemoire::une(ctx.node_input, ctx.level, *ctx.h);
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(
@@ -123,19 +123,19 @@ impl Transduction for EcritMemoire {
 /// effect produced by φ_out, and the version is bumped (L1).
 #[test]
 fn test_transduction_avec_memoire_ecrit() {
-    let mut entree = pool();
-    let mut sortie = pool();
+    let mut input = pool();
+    let mut output = pool();
     let anchor = Anchor(0);
-    let vrai = entree.intern(anchor, Form::Terminal(true));
-    let faux = entree.intern(anchor, Form::Terminal(false));
-    let a = entree.intern(
+    let vrai = input.intern(anchor, Form::Terminal(true));
+    let faux = input.intern(anchor, Form::Terminal(false));
+    let a = input.intern(
         anchor,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
-    let b = entree.intern(
+    let b = input.intern(
         anchor,
         Form::Node {
             level: Level(1),
@@ -147,10 +147,10 @@ fn test_transduction_avec_memoire_ecrit() {
     let mut runner =
         Transducteur::avec_politique(EcritMemoire { lus: lus.clone() }, MemoryPolicy::PerLevel);
     assert_eq!(runner.version_memoire(), 0, "empty memory at start");
-    let (resultat, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    let (resultat, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
-        sortie.resolve(resultat).unwrap(),
-        entree.resolve(b).unwrap(),
+        output.resolve(resultat).unwrap(),
+        input.resolve(b).unwrap(),
         "identity copy"
     );
     // Two non-terminal nodes (a and b) each wrote into the memory.
@@ -161,7 +161,7 @@ fn test_transduction_avec_memoire_ecrit() {
     );
     // BLOCKING review: the memory read must be observed. Run a second time:
     // each node re-reads the value stored on the first pass.
-    let (r2, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    let (r2, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
         r2, resultat,
         "determinism: same result (the bumped version invalidates the memo, the node is recomputed)"
@@ -176,13 +176,13 @@ fn test_transduction_avec_memoire_ecrit() {
 /// M2-3: the `NoMemory` policy rejects memory effects (TO-FIX review).
 #[test]
 fn test_politique_aucune_rejette_effet_memoire() {
-    let mut entree = pool();
-    let mut sortie = pool();
+    let mut input = pool();
+    let mut output = pool();
     let anchor = Anchor(0);
-    let vrai = entree.intern(anchor, Form::Terminal(true));
-    let faux = entree.intern(anchor, Form::Terminal(false));
+    let vrai = input.intern(anchor, Form::Terminal(true));
+    let faux = input.intern(anchor, Form::Terminal(false));
     // Two arcs to distinct targets: no R-collapse.
-    let a = entree.intern(
+    let a = input.intern(
         anchor,
         Form::Node {
             level: Level(0),
@@ -192,7 +192,7 @@ fn test_politique_aucune_rejette_effet_memoire() {
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     // NoMemory policy (default): the memory effect must be rejected.
     let mut runner = Transducteur::new(EcritMemoire { lus: lus.clone() });
-    let resultat = runner.run(&entree, &mut sortie, anchor, a);
+    let resultat = runner.run(&input, &mut output, anchor, a);
     assert!(
         matches!(
             resultat,

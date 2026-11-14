@@ -188,15 +188,15 @@ fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
 /// returned depth equals the DAG's height.
 #[test]
 fn test_canal_herite_identite_et_profondeur() {
-    let mut entree = pool();
-    let mut sortie = pool();
+    let mut input = pool();
+    let mut output = pool();
     let anchor = Anchor(0);
-    let (_, b) = dag(&mut entree, anchor);
+    let (_, b) = dag(&mut input, anchor);
     let mut runner = Transducteur::new(IdentiteProfondeur);
-    let (resultat, profondeur) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    let (resultat, profondeur) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
-        sortie.resolve(resultat).unwrap(),
-        entree.resolve(b).unwrap(),
+        output.resolve(resultat).unwrap(),
+        input.resolve(b).unwrap(),
         "identity ⇒ same forms"
     );
     assert_eq!(profondeur, 2, "max depth reached = DAG height");
@@ -206,20 +206,17 @@ fn test_canal_herite_identite_et_profondeur() {
 /// number of accepting paths (2 in the DAG: 0·0 and 1).
 #[test]
 fn test_canal_synthetise_comptage() {
-    let mut entree = pool();
-    let mut sortie = pool();
+    let mut input = pool();
+    let mut output = pool();
     let anchor = Anchor(0);
-    let (_, b) = dag(&mut entree, anchor);
+    let (_, b) = dag(&mut input, anchor);
     let appels = std::sync::Arc::new(AtomicU64::new(0));
     let compte = CompteChemins {
         appels: appels.clone(),
     };
     let mut runner = Transducteur::new(compte);
-    let (resultat, compte_chemins) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
-    assert_eq!(
-        sortie.resolve(resultat).unwrap(),
-        entree.resolve(b).unwrap()
-    );
+    let (resultat, compte_chemins) = runner.run(&input, &mut output, anchor, b).unwrap();
+    assert_eq!(output.resolve(resultat).unwrap(), input.resolve(b).unwrap());
     assert_eq!(compte_chemins, 2, "two paths lead to ⊤");
     assert_eq!(
         appels.load(Ordering::SeqCst),
@@ -232,14 +229,14 @@ fn test_canal_synthetise_comptage() {
 /// operations with distinct fingerprints have separate entries.
 #[test]
 fn test_memo_fingerprint_op_noeud() {
-    let mut entree = pool();
-    let mut sortie = pool();
+    let mut input = pool();
+    let mut output = pool();
     let anchor = Anchor(0);
-    let (_, b) = dag(&mut entree, anchor);
+    let (_, b) = dag(&mut input, anchor);
     let mut runner = Transducteur::new(Identite);
-    let (r1, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    let (r1, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     let taille_apres_1 = runner.taille_memo();
-    let (r2, _) = runner.run(&entree, &mut sortie, anchor, b).unwrap();
+    let (r2, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(r1, r2);
     assert_eq!(
         runner.taille_memo(),
@@ -253,8 +250,8 @@ fn test_memo_fingerprint_op_noeud() {
     // memo. With H = depth, ⊤ is visited at two distinct h (1 via b's arc 1,
     // 2 via a's arc 0): 5 entries (b, a, ⊤×2, ⊥).
     let mut autre = Transducteur::new(IdentiteProfondeur);
-    let (r3, _) = autre.run(&entree, &mut sortie, anchor, b).unwrap();
-    assert_eq!(sortie.resolve(r3).unwrap(), entree.resolve(b).unwrap());
+    let (r3, _) = autre.run(&input, &mut output, anchor, b).unwrap();
+    assert_eq!(output.resolve(r3).unwrap(), input.resolve(b).unwrap());
     assert_eq!(
         autre.taille_memo(),
         5,
@@ -267,11 +264,11 @@ fn test_memo_fingerprint_op_noeud() {
 #[test]
 fn test_transduction_sur_diagramme_compile() {
     let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
-    let mut entree = Arena::new(
+    let mut input = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
@@ -280,11 +277,11 @@ fn test_transduction_sur_diagramme_compile() {
         Value::Atom(Atom(0)),
         Value::Atom(Atom(1)),
     ]));
-    let root = compiler(&mut entree, anchor, &schema, &ensemble).unwrap();
+    let root = compiler(&mut input, anchor, &schema, &ensemble).unwrap();
     let mut runner = Transducteur::new(Identite);
-    let (resultat, _) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
+    let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
     assert_eq!(
-        sortie.resolve(resultat).unwrap(),
-        entree.resolve(root).unwrap()
+        output.resolve(resultat).unwrap(),
+        input.resolve(root).unwrap()
     );
 }

@@ -181,16 +181,16 @@ proptest! {
     /// Identity: the transduction rebuilds the same forms on output.
     #[test]
     fn test_identite_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
-        let mut entree = new_pool();
-        let mut sortie = new_pool();
+        let mut input = new_pool();
+        let mut output = new_pool();
         let anchor = Anchor(0);
-        let root = dag_aleatoire(&mut entree, anchor, paires);
+        let root = dag_aleatoire(&mut input, anchor, paires);
         let mut runner = Transducteur::new(Identite);
-        let (resultat, _) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
+        let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
         prop_assert!(formes_egales(
-            &entree,
+            &input,
             root,
-            &sortie,
+            &output,
             resultat,
             &mut std::collections::HashMap::new()
         ));
@@ -199,27 +199,27 @@ proptest! {
     /// Counting: the transduction (φ_aggr = sum) equals the naive count.
     #[test]
     fn test_comptage_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
-        let mut entree = new_pool();
-        let mut sortie = new_pool();
+        let mut input = new_pool();
+        let mut output = new_pool();
         let anchor = Anchor(0);
-        let root = dag_aleatoire(&mut entree, anchor, paires);
-        let attendu = compte_naif(&entree, root);
+        let root = dag_aleatoire(&mut input, anchor, paires);
+        let attendu = compte_naif(&input, root);
         let mut runner = Transducteur::new(CompteChemins);
-        let (resultat, compte) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
+        let (resultat, compte) = runner.run(&input, &mut output, anchor, root).unwrap();
         prop_assert!(formes_egales(
-            &entree,
+            &input,
             root,
-            &sortie,
+            &output,
             resultat,
             &mut std::collections::HashMap::new()
         ));
         prop_assert_eq!(compte, attendu);
         // Sound memo: a second run changes nothing.
         let taille = runner.taille_memo();
-        let (r2, c2) = runner.run(&entree, &mut sortie, anchor, root).unwrap();
+        let (r2, c2) = runner.run(&input, &mut output, anchor, root).unwrap();
         prop_assert_eq!(r2, resultat);
         prop_assert_eq!(c2, compte);
         prop_assert_eq!(runner.taille_memo(), taille);
-        prop_assert!(taille <= entree.node_count());
+        prop_assert!(taille <= input.node_count());
     }
 }

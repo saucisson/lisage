@@ -42,14 +42,14 @@ fn compiler_map(
     pool: &mut PoolRef,
     anchor: Anchor,
     schema: &Schema,
-    entrees: &BTreeMap<u64, u64>,
+    inputs: &BTreeMap<u64, u64>,
 ) -> NodeId {
     compiler(
         pool,
         anchor,
         schema,
         &Value::Map(
-            entrees
+            inputs
                 .iter()
                 .map(|(k, v)| (Value::Atom(Atom(*k)), Value::Atom(Atom(*v))))
                 .collect(),
@@ -84,11 +84,11 @@ proptest! {
         destination in 0u64..NOMBRE_CLES,
     ) {
         prop_assume!(source < destination);
-        let entrees: BTreeMap<u64, u64> = (0..NOMBRE_CLES).zip(valeurs).collect();
+        let inputs: BTreeMap<u64, u64> = (0..NOMBRE_CLES).zip(valeurs).collect();
         let schema = schema_test();
         let anchor = Anchor(0);
         let mut pool = new_pool(&schema);
-        let initial = compiler_map(&mut pool, anchor, &schema, &entrees);
+        let initial = compiler_map(&mut pool, anchor, &schema, &inputs);
 
         let transfert = TransfertNonLocal::new(
             &schema,
@@ -99,9 +99,9 @@ proptest! {
         let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
         let obtenu = decompiler_map(&pool, &schema, resultat);
-        let mut attendu = entrees.clone();
-        let valeur_source = entrees[&source];
-        let valeur_destination = entrees[&destination];
+        let mut attendu = inputs.clone();
+        let valeur_source = inputs[&source];
+        let valeur_destination = inputs[&destination];
         // The transfer is active only if the source has at least 1 unit.
         if valeur_source >= 1 {
             attendu.insert(source, valeur_source - 1);

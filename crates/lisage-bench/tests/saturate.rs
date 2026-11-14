@@ -94,8 +94,8 @@ fn compiler_ensemble(
 
 /// Cardinal of a diagram (number of members of the denoted family).
 fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
-    let mut sortie = new_pool(schema);
-    compter(pool, &mut sortie, Anchor(0), schema, noeud).unwrap()
+    let mut output = new_pool(schema);
+    compter(pool, &mut output, Anchor(0), schema, noeud).unwrap()
 }
 
 proptest! {

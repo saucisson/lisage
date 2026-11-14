@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 5: `entree`/`sortie` identifiers renamed to `input`/`output` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `entree`/`sortie` stem (bare words, `entrees`, `entree_*`/`sortie_*` compounds, `*_entree`/`*_sortie` suffixes, plus `PoolSortie` → `PoolOutput`, `EntreeInvalide` → `InvalidInput`, `EntreeNoeud` → `NodeEntry`, `noeud_entree` → `node_input`) to `input`/`output`, workspace-wide (38 files), per glossary (entrée/sortie → input/output).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for `entree|sortie` returns 0.
+- **Judgement calls**: `EntreeNoeud` → `NodeEntry` (node table entry), `EntreeInvalide` → `InvalidInput` (typed error variant).
 ## 2026-11-14 - M6-6 part 4: `racine` identifiers renamed to `root` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

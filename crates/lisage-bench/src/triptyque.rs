@@ -175,11 +175,11 @@ fn voie_dd(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<MesureVoie, Erre
     );
     let root = compiler_espace(&mut pool, &schema, &espace)?;
     let noeuds_vivants = pool.vivants();
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let cardinal = compter(&pool, &mut sortie, ANCRE_BANC, &schema, root)?;
+    let cardinal = compter(&pool, &mut output, ANCRE_BANC, &schema, root)?;
     Ok(MesureVoie {
         cardinal,
         noeuds_vivants,

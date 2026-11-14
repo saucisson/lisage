@@ -120,13 +120,13 @@ fn test_runner_emet_memo_et_attr() {
         MemoryPolicy::NoMemory,
         Arc::new(collecteur.clone()),
     );
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
-    let _ = runner.run(&pool, &mut sortie, anchor, root).unwrap();
+    let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
     // Re-run to trigger MemoHit.
-    let _ = runner.run(&pool, &mut sortie, anchor, root).unwrap();
+    let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
 
     let evenements = collecteur.prendre();
     assert!(
@@ -340,11 +340,11 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
         MemoryPolicy::NoMemory,
         Arc::new(collecteur.clone()),
     );
-    let mut sortie = Arena::new(
+    let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
-    let _ = runner.run(&pool, &mut sortie, anchor, root).unwrap();
+    let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
     let mut evenements = collecteur.prendre();
     evenements.insert(0, TraceEvent::Round { numero: 1 });
     // The runner does not observe the pool: we add the NodeCreated of the

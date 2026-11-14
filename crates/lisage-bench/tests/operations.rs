@@ -77,19 +77,19 @@ proptest! {
             Domaine::new(vec![Atom(0), Atom(1)]),
         );
         let ensemble = ensemble_maps_aleatoire(maps);
-        let mut entree = Arena::new(
+        let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let mut sortie = Arena::new(
+        let mut output = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+        let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
         let dd = existe(
-            &entree,
-            &mut sortie,
+            &input,
+            &mut output,
             anchor,
             &schema,
             root,
@@ -110,19 +110,19 @@ proptest! {
             Domaine::new(vec![Atom(0), Atom(1)]),
         );
         let ensemble = ensemble_maps_aleatoire(maps);
-        let mut entree = Arena::new(
+        let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let mut sortie = Arena::new(
+        let mut output = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
+        let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
         let dd = filtrer(
-            &entree,
-            &mut sortie,
+            &input,
+            &mut output,
             anchor,
             &schema,
             root,
@@ -130,7 +130,7 @@ proptest! {
         )
         .unwrap();
         let attendu_ensemble = filter(&ensemble, predicat_lang);
-        let attendu = compiler_ensemble(&mut sortie, anchor, &schema, &attendu_ensemble);
+        let attendu = compiler_ensemble(&mut output, anchor, &schema, &attendu_ensemble);
         prop_assert_eq!(dd, attendu, "DD path != path A (filter), C1 structural");
     }
 
@@ -142,22 +142,22 @@ proptest! {
     ) {
         let schema = Schema::Atom(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]));
         let ensemble: BTreeSet<Value> = atomes.iter().map(|v| atome(*v)).collect();
-        let mut entree = Arena::new(
+        let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let mut sortie = Arena::new(
+        let mut output = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
-        let dd = image(&entree, &mut sortie, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
+        let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+        let dd = image(&input, &mut output, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
         let attendu_ensemble = map(&ensemble, |v| match v {
             Value::Atom(a) => atome((a.0 + 1) % 3),
             autre => autre.clone(),
         });
-        let attendu = compiler_ensemble(&mut sortie, anchor, &schema, &attendu_ensemble);
+        let attendu = compiler_ensemble(&mut output, anchor, &schema, &attendu_ensemble);
         prop_assert_eq!(dd, attendu, "DD path != path A (map), C1 structural");
     }
 }

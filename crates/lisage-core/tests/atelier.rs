@@ -481,7 +481,7 @@ fn test_ancre_fenetre_glisse() {
     assert_eq!(ancre.horizon(), 4);
     assert_eq!(ancre.fenetre_absolue(), (0, 4));
     assert_eq!(
-        ancre.cle_entree(),
+        ancre.key_input(),
         0,
         "the base is the argument of the entry arc"
     );
@@ -490,7 +490,7 @@ fn test_ancre_fenetre_glisse() {
     assert_eq!(glissee.base(), 2);
     assert_eq!(glissee.horizon(), 4, "the slide only affects the base");
     assert_eq!(glissee.fenetre_absolue(), (2, 6));
-    assert_eq!(glissee.cle_entree(), 2);
+    assert_eq!(glissee.key_input(), 2);
     assert_eq!(glissee.etiquette(), "{base: 2, horizon: 4}");
     // The original anchor is unchanged (the slide produces a new anchor).
     assert_eq!(ancre.base(), 0);

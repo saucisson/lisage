@@ -82,8 +82,8 @@ fn construire_bool(pool: &mut PoolBool, ensemble: &BTreeSet<Value>) -> NodeId {
 
 /// Counts the cardinal in the Bool pool (fold `(ℕ,+,×)`).
 fn cardinal_bool(pool: &PoolBool, root: NodeId) -> u64 {
-    let mut sortie = pool_bool();
-    compter(pool, &mut sortie, ANCRE, &schema_test(), root).unwrap()
+    let mut output = pool_bool();
+    compter(pool, &mut output, ANCRE, &schema_test(), root).unwrap()
 }
 
 /// The unique table is indexed by the weights: terminals of different

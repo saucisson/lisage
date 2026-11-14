@@ -66,17 +66,17 @@ proptest! {
             Domaine::new(vec![Atom(0), Atom(1)]),
         );
         let ensemble = ensemble_aleatoire(maps);
-        let mut entree = Arena::new(
+        let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let mut sortie = Arena::new(
+        let mut output = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
-        let dd = compter(&entree, &mut sortie, anchor, &schema, root).unwrap();
+        let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+        let dd = compter(&input, &mut output, anchor, &schema, root).unwrap();
         prop_assert_eq!(dd, count(&ensemble), "DD path (A4 fold) != path A (count)");
     }
 }
