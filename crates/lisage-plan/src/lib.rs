@@ -1,4 +1,4 @@
-//! Lisage plan — oracle de rentabilité, conversions, plan de représentation.
+//! Lisage plan — profitability oracle, conversions, representation plan.
 
 pub mod conversion;
 pub mod oracle;

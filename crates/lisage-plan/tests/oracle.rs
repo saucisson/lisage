@@ -1,13 +1,13 @@
-//! Tests de M3-3 (énoncé C4) : oracle de rentabilité analytique — modèle
-//! prédictif (taille du domaine, densité, coût d'encodage, requêtes aval)
-//! et garde-fou par différentiel (conforme dans [prédit/2, 2 × prédit]).
+//! M3-3 tests (claim C4): analytical profitability oracle — predictive
+//! model (domain size, density, encoding cost, downstream queries)
+//! and differential guardrail (conforming in [predicted/2, 2 × predicted]).
 
 use lisage_plan::oracle::{
     BORNE_INFERIEURE, BORNE_SUPERIEURE, ErreurOracle, Oracle, ParametresOracle, Rationnel,
     VerdictGardeFou,
 };
 
-/// M3-3 : le rationnel est normalisé (pgcd) et l'arithmétique exacte.
+/// M3-3: the rational is normalized (gcd) and arithmetic is exact.
 #[test]
 fn test_rationnel_normalise_et_exact() {
     assert_eq!(Rationnel::nouveau(2, 4), Rationnel::nouveau(1, 2));
@@ -20,7 +20,7 @@ fn test_rationnel_normalise_et_exact() {
     assert!(!Rationnel::nouveau(2, 3).inferieur_ou_egal(&Rationnel::nouveau(1, 2)));
 }
 
-/// M3-3 : la densité attendue est validée dans [0, 1] à la construction.
+/// M3-3: the expected density is validated in [0, 1] at construction.
 #[test]
 fn test_parametres_densite_validee() {
     assert!(ParametresOracle::nouveau(10, Rationnel::nouveau(1, 2), 3, 4).is_ok());
@@ -36,15 +36,15 @@ fn test_parametres_densite_validee() {
     );
 }
 
-/// M3-3 : le modèle prédit `1 + n·d` nœuds et le coût total correspondant.
+/// M3-3: the model predicts `1 + n·d` nodes and the corresponding total cost.
 #[test]
 fn test_prediction_taille_et_cout_total() {
     let params = ParametresOracle::nouveau(10, Rationnel::nouveau(1, 2), 3, 4).unwrap();
     let prediction = Oracle::predire(&params);
-    assert_eq!(prediction.taille_predite, 6, "1 + 10·(1/2) nœuds");
+    assert_eq!(prediction.taille_predite, 6, "1 + 10·(1/2) nodes");
     assert_eq!(prediction.cout_total_predit, 6 * 3 * 4);
 
-    // Densité nulle : seul le terminal. Densité pleine : toute la chaîne.
+    // Null density: only the terminal. Full density: the whole chain.
     let nul = Oracle::predire(
         &ParametresOracle::nouveau(
             params.taille_domaine(),
@@ -67,31 +67,31 @@ fn test_prediction_taille_et_cout_total() {
     assert_eq!(plein.taille_predite, 11);
 }
 
-/// M3-3 : le garde-fou différentiel compare prédiction et mesure à un
-/// facteur près (C4 falsifiable hors bornes).
+/// M3-3: the differential guardrail compares prediction and measurement
+/// within a factor (C4 falsifiable out of bounds).
 #[test]
 fn test_garde_fou_differentiel() {
-    // conforme : mesure = prédit, et aux bornes [prédit/2, 2 × prédit].
+    // conforming: measure = predicted, and at bounds [predicted/2, 2 × predicted].
     assert!(Oracle::garde_fou(100, 100).est_conforme());
     assert!(Oracle::garde_fou(100, 50).est_conforme());
     assert!(Oracle::garde_fou(100, 200).est_conforme());
-    // hors bornes : modèle falsifié.
+    // out of bounds: model falsified.
     assert!(!Oracle::garde_fou(100, 49).est_conforme());
     assert!(!Oracle::garde_fou(100, 201).est_conforme());
-    // ratio exact.
+    // exact ratio.
     assert_eq!(
         VerdictGardeFou::nouveau(100, 150).ratio(),
         Rationnel::nouveau(3, 2)
     );
     assert!(BORNE_INFERIEURE.inferieur_ou_egal(&BORNE_SUPERIEURE));
-    // prédit = 0 (coût d'encodage ou requêtes nul) : conforme ssi mesure = 0.
+    // predicted = 0 (null encoding cost or queries): conforming iff measure = 0.
     assert!(Oracle::garde_fou(0, 0).est_conforme());
     assert!(!Oracle::garde_fou(0, 1).est_conforme());
 }
 
-/// Propriété (LCG déterministe) : la prédiction est croissante en densité
-/// et en requêtes aval, et le garde-fou est conforme quand la mesure égale
-/// la prédiction.
+/// Property (deterministic LCG): the prediction is monotonic in density
+/// and in downstream queries, and the guardrail is conforming when the
+/// measurement equals the prediction.
 #[test]
 fn test_propriete_prediction_monotone_et_garde_fou() {
     const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -109,13 +109,13 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
     for _cas in 0..50 {
         let taille_domaine = 1 + suivant() % 100;
         let densite = Rationnel::nouveau(suivant() % 101, 100);
-        let cout_encodage = suivant() % 10; // 0 possible : prédit peut être nul
+        let cout_encodage = suivant() % 10; // 0 possible: predicted can be null
         let requetes_aval = suivant() % 20;
         let params =
             ParametresOracle::nouveau(taille_domaine, densite, cout_encodage, requetes_aval)
                 .unwrap();
         let prediction = Oracle::predire(&params);
-        // Croissance en densité.
+        // Monotonic in density.
         let plus_dense = Oracle::predire(
             &ParametresOracle::nouveau(
                 params.taille_domaine(),
@@ -126,7 +126,7 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
             .unwrap(),
         );
         assert!(prediction.taille_predite <= plus_dense.taille_predite);
-        // Croissance en requêtes aval.
+        // Monotonic in downstream queries.
         let plus_de_requetes = Oracle::predire(
             &ParametresOracle::nouveau(
                 params.taille_domaine(),
@@ -137,7 +137,7 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
             .unwrap(),
         );
         assert!(prediction.cout_total_predit <= plus_de_requetes.cout_total_predit);
-        // Garde-fou conforme quand mesure = prédiction.
+        // Guardrail conforming when measure = prediction.
         assert!(
             Oracle::garde_fou(prediction.cout_total_predit, prediction.cout_total_predit)
                 .est_conforme()

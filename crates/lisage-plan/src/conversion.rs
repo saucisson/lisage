@@ -1,45 +1,45 @@
-//! Conversions entre ordres et royaumes de contrôleurs (M3-2, énoncé C3,
-//! spec § 2.4.3 et § 10 Q1) : **réordonner = convertir** — une conversion
-//! entre deux [`Order<T>`] d'un même type est compilée en transduction
-//! (séquence de transpositions adjacentes de niveaux) à **coût
-//! prévisible** (nombre d'inversions, distance de Kendall tau, calculée
-//! depuis les seuls ordres). Le **contrat typé s'étend des ordres aux
-//! encodages** : une valeur n'existe que dans un [`Royaume`] typé par
-//! (type `T`, marque d'ordre `O`, marque d'encodage `E`), et quitter le
-//! royaume passe par une conversion explicite.
+//! Conversions between orders and controller realms (M3-2, claim C3,
+//! spec § 2.4.3 and § 10 Q1): **reorder = convert** — a conversion
+//! between two [`Order<T>`] of the same type is compiled into a transduction
+//! (sequence of adjacent level transpositions) at **predictable
+//! cost** (number of inversions, Kendall tau distance, computed
+//! from the orders alone). The **typed contract extends from orders to
+//! encodings**: a value exists only in a [`Royaume`] typed by
+//! (type `T`, order mark `O`, encoding mark `E`), and leaving the
+//! realm goes through an explicit conversion.
 
 use std::marker::PhantomData;
 
 use crate::ordre::{MarqueOrdre, Order, TypeOrdre};
 
-/// Encodage d'un type (royaume de contrôleur, M3-2) : compilation de la
-/// décomposition sémantique en niveaux physiques.
+/// Encoding of a type (controller realm, M3-2): compilation of the
+/// semantic decomposition into physical levels.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Encodage {
-    /// Balayage d'univers : un niveau de présence par clé, δ = absent,
-    /// sans marqueur (spec § 2.1, compilation de M1).
+    /// Universe sweep: one presence level per key, δ = absent,
+    /// no marker (spec § 2.1, M1 compilation).
     BalayageUnivers,
-    /// Compilation énumérative : positions + marqueur de fin, bornée par
-    /// la longueur (constructeur `Seq`, M2-1).
+    /// Enumerative compilation: positions + end marker, bounded by
+    /// length (constructor `Seq`, M2-1).
     Enumeration,
 }
 
-/// Marque d'encodage : type zéro-taille portant un [`Encodage`]. Le
-/// contrat typé des royaumes passe par cette marque, comme l'ordre par
+/// Encoding mark: zero-sized type carrying an [`Encodage`]. The typed
+/// contract of realms goes through this mark, like the order through
 /// [`MarqueOrdre`].
 pub trait MarqueEncodage: Sized + Send + Sync {
-    /// L'encodage associé à la marque.
+    /// The encoding associated with the mark.
     fn encodage() -> Encodage;
 }
 
-/// Erreur typée de conversion (cause préservée).
+/// Typed conversion error (cause preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ErreurConversion {
-    /// Les deux ordres n'ont pas le même ensemble canonique de clés :
-    /// pas de conversion possible entre ces types-là.
+    /// The two orders do not have the same canonical key set:
+    /// no conversion possible between those types.
     OrdresInconvertibles,
-    /// La conversion ne part pas de l'ordre du royaume source ou
-    /// n'arrive pas à l'ordre du royaume cible.
+    /// The conversion does not start from the source realm's order or
+    /// does not arrive at the target realm's order.
     RoyaumeIncompatible,
 }
 
@@ -49,13 +49,13 @@ impl std::fmt::Display for ErreurConversion {
             ErreurConversion::OrdresInconvertibles => {
                 write!(
                     formatter,
-                    "ordres inconvertibles (clés canoniques différentes)"
+                    "inconvertible orders (different canonical keys)"
                 )
             }
             ErreurConversion::RoyaumeIncompatible => {
                 write!(
                     formatter,
-                    "conversion incompatible avec les royaumes source/cible"
+                    "conversion incompatible with source/target realms"
                 )
             }
         }
@@ -64,30 +64,30 @@ impl std::fmt::Display for ErreurConversion {
 
 impl std::error::Error for ErreurConversion {}
 
-/// Conversion entre deux ordres d'un même type `T` : **réordonner =
-/// convertir**. Compilée en transduction — séquence de transpositions
-/// adjacentes de niveaux — à coût prévisible : le nombre d'inversions
-/// entre les deux π (distance de Kendall tau), calculé depuis les seuls
-/// ordres, avant toute exécution.
+/// Conversion between two orders of the same type `T`: **reorder =
+/// convert**. Compiled into a transduction — sequence of adjacent level
+/// transpositions — at predictable cost: the number of inversions
+/// between the two π (Kendall tau distance), computed from the orders
+/// alone, before any execution.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Conversion<T: TypeOrdre> {
     source: Order<T>,
     cible: Order<T>,
-    /// Transpositions adjacentes (positions dans la séquence) composant
-    /// π_source → π_cible, dans l'ordre d'application.
+    /// Adjacent transpositions (positions in the sequence) composing
+    /// π_source → π_cible, in application order.
     transpositions: Vec<(usize, usize)>,
 }
 
 impl<T: TypeOrdre> Conversion<T> {
-    /// Conversion de `source` vers `cible` : les deux ordres doivent avoir
-    /// le même ensemble canonique de clés (même type instancié).
+    /// Conversion from `source` to `cible`: both orders must have the same
+    /// canonical key set (same instantiated type).
     pub fn nouveau(source: &Order<T>, cible: &Order<T>) -> Result<Self, ErreurConversion> {
         if source.canoniques() != cible.canoniques() {
             return Err(ErreurConversion::OrdresInconvertibles);
         }
-        // Tri à bulles de la séquence cible vers l'ordre source, en
-        // enregistrant chaque transposition adjacente : le nombre de
-        // transpositions égale le nombre d'inversions.
+        // Bubble sort of the target sequence toward the source order,
+        // recording each adjacent transposition: the number of
+        // transpositions equals the number of inversions.
         let mut sequence = cible.sequence().to_vec();
         let mut transpositions = Vec::new();
         let mut triee = false;
@@ -111,48 +111,48 @@ impl<T: TypeOrdre> Conversion<T> {
         })
     }
 
-    /// Ordre de départ de la conversion.
+    /// Starting order of the conversion.
     pub fn source(&self) -> &Order<T> {
         &self.source
     }
 
-    /// Ordre d'arrivée de la conversion.
+    /// Arrival order of the conversion.
     pub fn cible(&self) -> &Order<T> {
         &self.cible
     }
 
-    /// Coût prévisible de la transduction : nombre d'inversions entre les
-    /// deux π = nombre de transpositions adjacentes.
+    /// Predictable cost of the transduction: number of inversions between
+    /// the two π = number of adjacent transpositions.
     pub fn cout(&self) -> usize {
         self.transpositions.len()
     }
 
-    /// Transpositions adjacentes (positions) composant la transduction.
+    /// Adjacent transpositions (positions) composing the transduction.
     pub fn transpositions(&self) -> &[(usize, usize)] {
         &self.transpositions
     }
 
-    /// La conversion est l'identité (coût nul) ssi les deux ordres sont
-    /// alignés.
+    /// The conversion is the identity (zero cost) iff both orders are
+    /// aligned.
     pub fn est_identite(&self) -> bool {
         self.cout() == 0
     }
 }
 
-/// Marqueur de variance de `Royaume` : aucune borne sur `T`, `O`, `E`.
+/// Variance marker of `Royaume`: no bound on `T`, `O`, `E`.
 type MarqueurRoyaume<T, O, E> = PhantomData<fn() -> (T, O, E)>;
 
-/// Royaume de contrôleur : contrat typé (type `T`, marque d'ordre `O`,
-/// marque d'encodage `E`) — extension du contrat typé des ordres aux
-/// encodages (M3-2, C3). Une valeur n'existe que dans un royaume ;
-/// quitter le royaume = conversion explicite.
+/// Controller realm: typed contract (type `T`, order mark `O`,
+/// encoding mark `E`) — extension of the typed contract from orders to
+/// encodings (M3-2, C3). A value exists only in a realm;
+/// leaving the realm = explicit conversion.
 pub struct Royaume<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> {
     valeur: V,
     marqueur: MarqueurRoyaume<T, O, E>,
 }
 
 impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> {
-    /// Valeur neuf dans le royaume `(T, O, E)`.
+    /// New value in the realm `(T, O, E)`.
     pub fn nouveau(valeur: V) -> Self {
         Royaume {
             valeur,
@@ -160,27 +160,27 @@ impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> 
         }
     }
 
-    /// Valeur portée par le royaume.
+    /// Value carried by the realm.
     pub fn valeur(&self) -> &V {
         &self.valeur
     }
 
-    /// Ordre du royaume, d'après sa marque.
+    /// Order of the realm, from its mark.
     pub fn ordre(descripteur: &T) -> Order<T> {
         O::ordre(descripteur)
     }
 
-    /// Encodage du royaume, d'après sa marque.
+    /// Encoding of the realm, from its mark.
     pub fn encodage() -> Encodage {
         E::encodage()
     }
 }
 
 impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V: Clone> Royaume<T, O, E, V> {
-    /// **Réordonner = convertir** : change la marque d'ordre du royaume
-    /// via une conversion explicite à coût prévisible (`conversion.cout()`).
-    /// Contrat typé vérifié en valeur : la conversion doit partir de
-    /// l'ordre du royaume source (`O`) et arriver à celui du royaume cible
+    /// **Reorder = convert**: change the realm's order mark via an explicit
+    /// conversion at predictable cost (`conversion.cout()`).
+    /// Typed contract checked by value: the conversion must start from the
+    /// source realm's order (`O`) and arrive at the target realm's order
     /// (`O2`).
     pub fn reordonner<O2: MarqueOrdre<T>>(
         &self,
