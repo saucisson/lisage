@@ -16,9 +16,7 @@ use lisage_core::arena::Arena;
 use lisage_core::error::CoreError;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{compter, union};
-use lisage_core::schema::{
-    Domaine, ReferenceController, Schema, SchemaError, SchemaKeys, compiler,
-};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
 /// Typed error of the SDD installation (causes preserved).
@@ -90,7 +88,7 @@ pub struct NiveauSdd {
 /// (all the vtree variables, domain of the complete set) — the
 /// R-default reductions at interning are driven by this schema.
 pub fn pool_pour_sdd(vtree: &Vtree, ensemble: &BTreeSet<Value>) -> Arena<ReferenceController> {
-    let schema = Schema::Map(vtree.ordre_plat(), domaine_ensemble(ensemble));
+    let schema = Schema::Map(vtree.ordre_plat(), domain_ensemble(ensemble));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
@@ -103,9 +101,9 @@ pub fn installer_sdd(
     ensemble: &BTreeSet<Value>,
 ) -> Result<NiveauSdd, ErreurSdd> {
     vtree.valider()?;
-    let domaine = domaine_ensemble(ensemble);
+    let domain = domain_ensemble(ensemble);
     let mut compteur_ancres = 0u32;
-    installer_niveau(pool, vtree, ensemble, &domaine, &mut compteur_ancres)
+    installer_niveau(pool, vtree, ensemble, &domain, &mut compteur_ancres)
 }
 
 /// Installs one vtree level: projection of the set on the variables
@@ -114,7 +112,7 @@ fn installer_niveau(
     pool: &mut Arena<ReferenceController>,
     vtree: &Vtree,
     ensemble: &BTreeSet<Value>,
-    domaine: &Domaine,
+    domain: &Domain,
     compteur_ancres: &mut u32,
 ) -> Result<NiveauSdd, ErreurSdd> {
     let variables = vtree.ordre_plat();
@@ -124,12 +122,12 @@ fn installer_niveau(
     let ancre = Anchor(*compteur_ancres);
     *compteur_ancres += 1;
     let projection = projeter(ensemble, &variables);
-    let schema = Schema::Map(variables, domaine.clone());
+    let schema = Schema::Map(variables, domain.clone());
     let root = compiler_projection(pool, &schema, &projection, ancre)?;
     let cardinal = compter_niveau(pool, &schema, root, ancre)?;
     if let Vtree::Node { gauche, droite } = vtree {
-        installer_niveau(pool, gauche, &projection, domaine, compteur_ancres)?;
-        installer_niveau(pool, droite, &projection, domaine, compteur_ancres)?;
+        installer_niveau(pool, gauche, &projection, domain, compteur_ancres)?;
+        installer_niveau(pool, droite, &projection, domain, compteur_ancres)?;
     }
     Ok(NiveauSdd {
         ancre,
@@ -163,7 +161,7 @@ pub fn projeter(ensemble: &BTreeSet<Value>, keys: &[Atom]) -> BTreeSet<Value> {
 /// Value domain of the complete set: `0..=max` observed over all
 /// the maps (shared by all levels, so that the controller schema
 /// and the local schemas have the same level cardinalities).
-fn domaine_ensemble(ensemble: &BTreeSet<Value>) -> Domaine {
+fn domain_ensemble(ensemble: &BTreeSet<Value>) -> Domain {
     let max_value = ensemble
         .iter()
         .filter_map(|value| match value {
@@ -178,7 +176,7 @@ fn domaine_ensemble(ensemble: &BTreeSet<Value>) -> Domaine {
         })
         .max()
         .unwrap_or(0);
-    Domaine::new((0..=max_value).map(Atom).collect())
+    Domain::new((0..=max_value).map(Atom).collect())
 }
 
 /// Compiles a projection into a local DD: union of the projected maps under

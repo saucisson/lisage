@@ -53,7 +53,7 @@ impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
     }
 
     /// Number of stored entries (for tests).
-    pub fn taille(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.inputs.len()
     }
 }

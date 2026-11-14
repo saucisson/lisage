@@ -6,13 +6,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use lisage_algebra::interface::Anchor;
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler, decompiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiler, decompiler};
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
 
-fn domaine(values: Vec<u64>) -> Domaine {
-    Domaine::new(values.into_iter().map(Atom).collect())
+fn domain(values: Vec<u64>) -> Domain {
+    Domain::new(values.into_iter().map(Atom).collect())
 }
 
 fn atome(v: u64) -> Value {
@@ -21,14 +21,14 @@ fn atome(v: u64) -> Value {
 
 fn schema_ensemble() -> BoxedStrategy<(Schema, Value)> {
     (1u8..5, prop::collection::vec(0u8..5, 0..6))
-        .prop_map(|(taille, elements)| {
-            let domaine = domaine((0..u64::from(taille)).collect());
+        .prop_map(|(size, elements)| {
+            let domain = domain((0..u64::from(size)).collect());
             let ensemble: BTreeSet<Value> = elements
                 .into_iter()
-                .filter(|&e| u64::from(e) < u64::from(taille))
+                .filter(|&e| u64::from(e) < u64::from(size))
                 .map(|e| atome(u64::from(e)))
                 .collect();
-            (Schema::Set(domaine), Value::Set(ensemble))
+            (Schema::Set(domain), Value::Set(ensemble))
         })
         .boxed()
 }
@@ -40,23 +40,23 @@ fn schema_map() -> BoxedStrategy<(Schema, Value)> {
     )
         .prop_map(|(keys, paires)| {
             let keys: Vec<Atom> = keys.into_iter().map(|c| Atom(u64::from(c))).collect();
-            let domaine_v = domaine(vec![0, 1, 2]);
+            let domain_v = domain(vec![0, 1, 2]);
             let map: BTreeMap<Value, Value> = paires
                 .into_iter()
                 .filter(|(c, _)| keys.contains(&Atom(u64::from(*c))))
                 .map(|(c, v)| (atome(u64::from(c)), atome(u64::from(v))))
                 .collect();
-            (Schema::Map(keys, domaine_v), Value::Map(map))
+            (Schema::Map(keys, domain_v), Value::Map(map))
         })
         .boxed()
 }
 
 fn schema_atome() -> BoxedStrategy<(Schema, Value)> {
     (1u8..4, 0u8..4)
-        .prop_map(|(taille, v)| {
-            let domaine = domaine((0..u64::from(taille)).collect());
-            let value = atome(u64::from(v) % u64::from(taille));
-            (Schema::Atom(domaine), value)
+        .prop_map(|(size, v)| {
+            let domain = domain((0..u64::from(size)).collect());
+            let value = atome(u64::from(v) % u64::from(size));
+            (Schema::Atom(domain), value)
         })
         .boxed()
 }
@@ -69,18 +69,18 @@ fn schema_et_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
             prop::collection::vec(0u8..5, 0..6),
             prop::collection::vec(0u8..5, 0..6)
         )
-            .prop_map(|(taille, ea, eb)| {
-                let domaine = domaine((0..u64::from(taille)).collect());
+            .prop_map(|(size, ea, eb)| {
+                let domain = domain((0..u64::from(size)).collect());
                 let mk = |elements: Vec<u8>| {
                     Value::Set(
                         elements
                             .into_iter()
-                            .filter(|&e| u64::from(e) < u64::from(taille))
+                            .filter(|&e| u64::from(e) < u64::from(size))
                             .map(|e| atome(u64::from(e)))
                             .collect(),
                     )
                 };
-                (Schema::Set(domaine), mk(ea), mk(eb))
+                (Schema::Set(domain), mk(ea), mk(eb))
             }),
         (
             prop::collection::vec(0u8..4, 1..4),
@@ -89,7 +89,7 @@ fn schema_et_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
         )
             .prop_map(|(keys, pa, pb)| {
                 let keys: Vec<Atom> = keys.into_iter().map(|c| Atom(u64::from(c))).collect();
-                let domaine_v = domaine(vec![0, 1, 2]);
+                let domain_v = domain(vec![0, 1, 2]);
                 let keys_filtre = keys.clone();
                 let mk = move |paires: Vec<(u8, u8)>| {
                     Value::Map(
@@ -100,14 +100,14 @@ fn schema_et_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
                             .collect(),
                     )
                 };
-                (Schema::Map(keys, domaine_v), mk(pa), mk(pb))
+                (Schema::Map(keys, domain_v), mk(pa), mk(pb))
             }),
-        (1u8..4, 0u8..4, 0u8..4).prop_map(|(taille, va, vb)| {
-            let domaine = domaine((0..u64::from(taille)).collect());
+        (1u8..4, 0u8..4, 0u8..4).prop_map(|(size, va, vb)| {
+            let domain = domain((0..u64::from(size)).collect());
             (
-                Schema::Atom(domaine),
-                atome(u64::from(va) % u64::from(taille)),
-                atome(u64::from(vb) % u64::from(taille)),
+                Schema::Atom(domain),
+                atome(u64::from(va) % u64::from(size)),
+                atome(u64::from(vb) % u64::from(size)),
             )
         }),
     ]
@@ -147,21 +147,21 @@ proptest! {
 fn test_t5_seq_round_trip_propriete() {
     use lisage_core::arena::Arena;
     use lisage_core::observer::NoOpObserver;
-    use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler, decompiler};
+    use lisage_core::schema::{Domain, ReferenceController, Schema, compiler, decompiler};
     use lisage_lang::value::{Atom, Value};
     use proptest::prelude::*;
 
-    proptest!(|(domaine_taille in 1u64..=4,
+    proptest!(|(domain_size in 1u64..=4,
                  longueur_max in 1u32..=4,
                  elements in prop::collection::vec(0u64..4, 0..5))| {
-        let domaine = Domaine::new((0..domaine_taille).map(Atom).collect());
-        let schema = Schema::Seq(domaine.clone(), longueur_max);
+        let domain = Domain::new((0..domain_size).map(Atom).collect());
+        let schema = Schema::Seq(domain.clone(), longueur_max);
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = lisage_algebra::interface::Anchor(0);
         // Truncate to the max length and filter into the domain.
         let seq: Vec<Value> = elements.iter()
             .take(longueur_max as usize)
-            .filter(|&&v| v < domaine_taille)
+            .filter(|&&v| v < domain_size)
             .map(|&v| Value::Atom(Atom(v)))
             .collect();
         let value = Value::Seq(seq.clone());

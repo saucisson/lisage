@@ -9,7 +9,7 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{compter, union};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::interpreter::count;
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
@@ -63,7 +63,7 @@ proptest! {
     ) {
         let schema = Schema::Map(
             vec![Atom(0), Atom(1)],
-            Domaine::new(vec![Atom(0), Atom(1)]),
+            Domain::new(vec![Atom(0), Atom(1)]),
         );
         let ensemble = ensemble_aleatoire(maps);
         let mut input = Arena::new(

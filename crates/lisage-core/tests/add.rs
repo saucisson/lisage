@@ -10,7 +10,7 @@ use lisage_core::add::{AddController, compiler_pondere, merge_add, somme_poids};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{compter, union};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
 /// Test anchor.
@@ -21,7 +21,7 @@ type PoolBool = Arena<ReferenceController>;
 
 /// Test schema: `Map({0,1}, {0,1})`.
 fn schema_test() -> Schema {
-    Schema::Map(vec![Atom(0), Atom(1)], Domaine::new(vec![Atom(0), Atom(1)]))
+    Schema::Map(vec![Atom(0), Atom(1)], Domain::new(vec![Atom(0), Atom(1)]))
 }
 
 /// Builds a `Value::Map` from (key, value) pairs.

@@ -8,7 +8,7 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::lookup::{Lookup, LookupController};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{ABSENT, Domaine, PRESENT, ReferenceController, Schema, compiler};
+use lisage_core::schema::{ABSENT, Domain, PRESENT, ReferenceController, Schema, compiler};
 use lisage_core::transduction::Transducteur;
 use lisage_lang::interpreter::lookup;
 use lisage_lang::value::{Atom, Value};
@@ -64,8 +64,8 @@ proptest! {
         key in 0u64..2,
     ) {
         let liste_keys = vec![Atom(0), Atom(1)];
-        let domaine_values = Domaine::new(vec![Atom(0), Atom(1)]);
-        let schema = Schema::Map(liste_keys.clone(), domaine_values.clone());
+        let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
+        let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
         let map: BTreeMap<Value, Value> = paires
             .iter()
             .map(|(k, v)| (atome(*k), atome(*v)))
@@ -86,7 +86,7 @@ proptest! {
         let mut runner = Transducteur::new(Lookup::new(
             key_atome,
             liste_keys.clone(),
-            domaine_values.clone(),
+            domain_values.clone(),
         ));
         let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
         let dd = payload_terminal(&output, resultat, &liste_keys, &map);
@@ -111,8 +111,8 @@ proptest! {
         key in 0u64..2,
     ) {
         let liste_keys = vec![Atom(0), Atom(1)];
-        let domaine_values = Domaine::new(vec![Atom(0)]);
-        let schema = Schema::Map(liste_keys.clone(), domaine_values.clone());
+        let domain_values = Domain::new(vec![Atom(0)]);
+        let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
         let map: BTreeMap<Value, Value> = paires
             .iter()
             .map(|(k, v)| (atome(*k), atome(*v)))
@@ -133,7 +133,7 @@ proptest! {
         let mut runner = Transducteur::new(Lookup::new(
             key_atome,
             liste_keys.clone(),
-            domaine_values.clone(),
+            domain_values.clone(),
         ));
         let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
         let dd = payload_terminal(&output, resultat, &liste_keys, &map);

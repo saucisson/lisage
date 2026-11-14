@@ -74,7 +74,7 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
     value: &Value,
     poids: u64,
 ) -> Result<NodeId, SchemaError> {
-    let Schema::Map(liste_keys, domaine) = schema else {
+    let Schema::Map(liste_keys, domain) = schema else {
         return Err(SchemaError::TypeMismatch {
             attendu: "map",
             recu: "other schema",
@@ -94,10 +94,10 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
             });
         };
         if !liste_keys.contains(atome_key) {
-            return Err(SchemaError::HorsDomaine(*atome_key));
+            return Err(SchemaError::HorsDomain(*atome_key));
         }
-        if !domaine.contient(*atome_value) {
-            return Err(SchemaError::HorsDomaine(*atome_value));
+        if !domain.contient(*atome_value) {
+            return Err(SchemaError::HorsDomain(*atome_value));
         }
     }
     Ok(compiler_map_pondere(

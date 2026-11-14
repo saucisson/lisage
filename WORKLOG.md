@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 9: `domaine`/`taille` identifiers renamed to `domain`/`size` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `domaine`/`Domaine`/`DOMAINE` and `taille`/`Taille`/`TAILLE` stem and compound (domaines, taille_domaine, TAILLE_DOMAINE, DomaineA…) to `domain`/`Domain`/`DOMAIN` and `size`/`Size`/`SIZE`, workspace-wide (60 files), per glossary (domaine → domain, taille → size). The bench JSON wire key `"taille"` (plain and escaped literals in confrontation.rs src+tests) is protected and stays French (contract).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for domaine|taille outside the wire literal returns 0.
+- **Judgement calls**: wire key `"taille"` restored in both the serializer and the pinned test after the blanket rename hit plain string literals too.
 ## 2026-11-14 - M6-6 part 8: `cle`/`cles`/`clef` identifiers renamed to `key`/`keys` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

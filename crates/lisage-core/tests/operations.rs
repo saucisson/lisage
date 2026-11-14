@@ -9,7 +9,7 @@ use lisage_core::error::CoreError;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::operations::{KeyPresentes, existe, filtrer, image};
 use lisage_core::pli::union;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
 type PoolRef = Arena<ReferenceController>;
@@ -50,7 +50,7 @@ fn compiler_ensemble(
 }
 
 fn schema_map() -> Schema {
-    Schema::Map(vec![Atom(0), Atom(1)], Domaine::new(vec![Atom(0), Atom(1)]))
+    Schema::Map(vec![Atom(0), Atom(1)], Domain::new(vec![Atom(0), Atom(1)]))
 }
 
 /// Presence predicate: `p(m) = present(a)`.
@@ -124,7 +124,7 @@ fn test_filtre_garde() {
 /// `map(f)`: relabeling of the atoms of a set (schema `Atom`).
 #[test]
 fn test_image_reetiquetage_atomes() {
-    let schema = Schema::Atom(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]));
+    let schema = Schema::Atom(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
@@ -146,7 +146,7 @@ fn test_image_reetiquetage_atomes() {
 /// the public boundary.
 #[test]
 fn test_existe_schema_non_map_erreur_typee() {
-    let schema = Schema::Atom(Domaine::new(vec![Atom(0)]));
+    let schema = Schema::Atom(Domain::new(vec![Atom(0)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);

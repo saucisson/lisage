@@ -19,17 +19,17 @@ use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
 type PoolDbm = Arena<DbmController>;
 
 const ANCRE: Anchor = Anchor(0);
-const TAILLE_DOMAINE: u64 = 4;
+const SIZE_DOMAIN: u64 = 4;
 
 fn pool() -> PoolDbm {
     Arena::new(
-        DbmController::new(DbmKeys::new(TAILLE_DOMAINE)),
+        DbmController::new(DbmKeys::new(SIZE_DOMAIN)),
         Box::new(NoOpObserver),
     )
 }
 
 fn keys() -> DbmKeys {
-    DbmKeys::new(TAILLE_DOMAINE)
+    DbmKeys::new(SIZE_DOMAIN)
 }
 
 /// Full region of the box: no off-diagonal constraint.
@@ -142,8 +142,8 @@ fn test_integrale_terminaux_dbm() {
 fn test_differentiel_cardinal_contre_mesure() {
     let mut pool = pool();
     let root = compiler_bande(&mut pool, ANCRE);
-    let cardinal: u64 = (0..TAILLE_DOMAINE)
-        .flat_map(|x| (0..TAILLE_DOMAINE).map(move |y| [x, y]))
+    let cardinal: u64 = (0..SIZE_DOMAIN)
+        .flat_map(|x| (0..SIZE_DOMAIN).map(move |y| [x, y]))
         .filter(|point| {
             evaluer(&pool, root, point)
                 .expect("interned node")

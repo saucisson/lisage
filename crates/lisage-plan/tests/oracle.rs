@@ -38,33 +38,33 @@ fn test_parametres_densite_validee() {
 
 /// M3-3: the model predicts `1 + n·d` nodes and the corresponding total cost.
 #[test]
-fn test_prediction_taille_et_cout_total() {
+fn test_prediction_size_et_cout_total() {
     let params = ParametresOracle::new(10, Rationnel::new(1, 2), 3, 4).unwrap();
     let prediction = Oracle::predire(&params);
-    assert_eq!(prediction.taille_predite, 6, "1 + 10·(1/2) nodes");
+    assert_eq!(prediction.size_predite, 6, "1 + 10·(1/2) nodes");
     assert_eq!(prediction.cout_total_predit, 6 * 3 * 4);
 
     // Null density: only the terminal. Full density: the whole chain.
     let nul = Oracle::predire(
         &ParametresOracle::new(
-            params.taille_domaine(),
+            params.size_domain(),
             Rationnel::new(0, 1),
             params.cout_encodage(),
             params.requetes_aval(),
         )
         .unwrap(),
     );
-    assert_eq!(nul.taille_predite, 1);
+    assert_eq!(nul.size_predite, 1);
     let plein = Oracle::predire(
         &ParametresOracle::new(
-            params.taille_domaine(),
+            params.size_domain(),
             Rationnel::entier(1),
             params.cout_encodage(),
             params.requetes_aval(),
         )
         .unwrap(),
     );
-    assert_eq!(plein.taille_predite, 11);
+    assert_eq!(plein.size_predite, 11);
 }
 
 /// M3-3: the differential guardrail compares prediction and measurement
@@ -104,28 +104,28 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
     };
 
     for _cas in 0..50 {
-        let taille_domaine = 1 + suivant() % 100;
+        let size_domain = 1 + suivant() % 100;
         let densite = Rationnel::new(suivant() % 101, 100);
         let cout_encodage = suivant() % 10; // 0 possible: predicted can be null
         let requetes_aval = suivant() % 20;
         let params =
-            ParametresOracle::new(taille_domaine, densite, cout_encodage, requetes_aval).unwrap();
+            ParametresOracle::new(size_domain, densite, cout_encodage, requetes_aval).unwrap();
         let prediction = Oracle::predire(&params);
         // Monotonic in density.
         let plus_dense = Oracle::predire(
             &ParametresOracle::new(
-                params.taille_domaine(),
+                params.size_domain(),
                 Rationnel::entier(1),
                 params.cout_encodage(),
                 params.requetes_aval(),
             )
             .unwrap(),
         );
-        assert!(prediction.taille_predite <= plus_dense.taille_predite);
+        assert!(prediction.size_predite <= plus_dense.size_predite);
         // Monotonic in downstream queries.
         let plus_de_requetes = Oracle::predire(
             &ParametresOracle::new(
-                params.taille_domaine(),
+                params.size_domain(),
                 params.densite_attendue(),
                 params.cout_encodage(),
                 requetes_aval + 1,

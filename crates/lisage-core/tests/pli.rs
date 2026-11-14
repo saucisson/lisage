@@ -8,7 +8,7 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{BoolOu, Pli, compter, union};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::Transducteur;
 use lisage_lang::value::{Atom, Value};
 
@@ -55,7 +55,7 @@ fn compiler_ensemble(
 /// (A4: the level cardinal enters the aggregation).
 #[test]
 fn test_count_niveau_collapsed_a4_exemple_spec() {
-    let schema = Schema::Map(vec![Atom(0)], Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
@@ -73,7 +73,7 @@ fn test_count_niveau_collapsed_a4_exemple_spec() {
 /// Counting on a set of two-key maps (no collapse here).
 #[test]
 fn test_count_ensemble_maps() {
-    let schema = Schema::Map(vec![Atom(0), Atom(1)], Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Map(vec![Atom(0), Atom(1)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
@@ -87,7 +87,7 @@ fn test_count_ensemble_maps() {
 /// product of the cardinalities (every level collapsed).
 #[test]
 fn test_count_ensemble_vide_et_plein() {
-    let schema = Schema::Map(vec![Atom(0)], Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
@@ -111,7 +111,7 @@ fn test_count_ensemble_vide_et_plein() {
 /// Fold over `(Bool, ∨, ∧)`: "the set is non-empty" (∃-summary).
 #[test]
 fn test_pli_boolou_non_vide() {
-    let schema = Schema::Map(vec![Atom(0)], Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
@@ -132,7 +132,7 @@ fn test_pli_boolou_non_vide() {
 /// "all by default" member (the empty map), not an absorbing element.
 #[test]
 fn test_union_merge_construction_bool() {
-    let schema = Schema::Map(vec![Atom(0)], Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let anchor = Anchor(0);
     let keys = SchemaKeys::new(schema.clone());

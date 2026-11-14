@@ -11,7 +11,7 @@ use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::operations::{KeyPresentes, existe, filtrer, image};
 use lisage_core::pli::union;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::interpreter::{exists, filter, map};
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
@@ -74,7 +74,7 @@ proptest! {
     ) {
         let schema = Schema::Map(
             vec![Atom(0), Atom(1)],
-            Domaine::new(vec![Atom(0), Atom(1)]),
+            Domain::new(vec![Atom(0), Atom(1)]),
         );
         let ensemble = ensemble_maps_aleatoire(maps);
         let mut input = Arena::new(
@@ -107,7 +107,7 @@ proptest! {
     ) {
         let schema = Schema::Map(
             vec![Atom(0), Atom(1)],
-            Domaine::new(vec![Atom(0), Atom(1)]),
+            Domain::new(vec![Atom(0), Atom(1)]),
         );
         let ensemble = ensemble_maps_aleatoire(maps);
         let mut input = Arena::new(
@@ -140,7 +140,7 @@ proptest! {
     fn test_c1_differentiel_map_voie_a_vs_dd(
         atomes in prop::collection::btree_set(0u64..3, 0..4)
     ) {
-        let schema = Schema::Atom(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]));
+        let schema = Schema::Atom(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));
         let ensemble: BTreeSet<Value> = atomes.iter().map(|v| atome(*v)).collect();
         let mut input = Arena::new(
             ReferenceController::new(schema.clone()),

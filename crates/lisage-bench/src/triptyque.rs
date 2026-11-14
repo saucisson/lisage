@@ -19,9 +19,7 @@ use lisage_core::arena::Arena;
 use lisage_core::error::CoreError;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{compter, union};
-use lisage_core::schema::{
-    Domaine, ReferenceController, Schema, SchemaError, SchemaKeys, compiler,
-};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 use lisage_plan::ordre::{KeyMap, KeysMap, Order, Phase, StrategieAval};
 
@@ -200,8 +198,8 @@ fn schema_petri(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<Schema, Err
         return Err(ErreurTriptyque::OrdreInvalide);
     }
     let max_jetons = jetons_max(reseau);
-    let domaine = Domaine::new((0..=max_jetons).map(Atom).collect());
-    Ok(Schema::Map(ordre_keys.to_vec(), domaine))
+    let domain = Domain::new((0..=max_jetons).map(Atom).collect());
+    Ok(Schema::Map(ordre_keys.to_vec(), domain))
 }
 
 /// Maximum number of tokens observed on a place in the

@@ -89,26 +89,26 @@ impl Cdd {
 }
 
 /// CDD region-key algebra over a per-variable bounded domain:
-/// `Val(ℓ) = [0, taille_domaine)`, a key = a finite union of DBM zones of
+/// `Val(ℓ) = [0, size_domain)`, a key = a finite union of DBM zones of
 /// the box, `δ(ℓ)` = the empty union [`VIDE`].
 #[derive(Clone)]
 pub struct CddKeys {
-    taille_domaine: u64,
+    size_domain: u64,
 }
 
 impl CddKeys {
-    /// Algebra for variables with bounded domain `[0, taille_domaine)`.
-    pub fn new(taille_domaine: u64) -> Self {
-        CddKeys { taille_domaine }
+    /// Algebra for variables with bounded domain `[0, size_domain)`.
+    pub fn new(size_domain: u64) -> Self {
+        CddKeys { size_domain }
     }
 
-    /// Domain size of a variable, `Val(ℓ) = [0, taille)`.
-    pub fn taille_domaine(&self) -> u64 {
-        self.taille_domaine
+    /// Domain size of a variable, `Val(ℓ) = [0, size)`.
+    pub fn size_domain(&self) -> u64 {
+        self.size_domain
     }
 
     /// Coverage: does the family of unions cover the whole bounded box
-    /// `[0, taille_domaine)^n` (n = dimension of the zones)?
+    /// `[0, size_domain)^n` (n = dimension of the zones)?
     ///
     /// Key contract declared controller-side (roadmap § 9:
     /// "normal form, coverage, intersection"). Decidable by
@@ -136,7 +136,7 @@ impl CddKeys {
                 );
             }
         }
-        let taille = self.taille_domaine;
+        let size = self.size_domain;
         // Universe sweep of the bounded box (odometer over n variables).
         let mut point = vec![0u64; n];
         loop {
@@ -151,7 +151,7 @@ impl CddKeys {
                 }
                 i -= 1;
                 point[i] += 1;
-                if point[i] < taille {
+                if point[i] < size {
                     break;
                 }
                 point[i] = 0;
@@ -168,7 +168,7 @@ impl KeyAlgebra for CddKeys {
     }
 
     fn cardinality(&self, _level: Level) -> u64 {
-        self.taille_domaine
+        self.size_domain
     }
 
     fn default(&self, _level: Level) -> Option<Self::Key> {

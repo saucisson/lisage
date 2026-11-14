@@ -8,7 +8,7 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::lookup::{Lookup, LookupController};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{ABSENT, Domaine, PRESENT, ReferenceController, Schema, compiler};
+use lisage_core::schema::{ABSENT, Domain, PRESENT, ReferenceController, Schema, compiler};
 use lisage_core::transduction::Transducteur;
 use lisage_lang::value::{Atom, Value};
 
@@ -31,7 +31,7 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
 fn executer_lookup(
     schema: &Schema,
     liste_keys: &[Atom],
-    domaine_values: &Domaine,
+    domain_values: &Domain,
     value: &Value,
     key: Atom,
 ) -> (PoolOutput, NodeId, BTreeMap<u64, NodeId>) {
@@ -45,11 +45,8 @@ fn executer_lookup(
     );
     let anchor = Anchor(0);
     let root = compiler(&mut input, anchor, schema, value).unwrap();
-    let mut runner = Transducteur::new(Lookup::new(
-        key,
-        liste_keys.to_vec(),
-        domaine_values.clone(),
-    ));
+    let mut runner =
+        Transducteur::new(Lookup::new(key, liste_keys.to_vec(), domain_values.clone()));
     let (resultat, fragment) = runner.run(&input, &mut output, anchor, root).unwrap();
     (output, resultat, fragment)
 }
@@ -94,15 +91,15 @@ fn payload_terminal(
 #[test]
 fn test_lookup_keys_presentes() {
     let liste_keys = vec![Atom(0), Atom(1)];
-    let domaine_values = Domaine::new(vec![Atom(0), Atom(1)]);
-    let schema = Schema::Map(liste_keys.clone(), domaine_values.clone());
+    let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
+    let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
     let value = map_de(&[(0, 1), (1, 0)]);
     let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, resultat, fragment) =
-        executer_lookup(&schema, &liste_keys, &domaine_values, &value, Atom(0));
+        executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(0));
     assert_eq!(
         payload_terminal(&output, resultat, &liste_keys, map),
         Some(1),
@@ -114,7 +111,7 @@ fn test_lookup_keys_presentes() {
     );
 
     let (output, resultat, _) =
-        executer_lookup(&schema, &liste_keys, &domaine_values, &value, Atom(1));
+        executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(1));
     assert_eq!(
         payload_terminal(&output, resultat, &liste_keys, map),
         Some(0),
@@ -126,15 +123,15 @@ fn test_lookup_keys_presentes() {
 #[test]
 fn test_lookup_key_absente() {
     let liste_keys = vec![Atom(0), Atom(1)];
-    let domaine_values = Domaine::new(vec![Atom(0), Atom(1)]);
-    let schema = Schema::Map(liste_keys.clone(), domaine_values.clone());
+    let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
+    let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
     let value = map_de(&[(0, 1)]);
     let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, resultat, fragment) =
-        executer_lookup(&schema, &liste_keys, &domaine_values, &value, Atom(1));
+        executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(1));
     assert_eq!(
         payload_terminal(&output, resultat, &liste_keys, map),
         None,
@@ -148,15 +145,15 @@ fn test_lookup_key_absente() {
 #[test]
 fn test_lookup_niveau_value_collapsed_t_expand() {
     let liste_keys = vec![Atom(0)];
-    let domaine_values = Domaine::new(vec![Atom(0)]);
-    let schema = Schema::Map(liste_keys.clone(), domaine_values.clone());
+    let domain_values = Domain::new(vec![Atom(0)]);
+    let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
     let value = map_de(&[(0, 0)]);
     let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, resultat, fragment) =
-        executer_lookup(&schema, &liste_keys, &domaine_values, &value, Atom(0));
+        executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(0));
     assert_eq!(
         payload_terminal(&output, resultat, &liste_keys, map),
         Some(0),

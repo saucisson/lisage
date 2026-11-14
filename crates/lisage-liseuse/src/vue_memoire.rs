@@ -7,9 +7,9 @@
 use lisage_core::biplan::MetriquesPool;
 
 /// Title font size.
-const TAILLE_TITRE: u32 = 14;
+const SIZE_TITRE: u32 = 14;
 /// Body font size.
-const TAILLE_CORPS: u32 = 11;
+const SIZE_CORPS: u32 = 11;
 /// Left margin in pixels.
 const MARGE_GAUCHE: u32 = 16;
 /// Height of a pool line in pixels.
@@ -148,18 +148,18 @@ pub fn rendre_svg_vue_memoire(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
     );
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"{TAILLE_TITRE}\">memory and quotient view</text>\n"
+        "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"{SIZE_TITRE}\">memory and quotient view</text>\n"
     ));
     // Pools panel.
     let mut y = Y_PREMIER_PANNEAU;
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">pools (main / shadow plane, GC)</text>\n"
+        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">pools (main / shadow plane, GC)</text>\n"
     ));
     for pool in pools {
         y += HAUTEUR_LIGNE_POOL;
         let metriques = &pool.metriques;
         svg.push_str(&format!(
-            "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{} : alive={}/{} dead={} gc={} compactions={} hit={}%</text>\n",
+            "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{} : alive={}/{} dead={} gc={} compactions={} hit={}%</text>\n",
             pool.nom,
             pool.vivants_principal,
             pool.vivants_ombre,
@@ -172,18 +172,18 @@ pub fn rendre_svg_vue_memoire(
     // Quotient classes panel.
     y += DECALAGE_PANNEAU;
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">quotient classes (forms × anchors)</text>\n"
+        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">quotient classes (forms × anchors)</text>\n"
     ));
     for classe in classes {
         y += HAUTEUR_LIGNE_CLASSE;
         svg.push_str(&format!(
-            "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{} @ {}</text>\n",
+            "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{} @ {}</text>\n",
             classe.forme, classe.ancre
         ));
         let badge = classe.badge();
         if badge.multiplicite > 1 {
             svg.push_str(&format!(
-                "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\" fill=\"{COULEUR_BADGE}\">×{}</text>\n",
+                "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\" fill=\"{COULEUR_BADGE}\">×{}</text>\n",
                 MARGE_GAUCHE + DECALAGE_BADGE,
                 badge.multiplicite
             ));
@@ -192,7 +192,7 @@ pub fn rendre_svg_vue_memoire(
     // Naive/DD/Lisage comparison bars.
     y += DECALAGE_PANNEAU;
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">comparison naive / DD / Lisage (live nodes)</text>\n"
+        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">comparison naive / DD / Lisage (live nodes)</text>\n"
     ));
     let max = comparaison.naif.max(comparaison.dd).max(comparaison.lisage);
     for (libelle, compte, couleur) in [
@@ -203,7 +203,7 @@ pub fn rendre_svg_vue_memoire(
         y += HAUTEUR_BARRE;
         let largeur = largeur_barre(compte, max);
         svg.push_str(&format!(
-            "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{libelle}</text>\n"
+            "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{libelle}</text>\n"
         ));
         svg.push_str(&format!(
             "<rect x=\"{}\" y=\"{}\" width=\"{largeur}\" height=\"{HAUTEUR_BARRE_INTERIEURE}\" fill=\"{couleur}\"/>\n",
@@ -211,7 +211,7 @@ pub fn rendre_svg_vue_memoire(
             y - DECALAGE_TEXTE_BARRE
         ));
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{compte}</text>\n",
+            "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{compte}</text>\n",
             MARGE_GAUCHE + DECALAGE_BARRE + largeur + DECALAGE_VALUE
         ));
     }

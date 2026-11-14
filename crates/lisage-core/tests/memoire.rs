@@ -8,14 +8,14 @@ use lisage_algebra::interface::{Anchor, Controller, Form, Level, MemoryPolicy, N
 use lisage_core::arena::Arena;
 use lisage_core::memoire::{EffetMemoire, MemoireNiveau};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema};
+use lisage_core::schema::{Domain, ReferenceController, Schema};
 use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
 use lisage_lang::value::Atom;
 
 type PoolRef = Arena<ReferenceController>;
 
 fn pool() -> PoolRef {
-    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
@@ -40,7 +40,7 @@ fn test_memoire_niveau_stockage_et_version() {
         None,
         "keyed by (node, level)"
     );
-    assert_eq!(memoire.taille(), 1);
+    assert_eq!(memoire.size(), 1);
 }
 
 /// M2-3: the memory effect applies and bumps the version.
@@ -206,7 +206,7 @@ fn test_politique_aucune_rejette_effet_memoire() {
 /// default in M1, `PerLevel` to allow the memory).
 #[test]
 fn test_politique_memoire_du_controleur() {
-    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     let controleur = ReferenceController::new(schema);
     assert_eq!(
         controleur.memory_policy(),

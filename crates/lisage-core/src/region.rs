@@ -2,7 +2,7 @@
 //! open question 9 of the spec): the arc key is a bounded interval over a
 //! level's domain — a 1D convex region, first case of "intervals then DBM".
 //!
-//! A level's domain stays finite (`[0, taille)`); the key describes a *set
+//! A level's domain stays finite (`[0, size)`); the key describes a *set
 //! of points* of the domain, with decidable equality and canonical normal
 //! form: C1 becomes relative to the region algebra. The empty interval is
 //! the continuous "absent" δ(ℓ), mirror of `ABSENT` for `Set`. The fold
@@ -65,7 +65,7 @@ impl Intervalle {
     /// Number of points of the interval (0 if empty); saturated at
     /// `u64::MAX` for `Intervalle::new(0, u64::MAX)` (the public
     /// constructor accepts any pair of `u64`).
-    pub fn taille(&self) -> u64 {
+    pub fn size(&self) -> u64 {
         if self.est_vide() {
             0
         } else {
@@ -82,22 +82,22 @@ impl Intervalle {
 }
 
 /// Region key algebra over per-level bounded domains: `Val(ℓ) = [0,
-/// domaines[ℓ])`, a key = an interval of points of that domain, `δ(ℓ)` =
+/// domains[ℓ])`, a key = an interval of points of that domain, `δ(ℓ)` =
 /// the empty interval.
 #[derive(Clone)]
 pub struct RegionKeys {
-    domaines: Vec<u64>,
+    domains: Vec<u64>,
 }
 
 impl RegionKeys {
     /// Algebra for per-level domain sizes (index = level).
-    pub fn new(domaines: Vec<u64>) -> Self {
-        RegionKeys { domaines }
+    pub fn new(domains: Vec<u64>) -> Self {
+        RegionKeys { domains }
     }
 
-    /// Domain size of level `ℓ`, i.e. `Val(ℓ) = [0, taille)`.
-    pub fn taille_domaine(&self, level: Level) -> u64 {
-        self.domaines[level.0 as usize]
+    /// Domain size of level `ℓ`, i.e. `Val(ℓ) = [0, size)`.
+    pub fn size_domain(&self, level: Level) -> u64 {
+        self.domains[level.0 as usize]
     }
 }
 
@@ -109,7 +109,7 @@ impl KeyAlgebra for RegionKeys {
     }
 
     fn cardinality(&self, level: Level) -> u64 {
-        self.taille_domaine(level)
+        self.size_domain(level)
     }
 
     fn default(&self, _level: Level) -> Option<Self::Key> {

@@ -153,7 +153,7 @@ pub struct RapportAtelier {
     pub chemins: u64,
     /// Nodes of the unfolded tree (each arc duplicating the target subtree):
     /// the cost of the absence of hash-consing.
-    pub taille_depliee: u64,
+    pub size_depliee: u64,
 }
 
 /// Measures a diagram: shared nodes, paths and unfolded size. Propagates
@@ -168,15 +168,15 @@ pub fn mesurer<P: Pool>(
     let rapport = RapportAtelier {
         nodes_partages: compter_nodes(pool, root)?,
         chemins: compter_chemins(pool, root)?,
-        taille_depliee: compter_taille_depliee(pool, root)?,
+        size_depliee: compter_size_depliee(pool, root)?,
     };
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root,
             value: format!(
-                "nodes_partages={} chemins={} taille_depliee={}",
-                rapport.nodes_partages, rapport.chemins, rapport.taille_depliee
+                "nodes_partages={} chemins={} size_depliee={}",
+                rapport.nodes_partages, rapport.chemins, rapport.size_depliee
             ),
         });
     }
@@ -200,7 +200,7 @@ pub fn compter_nodes<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> 
 
 /// Counts the root → terminal paths of the DAG (memoized per node, saturating).
 /// This is not the unfolded size: that one is the sum of path lengths,
-/// computed by [`compter_taille_depliee`].
+/// computed by [`compter_size_depliee`].
 pub fn compter_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     fn chemins<P: Pool>(
         pool: &P,
@@ -230,8 +230,8 @@ pub fn compter_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError
 /// Number of nodes in the unfolded tree (memoized per node, saturating): each
 /// arc duplicates the subtree of its target, what the absence of
 /// R-share would cost.
-pub fn compter_taille_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
-    fn taille<P: Pool>(
+pub fn compter_size_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
+    fn size<P: Pool>(
         pool: &P,
         node: NodeId,
         memo: &mut HashMap<NodeId, u64>,
@@ -244,7 +244,7 @@ pub fn compter_taille_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, Po
             Form::Node { arcs, .. } => {
                 let mut somme = 1u64;
                 for cible in arcs.values() {
-                    somme = somme.saturating_add(taille(pool, *cible, memo)?);
+                    somme = somme.saturating_add(size(pool, *cible, memo)?);
                 }
                 somme
             }
@@ -253,7 +253,7 @@ pub fn compter_taille_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, Po
         Ok(total)
     }
     let mut memo = HashMap::new();
-    taille(pool, root, &mut memo)
+    size(pool, root, &mut memo)
 }
 
 /// Level of the sliding-window root.
@@ -283,13 +283,13 @@ pub struct RapportComparaison {
 }
 
 /// Builds the **sliding window** in absolute encoding: for each base
-/// `b ∈ [0, nb_bases)`, its own window `{b..b+taille-1}` (one node per
+/// `b ∈ [0, nb_bases)`, its own window `{b..b+size-1}` (one node per
 /// base), all linked to the root. The number of nodes grows with
 /// `nb_bases` — this is the "infinity of the window" of the flat prototype.
 pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    taille: u64,
+    size: u64,
     nb_bases: u64,
 ) -> NodeId {
     let vrai = pool.intern(anchor, Form::Terminal(true));
@@ -299,7 +299,7 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
             anchor,
             Form::Node {
                 level: Level(NIVEAU_FENETRE),
-                arcs: (0..taille).map(|k| (base + k, vrai)).collect(),
+                arcs: (0..size).map(|k| (base + k, vrai)).collect(),
             },
         );
         arcs.insert(base, fenetre);
@@ -313,34 +313,34 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
     )
 }
 
-/// Interns the relative shape of the window (keys `0..taille-1`, min
+/// Interns the relative shape of the window (keys `0..size-1`, min
 /// section = 0), shared by all bases.
 fn interner_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    taille: u64,
+    size: u64,
 ) -> NodeId {
     let vrai = pool.intern(anchor, Form::Terminal(true));
     pool.intern(
         anchor,
         Form::Node {
             level: Level(NIVEAU_FENETRE),
-            arcs: (0..taille).map(|k| (k, vrai)).collect(),
+            arcs: (0..size).map(|k| (k, vrai)).collect(),
         },
     )
 }
 
 /// Builds the same sliding window in **relative** encoding (M4-2,
-/// min section = 0): a single shape `{0..taille-1}` shared by all the
+/// min section = 0): a single shape `{0..size-1}` shared by all the
 /// bases (the position argument lives on the incoming arc). The number of
 /// nodes is constant — this is the "4 against infinity" of the window.
 pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    taille: u64,
+    size: u64,
     nb_bases: u64,
 ) -> NodeId {
-    let fenetre = interner_fenetre_relative(pool, anchor, taille);
+    let fenetre = interner_fenetre_relative(pool, anchor, size);
     let arcs = (0..nb_bases).map(|base| (base, fenetre)).collect();
     pool.intern(
         anchor,
@@ -357,12 +357,12 @@ pub fn construire_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     encodage: Encodage,
-    taille: u64,
+    size: u64,
     nb_bases: u64,
 ) -> NodeId {
     match encodage {
-        Encodage::Absolu => construire_fenetre_absolue(pool, anchor, taille, nb_bases),
-        Encodage::Relatif => construire_fenetre_relative(pool, anchor, taille, nb_bases),
+        Encodage::Absolu => construire_fenetre_absolue(pool, anchor, size, nb_bases),
+        Encodage::Relatif => construire_fenetre_relative(pool, anchor, size, nb_bases),
     }
 }
 
@@ -372,12 +372,12 @@ pub fn construire_fenetre<P: Pool<Key = u64, Payload = bool>>(
 pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    taille: u64,
+    size: u64,
     nb_bases: u64,
     observateur: Option<&dyn Observer>,
 ) -> Result<RapportComparaison, PoolError> {
-    let root_absolue = construire_fenetre(pool, anchor, Encodage::Absolu, taille, nb_bases);
-    let root_relative = construire_fenetre(pool, anchor, Encodage::Relatif, taille, nb_bases);
+    let root_absolue = construire_fenetre(pool, anchor, Encodage::Absolu, size, nb_bases);
+    let root_relative = construire_fenetre(pool, anchor, Encodage::Relatif, size, nb_bases);
     let absolu = mesurer(pool, root_absolue, observateur)?;
     let relatif = mesurer(pool, root_relative, observateur)?;
     if let Some(obs) = observateur {
@@ -624,16 +624,16 @@ impl AncreFenetre {
 
 /// Builds the sliding window read under the composite `ancre`: the base of
 /// the anchor is the argument of the incoming arc (key `key_input`), the
-/// shape of the window stays relative (keys `0..taille-1`, min section = 0)
+/// shape of the window stays relative (keys `0..size-1`, min section = 0)
 /// and shared. Returns `(root, window)`: the root specific to this base,
 /// the window shape reached by its incoming arc.
 pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    taille: u64,
+    size: u64,
     ancre: &AncreFenetre,
 ) -> (NodeId, NodeId) {
-    let fenetre = interner_fenetre_relative(pool, anchor, taille);
+    let fenetre = interner_fenetre_relative(pool, anchor, size);
     let root = pool.intern(
         anchor,
         Form::Node {
@@ -665,7 +665,7 @@ pub struct RapportComparaisonAncres {
 
 /// Compares the sliding window read under two composite anchors: each
 /// anchor builds its own root (the incoming arc carries its base), but the
-/// relative shape of the window (keys `0..taille-1`, min section = 0) is
+/// relative shape of the window (keys `0..size-1`, min section = 0) is
 /// shared — `meme_forme` true, same nodes, same paths — only the
 /// absolute readings differ. This is the slide of the SWP protocol:
 /// "the anchor moves, the pool never does": moving the base does not
@@ -673,15 +673,15 @@ pub struct RapportComparaisonAncres {
 pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    taille: u64,
+    size: u64,
     ancre_avant: &AncreFenetre,
     ancre_apres: &AncreFenetre,
     observateur: Option<&dyn Observer>,
 ) -> Result<RapportComparaisonAncres, PoolError> {
     // Each anchor enters the pool through its incoming arc (its base); the
     // window shape reached on both sides must be the same node.
-    let (root_avant, fenetre_avant) = construire_fenetre_ancree(pool, anchor, taille, ancre_avant);
-    let (root_apres, fenetre_apres) = construire_fenetre_ancree(pool, anchor, taille, ancre_apres);
+    let (root_avant, fenetre_avant) = construire_fenetre_ancree(pool, anchor, size, ancre_avant);
+    let (root_apres, fenetre_apres) = construire_fenetre_ancree(pool, anchor, size, ancre_apres);
     let nodes_pool = pool.node_count() as u64;
     let meme_forme = fenetre_avant == fenetre_apres;
     let avant = mesurer(pool, root_avant, observateur)?;

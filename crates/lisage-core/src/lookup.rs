@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Controller, ControllerId, Form, Level, NodeId, Pool};
 use lisage_lang::value::Atom;
 
-use crate::schema::{Domaine, PRESENT, Schema, SchemaKeys};
+use crate::schema::{Domain, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
 
 /// Base of the fingerprint namespace of the `lookup` family (key = base + value).
@@ -67,7 +67,7 @@ impl Controller for LookupController {
 
     fn default_payload(&self, level: Level) -> Option<Self::Payload> {
         match &self.schema {
-            Schema::Atom(domaine) => domaine.defaut.map(|_| None),
+            Schema::Atom(domain) => domain.defaut.map(|_| None),
             Schema::Set(_) => Some(None),
             Schema::Map(_, _) => {
                 if level.0.is_multiple_of(2) {
@@ -89,12 +89,12 @@ pub struct Lookup {
     /// Index of the key in the map's canonical order.
     index_key: usize,
     /// Value domain (for T-EXPAND).
-    domaine_values: Domaine,
+    domain_values: Domain,
 }
 
 impl Lookup {
-    /// `lookup(key)` for the `Map(liste_keys, domaine_values)` schema.
-    pub fn new(key: Atom, liste_keys: Vec<Atom>, domaine_values: Domaine) -> Self {
+    /// `lookup(key)` for the `Map(liste_keys, domain_values)` schema.
+    pub fn new(key: Atom, liste_keys: Vec<Atom>, domain_values: Domain) -> Self {
         let index_key = liste_keys
             .iter()
             .position(|c| *c == key)
@@ -102,7 +102,7 @@ impl Lookup {
         Lookup {
             key,
             index_key,
-            domaine_values,
+            domain_values,
         }
     }
 
@@ -214,7 +214,7 @@ impl Transduction for Lookup {
                 );
                 if !enfant_est_niveau_value {
                     let mut greffon = BTreeMap::new();
-                    for v in &self.domaine_values.values {
+                    for v in &self.domain_values.values {
                         let mut memo = BTreeMap::new();
                         let branche = Self::greffer(pool, anchor, enfant, Some(v.0), &mut memo);
                         greffon.insert(v.0, branche);

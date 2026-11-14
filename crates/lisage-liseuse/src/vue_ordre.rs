@@ -34,13 +34,13 @@ const FOND_FICHE: &str = "#f7f7f7";
 /// Level-box background.
 const FOND_BOITE: &str = "#fff";
 /// Font size of the view title.
-const TAILLE_TITRE: u32 = 14;
+const SIZE_TITRE: u32 = 14;
 /// Font size of a kingdom name / card title.
-const TAILLE_NOM: u32 = 13;
+const SIZE_NOM: u32 = 13;
 /// Font size of a card field.
-const TAILLE_CHAMP: u32 = 12;
+const SIZE_CHAMP: u32 = 12;
 /// Font size of a track / conversion label.
-const TAILLE_PISTE: u32 = 11;
+const SIZE_PISTE: u32 = 11;
 /// Standard inner offset (margin inside a panel).
 const DECALAGE: u32 = 8;
 /// Height of the view title band.
@@ -66,7 +66,7 @@ const DECALAGE_ETIQUETTE: u32 = 48;
 /// Vertical offset of the conversion label below the arrow's middle.
 const DECALAGE_ETIQUETTE_Y: u32 = 4;
 /// Arrow-marker geometry (size, refX, refY).
-const MARQUEUR_TAILLE: u32 = 8;
+const MARQUEUR_SIZE: u32 = 8;
 const MARQUEUR_REF_Y: u32 = 4;
 /// Number of controller-card fields (C = eight fields).
 const NOMBRE_CHAMPS_FICHE: u32 = 8;
@@ -181,7 +181,7 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
         "<rect x=\"{x}\" y=\"{y}\" width=\"{largeur}\" height=\"{hauteur}\" fill=\"{FOND_FICHE}\" stroke=\"{COULEUR_FICHE}\"/>\n"
     ));
     svg.push_str(&format!(
-        "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_NOM}\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">controller card</text>\n",
+        "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{SIZE_NOM}\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">controller card</text>\n",
         x + DECALAGE,
         y + DECALAGE_TITRE_FICHE
     ));
@@ -189,7 +189,7 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
         let ligne_y =
             y + DECALAGE_LIGNE_FICHE + index as u32 * HAUTEUR_LIGNE_FICHE + BASELINE_LIGNE_FICHE;
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"{ligne_y}\" font-family=\"serif\" font-size=\"{TAILLE_CHAMP}\" fill=\"{COULEUR_TEXTE}\">{champ} = {}</text>\n",
+            "<text x=\"{}\" y=\"{ligne_y}\" font-family=\"serif\" font-size=\"{SIZE_CHAMP}\" fill=\"{COULEUR_TEXTE}\">{champ} = {}</text>\n",
             x + DECALAGE,
             echapper_xml(value)
         ));
@@ -210,7 +210,7 @@ fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, l
             "<rect x=\"{boite_x}\" y=\"{y_boite}\" width=\"{boite_largeur}\" height=\"{HAUTEUR_BOITE}\" fill=\"{FOND_BOITE}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n"
         ));
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_PISTE}\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
+            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{SIZE_PISTE}\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
             boite_x + boite_largeur / 2,
             y_boite + BASELINE_BOITE,
             echapper_xml(libelle)
@@ -236,7 +236,7 @@ fn rendre_arbre(svg: &mut String, node: &NodeVtree, x: u32, y: u32, largeur: u32
         centre_x - LARGEUR_BOITE / 2
     ));
     svg.push_str(&format!(
-        "<text x=\"{centre_x}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_PISTE}\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
+        "<text x=\"{centre_x}\" y=\"{}\" font-family=\"serif\" font-size=\"{SIZE_PISTE}\" text-anchor=\"middle\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
         y + BASELINE_BOITE,
         echapper_xml(&node.libelle)
     ));
@@ -307,16 +307,16 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
     let largeur = LARGEUR_VUE - 2 * MARGE;
     let (hauteur, positions) = layout(royaumes, conversions.len());
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{LARGEUR_VUE}\" height=\"{hauteur}\" viewBox=\"0 0 {LARGEUR_VUE} {hauteur}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_TAILLE},{MARQUEUR_REF_Y} L0,{MARQUEUR_TAILLE} z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_TAILLE},{MARQUEUR_REF_Y} L0,{MARQUEUR_TAILLE} z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{LARGEUR_VUE}\" height=\"{hauteur}\" viewBox=\"0 0 {LARGEUR_VUE} {hauteur}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARQUEUR_SIZE}\" markerHeight=\"{MARQUEUR_SIZE}\" refX=\"{MARQUEUR_SIZE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_SIZE},{MARQUEUR_REF_Y} L0,{MARQUEUR_SIZE} z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARQUEUR_SIZE}\" markerHeight=\"{MARQUEUR_SIZE}\" refX=\"{MARQUEUR_SIZE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_SIZE},{MARQUEUR_REF_Y} L0,{MARQUEUR_SIZE} z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
     );
     svg.push_str(&format!(
-        "<text x=\"{MARGE}\" y=\"{DECALAGE_TITRE_FICHE}\" font-family=\"serif\" font-size=\"{TAILLE_TITRE}\" fill=\"{COULEUR_TEXTE}\">order view — {} kingdom(s), {} conversion(s)</text>\n",
+        "<text x=\"{MARGE}\" y=\"{DECALAGE_TITRE_FICHE}\" font-family=\"serif\" font-size=\"{SIZE_TITRE}\" fill=\"{COULEUR_TEXTE}\">order view — {} kingdom(s), {} conversion(s)</text>\n",
         royaumes.len(),
         conversions.len()
     ));
     for (royaume, position) in royaumes.iter().zip(&positions) {
         svg.push_str(&format!(
-            "<text x=\"{MARGE}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_NOM}\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
+            "<text x=\"{MARGE}\" y=\"{}\" font-family=\"serif\" font-size=\"{SIZE_NOM}\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">{}</text>\n",
             position.y_nom,
             echapper_xml(&royaume.nom)
         ));
@@ -339,7 +339,7 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
             LARGEUR_VUE - MARGE
         ));
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_PISTE}\" text-anchor=\"end\" fill=\"{COULEUR_CONVERSION}\">convert {} → {} (cost {})</text>\n",
+            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{SIZE_PISTE}\" text-anchor=\"end\" fill=\"{COULEUR_CONVERSION}\">convert {} → {} (cost {})</text>\n",
             LARGEUR_VUE - MARGE - DECALAGE_ETIQUETTE,
             (y1 + y2) / 2 + DECALAGE_ETIQUETTE_Y,
             echapper_xml(&conversion.source),

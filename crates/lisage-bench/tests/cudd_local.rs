@@ -74,8 +74,8 @@ proptest! {
         nombre_variables in 2u32..=8,
         table in prop::collection::vec(any::<bool>(), 4..=256),
     ) {
-        let taille = 1usize << nombre_variables;
-        let table: Vec<bool> = table.into_iter().cycle().take(taille).collect();
+        let size = 1usize << nombre_variables;
+        let table: Vec<bool> = table.into_iter().cycle().take(size).collect();
 
         let keys = BddKeys::new(nombre_variables);
         let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));

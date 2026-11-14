@@ -6,7 +6,7 @@
 use lisage_core::arena::Arena;
 use lisage_core::biplan::Plan;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_core::{Anchor, Form, NodeId};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::vue_memoire::{
@@ -21,7 +21,7 @@ const ANCRE_TEST_2: Anchor = Anchor(1);
 type PoolRef = Arena<ReferenceController>;
 
 fn schema_ensemble() -> Schema {
-    Schema::Set(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]))
+    Schema::Set(Domain::new(vec![Atom(0), Atom(1), Atom(2)]))
 }
 
 fn pool_neuf(schema: &Schema) -> PoolRef {

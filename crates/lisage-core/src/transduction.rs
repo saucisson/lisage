@@ -156,7 +156,7 @@ impl<T: Transduction> Transducteur<T> {
     }
 
     /// Number of memo entries (for tests: proof of hits).
-    pub fn taille_memo(&self) -> usize {
+    pub fn size_memo(&self) -> usize {
         self.memo.len()
     }
 

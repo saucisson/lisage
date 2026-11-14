@@ -10,7 +10,7 @@ use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{compter, union};
 use lisage_core::saturate::{ParametresSaturation, PolitiqueSaturation, saturer};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler, decompiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler, decompiler};
 use lisage_core::transduction::Transducteur;
 use lisage_core::transfert::{LARGEUR_TRANSFERT, TransfertNonLocal};
 use lisage_lang::value::{Atom, Value};
@@ -21,7 +21,7 @@ type PoolRef = Arena<ReferenceController>;
 fn schema_map() -> Schema {
     Schema::Map(
         vec![Atom(0), Atom(1), Atom(2)],
-        Domaine::new(vec![Atom(0), Atom(1), Atom(2), Atom(3)]),
+        Domain::new(vec![Atom(0), Atom(1), Atom(2), Atom(3)]),
     )
 }
 
@@ -129,7 +129,7 @@ fn test_transfert_memoire_et_largeur() {
     let _ = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
     // The decrement was produced: one memory entry, version bumped (L1).
-    assert_eq!(runner.memoire().taille(), 1, "one entry per emitting node");
+    assert_eq!(runner.memoire().size(), 1, "one entry per emitting node");
     assert!(
         runner.version_memoire() >= 1,
         "each write bumps the version"
@@ -140,7 +140,7 @@ fn test_transfert_memoire_et_largeur() {
 /// is abandoned (arc kept) but the source's decrement is still applied
 /// (per-arc semantics, spec § 7 `φ_disp(val(a), h, v)`).
 #[test]
-fn test_transfert_destination_hors_domaine() {
+fn test_transfert_destination_hors_domain() {
     let schema = schema_map();
     let anchor = Anchor(0);
     let mut pool = new_pool(&schema);
@@ -166,7 +166,7 @@ fn test_transfert_destination_hors_domaine() {
 fn test_transfert_sous_saturate_termine() {
     let schema = Schema::Map(
         vec![Atom(0), Atom(1)],
-        Domaine::new(vec![Atom(0), Atom(1), Atom(2)]),
+        Domain::new(vec![Atom(0), Atom(1), Atom(2)]),
     );
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
@@ -208,7 +208,7 @@ fn test_transfert_sous_saturate_termine() {
 fn test_transfert_collision_source_union() {
     let schema = Schema::Map(
         vec![Atom(0), Atom(1)],
-        Domaine::new(vec![Atom(0), Atom(1), Atom(2)]),
+        Domain::new(vec![Atom(0), Atom(1), Atom(2)]),
     );
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);

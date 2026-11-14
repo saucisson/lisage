@@ -14,7 +14,7 @@
 //! h_transfert : stop`): the source is decremented as soon as `m(a) ≥ 1`;
 //! the destination receives `m(b) + 1` if this value is in the domain,
 //! otherwise its arc is kept (the source decrement still applies —
-//! case pinned by `test_transfert_destination_hors_domaine`).
+//! case pinned by `test_transfert_destination_hors_domain`).
 //!
 //! **Poly(w) overhead (T3)**: the transduction visits each node once
 //! (memo L1) and does O(1) work per node; `H` is an O(1) state per
@@ -34,7 +34,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::memoire::{EffetMemoire, MemoireNiveau};
 use crate::pli::union;
-use crate::schema::{ABSENT, Domaine, PRESENT, Schema, SchemaKeys};
+use crate::schema::{ABSENT, Domain, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::Atom;
 
@@ -61,7 +61,7 @@ pub enum EtatTransfert {
 pub struct TransfertNonLocal {
     index_source: usize,
     index_destination: usize,
-    domaine: Domaine,
+    domain: Domain,
     keys: SchemaKeys,
 }
 
@@ -77,13 +77,13 @@ impl TransfertNonLocal {
             index_source < index_destination,
             "transfer requires source < destination (downward inherited token)"
         );
-        let Schema::Map(_, domaine) = schema else {
+        let Schema::Map(_, domain) = schema else {
             panic!("TransfertNonLocal requires a Map schema");
         };
         TransfertNonLocal {
             index_source,
             index_destination,
-            domaine: domaine.clone(),
+            domain: domain.clone(),
             keys: SchemaKeys::new(schema.clone()),
         }
     }
@@ -176,7 +176,7 @@ impl TransfertNonLocal {
             return arcs;
         };
         let montant = *montant;
-        if self.domaine.contient(Atom(montant))
+        if self.domain.contient(Atom(montant))
             && let Some((suite, _)) = arcs.remove(&ABSENT)
         {
             let node_value = pool.intern(
@@ -204,7 +204,7 @@ impl TransfertNonLocal {
     /// Placement on the value of the destination (level `val(b)`): remap
     /// `u → u + amount` if the target is in the domain; otherwise the arc is
     /// kept as is (**per-arc** semantics: the source decrement
-    /// still applies, pinned by `test_transfert_destination_hors_domaine`).
+    /// still applies, pinned by `test_transfert_destination_hors_domain`).
     fn pose_value_destination<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
@@ -219,7 +219,7 @@ impl TransfertNonLocal {
         let mut remap = BTreeMap::new();
         for (u, (n, s)) in arcs {
             let cible = u + montant;
-            if self.domaine.contient(Atom(cible)) {
+            if self.domain.contient(Atom(cible)) {
                 Self::inserer_remap(pool, &self.keys, anchor, &mut remap, cible, n, s);
             } else {
                 Self::inserer_remap(pool, &self.keys, anchor, &mut remap, u, n, s);

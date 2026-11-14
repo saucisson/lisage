@@ -7,11 +7,11 @@ use lisage_algebra::interface::{Anchor, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::biplan::seuil_atteint;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_lang::value::{Atom, Value};
 
 /// Size of the atom domain of the test schema.
-const TAILLE_DOMAINE: u64 = 4;
+const SIZE_DOMAIN: u64 = 4;
 /// Test anchor.
 const ANCRE_TEST: Anchor = Anchor(0);
 /// Atoms of the first compiled set (cache hit afterwards).
@@ -27,7 +27,7 @@ type PoolRef = Arena<ReferenceController>;
 
 /// `Set` schema over the domain `{0, 1, 2, 3}`.
 fn schema_test() -> Schema {
-    Schema::Set(Domaine::new((0..TAILLE_DOMAINE).map(Atom).collect()))
+    Schema::Set(Domain::new((0..SIZE_DOMAIN).map(Atom).collect()))
 }
 
 /// Builds a fresh pool for the given schema.
@@ -99,7 +99,7 @@ fn test_metriques_gc_et_compaction() {
             &mut pool,
             ANCRE_TEST,
             &schema,
-            &[i % TAILLE_DOMAINE, ATOME_FIXE_ORPHELIN],
+            &[i % SIZE_DOMAIN, ATOME_FIXE_ORPHELIN],
         );
     }
     let total = pool.node_count() as u64;

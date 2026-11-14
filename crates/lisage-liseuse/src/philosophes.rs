@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{compter, union};
-use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::{Anchor, Form, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
 
@@ -39,7 +39,7 @@ pub const PRECEDENTE: u64 = 2;
 pub fn schema_anneau(n: u64) -> Schema {
     Schema::Map(
         (0..2 * n).map(Atom).collect(),
-        Domaine::new(vec![Atom(0), Atom(1), Atom(2)]),
+        Domain::new(vec![Atom(0), Atom(1), Atom(2)]),
     )
 }
 
@@ -142,7 +142,7 @@ pub fn cellules_legales() -> [(u64, u64); 5] {
 /// iff cell `i` eats (single value `0`). The presence predicates
 /// then discriminate the states.
 pub fn schema_mangeurs(n: u64) -> Schema {
-    Schema::Map((0..n).map(Atom).collect(), Domaine::new(vec![Atom(0)]))
+    Schema::Map((0..n).map(Atom).collect(), Domain::new(vec![Atom(0)]))
 }
 
 /// Builds the set of eaters of R_n (key `i` present iff `pc_i =

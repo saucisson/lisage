@@ -26,7 +26,7 @@ const INCREMENT_LCG: u64 = 1442695040888963407;
 /// Declared mock cardinality: large enough to never collapse.
 const CARDINALITE_MOCK: u64 = 1_000_000;
 /// Size of the sliding window of the test model.
-const TAILLE_FENETRE: u64 = 4;
+const SIZE_FENETRE: u64 = 4;
 /// Number of slides of the sliding window of the test model.
 const NB_GLISSES: u64 = 50;
 /// Number of shifts per fragment in the O(Σ kᵢ) degradation test.
@@ -151,7 +151,7 @@ fn test_fenetre_glissante_pool_constant() {
     let anchor = Anchor(0);
     let vrai = pool.intern(anchor, Form::Terminal(true));
     // Relative window: keys 0..W-1 (min = 0 section), all true.
-    let arcs: BTreeMap<u64, NodeId> = (0..TAILLE_FENETRE).map(|k| (k, vrai)).collect();
+    let arcs: BTreeMap<u64, NodeId> = (0..SIZE_FENETRE).map(|k| (k, vrai)).collect();
     let fenetre = pool.intern(
         anchor,
         Form::Node {
@@ -165,7 +165,7 @@ fn test_fenetre_glissante_pool_constant() {
     for base in 0..NB_GLISSES as i64 {
         let arc = InputArc::new(base, pool.handle(fenetre, anchor));
         // Absolute reading: the window covers {base..base+W-1}.
-        for k in 0..TAILLE_FENETRE {
+        for k in 0..SIZE_FENETRE {
             assert_eq!(arc.read_key(&groupe, &k), (base + k as i64) as u64);
         }
         // Re-intern the same relative form: hit, no node created.
@@ -173,7 +173,7 @@ fn test_fenetre_glissante_pool_constant() {
             anchor,
             Form::Node {
                 level: Level(1),
-                arcs: (0..TAILLE_FENETRE).map(|k| (k, vrai)).collect(),
+                arcs: (0..SIZE_FENETRE).map(|k| (k, vrai)).collect(),
             },
         );
         assert_eq!(meme, fenetre, "shared relative form");

@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::schema::{Domaine, ReferenceController, Schema};
+use lisage_core::schema::{Domain, ReferenceController, Schema};
 use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
 use lisage_lang::value::Atom;
 use proptest::prelude::*;
@@ -15,7 +15,7 @@ use proptest::prelude::*;
 type PoolRef = Arena<ReferenceController>;
 
 fn new_pool() -> PoolRef {
-    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
@@ -215,11 +215,11 @@ proptest! {
         ));
         prop_assert_eq!(compte, attendu);
         // Sound memo: a second run changes nothing.
-        let taille = runner.taille_memo();
+        let size = runner.size_memo();
         let (r2, c2) = runner.run(&input, &mut output, anchor, root).unwrap();
         prop_assert_eq!(r2, resultat);
         prop_assert_eq!(c2, compte);
-        prop_assert_eq!(runner.taille_memo(), taille);
-        prop_assert!(taille <= input.node_count());
+        prop_assert_eq!(runner.size_memo(), size);
+        prop_assert!(size <= input.node_count());
     }
 }

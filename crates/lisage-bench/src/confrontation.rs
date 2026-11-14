@@ -31,9 +31,7 @@ use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_nodes as co
 use lisage_core::error::CoreError;
 use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
 use lisage_core::pli::{compter as compter_pli, union};
-use lisage_core::schema::{
-    Domaine, ReferenceController, Schema, SchemaError, SchemaKeys, compiler,
-};
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
 /// Measurement anchor (a single anchor per measurement, harness convention).
@@ -435,7 +433,7 @@ fn charge_philosophes(
         (0..PAS_CLE_INTERCALAGE * nombre_philosophes)
             .map(Atom)
             .collect(),
-        Domaine::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)]),
+        Domain::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)]),
     );
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = Arena::new(
@@ -560,23 +558,23 @@ fn lire_etats(
 
 /// `fenetre` workload: the sliding window of golden thread n° 2 in the
 /// requested encoding. Check: the root → terminal paths must be
-/// `taille × nb_bases` (one window per base, `taille` positions per
+/// `size × nb_bases` (one window per base, `size` positions per
 /// window), whatever the encoding — only the number of shared nodes
 /// differs (absolute: one node per base; relative: a single form, O(1) in
 /// `nb_bases`).
 fn charge_fenetre(
-    taille: u64,
+    size: u64,
     nb_bases: u64,
     encodage: Encodage,
     observateur: Option<&dyn Observer>,
 ) -> Result<MesureConfrontation, ErreurConfrontation> {
-    if taille == 0 || nb_bases == 0 {
+    if size == 0 || nb_bases == 0 {
         return Err(ErreurConfrontation::ParametresInvalides {
             charge: Charge::Fenetre.etiquette(),
-            detail: "taille and nb_bases must be ≥ 1".to_string(),
+            detail: "size and nb_bases must be ≥ 1".to_string(),
         });
     }
-    let attendu = taille.saturating_mul(nb_bases);
+    let attendu = size.saturating_mul(nb_bases);
     let mut pool = Arena::new(
         AtelierController::new(
             BddController::new(VARIABLES_BDD_FENETRE),
@@ -585,7 +583,7 @@ fn charge_fenetre(
         Box::new(NoOpObserver),
     );
     let debut = Instant::now();
-    let root = construire_fenetre(&mut pool, ANCRE_MESURE, encodage, taille, nb_bases);
+    let root = construire_fenetre(&mut pool, ANCRE_MESURE, encodage, size, nb_bases);
     let verifie = compter_chemins(&pool, root)?;
     let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
@@ -612,7 +610,7 @@ fn charge_fenetre(
         variante: Variante::Mdd,
         charge: Charge::Fenetre,
         parametres: vec![
-            ("taille".to_string(), taille.to_string()),
+            ("taille".to_string(), size.to_string()),
             ("nb_bases".to_string(), nb_bases.to_string()),
         ],
         encodage: Some(encodage),
@@ -625,7 +623,7 @@ fn charge_fenetre(
 
 /// Runs a workload once and returns the measurement. Parameters:
 /// `alea-lcg <n>`, `philosophes <n> <path>`,
-/// `fenetre <taille> <nb_bases> [absolu|relatif]` (absolu by default).
+/// `fenetre <size> <nb_bases> [absolu|relatif]` (absolu by default).
 /// `observateur`: narration channel (ADR-0100) — an
 /// `Attr`/`Synthesized` event carries the workload summary.
 pub fn executer(
@@ -670,15 +668,15 @@ pub fn executer(
             let (premier, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErreurConfrontation::ParametresInvalides {
                     charge: Charge::Fenetre.etiquette(),
-                    detail: "expected: fenetre <taille> <nb_bases> [absolu|relatif]".to_string(),
+                    detail: "expected: fenetre <size> <nb_bases> [absolu|relatif]".to_string(),
                 }
             })?;
-            let taille =
+            let size =
                 premier
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
                         charge: Charge::Fenetre.etiquette(),
-                        detail: format!("unreadable taille: {premier}"),
+                        detail: format!("unreadable size: {premier}"),
                     })?;
             let nb_bases =
                 second
@@ -697,7 +695,7 @@ pub fn executer(
                     });
                 }
             };
-            charge_fenetre(taille, nb_bases, encodage, observateur)
+            charge_fenetre(size, nb_bases, encodage, observateur)
         }
     }
 }

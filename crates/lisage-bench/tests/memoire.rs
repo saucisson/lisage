@@ -1,6 +1,6 @@
 //! PBT of the level memory (M2-3, T3): versioning invariants —
 //! `version == number of writes`, read-after-write keyed by
-//! `(NodeId, Level)`, and `taille` consistent.
+//! `(NodeId, Level)`, and `size` consistent.
 
 use lisage_algebra::interface::{Level, NodeId};
 use lisage_core::memoire::MemoireNiveau;
@@ -24,7 +24,7 @@ proptest! {
             prop_assert_eq!(memoire.version(), (i + 1) as u64, "version == number of writes");
             prop_assert_eq!(ancien, attendu.insert((NodeId(*node), Level(*niveau)), *value));
         }
-        prop_assert_eq!(memoire.taille(), attendu.len());
+        prop_assert_eq!(memoire.size(), attendu.len());
         // Read-after-write: each key reads the last written value.
         for ((node, niveau), value) in &attendu {
             prop_assert_eq!(memoire.lire(*node, *niveau), Some(value));

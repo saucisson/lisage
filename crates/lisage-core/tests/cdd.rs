@@ -17,11 +17,11 @@ use lisage_core::observer::NoOpObserver;
 type PoolCdd = Arena<CddController>;
 
 const ANCRE: Anchor = Anchor(0);
-const TAILLE_DOMAINE: u64 = 4;
+const SIZE_DOMAIN: u64 = 4;
 
 fn pool() -> PoolCdd {
     Arena::new(
-        CddController::new(CddKeys::new(TAILLE_DOMAINE)),
+        CddController::new(CddKeys::new(SIZE_DOMAIN)),
         Box::new(NoOpObserver),
     )
 }
@@ -53,8 +53,8 @@ fn test_non_canonicite_assumee() {
     let union_avec_redondance = Cdd::new(&[grande.clone(), incluse.clone()]);
     let union_seule = Cdd::new(std::slice::from_ref(&grande));
     // Semantically the same region (the included one is inside the big one)…
-    for x in 0..TAILLE_DOMAINE {
-        for y in 0..TAILLE_DOMAINE {
+    for x in 0..SIZE_DOMAIN {
+        for y in 0..SIZE_DOMAIN {
             assert_eq!(
                 union_avec_redondance.contient(&[x, y]),
                 union_seule.contient(&[x, y])
@@ -104,7 +104,7 @@ fn test_intersection_distributive() {
 
 #[test]
 fn test_couverture_boite_bornee() {
-    let keys = CddKeys::new(TAILLE_DOMAINE);
+    let keys = CddKeys::new(SIZE_DOMAIN);
     let a = Dbm::new(2, &[(0, 1, 0)]);
     let b = Dbm::new(2, &[(1, 0, -2)]);
     let union = Cdd::new(&[a, b]);
@@ -128,8 +128,8 @@ fn test_union_horloges_differentiel_contre_enumeration() {
     assert_eq!(compter_nodes(&pool, root).expect("interned node"), 3);
     // A non-interned NodeId is a propagated error, not a silent leaf.
     assert!(compter_nodes(&pool, NodeId(u32::MAX)).is_err());
-    for x in 0..TAILLE_DOMAINE {
-        for y in 0..TAILLE_DOMAINE {
+    for x in 0..SIZE_DOMAIN {
+        for y in 0..SIZE_DOMAIN {
             let point = [x, y];
             let attendu = i128::from(x) - i128::from(y) <= 0 || i128::from(x) - i128::from(y) >= 2;
             let lu = evaluer(&pool, root, &point).expect("interned node");
@@ -155,7 +155,7 @@ fn test_partage_pool_union() {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2);
-    let keys = CddKeys::new(TAILLE_DOMAINE);
+    let keys = CddKeys::new(SIZE_DOMAIN);
     let regions: Vec<Cdd> = arcs.keys().cloned().collect();
     assert!(keys.couverture(&regions), "the level-0 arcs cover the box");
 }
@@ -201,8 +201,8 @@ fn test_propriete_intersection_lcg() {
         // Semantic idempotence (not syntactic: the meet adds the cross
         // intersections of the zones, assumed non-canonicity).
         let auto_meet = a.intersection(&a);
-        for x in 0..TAILLE_DOMAINE {
-            for y in 0..TAILLE_DOMAINE {
+        for x in 0..SIZE_DOMAIN {
+            for y in 0..SIZE_DOMAIN {
                 let point = [x, y];
                 assert_eq!(
                     auto_meet.contient(&point),
@@ -211,7 +211,7 @@ fn test_propriete_intersection_lcg() {
                 );
             }
         }
-        let point = [suivant() % TAILLE_DOMAINE, suivant() % TAILLE_DOMAINE];
+        let point = [suivant() % SIZE_DOMAIN, suivant() % SIZE_DOMAIN];
         if meet.contient(&point) {
             assert!(a.contient(&point) && b.contient(&point));
         }
@@ -222,7 +222,7 @@ fn test_propriete_intersection_lcg() {
 /// level default are those of the CDD algebra (coverage is tested separately).
 #[test]
 fn test_contrat_key_niveau() {
-    let keys = CddKeys::new(TAILLE_DOMAINE);
-    assert_eq!(keys.cardinality(Level(0)), TAILLE_DOMAINE);
+    let keys = CddKeys::new(SIZE_DOMAIN);
+    assert_eq!(keys.cardinality(Level(0)), SIZE_DOMAIN);
     assert_eq!(keys.default(Level(0)), Some(VIDE));
 }

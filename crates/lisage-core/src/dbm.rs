@@ -165,26 +165,26 @@ impl Dbm {
 }
 
 /// DBM region-key algebra over a per-variable bounded domain:
-/// `Val(ℓ) = [0, taille_domaine)`, a key = a convex region of the box,
+/// `Val(ℓ) = [0, size_domain)`, a key = a convex region of the box,
 /// `δ(ℓ)` = the empty region [`INCOHERENT`].
 #[derive(Clone)]
 pub struct DbmKeys {
-    taille_domaine: u64,
+    size_domain: u64,
 }
 
 impl DbmKeys {
-    /// Algebra for variables with bounded domain `[0, taille_domaine)`.
-    pub fn new(taille_domaine: u64) -> Self {
-        DbmKeys { taille_domaine }
+    /// Algebra for variables with bounded domain `[0, size_domain)`.
+    pub fn new(size_domain: u64) -> Self {
+        DbmKeys { size_domain }
     }
 
-    /// Domain size of a variable, `Val(ℓ) = [0, taille)`.
-    pub fn taille_domaine(&self) -> u64 {
-        self.taille_domaine
+    /// Domain size of a variable, `Val(ℓ) = [0, size)`.
+    pub fn size_domain(&self) -> u64 {
+        self.size_domain
     }
 
     /// Coverage: does the family of regions cover the whole bounded box
-    /// `[0, taille_domaine)^n` (n = dimension of the regions)?
+    /// `[0, size_domain)^n` (n = dimension of the regions)?
     ///
     /// Key contract declared controller-side (roadmap § 9:
     /// "normal form, coverage, intersection"). Decidable by
@@ -194,7 +194,7 @@ impl DbmKeys {
     /// then declared by the explicit arcs of the diagram, it is not
     /// computed.
     /// **Lebesgue measure** of the zone intersected with the box
-    /// `[0, taille_domaine)²`, returned **doubled** (area × 2, exact in
+    /// `[0, size_domain)²`, returned **doubled** (area × 2, exact in
     /// `i128`: the area can be half-integer). Reserved to **2D** zones:
     /// a 2-variable DBM is a band `−b ≤ x − y ≤ a` (the only
     /// off-diagonal constraints are `matrice[0][1]` and `matrice[1][0]`),
@@ -212,7 +212,7 @@ impl DbmKeys {
             2,
             "exact measure reserved to 2D zones (internal invariant)"
         );
-        let n = i128::from(self.taille_domaine);
+        let n = i128::from(self.size_domain);
         // Doubled area of {x − y > t} in the square [0, N]²: triangle of
         // sides N − t if t ≥ 0, square minus triangle of sides N + t if
         // t < 0.
@@ -263,7 +263,7 @@ impl DbmKeys {
                 );
             }
         }
-        let taille = self.taille_domaine;
+        let size = self.size_domain;
         // Universe sweep of the bounded box (odometer over n variables).
         let mut point = vec![0u64; n];
         loop {
@@ -278,7 +278,7 @@ impl DbmKeys {
                 }
                 i -= 1;
                 point[i] += 1;
-                if point[i] < taille {
+                if point[i] < size {
                     break;
                 }
                 point[i] = 0;
@@ -295,7 +295,7 @@ impl KeyAlgebra for DbmKeys {
     }
 
     fn cardinality(&self, _level: Level) -> u64 {
-        self.taille_domaine
+        self.size_domain
     }
 
     fn default(&self, _level: Level) -> Option<Self::Key> {
