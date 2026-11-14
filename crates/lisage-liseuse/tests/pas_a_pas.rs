@@ -66,11 +66,11 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
     let attr = serialiser_evenement(&TraceEvent::Attr {
         canal: CanalAttr::Inherited,
         node: NodeId(3),
-        valeur: "Transfert(1)".to_string(),
+        value: "Transfert(1)".to_string(),
     });
     assert_eq!(
         attr,
-        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
+        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"herite\",\"noeud\":3,@@WIRE_VALUE@@:\"Transfert(1)\"}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::MemoHit { node: NodeId(7) }),
@@ -96,9 +96,9 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
         serialiser_evenement(&TraceEvent::Attr {
             canal: CanalAttr::Memory,
             node: NodeId(1),
-            valeur: "true".to_string(),
+            value: "true".to_string(),
         }),
-        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
+        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"memoire\",\"noeud\":1,@@WIRE_VALUE@@:\"true\"}"
     );
 }
 
@@ -269,7 +269,7 @@ fn test_scrubber_replay_et_diff() {
         TraceEvent::Attr {
             canal: CanalAttr::Inherited,
             node: NodeId(1),
-            valeur: "0".to_string(),
+            value: "0".to_string(),
         },
         TraceEvent::MemoMiss { node: NodeId(1) },
         TraceEvent::Round { numero: 1 },
@@ -430,7 +430,7 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
                     1 => TraceEvent::Attr {
                         canal: CanalAttr::Inherited,
                         node,
-                        valeur: "x".to_string(),
+                        value: "x".to_string(),
                     },
                     2 => TraceEvent::MemoHit { node },
                     3 => TraceEvent::MemoMiss { node },

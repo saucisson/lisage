@@ -18,8 +18,8 @@ use proptest::prelude::*;
 
 type PoolRef = Arena<ReferenceController>;
 
-fn atome(valeur: u64) -> Value {
-    Value::Atom(Atom(valeur))
+fn atome(value: u64) -> Value {
+    Value::Atom(Atom(value))
 }
 
 /// Small set of maps generated randomly (keys {0,1} × values {0,1}).
@@ -59,8 +59,8 @@ fn predicat_dd(cles: &ClePresentes) -> bool {
 }
 
 /// Same predicate, path A side (reference interpreter).
-fn predicat_lang(valeur: &Value) -> bool {
-    match valeur {
+fn predicat_lang(value: &Value) -> bool {
+    match value {
         Value::Map(map) => map.contains_key(&atome(0)),
         _ => false,
     }

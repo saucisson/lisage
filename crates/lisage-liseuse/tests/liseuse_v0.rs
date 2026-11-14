@@ -22,13 +22,13 @@ fn ensemble(
     schema: &Schema,
     atomes: &[u64],
 ) -> lisage_core::NodeId {
-    let valeur = Value::Set(
+    let value = Value::Set(
         atomes
             .iter()
             .map(|a| Value::Atom(Atom(*a)))
             .collect::<BTreeSet<_>>(),
     );
-    compiler(pool, anchor, schema, &valeur).unwrap()
+    compiler(pool, anchor, schema, &value).unwrap()
 }
 
 /// The JSONL is versioned, one line = one event, and the trace is

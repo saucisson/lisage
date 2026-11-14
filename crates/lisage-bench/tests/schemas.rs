@@ -11,8 +11,8 @@ use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
 
-fn domaine(valeurs: Vec<u64>) -> Domaine {
-    Domaine::new(valeurs.into_iter().map(Atom).collect())
+fn domaine(values: Vec<u64>) -> Domaine {
+    Domaine::new(values.into_iter().map(Atom).collect())
 }
 
 fn atome(v: u64) -> Value {
@@ -55,14 +55,14 @@ fn schema_atome() -> BoxedStrategy<(Schema, Value)> {
     (1u8..4, 0u8..4)
         .prop_map(|(taille, v)| {
             let domaine = domaine((0..u64::from(taille)).collect());
-            let valeur = atome(u64::from(v) % u64::from(taille));
-            (Schema::Atom(domaine), valeur)
+            let value = atome(u64::from(v) % u64::from(taille));
+            (Schema::Atom(domaine), value)
         })
         .boxed()
 }
 
 /// Two valid values for the same schema.
-fn schema_et_deux_valeurs() -> BoxedStrategy<(Schema, Value, Value)> {
+fn schema_et_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
     prop_oneof![
         (
             1u8..5,
@@ -117,24 +117,24 @@ fn schema_et_deux_valeurs() -> BoxedStrategy<(Schema, Value, Value)> {
 proptest! {
     /// Round-trip: decompiler(compiler(v)) = v for the three bounded schemas.
     #[test]
-    fn test_round_trip_compilation((schema, valeur) in prop_oneof![schema_ensemble(), schema_map(), schema_atome()]) {
+    fn test_round_trip_compilation((schema, value) in prop_oneof![schema_ensemble(), schema_map(), schema_atome()]) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = Anchor(0);
-        let root = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
-        prop_assert_eq!(decompiler(&pool, &schema, root).unwrap(), valeur);
+        let root = compiler(&mut pool, anchor, &schema, &value).unwrap();
+        prop_assert_eq!(decompiler(&pool, &schema, root).unwrap(), value);
     }
 
     /// Canonicity (C1): two distinct values compile to distinct
     /// nodes; the same value compiled twice gives the same node.
     #[test]
-    fn test_canonicite_compilation((schema, valeur_a, valeur_b) in schema_et_deux_valeurs()) {
+    fn test_canonicite_compilation((schema, value_a, value_b) in schema_et_deux_values()) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = Anchor(0);
-        let root_a1 = compiler(&mut pool, anchor, &schema, &valeur_a).unwrap();
-        let root_a2 = compiler(&mut pool, anchor, &schema, &valeur_a).unwrap();
-        let root_b = compiler(&mut pool, anchor, &schema, &valeur_b).unwrap();
+        let root_a1 = compiler(&mut pool, anchor, &schema, &value_a).unwrap();
+        let root_a2 = compiler(&mut pool, anchor, &schema, &value_a).unwrap();
+        let root_b = compiler(&mut pool, anchor, &schema, &value_b).unwrap();
         prop_assert_eq!(root_a1, root_a2);
-        if valeur_a != valeur_b {
+        if value_a != value_b {
             prop_assert_ne!(root_a1, root_b, "distinct values ⇒ distinct nodes (C1)");
         }
     }
@@ -164,12 +164,12 @@ fn test_t5_seq_round_trip_propriete() {
             .filter(|&&v| v < domaine_taille)
             .map(|&v| Value::Atom(Atom(v)))
             .collect();
-        let valeur = Value::Seq(seq.clone());
-        let root = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
+        let value = Value::Seq(seq.clone());
+        let root = compiler(&mut pool, anchor, &schema, &value).unwrap();
         let retour = decompiler(&pool, &schema, root).unwrap();
-        prop_assert_eq!(retour, valeur.clone(), "round-trip Seq");
+        prop_assert_eq!(retour, value.clone(), "round-trip Seq");
         // Canonicity.
-        let root2 = compiler(&mut pool, anchor, &schema, &valeur).unwrap();
+        let root2 = compiler(&mut pool, anchor, &schema, &value).unwrap();
         prop_assert_eq!(root, root2, "canonicity Seq");
     });
 }

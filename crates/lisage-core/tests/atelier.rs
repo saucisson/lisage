@@ -252,9 +252,9 @@ fn test_narration_mesurer() {
             e,
             TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
-                valeur,
+                value,
                 ..
-            } if valeur == "nodes_partages=4 chemins=4 taille_depliee=7"
+            } if value == "nodes_partages=4 chemins=4 taille_depliee=7"
         )),
         "the narration event carries the full report"
     );
@@ -330,9 +330,9 @@ fn test_narration_comparaison_encodages() {
             e,
             TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
-                valeur,
+                value,
                 ..
-            } if valeur == "encodage=relatif_vs_absolu nodes=3 contre 12"
+            } if value == "encodage=relatif_vs_absolu nodes=3 contre 12"
         )),
         "the narration event carries the encoding comparison"
     );
@@ -461,9 +461,9 @@ fn test_narration_comparaison_ordres() {
             e,
             TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
-                valeur,
+                value,
                 ..
-            } if valeur == "ordre=[0,1,2,3]_vs_[0,2,1,3] nodes=10 contre 12"
+            } if value == "ordre=[0,1,2,3]_vs_[0,2,1,3] nodes=10 contre 12"
         )),
         "the narration event carries the order comparison"
     );
@@ -631,9 +631,9 @@ fn test_narration_comparaison_ancres() {
             e,
             TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
-                valeur,
+                value,
                 ..
-            } if valeur == "ancre={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} nodes=3 contre 3 lecture=[0..4) contre [2..6) pool=4"
+            } if value == "ancre={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} nodes=3 contre 3 lecture=[0..4) contre [2..6) pool=4"
         )),
         "the narration event carries the anchor comparison"
     );

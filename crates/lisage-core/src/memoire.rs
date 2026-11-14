@@ -45,11 +45,11 @@ impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
         self.inputs.get(&(node, niveau))
     }
 
-    /// Write: stores `valeur` at `(node, niveau)` and increments the version
+    /// Write: stores `value` at `(node, niveau)` and increments the version
     /// (L1). Returns the old value if it existed.
-    pub fn ecrire(&mut self, node: NodeId, niveau: Level, valeur: V) -> Option<V> {
+    pub fn ecrire(&mut self, node: NodeId, niveau: Level, value: V) -> Option<V> {
         self.version += 1;
-        self.inputs.insert((node, niveau), valeur)
+        self.inputs.insert((node, niveau), value)
     }
 
     /// Number of stored entries (for tests).
@@ -62,7 +62,7 @@ impl<V: Clone + Eq + Hash + Debug> MemoireNiveau<V> {
 /// to apply after the node restructuring.
 #[derive(Clone, Debug)]
 pub struct EffetMemoire<V: Clone + Eq + Hash + Debug> {
-    /// Writes `(node, niveau, valeur)` to apply in the memory.
+    /// Writes `(node, niveau, value)` to apply in the memory.
     pub ecritures: Vec<(NodeId, Level, V)>,
 }
 
@@ -81,16 +81,16 @@ impl<V: Clone + Eq + Hash + Debug> EffetMemoire<V> {
     }
 
     /// Effect with a single write.
-    pub fn une(node: NodeId, niveau: Level, valeur: V) -> Self {
+    pub fn une(node: NodeId, niveau: Level, value: V) -> Self {
         EffetMemoire {
-            ecritures: vec![(node, niveau, valeur)],
+            ecritures: vec![(node, niveau, value)],
         }
     }
 
     /// Applies the effect to the memory (increments the version per write).
     pub fn apply(&self, memoire: &mut MemoireNiveau<V>) {
-        for (node, niveau, valeur) in &self.ecritures {
-            memoire.ecrire(*node, *niveau, valeur.clone());
+        for (node, niveau, value) in &self.ecritures {
+            memoire.ecrire(*node, *niveau, value.clone());
         }
     }
 }

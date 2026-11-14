@@ -81,7 +81,7 @@ fn test_nouvel_ordre_rejete_si_pas_une_permutation() {
 /// M3-1: the type's constraints are embedded in `Order<T>` and
 /// checked — for `Map(K, V)`, a key's presence precedes its value.
 #[test]
-fn test_contraintes_map_presence_avant_valeur() {
+fn test_contraintes_map_presence_avant_value() {
     let cles = ClesMap(vec![Atom(0), Atom(1)]);
     let canonique = Order::canonique(&cles);
     assert_eq!(canonique.taille(), 4);
@@ -107,11 +107,11 @@ fn test_contraintes_map_presence_avant_valeur() {
         },
         CleMap {
             cle: Atom(0),
-            phase: Phase::Valeur,
+            phase: Phase::Value,
         },
         CleMap {
             cle: Atom(1),
-            phase: Phase::Valeur,
+            phase: Phase::Value,
         },
         CleMap {
             cle: Atom(1),
@@ -127,7 +127,7 @@ fn test_contraintes_map_presence_avant_valeur() {
             },
             apres: CleMap {
                 cle: Atom(1),
-                phase: Phase::Valeur
+                phase: Phase::Value
             },
         })
     );
@@ -143,7 +143,7 @@ fn test_contraintes_map_presence_avant_valeur() {
             },
             CleMap {
                 cle: Atom(1),
-                phase: Phase::Valeur,
+                phase: Phase::Value,
             },
             CleMap {
                 cle: Atom(0),
@@ -151,7 +151,7 @@ fn test_contraintes_map_presence_avant_valeur() {
             },
             CleMap {
                 cle: Atom(0),
-                phase: Phase::Valeur,
+                phase: Phase::Value,
             },
         ],
     )
@@ -167,7 +167,7 @@ fn test_contraintes_map_presence_avant_valeur() {
 
 /// M3-1: alignment by value — two orders of the same type are aligned iff same π.
 #[test]
-fn test_alignement_en_valeur() {
+fn test_alignement_en_value() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let ordre_a = Order::canonique(&domaine);
     let ordre_b = Order::new(&domaine, vec![Atom(2), Atom(1), Atom(0)]).unwrap();
@@ -192,14 +192,14 @@ fn test_alignement_comme_typage_composition_sous_meme_marque() {
     let a = Aligne::<DomaineAtomes, MarqueCanonique, u32>::new(2);
     let b = Aligne::<DomaineAtomes, MarqueCanonique, u32>::new(3);
     let somme = a.compose(&b, |x, y| x + y);
-    assert_eq!(*somme.valeur(), 5);
+    assert_eq!(*somme.value(), 5);
 
     // The inverse mark carries another order: compose requires the same
     // mark on both sides (positive typing test; the negative case is a
     // compile-time rejection).
     let c = Aligne::<DomaineAtomes, MarqueInverse, u32>::new(10);
     let d = Aligne::<DomaineAtomes, MarqueInverse, u32>::new(1);
-    assert_eq!(*c.compose(&d, |x, y| x - y).valeur(), 9);
+    assert_eq!(*c.compose(&d, |x, y| x - y).value(), 9);
     assert!(!MarqueCanonique::ordre(&domaine).alignes(&MarqueInverse::ordre(&domaine)));
 }
 
@@ -262,19 +262,19 @@ fn test_aval_runtime_ordre_valide_adopte() {
         cle: Atom(0),
         phase: Phase::Presence,
     };
-    let valeur_0 = CleMap {
+    let value_0 = CleMap {
         cle: Atom(0),
-        phase: Phase::Valeur,
+        phase: Phase::Value,
     };
     let presence_1 = CleMap {
         cle: Atom(1),
         phase: Phase::Presence,
     };
-    let valeur_1 = CleMap {
+    let value_1 = CleMap {
         cle: Atom(1),
-        phase: Phase::Valeur,
+        phase: Phase::Value,
     };
-    let pi_runtime = vec![presence_1, valeur_1, presence_0, valeur_0];
+    let pi_runtime = vec![presence_1, value_1, presence_0, value_0];
     let (ordre, strategie) = Order::avec_aval_runtime(&cles, pi_runtime.clone());
     assert_eq!(strategie, StrategieAval::OrdreRuntime);
     assert_eq!(ordre.sequence(), pi_runtime.as_slice());
@@ -289,19 +289,19 @@ fn test_aval_runtime_contrainte_violee_repli_canonique() {
         cle: Atom(0),
         phase: Phase::Presence,
     };
-    let valeur_0 = CleMap {
+    let value_0 = CleMap {
         cle: Atom(0),
-        phase: Phase::Valeur,
+        phase: Phase::Value,
     };
     let presence_1 = CleMap {
         cle: Atom(1),
         phase: Phase::Presence,
     };
-    let valeur_1 = CleMap {
+    let value_1 = CleMap {
         cle: Atom(1),
-        phase: Phase::Valeur,
+        phase: Phase::Value,
     };
-    let pi_invalide = vec![valeur_0, presence_0, presence_1, valeur_1];
+    let pi_invalide = vec![value_0, presence_0, presence_1, value_1];
     let (ordre, strategie) = Order::avec_aval_runtime(&cles, pi_invalide);
     assert_eq!(strategie, StrategieAval::RepliCanonique);
     let canonique = Order::canonique(&cles);

@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 7: `valeur` identifiers renamed to `value` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `valeur`/`Valeur`/`VALEUR` stem and compound (valeurs, domaine_valeurs, node_valeur, niveau_valeur…) to `value`/`Value`/`VALUE`, workspace-wide (49 files), per glossary (valeur → value). The JSONL v2 wire literals `\"valeur\"`/`\"valeurs\"` in trace.rs and their pinned test copies are protected and stay French (contract).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for `valeur` outside wire literals returns 0.
+- **Judgement calls**: wire literals protected via placeholder before the blanket rename, restored after.
 ## 2026-11-14 - M6-6 part 6: `noeud` identifiers renamed to `node` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

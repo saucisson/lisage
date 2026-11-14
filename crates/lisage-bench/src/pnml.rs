@@ -218,9 +218,9 @@ fn lire_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlErro
             detail: "unterminated string".to_string(),
         });
     }
-    let valeur: String = octets[debut..*position].iter().collect();
+    let value: String = octets[debut..*position].iter().collect();
     *position += 1;
-    Ok(valeur)
+    Ok(value)
 }
 
 fn attendre(octets: &[char], position: &mut usize, attendu: char) -> Result<(), PnmlError> {
@@ -279,8 +279,8 @@ fn lire_balise_ouvrante(
                 sauter_espaces(octets, position);
                 attendre(octets, position, '=')?;
                 sauter_espaces(octets, position);
-                let valeur = lire_chaine(octets, position)?;
-                attributs.insert(clef, valeur);
+                let value = lire_chaine(octets, position)?;
+                attributs.insert(clef, value);
             }
         }
     }
@@ -666,8 +666,8 @@ pub fn marquage_initial(reseau: &ReseauPetri) -> Value {
 
 /// Extracts the [`Marquage`] from a [`Value::Map`] produced by
 /// [`marquage_initial`].
-pub fn marquage_depuis_value(valeur: &Value) -> Option<Marquage> {
-    match valeur {
+pub fn marquage_depuis_value(value: &Value) -> Option<Marquage> {
+    match value {
         Value::Map(map) => map
             .iter()
             .map(|(clef, compte)| match (clef, compte) {
@@ -749,8 +749,8 @@ pub fn tirer(reseau: &ReseauPetri, transition: &TransitionId, marquage: &Marquag
 /// transitions, encoded as `Value::Map` (path A).
 pub fn pas_semantique(reseau: &ReseauPetri, ensemble: &BTreeSet<Value>) -> BTreeSet<Value> {
     let mut successeurs = BTreeSet::new();
-    for valeur in ensemble {
-        let Some(marquage) = marquage_depuis_value(valeur) else {
+    for value in ensemble {
+        let Some(marquage) = marquage_depuis_value(value) else {
             continue;
         };
         for transition in &reseau.transitions {

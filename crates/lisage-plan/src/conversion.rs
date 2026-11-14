@@ -144,22 +144,22 @@ type MarqueurRoyaume<T, O, E> = PhantomData<fn() -> (T, O, E)>;
 /// encodings (M3-2, C3). A value exists only in a realm;
 /// leaving the realm = explicit conversion.
 pub struct Royaume<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> {
-    valeur: V,
+    value: V,
     marqueur: MarqueurRoyaume<T, O, E>,
 }
 
 impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> {
     /// New value in the realm `(T, O, E)`.
-    pub fn new(valeur: V) -> Self {
+    pub fn new(value: V) -> Self {
         Royaume {
-            valeur,
+            value,
             marqueur: PhantomData,
         }
     }
 
     /// Value carried by the realm.
-    pub fn valeur(&self) -> &V {
-        &self.valeur
+    pub fn value(&self) -> &V {
+        &self.value
     }
 
     /// Order of the realm, from its mark.
@@ -189,6 +189,6 @@ impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V: Clone> Royaume<T, O,
         {
             return Err(ErreurConversion::RoyaumeIncompatible);
         }
-        Ok(Royaume::new(self.valeur.clone()))
+        Ok(Royaume::new(self.value.clone()))
     }
 }

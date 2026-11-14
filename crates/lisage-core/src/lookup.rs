@@ -89,12 +89,12 @@ pub struct Lookup {
     /// Index of the key in the map's canonical order.
     index_cle: usize,
     /// Value domain (for T-EXPAND).
-    domaine_valeurs: Domaine,
+    domaine_values: Domaine,
 }
 
 impl Lookup {
-    /// `lookup(cle)` for the `Map(liste_cles, domaine_valeurs)` schema.
-    pub fn new(cle: Atom, liste_cles: Vec<Atom>, domaine_valeurs: Domaine) -> Self {
+    /// `lookup(cle)` for the `Map(liste_cles, domaine_values)` schema.
+    pub fn new(cle: Atom, liste_cles: Vec<Atom>, domaine_values: Domaine) -> Self {
         let index_cle = liste_cles
             .iter()
             .position(|c| *c == cle)
@@ -102,7 +102,7 @@ impl Lookup {
         Lookup {
             cle,
             index_cle,
-            domaine_valeurs,
+            domaine_values,
         }
     }
 
@@ -110,8 +110,8 @@ impl Lookup {
         Schema::niveau_presence(self.index_cle)
     }
 
-    fn niveau_valeur(&self) -> Level {
-        Schema::niveau_valeur(self.index_cle)
+    fn niveau_value(&self) -> Level {
+        Schema::niveau_value(self.index_cle)
     }
 
     /// Graft (spec § 6.4): replaces the terminals of the `node` sub-diagram
@@ -168,7 +168,7 @@ impl Transduction for Lookup {
                 }
             }
             Mode::Extrait => {
-                if level == self.niveau_valeur() {
+                if level == self.niveau_value() {
                     Mode::Stop(arc)
                 } else {
                     Mode::Extrait
@@ -208,21 +208,21 @@ impl Transduction for Lookup {
         if *h == Mode::Cherche && level == self.niveau_presence() {
             let enfant_present = arcs.get(&PRESENT).map(|(n, _)| *n);
             if let Some(enfant) = enfant_present {
-                let enfant_est_niveau_valeur = matches!(
+                let enfant_est_niveau_value = matches!(
                     pool.resolve(enfant),
-                    Ok(Form::Node { level: l, .. }) if *l == self.niveau_valeur()
+                    Ok(Form::Node { level: l, .. }) if *l == self.niveau_value()
                 );
-                if !enfant_est_niveau_valeur {
+                if !enfant_est_niveau_value {
                     let mut greffon = BTreeMap::new();
-                    for v in &self.domaine_valeurs.valeurs {
+                    for v in &self.domaine_values.values {
                         let mut memo = BTreeMap::new();
                         let branche = Self::greffer(pool, anchor, enfant, Some(v.0), &mut memo);
                         greffon.insert(v.0, branche);
                     }
-                    let node_valeur = pool.intern(
+                    let node_value = pool.intern(
                         anchor,
                         Form::Node {
-                            level: self.niveau_valeur(),
+                            level: self.niveau_value(),
                             arcs: greffon,
                         },
                     );
@@ -231,7 +231,7 @@ impl Transduction for Lookup {
                         .filter(|(v, _)| *v != PRESENT)
                         .map(|(v, (n, _))| (v, n))
                         .collect();
-                    arcs_output.insert(PRESENT, node_valeur);
+                    arcs_output.insert(PRESENT, node_value);
                     return (
                         pool.intern(
                             anchor,

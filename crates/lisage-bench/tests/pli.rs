@@ -16,8 +16,8 @@ use proptest::prelude::*;
 
 type PoolRef = Arena<ReferenceController>;
 
-fn atome(valeur: u64) -> Value {
-    Value::Atom(Atom(valeur))
+fn atome(value: u64) -> Value {
+    Value::Atom(Atom(value))
 }
 
 /// Small set of maps generated randomly (keys {0,1} × values {0,1}).

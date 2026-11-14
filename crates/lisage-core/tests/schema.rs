@@ -11,8 +11,8 @@ use lisage_core::schema::{
 };
 use lisage_lang::value::{Atom, Value};
 
-fn domaine(valeurs: &[u64]) -> Domaine {
-    Domaine::new(valeurs.iter().map(|&v| Atom(v)).collect())
+fn domaine(values: &[u64]) -> Domaine {
+    Domaine::new(values.iter().map(|&v| Atom(v)).collect())
 }
 
 fn arena(schema: Schema) -> Arena<ReferenceController> {
@@ -38,8 +38,8 @@ fn test_compilation_map_exemple_spec() {
         panic!("the root must be a presence node");
     };
     assert_eq!(*level, Level(0));
-    let node_valeur_a = arcs[&PRESENT];
-    let Form::Node { level, arcs } = pool.resolve(node_valeur_a).unwrap() else {
+    let node_value_a = arcs[&PRESENT];
+    let Form::Node { level, arcs } = pool.resolve(node_value_a).unwrap() else {
         panic!("value node expected");
     };
     assert_eq!(*level, Level(1));
@@ -49,8 +49,8 @@ fn test_compilation_map_exemple_spec() {
         panic!("presence node expected");
     };
     assert_eq!(*level, Level(2));
-    let node_valeur_b = arcs[&PRESENT];
-    let Form::Node { level, arcs } = pool.resolve(node_valeur_b).unwrap() else {
+    let node_value_b = arcs[&PRESENT];
+    let Form::Node { level, arcs } = pool.resolve(node_value_b).unwrap() else {
         panic!("value node expected");
     };
     assert_eq!(*level, Level(3));
@@ -90,7 +90,7 @@ fn test_map_vide_et_cle_absente() {
     let map = Value::Map(BTreeMap::from([(atome(1), atome(0))]));
     let root = compiler(&mut pool, anchor, &schema, &map).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    let node_valeur_b = pool.intern(
+    let node_value_b = pool.intern(
         anchor,
         Form::Node {
             level: Level(3),
@@ -101,7 +101,7 @@ fn test_map_vide_et_cle_absente() {
         pool.resolve(root).unwrap(),
         &Form::Node {
             level: Level(2),
-            arcs: BTreeMap::from([(PRESENT, node_valeur_b)]),
+            arcs: BTreeMap::from([(PRESENT, node_value_b)]),
         }
     );
 }
@@ -174,7 +174,7 @@ fn test_ensemble_vide_et_plein() {
 /// Map validation distinguishes an out-of-domain key from an out-of-domain
 /// value (the error carries the offending atom).
 #[test]
-fn test_erreur_valeur_hors_domaine_map() {
+fn test_erreur_value_hors_domaine_map() {
     let schema = Schema::Map(vec![Atom(0)], domaine(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
@@ -314,8 +314,8 @@ fn test_tag_compilation_round_trip() {
     let anchor = Anchor(0);
 
     for discriminant in [0u64, 1, 2] {
-        for valeur in [10u64, 20] {
-            let tag = Value::Tag(Atom(discriminant), Box::new(atome(valeur)));
+        for value in [10u64, 20] {
+            let tag = Value::Tag(Atom(discriminant), Box::new(atome(value)));
             let root = compiler(&mut pool, anchor, &schema, &tag).unwrap();
             assert_eq!(decompiler(&pool, &schema, root).unwrap(), tag);
         }

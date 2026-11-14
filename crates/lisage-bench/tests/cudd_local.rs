@@ -22,8 +22,8 @@ use std::process::Command;
 /// CUDD node count for the given truth table.
 fn cudd_compter_nodes(nombre_variables: u32, table: &[bool]) -> Option<usize> {
     let mut input = format!("{}\n", nombre_variables);
-    for &valeur in table {
-        input.push_str(if valeur { "1 " } else { "0 " });
+    for &value in table {
+        input.push_str(if value { "1 " } else { "0 " });
     }
     input.push('\n');
 

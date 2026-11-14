@@ -79,12 +79,12 @@ proptest! {
     /// The other keys are always unchanged.
     #[test]
     fn test_transfert_semantique(
-        valeurs in prop::collection::vec(0u64..TAILLE_DOMAINE, NOMBRE_CLES as usize),
+        values in prop::collection::vec(0u64..TAILLE_DOMAINE, NOMBRE_CLES as usize),
         source in 0u64..NOMBRE_CLES,
         destination in 0u64..NOMBRE_CLES,
     ) {
         prop_assume!(source < destination);
-        let inputs: BTreeMap<u64, u64> = (0..NOMBRE_CLES).zip(valeurs).collect();
+        let inputs: BTreeMap<u64, u64> = (0..NOMBRE_CLES).zip(values).collect();
         let schema = schema_test();
         let anchor = Anchor(0);
         let mut pool = new_pool(&schema);
@@ -100,13 +100,13 @@ proptest! {
 
         let obtenu = decompiler_map(&pool, &schema, resultat);
         let mut attendu = inputs.clone();
-        let valeur_source = inputs[&source];
-        let valeur_destination = inputs[&destination];
+        let value_source = inputs[&source];
+        let value_destination = inputs[&destination];
         // The transfer is active only if the source has at least 1 unit.
-        if valeur_source >= 1 {
-            attendu.insert(source, valeur_source - 1);
-            if valeur_destination + 1 < TAILLE_DOMAINE {
-                attendu.insert(destination, valeur_destination + 1);
+        if value_source >= 1 {
+            attendu.insert(source, value_source - 1);
+            if value_destination + 1 < TAILLE_DOMAINE {
+                attendu.insert(destination, value_destination + 1);
             }
         }
         prop_assert_eq!(obtenu, attendu);

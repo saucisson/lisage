@@ -143,7 +143,7 @@ pub fn voie_c(
                 },
                 CleMap {
                     cle: *cle,
-                    phase: Phase::Valeur,
+                    phase: Phase::Value,
                 },
             ]
         })
@@ -154,7 +154,7 @@ pub fn voie_c(
         .iter()
         .filter_map(|cle_map| match cle_map.phase {
             Phase::Presence => Some(cle_map.cle),
-            Phase::Valeur => None,
+            Phase::Value => None,
         })
         .collect();
     let mesure = voie_dd(reseau, &ordre_adopte)?;
@@ -225,8 +225,8 @@ fn compiler_espace(
 ) -> Result<NodeId, ErreurTriptyque> {
     let keys = SchemaKeys::new(schema.clone());
     let mut root = pool.intern(ANCRE_BANC, Form::Terminal(false));
-    for valeur in espace {
-        let membre = compiler(pool, ANCRE_BANC, schema, valeur)?;
+    for value in espace {
+        let membre = compiler(pool, ANCRE_BANC, schema, value)?;
         root = union(pool, &keys, ANCRE_BANC, root, membre)?;
     }
     Ok(root)

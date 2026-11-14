@@ -120,12 +120,8 @@ impl Scrubber {
                 TraceEvent::NodeCreated { node, .. } | TraceEvent::NodeShared { node } => {
                     etat.nodes.insert(*node);
                 }
-                TraceEvent::Attr {
-                    canal,
-                    node,
-                    valeur,
-                } => {
-                    etat.attributs.push((*canal, *node, valeur.clone()));
+                TraceEvent::Attr { canal, node, value } => {
+                    etat.attributs.push((*canal, *node, value.clone()));
                 }
                 TraceEvent::MemoHit { .. } => etat.memo_hits += 1,
                 TraceEvent::MemoMiss { .. } => etat.memo_misses += 1,

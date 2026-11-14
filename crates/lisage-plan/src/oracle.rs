@@ -43,11 +43,8 @@ impl Rationnel {
     }
 
     /// Integer rational.
-    pub fn entier(valeur: u64) -> Self {
-        Rationnel {
-            num: valeur,
-            den: 1,
-        }
+    pub fn entier(value: u64) -> Self {
+        Rationnel { num: value, den: 1 }
     }
 
     /// Numerator (after normalization).

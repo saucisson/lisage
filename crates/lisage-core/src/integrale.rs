@@ -84,7 +84,7 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
             obs.on_event(&TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
                 node,
-                valeur: format!("measure_memo={total}"),
+                value: format!("measure_memo={total}"),
             });
         }
         return Ok(*total);
@@ -109,7 +109,7 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node,
-            valeur: format!("measure={total}"),
+            value: format!("measure={total}"),
         });
     }
     memo.insert((node, *region), total);
@@ -147,7 +147,7 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
             obs.on_event(&TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
                 node,
-                valeur: format!("measure_memo={total}"),
+                value: format!("measure_memo={total}"),
             });
         }
         return Ok(*total);
@@ -173,7 +173,7 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node,
-            valeur: format!("measure={total}"),
+            value: format!("measure={total}"),
         });
     }
     memo.insert((node, region.clone()), total);

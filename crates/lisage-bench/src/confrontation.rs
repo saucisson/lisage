@@ -42,7 +42,7 @@ const ANCRE_MESURE: Anchor = Anchor(0);
 const PENSE: u64 = 0;
 /// `hungry` (intermediate value of the pc domain).
 const AFFAME: u64 = 1;
-/// `eat` (valeur interdite sur deux voisins circulairement).
+/// `eat` (value interdite sur deux voisins circulairement).
 const MANGE: u64 = 2;
 /// Number of BDD variables of the `fenetre` workload controller (the
 /// sliding window is read over 2 levels: root + window).
@@ -279,14 +279,14 @@ pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
         mesure.charge.etiquette()
     ));
     ligne.push_str(",\"parametres\":{");
-    for (indice, (cle, valeur)) in mesure.parametres.iter().enumerate() {
+    for (indice, (cle, value)) in mesure.parametres.iter().enumerate() {
         if indice > 0 {
             ligne.push(',');
         }
         ligne.push_str(&format!(
             "\"{}\":\"{}\"",
             echapper_json(cle),
-            echapper_json(valeur)
+            echapper_json(value)
         ));
     }
     ligne.push('}');
@@ -315,11 +315,11 @@ fn rss_max_ko() -> Result<u64, ErreurConfrontation> {
         }
     })?;
     for ligne in status.lines() {
-        if let Some(valeurs) = ligne.strip_prefix(MARQUEUR) {
-            return valeurs
+        if let Some(values) = ligne.strip_prefix(MARQUEUR) {
+            return values
                 .split_whitespace()
                 .next()
-                .and_then(|valeur| valeur.parse::<u64>().ok())
+                .and_then(|value| value.parse::<u64>().ok())
                 .ok_or_else(|| ErreurConfrontation::InvalidInput {
                     detail: format!("unexpected {MARQUEUR} line: {ligne}"),
                 });
@@ -362,7 +362,7 @@ fn charge_alea_lcg(
     let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
     let debut = Instant::now();
     let table = table_lcg(nombre_variables);
-    let expected_satisfactions = table.iter().filter(|valeur| **valeur).count() as u64;
+    let expected_satisfactions = table.iter().filter(|value| **value).count() as u64;
     let root = compiler_bdd(&mut pool, ANCRE_MESURE, &keys, &table);
     let nodes = compter_nodes_bdd(&pool, root);
     let duree = debut.elapsed();
@@ -387,7 +387,7 @@ fn charge_alea_lcg(
         observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root,
-            valeur: format!(
+            value: format!(
                 "workload={} nodes={} check={}",
                 Charge::AleaLcg.etiquette(),
                 nodes,
@@ -458,7 +458,7 @@ fn charge_philosophes(
         let map: BTreeMap<Value, Value> = etat
             .iter()
             .enumerate()
-            .map(|(indice, valeur)| (Value::Atom(Atom(indice as u64)), Value::Atom(Atom(*valeur))))
+            .map(|(indice, value)| (Value::Atom(Atom(indice as u64)), Value::Atom(Atom(*value))))
             .collect();
         let membre = compiler(&mut pool, ANCRE_MESURE, &schema, &Value::Map(map))?;
         root = union(&mut pool, &keys, ANCRE_MESURE, root, membre)?;
@@ -476,7 +476,7 @@ fn charge_philosophes(
         observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root,
-            valeur: format!(
+            value: format!(
                 "workload={} nodes={} check={}",
                 Charge::Philosophes.etiquette(),
                 nodes,
@@ -502,7 +502,7 @@ fn lire_etats(
     nombre_philosophes: u64,
     contenu: &str,
 ) -> Result<Vec<EtatEtendu>, ErreurConfrontation> {
-    let nombre_valeurs = PAS_CLE_INTERCALAGE as usize * nombre_philosophes as usize;
+    let nombre_values = PAS_CLE_INTERCALAGE as usize * nombre_philosophes as usize;
     let mut lignes = contenu.lines();
     let premiere = lignes
         .next()
@@ -533,22 +533,22 @@ fn lire_etats(
         }
         let etat: Result<Vec<u64>, _> = ligne
             .split_whitespace()
-            .map(|valeur| valeur.parse::<u64>())
+            .map(|value| value.parse::<u64>())
             .collect();
         let etat = etat.map_err(|_| ErreurConfrontation::InvalidInput {
             detail: format!("line {}: unreadable value", numero + 2),
         })?;
-        if etat.len() != nombre_valeurs {
+        if etat.len() != nombre_values {
             return Err(ErreurConfrontation::InvalidInput {
                 detail: format!(
                     "line {}: {} values, {} expected",
                     numero + 2,
                     etat.len(),
-                    nombre_valeurs
+                    nombre_values
                 ),
             });
         }
-        if etat.iter().any(|valeur| *valeur > MANGE) {
+        if etat.iter().any(|value| *value > MANGE) {
             return Err(ErreurConfrontation::InvalidInput {
                 detail: format!("line {}: value outside the domain {{0,1,2}}", numero + 2),
             });
@@ -599,7 +599,7 @@ fn charge_fenetre(
         observateur.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root,
-            valeur: format!(
+            value: format!(
                 "workload={} encoding={} nodes={} check={}",
                 Charge::Fenetre.etiquette(),
                 etiquette_encodage(&encodage),

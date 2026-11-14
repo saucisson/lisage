@@ -26,7 +26,7 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
     Value::Map(
         paires
             .iter()
-            .map(|(cle, valeur)| (Value::Atom(Atom(*cle)), Value::Atom(Atom(*valeur))))
+            .map(|(cle, value)| (Value::Atom(Atom(*cle)), Value::Atom(Atom(*value))))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }
@@ -68,8 +68,8 @@ fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Valu
     let keys = SchemaKeys::new(schema.clone());
     let ancre = Anchor(0);
     let mut root = pool.intern(ancre, Form::Terminal(false));
-    for valeur in ensemble {
-        let membre = compiler(pool, ancre, &schema, valeur).unwrap();
+    for value in ensemble {
+        let membre = compiler(pool, ancre, &schema, value).unwrap();
         root = union(pool, &keys, ancre, root, membre).unwrap();
     }
     let mut output = pool_pour_sdd(&vtree_test(), ensemble);
@@ -161,8 +161,8 @@ fn test_projection() {
     let ensemble = ensemble_decomposable();
     let projection = projeter(&ensemble, &[Atom(0), Atom(1)]);
     assert_eq!(projection.len(), 2);
-    for valeur in &projection {
-        let Value::Map(map) = valeur else {
+    for value in &projection {
+        let Value::Map(map) = value else {
             panic!("the projection is not a map");
         };
         assert_eq!(map.len(), 2);

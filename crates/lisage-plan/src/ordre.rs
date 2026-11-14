@@ -52,7 +52,7 @@ pub enum Phase {
     /// Key presence level (δ = absent).
     Presence,
     /// Key value level.
-    Valeur,
+    Value,
 }
 
 /// Key of a `Map(K, V)` level: (key, phase).
@@ -91,7 +91,7 @@ impl TypeOrdre for ClesMap {
             });
             niveaux.push(CleMap {
                 cle,
-                phase: Phase::Valeur,
+                phase: Phase::Value,
             });
         }
         niveaux
@@ -108,7 +108,7 @@ impl TypeOrdre for ClesMap {
                     },
                     CleMap {
                         cle,
-                        phase: Phase::Valeur,
+                        phase: Phase::Value,
                     },
                 )
             })
@@ -324,22 +324,22 @@ pub trait MarqueOrdre<T: TypeOrdre>: Sized + Send + Sync {
 /// ([`Aligne::compose`]) requires the same `O` parameter on both sides:
 /// operands under different orders do not compile.
 pub struct Aligne<T: TypeOrdre, O: MarqueOrdre<T>, V> {
-    valeur: V,
+    value: V,
     marqueur: PhantomData<fn() -> (T, O)>,
 }
 
 impl<T: TypeOrdre, O: MarqueOrdre<T>, V> Aligne<T, O, V> {
     /// New operand, aligned on mark `O`.
-    pub fn new(valeur: V) -> Self {
+    pub fn new(value: V) -> Self {
         Aligne {
-            valeur,
+            value,
             marqueur: PhantomData,
         }
     }
 
     /// Value carried by the operand.
-    pub fn valeur(&self) -> &V {
-        &self.valeur
+    pub fn value(&self) -> &V {
+        &self.value
     }
 
     /// Composition under common order: `autre` shares the same `(T, O)` —
@@ -349,6 +349,6 @@ impl<T: TypeOrdre, O: MarqueOrdre<T>, V> Aligne<T, O, V> {
         autre: &Aligne<T, O, U>,
         combinaison: impl FnOnce(&V, &U) -> W,
     ) -> Aligne<T, O, W> {
-        Aligne::new(combinaison(&self.valeur, autre.valeur()))
+        Aligne::new(combinaison(&self.value, autre.value()))
     }
 }

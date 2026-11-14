@@ -95,12 +95,12 @@ impl TransfertNonLocal {
 
     /// Value level of the source key.
     fn niveau_source(&self) -> Level {
-        Schema::niveau_valeur(self.index_source)
+        Schema::niveau_value(self.index_source)
     }
 
     /// Value level of the destination key.
     fn niveau_destination(&self) -> Level {
-        Schema::niveau_valeur(self.index_destination)
+        Schema::niveau_value(self.index_destination)
     }
 
     /// Inserts the remapped arc `cle ↦ (n, s)` into `remap`; on key collision
@@ -179,7 +179,7 @@ impl TransfertNonLocal {
         if self.domaine.contient(Atom(montant))
             && let Some((suite, _)) = arcs.remove(&ABSENT)
         {
-            let node_valeur = pool.intern(
+            let node_value = pool.intern(
                 anchor,
                 Form::Node {
                     level: self.niveau_destination(),
@@ -189,12 +189,12 @@ impl TransfertNonLocal {
             // Collision with an existing PRESENT arc (family): union.
             match arcs.remove(&PRESENT) {
                 Some((ancien, _)) => {
-                    let fusion = union(pool, &self.keys, anchor, ancien, node_valeur)
+                    let fusion = union(pool, &self.keys, anchor, ancien, node_value)
                         .expect("union of sub-arcs of the same pool");
                     arcs.insert(PRESENT, (fusion, ()));
                 }
                 None => {
-                    arcs.insert(PRESENT, (node_valeur, ()));
+                    arcs.insert(PRESENT, (node_value, ()));
                 }
             }
         }
@@ -205,7 +205,7 @@ impl TransfertNonLocal {
     /// `u → u + amount` if the target is in the domain; otherwise the arc is
     /// kept as is (**per-arc** semantics: the source decrement
     /// still applies, pinned by `test_transfert_destination_hors_domaine`).
-    fn pose_valeur_destination<P: Pool<Key = u64, Payload = bool>>(
+    fn pose_value_destination<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
         anchor: Anchor,
@@ -290,7 +290,7 @@ impl Transduction for TransfertNonLocal {
             )
         } else if level == self.niveau_destination() && matches!(h, EtatTransfert::Transfert(_)) {
             (
-                self.pose_valeur_destination(pool, anchor, h, arcs),
+                self.pose_value_destination(pool, anchor, h, arcs),
                 EffetMemoire::new(),
             )
         } else {

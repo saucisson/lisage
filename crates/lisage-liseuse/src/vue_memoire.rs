@@ -45,7 +45,7 @@ const DECALAGE_BARRE: u32 = 60;
 /// Vertical offset of the bar rectangle under the text line, in pixels.
 const DECALAGE_TEXTE_BARRE: u32 = 12;
 /// Horizontal offset of the value after the bar, in pixels.
-const DECALAGE_VALEUR: u32 = 6;
+const DECALAGE_VALUE: u32 = 6;
 
 /// Multiplicity badge: a handle and how many positional replicas
 /// it represents (×k badge displayed when k > 1).
@@ -212,7 +212,7 @@ pub fn rendre_svg_vue_memoire(
         ));
         svg.push_str(&format!(
             "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{compte}</text>\n",
-            MARGE_GAUCHE + DECALAGE_BARRE + largeur + DECALAGE_VALEUR
+            MARGE_GAUCHE + DECALAGE_BARRE + largeur + DECALAGE_VALUE
         ));
     }
     svg.push_str("</svg>\n");

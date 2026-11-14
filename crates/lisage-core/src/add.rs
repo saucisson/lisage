@@ -71,7 +71,7 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     anchor: Anchor,
     schema: &Schema,
-    valeur: &Value,
+    value: &Value,
     poids: u64,
 ) -> Result<NodeId, SchemaError> {
     let Schema::Map(liste_cles, domaine) = schema else {
@@ -80,14 +80,14 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
             recu: "other schema",
         });
     };
-    let Value::Map(map) = valeur else {
+    let Value::Map(map) = value else {
         return Err(SchemaError::TypeMismatch {
             attendu: "map",
             recu: "other value",
         });
     };
-    for (cle, valeur) in map {
-        let (Value::Atom(atome_cle), Value::Atom(atome_valeur)) = (cle, valeur) else {
+    for (cle, value) in map {
+        let (Value::Atom(atome_cle), Value::Atom(atome_value)) = (cle, value) else {
             return Err(SchemaError::TypeMismatch {
                 attendu: "atomic key and value",
                 recu: "non-atomic",
@@ -96,8 +96,8 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
         if !liste_cles.contains(atome_cle) {
             return Err(SchemaError::HorsDomaine(*atome_cle));
         }
-        if !domaine.contient(*atome_valeur) {
-            return Err(SchemaError::HorsDomaine(*atome_valeur));
+        if !domaine.contient(*atome_value) {
+            return Err(SchemaError::HorsDomaine(*atome_value));
         }
     }
     Ok(compiler_map_pondere(
@@ -120,15 +120,15 @@ fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
     let suite = compiler_map_pondere(pool, anchor, liste_cles, map, index + 1, poids);
     let cle = Value::Atom(liste_cles[index]);
     let arcs = match map.get(&cle) {
-        Some(Value::Atom(valeur)) => {
-            let node_valeur = pool.intern(
+        Some(Value::Atom(value)) => {
+            let node_value = pool.intern(
                 anchor,
                 Form::Node {
-                    level: Schema::niveau_valeur(index),
-                    arcs: BTreeMap::from([(valeur.0, suite)]),
+                    level: Schema::niveau_value(index),
+                    arcs: BTreeMap::from([(value.0, suite)]),
                 },
             );
-            BTreeMap::from([(PRESENT, node_valeur)])
+            BTreeMap::from([(PRESENT, node_value)])
         }
         _ => BTreeMap::from([(ABSENT, suite)]),
     };

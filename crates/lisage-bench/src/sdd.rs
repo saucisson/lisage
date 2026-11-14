@@ -143,7 +143,7 @@ fn installer_niveau(
 pub fn projeter(ensemble: &BTreeSet<Value>, cles: &[Atom]) -> BTreeSet<Value> {
     ensemble
         .iter()
-        .filter_map(|valeur| match valeur {
+        .filter_map(|value| match value {
             Value::Map(map) => {
                 let projetee: BTreeMap<Value, Value> = map
                     .iter()
@@ -151,7 +151,7 @@ pub fn projeter(ensemble: &BTreeSet<Value>, cles: &[Atom]) -> BTreeSet<Value> {
                         Value::Atom(atome) => cles.contains(atome),
                         _ => false,
                     })
-                    .map(|(cle, valeur)| (cle.clone(), valeur.clone()))
+                    .map(|(cle, value)| (cle.clone(), value.clone()))
                     .collect();
                 Some(Value::Map(projetee))
             }
@@ -164,9 +164,9 @@ pub fn projeter(ensemble: &BTreeSet<Value>, cles: &[Atom]) -> BTreeSet<Value> {
 /// the maps (shared by all levels, so that the controller schema
 /// and the local schemas have the same level cardinalities).
 fn domaine_ensemble(ensemble: &BTreeSet<Value>) -> Domaine {
-    let max_valeur = ensemble
+    let max_value = ensemble
         .iter()
-        .filter_map(|valeur| match valeur {
+        .filter_map(|value| match value {
             Value::Map(map) => map
                 .values()
                 .filter_map(|v| match v {
@@ -178,7 +178,7 @@ fn domaine_ensemble(ensemble: &BTreeSet<Value>) -> Domaine {
         })
         .max()
         .unwrap_or(0);
-    Domaine::new((0..=max_valeur).map(Atom).collect())
+    Domaine::new((0..=max_value).map(Atom).collect())
 }
 
 /// Compiles a projection into a local DD: union of the projected maps under
@@ -191,8 +191,8 @@ fn compiler_projection(
 ) -> Result<NodeId, ErreurSdd> {
     let keys = SchemaKeys::new(schema.clone());
     let mut root = pool.intern(ancre, Form::Terminal(false));
-    for valeur in projection {
-        let membre = compiler(pool, ancre, schema, valeur)?;
+    for value in projection {
+        let membre = compiler(pool, ancre, schema, value)?;
         root = union(pool, &keys, ancre, root, membre)?;
     }
     Ok(root)
