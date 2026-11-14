@@ -257,7 +257,7 @@ pub fn compter_taille_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, Po
 }
 
 /// Level of the sliding-window root.
-const NIVEAU_RACINE: u32 = 0;
+const NIVEAU_ROOT: u32 = 0;
 /// Level of the window node of the sliding window.
 const NIVEAU_FENETRE: u32 = 1;
 
@@ -307,7 +307,7 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
     pool.intern(
         anchor,
         Form::Node {
-            level: Level(NIVEAU_RACINE),
+            level: Level(NIVEAU_ROOT),
             arcs,
         },
     )
@@ -345,7 +345,7 @@ pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     pool.intern(
         anchor,
         Form::Node {
-            level: Level(NIVEAU_RACINE),
+            level: Level(NIVEAU_ROOT),
             arcs,
         },
     )
@@ -478,7 +478,7 @@ pub fn compiler_bdd_ordre<P: Pool<Key = u64, Payload = bool>>(
             table[original]
         })
         .collect();
-    shannon(pool, anchor, Level(NIVEAU_RACINE), &table_locale)
+    shannon(pool, anchor, Level(NIVEAU_ROOT), &table_locale)
 }
 
 /// Top-down Shannon expansion: `table` is indexed by the bits of the
@@ -637,7 +637,7 @@ pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
     let root = pool.intern(
         anchor,
         Form::Node {
-            level: Level(NIVEAU_RACINE),
+            level: Level(NIVEAU_ROOT),
             arcs: BTreeMap::from([(ancre.cle_entree(), fenetre)]),
         },
     );

@@ -17,7 +17,7 @@ const ANCRE_TEST: Anchor = Anchor(0);
 /// Atoms of the first compiled set (cache hit afterwards).
 const ENSEMBLE_PARTAGE: [u64; 2] = [0, 1];
 /// Atoms of the root set of the GC scenario.
-const ENSEMBLE_RACINE: [u64; 3] = [0, 1, 2];
+const ENSEMBLE_ROOT: [u64; 3] = [0, 1, 2];
 /// Number of orphan sets in the GC scenario.
 const NB_ORPHELINS: u64 = 8;
 /// Last atom of the domain, present in each orphan.
@@ -92,7 +92,7 @@ fn test_metriques_cache_hash_consing() {
 fn test_metriques_gc_et_compaction() {
     let schema = schema_test();
     let mut pool = new_pool(&schema);
-    let root = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_RACINE);
+    let root = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_ROOT);
     // Orphans: many forms not reachable from the root.
     for i in 0..NB_ORPHELINS {
         compiler_ensemble(

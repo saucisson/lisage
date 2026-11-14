@@ -15,7 +15,7 @@ use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
 /// Test anchor (arbitrary but named value).
 const ANCRE_TEST: Anchor = Anchor(0);
 /// Level of the root node of the small diagram.
-const NIVEAU_RACINE: u32 = 1;
+const NIVEAU_ROOT: u32 = 1;
 /// Level of the orphan node of the small diagram.
 const NIVEAU_ORPHELIN: u32 = 2;
 /// Number of orphans added to exceed the compaction threshold.
@@ -90,7 +90,7 @@ fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
     let root = pool.intern(
         ANCRE_TEST,
         Form::Node {
-            level: Level(NIVEAU_RACINE),
+            level: Level(NIVEAU_ROOT),
             arcs: BTreeMap::from([(0, faux), (1, vrai)]),
         },
     );
@@ -123,7 +123,7 @@ fn test_plans_et_index_ombre() {
     assert_eq!(pool.plan_de(ombre), Some(Plan::Ombre));
     assert_eq!(pool.plan_de(orphelin), Some(Plan::Principal));
     // Shadow-plane index: level 1 contains the root.
-    assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&root));
+    assert!(pool.index_niveau(Level(NIVEAU_ROOT)).contains(&root));
     assert!(pool.index_niveau(Level(NIVEAU_OMBRE)).contains(&ombre));
     assert!(pool.index_niveau(Level(NIVEAU_ABSENT)).is_empty());
 }
@@ -204,7 +204,7 @@ fn test_compaction_profilee() {
     let new = remap[root.0 as usize].expect("live root remapped");
     assert_ne!(new, root);
     assert!(pool.resolve(new).is_ok());
-    assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&new));
+    assert!(pool.index_niveau(Level(NIVEAU_ROOT)).contains(&new));
     // Le seuil n'est pas atteint avec peu de morts.
     assert!(!seuil_atteint(1, 100));
     assert_eq!(SEUIL_COMPACTION_NUM, 1);
