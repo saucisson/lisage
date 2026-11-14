@@ -297,7 +297,7 @@ pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
         ));
     }
     ligne.push_str(&format!(
-        ",\"temps_ms\":{:.3},\"rss_max_ko\":{},\"nodes\":{},\"verifie\":{}",
+        ",\"temps_ms\":{:.3},\"rss_max_ko\":{},\"noeuds\":{},\"verifie\":{}",
         mesure.temps_ms, mesure.rss_max_ko, mesure.nodes, mesure.verifie
     ));
     ligne.push('}');

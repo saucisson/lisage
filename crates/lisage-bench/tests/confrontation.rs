@@ -248,7 +248,7 @@ fn test_serialisation_ligne_epinglee() {
     };
     let attendu = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\"encodage\":\"relatif\",\
-\"temps_ms\":1.250,\"rss_max_ko\":4096,\"nodes\":3,\"verifie\":40}";
+\"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
     assert_eq!(serialiser_ligne(&mesure), attendu);
     let sans_encodage = MesureConfrontation {
         encodage: None,
@@ -256,7 +256,7 @@ fn test_serialisation_ligne_epinglee() {
     };
     let attendu_sans = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\
-\"temps_ms\":1.250,\"rss_max_ko\":4096,\"nodes\":3,\"verifie\":40}";
+\"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
     assert_eq!(serialiser_ligne(&sans_encodage), attendu_sans);
 }
 
