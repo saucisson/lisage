@@ -96,7 +96,7 @@ proptest! {
             usize::try_from(destination).unwrap(),
         );
         let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-        let (result, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+        let (result, _) = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
         let obtenu = decompiler_map(&pool, &schema, result);
         let mut expected = inputs.clone();

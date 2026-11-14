@@ -20,7 +20,7 @@ use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compi
 use lisage_lang::value::{Atom, Value};
 
 /// Test anchor.
-const ANCRE_TEST: Anchor = Anchor(0);
+const ANCHOR_TEST: Anchor = Anchor(0);
 /// `think`.
 const PENSE: u64 = 0;
 /// `hungry`.
@@ -125,7 +125,7 @@ fn mots_atteignables(n: usize, gaucher: bool) -> Vec<Vec<u64>> {
 fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
     let schema = schema_anneau(n, gaucher);
     let keys = SchemaKeys::new(schema.clone());
-    let mut root = pool.intern(ANCRE_TEST, Form::Terminal(false));
+    let mut root = pool.intern(ANCHOR_TEST, Form::Terminal(false));
     for mot in mots_atteignables(n as usize, gaucher) {
         let map: BTreeMap<Value, Value> = (0..n)
             .flat_map(|i| {
@@ -140,8 +140,8 @@ fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
             })
             .map(|(key, value)| (Value::Atom(Atom(key)), Value::Atom(Atom(value))))
             .collect();
-        let membre = compiler(pool, ANCRE_TEST, &schema, &Value::Map(map)).unwrap();
-        root = union(pool, &keys, ANCRE_TEST, root, membre).unwrap();
+        let membre = compiler(pool, ANCHOR_TEST, &schema, &Value::Map(map)).unwrap();
+        root = union(pool, &keys, ANCHOR_TEST, root, membre).unwrap();
     }
     root
 }
@@ -152,7 +152,7 @@ fn compter_r_n(pool_input: &PoolRef, schema: &Schema, root: NodeId) -> u64 {
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    compter(pool_input, &mut output, ANCRE_TEST, schema, root).unwrap()
+    compter(pool_input, &mut output, ANCHOR_TEST, schema, root).unwrap()
 }
 
 /// M4-4: |R_n| via DD pli == enumeration == golden-thread values

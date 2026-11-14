@@ -58,15 +58,15 @@ impl Rationnel {
     }
 
     /// Product of two rationals (saturated on overflow).
-    pub fn multiplier(&self, autre: &Self) -> Self {
-        let num = self.num.saturating_mul(autre.num);
-        let den = self.den.saturating_mul(autre.den);
+    pub fn multiplier(&self, other: &Self) -> Self {
+        let num = self.num.saturating_mul(other.num);
+        let den = self.den.saturating_mul(other.den);
         Rationnel::new(num, den)
     }
 
-    /// `self <= autre` in exact arithmetic (cross products, u128).
-    pub fn inferieur_ou_egal(&self, autre: &Self) -> bool {
-        (self.num as u128) * (autre.den as u128) <= (autre.num as u128) * (self.den as u128)
+    /// `self <= other` in exact arithmetic (cross products, u128).
+    pub fn inferieur_ou_egal(&self, other: &Self) -> bool {
+        (self.num as u128) * (other.den as u128) <= (other.num as u128) * (self.den as u128)
     }
 }
 

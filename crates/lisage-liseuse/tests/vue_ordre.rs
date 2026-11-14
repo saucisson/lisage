@@ -189,7 +189,7 @@ fn test_vue_ordre_deterministe_et_conversion_inconnue_ignoree() {
 /// its height** — including a tree track (vtree), not only a
 /// linear track.
 #[test]
-fn test_conversion_ancree_dans_piste_arbre() {
+fn test_conversion_anchore_dans_piste_arbre() {
     let arbre = NodeVtree {
         libelle: "record".to_string(),
         enfants: vec![

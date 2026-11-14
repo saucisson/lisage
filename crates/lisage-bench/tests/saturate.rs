@@ -1,6 +1,6 @@
 //! PBT of `saturate` (M2-4, T2): fixpoint invariant — `saturer`
 //! applied to its own result terminates in **one** iteration with the
-//! same node (idempotence), and the cardinal of the fixpoint is greater or
+//! same node (idempotence), and the cardinality of the fixpoint is greater or
 //! equal to that of the initial (increasing chain for the inclusion of the
 //! denoted families).
 
@@ -93,7 +93,7 @@ fn compiler_ensemble(
 }
 
 /// Cardinal of a diagram (number of members of the denoted family).
-fn cardinal(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
+fn cardinality(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
     let mut output = new_pool(schema);
     compter(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
@@ -101,7 +101,7 @@ fn cardinal(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
 proptest! {
     /// Fixpoint invariant (T2): let `R = saturer(τ, D)`; then
     /// `saturer(τ, R)` terminates in 1 iteration with the same node `R`
-    /// (idempotence), and the cardinal of `R` is greater or equal to that
+    /// (idempotence), and the cardinality of `R` is greater or equal to that
     /// of `D` (increasing chain).
     #[test]
     fn test_saturate_point_fixe_idempotent(
@@ -129,14 +129,14 @@ proptest! {
             nombre_levels: schema.nombre_levels(),
             observer: None,
         };
-        let premier = saturer(&mut params).unwrap();
+        let first = saturer(&mut params).unwrap();
 
         // Increasing chain: the fixpoint contains the initial family.
-        let cardinal_initial = cardinal(&pool, &schema, node_initial);
-        let cardinal_fixe = cardinal(&pool, &schema, premier.node);
+        let cardinality_initial = cardinality(&pool, &schema, node_initial);
+        let cardinality_fixe = cardinality(&pool, &schema, first.node);
         prop_assert!(
-            cardinal_fixe >= cardinal_initial,
-            "fixpoint ⊇ initial: {cardinal_fixe} >= {cardinal_initial}"
+            cardinality_fixe >= cardinality_initial,
+            "fixpoint ⊇ initial: {cardinality_fixe} >= {cardinality_initial}"
         );
 
         // Idempotence: saturer applied to the result terminates in 1 iteration
@@ -147,12 +147,12 @@ proptest! {
             pool: &mut pool,
             keys: &keys,
             anchor,
-            initial: premier.node,
+            initial: first.node,
             nombre_levels: schema.nombre_levels(),
             observer: None,
         };
         let second = saturer(&mut params).unwrap();
         prop_assert_eq!(second.iterations, 1, "fixpoint: 1 iteration");
-        prop_assert_eq!(second.node, premier.node, "fixpoint idempotence");
+        prop_assert_eq!(second.node, first.node, "fixpoint idempotence");
     }
 }

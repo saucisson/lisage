@@ -14,7 +14,7 @@ impl KeyAlgebra for MockKeys {
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
         *key
     }
-    fn cardinality(&self, _level: Level) -> u64 {
+    fn cardinalityity(&self, _level: Level) -> u64 {
         2
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {

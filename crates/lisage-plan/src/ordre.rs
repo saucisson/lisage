@@ -192,10 +192,10 @@ impl<T: TypeOrdre> Clone for Order<T> {
 }
 
 impl<T: TypeOrdre> PartialEq for Order<T> {
-    fn eq(&self, autre: &Self) -> bool {
-        self.canoniques == autre.canoniques
-            && self.sequence == autre.sequence
-            && self.contraintes == autre.contraintes
+    fn eq(&self, other: &Self) -> bool {
+        self.canoniques == other.canoniques
+            && self.sequence == other.sequence
+            && self.contraintes == other.contraintes
     }
 }
 
@@ -297,14 +297,14 @@ impl<T: TypeOrdre> Order<T> {
     }
 
     /// Two orders of the same type are aligned iff same π.
-    pub fn alignes(&self, autre: &Self) -> bool {
-        self.sequence == autre.sequence
+    pub fn alignes(&self, other: &Self) -> bool {
+        self.sequence == other.sequence
     }
 
     /// Alignment checked between two orders of the same type, typed error
     /// otherwise (C3: two operands compose only under a common order).
-    pub fn alignement(&self, autre: &Self) -> Result<(), ErreurOrdre<T::Key>> {
-        if self.alignes(autre) {
+    pub fn alignement(&self, other: &Self) -> Result<(), ErreurOrdre<T::Key>> {
+        if self.alignes(other) {
             Ok(())
         } else {
             Err(ErreurOrdre::OrdresNonAlignes)
@@ -342,13 +342,13 @@ impl<T: TypeOrdre, O: MarqueOrdre<T>, V> Aligne<T, O, V> {
         &self.value
     }
 
-    /// Composition under common order: `autre` shares the same `(T, O)` —
+    /// Composition under common order: `other` shares the same `(T, O)` —
     /// alignment is imposed by typing, not checked at runtime.
     pub fn compose<U, W>(
         &self,
-        autre: &Aligne<T, O, U>,
+        other: &Aligne<T, O, U>,
         combinaison: impl FnOnce(&V, &U) -> W,
     ) -> Aligne<T, O, W> {
-        Aligne::new(combinaison(&self.value, autre.value()))
+        Aligne::new(combinaison(&self.value, other.value()))
     }
 }

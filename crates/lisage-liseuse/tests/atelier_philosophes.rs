@@ -12,7 +12,7 @@ use lisage_core::schema::ReferenceController;
 
 use lisage_liseuse::philosophes::{construire_r_n, mots_atteignables, pool_neuf, schema_anneau};
 
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 
 fn measure_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
     let schema = schema_anneau(n);
@@ -20,7 +20,7 @@ fn measure_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
         AtelierController::new(ReferenceController::new(schema.clone()), reductions),
         Box::new(NoOpObserver),
     );
-    let root = construire_r_n(&mut pool, ANCRE, n);
+    let root = construire_r_n(&mut pool, ANCHOR, n);
     let rapport = measure(&pool, root, None).expect("interned node");
     (
         rapport.nodes_partages,
@@ -67,7 +67,7 @@ fn test_commutation_ne_reduit_jamais() {
 fn test_enveloppe_transparente_quand_tout_actif() {
     let schema = schema_anneau(3);
     let mut reference = pool_neuf(&schema);
-    let root_ref = construire_r_n(&mut reference, ANCRE, 3);
+    let root_ref = construire_r_n(&mut reference, ANCHOR, 3);
     let rapport_ref = measure(&reference, root_ref, None).expect("interned node");
     let (nodes, chemins, size) = measure_r_n(3, Reductions::TOUTES);
     assert_eq!(rapport_ref.nodes_partages, nodes);

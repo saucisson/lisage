@@ -4,7 +4,7 @@
 //! weight, so two terminals of different weights are distinct handles), ⊕
 //! pointwise like ADD. Compatibility guard (A5): a weighted fold is exact
 //! only on this lifted construction; on a Bool construction (idempotent
-//! `union`), only the cardinal is exact — multiplicity is destroyed at
+//! `union`), only the cardinality is exact — multiplicity is destroyed at
 //! write time.
 
 use std::collections::{BTreeMap, HashMap};
@@ -160,14 +160,14 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
             if poids_b == 0 {
                 Ok(a)
             } else {
-                merge_avec_autre(pool, keys, anchor, level, arcs, b)
+                merge_avec_other(pool, keys, anchor, level, arcs, b)
             }
         }
         (Form::Terminal(poids_a), Form::Node { level, arcs }) => {
             if poids_a == 0 {
                 Ok(b)
             } else {
-                merge_avec_autre(pool, keys, anchor, level, arcs, a)
+                merge_avec_other(pool, keys, anchor, level, arcs, a)
             }
         }
         (
@@ -201,40 +201,40 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
                     },
                 ))
             } else if level_a < level_b {
-                merge_avec_autre(pool, keys, anchor, level_a, arcs_a, b)
+                merge_avec_other(pool, keys, anchor, level_a, arcs_a, b)
             } else {
-                merge_avec_autre(pool, keys, anchor, level_b, arcs_b, a)
+                merge_avec_other(pool, keys, anchor, level_b, arcs_b, a)
             }
         }
     }
 }
 
-/// Merge of a node of level `level` with another diagram `autre` (terminal
-/// of weight > 0, or a deeper node): the path of `autre` goes through the
+/// Merge of a node of level `level` with another diagram `other` (terminal
+/// of weight > 0, or a deeper node): the path of `other` goes through the
 /// default arc `δ(level)` if the level has one, otherwise through all the
 /// values of the level.
-fn merge_avec_autre<P: Pool<Key = u64, Payload = u64>>(
+fn merge_avec_other<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     keys: &SchemaKeys,
     anchor: Anchor,
     level: Level,
     mut arcs: BTreeMap<u64, NodeId>,
-    autre: NodeId,
+    other: NodeId,
 ) -> Result<NodeId, CoreError> {
     match keys.default(level) {
         Some(defaut) => {
             let cible = match arcs.remove(&defaut) {
-                Some(cible) => merge_add(pool, keys, anchor, cible, autre)?,
-                None => autre,
+                Some(cible) => merge_add(pool, keys, anchor, cible, other)?,
+                None => other,
             };
             arcs.insert(defaut, cible);
         }
         None => {
-            let cardinalite = keys.cardinality(level);
-            for v in 0..cardinalite {
+            let cardinalityity = keys.cardinalityity(level);
+            for v in 0..cardinalityity {
                 let cible = match arcs.remove(&v) {
-                    Some(cible) => merge_add(pool, keys, anchor, cible, autre)?,
-                    None => autre,
+                    Some(cible) => merge_add(pool, keys, anchor, cible, other)?,
+                    None => other,
                 };
                 arcs.insert(v, cible);
             }
@@ -290,7 +290,7 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
 }
 
 /// (A4) multiplier of arc `arc` from level `level` to a child of level
-/// `level_cible` (`None` = terminal): product of the cardinalities of the
+/// `level_cible` (`None` = terminal): product of the cardinalityities of the
 /// value levels skipped on the path (mirror of `Pli::multiplicateur`).
 fn multiplicateur(
     keys: &SchemaKeys,
@@ -312,7 +312,7 @@ fn multiplicateur(
         if keys.default(Level(n)).is_some() {
             n += PAS_LEVEL_MAP;
         } else {
-            produit *= keys.cardinality(Level(n));
+            produit *= keys.cardinalityity(Level(n));
             n += 1;
         }
     }

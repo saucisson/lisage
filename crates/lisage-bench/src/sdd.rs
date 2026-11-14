@@ -77,11 +77,11 @@ impl From<CoreError> for ErreurSdd {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct LevelSdd {
     /// Local anchor of the node (local controller, instance pattern).
-    pub ancre: Anchor,
+    pub anchor: Anchor,
     /// Root of the local DD (set projected on the variables of the subtree).
     pub root: NodeId,
     /// Cardinal of the local DD (pli `(ℕ,+,×)`).
-    pub cardinal: u64,
+    pub cardinality: u64,
 }
 
 /// Pool for an SDD installation: the controller carries the **root** schema
@@ -102,8 +102,8 @@ pub fn installer_sdd(
 ) -> Result<LevelSdd, ErreurSdd> {
     vtree.valider()?;
     let domain = domain_ensemble(ensemble);
-    let mut compteur_ancres = 0u32;
-    installer_level(pool, vtree, ensemble, &domain, &mut compteur_ancres)
+    let mut compteur_anchors = 0u32;
+    installer_level(pool, vtree, ensemble, &domain, &mut compteur_anchors)
 }
 
 /// Installs one vtree level: projection of the set on the variables
@@ -113,26 +113,26 @@ fn installer_level(
     vtree: &Vtree,
     ensemble: &BTreeSet<Value>,
     domain: &Domain,
-    compteur_ancres: &mut u32,
+    compteur_anchors: &mut u32,
 ) -> Result<LevelSdd, ErreurSdd> {
     let variables = vtree.ordre_plat();
     if variables.is_empty() {
         return Err(ErreurSdd::SansVariable);
     }
-    let ancre = Anchor(*compteur_ancres);
-    *compteur_ancres += 1;
+    let anchor = Anchor(*compteur_anchors);
+    *compteur_anchors += 1;
     let projection = projeter(ensemble, &variables);
     let schema = Schema::Map(variables, domain.clone());
-    let root = compiler_projection(pool, &schema, &projection, ancre)?;
-    let cardinal = compter_level(pool, &schema, root, ancre)?;
+    let root = compiler_projection(pool, &schema, &projection, anchor)?;
+    let cardinality = compter_level(pool, &schema, root, anchor)?;
     if let Vtree::Node { gauche, droite } = vtree {
-        installer_level(pool, gauche, &projection, domain, compteur_ancres)?;
-        installer_level(pool, droite, &projection, domain, compteur_ancres)?;
+        installer_level(pool, gauche, &projection, domain, compteur_anchors)?;
+        installer_level(pool, droite, &projection, domain, compteur_anchors)?;
     }
     Ok(LevelSdd {
-        ancre,
+        anchor,
         root,
-        cardinal,
+        cardinality,
     })
 }
 
@@ -160,7 +160,7 @@ pub fn projeter(ensemble: &BTreeSet<Value>, keys: &[Atom]) -> BTreeSet<Value> {
 
 /// Value domain of the complete set: `0..=max` observed over all
 /// the maps (shared by all levels, so that the controller schema
-/// and the local schemas have the same level cardinalities).
+/// and the local schemas have the same level cardinalityities).
 fn domain_ensemble(ensemble: &BTreeSet<Value>) -> Domain {
     let max_value = ensemble
         .iter()
@@ -185,13 +185,13 @@ fn compiler_projection(
     pool: &mut Arena<ReferenceController>,
     schema: &Schema,
     projection: &BTreeSet<Value>,
-    ancre: Anchor,
+    anchor: Anchor,
 ) -> Result<NodeId, ErreurSdd> {
     let keys = SchemaKeys::new(schema.clone());
-    let mut root = pool.intern(ancre, Form::Terminal(false));
+    let mut root = pool.intern(anchor, Form::Terminal(false));
     for value in projection {
-        let membre = compiler(pool, ancre, schema, value)?;
-        root = union(pool, &keys, ancre, root, membre)?;
+        let membre = compiler(pool, anchor, schema, value)?;
+        root = union(pool, &keys, anchor, root, membre)?;
     }
     Ok(root)
 }
@@ -201,11 +201,11 @@ fn compter_level(
     pool: &Arena<ReferenceController>,
     schema: &Schema,
     root: NodeId,
-    ancre: Anchor,
+    anchor: Anchor,
 ) -> Result<u64, ErreurSdd> {
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    Ok(compter(pool, &mut output, ancre, schema, root)?)
+    Ok(compter(pool, &mut output, anchor, schema, root)?)
 }

@@ -14,18 +14,18 @@ use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 
 /// LCG seed for property tests (same constant as the other suites).
-const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
 /// LCG multiplier for property tests.
 const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 /// LCG increment for property tests.
 const INCREMENT_LCG: u64 = 1442695040888963407;
 
-/// Mock cardinality: 4 values per level.
-const CARDINALITE_MOCK: u64 = 4;
+/// Mock cardinalityity: 4 values per level.
+const CARDINALITY_TMP_MOCK: u64 = 4;
 /// Test level.
 const LEVEL_TEST: u32 = 1;
 /// Test anchor.
-const ANCRE_TEST: Anchor = Anchor(0);
+const ANCHOR_TEST: Anchor = Anchor(0);
 
 /// Node 0 plays the role of the default diagram D^def in property tests.
 const NODE_DEFAUT: NodeId = NodeId(0);
@@ -39,8 +39,8 @@ impl KeyAlgebra for MockKeys {
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
         *key
     }
-    fn cardinality(&self, _level: Level) -> u64 {
-        CARDINALITE_MOCK
+    fn cardinalityity(&self, _level: Level) -> u64 {
+        CARDINALITY_TMP_MOCK
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
         self.avec_defaut.then_some(0)
@@ -96,10 +96,10 @@ fn arena_23() -> Arena<MockController> {
 #[test]
 fn test_dabs_absorption_tout_sous_domain() {
     let mut pool = arena_dabs();
-    let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
-    let vrai = pool.intern(ANCRE_TEST, Form::Terminal(true));
+    let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
+    let vrai = pool.intern(ANCHOR_TEST, Form::Terminal(true));
     let node = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(0, faux), (1, vrai), (2, faux), (3, faux)]),
@@ -120,10 +120,10 @@ fn test_dabs_absorption_tout_sous_domain() {
 #[test]
 fn test_sans_dabs_rdefault_seul() {
     let mut pool = arena_23();
-    let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
-    let vrai = pool.intern(ANCRE_TEST, Form::Terminal(true));
+    let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
+    let vrai = pool.intern(ANCHOR_TEST, Form::Terminal(true));
     let node = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(0, faux), (1, vrai), (2, faux)]),
@@ -144,9 +144,9 @@ fn test_sans_dabs_rdefault_seul() {
 #[test]
 fn test_dtrans_forme_vide_collapse() {
     let mut pool = arena_dabs();
-    let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
+    let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
     let node = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(3, faux)]),
@@ -162,11 +162,11 @@ fn test_dtrans_forme_vide_collapse() {
 #[test]
 fn test_dtrans_couverture() {
     let mut pool = arena_dabs();
-    let vrai = pool.intern(ANCRE_TEST, Form::Terminal(true));
+    let vrai = pool.intern(ANCHOR_TEST, Form::Terminal(true));
     // Only the explicit δ = 0 arc, target ⊤: covers (absents = D^def ≠ ⊤,
     // but the coverage rule allows collapse on the δ arc alone).
     let seul_delta = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(0, vrai)]),
@@ -175,7 +175,7 @@ fn test_dtrans_couverture() {
     assert_eq!(seul_delta, vrai, "δ arc alone: collapse into its target");
     // Two explicit arcs toward ⊤, outside coverage: no collapse.
     let deux_arcs = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, vrai), (2, vrai)]),
@@ -202,9 +202,9 @@ fn test_sans_key_defaut_pas_dabs() {
         },
         Box::new(NoOpObserver),
     );
-    let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
+    let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
     let node = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, faux), (2, faux)]),
@@ -229,7 +229,7 @@ fn test_dtrans_forme_vide_litterale() {
         BTreeMap::new(),
         Some(0),
         &est_defaut,
-        CARDINALITE_MOCK,
+        CARDINALITY_TMP_MOCK,
         Some(NODE_DEFAUT),
     );
     assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
@@ -238,7 +238,7 @@ fn test_dtrans_forme_vide_litterale() {
         BTreeMap::new(),
         Some(0),
         &est_defaut,
-        CARDINALITE_MOCK,
+        CARDINALITY_TMP_MOCK,
         None,
     );
     assert_eq!(result, Reduction::Forme(BTreeMap::new()));
@@ -251,19 +251,19 @@ fn test_dtrans_forme_vide_litterale() {
 #[test]
 fn test_propriete_dabs_confluence() {
     let est_defaut = |node: NodeId| node == NODE_DEFAUT;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = move || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine >> 33
+        seed >> 33
     };
 
     for _ in 0..1000 {
         let nb_arcs = next() % 6;
         let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
             .map(|_| {
-                let key = next() % CARDINALITE_MOCK;
+                let key = next() % CARDINALITY_TMP_MOCK;
                 let cible = NodeId((next() % 3) as u32);
                 (key, cible)
             })
@@ -271,29 +271,29 @@ fn test_propriete_dabs_confluence() {
         let key_defaut = if next() % 2 == 0 { Some(0) } else { None };
 
         let defaut = key_defaut.map(|_| NODE_DEFAUT);
-        let premier = reduire_dabs(
+        let first = reduire_dabs(
             arcs.clone(),
             key_defaut,
             &est_defaut,
-            CARDINALITE_MOCK,
+            CARDINALITY_TMP_MOCK,
             defaut,
         );
         // Idempotence: a reduced form is a fixed point (a Collapse targets a
         // node, not an arc form — nothing to re-reduce).
-        if let Reduction::Forme(arcs_reduits) = &premier {
+        if let Reduction::Forme(arcs_reduits) = &first {
             let second = reduire_dabs(
                 arcs_reduits.clone(),
                 key_defaut,
                 &est_defaut,
-                CARDINALITE_MOCK,
+                CARDINALITY_TMP_MOCK,
                 defaut,
             );
-            assert_eq!(premier.clone(), second, "idempotence of reduire_dabs");
+            assert_eq!(first.clone(), second, "idempotence of reduire_dabs");
         }
 
         // D-abs: when δ(ℓ) exists, no arc toward D^def remains.
         if key_defaut.is_some()
-            && let Reduction::Forme(a) = &premier
+            && let Reduction::Forme(a) = &first
         {
             assert!(
                 a.values().all(|c| !est_defaut(*c)),
@@ -304,14 +304,14 @@ fn test_propriete_dabs_confluence() {
         // with D^def designated (the absent arcs would not be worth D^def).
         if key_defaut.is_none()
             && arcs.is_empty()
-            && let Reduction::Collapse(_) = &premier
+            && let Reduction::Collapse(_) = &first
         {
             panic!("collapse on empty form without a default key");
         }
         // D-trans / R-collapse: a collapse only happens if the coverage is
         // satisfied (same rules as `reduire`) or if A = ∅ after absorption
         // (then the target is D^def).
-        if let Reduction::Collapse(cible) = &premier {
+        if let Reduction::Collapse(cible) = &first {
             // Same arcs after D-abs as in `reduire_dabs`.
             let arcs_filtres: BTreeMap<u64, NodeId> = match key_defaut {
                 Some(_) => arcs
@@ -323,7 +323,7 @@ fn test_propriete_dabs_confluence() {
             };
             let toutes_defaut = !arcs.is_empty() && arcs.values().all(|c| est_defaut(*c));
             let couvre = match key_defaut {
-                None => arcs_filtres.len() as u64 >= CARDINALITE_MOCK,
+                None => arcs_filtres.len() as u64 >= CARDINALITY_TMP_MOCK,
                 Some(key) => {
                     est_defaut(*cible)
                         || toutes_defaut

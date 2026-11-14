@@ -108,7 +108,7 @@ impl KeyAlgebra for RegionKeys {
         Intervalle::new(key.borne_inf(), key.borne_sup())
     }
 
-    fn cardinality(&self, level: Level) -> u64 {
+    fn cardinalityity(&self, level: Level) -> u64 {
         self.size_domain(level)
     }
 

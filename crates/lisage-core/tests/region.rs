@@ -1,6 +1,6 @@
 //! Region key algebra tests, intervals fragment (backlog § 9, open question
 //! 9 of the spec): canonical normal form (C1 relative to the region
-//! algebra), cardinality, default, pool sharing, and differential against
+//! algebra), cardinalityity, default, pool sharing, and differential against
 //! naive enumeration on one level.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,7 +12,7 @@ use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
 
 type PoolRegion = Arena<RegionController>;
 
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 
 fn pool(domains: Vec<u64>) -> PoolRegion {
     Arena::new(
@@ -48,10 +48,10 @@ fn test_normal_form_canonique_et_idempotente() {
 }
 
 #[test]
-fn test_cardinalite_et_defaut_par_level() {
+fn test_cardinalityity_et_defaut_par_level() {
     let keys = RegionKeys::new(vec![8, 3]);
-    assert_eq!(keys.cardinality(Level(0)), 8);
-    assert_eq!(keys.cardinality(Level(1)), 3);
+    assert_eq!(keys.cardinalityity(Level(0)), 8);
+    assert_eq!(keys.cardinalityity(Level(1)), 3);
     // δ(ℓ) = the empty interval, the continuous "absent".
     assert_eq!(keys.default(Level(0)), Some(VIDE));
     assert_eq!(keys.default(Level(1)), Some(VIDE));
@@ -62,7 +62,7 @@ fn test_cardinalite_et_defaut_par_level() {
 #[test]
 fn test_partage_pool_c1_relatif() {
     let mut pool = pool(vec![8]);
-    let terminal = pool.intern(ANCRE, Form::Terminal(true));
+    let terminal = pool.intern(ANCHOR, Form::Terminal(true));
     let level = Level(0);
     let forme_vide_a = Form::Node {
         level,
@@ -73,8 +73,8 @@ fn test_partage_pool_c1_relatif() {
         arcs: BTreeMap::from([(Intervalle::new(9, 2), terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCRE, forme_vide_a.clone()),
-        pool.intern(ANCRE, forme_vide_b),
+        pool.intern(ANCHOR, forme_vide_a.clone()),
+        pool.intern(ANCHOR, forme_vide_b),
         "empty interval under two writings = same node"
     );
     let forme_point_a = Form::Node {
@@ -86,17 +86,17 @@ fn test_partage_pool_c1_relatif() {
         arcs: BTreeMap::from([(Intervalle::new(3, 3), terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCRE, forme_point_a.clone()),
-        pool.intern(ANCRE, forme_point_b),
+        pool.intern(ANCHOR, forme_point_a.clone()),
+        pool.intern(ANCHOR, forme_point_b),
         "point written two ways = same node"
     );
-    let forme_autre = Form::Node {
+    let forme_other = Form::Node {
         level,
         arcs: BTreeMap::from([(Intervalle::point(4), terminal)]),
     };
     assert_ne!(
-        pool.intern(ANCRE, forme_point_a),
-        pool.intern(ANCRE, forme_autre),
+        pool.intern(ANCHOR, forme_point_a),
+        pool.intern(ANCHOR, forme_other),
         "distinct regions = distinct nodes"
     );
 }
@@ -105,18 +105,18 @@ fn test_partage_pool_c1_relatif() {
 /// contient are consistent with the normalized representation.
 #[test]
 fn test_propriete_normalisation_lcg() {
-    const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+    const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
     let keys = RegionKeys::new(vec![16]);
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     for _ in 0..NOMBRE_CAS {
         let mut next = || {
-            graine = graine
+            seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
-            graine
+            seed
         };
         let inf = next() % 16;
         let sup = next() % 16;
@@ -139,21 +139,21 @@ fn test_propriete_normalisation_lcg() {
 /// equals |S|. The `VIDE` arc to the default is removed by R-default.
 #[test]
 fn test_differentiel_union_intervalles_contre_enumeration() {
-    const GRAINE_LCG: u64 = 0x2545_F491_4F6C_DD1D;
+    const SEED_LCG: u64 = 0x2545_F491_4F6C_DD1D;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
     const SIZE_DOMAIN: u64 = 12;
     let mut pool = pool(vec![SIZE_DOMAIN]);
-    let vrai_terminal = pool.intern(ANCRE, Form::Terminal(true));
-    let faux_terminal = pool.intern(ANCRE, Form::Terminal(false));
-    let mut graine = GRAINE_LCG;
+    let vrai_terminal = pool.intern(ANCHOR, Form::Terminal(true));
+    let faux_terminal = pool.intern(ANCHOR, Form::Terminal(false));
+    let mut seed = SEED_LCG;
     for _ in 0..NOMBRE_CAS {
         let mut next = || {
-            graine = graine
+            seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
-            graine
+            seed
         };
         // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
         let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
@@ -175,7 +175,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
         // The absent arc leads to the default D_δ = terminal(false): R-default.
         arcs.insert(VIDE, faux_terminal);
         let root = pool.intern(
-            ANCRE,
+            ANCHOR,
             Form::Node {
                 level: Level(0),
                 arcs,
@@ -200,7 +200,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
         assert_eq!(
             compte_dd,
             ensemble.len() as u64,
-            "DD count == naive cardinal of S"
+            "DD count == naive cardinality of S"
         );
     }
 }

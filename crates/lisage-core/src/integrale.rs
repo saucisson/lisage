@@ -1,6 +1,6 @@
 //! **Integral at the fold** (backlog § 9 of the roadmap, open question 9
 //! of the spec): on 1D region-keys (intervals), the discrete fold — sum of
-//! cardinalities — becomes the **Lebesgue integral**: the measure of an
+//! cardinalityities — becomes the **Lebesgue integral**: the measure of an
 //! interval `[a, b]` in the continuous interpretation is its length
 //! `b − a` (the isolated point has measure zero), and the integral of a
 //! constant density 1 over the diagram is the measure of the denoted set.
@@ -9,7 +9,7 @@
 //! `integral(node, region) = Σ_{arcs I → child} integral(child, region ∩ I)`,
 //! the terminal `⊤` returning the measure of the current region, `⊥`
 //! returning 0. On a single-level diagram, this is the sum of the lengths
-//! of the intervals leading to `⊤` — the differential against the cardinal
+//! of the intervals leading to `⊤` — the differential against the cardinality
 //! fold (sum of sizes) shows the count → measure passage.
 //!
 //! **DBM** variant (spec Q9 (ii), "polyhedral regions"): on DBM

@@ -257,8 +257,8 @@ fn test_seq_canonicite() {
     let r1 = compiler(&mut pool, anchor, &schema, &seq).unwrap();
     let r2 = compiler(&mut pool, anchor, &schema, &seq).unwrap();
     assert_eq!(r1, r2);
-    let autre = Value::Seq(vec![atome(1), atome(0)]);
-    let r3 = compiler(&mut pool, anchor, &schema, &autre).unwrap();
+    let other = Value::Seq(vec![atome(1), atome(0)]);
+    let r3 = compiler(&mut pool, anchor, &schema, &other).unwrap();
     assert_ne!(r1, r3);
 }
 
@@ -302,8 +302,8 @@ fn test_seq_marqueur_fin_key_requise() {
         );
     }
     // Cardinality: |D|+1 per position, 2 at the marker level.
-    assert_eq!(keys.cardinality(Level(0)), 4);
-    assert_eq!(keys.cardinality(Level(3)), 2);
+    assert_eq!(keys.cardinalityity(Level(0)), 4);
+    assert_eq!(keys.cardinalityity(Level(3)), 2);
 }
 
 /// M2-2: Tag — typed union compilation and round-trip (C2).

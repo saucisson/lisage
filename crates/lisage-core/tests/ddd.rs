@@ -13,7 +13,7 @@ use lisage_core::observer::NoOpObserver;
 
 type PoolDbm = Arena<DbmController>;
 
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 const SIZE_DOMAIN: u64 = 4;
 
 fn pool() -> PoolDbm {
@@ -64,7 +64,7 @@ fn test_couverture_boite_bornee() {
 #[test]
 fn test_bande_differentiel_contre_enumeration() {
     let mut pool = pool();
-    let root = compiler_bande(&mut pool, ANCRE);
+    let root = compiler_bande(&mut pool, ANCHOR);
     // Four nodes: true, false, level 1, the root — against 16 points.
     assert_eq!(compter_nodes(&pool, root), 4);
     for x in 0..SIZE_DOMAIN {
@@ -86,8 +86,8 @@ fn test_bande_differentiel_contre_enumeration() {
 #[test]
 fn test_partage_pool_bande() {
     let mut pool = pool();
-    let root_a = compiler_bande(&mut pool, ANCRE);
-    let root_b = compiler_bande(&mut pool, ANCRE);
+    let root_a = compiler_bande(&mut pool, ANCHOR);
+    let root_b = compiler_bande(&mut pool, ANCHOR);
     assert_eq!(root_a, root_b, "same band = same root");
     // The root really has two arcs at level 0 (region + complement).
     let Form::Node { arcs, .. } = pool.resolve(root_a).expect("interned node") else {
@@ -103,16 +103,16 @@ fn test_partage_pool_bande() {
 /// point of the meet belongs to both regions.
 #[test]
 fn test_propriete_intersection_lcg() {
-    const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+    const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine
+        seed
     };
     let tire = |next: &mut dyn FnMut() -> u64| {
         let nombre_contraintes = next() % 4;
@@ -140,11 +140,11 @@ fn test_propriete_intersection_lcg() {
     }
 }
 
-/// The key contract stays declared on the controller side: level cardinality
+/// The key contract stays declared on the controller side: level cardinalityity
 /// and default are those of the DBM algebra (coverage is tested separately).
 #[test]
 fn test_contrat_key_level() {
     let keys = DbmKeys::new(SIZE_DOMAIN);
-    assert_eq!(keys.cardinality(Level(0)), SIZE_DOMAIN);
+    assert_eq!(keys.cardinalityity(Level(0)), SIZE_DOMAIN);
     assert_eq!(keys.default(Level(0)), Some(INCOHERENT));
 }

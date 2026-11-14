@@ -116,19 +116,19 @@ impl Dbm {
     /// convex regions is convex: the meet of two closed DBMs is
     /// already closed, the closure is idempotent. Any empty region
     /// gives [`INCOHERENT`].
-    pub fn intersection(&self, autre: &Dbm) -> Dbm {
-        if self.est_vide() || autre.est_vide() {
+    pub fn intersection(&self, other: &Dbm) -> Dbm {
+        if self.est_vide() || other.est_vide() {
             return INCOHERENT;
         }
         assert_eq!(
-            self.nombre_variables, autre.nombre_variables,
+            self.nombre_variables, other.nombre_variables,
             "intersection of regions of different dimensions (internal invariant)"
         );
         let n = self.nombre_variables;
         let matrice: Vec<Vec<Option<i128>>> = self
             .matrice
             .iter()
-            .zip(&autre.matrice)
+            .zip(&other.matrice)
             .map(|(ligne_a, ligne_b)| {
                 ligne_a
                     .iter()
@@ -294,7 +294,7 @@ impl KeyAlgebra for DbmKeys {
         key.normaliser()
     }
 
-    fn cardinality(&self, _level: Level) -> u64 {
+    fn cardinalityity(&self, _level: Level) -> u64 {
         self.size_domain
     }
 

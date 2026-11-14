@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 13: `ancre`/`graine`/`cardinal`/`autre`/`premier`/`dernier`/`meme` renamed (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `ancre`→`anchor`, `graine`→`seed`, `cardinal`/`cardinalite`→`cardinality`, `autre`→`other`, `premiere`/`premier`→`first`, `dernier`→`last`, `meme`→`same` (all cases, compounds included), workspace-wide (65 files), per glossary. One parameter collision fixed by hand (`construire_fenetre_anchore` had both `anchor: Anchor` and `ancre: &AnchorFenetre`; the latter is now `window_anchor`).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; word-boundary grep for the stems returns 0 (remaining `Cardinal` hits are the English noun in doc comments).
+- **Judgement calls**: `cardinalite` → `cardinality` (glossary: cardinalité → cardinality); `premiere` → `first`.
 ## 2026-11-14 - M6-6 part 12: `resultat`/`attendu`/`suivant` renamed to `result`/`expected`/`next` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

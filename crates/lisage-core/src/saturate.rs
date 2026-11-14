@@ -227,7 +227,7 @@ where
                 lisage_algebra::interface::MemoryPolicy::PerLevel,
             ),
         };
-        let (image, _) = runner.run_meme_pool(params.pool, params.anchor, courant)?;
+        let (image, _) = runner.run_same_pool(params.pool, params.anchor, courant)?;
         let next = union(params.pool, params.keys, params.anchor, courant, image)?;
         if next == courant {
             return Ok(ResultSaturation {

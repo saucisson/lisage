@@ -13,7 +13,7 @@ use lisage_core::biplan::{Plan, SEUIL_COMPACTION_DEN, SEUIL_COMPACTION_NUM, seui
 use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
 
 /// Test anchor (arbitrary but named value).
-const ANCRE_TEST: Anchor = Anchor(0);
+const ANCHOR_TEST: Anchor = Anchor(0);
 /// Level of the root node of the small diagram.
 const LEVEL_ROOT: u32 = 1;
 /// Level of the orphan node of the small diagram.
@@ -28,7 +28,7 @@ const LEVEL_OMBRE: u32 = 3;
 const LEVEL_ABSENT: u32 = 9;
 
 /// LCG seed of the property tests (same constant as the other suites).
-const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
 /// LCG multiplier of the property tests.
 const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 /// LCG increment of the property tests.
@@ -41,7 +41,7 @@ impl KeyAlgebra for MockKeys {
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
         *key
     }
-    fn cardinality(&self, _level: Level) -> u64 {
+    fn cardinalityity(&self, _level: Level) -> u64 {
         2
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
@@ -85,17 +85,17 @@ fn arena() -> Arena<MockController> {
 /// Builds a small diagram: level-1 node with two arcs to two terminals,
 /// plus an orphan level-2 node.
 fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
-    let faux = pool.terminal(ANCRE_TEST, false);
-    let vrai = pool.terminal(ANCRE_TEST, true);
+    let faux = pool.terminal(ANCHOR_TEST, false);
+    let vrai = pool.terminal(ANCHOR_TEST, true);
     let root = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_ROOT),
             arcs: BTreeMap::from([(0, faux), (1, vrai)]),
         },
     );
     let orphelin = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_ORPHELIN),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
@@ -113,7 +113,7 @@ fn test_plans_et_index_ombre() {
     assert_eq!(pool.plan_de(root), Some(Plan::Principal));
     // A node interned in the shadow plane stays there.
     let ombre = pool.intern_plan(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_OMBRE),
             arcs: BTreeMap::from([(1, root)]),
@@ -153,10 +153,10 @@ fn test_gc_mark_sweep() {
     );
     assert!(!pool.index_level(Level(LEVEL_ORPHELIN)).contains(&orphelin));
     // Re-interning the orphan's form creates a new node (cache miss).
-    let vrai = pool.terminal(ANCRE_TEST, true);
-    let faux = pool.terminal(ANCRE_TEST, false);
+    let vrai = pool.terminal(ANCHOR_TEST, true);
+    let faux = pool.terminal(ANCHOR_TEST, false);
     let recree = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_ORPHELIN),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
@@ -178,7 +178,7 @@ fn test_compaction_profilee() {
     let mut orphelins = Vec::new();
     for i in 0..NB_ORPHELINS {
         orphelins.push(pool.intern(
-            ANCRE_TEST,
+            ANCHOR_TEST,
             Form::Node {
                 level: Level(LEVEL_BASE_ORPHELINS + i as u32),
                 arcs: BTreeMap::from([(1, root)]),
@@ -196,7 +196,7 @@ fn test_compaction_profilee() {
     assert_eq!(pool.node_count(), 2, "tombstones compacted");
     // Compaction invalidates old NodeIds: the live root is remapped to a new
     // id, resolvable and indexed at level 1.
-    let remap = pool.dernier_remap();
+    let remap = pool.last_remap();
     let new = remap[root.0 as usize].expect("live root remapped");
     assert_ne!(new, root);
     assert!(pool.resolve(new).is_ok());
@@ -227,8 +227,8 @@ fn test_metriques_cache_et_evenement_gc() {
     let Form::Node { level, arcs } = pool.resolve(root).unwrap().clone() else {
         panic!("the root is a node");
     };
-    let partage = pool.intern(ANCRE_TEST, Form::Node { level, arcs });
-    assert_eq!(partage, root, "R-partage: meme handle");
+    let partage = pool.intern(ANCHOR_TEST, Form::Node { level, arcs });
+    assert_eq!(partage, root, "R-partage: same handle");
     let metriques = pool.metriques();
     assert!(
         metriques.creations >= 4,
@@ -275,8 +275,8 @@ fn test_intern_plan_hit_cache_replanifie() {
         panic!("the root is a node");
     };
     // Cache hit with shadow plan: same handle, plan moved.
-    let meme = pool.intern_plan(ANCRE_TEST, Form::Node { level, arcs }, Plan::Ombre);
-    assert_eq!(meme, root, "R-partage: meme handle");
+    let same = pool.intern_plan(ANCHOR_TEST, Form::Node { level, arcs }, Plan::Ombre);
+    assert_eq!(same, root, "R-partage: same handle");
     assert_eq!(pool.plan_de(root), Some(Plan::Ombre));
 }
 
@@ -285,12 +285,12 @@ fn test_intern_plan_hit_cache_replanifie() {
 /// bounded, `vivants + collectes == total` over random scenarios.
 #[test]
 fn test_propriete_seuil_taux_hit_et_invariant_gc() {
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = move || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine >> 33
+        seed >> 33
     };
 
     // Threshold: the bound is included (dead × DEN == total × NUM → reached),
@@ -341,7 +341,7 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         let nb_orphelins = next() % 30;
         for i in 0..nb_orphelins {
             pool.intern(
-                ANCRE_TEST,
+                ANCHOR_TEST,
                 Form::Node {
                     level: Level(LEVEL_BASE_ORPHELINS + i as u32),
                     arcs: BTreeMap::from([(1, root)]),
@@ -372,7 +372,7 @@ fn test_gc_deux_fois_vivants_exacts() {
     let mut courant = root;
     for i in 0..NB_ORPHELINS {
         courant = pool.intern(
-            ANCRE_TEST,
+            ANCHOR_TEST,
             Form::Node {
                 level: Level(LEVEL_BASE_ORPHELINS + i as u32 + 100),
                 arcs: BTreeMap::from([(1, courant)]),
@@ -381,8 +381,8 @@ fn test_gc_deux_fois_vivants_exacts() {
     }
     // Roots = root + chain end: the whole chain is reachable,
     // only the orphan and the false terminal are collected.
-    let premier = pool.gc(&[root, courant]);
-    assert!(!premier.compaction, "few dead: no compaction");
+    let first = pool.gc(&[root, courant]);
+    assert!(!first.compaction, "few dead: no compaction");
     assert!(pool.node_count() > pool.vivants(), "tombstones kept");
     // Second GC: the living must not count the tombstones of the
     // first GC — vivants + collectes == live entries before the GC.

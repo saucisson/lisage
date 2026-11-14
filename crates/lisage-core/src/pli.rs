@@ -7,7 +7,7 @@
 //! destroys multiplicity at write time. The query semiring is the `S`
 //! parameter of [`Pli`]: a fold is exact iff its reading factors through
 //! what the construction preserved; on a Bool construction, only the
-//! cardinal is exact (spec § 5.1).
+//! cardinality is exact (spec § 5.1).
 //!
 //! **Fold** [`Pli<S>`]: `H` trivial, the terminal produces the base
 //! (`weight(⊤) = 1`, `weight(⊥) = 0`), `φ_aggr` the semiring structure.
@@ -30,7 +30,7 @@ use crate::schema::{Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
 /// Query semiring of a fold (spec § 5): `(S, ⊕, ×)` with zeros and units.
-/// `depuis_cardinalite` translates `|Val(ℓ)|` into `S` (A4).
+/// `depuis_cardinalityity` translates `|Val(ℓ)|` into `S` (A4).
 pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
     /// Fingerprint of the semiring: enters the memo fingerprint.
     const FINGERPRINT: u64;
@@ -40,14 +40,14 @@ pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
     /// Neutral element of × (one).
     fn un() -> Self;
     /// Cardinality of a level, translated into the semiring (A4).
-    fn depuis_cardinalite(cardinalite: u64) -> Self;
+    fn depuis_cardinalityity(cardinalityity: u64) -> Self;
     /// ⊕ (aggregation of children).
-    fn plus(&self, autre: &Self) -> Self;
+    fn plus(&self, other: &Self) -> Self;
     /// × (weight of arcs by subtotals).
-    fn fois(&self, autre: &Self) -> Self;
+    fn fois(&self, other: &Self) -> Self;
 }
 
-/// `(ℕ, +, ×)`: the semiring of cardinal counting (spec § 5).
+/// `(ℕ, +, ×)`: the semiring of cardinality counting (spec § 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Naturel(pub u64);
 
@@ -60,14 +60,14 @@ impl SemiAnneau for Naturel {
     fn un() -> Self {
         Naturel(1)
     }
-    fn depuis_cardinalite(cardinalite: u64) -> Self {
-        Naturel(cardinalite)
+    fn depuis_cardinalityity(cardinalityity: u64) -> Self {
+        Naturel(cardinalityity)
     }
-    fn plus(&self, autre: &Self) -> Self {
-        Naturel(self.0 + autre.0)
+    fn plus(&self, other: &Self) -> Self {
+        Naturel(self.0 + other.0)
     }
-    fn fois(&self, autre: &Self) -> Self {
-        Naturel(self.0 * autre.0)
+    fn fois(&self, other: &Self) -> Self {
+        Naturel(self.0 * other.0)
     }
 }
 
@@ -84,14 +84,14 @@ impl SemiAnneau for BoolOu {
     fn un() -> Self {
         BoolOu(true)
     }
-    fn depuis_cardinalite(cardinalite: u64) -> Self {
-        BoolOu(cardinalite > 0)
+    fn depuis_cardinalityity(cardinalityity: u64) -> Self {
+        BoolOu(cardinalityity > 0)
     }
-    fn plus(&self, autre: &Self) -> Self {
-        BoolOu(self.0 || autre.0)
+    fn plus(&self, other: &Self) -> Self {
+        BoolOu(self.0 || other.0)
     }
-    fn fois(&self, autre: &Self) -> Self {
-        BoolOu(self.0 && autre.0)
+    fn fois(&self, other: &Self) -> Self {
+        BoolOu(self.0 && other.0)
     }
 }
 
@@ -105,7 +105,7 @@ pub struct Pli<S: SemiAnneau> {
 }
 
 impl<S: SemiAnneau> Pli<S> {
-    /// Fold over the given schema (the level cardinalities come from the
+    /// Fold over the given schema (the level cardinalityities come from the
     /// schema's key algebra, A4).
     pub fn new(schema: Schema) -> Self {
         let nombre_levels = schema.nombre_levels();
@@ -122,7 +122,7 @@ impl<S: SemiAnneau> Pli<S> {
     }
 
     /// (A4) multiplier of arc `v` from level `ℓ` to a child of level
-    /// `level_cible` (`None` = terminal): product of the cardinalities of
+    /// `level_cible` (`None` = terminal): product of the cardinalityities of
     /// the levels skipped **on the arc's path**. A skipped value level was
     /// collapsed with all its explicit values ⇒ factor `|Val(n)|`; a
     /// skipped presence level only collapses through its default arc
@@ -144,7 +144,9 @@ impl<S: SemiAnneau> Pli<S> {
                 // Skipped presence level: default-arc collapse only.
                 n += 2;
             } else {
-                produit = produit.fois(&S::depuis_cardinalite(self.keys.cardinality(Level(n))));
+                produit = produit.fois(&S::depuis_cardinalityity(
+                    self.keys.cardinalityity(Level(n)),
+                ));
                 n += 1;
             }
         }
@@ -237,7 +239,7 @@ where
 
 /// Union of two `bool`-payload diagrams (construction merge, A5): the
 /// idempotent union — **hash-consing is this Bool choice**: multiplicity is
-/// destroyed at write time, only the cardinal is exact. ZDD style: the
+/// destroyed at write time, only the cardinality is exact. ZDD style: the
 /// terminal `⊤` is the member "all levels by default" (carried by arc
 /// `δ(ℓ)`), and a node of level greater than `ℓ` is the continuation of the
 /// default arc of level `ℓ`.
@@ -259,7 +261,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
         (Form::Node { level, arcs }, Form::Terminal(pb)) => {
             if pb {
                 let vrai = pool.intern(anchor, Form::Terminal(true));
-                union_avec_autre(pool, keys, anchor, level, arcs, vrai)
+                union_avec_other(pool, keys, anchor, level, arcs, vrai)
             } else {
                 Ok(a)
             }
@@ -267,7 +269,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
         (Form::Terminal(pa), Form::Node { level, arcs }) => {
             if pa {
                 let vrai = pool.intern(anchor, Form::Terminal(true));
-                union_avec_autre(pool, keys, anchor, level, arcs, vrai)
+                union_avec_other(pool, keys, anchor, level, arcs, vrai)
             } else {
                 Ok(b)
             }
@@ -304,40 +306,40 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
                 ))
             } else if level_a < level_b {
                 // Node b is the continuation of a's default arc.
-                union_avec_autre(pool, keys, anchor, level_a, arcs_a, b)
+                union_avec_other(pool, keys, anchor, level_a, arcs_a, b)
             } else {
-                union_avec_autre(pool, keys, anchor, level_b, arcs_b, a)
+                union_avec_other(pool, keys, anchor, level_b, arcs_b, a)
             }
         }
     }
 }
 
-/// Union of a node of level `level` with another diagram `autre` (terminal
-/// `⊤`, or a deeper node): the path of `autre` goes through the default arc
+/// Union of a node of level `level` with another diagram `other` (terminal
+/// `⊤`, or a deeper node): the path of `other` goes through the default arc
 /// `δ(level)` if the level has one (absent arcs mean δ); otherwise (value
 /// level) it goes through **all** values of the level, explicit or not.
-fn union_avec_autre<P: Pool<Key = u64, Payload = bool>>(
+fn union_avec_other<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     keys: &SchemaKeys,
     anchor: Anchor,
     level: Level,
     mut arcs: BTreeMap<u64, NodeId>,
-    autre: NodeId,
+    other: NodeId,
 ) -> Result<NodeId, CoreError> {
     match keys.default(level) {
         Some(defaut) => {
             let cible = match arcs.remove(&defaut) {
-                Some(cible) => union(pool, keys, anchor, cible, autre)?,
-                None => autre,
+                Some(cible) => union(pool, keys, anchor, cible, other)?,
+                None => other,
             };
             arcs.insert(defaut, cible);
         }
         None => {
-            let cardinalite = keys.cardinality(level);
-            for v in 0..cardinalite {
+            let cardinalityity = keys.cardinalityity(level);
+            for v in 0..cardinalityity {
                 let cible = match arcs.remove(&v) {
-                    Some(cible) => union(pool, keys, anchor, cible, autre)?,
-                    None => autre,
+                    Some(cible) => union(pool, keys, anchor, cible, other)?,
+                    None => other,
                 };
                 arcs.insert(v, cible);
             }

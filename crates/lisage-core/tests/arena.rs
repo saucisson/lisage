@@ -17,7 +17,7 @@ impl KeyAlgebra for MockKeys {
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
         *key
     }
-    fn cardinality(&self, _level: Level) -> u64 {
+    fn cardinalityity(&self, _level: Level) -> u64 {
         2
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
@@ -73,9 +73,9 @@ fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserve
 fn test_r_share_table_unique() {
     let (mut arena, _trace) = arena_avec_trace();
     let anchor = Anchor(0);
-    let premier = arena.intern(anchor, Form::Terminal(true));
+    let first = arena.intern(anchor, Form::Terminal(true));
     let second = arena.intern(anchor, Form::Terminal(true));
-    assert_eq!(premier, second, "R-share: same form ⇒ same node");
+    assert_eq!(first, second, "R-share: same form ⇒ same node");
     assert_eq!(arena.node_count(), 1);
 }
 
@@ -125,7 +125,7 @@ impl KeyAlgebra for NormalizingKeys {
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
         key % 2
     }
-    fn cardinality(&self, _level: Level) -> u64 {
+    fn cardinalityity(&self, _level: Level) -> u64 {
         2
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
@@ -212,7 +212,7 @@ fn test_events_reduction_applied() {
     let (mut arena, trace) = arena_avec_trace();
     let anchor = Anchor(0);
     let defaut = arena.terminal(anchor, false); // D_δ = NodeId(0)
-    let autre = arena.terminal(anchor, true);
+    let other = arena.terminal(anchor, true);
     let level = Level(3);
     // R-collapse: all arcs lead to D_δ and δ is explicit ⇒ Collapse(D_δ).
     let cible = arena.intern(
@@ -228,7 +228,7 @@ fn test_events_reduction_applied() {
         anchor,
         Form::Node {
             level,
-            arcs: BTreeMap::from([(0, defaut), (1, autre)]),
+            arcs: BTreeMap::from([(0, defaut), (1, other)]),
         },
     );
     assert_ne!(node, defaut);

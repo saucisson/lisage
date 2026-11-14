@@ -18,7 +18,7 @@ use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
 
 type PoolDbm = Arena<DbmController>;
 
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 const SIZE_DOMAIN: u64 = 4;
 
 fn pool() -> PoolDbm {
@@ -89,7 +89,7 @@ fn test_measure_zone_analytique() {
 #[test]
 fn test_integrale_bande_aire_analytique() {
     let mut pool = pool();
-    let root = compiler_bande(&mut pool, ANCRE);
+    let root = compiler_bande(&mut pool, ANCHOR);
     let measure =
         integrale_dbm_constante(&pool, root, &boite(), &keys(), None).expect("interned node");
     assert_eq!(measure, 19, "integral = doubled area of the band ∩ box");
@@ -102,7 +102,7 @@ fn test_integrale_bande_aire_analytique() {
 #[test]
 fn test_integrale_restreinte_a_une_region() {
     let mut pool = pool();
-    let root = compiler_bande(&mut pool, ANCRE);
+    let root = compiler_bande(&mut pool, ANCHOR);
     // Restriction to {x − y ≤ 0}: band ∩ {−2 ≤ x−y ≤ 0}, area 6 → 12.
     let sous_region = Dbm::new(2, &[(0, 1, 0)]);
     let measure =
@@ -120,8 +120,8 @@ fn test_integrale_restreinte_a_une_region() {
 #[test]
 fn test_integrale_terminaux_dbm() {
     let mut pool = pool();
-    let vrai = pool.intern(ANCRE, Form::Terminal(true));
-    let faux = pool.intern(ANCRE, Form::Terminal(false));
+    let vrai = pool.intern(ANCHOR, Form::Terminal(true));
+    let faux = pool.intern(ANCHOR, Form::Terminal(false));
     assert_eq!(
         integrale_dbm_constante(&pool, vrai, &boite(), &keys(), None).expect("interned node"),
         32,
@@ -134,15 +134,15 @@ fn test_integrale_terminaux_dbm() {
     );
 }
 
-/// Differential count → measure: the cardinal fold counts the integer
+/// Differential count → measure: the cardinality fold counts the integer
 /// points of the band (12 points in [0,4)²), the integral measures the
-/// continuous area (9.5) — measure ≤ cardinal, and the two are computed
+/// continuous area (9.5) — measure ≤ cardinality, and the two are computed
 /// independently.
 #[test]
-fn test_differentiel_cardinal_contre_measure() {
+fn test_differentiel_cardinality_contre_measure() {
     let mut pool = pool();
-    let root = compiler_bande(&mut pool, ANCRE);
-    let cardinal: u64 = (0..SIZE_DOMAIN)
+    let root = compiler_bande(&mut pool, ANCHOR);
+    let cardinality: u64 = (0..SIZE_DOMAIN)
         .flat_map(|x| (0..SIZE_DOMAIN).map(move |y| [x, y]))
         .filter(|point| {
             evaluer(&pool, root, point)
@@ -150,13 +150,13 @@ fn test_differentiel_cardinal_contre_measure() {
                 .unwrap_or(false)
         })
         .count() as u64;
-    assert_eq!(cardinal, 12, "integer points of the band in [0,4)²");
+    assert_eq!(cardinality, 12, "integer points of the band in [0,4)²");
     let measure =
         integrale_dbm_constante(&pool, root, &boite(), &keys(), None).expect("interned node");
     assert_eq!(measure, 19);
     assert!(
-        measure <= 2 * i128::from(cardinal),
-        "doubled area ≤ 2 × cardinal (each point has measure zero)"
+        measure <= 2 * i128::from(cardinality),
+        "doubled area ≤ 2 × cardinality (each point has measure zero)"
     );
 }
 
@@ -165,7 +165,7 @@ fn test_differentiel_cardinal_contre_measure() {
 #[test]
 fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
-    let root = compiler_bande(&mut pool, ANCRE);
+    let root = compiler_bande(&mut pool, ANCHOR);
     let collecteur = Collecteur::new();
     let measure = integrale_dbm_constante(&pool, root, &boite(), &keys(), Some(&collecteur))
         .expect("interned node");
@@ -197,17 +197,17 @@ fn test_narration_evenements_attr_synthesized() {
 /// measure zero.
 #[test]
 fn test_propriete_measure_intersection_lcg() {
-    const GRAINE_LCG: u64 = 0xDEAD_BEEF_CAFE_F00D;
+    const SEED_LCG: u64 = 0xDEAD_BEEF_CAFE_F00D;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
     let keys = keys();
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine
+        seed
     };
     let tire = |next: &mut dyn FnMut() -> u64| {
         let nombre_contraintes = next() % 4;

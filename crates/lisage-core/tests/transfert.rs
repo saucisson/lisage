@@ -72,7 +72,7 @@ fn decompiler_map(
 }
 
 /// Cardinality of a diagram (number of members of the denoted family).
-fn cardinal(pool: &PoolRef, schema: &Schema, node: lisage_algebra::interface::NodeId) -> u64 {
+fn cardinality(pool: &PoolRef, schema: &Schema, node: lisage_algebra::interface::NodeId) -> u64 {
     let mut output = new_pool(schema);
     compter(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
@@ -88,7 +88,7 @@ fn test_transfert_a_vers_b_non_adjacent() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (result, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+    let (result, _) = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
     let expected = BTreeMap::from([(0, 1), (1, 1), (2, 1)]);
     assert_eq!(
@@ -108,7 +108,7 @@ fn test_transfert_sans_unite() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (result, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+    let (result, _) = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
     assert_eq!(result, initial, "m(a) = 0: no transfer");
 }
@@ -126,7 +126,7 @@ fn test_transfert_memory_et_largeur() {
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     assert_eq!(transfert.largeur(), LARGEUR_TRANSFERT);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let _ = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+    let _ = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
     // The decrement was produced: one memory entry, version bumped (L1).
     assert_eq!(runner.memory().size(), 1, "one entry per emitting node");
@@ -146,7 +146,7 @@ fn test_transfert_destination_hors_domain() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (result, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+    let (result, _) = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
     let expected = BTreeMap::from([(0, 1), (1, 3)]);
     assert_eq!(
@@ -188,7 +188,7 @@ fn test_transfert_sous_saturate_termine() {
     let result = saturer(&mut params).unwrap();
     assert_eq!(result.iterations, 3, "a:2,b:0 → a:1,b:1 → a:0,b:2 → fixed");
     assert_eq!(
-        cardinal(&pool, &schema, result.node),
+        cardinality(&pool, &schema, result.node),
         3,
         "family of the three reached states"
     );
@@ -197,7 +197,7 @@ fn test_transfert_sous_saturate_termine() {
 /// M2-5, regression: key collision on the remap `v → v-1` over a multi-arc
 /// `val(a)` node (family produced by union) — the two subtrees must be
 /// **unioned**, not overwritten. Family {{a:0,b:0}, {a:1,b:0}}: the transfer
-/// gives {{a:0,b:0}, {a:0,b:1}} (cardinality 2, not 1).
+/// gives {{a:0,b:0}, {a:0,b:1}} (cardinalityity 2, not 1).
 #[test]
 fn test_transfert_collision_source_union() {
     let schema = Schema::Map(
@@ -210,13 +210,13 @@ fn test_transfert_collision_source_union() {
     let m1 = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 0)]);
     let m2 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (1, 0)]);
     let famille = union(&mut pool, &keys, anchor, m1, m2).unwrap();
-    assert_eq!(cardinal(&pool, &schema, famille), 2);
+    assert_eq!(cardinality(&pool, &schema, famille), 2);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (result, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
+    let (result, _) = runner.run_same_pool(&mut pool, anchor, famille).unwrap();
     assert_eq!(
-        cardinal(&pool, &schema, result),
+        cardinality(&pool, &schema, result),
         2,
         "collision v→v-1: both members of the family are kept"
     );
@@ -224,7 +224,7 @@ fn test_transfert_collision_source_union() {
 
 /// M2-5, regression: collision on the remap `u → u+1` over a multi-arc
 /// `val(b)` node — arc 2 → key 3 and arc 3 (out of domain, kept) → key 3.
-/// Family {{a:1,b:2}, {a:2,b:3}} → {{a:0,b:3}, {a:1,b:3}} (cardinality 2).
+/// Family {{a:1,b:2}, {a:2,b:3}} → {{a:0,b:3}, {a:1,b:3}} (cardinalityity 2).
 #[test]
 fn test_transfert_collision_destination_union() {
     let schema = schema_map();
@@ -234,13 +234,13 @@ fn test_transfert_collision_destination_union() {
     let m1 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (1, 2)]);
     let m2 = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 3)]);
     let famille = union(&mut pool, &keys, anchor, m1, m2).unwrap();
-    assert_eq!(cardinal(&pool, &schema, famille), 2);
+    assert_eq!(cardinality(&pool, &schema, famille), 2);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (result, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
+    let (result, _) = runner.run_same_pool(&mut pool, anchor, famille).unwrap();
     assert_eq!(
-        cardinal(&pool, &schema, result),
+        cardinality(&pool, &schema, result),
         2,
         "collision u→u+1: both members of the family are kept"
     );
@@ -259,11 +259,11 @@ fn test_transfert_destination_absente_dans_famille() {
     let m1 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (1, 0), (2, 2)]);
     let m2 = compiler_map(&mut pool, anchor, &schema, &[(0, 1), (2, 2)]);
     let famille = union(&mut pool, &keys, anchor, m1, m2).unwrap();
-    assert_eq!(cardinal(&pool, &schema, famille), 2);
+    assert_eq!(cardinality(&pool, &schema, famille), 2);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (result, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
+    let (result, _) = runner.run_same_pool(&mut pool, anchor, famille).unwrap();
 
     let expected = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);
     assert_eq!(

@@ -11,7 +11,7 @@ use lisage_core::observer::NoOpObserver;
 /// Number of variables of the classic BDD baseline (M1-8).
 const BASELINE_VARIABLES: u32 = 12;
 /// Seed of the deterministic truth-table LCG.
-const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
 /// LCG multiplier (Knuth).
 const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 /// LCG increment.
@@ -27,7 +27,7 @@ fn bench_voie_a(c: &mut Criterion) {
 /// count (internal assertion of the bench).
 fn bench_bdd_classique(c: &mut Criterion) {
     let table: Vec<bool> = {
-        let mut etat: u64 = GRAINE_LCG;
+        let mut etat: u64 = SEED_LCG;
         (0..(1usize << BASELINE_VARIABLES))
             .map(|_| {
                 etat = etat

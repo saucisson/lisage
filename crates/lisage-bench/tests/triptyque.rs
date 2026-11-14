@@ -1,5 +1,5 @@
 //! Tests of the A/B/C triptych on PNML models (M5-2, statements C3/C4):
-//! identical cardinal on the three paths (explicit falsification), path C
+//! identical cardinality on the three paths (explicit falsification), path C
 //! with runtime order (valid π adopted, invalid π rejected), typed errors.
 
 use lisage_bench::pnml::{NetworkPetri, PnmlDocument};
@@ -72,17 +72,17 @@ fn ordre_inverse(n: usize) -> Vec<Atom> {
     (0..n).rev().map(|index| Atom(index as u64)).collect()
 }
 
-/// C3/C4 falsification: identical cardinal on paths A, B and C
+/// C3/C4 falsification: identical cardinality on paths A, B and C
 /// (canonical order and reversed order), for each toy model.
 #[test]
-fn test_cardinal_identique_sur_les_trois_voies() {
+fn test_cardinality_identique_sur_les_trois_voies() {
     let expected_list = [
         (PNML_BOUCL, 1),
         (PNML_TRANSFERT, 2),
         (PNML_CHOIX, 3),
         (PNML_CYCLE2, 6),
     ];
-    for (pnml, cardinal_expected) in expected_list {
+    for (pnml, cardinality_expected) in expected_list {
         let network = network(pnml);
         let measure_a = voie_a(&network);
         let measure_b = voie_b(&network).unwrap();
@@ -91,14 +91,20 @@ fn test_cardinal_identique_sur_les_trois_voies() {
         let result_c_inverse = voie_c(&network, &ordre_inverse(network.nombre_places())).unwrap();
         let measure_c_canonique = result_c_canonique.measure;
         let measure_c_inverse = result_c_inverse.measure;
-        assert_eq!(measure_a.cardinal, cardinal_expected, "path A on {pnml}");
-        assert_eq!(measure_b.cardinal, cardinal_expected, "path B on {pnml}");
         assert_eq!(
-            measure_c_canonique.cardinal, cardinal_expected,
+            measure_a.cardinality, cardinality_expected,
+            "path A on {pnml}"
+        );
+        assert_eq!(
+            measure_b.cardinality, cardinality_expected,
+            "path B on {pnml}"
+        );
+        assert_eq!(
+            measure_c_canonique.cardinality, cardinality_expected,
             "canonical path C on {pnml}"
         );
         assert_eq!(
-            measure_c_inverse.cardinal, cardinal_expected,
+            measure_c_inverse.cardinality, cardinality_expected,
             "reversed path C on {pnml}"
         );
     }
@@ -131,7 +137,7 @@ fn test_voie_c_canonique_egale_voie_b() {
 }
 
 /// Invalid π (missing, duplicated, or foreign key): the planner falls back
-/// to the canonical order (RepliCanonique) and the cardinal stays exact.
+/// to the canonical order (RepliCanonique) and the cardinality stays exact.
 #[test]
 fn test_voie_c_ordre_invalide_repli_canonique() {
     let network = network(PNML_CHOIX);
@@ -141,7 +147,7 @@ fn test_voie_c_ordre_invalide_repli_canonique() {
     for ordre in [key_manquante, key_double, key_etrangere] {
         let result = voie_c(&network, &ordre).unwrap();
         assert_eq!(result.strategie, StrategieAval::RepliCanonique);
-        assert_eq!(result.measure.cardinal, 3);
+        assert_eq!(result.measure.cardinality, 3);
     }
 }
 
@@ -151,7 +157,7 @@ fn test_voie_c_ordre_runtime_adopte() {
     let network = network(PNML_CYCLE2);
     let result = voie_c(&network, &ordre_inverse(network.nombre_places())).unwrap();
     assert_eq!(result.strategie, StrategieAval::OrdreRuntime);
-    assert_eq!(result.measure.cardinal, 6);
+    assert_eq!(result.measure.cardinality, 6);
 }
 
 /// Net without a place: typed error on paths B and C.

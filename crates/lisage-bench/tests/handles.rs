@@ -19,7 +19,7 @@ impl KeyAlgebra for MockKeys {
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
         *key
     }
-    fn cardinality(&self, _level: Level) -> u64 {
+    fn cardinalityity(&self, _level: Level) -> u64 {
         2
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
@@ -101,8 +101,8 @@ proptest! {
         // which makes the test's est_defaut predicate identical to the arena's.
         let defaut = arena.terminal(anchor, false);
         prop_assert_eq!(defaut, NodeId(0));
-        let autre = arena.terminal(anchor, true);
-        prop_assert_eq!(autre, NodeId(1));
+        let other = arena.terminal(anchor, true);
+        prop_assert_eq!(other, NodeId(1));
         let node_a = arena.intern(anchor, forme_a);
         let node_b = arena.intern(anchor, forme_b);
         // C1, uniqueness: same reduced form ⇒ same handle (shared node).

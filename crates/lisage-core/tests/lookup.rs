@@ -140,7 +140,7 @@ fn test_lookup_key_absente() {
     assert!(fragment.is_empty(), "no fragment without Stop");
 }
 
-/// Value domain of cardinality 1: the val(k) level is collapsed at compile
+/// Value domain of cardinalityity 1: the val(k) level is collapsed at compile
 /// time; φ_out re-explicits it (T-EXPAND) and grafts Some(v).
 #[test]
 fn test_lookup_level_value_collapsed_t_expand() {

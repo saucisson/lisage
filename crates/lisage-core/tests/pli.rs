@@ -52,7 +52,7 @@ fn compiler_ensemble(
 
 /// Spec § 5 example: `S = {{a↦0}, {a↦1}}` on `Map([a], {0,1})` — the
 /// `val(a)` level is collapsed, the explicit path is unique but `|S| = 2`
-/// (A4: the level cardinal enters the aggregation).
+/// (A4: the level cardinality enters the aggregation).
 #[test]
 fn test_count_level_collapsed_a4_exemple_spec() {
     let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
@@ -84,7 +84,7 @@ fn test_count_ensemble_maps() {
 }
 
 /// Empty set: the fold is zero. Full set (all maps): the count is the
-/// product of the cardinalities (every level collapsed).
+/// product of the cardinalityities (every level collapsed).
 #[test]
 fn test_count_ensemble_vide_et_plein() {
     let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));

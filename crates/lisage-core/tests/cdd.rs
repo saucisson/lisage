@@ -16,7 +16,7 @@ use lisage_core::observer::NoOpObserver;
 
 type PoolCdd = Arena<CddController>;
 
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 const SIZE_DOMAIN: u64 = 4;
 
 fn pool() -> PoolCdd {
@@ -123,7 +123,7 @@ fn test_couverture_boite_bornee() {
 #[test]
 fn test_union_horloges_differentiel_contre_enumeration() {
     let mut pool = pool();
-    let root = compiler_union_horloges(&mut pool, ANCRE);
+    let root = compiler_union_horloges(&mut pool, ANCHOR);
     // Three nodes: true, false, the root — vs 16 points.
     assert_eq!(compter_nodes(&pool, root).expect("interned node"), 3);
     // A non-interned NodeId is a propagated error, not a silent leaf.
@@ -147,8 +147,8 @@ fn test_union_horloges_differentiel_contre_enumeration() {
 #[test]
 fn test_partage_pool_union() {
     let mut pool = pool();
-    let root_a = compiler_union_horloges(&mut pool, ANCRE);
-    let root_b = compiler_union_horloges(&mut pool, ANCRE);
+    let root_a = compiler_union_horloges(&mut pool, ANCHOR);
+    let root_b = compiler_union_horloges(&mut pool, ANCHOR);
     assert_eq!(root_a, root_b, "same union = same root");
     // The root indeed has two arcs at level 0 (union + complement).
     let Form::Node { arcs, .. } = pool.resolve(root_a).expect("interned node") else {
@@ -164,16 +164,16 @@ fn test_partage_pool_union() {
 /// and every point of the meet belongs to both unions.
 #[test]
 fn test_propriete_intersection_lcg() {
-    const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+    const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine
+        seed
     };
     let tire_zone = |next: &mut dyn FnMut() -> u64| {
         let nombre_contraintes = next() % 4;
@@ -218,11 +218,11 @@ fn test_propriete_intersection_lcg() {
     }
 }
 
-/// The key contract remains declared on the controller side: cardinality and
+/// The key contract remains declared on the controller side: cardinalityity and
 /// level default are those of the CDD algebra (coverage is tested separately).
 #[test]
 fn test_contrat_key_level() {
     let keys = CddKeys::new(SIZE_DOMAIN);
-    assert_eq!(keys.cardinality(Level(0)), SIZE_DOMAIN);
+    assert_eq!(keys.cardinalityity(Level(0)), SIZE_DOMAIN);
     assert_eq!(keys.default(Level(0)), Some(VIDE));
 }

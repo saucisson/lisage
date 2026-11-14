@@ -249,11 +249,11 @@ fn test_memo_fingerprint_op_node() {
     // Another operation (different fingerprint) on the same node: separate
     // memo. With H = depth, ⊤ is visited at two distinct h (1 via b's arc 1,
     // 2 via a's arc 0): 5 entries (b, a, ⊤×2, ⊥).
-    let mut autre = Transducteur::new(IdentiteProfondeur);
-    let (r3, _) = autre.run(&input, &mut output, anchor, b).unwrap();
+    let mut other = Transducteur::new(IdentiteProfondeur);
+    let (r3, _) = other.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(output.resolve(r3).unwrap(), input.resolve(b).unwrap());
     assert_eq!(
-        autre.size_memo(),
+        other.size_memo(),
         5,
         "memo specific to the operation and to h: key (op, node, h)"
     );
