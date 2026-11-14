@@ -1,13 +1,13 @@
-//! Moteur de transductions attribuées (M1-4, spec § 3.1, énoncé L3) :
-//! les deux canaux — attribut **hérité** `H` (descendant, `φ_disp`) et
-//! **synthétisé** `S` (remontant, `φ_aggr`) — et la mémo à fingerprint
-//! `(op, nœud, h)` (lemme L1). Règles T-TERM/T-NODE.
+//! Attributed transduction engine (M1-4, spec § 3.1, statement L3):
+//! the two channels — **inherited** attribute `H` (downward, `φ_disp`) and
+//! **synthesized** `S` (upward, `φ_aggr`) — and the memo keyed by fingerprint
+//! `(op, node, h)` (lemma L1). Rules T-TERM/T-NODE.
 //!
-//! Depuis M1-5 (#12), la transduction lit son entrée dans un pool à
-//! payload `bool` et écrit dans un pool à payload `Out` quelconque
-//! (`Δ_out` peut différer de `Δ_in`, spec § 3.2) : `psi` et `φ_out` écrivent
-//! eux-mêmes (spec : « φ_out est la seule règle qui écrit le diagramme »),
-//! toujours par interning (A3 : résultat canonique par construction).
+//! Since M1-5 (#12), the transduction reads its input from a pool with
+//! payload `bool` and writes into a pool with any payload `Out`
+//! (`Δ_out` may differ from `Δ_in`, spec § 3.2): `psi` and `φ_out` write
+//! themselves (spec: "φ_out is the only rule that writes the diagram"),
+//! always by interning (A3: canonical result by construction).
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
@@ -20,56 +20,56 @@ use crate::error::CoreError;
 use crate::memoire::{EffetMemoire, MemoireNiveau};
 use crate::observer::{CanalAttr, Observer, TraceEvent};
 
-/// Clé de la mémo : (fingerprint de l'opération, nœud, attribut hérité,
-/// version de la mémoire de niveau) — lemme L1.
+/// Memo key: (operation fingerprint, node, inherited attribute,
+/// level-memory version) — lemma L1.
 type CleMemo<H> = (u64, NodeId, H, u64);
 
-/// Contexte de `φ_out` (T-NODE) : regroupe les paramètres de la
-/// restructuration (spec § 3.1 : `φ_out(ℓ, h, {v ↦ (D', s)}, M)`).
+/// Context of `φ_out` (T-NODE): groups the restructuring parameters
+/// (spec § 3.1: `φ_out(ℓ, h, {v ↦ (D', s)}, M)`).
 pub struct ContextePhiOut<'a, H, S, M: Clone + Eq + Hash + Debug> {
-    /// Ancre de la racine.
+    /// Anchor of the root.
     pub anchor: Anchor,
-    /// Niveau du nœud en cours de restructuration.
+    /// Level of the node being restructured.
     pub level: Level,
-    /// Attribut hérité au nœud.
+    /// Inherited attribute at the node.
     pub h: &'a H,
-    /// Fils déjà transduits : `{v ↦ (D', s)}`.
+    /// Already-transduced children: `{v ↦ (D', s)}`.
     pub arcs: BTreeMap<u64, (NodeId, S)>,
-    /// Mémoire de niveau en lecture (M2-3).
+    /// Level memory in read (M2-3).
     pub memoire: &'a MemoireNiveau<M>,
-    /// Nœud d'entrée en cours de visite (clé de la mémoire de niveau).
+    /// Input node being visited (key of the level memory).
     pub noeud_entree: NodeId,
 }
 
-/// Transduction attribuée (spec § 3.1) : trois fonctions partielles du
-/// contrôleur + élément initial du canal hérité + mémoire de niveau `M`
-/// (M2-3, T3). Entrée : pool à payload `bool` (lecture ensembliste) ;
-/// sortie : pool à payload `Out`.
+/// Attributed transduction (spec § 3.1): three partial functions of the
+/// controller + initial element of the inherited channel + level memory `M`
+/// (M2-3, T3). Input: pool with payload `bool` (set-theoretic reading);
+/// output: pool with payload `Out`.
 pub trait Transduction: Send + Sync {
-    /// Attribut hérité (descendant).
+    /// Inherited attribute (downward).
     type H: Clone + PartialEq + Eq + Hash + Debug + Send + Sync;
-    /// Attribut synthétisé (remontant).
+    /// Synthesized attribute (upward).
     type S: Clone + Debug + Send + Sync;
-    /// Payload des terminaux du diagramme de sortie (`Δ_out`, spec § 3.2).
+    /// Payload of the terminals of the output diagram (`Δ_out`, spec § 3.2).
     type Out: Clone + Eq + Hash + Debug + Send + Sync;
-    /// Valeur stockée dans la mémoire de niveau `M : (id(nœud), ℓ) ⇀ M`
-    /// (M2-3). `()` pour les transductions sans mémoire (M1).
+    /// Value stored in the level memory `M : (id(node), ℓ) ⇀ M`
+    /// (M2-3). `()` for transductions without memory (M1).
     type M: Clone + Eq + Hash + Debug + Send + Sync;
 
-    /// Fingerprint de l'opération (paramètres compris) : entre dans la clé
-    /// de mémo `(op, nœud, h, version(M))` (L1/L3).
+    /// Fingerprint of the operation (parameters included): enters the
+    /// memo key `(op, node, h, version(M))` (L1/L3).
     fn fingerprint(&self) -> u64;
 
-    /// Élément initial du canal hérité.
+    /// Initial element of the inherited channel.
     fn h0(&self) -> Self::H;
 
-    /// (T-NODE) dispatch : attribut hérité le long de l'arc `v` du niveau `ℓ`.
+    /// (T-NODE) dispatch: inherited attribute along arc `v` of level `ℓ`.
     fn phi_disp(&self, level: Level, h: &Self::H, arc: u64) -> Self::H;
 
-    /// (T-NODE) synthèse : agrégation des attributs des fils. Chaque arc
-    /// porte le **niveau du fils** (`None` si le fils est un terminal) :
-    /// nécessaire à l'expansion-comptage A4 (les niveaux sautés entre `ℓ`
-    /// et le fils ont été collapsés, leur cardinalité entre dans le pli).
+    /// (T-NODE) synthesis: aggregation of the children's attributes. Each arc
+    /// carries the **level of the child** (`None` if the child is a terminal):
+    /// needed by the A4 expansion-counting (the levels skipped between `ℓ`
+    /// and the child were collapsed, their cardinality enters the fold).
     fn phi_aggr(
         &self,
         level: Level,
@@ -77,17 +77,17 @@ pub trait Transduction: Send + Sync {
         arcs: &BTreeMap<u64, (Option<Level>, Self::S)>,
     ) -> Self::S;
 
-    /// (T-NODE) restructuration : nœud résultat interné dans le pool de
-    /// sortie à partir des fils déjà transduits `{v ↦ (D', s)}` (A3), avec
-    /// lecture de la mémoire de niveau et production d'un effet mémoire
-    /// `μ` (M2-3, spec § 3.1 : `φ_out(ℓ, h, {v ↦ (D', s)}, M) ↦ (n', μ)`).
+    /// (T-NODE) restructuring: result node interned in the output pool from
+    /// the already-transduced children `{v ↦ (D', s)}` (A3), with
+    /// level-memory read and production of a memory effect
+    /// `μ` (M2-3, spec § 3.1: `φ_out(ℓ, h, {v ↦ (D', s)}, M) ↦ (n', μ)`).
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
     ) -> (NodeId, EffetMemoire<Self::M>);
 
-    /// (T-TERM) : nœud terminal résultat interné + attribut synthétisé.
+    /// (T-TERM): interned result terminal node + synthesized attribute.
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
@@ -97,8 +97,8 @@ pub trait Transduction: Send + Sync {
     ) -> (NodeId, Self::S);
 }
 
-/// Runner d'une transduction avec sa computed table (mémo L1/L3) et sa
-/// mémoire de niveau (M2-3).
+/// Runner of a transduction with its computed table (memo L1/L3) and its
+/// level memory (M2-3).
 pub struct Transducteur<T: Transduction> {
     transduction: T,
     memo: HashMap<CleMemo<T::H>, (NodeId, T::S)>,
@@ -108,14 +108,14 @@ pub struct Transducteur<T: Transduction> {
 }
 
 impl<T: Transduction> Transducteur<T> {
-    /// Runner neuf pour la transduction donnée, mémoire vide (version 0),
-    /// politique `Aucune` (M1 : pas de mémoire de niveau), sans observateur.
+    /// New runner for the given transduction, empty memory (version 0),
+    /// policy `Aucune` (M1: no level memory), no observer.
     pub fn new(transduction: T) -> Self {
         Self::avec_politique(transduction, PolitiqueMemoire::Aucune)
     }
 
-    /// Runner avec une politique de stockage de la mémoire de niveau
-    /// déclarée par le contrôleur (M2-3, T3).
+    /// Runner with a level-memory storage policy
+    /// declared by the controller (M2-3, T3).
     pub fn avec_politique(transduction: T, politique: PolitiqueMemoire) -> Self {
         Transducteur {
             transduction,
@@ -126,8 +126,8 @@ impl<T: Transduction> Transducteur<T> {
         }
     }
 
-    /// Runner avec observateur de trace (M2-6) : émet `MemoHit`/`MemoMiss`
-    /// et les `Attr` des trois canaux pendant l'exécution.
+    /// Runner with trace observer (M2-6): emits `MemoHit`/`MemoMiss`
+    /// and the `Attr` of the three channels during execution.
     pub fn avec_observateur(
         transduction: T,
         politique: PolitiqueMemoire,
@@ -142,37 +142,37 @@ impl<T: Transduction> Transducteur<T> {
         }
     }
 
-    /// Émet un événement sur l'observateur, s'il y en a un.
+    /// Emits an event on the observer, if there is one.
     fn notifier(&self, evenement: TraceEvent) {
         if let Some(observateur) = &self.observateur {
             observateur.on_event(&evenement);
         }
     }
 
-    /// Accès à la transduction embarquée (pour inspecter l'état d'un
-    /// wrapper, ex. niveaux modifiés par `RestreintAuxNiveaux`).
+    /// Access to the embedded transduction (to inspect the state of a
+    /// wrapper, e.g. levels modified by `RestreintAuxNiveaux`).
     pub fn transduction(&self) -> &T {
         &self.transduction
     }
 
-    /// Nombre d'entrées de la mémo (pour les tests : preuve des hits).
+    /// Number of memo entries (for tests: proof of hits).
     pub fn taille_memo(&self) -> usize {
         self.memo.len()
     }
 
-    /// Version courante de la mémoire de niveau (L1).
+    /// Current version of the level memory (L1).
     pub fn version_memoire(&self) -> u64 {
         self.memoire.version()
     }
 
-    /// Accès à la mémoire de niveau (pour les tests : entrées produites).
+    /// Access to the level memory (for tests: produced entries).
     pub fn memoire(&self) -> &MemoireNiveau<T::M> {
         &self.memoire
     }
 
-    /// Exécute la transduction à la racine, avec l'attribut initial `h0`.
-    /// L'entrée est lue dans `pool_entree` (payload `bool`), le résultat est
-    /// écrit dans `pool_sortie` (payload `Out`).
+    /// Runs the transduction at the root, with initial attribute `h0`.
+    /// The input is read from `pool_entree` (payload `bool`), the result is
+    /// written into `pool_sortie` (payload `Out`).
     pub fn run<PIn, POut>(
         &mut self,
         pool_entree: &PIn,
@@ -188,9 +188,9 @@ impl<T: Transduction> Transducteur<T> {
         self.run_avec(pool_entree, pool_sortie, anchor, noeud, h)
     }
 
-    /// Variante mono-pool : lit et écrit dans le même pool (payload `Out`
-    /// = `bool`). Utilisée par `saturate` (M2-4) où l'itération courante vit
-    /// dans le même pool que le résultat.
+    /// Single-pool variant: reads and writes in the same pool (payload `Out`
+    /// = `bool`). Used by `saturate` (M2-4) where the current iteration lives
+    /// in the same pool as the result.
     pub fn run_meme_pool<P>(
         &mut self,
         pool: &mut P,

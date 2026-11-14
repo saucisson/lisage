@@ -1,10 +1,10 @@
 //! Lisage core — pool, handles, GC, bi-plan, placement.
 //!
-//! Niveau 3 : stockage canonique aveugle. La crate implémente le port
-//! [`lisage_algebra::interface::Pool`] ([`arena::Arena`]) et expose le port
-//! d'instrumentation [`observer::Observer`]. Elle ré-exporte les types
-//! d'interface du contrat pour que les crates qui ne dépendent pas
-//! d'`algebra` (Liseuse) puissent lire les diagrammes.
+//! Level 3: blind canonical storage. The crate implements the
+//! [`lisage_algebra::interface::Pool`] port ([`arena::Arena`]) and exposes the
+//! instrumentation port [`observer::Observer`]. It re-exports the contract's
+//! interface types so that crates that do not depend on `algebra` (Liseuse)
+//! can read the diagrams.
 
 pub mod add;
 pub mod arena;
@@ -32,7 +32,7 @@ pub use lisage_algebra::interface::{
     Pool, PoolError,
 };
 
-/// Placeholder factice pour valider la CI (M0-1).
+/// Dummy placeholder to validate the CI (M0-1).
 pub fn socle() -> u32 {
     42
 }
