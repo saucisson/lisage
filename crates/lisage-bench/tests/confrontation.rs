@@ -275,7 +275,7 @@ fn test_etats_etendus_coherents_avec_fil_rouge() {
 }
 
 /// Narration (ADR-0100 decision 6): each workload emits an
-/// `Attr`/`Synthétise` event carrying the summary — pinned by a
+/// `Attr`/`Synthesized` event carrying the summary — pinned by a
 /// collecting observer.
 #[test]
 fn test_narration_charge_epinglee() {
@@ -335,7 +335,7 @@ fn test_narration_charge_epinglee() {
             events.iter().any(|e| matches!(
                 e,
                 TraceEvent::Attr {
-                    canal: CanalAttr::Synthétise,
+                    canal: CanalAttr::Synthesized,
                     valeur,
                     ..
                 } if valeur == attendu

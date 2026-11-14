@@ -158,7 +158,7 @@ pub struct RapportAtelier {
 
 /// Measures a diagram: shared nodes, paths and unfolded size. Propagates
 /// the pool error (an unknown `NodeId` is an error, not a silent value).
-/// `observateur`: narration channel (ADR-0100) — an `Attr`/`Synthétise`
+/// `observateur`: narration channel (ADR-0100) — an `Attr`/`Synthesized`
 /// event carries the full report.
 pub fn mesurer<P: Pool>(
     pool: &P,
@@ -172,7 +172,7 @@ pub fn mesurer<P: Pool>(
     };
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
+            canal: CanalAttr::Synthesized,
             noeud: racine,
             valeur: format!(
                 "noeuds_partages={} chemins={} taille_depliee={}",
@@ -382,7 +382,7 @@ pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
     let relatif = mesurer(pool, racine_relative, observateur)?;
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
+            canal: CanalAttr::Synthesized,
             noeud: racine_relative,
             valeur: format!(
                 "encodage=relatif_vs_absolu noeuds={} contre {}",
@@ -539,7 +539,7 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
     let second = mesurer(pool, racine_second, observateur)?;
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
+            canal: CanalAttr::Synthesized,
             noeud: racine_second,
             valeur: format!(
                 "ordre={}_vs_{} noeuds={} contre {}",
@@ -692,7 +692,7 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
         let (debut_avant, fin_avant) = ancre_avant.fenetre_absolue();
         let (debut_apres, fin_apres) = ancre_apres.fenetre_absolue();
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
+            canal: CanalAttr::Synthesized,
             noeud: racine_apres,
             valeur: format!(
                 "ancre={}_vs_{} noeuds={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",

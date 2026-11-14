@@ -4,7 +4,7 @@
 //! exact), and the integral of density 1 over the diagram of the band
 //! `x − y ≤ 1 ∧ y − x ≤ 2` equals the analytic area of the band.
 //! Differential: continuous area vs integer point count.
-//! Narration (ADR-0100): `Attr`/`Synthétise` events pinned by a collecting
+//! Narration (ADR-0100): `Attr`/`Synthesized` events pinned by a collecting
 //! observer.
 
 use std::sync::{Arc, Mutex};
@@ -161,7 +161,7 @@ fn test_differentiel_cardinal_contre_mesure() {
 }
 
 /// Narration (ADR-0100 decision 6): the DBM integral emits one
-/// `Attr`/`Synthétise` event per visited node, with the computed measure.
+/// `Attr`/`Synthesized` event per visited node, with the computed measure.
 #[test]
 fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
@@ -177,13 +177,13 @@ fn test_narration_evenements_attr_synthesized() {
             matches!(
                 e,
                 TraceEvent::Attr {
-                    canal: CanalAttr::Synthétise,
+                    canal: CanalAttr::Synthesized,
                     ..
                 }
             )
         })
         .collect();
-    assert!(!attrs.is_empty(), "at least one Attr/Synthétise event");
+    assert!(!attrs.is_empty(), "at least one Attr/Synthesized event");
     assert!(
         attrs
             .iter()

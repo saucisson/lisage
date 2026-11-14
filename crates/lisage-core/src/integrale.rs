@@ -20,7 +20,7 @@
 //! integral(child, region ∩ Z)`.
 //!
 //! Narration (ADR-0100 decision 6): each recursive call emits an `Attr`
-//! event (channel `Synthétise`) to the optional observer, with the computed
+//! event (channel `Synthesized`) to the optional observer, with the computed
 //! measure; the test pins these events.
 
 use std::collections::{BTreeMap, HashMap};
@@ -61,7 +61,7 @@ pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
 /// (continuous interpretation: Lebesgue measure, saturated `u64`).
 ///
 /// `observateur`: narration channel (ADR-0100) — each visited node emits
-/// an `Attr`/`Synthétise` event with the computed measure.
+/// an `Attr`/`Synthesized` event with the computed measure.
 pub fn integrale_constante<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -82,7 +82,7 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
     if let Some(total) = memo.get(&(noeud, *region)) {
         if let Some(obs) = observateur {
             obs.on_event(&TraceEvent::Attr {
-                canal: CanalAttr::Synthétise,
+                canal: CanalAttr::Synthesized,
                 noeud,
                 valeur: format!("measure_memo={total}"),
             });
@@ -107,7 +107,7 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
     };
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
+            canal: CanalAttr::Synthesized,
             noeud,
             valeur: format!("measure={total}"),
         });
@@ -122,7 +122,7 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
 /// **doubled** area (`i128`, exact) — see [`DbmKeys::mesure_zone`].
 ///
 /// `observateur`: narration channel (ADR-0100) — each visited node emits
-/// an `Attr`/`Synthétise` event with the computed measure.
+/// an `Attr`/`Synthesized` event with the computed measure.
 pub fn integrale_dbm_constante<P: Pool<Key = Dbm, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -145,7 +145,7 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
     if let Some(total) = memo.get(&(noeud, region.clone())) {
         if let Some(obs) = observateur {
             obs.on_event(&TraceEvent::Attr {
-                canal: CanalAttr::Synthétise,
+                canal: CanalAttr::Synthesized,
                 noeud,
                 valeur: format!("measure_memo={total}"),
             });
@@ -171,7 +171,7 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
     };
     if let Some(obs) = observateur {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthétise,
+            canal: CanalAttr::Synthesized,
             noeud,
             valeur: format!("measure={total}"),
         });

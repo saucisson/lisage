@@ -2,7 +2,7 @@
 //! spec): on 1D region-keys, the discrete fold (cardinal) becomes the
 //! Lebesgue integral (measure). Differential: continuous measure ==
 //! analytic length, and discrete cardinal == point count.
-//! Narration (ADR-0100): the `Attr`/`Synthétise` events emitted by the
+//! Narration (ADR-0100): the `Attr`/`Synthesized` events emitted by the
 //! integral are pinned by a collecting observer.
 
 use std::collections::BTreeSet;
@@ -138,7 +138,7 @@ fn test_integrale_terminaux() {
 }
 
 /// Narration (ADR-0100 decision 6): the integral emits one
-/// `Attr`/`Synthétise` event per visited node, with the computed measure —
+/// `Attr`/`Synthesized` event per visited node, with the computed measure —
 /// pinned by the collecting observer.
 #[test]
 fn test_narration_evenements_attr_synthesized() {
@@ -150,20 +150,20 @@ fn test_narration_evenements_attr_synthesized() {
         .expect("interned node");
     assert_eq!(mesure, 5);
     let events = collecteur.events();
-    // At least one Attr/Synthétise event emitted, with the final measure.
+    // At least one Attr/Synthesized event emitted, with the final measure.
     let attrs: Vec<&TraceEvent> = events
         .iter()
         .filter(|e| {
             matches!(
                 e,
                 TraceEvent::Attr {
-                    canal: CanalAttr::Synthétise,
+                    canal: CanalAttr::Synthesized,
                     ..
                 }
             )
         })
         .collect();
-    assert!(!attrs.is_empty(), "at least one Attr/Synthétise event");
+    assert!(!attrs.is_empty(), "at least one Attr/Synthesized event");
     assert!(
         attrs
             .iter()

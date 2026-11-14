@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 1: CanalAttr variants renamed to English (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames the public enum variants `CanalAttr::Herite` → `CanalAttr::Inherited`, `CanalAttr::Synthétise` → `CanalAttr::Synthesized`, `CanalAttr::Memoire` → `CanalAttr::Memory` (glossary M6-1), with all 42 `CanalAttr::…` use sites and the doc comments updated workspace-wide (14 files across lisage-core, lisage-liseuse, lisage-bench). The JSONL v2 wire strings `herite`/`synthetise`/`memoire` are contract and stay French.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
+- **Judgement calls**: variant names follow the glossary adjectives already used in the doc comments (Inherited/Synthesized) and `Memory` for level memory; wire strings untouched.
 ## 2026-11-14 - M6-5 part 4a-5: lisage-core relatif tests translated to English (PR #205, issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).

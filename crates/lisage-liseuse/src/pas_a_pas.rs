@@ -149,9 +149,9 @@ impl Scrubber {
 /// Color of an attribute channel.
 fn couleur_canal(canal: CanalAttr) -> &'static str {
     match canal {
-        CanalAttr::Herite => COULEUR_HERITE,
-        CanalAttr::Synthétise => COULEUR_SYNTHETISE,
-        CanalAttr::Memoire => COULEUR_MEMOIRE,
+        CanalAttr::Inherited => COULEUR_HERITE,
+        CanalAttr::Synthesized => COULEUR_SYNTHETISE,
+        CanalAttr::Memory => COULEUR_MEMOIRE,
     }
 }
 

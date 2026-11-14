@@ -70,9 +70,9 @@ impl Theme {
 /// Channel legend: single source of truth (channel, label, color),
 /// rendered as-is in the auto-generated legend.
 pub const LEGENDE_CANAUX: &[(CanalAttr, &str, &str)] = &[
-    (CanalAttr::Herite, "inherited (φ_disp)", "#1f6feb"),
-    (CanalAttr::Synthétise, "synthesized (φ_aggr)", "#d29922"),
-    (CanalAttr::Memoire, "level memory", "#8250df"),
+    (CanalAttr::Inherited, "inherited (φ_disp)", "#1f6feb"),
+    (CanalAttr::Synthesized, "synthesized (φ_aggr)", "#d29922"),
+    (CanalAttr::Memory, "level memory", "#8250df"),
 ];
 
 /// Height reserved for the legend in pixels (one line per channel).
