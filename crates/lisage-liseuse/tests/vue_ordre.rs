@@ -21,7 +21,7 @@ fn extraire_attribut(element: &str, attribut: &str) -> u32 {
 fn y_texte(svg: &str, marqueur: &str) -> u32 {
     let position = svg.find(marqueur).expect("marker present");
     let avant = &svg[..position];
-    let y_pos = avant.rfind(" y=\"").expect("attribut y avant le marqueur");
+    let y_pos = avant.rfind(" y=\"").expect("attribute y before the marker");
     extraire_attribut(&avant[y_pos..], "y")
 }
 
@@ -29,7 +29,7 @@ fn y_texte(svg: &str, marqueur: &str) -> u32 {
 fn x_texte(svg: &str, marqueur: &str) -> u32 {
     let position = svg.find(marqueur).expect("marker present");
     let avant = &svg[..position];
-    let x_pos = avant.rfind(" x=\"").expect("attribut x avant le marqueur");
+    let x_pos = avant.rfind(" x=\"").expect("attribute x before the marker");
     extraire_attribut(&avant[x_pos..], "x")
 }
 
@@ -132,7 +132,7 @@ fn test_vue_ordre_piste_arbre_vtree() {
                 libelle: "machine".to_string(),
                 enfants: vec![
                     NoeudVtree {
-                        libelle: "cellule".to_string(),
+                        libelle: "cell".to_string(),
                         enfants: vec![],
                     },
                     NoeudVtree {
@@ -142,7 +142,7 @@ fn test_vue_ordre_piste_arbre_vtree() {
                 ],
             },
             NoeudVtree {
-                libelle: "convoyeur".to_string(),
+                libelle: "conveyor".to_string(),
                 enfants: vec![],
             },
         ],
@@ -153,7 +153,7 @@ fn test_vue_ordre_piste_arbre_vtree() {
         piste: PisteOrdre::Arbre(arbre),
     }];
     let svg = rendre_svg_vue_ordre(&royaumes, &[]);
-    for libelle in ["record", "machine", "cellule", "state", "convoyeur"] {
+    for libelle in ["record", "machine", "cell", "state", "conveyor"] {
         assert!(
             svg.contains(&format!(">{libelle}<")),
             "vtree node: {libelle}"
@@ -161,7 +161,7 @@ fn test_vue_ordre_piste_arbre_vtree() {
     }
     // The parent is above its children (parsed y, not offsets).
     let y_record = y_texte(&svg, ">record<");
-    let y_cellule = y_texte(&svg, ">cellule<");
+    let y_cellule = y_texte(&svg, ">cell<");
     assert!(y_record < y_cellule, "parent above the child");
 }
 
