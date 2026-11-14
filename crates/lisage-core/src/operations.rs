@@ -1,21 +1,22 @@
-//! Opérations à canal hérité seul (M1-6, spec § 4) : `exists`, `filter`
-//! (garde = image réciproque d'un prédicat) et `map` (image par fonction,
-//! réétiquetage). Le canal hérité porte le **chemin** de la map en
-//! construction ; le verdict est résolu au terminal (spec § 4 : « le verdict
-//! est résolu au niveau de la valeur, mais appliqué au niveau de la
-//! présence » — ici le canal hérité le transporte jusqu'au terminal).
+//! Operations on the inherited channel only (M1-6, spec § 4): `exists`,
+//! `filter` (guard = preimage of a predicate) and `map` (image by a
+//! function, relabeling). The inherited channel carries the **path** of the
+//! map under construction; the verdict is resolved at the terminal
+//! (spec § 4: "the verdict is resolved at the value level, but applied at
+//! the presence level" — here the inherited channel carries it down to the
+//! terminal).
 //!
-//! - [`Existe`] : pli sur `(Bool, ∨, ∧)` (spec § 5), `S = BoolOu`.
-//! - [`Filtre`] : restriction, `S` trivial, le diagramme de sortie est
-//!   l'ensemble filtré (les membres rejetés mènent à `ε(false)`).
-//! - [`Image`] : réétiquetage des atomes d'un ensemble (schéma `Atom`),
-//!   `S` trivial, les arcs du niveau 0 sont remplacés par leur image.
+//! - [`Existe`]: fold over `(Bool, ∨, ∧)` (spec § 5), `S = BoolOu`.
+//! - [`Filtre`]: restriction, `S` trivial, the output diagram is the
+//!   filtered set (rejected members lead to `ε(false)`).
+//! - [`Image`]: relabeling of the atoms of a set (schema `Atom`), `S`
+//!   trivial, the arcs of level 0 are replaced by their image.
 //!
-//! Le canal hérité porte l'**ensemble des clés présentes** sur le chemin.
-//! Les prédicats sont donc des prédicats de présence, bien définis sur le
-//! diagramme réduit ; un verdict dépendant des *valeurs* sur un niveau
-//! `val(k)` collapsé exige le T-EXPAND de § 6.2 (livré pour `lookup`),
-//! hors périmètre ici.
+//! The inherited channel carries the **set of keys present** on the path.
+//! Predicates are therefore presence predicates, well-defined on the
+//! reduced diagram; a verdict depending on the *values* at a collapsed
+//! `val(k)` level requires the T-EXPAND of § 6.2 (delivered for `lookup`),
+//! out of scope here.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -26,26 +27,26 @@ use crate::pli::{BoolOu, SemiAnneau};
 use crate::schema::{PAS_NIVEAU_MAP, PRESENT, Schema};
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
-/// Base du namespace de fingerprints de la famille garde/image.
+/// Base of the fingerprint namespace of the guard/image family.
 const FINGERPRINT_BASE_GARDE: u64 = 5000;
 
-/// Ensemble des clés présentes sur le chemin d'une map en construction.
+/// Set of keys present on the path of a map under construction.
 pub type ClePresentes = BTreeSet<u64>;
 
-/// Prédicat de présence sur une map (exemple : `p(m) = présent(a)`).
+/// Presence predicate on a map (example: `p(m) = present(a)`).
 pub type PredicatMap = Box<dyn Fn(&ClePresentes) -> bool + Send + Sync>;
 
-/// Transduction `exists(p)` sur un ensemble de maps (schéma `Map`) :
-/// pli sur `(Bool, ∨, ∧)`, le verdict est résolu au terminal sur le chemin
-/// complet (spec § 5).
+/// Transduction `exists(p)` on a set of maps (schema `Map`): fold over
+/// `(Bool, ∨, ∧)`, the verdict is resolved at the terminal on the complete
+/// path (spec § 5).
 pub struct Existe {
     liste_cles: Vec<u64>,
     predicat: PredicatMap,
 }
 
 impl Existe {
-    /// `exists(p)` pour le schéma `Map(liste_cles, _)` donné ; erreur typée
-    /// si le schéma n'est pas une map.
+    /// `exists(p)` for the given `Map(liste_cles, _)` schema; typed error if
+    /// the schema is not a map.
     pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
         let Schema::Map(liste_cles, _) = schema else {
             return Err(CoreError::SchemaInattendu {
@@ -60,17 +61,16 @@ impl Existe {
     }
 }
 
-/// Transduction `filter(p)` (garde) sur un ensemble de maps : restriction,
-/// les membres rejetés mènent à `ε(false)` (spec § 4, `f_filter` = image
-/// réciproque de `p`).
+/// Transduction `filter(p)` (guard) on a set of maps: restriction, rejected
+/// members lead to `ε(false)` (spec § 4, `f_filter` = preimage of `p`).
 pub struct Filtre {
     liste_cles: Vec<u64>,
     predicat: PredicatMap,
 }
 
 impl Filtre {
-    /// `filter(p)` pour le schéma `Map(liste_cles, _)` donné ; erreur typée
-    /// si le schéma n'est pas une map.
+    /// `filter(p)` for the given `Map(liste_cles, _)` schema; typed error if
+    /// the schema is not a map.
     pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
         let Schema::Map(liste_cles, _) = schema else {
             return Err(CoreError::SchemaInattendu {
@@ -85,7 +85,7 @@ impl Filtre {
     }
 }
 
-/// Nom de la forme d'un schéma (pour les erreurs typées).
+/// Name of the shape of a schema (for typed errors).
 fn forme_schema(schema: &Schema) -> &'static str {
     match schema {
         Schema::Atom(_) => "Atom",
@@ -96,8 +96,8 @@ fn forme_schema(schema: &Schema) -> &'static str {
     }
 }
 
-/// Valide que tous les niveaux du diagramme sont dans le schéma (sinon
-/// `disperser_chemin` indicerait hors limites) : erreur typée `CoreError`.
+/// Checks that all levels of the diagram are in the schema (otherwise
+/// `disperser_chemin` would index out of bounds): typed `CoreError`.
 fn valider_niveaux<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     schema: &Schema,
@@ -121,28 +121,28 @@ fn valider_niveaux<P: Pool<Key = u64, Payload = bool>>(
     }
 }
 
-/// Transduction `map(f)` sur un ensemble d'atomes (schéma `Atom`) :
-/// réétiquetage, chaque arc du niveau 0 est remplacé par son image par `f`
-/// (spec § 4 : « map, filter, réétiquetages »).
+/// Transduction `map(f)` on a set of atoms (schema `Atom`): relabeling, each
+/// arc of level 0 is replaced by its image under `f` (spec § 4: "map,
+/// filter, relabelings").
 pub struct Image {
     fonction: Box<dyn Fn(u64) -> u64 + Send + Sync>,
 }
 
 impl Image {
-    /// Image par `f` des atomes d'un ensemble (schéma `Atom`).
+    /// Image under `f` of the atoms of a set (schema `Atom`).
     pub fn new(fonction: Box<dyn Fn(u64) -> u64 + Send + Sync>) -> Self {
         Image { fonction }
     }
 }
 
-/// Descendant commun : met à jour l'ensemble des clés présentes le long de
-/// l'arc `v` du niveau `ℓ` (un niveau de présence avec l'arc `présent`
-/// ajoute la clé ; un niveau valeur ne change rien).
+/// Common descendant: updates the set of present keys along arc `v` of
+/// level `ℓ` (a presence level with the `present` arc adds the key; a value
+/// level changes nothing).
 fn disperser_chemin(liste_cles: &[u64], level: Level, h: &ClePresentes, arc: u64) -> ClePresentes {
     let mut h = h.clone();
     if level.0.is_multiple_of(PAS_NIVEAU_MAP) && arc == PRESENT {
         let index = (level.0 / PAS_NIVEAU_MAP) as usize;
-        // Garanti par `valider_niveaux` avant la transduction.
+        // Guaranteed by `valider_niveaux` before the transduction.
         if let Some(&cle) = liste_cles.get(index) {
             h.insert(cle);
         }
@@ -174,9 +174,9 @@ impl Transduction for Existe {
         _h: &ClePresentes,
         arcs: &BTreeMap<u64, (Option<Level>, BoolOu)>,
     ) -> BoolOu {
-        // (Bool, ∨, ∧) : le multiplicateur A4 vaut ⊤ (|Val| ≥ 1), le pli
-        // est le ∨ des sous-totaux ; l'arc par défaut implicite mène à
-        // D_δ = ε(false), de poids faux.
+        // (Bool, ∨, ∧): the A4 multiplier is ⊤ (|Val| ≥ 1), the fold is the
+        // ∨ of the subtotals; the implicit default arc leads to
+        // D_δ = ε(false), of weight false.
         arcs.values().fold(BoolOu(false), |acc, (_, s)| acc.plus(s))
     }
 
@@ -244,8 +244,8 @@ impl Transduction for Filtre {
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
     ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
-        // (A2) : si tous les fils mènent à ε(false), le nœud est ε(false)
-        // (les nœuds produits par le runner sont toujours résolubles).
+        // (A2): if all children lead to ε(false), the node is ε(false)
+        // (nodes produced by the runner are always resolvable).
         let tout_rejete = !ctx.arcs.is_empty()
             && ctx
                 .arcs
@@ -277,7 +277,7 @@ impl Transduction for Filtre {
         payload: bool,
         h: &ClePresentes,
     ) -> (NodeId, ()) {
-        // Garde : le membre est rejeté (ε(false)) si le prédicat échoue.
+        // Guard: the member is rejected (ε(false)) if the predicate fails.
         let garde = payload && (self.predicat)(h);
         (pool.intern(anchor, Form::Terminal(garde)), ())
     }
@@ -306,7 +306,7 @@ impl Transduction for Image {
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
     ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
-        // Réétiquetage : l'arc v devient f(v).
+        // Relabeling: arc v becomes f(v).
         let arcs = ctx
             .arcs
             .into_iter()
@@ -335,7 +335,7 @@ impl Transduction for Image {
     }
 }
 
-/// `exists(p)` sur l'ensemble de maps dénoté par `noeud` (schéma `Map`).
+/// `exists(p)` on the set of maps denoted by `noeud` (schema `Map`).
 pub fn existe<PIn, POut>(
     pool_entree: &PIn,
     pool_sortie: &mut POut,
@@ -356,8 +356,8 @@ where
     Ok(verdict.0)
 }
 
-/// `filter(p)` sur l'ensemble de maps dénoté par `noeud` : renvoie le
-/// diagramme de l'ensemble filtré (canonique, A3).
+/// `filter(p)` on the set of maps denoted by `noeud`: returns the diagram
+/// of the filtered set (canonical, A3).
 pub fn filtrer<PIn, POut>(
     pool_entree: &PIn,
     pool_sortie: &mut POut,
@@ -378,7 +378,7 @@ where
     Ok(resultat)
 }
 
-/// `map(f)` sur l'ensemble d'atomes dénoté par `noeud` (schéma `Atom`).
+/// `map(f)` on the set of atoms denoted by `noeud` (schema `Atom`).
 pub fn image<PIn, POut>(
     pool_entree: &PIn,
     pool_sortie: &mut POut,
