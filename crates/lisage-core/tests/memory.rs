@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Anchor, Controller, Form, Level, MemoryPolicy, NodeId, Pool};
 use lisage_core::arena::Arena;
-use lisage_core::memoire::{EffetMemoire, MemoireLevel};
+use lisage_core::memory::{EffetMemory, MemoryLevel};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema};
 use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
@@ -21,51 +21,51 @@ fn pool() -> PoolRef {
 
 /// M2-3: the level memory stores and versions (L1).
 #[test]
-fn test_memoire_level_stockage_et_version() {
-    let mut memoire: MemoireLevel<u64> = MemoireLevel::new();
-    assert_eq!(memoire.version(), 0);
-    assert_eq!(memoire.lire(NodeId(0), Level(0)), None);
+fn test_memory_level_stockage_et_version() {
+    let mut memory: MemoryLevel<u64> = MemoryLevel::new();
+    assert_eq!(memory.version(), 0);
+    assert_eq!(memory.lire(NodeId(0), Level(0)), None);
 
-    let ancien = memoire.ecrire(NodeId(0), Level(0), 42);
+    let ancien = memory.ecrire(NodeId(0), Level(0), 42);
     assert_eq!(ancien, None);
-    assert_eq!(memoire.version(), 1, "each write increments the version");
-    assert_eq!(memoire.lire(NodeId(0), Level(0)), Some(&42));
+    assert_eq!(memory.version(), 1, "each write increments the version");
+    assert_eq!(memory.lire(NodeId(0), Level(0)), Some(&42));
 
-    let ancien = memoire.ecrire(NodeId(0), Level(0), 43);
+    let ancien = memory.ecrire(NodeId(0), Level(0), 43);
     assert_eq!(ancien, Some(42), "the write returns the old value");
-    assert_eq!(memoire.version(), 2);
-    assert_eq!(memoire.lire(NodeId(0), Level(0)), Some(&43));
+    assert_eq!(memory.version(), 2);
+    assert_eq!(memory.lire(NodeId(0), Level(0)), Some(&43));
     assert_eq!(
-        memoire.lire(NodeId(1), Level(0)),
+        memory.lire(NodeId(1), Level(0)),
         None,
         "keyed by (node, level)"
     );
-    assert_eq!(memoire.size(), 1);
+    assert_eq!(memory.size(), 1);
 }
 
 /// M2-3: the memory effect applies and bumps the version.
 #[test]
-fn test_effet_memoire_appliquer() {
-    let mut memoire: MemoireLevel<u64> = MemoireLevel::new();
-    let effet = EffetMemoire::une(NodeId(3), Level(1), 7);
-    effet.apply(&mut memoire);
-    assert_eq!(memoire.version(), 1);
-    assert_eq!(memoire.lire(NodeId(3), Level(1)), Some(&7));
+fn test_effet_memory_appliquer() {
+    let mut memory: MemoryLevel<u64> = MemoryLevel::new();
+    let effet = EffetMemory::une(NodeId(3), Level(1), 7);
+    effet.apply(&mut memory);
+    assert_eq!(memory.version(), 1);
+    assert_eq!(memory.lire(NodeId(3), Level(1)), Some(&7));
 
-    let effet_vide: EffetMemoire<u64> = EffetMemoire::new();
-    effet_vide.apply(&mut memoire);
-    assert_eq!(memoire.version(), 1, "empty effect: no bump");
+    let effet_vide: EffetMemory<u64> = EffetMemory::new();
+    effet_vide.apply(&mut memory);
+    assert_eq!(memory.version(), 1, "empty effect: no bump");
 }
 
 /// Transduction that reads then writes in the level memory at each node
 /// visit: `M[id(n), ℓ] ← h` (the inherited attribute = depth). The read
 /// value (if present) is accumulated in a shared counter to prove that φ_out
 /// does observe the state stored by a previous visit.
-struct EcritMemoire {
+struct EcritMemory {
     lus: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
 
-impl Transduction for EcritMemoire {
+impl Transduction for EcritMemory {
     type H = u64;
     type S = u64;
     type Out = bool;
@@ -87,15 +87,15 @@ impl Transduction for EcritMemoire {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, EffetMemoire<u64>) {
+    ) -> (NodeId, EffetMemory<u64>) {
         // Read the memory: if a value was already stored at this (node, level),
         // it is visible here and counted (test: φ_out observes the state stored
         // by a previous visit of the same node).
-        if let Some(v) = ctx.memoire.lire(ctx.node_input, ctx.level) {
+        if let Some(v) = ctx.memory.lire(ctx.node_input, ctx.level) {
             self.lus.fetch_add(*v, std::sync::atomic::Ordering::SeqCst);
         }
         // Write h into the memory at (input_node, level).
-        let effet = EffetMemoire::une(ctx.node_input, ctx.level, *ctx.h);
+        let effet = EffetMemory::une(ctx.node_input, ctx.level, *ctx.h);
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(
@@ -122,7 +122,7 @@ impl Transduction for EcritMemoire {
 /// M2-3: a memory transduction really writes into the level memory via the
 /// effect produced by φ_out, and the version is bumped (L1).
 #[test]
-fn test_transduction_avec_memoire_ecrit() {
+fn test_transduction_avec_memory_ecrit() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
@@ -145,8 +145,8 @@ fn test_transduction_avec_memoire_ecrit() {
 
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     let mut runner =
-        Transducteur::avec_politique(EcritMemoire { lus: lus.clone() }, MemoryPolicy::PerLevel);
-    assert_eq!(runner.version_memoire(), 0, "empty memory at start");
+        Transducteur::avec_politique(EcritMemory { lus: lus.clone() }, MemoryPolicy::PerLevel);
+    assert_eq!(runner.version_memory(), 0, "empty memory at start");
     let (resultat, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
         output.resolve(resultat).unwrap(),
@@ -155,9 +155,9 @@ fn test_transduction_avec_memoire_ecrit() {
     );
     // Two non-terminal nodes (a and b) each wrote into the memory.
     assert!(
-        runner.version_memoire() >= 2,
+        runner.version_memory() >= 2,
         "version bumped by the memory effects (L1), version = {}",
-        runner.version_memoire()
+        runner.version_memory()
     );
     // BLOCKING review: the memory read must be observed. Run a second time:
     // each node re-reads the value stored on the first pass.
@@ -175,7 +175,7 @@ fn test_transduction_avec_memoire_ecrit() {
 
 /// M2-3: the `NoMemory` policy rejects memory effects (TO-FIX review).
 #[test]
-fn test_politique_aucune_rejette_effet_memoire() {
+fn test_politique_aucune_rejette_effet_memory() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
@@ -191,12 +191,12 @@ fn test_politique_aucune_rejette_effet_memoire() {
     );
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     // NoMemory policy (default): the memory effect must be rejected.
-    let mut runner = Transducteur::new(EcritMemoire { lus: lus.clone() });
+    let mut runner = Transducteur::new(EcritMemory { lus: lus.clone() });
     let resultat = runner.run(&input, &mut output, anchor, a);
     assert!(
         matches!(
             resultat,
-            Err(lisage_core::error::CoreError::MemoireNonAutorisee)
+            Err(lisage_core::error::CoreError::MemoryNonAutorisee)
         ),
         "NoMemory policy ⇒ memory effect rejected, got {resultat:?}"
     );
@@ -205,7 +205,7 @@ fn test_politique_aucune_rejette_effet_memoire() {
 /// M2-3: the storage policy is declared by the controller (`NoMemory` by
 /// default in M1, `PerLevel` to allow the memory).
 #[test]
-fn test_politique_memoire_du_controleur() {
+fn test_politique_memory_du_controleur() {
     let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     let controleur = ReferenceController::new(schema);
     assert_eq!(

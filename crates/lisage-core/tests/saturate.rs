@@ -48,7 +48,7 @@ impl Transduction for Identite {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<()>) {
+    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -57,7 +57,7 @@ impl Transduction for Identite {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffetMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -97,9 +97,9 @@ impl Transduction for EmetSingleton {
         &self,
         _pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<()>) {
+    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
         let _ = ctx;
-        (self.singleton, lisage_core::memoire::EffetMemoire::new())
+        (self.singleton, lisage_core::memory::EffetMemory::new())
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
         &self,
@@ -161,7 +161,7 @@ fn test_saturate_termine_et_point_fixe() {
         anchor,
         initial,
         nombre_levels: schema.nombre_levels(),
-        observateur: None,
+        observer: None,
     };
     let resultat = saturer(&mut params).unwrap();
     assert_eq!(resultat.iterations, 1, "identity: immediate fixpoint (T2)");
@@ -190,7 +190,7 @@ fn test_saturate_politiques_equivalentes() {
         anchor,
         initial: initial_s,
         nombre_levels: schema.nombre_levels(),
-        observateur: None,
+        observer: None,
     };
     let r_statique = saturer(&mut params).unwrap();
 
@@ -204,7 +204,7 @@ fn test_saturate_politiques_equivalentes() {
         anchor,
         initial: initial_a,
         nombre_levels: schema.nombre_levels(),
-        observateur: None,
+        observer: None,
     };
     let r_auto = saturer(&mut params).unwrap();
 
@@ -241,7 +241,7 @@ fn test_saturate_statique_restreint_les_levels() {
         anchor,
         initial: initial_s,
         nombre_levels: schema.nombre_levels(),
-        observateur: None,
+        observer: None,
     };
     let r_statique = saturer(&mut params).unwrap();
     assert_eq!(
@@ -267,7 +267,7 @@ fn test_saturate_statique_restreint_les_levels() {
         anchor,
         initial: initial_a,
         nombre_levels: schema.nombre_levels(),
-        observateur: None,
+        observer: None,
     };
     let r_auto = saturer(&mut params).unwrap();
     assert_eq!(
@@ -306,7 +306,7 @@ fn test_saturate_chaine_croissante_multi_iterations() {
         anchor,
         initial,
         nombre_levels: schema.nombre_levels(),
-        observateur: None,
+        observer: None,
     };
     let resultat = saturer(&mut params).unwrap();
     assert!(

@@ -115,7 +115,7 @@ fn test_runner_emet_memo_et_attr() {
     let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
 
     let collecteur = Collecteur::new();
-    let mut runner = Transducteur::avec_observateur(
+    let mut runner = Transducteur::avec_observer(
         Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
         MemoryPolicy::NoMemory,
         Arc::new(collecteur.clone()),
@@ -190,7 +190,7 @@ impl lisage_core::transduction::Transduction for Identite {
         &self,
         pool: &mut P,
         ctx: lisage_core::transduction::ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<()>) {
+    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -199,7 +199,7 @@ impl lisage_core::transduction::Transduction for Identite {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffetMemory::new(),
         )
     }
     fn psi<P: lisage_core::Pool<Key = u64, Payload = bool>>(
@@ -242,7 +242,7 @@ fn test_saturate_emet_rounds() {
         anchor,
         initial,
         nombre_levels: schema.nombre_levels(),
-        observateur: Some(Arc::new(collecteur.clone())),
+        observer: Some(Arc::new(collecteur.clone())),
     };
     let resultat = saturer(&mut params).unwrap();
     let rounds: Vec<u32> = collecteur
@@ -335,7 +335,7 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
 
     let collecteur = Collecteur::new();
-    let mut runner = Transducteur::avec_observateur(
+    let mut runner = Transducteur::avec_observer(
         Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
         MemoryPolicy::NoMemory,
         Arc::new(collecteur.clone()),

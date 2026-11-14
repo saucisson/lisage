@@ -348,7 +348,7 @@ fn table_lcg(nombre_variables: u32) -> Vec<bool> {
 /// witness's, and the evaluation must follow the table.
 fn charge_alea_lcg(
     nombre_variables: u32,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if nombre_variables == 0 || nombre_variables > VARIABLES_MAXIMALES_ALEA {
         return Err(ErreurConfrontation::ParametresInvalides {
@@ -381,8 +381,8 @@ fn charge_alea_lcg(
             obtenu: temoin.evaluer(root_temoin, 0) as u64,
         });
     }
-    if let Some(observateur) = observateur {
-        observateur.on_event(&TraceEvent::Attr {
+    if let Some(observer) = observer {
+        observer.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root,
             value: format!(
@@ -418,7 +418,7 @@ type EtatEtendu = Vec<u64>;
 fn charge_philosophes(
     nombre_philosophes: u64,
     chemin: &str,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if nombre_philosophes == 0 || nombre_philosophes > PHILOSOPHES_MAXIMAUX {
         return Err(ErreurConfrontation::ParametresInvalides {
@@ -470,8 +470,8 @@ fn charge_philosophes(
             obtenu: verifie,
         });
     }
-    if let Some(observateur) = observateur {
-        observateur.on_event(&TraceEvent::Attr {
+    if let Some(observer) = observer {
+        observer.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root,
             value: format!(
@@ -566,7 +566,7 @@ fn charge_fenetre(
     size: u64,
     nb_bases: u64,
     encodage: Encodage,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if size == 0 || nb_bases == 0 {
         return Err(ErreurConfrontation::ParametresInvalides {
@@ -593,8 +593,8 @@ fn charge_fenetre(
             obtenu: verifie,
         });
     }
-    if let Some(observateur) = observateur {
-        observateur.on_event(&TraceEvent::Attr {
+    if let Some(observer) = observer {
+        observer.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root,
             value: format!(
@@ -624,12 +624,12 @@ fn charge_fenetre(
 /// Runs a workload once and returns the measurement. Parameters:
 /// `alea-lcg <n>`, `philosophes <n> <path>`,
 /// `fenetre <size> <nb_bases> [absolu|relatif]` (absolu by default).
-/// `observateur`: narration channel (ADR-0100) — an
+/// `observer`: narration channel (ADR-0100) — an
 /// `Attr`/`Synthesized` event carries the workload summary.
 pub fn executer(
     charge: &Charge,
     parametres: &[String],
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
     match charge {
         Charge::AleaLcg => {
@@ -646,7 +646,7 @@ pub fn executer(
                         charge: Charge::AleaLcg.etiquette(),
                         detail: format!("unreadable n: {seul}"),
                     })?;
-            charge_alea_lcg(nombre_variables, observateur)
+            charge_alea_lcg(nombre_variables, observer)
         }
         Charge::Philosophes => {
             let (premier, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
@@ -662,7 +662,7 @@ pub fn executer(
                         charge: Charge::Philosophes.etiquette(),
                         detail: format!("unreadable n: {premier}"),
                     })?;
-            charge_philosophes(nombre_philosophes, second, observateur)
+            charge_philosophes(nombre_philosophes, second, observer)
         }
         Charge::Fenetre => {
             let (premier, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
@@ -695,7 +695,7 @@ pub fn executer(
                     });
                 }
             };
-            charge_fenetre(size, nb_bases, encodage, observateur)
+            charge_fenetre(size, nb_bases, encodage, observer)
         }
     }
 }

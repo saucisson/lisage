@@ -196,7 +196,7 @@ impl Transduction for Lookup {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
+    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
         let anchor = ctx.anchor;
         let level = ctx.level;
         let h = ctx.h;
@@ -240,7 +240,7 @@ impl Transduction for Lookup {
                                 arcs: arcs_output,
                             },
                         ),
-                        crate::memoire::EffetMemoire::new(),
+                        crate::memory::EffetMemory::new(),
                     );
                 }
             }
@@ -250,7 +250,7 @@ impl Transduction for Lookup {
         let arcs = arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(anchor, Form::Node { level, arcs }),
-            crate::memoire::EffetMemoire::new(),
+            crate::memory::EffetMemory::new(),
         )
     }
 

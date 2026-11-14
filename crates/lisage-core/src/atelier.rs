@@ -158,19 +158,19 @@ pub struct RapportAtelier {
 
 /// Measures a diagram: shared nodes, paths and unfolded size. Propagates
 /// the pool error (an unknown `NodeId` is an error, not a silent value).
-/// `observateur`: narration channel (ADR-0100) — an `Attr`/`Synthesized`
+/// `observer`: narration channel (ADR-0100) — an `Attr`/`Synthesized`
 /// event carries the full report.
 pub fn measure<P: Pool>(
     pool: &P,
     root: NodeId,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<RapportAtelier, PoolError> {
     let rapport = RapportAtelier {
         nodes_partages: compter_nodes(pool, root)?,
         chemins: compter_chemins(pool, root)?,
         size_depliee: compter_size_depliee(pool, root)?,
     };
-    if let Some(obs) = observateur {
+    if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root,
@@ -368,19 +368,19 @@ pub fn construire_fenetre<P: Pool<Key = u64, Payload = bool>>(
 
 /// Compares the two encodings of the sliding window over `nb_bases` bases:
 /// same paths (same logical object), different shared nodes — the
-/// relative sharing is visible to the naked eye. `observateur`: ADR-0100 narration.
+/// relative sharing is visible to the naked eye. `observer`: ADR-0100 narration.
 pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
     nb_bases: u64,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<RapportComparaison, PoolError> {
     let root_absolue = construire_fenetre(pool, anchor, Encodage::Absolu, size, nb_bases);
     let root_relative = construire_fenetre(pool, anchor, Encodage::Relatif, size, nb_bases);
-    let absolu = measure(pool, root_absolue, observateur)?;
-    let relatif = measure(pool, root_relative, observateur)?;
-    if let Some(obs) = observateur {
+    let absolu = measure(pool, root_absolue, observer)?;
+    let relatif = measure(pool, root_relative, observer)?;
+    if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root_relative,
@@ -519,14 +519,14 @@ pub struct RapportComparaisonOrdres {
 /// Compiles the same truth table under two orderings and measures: same
 /// paths (2^n, one per assignment — same logical object), different shared
 /// nodes — the ordering changes the diagram, not the function.
-/// `observateur`: ADR-0100 narration.
+/// `observer`: ADR-0100 narration.
 pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     table: &[bool],
     ordre_premier: &Ordre,
     ordre_second: &Ordre,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<RapportComparaisonOrdres, PoolError> {
     assert_eq!(
         ordre_premier.nombre_variables(),
@@ -535,9 +535,9 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
     );
     let root_premier = compiler_bdd_ordre(pool, anchor, ordre_premier, table);
     let root_second = compiler_bdd_ordre(pool, anchor, ordre_second, table);
-    let premier = measure(pool, root_premier, observateur)?;
-    let second = measure(pool, root_second, observateur)?;
-    if let Some(obs) = observateur {
+    let premier = measure(pool, root_premier, observer)?;
+    let second = measure(pool, root_second, observer)?;
+    if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root_second,
@@ -669,14 +669,14 @@ pub struct RapportComparaisonAncres {
 /// shared — `meme_forme` true, same nodes, same paths — only the
 /// absolute readings differ. This is the slide of the SWP protocol:
 /// "the anchor moves, the pool never does": moving the base does not
-/// duplicate the window shape. `observateur`: ADR-0100 narration.
+/// duplicate the window shape. `observer`: ADR-0100 narration.
 pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
     ancre_avant: &AncreFenetre,
     ancre_apres: &AncreFenetre,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<RapportComparaisonAncres, PoolError> {
     // Each anchor enters the pool through its incoming arc (its base); the
     // window shape reached on both sides must be the same node.
@@ -684,9 +684,9 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
     let (root_apres, fenetre_apres) = construire_fenetre_ancree(pool, anchor, size, ancre_apres);
     let nodes_pool = pool.node_count() as u64;
     let meme_forme = fenetre_avant == fenetre_apres;
-    let avant = measure(pool, root_avant, observateur)?;
-    let apres = measure(pool, root_apres, observateur)?;
-    if let Some(obs) = observateur {
+    let avant = measure(pool, root_avant, observer)?;
+    let apres = measure(pool, root_apres, observer)?;
+    if let Some(obs) = observer {
         let (debut_avant, fin_avant) = ancre_avant.fenetre_absolue();
         let (debut_apres, fin_apres) = ancre_apres.fenetre_absolue();
         obs.on_event(&TraceEvent::Attr {

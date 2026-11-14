@@ -211,7 +211,7 @@ fn test_compaction_profilee() {
 /// counters — and the `Gc` event emitted to the observer.
 #[test]
 fn test_metriques_cache_et_evenement_gc() {
-    let observateur = Arc::new(RecordingObserver::default());
+    let observer = Arc::new(RecordingObserver::default());
     struct Pont(Arc<RecordingObserver>);
     impl Observer for Pont {
         fn on_event(&self, event: &TraceEvent) {
@@ -220,7 +220,7 @@ fn test_metriques_cache_et_evenement_gc() {
     }
     let mut pool = Arena::new(
         MockController { keys: MockKeys },
-        Box::new(Pont(observateur.clone())),
+        Box::new(Pont(observer.clone())),
     );
     let (root, orphelin) = petit_diagramme(&mut pool);
     // Re-intern the exact form of the root: hit (R-share, same handle).
@@ -248,7 +248,7 @@ fn test_metriques_cache_et_evenement_gc() {
     assert_eq!(metriques.morts, stats.collectes);
     assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     // Gc event emitted.
-    let events = observateur.events.lock().unwrap();
+    let events = observer.events.lock().unwrap();
     assert!(
         events.iter().any(|e| matches!(
             e,

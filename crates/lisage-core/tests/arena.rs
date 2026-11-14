@@ -55,8 +55,8 @@ impl Observer for RecordingObserver {
 }
 
 fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserver>) {
-    let observateur = std::sync::Arc::new(RecordingObserver::default());
-    let copie = observateur.clone();
+    let observer = std::sync::Arc::new(RecordingObserver::default());
+    let copie = observer.clone();
     struct Pont(std::sync::Arc<RecordingObserver>);
     impl Observer for Pont {
         fn on_event(&self, event: &TraceEvent) {
@@ -65,7 +65,7 @@ fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserve
     }
     (
         Arena::new(MockController { keys: MockKeys }, Box::new(Pont(copie))),
-        observateur,
+        observer,
     )
 }
 

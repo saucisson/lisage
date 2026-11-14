@@ -2,7 +2,7 @@
 //! identical cardinal on the three paths (explicit falsification), path C
 //! with runtime order (valid π adopted, invalid π rejected), typed errors.
 
-use lisage_bench::pnml::{PnmlDocument, ReseauPetri};
+use lisage_bench::pnml::{NetworkPetri, PnmlDocument};
 use lisage_bench::triptyque::{ErreurTriptyque, voie_a, voie_b, voie_c};
 use lisage_lang::value::Atom;
 use lisage_plan::ordre::StrategieAval;
@@ -58,8 +58,8 @@ const PNML_CYCLE2: &str = r#"<pnml><net>
 const PNML_SANS_PLACE: &str = r#"<pnml><net><transition id="t"/></net></pnml>"#;
 
 /// Parses a test PNML model.
-fn reseau(pnml: &str) -> ReseauPetri {
-    ReseauPetri::depuis_pnml(&PnmlDocument(pnml.to_string())).unwrap()
+fn network(pnml: &str) -> NetworkPetri {
+    NetworkPetri::depuis_pnml(&PnmlDocument(pnml.to_string())).unwrap()
 }
 
 /// Canonical order of the place keys of a net with `n` places.
@@ -83,12 +83,12 @@ fn test_cardinal_identique_sur_les_trois_voies() {
         (PNML_CYCLE2, 6),
     ];
     for (pnml, cardinal_attendu) in attendus {
-        let reseau = reseau(pnml);
-        let measure_a = voie_a(&reseau);
-        let measure_b = voie_b(&reseau).unwrap();
+        let network = network(pnml);
+        let measure_a = voie_a(&network);
+        let measure_b = voie_b(&network).unwrap();
         let resultat_c_canonique =
-            voie_c(&reseau, &ordre_canonique(reseau.nombre_places())).unwrap();
-        let resultat_c_inverse = voie_c(&reseau, &ordre_inverse(reseau.nombre_places())).unwrap();
+            voie_c(&network, &ordre_canonique(network.nombre_places())).unwrap();
+        let resultat_c_inverse = voie_c(&network, &ordre_inverse(network.nombre_places())).unwrap();
         let measure_c_canonique = resultat_c_canonique.measure;
         let measure_c_inverse = resultat_c_inverse.measure;
         assert_eq!(measure_a.cardinal, cardinal_attendu, "path A on {pnml}");
@@ -108,11 +108,11 @@ fn test_cardinal_identique_sur_les_trois_voies() {
 /// B/C build a non-empty DD.
 #[test]
 fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
-    let reseau = reseau(PNML_CHOIX);
-    assert_eq!(voie_a(&reseau).nodes_vivants, 0);
-    assert!(voie_b(&reseau).unwrap().nodes_vivants > 0);
+    let network = network(PNML_CHOIX);
+    assert_eq!(voie_a(&network).nodes_vivants, 0);
+    assert!(voie_b(&network).unwrap().nodes_vivants > 0);
     assert!(
-        voie_c(&reseau, &ordre_inverse(reseau.nombre_places()))
+        voie_c(&network, &ordre_inverse(network.nombre_places()))
             .unwrap()
             .measure
             .nodes_vivants
@@ -123,9 +123,9 @@ fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
 /// Path C with canonical order == path B (same order, same measurements).
 #[test]
 fn test_voie_c_canonique_egale_voie_b() {
-    let reseau = reseau(PNML_CYCLE2);
-    let measure_b = voie_b(&reseau).unwrap();
-    let resultat_c = voie_c(&reseau, &ordre_canonique(reseau.nombre_places())).unwrap();
+    let network = network(PNML_CYCLE2);
+    let measure_b = voie_b(&network).unwrap();
+    let resultat_c = voie_c(&network, &ordre_canonique(network.nombre_places())).unwrap();
     assert_eq!(measure_b, resultat_c.measure);
     assert_eq!(resultat_c.strategie, StrategieAval::OrdreRuntime);
 }
@@ -134,12 +134,12 @@ fn test_voie_c_canonique_egale_voie_b() {
 /// to the canonical order (RepliCanonique) and the cardinal stays exact.
 #[test]
 fn test_voie_c_ordre_invalide_repli_canonique() {
-    let reseau = reseau(PNML_CHOIX);
+    let network = network(PNML_CHOIX);
     let key_manquante = vec![Atom(0), Atom(1)];
     let key_double = vec![Atom(0), Atom(0), Atom(2)];
     let key_etrangere = vec![Atom(0), Atom(1), Atom(7)];
     for ordre in [key_manquante, key_double, key_etrangere] {
-        let resultat = voie_c(&reseau, &ordre).unwrap();
+        let resultat = voie_c(&network, &ordre).unwrap();
         assert_eq!(resultat.strategie, StrategieAval::RepliCanonique);
         assert_eq!(resultat.measure.cardinal, 3);
     }
@@ -148,8 +148,8 @@ fn test_voie_c_ordre_invalide_repli_canonique() {
 /// Valid π (reversed order): the planner adopts the runtime order as-is.
 #[test]
 fn test_voie_c_ordre_runtime_adopte() {
-    let reseau = reseau(PNML_CYCLE2);
-    let resultat = voie_c(&reseau, &ordre_inverse(reseau.nombre_places())).unwrap();
+    let network = network(PNML_CYCLE2);
+    let resultat = voie_c(&network, &ordre_inverse(network.nombre_places())).unwrap();
     assert_eq!(resultat.strategie, StrategieAval::OrdreRuntime);
     assert_eq!(resultat.measure.cardinal, 6);
 }
@@ -157,10 +157,10 @@ fn test_voie_c_ordre_runtime_adopte() {
 /// Net without a place: typed error on paths B and C.
 #[test]
 fn test_sans_place_rejete() {
-    let reseau = reseau(PNML_SANS_PLACE);
-    assert_eq!(voie_b(&reseau).unwrap_err(), ErreurTriptyque::SansPlace);
+    let network = network(PNML_SANS_PLACE);
+    assert_eq!(voie_b(&network).unwrap_err(), ErreurTriptyque::SansPlace);
     assert_eq!(
-        voie_c(&reseau, &[]).unwrap_err(),
+        voie_c(&network, &[]).unwrap_err(),
         ErreurTriptyque::SansPlace
     );
 }
@@ -168,11 +168,11 @@ fn test_sans_place_rejete() {
 /// Determinism: two runs give the same measurement.
 #[test]
 fn test_determinisme() {
-    let reseau = reseau(PNML_CYCLE2);
-    assert_eq!(voie_b(&reseau).unwrap(), voie_b(&reseau).unwrap());
-    let ordre = ordre_inverse(reseau.nombre_places());
+    let network = network(PNML_CYCLE2);
+    assert_eq!(voie_b(&network).unwrap(), voie_b(&network).unwrap());
+    let ordre = ordre_inverse(network.nombre_places());
     assert_eq!(
-        voie_c(&reseau, &ordre).unwrap(),
-        voie_c(&reseau, &ordre).unwrap()
+        voie_c(&network, &ordre).unwrap(),
+        voie_c(&network, &ordre).unwrap()
     );
 }

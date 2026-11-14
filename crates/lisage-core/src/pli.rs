@@ -188,7 +188,7 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
+    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
         // Identity copy: the fold does not transform the diagram.
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
@@ -199,7 +199,7 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
                     arcs,
                 },
             ),
-            crate::memoire::EffetMemoire::new(),
+            crate::memory::EffetMemory::new(),
         )
     }
 

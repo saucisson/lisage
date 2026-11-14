@@ -17,7 +17,7 @@ use std::sync::Arc;
 use lisage_algebra::interface::{Anchor, Form, Level, MemoryPolicy, NodeId, Pool};
 
 use crate::error::CoreError;
-use crate::memoire::{EffetMemoire, MemoireLevel};
+use crate::memory::{EffetMemory, MemoryLevel};
 use crate::observer::{CanalAttr, Observer, TraceEvent};
 
 /// Memo key: (operation fingerprint, node, inherited attribute,
@@ -36,7 +36,7 @@ pub struct ContextePhiOut<'a, H, S, M: Clone + Eq + Hash + Debug> {
     /// Already-transduced children: `{v ↦ (D', s)}`.
     pub arcs: BTreeMap<u64, (NodeId, S)>,
     /// Level memory in read (M2-3).
-    pub memoire: &'a MemoireLevel<M>,
+    pub memory: &'a MemoryLevel<M>,
     /// Input node being visited (key of the level memory).
     pub node_input: NodeId,
 }
@@ -85,7 +85,7 @@ pub trait Transduction: Send + Sync {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, EffetMemoire<Self::M>);
+    ) -> (NodeId, EffetMemory<Self::M>);
 
     /// (T-TERM): interned result terminal node + synthesized attribute.
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(
@@ -102,9 +102,9 @@ pub trait Transduction: Send + Sync {
 pub struct Transducteur<T: Transduction> {
     transduction: T,
     memo: HashMap<KeyMemo<T::H>, (NodeId, T::S)>,
-    memoire: MemoireLevel<T::M>,
+    memory: MemoryLevel<T::M>,
     politique: MemoryPolicy,
-    observateur: Option<Arc<dyn Observer>>,
+    observer: Option<Arc<dyn Observer>>,
 }
 
 impl<T: Transduction> Transducteur<T> {
@@ -120,32 +120,32 @@ impl<T: Transduction> Transducteur<T> {
         Transducteur {
             transduction,
             memo: HashMap::new(),
-            memoire: MemoireLevel::new(),
+            memory: MemoryLevel::new(),
             politique,
-            observateur: None,
+            observer: None,
         }
     }
 
     /// Runner with trace observer (M2-6): emits `MemoHit`/`MemoMiss`
     /// and the `Attr` of the three channels during execution.
-    pub fn avec_observateur(
+    pub fn avec_observer(
         transduction: T,
         politique: MemoryPolicy,
-        observateur: Arc<dyn Observer>,
+        observer: Arc<dyn Observer>,
     ) -> Self {
         Transducteur {
             transduction,
             memo: HashMap::new(),
-            memoire: MemoireLevel::new(),
+            memory: MemoryLevel::new(),
             politique,
-            observateur: Some(observateur),
+            observer: Some(observer),
         }
     }
 
     /// Emits an event on the observer, if there is one.
     fn notifier(&self, evenement: TraceEvent) {
-        if let Some(observateur) = &self.observateur {
-            observateur.on_event(&evenement);
+        if let Some(observer) = &self.observer {
+            observer.on_event(&evenement);
         }
     }
 
@@ -161,13 +161,13 @@ impl<T: Transduction> Transducteur<T> {
     }
 
     /// Current version of the level memory (L1).
-    pub fn version_memoire(&self) -> u64 {
-        self.memoire.version()
+    pub fn version_memory(&self) -> u64 {
+        self.memory.version()
     }
 
     /// Access to the level memory (for tests: produced entries).
-    pub fn memoire(&self) -> &MemoireLevel<T::M> {
-        &self.memoire
+    pub fn memory(&self) -> &MemoryLevel<T::M> {
+        &self.memory
     }
 
     /// Runs the transduction at the root, with initial attribute `h0`.
@@ -221,7 +221,7 @@ impl<T: Transduction> Transducteur<T> {
             self.transduction.fingerprint(),
             node,
             h.clone(),
-            self.memoire.version(),
+            self.memory.version(),
         );
         if let Some((resultat, s)) = self.memo.get(&key) {
             self.notifier(TraceEvent::MemoHit { node });
@@ -262,12 +262,12 @@ impl<T: Transduction> Transducteur<T> {
                     level,
                     h: &h,
                     arcs: enfants,
-                    memoire: &self.memoire,
+                    memory: &self.memory,
                     node_input: node,
                 };
                 let (node_resultat, effet) = self.transduction.phi_out(pool_output, ctx);
                 if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
-                    return Err(CoreError::MemoireNonAutorisee);
+                    return Err(CoreError::MemoryNonAutorisee);
                 }
                 if !effet.ecritures.is_empty() {
                     self.notifier(TraceEvent::Attr {
@@ -276,7 +276,7 @@ impl<T: Transduction> Transducteur<T> {
                         value: format!("{:?}", effet.ecritures),
                     });
                 }
-                effet.apply(&mut self.memoire);
+                effet.apply(&mut self.memory);
                 (node_resultat, s)
             }
         };
@@ -299,7 +299,7 @@ impl<T: Transduction> Transducteur<T> {
             self.transduction.fingerprint(),
             node,
             h.clone(),
-            self.memoire.version(),
+            self.memory.version(),
         );
         if let Some((resultat, s)) = self.memo.get(&key) {
             self.notifier(TraceEvent::MemoHit { node });
@@ -340,12 +340,12 @@ impl<T: Transduction> Transducteur<T> {
                     level,
                     h: &h,
                     arcs: enfants,
-                    memoire: &self.memoire,
+                    memory: &self.memory,
                     node_input: node,
                 };
                 let (node_resultat, effet) = self.transduction.phi_out(pool, ctx);
                 if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
-                    return Err(CoreError::MemoireNonAutorisee);
+                    return Err(CoreError::MemoryNonAutorisee);
                 }
                 if !effet.ecritures.is_empty() {
                     self.notifier(TraceEvent::Attr {
@@ -354,7 +354,7 @@ impl<T: Transduction> Transducteur<T> {
                         value: format!("{:?}", effet.ecritures),
                     });
                 }
-                effet.apply(&mut self.memoire);
+                effet.apply(&mut self.memory);
                 (node_resultat, s)
             }
         };

@@ -134,7 +134,7 @@ fn largeur_barre(compte: u64, max: u64) -> u32 {
 /// Static SVG rendering of the memory and quotient view: pools panel
 /// (GC metrics + live nodes per plane), quotient classes panel
 /// (forms × anchors with ×k badges), naive/DD/Lisage comparison bars.
-pub fn rendre_svg_vue_memoire(
+pub fn rendre_svg_vue_memory(
     pools: &[VuePool],
     classes: &[ClasseQuotient],
     comparaison: &ComparaisonVue,
