@@ -1,6 +1,6 @@
 //! Sérialiseur de trace **JSONL versionné** (M1-9 Liseuse v0, M2-6 v1 pas à
 //! pas) : une ligne JSON par événement, schéma `{"v":2, ...}` (voir
-//! `docs/liseuse-visualiseur-d-ordres-de-diagrammes-et-d-opérations.md` § 3).
+//! `docs/reader-visualizer-of-diagram-orders-and-operations.md` § 3).
 //! Sérialisation écrite à la main : aucune dépendance externe (liste
 //! d'escalation AGENTS.md).
 
