@@ -1,6 +1,6 @@
-//! Démo philosophes de bout en bout (M1-10, énoncé C8) : R_n pour n = 3, 4, 5
-//! construits en DD plat, comptés par pli `(ℕ,+,×)`, filtrés / sondés par
-//! `filter`/`exists`, **7 formes** vérifiées, figure SVG exportée depuis la
+//! End-to-end philosophers demo (M1-10, statement C8): R_n for n = 3, 4, 5
+//! built in flat DD, counted by fold `(ℕ,+,×)`, filtered / probed by
+//! `filter`/`exists`, **7 forms** verified, SVG figure exported from the
 //! Liseuse.
 
 use lisage_core::Anchor;
@@ -12,10 +12,10 @@ use lisage_liseuse::philosophes::{
 };
 use lisage_liseuse::svg::rendre_svg;
 
-/// |R_n| attendus (docs/golden-thread-example-n-philosophers-end-to-end § 0, vérifiés par simulation).
+/// Expected |R_n| (docs/golden-thread-example-n-philosophers-end-to-end § 0, verified by simulation).
 const R_ATTENDUS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152)];
 
-/// C8 : |R_n| par pli DD == énumération de référence == valeurs du fil rouge.
+/// C8: |R_n| by DD fold == reference enumeration == golden-thread values.
 #[test]
 fn test_c8_cardinaux_r3_r4_r5() {
     for &(n, attendu) in R_ATTENDUS {
@@ -26,13 +26,16 @@ fn test_c8_cardinaux_r3_r4_r5() {
         let racine = construire_r_n(&mut entree, anchor, n);
         let compte = compter_r_n(&entree, &mut sortie, anchor, n, racine);
         let reference = mots_atteignables(n as usize).len() as u64;
-        assert_eq!(compte, reference, "n={n} : pli DD == énumération");
-        assert_eq!(compte, attendu, "n={n} : |R_{n}| = {attendu} (fil rouge)");
+        assert_eq!(compte, reference, "n={n} : DD fold == enumeration");
+        assert_eq!(
+            compte, attendu,
+            "n={n} : |R_{n}| = {attendu} (golden thread)"
+        );
     }
 }
 
-/// `filter` sur la projection « mangeurs » de R_n : états où la cellule 0
-/// mange (clé 0 présente) ; compte DD == référence.
+/// `filter` on the « eaters » projection of R_n: states where cell 0
+/// eats (key 0 present); DD count == reference.
 #[test]
 fn test_filter_cellule_zero_mange() {
     for &(n, _) in R_ATTENDUS {
@@ -52,8 +55,8 @@ fn test_filter_cellule_zero_mange() {
         .unwrap();
         let mut sortie2 = pool_neuf(&schema);
         let compte = compter(&sortie, &mut sortie2, anchor, &schema, filtre).unwrap();
-        // Référence : ensembles indépendants de C_n contenant 0 (la
-        // projection mangeurs est many-to-one : on compte les mangeurs).
+        // Reference: independent sets of C_n containing 0 (the
+        // eaters projection is many-to-one: we count the eaters).
         let reference = mots_atteignables(n as usize)
             .iter()
             .map(|mot| {
@@ -65,15 +68,15 @@ fn test_filter_cellule_zero_mange() {
             .into_iter()
             .filter(|mangeurs| mangeurs.contains(&0))
             .count() as u64;
-        assert_eq!(compte, reference, "n={n} : filter « cellule 0 mange »");
+        assert_eq!(compte, reference, "n={n} : filter « cell 0 eats »");
     }
 }
 
-/// `exists` sur la projection « mangeurs » de R_n : une cellule qui mange
-/// existe (vrai — la clé 0 est présente dans au moins un état), mais aucune
-/// état où toutes les cellules mangent (faux pour n ≥ 3 : pas deux `eat`
-/// adjacents circulairement). Les deux assertions peuvent échouer si
-/// `exists` est cassé (toujours-vrai ou toujours-faux).
+/// `exists` on the « eaters » projection of R_n: a cell that eats
+/// exists (true — key 0 is present in at least one state), but no
+/// state where all the cells eat (false for n ≥ 3: no two `eat`
+/// adjacent circularly). Both assertions can fail if
+/// `exists` is broken (always-true or always-false).
 #[test]
 fn test_exists_sur_r_n() {
     for &(n, _) in R_ATTENDUS {
@@ -91,7 +94,7 @@ fn test_exists_sur_r_n() {
             Box::new(|cles: &ClePresentes| cles.contains(&0)),
         )
         .unwrap();
-        assert!(un_mange, "n={n} : un état où la cellule 0 mange existe");
+        assert!(un_mange, "n={n} : a state where cell 0 eats exists");
         let n_copie = n;
         let toutes_mangent = existe(
             &entree,
@@ -102,31 +105,28 @@ fn test_exists_sur_r_n() {
             Box::new(move |cles: &ClePresentes| (0..n_copie).all(|i| cles.contains(&i))),
         )
         .unwrap();
-        assert!(
-            !toutes_mangent,
-            "n={n} : aucun état où toutes les cellules mangent"
-        );
+        assert!(!toutes_mangent, "n={n} : no state where all the cells eat");
     }
 }
 
-/// C8 : les 7 formes = 5 cellules légales de l'automate minimal + les 2
-/// terminaux ⊥/⊤, vérifiées **contre R_n lui-même** (le DD) : les deux
-/// terminaux sont atteignables depuis la racine, chaque état de
-/// l'énumération de référence compile en un nœud atteignable, et les
-/// seules combinaisons (pc, left) apparaissant dans R_n sont les 5 légales.
+/// C8: the 7 forms = 5 legal cells of the minimal automaton + the 2
+/// terminals ⊥/⊤, verified **against R_n itself** (the DD): both
+/// terminals are reachable from the root, each state of the
+/// reference enumeration compiles to a reachable node, and the
+/// only (pc, left) combinations appearing in R_n are the 5 legal ones.
 #[test]
 fn test_sept_formes_contre_r_n() {
     use lisage_core::{Form, Pool};
 
     let legales = cellules_legales();
-    assert_eq!(legales.len(), 5, "5 formes internes");
+    assert_eq!(legales.len(), 5, "5 internal forms");
     for &(n, _) in R_ATTENDUS {
         let schema = schema_anneau(n);
         let mut entree = pool_neuf(&schema);
         let anchor = Anchor(0);
         let racine = construire_r_n(&mut entree, anchor, n);
 
-        // Nœuds atteignables depuis la racine + terminaux vus.
+        // Nodes reachable from the root + terminals seen.
         let mut atteignables = std::collections::BTreeSet::new();
         let mut terminaux_vus = std::collections::BTreeSet::new();
         let mut pile = vec![racine];
@@ -141,21 +141,21 @@ fn test_sept_formes_contre_r_n() {
                 Form::Node { arcs, .. } => pile.extend(arcs.values().copied()),
             }
         }
-        // ⊤ est atteignable (R_n est non vide) ; ⊥ ne l'est pas (tout chemin
-        // de R_n mène à l'acceptation). Les deux assertions sont des
-        // contre-exemples : elles échouent si la construction change.
+        // ⊤ is reachable (R_n is non-empty); ⊥ is not (every path
+        // of R_n leads to acceptance). Both assertions are
+        // counter-examples: they fail if the construction changes.
         assert!(
             terminaux_vus.contains(&true),
-            "n={n} : le terminal d'acceptation ⊤ est dans R_n"
+            "n={n} : the acceptance terminal ⊤ is in R_n"
         );
         assert!(
             !terminaux_vus.contains(&false),
-            "n={n} : le terminal de rejet ⊥ n'est pas atteignable depuis R_n"
+            "n={n} : the rejection terminal ⊥ is not reachable from R_n"
         );
 
-        // Cardinal du DD == cardinal de l'énumération (test C8) : les deux
-        // ensembles coïncident. On relève ici les combinaisons (pc, left)
-        // apparaissant dans R_n.
+        // DD cardinal == enumeration cardinal (test C8): the two
+        // sets coincide. We record here the (pc, left)
+        // combinations appearing in R_n.
         let mut vus: std::collections::BTreeSet<(u64, u64)> = std::collections::BTreeSet::new();
         for mot in mots_atteignables(n as usize) {
             for i in 0..n as usize {
@@ -168,19 +168,15 @@ fn test_sept_formes_contre_r_n() {
         for cellule in legales {
             assert!(
                 vus.contains(&cellule),
-                "n={n} : la cellule légale {cellule:?} apparaît"
+                "n={n} : the legal cell {cellule:?} appears"
             );
         }
-        assert_eq!(
-            vus.len(),
-            5,
-            "n={n} : exactement 5 cellules légales dans R_n"
-        );
+        assert_eq!(vus.len(), 5, "n={n} : exactly 5 legal cells in R_n");
     }
 }
 
-/// Référence indépendante par DP : nombre de mots circulaires de longueur
-/// `n` sur {0,1,2} sans deux `2` adjacents (contrainte circulaire incluse).
+/// Independent reference by DP: number of circular words of length
+/// `n` over {0,1,2} with no two `2` adjacent (circular constraint included).
 fn reference_circulaire(n: usize) -> u64 {
     (0..3usize)
         .flat_map(|premier| {
@@ -193,9 +189,9 @@ fn reference_circulaire(n: usize) -> u64 {
         .sum()
 }
 
-/// DP linéaire : nombre de mots de longueur `n` commençant par `premier`,
-/// sans deux `2` adjacents (contrainte circulaire non incluse). Retourne
-/// le dernier symbole et le compte.
+/// Linear DP: number of words of length `n` starting with `premier`,
+/// with no two `2` adjacent (circular constraint not included). Returns
+/// the last symbol and the count.
 fn dp_lineaire(n: usize, premier: usize) -> Vec<(usize, u64)> {
     let mut dp = [0u64; 3];
     dp[premier] = 1;
@@ -214,9 +210,9 @@ fn dp_lineaire(n: usize, premier: usize) -> Vec<(usize, u64)> {
     dp.iter().enumerate().map(|(v, &c)| (v, c)).collect()
 }
 
-/// Propriété (sans dépendance de test) : pour n = 3..=12, tout mot énuméré
-/// respecte l'invariant « pas deux `eat` adjacents circulairement », et
-/// l'énumération a le même cardinal que la DP de référence.
+/// Property (no test dependency): for n = 3..=12, every enumerated word
+/// respects the invariant « no two `eat` adjacent circularly », and
+/// the enumeration has the same cardinal as the reference DP.
 #[test]
 fn test_propriete_mots_atteignables_jusqua_n12() {
     for n in 3..=12usize {
@@ -224,19 +220,19 @@ fn test_propriete_mots_atteignables_jusqua_n12() {
         assert_eq!(
             mots.len() as u64,
             reference_circulaire(n),
-            "n={n} : énumération == DP de référence"
+            "n={n} : enumeration == reference DP"
         );
         for mot in &mots {
             assert!(
                 (0..n).all(|i| !(mot[i] == 2 && mot[(i + 1) % n] == 2)),
-                "n={n} : invariant circulaire sur {mot:?}"
+                "n={n} : circular invariant on {mot:?}"
             );
         }
     }
 }
 
-/// Figure exportée depuis la Liseuse : SVG statique de R_5, déterministe,
-/// écrite dans `bench-results/` (commitée).
+/// Figure exported from the Liseuse: static SVG of R_5, deterministic,
+/// written to `bench-results/` (committed).
 #[test]
 fn test_figure_svg_r5_exportee() {
     let n = 5u64;
@@ -245,13 +241,16 @@ fn test_figure_svg_r5_exportee() {
     let racine = construire_r_n(&mut entree, Anchor(0), n);
     let svg = rendre_svg(&entree, racine);
     assert!(svg.starts_with("<svg ") && svg.contains("ℓ0"));
-    assert_eq!(svg, rendre_svg(&entree, racine), "rendu déterministe");
+    assert_eq!(svg, rendre_svg(&entree, racine), "deterministic rendering");
 
     let dossier = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
-    std::fs::create_dir_all(dossier).expect("création de bench-results");
+    std::fs::create_dir_all(dossier).expect("creation of bench-results");
     let chemin = format!("{dossier}/philosophes-n5.svg");
-    // La figure commitée doit être à jour : un rendu qui diverge échoue ici.
-    let commitee = std::fs::read_to_string(&chemin).expect("lecture de la figure commitée");
-    assert_eq!(svg, commitee, "bench-results/philosophes-n5.svg est à jour");
-    std::fs::write(&chemin, &svg).expect("écriture de la figure");
+    // The committed figure must be up to date: a diverging rendering fails here.
+    let commitee = std::fs::read_to_string(&chemin).expect("reading the committed figure");
+    assert_eq!(
+        svg, commitee,
+        "bench-results/philosophes-n5.svg is up to date"
+    );
+    std::fs::write(&chemin, &svg).expect("writing the figure");
 }

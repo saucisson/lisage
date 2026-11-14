@@ -1,20 +1,20 @@
-//! Sérialiseur de trace **JSONL versionné** (M1-9 Liseuse v0, M2-6 v1 pas à
-//! pas) : une ligne JSON par événement, schéma `{"v":2, ...}` (voir
+//! **Versioned JSONL** trace serializer (M1-9 Liseuse v0, M2-6 v1 step by
+//! step): one JSON line per event, schema `{"v":2, ...}` (see
 //! `docs/reader-visualizer-of-diagram-orders-and-operations.md` § 3).
-//! Sérialisation écrite à la main : aucune dépendance externe (liste
-//! d'escalation AGENTS.md).
+//! Hand-written serialization: no external dependency (escalation list
+//! AGENTS.md).
 
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
 use lisage_core::observer::{CanalAttr, Observer, ReductionRule, TraceEvent};
 
-/// Version du schéma de trace (`{"v":2, ...}`) : v2 ajoute les événements
-/// `Attr`/`MemoHit`/`MemoMiss`/`Round` de la vue pas à pas (M2-6).
+/// Trace schema version (`{"v":2, ...}`): v2 adds the
+/// `Attr`/`MemoHit`/`MemoMiss`/`Round` events of the step-by-step view (M2-6).
 pub const TRACE_VERSION: u32 = 2;
 
-/// Échappement JSON minimal d'une chaîne (les événements n'en portent pas
-/// de dynamique, mais le contrat reste correct).
+/// Minimal JSON escaping of a string (events carry no dynamic
+/// ones, but the contract stays correct).
 fn echapper_json(chaine: &str) -> String {
     let mut sortie = String::with_capacity(chaine.len() + 2);
     for caractere in chaine.chars() {
@@ -31,7 +31,7 @@ fn echapper_json(chaine: &str) -> String {
     sortie
 }
 
-/// Nom JSON d'une règle de réduction.
+/// JSON name of a reduction rule.
 fn nom_regle(regle: ReductionRule) -> &'static str {
     match regle {
         ReductionRule::Share => "R-share",
@@ -40,7 +40,7 @@ fn nom_regle(regle: ReductionRule) -> &'static str {
     }
 }
 
-/// Nom JSON d'un canal d'attribut (M2-6).
+/// JSON name of an attribute channel (M2-6).
 fn nom_canal(canal: CanalAttr) -> &'static str {
     match canal {
         CanalAttr::Herite => "herite",
@@ -49,7 +49,7 @@ fn nom_canal(canal: CanalAttr) -> &'static str {
     }
 }
 
-/// Sérialise un événement de trace en une ligne JSONL (sans le `\n` final).
+/// Serializes a trace event as one JSONL line (without the trailing `\n`).
 pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
     let (type_evenement, champs) = match evenement {
         TraceEvent::NodeCreated { node, level } => (
@@ -103,27 +103,27 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
     format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{champs}}}")
 }
 
-/// Observateur qui collecte la trace en mémoire, sérialisée JSONL.
-/// Clonable : un clone posé dans le pool partage la même trace.
+/// Observer that collects the trace in memory, serialized JSONL.
+/// Cloneable: a clone placed in the pool shares the same trace.
 #[derive(Clone)]
 pub struct JsonlObserver {
     lignes: Arc<Mutex<Vec<String>>>,
 }
 
 impl JsonlObserver {
-    /// Observateur neuf, trace vide.
+    /// New observer, empty trace.
     pub fn new() -> Self {
         JsonlObserver {
             lignes: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
-    /// Lignes JSONL collectées (dans l'ordre d'émission).
+    /// Collected JSONL lines (in emission order).
     pub fn lignes(&self) -> Vec<String> {
         self.lignes.lock().expect("mutex poisoned").clone()
     }
 
-    /// Écrit la trace complète (une ligne par événement) dans `sortie`.
+    /// Writes the full trace (one line per event) to `sortie`.
     pub fn ecrire<W: Write>(&self, sortie: &mut W) -> std::io::Result<()> {
         for ligne in self.lignes() {
             writeln!(sortie, "{ligne}")?;

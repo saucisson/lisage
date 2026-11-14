@@ -1,72 +1,72 @@
-//! Tests de M3-4 (vue 1 de la Liseuse, doc liseuse § 4) : fiche contrôleur
-//! (huit champs), ordre en piste linéaire ou arbre (vtree), royaumes côte à
-//! côte, conversions fléchées avec coût — rendu SVG statique déterministe.
+//! M3-4 tests (Liseuse view 1, liseuse doc § 4): controller card
+//! (eight fields), order as a linear track or a tree (vtree), kingdoms side by
+//! side, arrowed conversions with cost — deterministic static SVG rendering.
 
 use lisage_liseuse::vue_ordre::{
     ConversionVue, FicheControleur, NoeudVtree, PisteOrdre, RoyaumeVue, rendre_svg_vue_ordre,
 };
 
-/// Extrait un attribut numérique d'un élément SVG (ex. `y="42"` → 42).
+/// Extracts a numeric attribute from an SVG element (ex. `y="42"` → 42).
 fn extraire_attribut(element: &str, attribut: &str) -> u32 {
-    // Espace initial : évite de matcher la fin de `font-family="..."`.
+    // Leading space: avoids matching the end of `font-family="..."`.
     let position_attribut = element
         .find(&format!(" {attribut}=\""))
-        .unwrap_or_else(|| panic!("attribut {attribut} présent"));
+        .unwrap_or_else(|| panic!("attribute {attribut} present"));
     let apres = &element[position_attribut + attribut.len() + 3..];
-    let fin = apres.find('"').expect("fin de l'attribut");
-    apres[..fin].parse().expect("attribut entier")
+    let fin = apres.find('"').expect("end of the attribute");
+    apres[..fin].parse().expect("integer attribute")
 }
 
-/// Coordonnée `y` de l'élément texte portant `marqueur` (ex. `>record<`).
+/// `y` coordinate of the text element carrying `marqueur` (e.g. `>record<`).
 fn y_texte(svg: &str, marqueur: &str) -> u32 {
-    let position = svg.find(marqueur).expect("marqueur présent");
+    let position = svg.find(marqueur).expect("marker present");
     let avant = &svg[..position];
-    let y_pos = avant.rfind(" y=\"").expect("attribut y avant le marqueur");
+    let y_pos = avant.rfind(" y=\"").expect("attribute y before the marker");
     extraire_attribut(&avant[y_pos..], "y")
 }
 
-/// Coordonnée `x` de l'élément texte portant `marqueur`.
+/// `x` coordinate of the text element carrying `marqueur`.
 fn x_texte(svg: &str, marqueur: &str) -> u32 {
-    let position = svg.find(marqueur).expect("marqueur présent");
+    let position = svg.find(marqueur).expect("marker present");
     let avant = &svg[..position];
-    let x_pos = avant.rfind(" x=\"").expect("attribut x avant le marqueur");
+    let x_pos = avant.rfind(" x=\"").expect("attribute x before the marker");
     extraire_attribut(&avant[x_pos..], "x")
 }
 
-/// `y1` de la flèche de conversion (ligne en pointillés).
+/// `y1` of the conversion arrow (dashed line).
 fn y1_fleche_conversion(svg: &str) -> u32 {
     let pos = svg
         .find("stroke-dasharray=\"6 3\"")
-        .expect("flèche de conversion");
-    let debut = svg[..pos].rfind("<line").expect("élément line");
+        .expect("conversion arrow");
+    let debut = svg[..pos].rfind("<line").expect("line element");
     extraire_attribut(&svg[debut..pos], "y1")
 }
 
-/// Fiche contrôleur de l'instance de référence (huit champs remplis).
+/// Controller card of the reference instance (eight fields filled).
 fn fiche_reference() -> FicheControleur {
     FicheControleur {
-        delta: "présence {absent, présent}".to_string(),
+        delta: "presence {absent, present}".to_string(),
         sigma: "Set(Atom(D))".to_string(),
-        decomposition_ordre: "balayage d'univers, O canonique".to_string(),
+        decomposition_ordre: "universe sweep, canonical O".to_string(),
         regles: "R-share, R-collapse, R-default".to_string(),
         defauts: "δ(ℓ) = absent".to_string(),
         defaut_global: "D_δ = terminal(false)".to_string(),
-        encodage: "balayage d'univers".to_string(),
-        attribution: "hérité / synthétisé / mémoire".to_string(),
+        encodage: "universe sweep".to_string(),
+        attribution: "inherited / synthesized / memory".to_string(),
     }
 }
 
-/// Fiche du témoin BDD classique.
+/// Card of the classic BDD witness.
 fn fiche_bdd() -> FicheControleur {
     FicheControleur {
-        encodage: "BDD classique".to_string(),
+        encodage: "classic BDD".to_string(),
         ..fiche_reference()
     }
 }
 
-/// M3-4 : la vue ordre rend la fiche contrôleur (huit champs), la piste
-/// linéaire des niveaux dans l'ordre de balayage, et les royaumes côte à
-/// côte avec la conversion fléchée et son coût.
+/// M3-4: the order view renders the controller card (eight fields), the
+/// linear track of the levels in sweep order, and the kingdoms side by
+/// side with the arrowed conversion and its cost.
 #[test]
 fn test_vue_ordre_fiche_piste_lineaire_royaumes_et_conversion() {
     let royaumes = vec![
@@ -93,39 +93,36 @@ fn test_vue_ordre_fiche_piste_lineaire_royaumes_et_conversion() {
     }];
     let svg = rendre_svg_vue_ordre(&royaumes, &conversions);
 
-    // Fiche contrôleur : les huit champs.
+    // Controller card: the eight fields.
     for champ in [
         "δ =",
         "Σ =",
-        "décomposition + O =",
+        "decomposition + O =",
         "R =",
-        "défauts =",
-        "D^déf =",
-        "encodage =",
+        "defaults =",
+        "D^def =",
+        "encoding =",
         "attribution =",
     ] {
-        assert!(svg.contains(champ), "champ de fiche présent: {champ}");
+        assert!(svg.contains(champ), "card field present: {champ}");
     }
-    // Deux royaumes côte à côte.
+    // Two kingdoms side by side.
     assert!(svg.contains("reference"));
     assert!(svg.contains("temoin-bdd"));
-    // Piste linéaire : les niveaux dans l'ordre (x croissants).
+    // Linear track: the levels in order (increasing x).
     let x_a = x_texte(&svg, ">a<");
     let x_b = x_texte(&svg, ">b<");
     let x_c = x_texte(&svg, ">c<");
-    assert!(x_a < x_b && x_b < x_c, "niveaux dans l'ordre de balayage");
-    // Conversion fléchée avec coût.
-    assert!(svg.contains("convert reference → temoin-bdd (coût 3)"));
-    assert!(
-        svg.contains("stroke-dasharray=\"6 3\""),
-        "flèche en pointillés"
-    );
-    // Échappement XML des libellés : "<a>" rendu en &lt;a&gt;, jamais en balise.
-    assert!(svg.contains("&lt;a&gt;"), "libellé échappé en &lt;a&gt;");
-    assert!(!svg.contains("><a><"), "pas de balise injectée");
+    assert!(x_a < x_b && x_b < x_c, "levels in sweep order");
+    // Arrowed conversion with cost.
+    assert!(svg.contains("convert reference → temoin-bdd (cost 3)"));
+    assert!(svg.contains("stroke-dasharray=\"6 3\""), "dashed arrow");
+    // XML escaping of labels: "<a>" rendered as &lt;a&gt;, never as a tag.
+    assert!(svg.contains("&lt;a&gt;"), "label escaped as &lt;a&gt;");
+    assert!(!svg.contains("><a><"), "no injected tag");
 }
 
-/// M3-4 : un ordre structuré se rend en arbre (vtree), sans cas particulier.
+/// M3-4: a structured order renders as a tree (vtree), no special case.
 #[test]
 fn test_vue_ordre_piste_arbre_vtree() {
     let arbre = NoeudVtree {
@@ -135,17 +132,17 @@ fn test_vue_ordre_piste_arbre_vtree() {
                 libelle: "machine".to_string(),
                 enfants: vec![
                     NoeudVtree {
-                        libelle: "cellule".to_string(),
+                        libelle: "cell".to_string(),
                         enfants: vec![],
                     },
                     NoeudVtree {
-                        libelle: "état".to_string(),
+                        libelle: "state".to_string(),
                         enfants: vec![],
                     },
                 ],
             },
             NoeudVtree {
-                libelle: "convoyeur".to_string(),
+                libelle: "conveyor".to_string(),
                 enfants: vec![],
             },
         ],
@@ -156,20 +153,20 @@ fn test_vue_ordre_piste_arbre_vtree() {
         piste: PisteOrdre::Arbre(arbre),
     }];
     let svg = rendre_svg_vue_ordre(&royaumes, &[]);
-    for libelle in ["record", "machine", "cellule", "état", "convoyeur"] {
+    for libelle in ["record", "machine", "cell", "state", "conveyor"] {
         assert!(
             svg.contains(&format!(">{libelle}<")),
-            "nœud vtree: {libelle}"
+            "vtree node: {libelle}"
         );
     }
-    // Le parent est au-dessus de ses enfants (y parsés, pas des offsets).
+    // The parent is above its children (parsed y, not offsets).
     let y_record = y_texte(&svg, ">record<");
-    let y_cellule = y_texte(&svg, ">cellule<");
-    assert!(y_record < y_cellule, "parent au-dessus de l'enfant");
+    let y_cellule = y_texte(&svg, ">cell<");
+    assert!(y_record < y_cellule, "parent above the child");
 }
 
-/// M3-4 : le rendu est déterministe et une conversion vers un royaume
-/// inconnu est ignorée (pas de flèche).
+/// M3-4: the rendering is deterministic and a conversion to an
+/// unknown kingdom is ignored (no arrow).
 #[test]
 fn test_vue_ordre_deterministe_et_conversion_inconnue_ignoree() {
     let royaumes = vec![RoyaumeVue {
@@ -185,12 +182,12 @@ fn test_vue_ordre_deterministe_et_conversion_inconnue_ignoree() {
     let svg = rendre_svg_vue_ordre(&royaumes, &conversions);
     assert!(!svg.contains("convert r → inconnu"));
     let svg2 = rendre_svg_vue_ordre(&royaumes, &conversions);
-    assert_eq!(svg, svg2, "rendu déterministe");
+    assert_eq!(svg, svg2, "deterministic rendering");
 }
 
-/// M3-4 : une conversion fléchée s'ancre au milieu de la piste **quelle que
-/// soit sa hauteur** — y compris une piste en arbre (vtree), pas seulement
-/// une piste linéaire.
+/// M3-4: an arrowed conversion anchors at the middle of the track **whatever
+/// its height** — including a tree track (vtree), not only a
+/// linear track.
 #[test]
 fn test_conversion_ancree_dans_piste_arbre() {
     let arbre = NoeudVtree {
@@ -227,14 +224,14 @@ fn test_conversion_ancree_dans_piste_arbre() {
         cout: 7,
     }];
     let svg = rendre_svg_vue_ordre(&royaumes, &conversions);
-    assert!(svg.contains("convert arbre → lineaire (coût 7)"));
-    // La flèche part du milieu de la piste arbre (3 niveaux de 44 px, soit
-    // y_piste + 66) : y1 parsé, strictement sous la racine et son premier
-    // niveau — un ancrage sur la racine (y_piste + 28) échouerait ici.
+    assert!(svg.contains("convert arbre → lineaire (cost 7)"));
+    // The arrow starts from the middle of the tree track (3 levels of 44 px,
+    // i.e. y_track + 66): parsed y1, strictly under the root and its first
+    // level — an anchoring on the root (y_track + 28) would fail here.
     let y_racine = y_texte(&svg, ">record<");
     let y1 = y1_fleche_conversion(&svg);
     assert!(
         y1 > y_racine + 44,
-        "flèche ancrée au milieu de la piste (y1={y1}, racine={y_racine})"
+        "arrow anchored at the middle of the track (y1={y1}, root={y_racine})"
     );
 }

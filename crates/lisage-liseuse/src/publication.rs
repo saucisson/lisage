@@ -1,7 +1,7 @@
-//! Mode publication (M5-5) : export de figures propres à la mise en page
-//! article — SVG autonome ou PGF/TikZ, thème serif, **légende
-//! auto-générée depuis la légende des canaux** (`CanalAttr`) : le même
-//! fichier qui sert au débogage sert à la publication (doc liseuse § 5).
+//! Publication mode (M5-5): export of figures ready for article
+//! layout — standalone SVG or PGF/TikZ, serif theme, **legend
+//! auto-generated from the channel legend** (`CanalAttr`): the same
+//! file used for debugging is used for publication (liseuse doc § 5).
 
 use lisage_core::observer::CanalAttr;
 use lisage_core::{NodeId, Pool};
@@ -11,35 +11,35 @@ use crate::svg::{
     placer,
 };
 
-/// Thème de publication : serif, encre sombre sur fond blanc, couleurs de
-/// canaux calées sur la légende de `CanalAttr` (hérité = bleu, synthétisé =
-/// orange, mémoire = violet).
+/// Publication theme: serif, dark ink on white background, channel colors
+/// aligned with the `CanalAttr` legend (inherited = blue, synthesized =
+/// orange, memory = purple).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Theme {
-    /// Police (serif pour la mise en page article).
+    /// Font (serif for article layout).
     pub police: &'static str,
-    /// Taille du titre en pixels.
+    /// Title size in pixels.
     pub taille_titre: u32,
-    /// Taille du texte des nœuds en pixels.
+    /// Node text size in pixels.
     pub taille_texte: u32,
-    /// Taille de la légende en pixels.
+    /// Legend size in pixels.
     pub taille_legende: u32,
-    /// Couleur d'encre (contours, texte).
+    /// Ink color (outlines, text).
     pub encre: &'static str,
-    /// Couleur des arcs.
+    /// Arc color.
     pub arete: &'static str,
-    /// Couleur des étiquettes d'arcs.
+    /// Arc label color.
     pub etiquette: &'static str,
-    /// Fond de la figure.
+    /// Figure background.
     pub fond: &'static str,
-    /// Fond des nœuds.
+    /// Node background.
     pub fond_noeud: &'static str,
-    /// Fond des terminaux.
+    /// Terminal background.
     pub fond_terminal: &'static str,
 }
 
 impl Theme {
-    /// Thème de publication par défaut (serif, fond blanc, encre sombre).
+    /// Default publication theme (serif, white background, dark ink).
     pub fn publication() -> Self {
         Theme {
             police: "serif",
@@ -55,7 +55,7 @@ impl Theme {
         }
     }
 
-    /// Palette de rendu du diagramme pour ce thème.
+    /// Diagram rendering palette for this theme.
     fn couleurs(&self) -> Couleurs {
         Couleurs {
             encre: self.encre,
@@ -67,33 +67,33 @@ impl Theme {
     }
 }
 
-/// Légende des canaux : source de vérité unique (canal, étiquette, couleur),
-/// rendue telle quelle dans la légende auto-générée.
+/// Channel legend: single source of truth (channel, label, color),
+/// rendered as-is in the auto-generated legend.
 pub const LEGENDE_CANAUX: &[(CanalAttr, &str, &str)] = &[
-    (CanalAttr::Herite, "hérité (φ_disp)", "#1f6feb"),
-    (CanalAttr::Synthétise, "synthétisé (φ_aggr)", "#d29922"),
-    (CanalAttr::Memoire, "mémoire de niveau", "#8250df"),
+    (CanalAttr::Herite, "inherited (φ_disp)", "#1f6feb"),
+    (CanalAttr::Synthétise, "synthesized (φ_aggr)", "#d29922"),
+    (CanalAttr::Memoire, "level memory", "#8250df"),
 ];
 
-/// Hauteur réservée à la légende en pixels (une ligne par canal).
+/// Height reserved for the legend in pixels (one line per channel).
 const HAUTEUR_LEGENDE: u32 = 18;
-/// Largeur de la colonne de légende en pixels.
+/// Width of the legend column in pixels.
 const LARGEUR_LEGENDE: u32 = 220;
-/// Taille du pavé de couleur d'un canal en pixels.
+/// Size of a channel color swatch in pixels.
 const TAILLE_PAVE_LEGENDE: u32 = 12;
-/// Décalage horizontal entre le pavé et son étiquette en pixels.
+/// Horizontal offset between the swatch and its label in pixels.
 const DECALAGE_ETIQUETTE_LEGENDE: u32 = 18;
-/// Décalage vertical du pavé par rapport à la ligne de texte en pixels.
+/// Vertical offset of the swatch relative to the text line in pixels.
 const DECALAGE_PAVE_LEGENDE: u32 = 10;
-/// Marge entre le diagramme et la colonne de légende en pixels.
+/// Margin between the diagram and the legend column in pixels.
 const MARGE_LEGENDE: u32 = 20;
-/// Ligne de base du titre en pixels.
+/// Title baseline in pixels.
 const BASELINE_TITRE: u32 = 26;
-/// Marge basse de la figure en pixels.
+/// Bottom margin of the figure in pixels.
 const MARGE_BAS: u32 = 20;
 
-/// Rend la légende des canaux en fragment SVG (un pavé coloré + une étiquette
-/// par canal, auto-générée depuis [`LEGENDE_CANAUX`]).
+/// Renders the channel legend as an SVG fragment (one colored swatch + one label
+/// per channel, auto-generated from [`LEGENDE_CANAUX`]).
 pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
     let mut svg = String::new();
     for (index, (_canal, etiquette, couleur)) in LEGENDE_CANAUX.iter().enumerate() {
@@ -115,9 +115,9 @@ pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
     svg
 }
 
-/// Rend le sous-diagramme atteignable depuis `racine` en **SVG autonome de
-/// publication** : fond blanc, titre en serif, diagramme au thème donné, et
-/// légende des canaux auto-générée si `avec_legende`.
+/// Renders the sub-diagram reachable from `racine` as a **standalone
+/// publication SVG**: white background, serif title, diagram in the given
+/// theme, and auto-generated channel legend if `avec_legende`.
 pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -159,11 +159,11 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     svg
 }
 
-/// Échelle de conversion pixels → centimètres pour le PGF (1 px = 0,05 cm).
+/// Pixel → centimeter conversion scale for PGF (1 px = 0.05 cm).
 const ECHELLE_PGF_CM_PAR_PIXEL: f64 = 0.05;
 
-/// Rend le sous-diagramme atteignable depuis `racine` en **PGF/TikZ
-/// autonome** (document `standalone`), pour inclusion dans un article LaTeX.
+/// Renders the sub-diagram reachable from `racine` as a **standalone
+/// PGF/TikZ** (document `standalone`), for inclusion in a LaTeX article.
 pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -179,7 +179,7 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
         "\\node[font=\\rmfamily\\bfseries] at (0,0) {{{}}};\n",
         echapper_pgf(titre)
     ));
-    // Nœuds.
+    // Nodes.
     for (noeud, position) in &placement {
         let x = position.x as f64 * ECHELLE_PGF_CM_PAR_PIXEL;
         let y = -(position.y as f64 * ECHELLE_PGF_CM_PAR_PIXEL);
@@ -224,11 +224,11 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
     pgf
 }
 
-/// Échappement minimal pour TikZ (les caractères spéciaux LaTeX).
+/// Minimal escaping for TikZ (LaTeX special characters).
 fn echapper_pgf(texte: &str) -> String {
-    // Le backslash passe par un placeholder : échappé en premier il
-    // protégerait mal ses propres accolades, en dernier il ré-échapperait
-    // les backslashes insérés par les autres règles.
+    // The backslash goes through a placeholder: escaped first it would
+    // poorly protect its own braces, escaped last it would re-escape
+    // the backslashes inserted by the other rules.
     const PLACEHOLDER_BASCUL: char = '\u{0}';
     texte
         .replace('\\', PLACEHOLDER_BASCUL.to_string().as_str())

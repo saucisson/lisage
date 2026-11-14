@@ -1,8 +1,8 @@
-//! Atelier didactique sur le fil rouge (backlog § 9, demande du 10 novembre
-//! 2026) : R_n mesuré avec les réductions commutables — nœuds partagés
-//! (R-share) contre chemins (DAG déplié). Le partage se voit à l'œil nu :
-//! R₃ tient en quelques formes partagées contre 20 chemins (un par état
-//! atteignable), et couper R-collapse/R-default ne peut qu'augmenter.
+//! Didactic workshop on the golden thread (backlog § 9, request of November 10,
+//! 2026): R_n measured with the commutable reductions — shared nodes
+//! (R-share) against paths (unfolded DAG). The sharing is visible to the naked eye:
+//! R₃ fits in a few shared forms against 20 paths (one per
+//! reachable state), and cutting R-collapse/R-default can only increase it.
 
 use lisage_core::Anchor;
 use lisage_core::arena::Arena;
@@ -21,7 +21,7 @@ fn mesurer_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
         Box::new(NoOpObserver),
     );
     let racine = construire_r_n(&mut pool, ANCRE, n);
-    let rapport = mesurer(&pool, racine, None).expect("nœud interné");
+    let rapport = mesurer(&pool, racine, None).expect("interned node");
     (
         rapport.noeuds_partages,
         rapport.chemins,
@@ -29,25 +29,25 @@ fn mesurer_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
     )
 }
 
-/// Fil rouge : R₃ = 20 états atteignables = 20 chemins (un par état) ; le
-/// diagramme partagé tient en 33 nœuds contre une taille dépliée de 126
-/// (somme des longueurs de chemins, raccourcies par R-collapse) — le partage
-/// se voit à l'œil nu.
+/// Golden thread: R₃ = 20 reachable states = 20 paths (one per state); the
+/// shared diagram fits in 33 nodes against an unfolded size of 126
+/// (sum of path lengths, shortened by R-collapse) — the sharing
+/// is visible to the naked eye.
 #[test]
 fn test_r3_partage_contre_taille_depliee() {
     let (noeuds, chemins, taille_depliee) = mesurer_r_n(3, Reductions::TOUTES);
-    assert_eq!(chemins, 20, "un chemin par état atteignable de R₃");
+    assert_eq!(chemins, 20, "one path per reachable state of R₃");
     assert_eq!(mots_atteignables(3).len() as u64, 20);
-    assert_eq!(taille_depliee, 126, "somme des longueurs des 20 chemins");
-    assert_eq!(noeuds, 33, "nœuds partagés de R₃ en encodage plat");
+    assert_eq!(taille_depliee, 126, "sum of the lengths of the 20 paths");
+    assert_eq!(noeuds, 33, "shared nodes of R₃ in flat encoding");
     assert!(
         noeuds < taille_depliee,
-        "le partage (R-share) tient en {noeuds} nœuds contre {taille_depliee} dépliés"
+        "sharing (R-share) fits in {noeuds} nodes against {taille_depliee} unfolded"
     );
 }
 
-/// Couper R-collapse / R-default ne peut qu'augmenter (ou laisser égal) les
-/// deux métriques sur la même construction.
+/// Cutting R-collapse / R-default can only increase (or leave equal) the
+/// two metrics on the same construction.
 #[test]
 fn test_commutation_ne_reduit_jamais() {
     let (noeuds_toutes, chemins_toutes, taille_toutes) = mesurer_r_n(3, Reductions::TOUTES);
@@ -61,14 +61,14 @@ fn test_commutation_ne_reduit_jamais() {
     assert!(noeuds_sans_defaut >= noeuds_toutes);
 }
 
-/// Le pool de référence (sans enveloppe atelier) donne le même diagramme que
-/// `Reductions::TOUTES` : l'enveloppe ne change rien quand tout est actif.
+/// The reference pool (without the workshop wrapper) gives the same diagram as
+/// `Reductions::TOUTES`: the wrapper changes nothing when everything is active.
 #[test]
 fn test_enveloppe_transparente_quand_tout_actif() {
     let schema = schema_anneau(3);
     let mut reference = pool_neuf(&schema);
     let racine_ref = construire_r_n(&mut reference, ANCRE, 3);
-    let rapport_ref = mesurer(&reference, racine_ref, None).expect("nœud interné");
+    let rapport_ref = mesurer(&reference, racine_ref, None).expect("interned node");
     let (noeuds, chemins, taille) = mesurer_r_n(3, Reductions::TOUTES);
     assert_eq!(rapport_ref.noeuds_partages, noeuds);
     assert_eq!(rapport_ref.chemins, chemins);
