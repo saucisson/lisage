@@ -141,7 +141,7 @@ fn test_integrale_terminaux() {
 /// `Attr`/`Synthétise` event per visited node, with the computed measure —
 /// pinned by the collecting observer.
 #[test]
-fn test_narration_evenements_attr_synthétise() {
+fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
     let intervalles = vec![Intervalle::nouveau(2, 5), Intervalle::nouveau(7, 9)];
     let racine = compiler_union(&mut pool, ANCRE, &intervalles);

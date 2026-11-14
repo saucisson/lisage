@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 misc: last accents outside the open PRs (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: full-repo accent sweep after liseuse; translates the two remaining `Cargo.toml` descriptions (lisage-plan, lisage-algebra) and renames the two test functions `test_narration_evenements_attr_synthétise` → `..._synthesized` in lisage-core tests integrale/integrale_dbm. Remaining accents in `crates/` are only the kept `Synthétise` identifier and the lisage-core files covered by open PRs #203/#204/#205.
+- **Evidence**: accent grep over `crates/` shows only PR-covered files + `Synthétise`; `cargo test -p lisage-core --test integrale --test integrale_dbm` ok (14 passed); `cargo fmt -- --check` clean on the touched crates.
+- **Judgement calls**: test function names are local, renamed; public identifiers still deferred.
 ## 2026-11-14 - M6-5 liseuse part 1: lisage-liseuse src+tests translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
