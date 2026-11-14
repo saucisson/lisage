@@ -1,6 +1,6 @@
 # ADR-0101: Pull request size budget raised to ~1 000 lines
 
-- Status: accepted (décision humaine directe, 2026-11-10)
+- Status: accepted (direct human decision, 2026-11-10)
 - Date: 2026-11-10
 
 ## Context
