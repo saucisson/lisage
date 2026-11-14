@@ -1,8 +1,8 @@
-//! Différentiel des témoins BDD (M1-8, énoncé C6 — reproduction à
-//! l'identique) : la configuration BDD classique de l'arène
-//! (`lisage_core::bdd`) et le mini-BDD témoin indépendant
-//! (`lisage_bench::temoin_bdd`) doivent produire le **même nombre de nœuds**
-//! et la **même sémantique** sur toute fonction booléenne aléatoire.
+//! Differential of the BDD witnesses (M1-8, statement C6 — identical
+//! reproduction): the classic BDD configuration of the arena
+//! (`lisage_core::bdd`) and the independent mini-BDD witness
+//! (`lisage_bench::temoin_bdd`) must produce the **same node count**
+//! and the **same semantics** on any random Boolean function.
 
 use lisage_algebra::interface::Anchor;
 use lisage_bench::temoin_bdd::MiniBdd;
@@ -12,9 +12,9 @@ use lisage_core::observer::NoOpObserver;
 use proptest::prelude::*;
 
 proptest! {
-    /// C6 : sur une table de vérité aléatoire, le nombre de nœuds du BDD
-    /// classique (arène) égale celui du mini-BDD témoin, et l'évaluation
-    /// des deux agrees avec la table sur les 2^n affectations.
+    /// C6: on a random truth table, the node count of the classic BDD
+    /// (arena) equals that of the mini-BDD witness, and the evaluation
+    /// of both agrees with the table on all 2^n assignments.
     #[test]
     fn test_c6_reproduction_identique_arene_vs_temoin(
         nombre_variables in 2u32..=8,
@@ -35,12 +35,12 @@ proptest! {
 
         prop_assert_eq!(
             noeuds_arene, noeuds_temoin,
-            "C6 : reproduction à l'identique du nombre de nœuds"
+            "C6: identical reproduction of the node count"
         );
         for a in 0..(1u64 << nombre_variables) {
             let attendu = table[a as usize];
-            prop_assert_eq!(evaluer(&pool, racine, a).unwrap(), attendu, "arène, affectation {}", a);
-            prop_assert_eq!(temoin.evaluer(racine_temoin, a), attendu, "témoin, affectation {}", a);
+            prop_assert_eq!(evaluer(&pool, racine, a).unwrap(), attendu, "arena, assignment {}", a);
+            prop_assert_eq!(temoin.evaluer(racine_temoin, a), attendu, "witness, assignment {}", a);
         }
     }
 }

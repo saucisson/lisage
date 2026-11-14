@@ -1,8 +1,8 @@
-//! PBT de `saturate` (M2-4, T2) : invariant de point fixe — `saturer`
-//! appliqué à son propre résultat termine en **une** itération avec le
-//! même nœud (idempotence), et le cardinal du point fixe est supérieur ou
-//! égal à celui de l'initial (chaîne croissante pour l'inclusion des
-//! familles dénotées).
+//! PBT of `saturate` (M2-4, T2): fixpoint invariant — `saturer`
+//! applied to its own result terminates in **one** iteration with the
+//! same node (idempotence), and the cardinal of the fixpoint is greater or
+//! equal to that of the initial (increasing chain for the inclusion of the
+//! denoted families).
 
 use std::collections::BTreeMap;
 
@@ -16,15 +16,15 @@ use lisage_core::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
-/// Taille du domaine d'atomes des schémas aléatoires.
+/// Size of the atom domain of the random schemas.
 const TAILLE_DOMAINE: u64 = 3;
-/// Fingerprint de la transduction d'étape PBT.
+/// Fingerprint of the PBT step transduction.
 const FINGERPRINT_ETAPE: u64 = 4003;
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Transduction d'étape : émet toujours le singleton `{ajout}` quel que soit
-/// le nœud d'entrée (terminaux → ⊥).
+/// Step transduction: always emits the singleton `{ajout}` whatever the
+/// input node (terminals → ⊥).
 #[derive(Clone)]
 struct EmetSingleton {
     singleton: NodeId,
@@ -63,12 +63,12 @@ impl Transduction for EmetSingleton {
     }
 }
 
-/// Schéma `Set` sur le domaine `{0, 1, 2}`.
+/// `Set` schema over the domain `{0, 1, 2}`.
 fn schema_test() -> Schema {
     Schema::Set(Domaine::nouveau((0..TAILLE_DOMAINE).map(Atom).collect()))
 }
 
-/// Construit un pool neuf pour le schéma donné.
+/// Builds a fresh pool for the given schema.
 fn nouveau_pool(schema: &Schema) -> PoolRef {
     Arena::new(
         ReferenceController::new(schema.clone()),
@@ -76,7 +76,7 @@ fn nouveau_pool(schema: &Schema) -> PoolRef {
     )
 }
 
-/// Compile un ensemble d'atomes dans le pool.
+/// Compiles a set of atoms into the pool.
 fn compiler_ensemble(
     pool: &mut PoolRef,
     anchor: Anchor,
@@ -92,17 +92,17 @@ fn compiler_ensemble(
     .unwrap()
 }
 
-/// Cardinal d'un diagramme (nombre de membres de la famille dénotée).
+/// Cardinal of a diagram (number of members of the denoted family).
 fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
     let mut sortie = nouveau_pool(schema);
     compter(pool, &mut sortie, Anchor(0), schema, noeud).unwrap()
 }
 
 proptest! {
-    /// Invariant de point fixe (T2) : soit `R = saturer(τ, D)` ; alors
-    /// `saturer(τ, R)` termine en 1 itération avec le même nœud `R`
-    /// (idempotence), et le cardinal de `R` est supérieur ou égal à celui
-    /// de `D` (chaîne croissante).
+    /// Fixpoint invariant (T2): let `R = saturer(τ, D)`; then
+    /// `saturer(τ, R)` terminates in 1 iteration with the same node `R`
+    /// (idempotence), and the cardinal of `R` is greater or equal to that
+    /// of `D` (increasing chain).
     #[test]
     fn test_saturate_point_fixe_idempotent(
         initial in prop::collection::vec(0u64..TAILLE_DOMAINE, 0..TAILLE_DOMAINE as usize),
@@ -131,16 +131,16 @@ proptest! {
         };
         let premier = saturer(&mut params).unwrap();
 
-        // Chaîne croissante : le point fixe contient la famille initiale.
+        // Increasing chain: the fixpoint contains the initial family.
         let cardinal_initial = cardinal(&pool, &schema, noeud_initial);
         let cardinal_fixe = cardinal(&pool, &schema, premier.noeud);
         prop_assert!(
             cardinal_fixe >= cardinal_initial,
-            "point fixe ⊇ initial : {cardinal_fixe} >= {cardinal_initial}"
+            "fixpoint ⊇ initial: {cardinal_fixe} >= {cardinal_initial}"
         );
 
-        // Idempotence : saturer appliqué au résultat termine en 1 itération
-        // avec le même nœud.
+        // Idempotence: saturer applied to the result terminates in 1 iteration
+        // with the same node.
         let mut params = ParametresSaturation {
             transduction: &etape,
             politique: &politique,
@@ -152,7 +152,7 @@ proptest! {
             observateur: None,
         };
         let second = saturer(&mut params).unwrap();
-        prop_assert_eq!(second.iterations, 1, "point fixe : 1 itération");
-        prop_assert_eq!(second.noeud, premier.noeud, "idempotence du point fixe");
+        prop_assert_eq!(second.iterations, 1, "fixpoint: 1 iteration");
+        prop_assert_eq!(second.noeud, premier.noeud, "fixpoint idempotence");
     }
 }

@@ -1,8 +1,8 @@
-//! Tests du harnais de confrontation (ADR-0102) : valeurs de vérification
-//! épinglées (LCG, fil rouge R_n, fenêtre glissante), erreurs typées,
-//! sérialisation JSON déterministe. Les mesures temps/mémoire ne sont pas
-//! épinglées (elles dépendent de la machine) : seules les valeurs
-//! *sémantiques* le sont — c'est la falsification explicite du harnais.
+//! Tests of the confrontation harness (ADR-0102): pinned cross-check
+//! values (LCG, golden thread R_n, sliding window), typed errors,
+//! deterministic JSON serialization. Time/memory measurements are not
+//! pinned (they depend on the machine): only the *semantic* values
+//! are — that is the explicit falsification of the harness.
 
 use std::path::PathBuf;
 
@@ -15,27 +15,27 @@ use lisage_core::atelier::Encodage;
 const PENSE: u64 = 0;
 /// `eat`.
 const MANGE: u64 = 2;
-/// Fork tenue par le philosophe courant (il mange).
+/// Fork held by the current philosopher (he eats).
 const TENUE: u64 = 1;
-/// Fork tenue par le philosophe précédent (il mange).
+/// Fork held by the previous philosopher (he eats).
 const PRECEDENTE: u64 = 2;
-/// |R_n| du fil rouge pour n = 3..7 (vérifiés par simulation, M4-4).
+/// |R_n| of the golden thread for n = 3..7 (verified by simulation, M4-4).
 const R_ATTENDUS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152), (6, 416), (7, 1136)];
-/// Nœuds partagés de R_3 (atelier didactique, fragment 1 : 33 nœuds).
+/// Shared nodes of R_3 (didactic workshop, fragment 1: 33 nodes).
 const NOEUDS_R3: u64 = 33;
-/// Chemins de la fenêtre de test : 10 bases × 4 positions.
+/// Paths of the test window: 10 bases × 4 positions.
 const CHEMINS_FENETRE: u64 = 40;
-/// Nœuds de la fenêtre absolue (atelier didactique, fragment 2).
+/// Nodes of the absolute window (didactic workshop, fragment 2).
 const NOEUDS_FENETRE_ABSOLUE: u64 = 12;
-/// Nœuds de la fenêtre relative : une seule forme partagée, O(1).
+/// Nodes of the relative window: a single shared form, O(1).
 const NOEUDS_FENETRE_RELATIVE: u64 = 3;
-/// Satisfactions de la table LCG pour n = 4 (épinglé, déterministe).
+/// Satisfactions of the LCG table for n = 4 (pinned, deterministic).
 const SATISFACTIONS_LCG_N4: u64 = 7;
-/// Satisfactions de la table LCG pour n = 12 (épinglé, déterministe —
-/// même LCG que la ligne de base M1-8).
+/// Satisfactions of the LCG table for n = 12 (pinned, deterministic —
+/// same LCG as the M1-8 baseline).
 const SATISFACTIONS_LCG_N12: u64 = 2074;
 
-/// Fourchette `left_i` dérivée du mot `pc` (fil rouge § 3).
+/// `left_i` fork derived from the `pc` word (golden thread § 3).
 fn fourchette(compteur_programme: &[u64], nombre: usize, indice: usize) -> u64 {
     if compteur_programme[indice] == MANGE {
         TENUE
@@ -46,10 +46,10 @@ fn fourchette(compteur_programme: &[u64], nombre: usize, indice: usize) -> u64 {
     }
 }
 
-/// Énumère les états étendus de R_n : mots circulaires sans voisins `mange`
-/// adjacents, forks dérivées, intercalés `pc_0 left_0 pc_1 …`. Même
-/// algorithme que l'orchestrateur Python (`scripts/confrontation.py`) : la
-/// cohérence génération ↔ pins est vérifiée par test dédié.
+/// Enumerates the extended states of R_n: circular words without adjacent
+/// `eat` neighbors, derived forks, interleaved `pc_0 left_0 pc_1 …`. Same
+/// algorithm as the Python orchestrator (`scripts/confrontation.py`): the
+/// generation ↔ pins consistency is checked by a dedicated test.
 fn etats_etendus(nombre: usize) -> Vec<Vec<u64>> {
     let mut mots = Vec::new();
     let mut mot = vec![PENSE; nombre];
@@ -81,14 +81,14 @@ fn etats_etendus(nombre: usize) -> Vec<Vec<u64>> {
     }
 }
 
-/// Compteur de fichiers temporaires : un nom unique par appel (sous
-/// `cargo test`, les tests d'un même binaire tournent en threads d'un
-/// seul processus — le pid seul ne suffit pas).
+/// Temporary-file counter: a unique name per call (under
+/// `cargo test`, the tests of one binary run as threads of a
+/// single process — the pid alone is not enough).
 static COMPTEUR_FICHIERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// Écrit le fichier d'états étendus partagé (même format que l'orchestrateur
-/// Python : première ligne `n <n>`, puis un état par ligne) et rend son
-/// chemin.
+/// Writes the shared extended-states file (same format as the
+/// Python orchestrator: first line `n <n>`, then one state per line) and
+/// returns its path.
 fn ecrire_fichier_etats(nombre: u64) -> PathBuf {
     let numero = COMPTEUR_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let chemin = std::env::temp_dir().join(format!(
@@ -102,33 +102,33 @@ fn ecrire_fichier_etats(nombre: u64) -> PathBuf {
         contenu.push_str(&ligne.join(" "));
         contenu.push('\n');
     }
-    std::fs::write(&chemin, contenu).expect("fichier d'états temporaire écrit");
+    std::fs::write(&chemin, contenu).expect("temporary states file written");
     chemin
 }
 
-/// Charge `alea-lcg` : satisfactions épinglées (LCG déterministe), C6
-/// vérifié en interne par le runner (mini-BDD indépendant), mesure rendue
-/// avec la variante `bdd`.
+/// `alea-lcg` workload: pinned satisfactions (deterministic LCG), C6
+/// checked internally by the runner (independent mini-BDD), measurement
+/// returned with the `bdd` variant.
 #[test]
 fn test_alea_lcg_satisfactions_epinglees() {
     for (n, satisfait) in [(4, SATISFACTIONS_LCG_N4), (12, SATISFACTIONS_LCG_N12)] {
-        let mesure = executer(&Charge::AleaLcg, &[n.to_string()], None).expect("charge exécutée");
+        let mesure = executer(&Charge::AleaLcg, &[n.to_string()], None).expect("workload run");
         assert_eq!(OUTIL, "lisage");
         assert_eq!(mesure.variante, Variante::Bdd);
         assert_eq!(mesure.charge, Charge::AleaLcg);
-        assert_eq!(mesure.verifie, satisfait, "n={n} : satisfactions épinglées");
-        assert!(mesure.noeuds > 0, "n={n} : diagramme non vide");
-        assert!(mesure.temps_ms.is_finite(), "n={n} : temps mesuré");
-        assert!(mesure.rss_max_ko > 0, "n={n} : VmHWM relevée");
+        assert_eq!(mesure.verifie, satisfait, "n={n}: pinned satisfactions");
+        assert!(mesure.noeuds > 0, "n={n}: non-empty diagram");
+        assert!(mesure.temps_ms.is_finite(), "n={n}: measured time");
+        assert!(mesure.rss_max_ko > 0, "n={n}: VmHWM read");
     }
 }
 
-/// Charge `alea-lcg` : bornes refusées (zéro et trop grand), erreur typée.
+/// `alea-lcg` workload: rejected bounds (zero and too large), typed error.
 #[test]
 fn test_alea_lcg_bornes_refusees() {
     for n in [0, 25] {
         let erreur =
-            executer(&Charge::AleaLcg, &[n.to_string()], None).expect_err("bornes refusées");
+            executer(&Charge::AleaLcg, &[n.to_string()], None).expect_err("bounds rejected");
         assert!(matches!(
             erreur,
             ErreurConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
@@ -136,39 +136,39 @@ fn test_alea_lcg_bornes_refusees() {
     }
 }
 
-/// Charge `philosophes` : |R_n| épinglé sur n = 3..7, nœuds de R_3 épinglés
-/// (33), cardinal par pli == nombre d'états du fichier.
+/// `philosophes` workload: |R_n| pinned over n = 3..7, nodes of R_3 pinned
+/// (33), cardinal via pli == number of states in the file.
 #[test]
 fn test_philosophes_fil_rouge_epingle() {
     for &(nombre, attendu) in R_ATTENDUS {
         let chemin = ecrire_fichier_etats(nombre);
         let parametres = vec![nombre.to_string(), chemin.display().to_string()];
-        let mesure = executer(&Charge::Philosophes, &parametres, None).expect("charge exécutée");
-        assert_eq!(mesure.verifie, attendu, "n={nombre} : |R_n| épinglé");
+        let mesure = executer(&Charge::Philosophes, &parametres, None).expect("workload run");
+        assert_eq!(mesure.verifie, attendu, "n={nombre}: pinned |R_n|");
         assert_eq!(mesure.variante, Variante::Mdd);
         if nombre == 3 {
-            assert_eq!(mesure.noeuds, NOEUDS_R3, "R_3 : 33 nœuds partagés");
+            assert_eq!(mesure.noeuds, NOEUDS_R3, "R_3: 33 shared nodes");
         }
         assert!(mesure.rss_max_ko > 0);
     }
 }
 
-/// Charge `philosophes` : borne supérieure sur n (garde anti-débordement
-/// du schéma intercalé) — erreur typée, pas de panic.
+/// `philosophes` workload: upper bound on n (anti-overflow guard
+/// of the interleaved schema) — typed error, no panic.
 #[test]
 fn test_philosophes_borne_refusee() {
     let chemin = ecrire_fichier_etats(3);
     let parametres = vec!["33".to_string(), chemin.display().to_string()];
-    let erreur = executer(&Charge::Philosophes, &parametres, None).expect_err("borne refusée");
+    let erreur = executer(&Charge::Philosophes, &parametres, None).expect_err("bound rejected");
     assert!(matches!(
         erreur,
         ErreurConfrontation::ParametresInvalides { charge, .. } if charge == "philosophes"
     ));
 }
 
-/// Charge `philosophes` : fichier invalide (vide, première ligne non
-/// conforme, longueur d'état incohérente, valeur hors domaine) → erreur
-/// typée, jamais avalée.
+/// `philosophes` workload: invalid file (empty, non-conforming first line,
+/// inconsistent state length, out-of-domain value) → typed error,
+/// never swallowed.
 #[test]
 fn test_philosophes_entrees_invalides() {
     let cas = [
@@ -184,30 +184,30 @@ fn test_philosophes_entrees_invalides() {
             "confrontation-test-invalide-{numero}-{}-{uniq}.txt",
             std::process::id()
         ));
-        std::fs::write(&chemin, contenu).expect("fichier invalide écrit");
+        std::fs::write(&chemin, contenu).expect("invalid file written");
         let parametres = vec!["3".to_string(), chemin.display().to_string()];
         let erreur = executer(&Charge::Philosophes, &parametres, None);
-        assert!(erreur.is_err(), "entrée invalide rejetée : {contenu:?}");
+        assert!(erreur.is_err(), "invalid input rejected: {contenu:?}");
         assert!(
             matches!(erreur, Err(ErreurConfrontation::EntreeInvalide { .. })),
-            "erreur typée EntreeInvalide, pas d'avalage : {erreur:?}"
+            "typed error EntreeInvalide, not swallowed: {erreur:?}"
         );
     }
 }
 
-/// Charge `fenetre` : mêmes chemins dans les deux encodages (40 = 10×4),
-/// nœuds 12 (absolu) contre 3 (relatif) — le partage relatif se voit à
-/// l'œil nu (atelier didactique, fragment 2).
+/// `fenetre` workload: same paths in both encodings (40 = 10×4),
+/// nodes 12 (absolute) vs 3 (relative) — the relative sharing is
+/// visible to the naked eye (didactic workshop, fragment 2).
 #[test]
 fn test_fenetre_encodages_epingles() {
     let absolu =
-        executer(&Charge::Fenetre, &["4".to_string(), "10".to_string()], None).expect("absolu");
+        executer(&Charge::Fenetre, &["4".to_string(), "10".to_string()], None).expect("absolute");
     let relatif = executer(
         &Charge::Fenetre,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
         None,
     )
-    .expect("relatif");
+    .expect("relative");
     assert_eq!(absolu.verifie, CHEMINS_FENETRE);
     assert_eq!(relatif.verifie, CHEMINS_FENETRE);
     assert_eq!(absolu.noeuds, NOEUDS_FENETRE_ABSOLUE);
@@ -216,21 +216,21 @@ fn test_fenetre_encodages_epingles() {
     assert_eq!(relatif.encodage, Some(Encodage::Relatif));
 }
 
-/// Charge inconnue (bord du binaire : analyse en enum, `None`) et
-/// paramètres manquants : erreurs typées.
+/// Unknown workload (binary edge: parsed into an enum, `None`) and
+/// missing parameters: typed errors.
 #[test]
 fn test_charges_inconnues_refusees() {
     assert_eq!(Charge::depuis_nom("inexistante"), None);
     assert_eq!(Charge::depuis_nom("alea-lcg"), Some(Charge::AleaLcg));
-    let erreur = executer(&Charge::AleaLcg, &[], None).expect_err("paramètres manquants");
+    let erreur = executer(&Charge::AleaLcg, &[], None).expect_err("missing parameters");
     assert!(matches!(
         erreur,
         ErreurConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
     ));
 }
 
-/// Sérialisation JSON : une ligne, ordre des clés fixe, encodage présent
-/// seulement pour la fenêtre. Épinglé caractère par caractère.
+/// JSON serialization: one line, fixed key order, encoding present
+/// only for the window. Pinned character by character.
 #[test]
 fn test_serialisation_ligne_epinglee() {
     let mesure = MesureConfrontation {
@@ -260,23 +260,23 @@ fn test_serialisation_ligne_epinglee() {
     assert_eq!(serialiser_ligne(&sans_encodage), attendu_sans);
 }
 
-/// La génération d'états étendus du harnais (même algorithme que
-/// l'orchestrateur Python) couvre les pins du fil rouge : |R_n| pour
-/// n = 3..7, chaque état à 2n valeurs dans {0,1,2}.
+/// The harness's extended-state generation (same algorithm as
+/// the Python orchestrator) covers the golden-thread pins: |R_n| for
+/// n = 3..7, each state with 2n values in {0,1,2}.
 #[test]
 fn test_etats_etendus_coherents_avec_fil_rouge() {
     for &(nombre, attendu) in R_ATTENDUS {
         let etats = etats_etendus(nombre as usize);
-        assert_eq!(etats.len() as u64, attendu, "n={nombre} : |R_n| épinglé");
+        assert_eq!(etats.len() as u64, attendu, "n={nombre}: pinned |R_n|");
         assert!(etats.iter().all(|etat| {
             etat.len() == 2 * nombre as usize && etat.iter().all(|valeur| *valeur <= MANGE)
         }));
     }
 }
 
-/// Narration (ADR-0100 décision 6) : chaque charge émet un événement
-/// `Attr`/`Synthétise` portant le récapitulatif — épinglé par un
-/// observateur collecteur.
+/// Narration (ADR-0100 decision 6): each workload emits an
+/// `Attr`/`Synthétise` event carrying the summary — pinned by a
+/// collecting observer.
 #[test]
 fn test_narration_charge_epinglee() {
     use std::sync::{Arc, Mutex};
@@ -297,27 +297,27 @@ fn test_narration_charge_epinglee() {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
     let mesure =
-        executer(&Charge::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("charge exécutée");
+        executer(&Charge::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("workload run");
     let attendu = format!(
         "workload=alea-lcg nodes={} check={}",
         mesure.noeuds, SATISFACTIONS_LCG_N4
     );
-    // Les trois charges émettent leur récapitulatif : philosophes et
-    // fenetre sont épinglés ici aussi (une régression qui les perdrait
-    // ferait échouer ce test).
+    // The three workloads emit their summary: philosophes and
+    // fenetre are pinned here too (a regression that would lose them
+    // would fail this test).
     let chemin = ecrire_fichier_etats(3);
     let mesure_philo = executer(
         &Charge::Philosophes,
         &["3".to_string(), chemin.display().to_string()],
         Some(&collecteur),
     )
-    .expect("charge philosophes exécutée");
+    .expect("philosophes workload run");
     let mesure_fenetre = executer(
         &Charge::Fenetre,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
         Some(&collecteur),
     )
-    .expect("charge fenetre exécutée");
+    .expect("fenetre workload run");
     let attendus = [
         attendu,
         format!(
@@ -340,7 +340,7 @@ fn test_narration_charge_epinglee() {
                     ..
                 } if valeur == attendu
             )),
-            "l'événement de narration porte le récapitulatif : {attendu}"
+            "the narration event carries the summary: {attendu}"
         );
     }
 }

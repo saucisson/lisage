@@ -1,8 +1,8 @@
-//! Différentiels des opérations à canal hérité seul (M1-6, spec § 4) :
-//! voie A = interprète de référence (`lisage_lang::interpreter`),
-//! voie DD = transductions `exists`/`filter`/`map` de `lisage-core`.
-//! Triptyque C1. Pour filter/map, l'égalité est structurelle (C1 : même
-//! ensemble ⇒ même nœud dans le même pool).
+//! Differentials of the inherited-channel-only operations (M1-6, spec § 4):
+//! path A = reference interpreter (`lisage_lang::interpreter`),
+//! DD path = `exists`/`filter`/`map` transductions of `lisage-core`.
+//! Triptych C1. For filter/map, the equality is structural (C1: same
+//! set ⇒ same node in the same pool).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -22,7 +22,7 @@ fn atome(valeur: u64) -> Value {
     Value::Atom(Atom(valeur))
 }
 
-/// Petit ensemble de maps engendré aléatoirement (clés {0,1} × valeurs {0,1}).
+/// Small set of maps generated randomly (keys {0,1} × values {0,1}).
 fn ensemble_maps_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
     maps.into_iter()
         .map(|(a, b, c, d)| {
@@ -53,12 +53,12 @@ fn compiler_ensemble(
     resultat
 }
 
-/// Prédicat de présence, côté DD : `p(m) = présent(a)`.
+/// Presence predicate, DD side: `p(m) = present(a)`.
 fn predicat_dd(cles: &ClePresentes) -> bool {
     cles.contains(&0)
 }
 
-/// Même prédicat, côté voie A (interprète de référence).
+/// Same predicate, path A side (reference interpreter).
 fn predicat_lang(valeur: &Value) -> bool {
     match valeur {
         Value::Map(map) => map.contains_key(&atome(0)),
@@ -67,7 +67,7 @@ fn predicat_lang(valeur: &Value) -> bool {
 }
 
 proptest! {
-    /// C1 différentiel : exists DD (pli `(Bool,∨,∧)`) == exists interprète.
+    /// C1 differential: exists DD (pli `(Bool,∨,∧)`) == exists interpreter.
     #[test]
     fn test_c1_differentiel_exists_voie_a_vs_dd(
         maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)
@@ -96,11 +96,11 @@ proptest! {
             Box::new(predicat_dd),
         )
         .unwrap();
-        prop_assert_eq!(dd, exists(&ensemble, predicat_lang), "voie DD != voie A (exists)");
+        prop_assert_eq!(dd, exists(&ensemble, predicat_lang), "DD path != path A (exists)");
     }
 
-    /// C1 différentiel : filter DD == ensemble filtré par la voie A,
-    /// comparés structurellement (C1 : même ensemble ⇒ même nœud).
+    /// C1 differential: filter DD == set filtered by path A,
+    /// compared structurally (C1: same set ⇒ same node).
     #[test]
     fn test_c1_differentiel_filter_voie_a_vs_dd(
         maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)
@@ -131,11 +131,11 @@ proptest! {
         .unwrap();
         let attendu_ensemble = filter(&ensemble, predicat_lang);
         let attendu = compiler_ensemble(&mut sortie, anchor, &schema, &attendu_ensemble);
-        prop_assert_eq!(dd, attendu, "voie DD != voie A (filter), C1 structurel");
+        prop_assert_eq!(dd, attendu, "DD path != path A (filter), C1 structural");
     }
 
-    /// C1 différentiel : map(f) DD (réétiquetage) == map interprète sur un
-    /// ensemble aléatoire d'atomes, comparés structurellement.
+    /// C1 differential: map(f) DD (relabeling) == map interpreter on a
+    /// random set of atoms, compared structurally.
     #[test]
     fn test_c1_differentiel_map_voie_a_vs_dd(
         atomes in prop::collection::btree_set(0u64..3, 0..4)
@@ -158,6 +158,6 @@ proptest! {
             autre => autre.clone(),
         });
         let attendu = compiler_ensemble(&mut sortie, anchor, &schema, &attendu_ensemble);
-        prop_assert_eq!(dd, attendu, "voie DD != voie A (map), C1 structurel");
+        prop_assert_eq!(dd, attendu, "DD path != path A (map), C1 structural");
     }
 }

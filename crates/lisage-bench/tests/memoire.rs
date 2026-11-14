@@ -1,13 +1,13 @@
-//! PBT de la mémoire de niveau (M2-3, T3) : invariants de versioning —
-//! `version == nombre d'écritures`, read-after-write keyed by
-//! `(NodeId, Level)`, et `taille` cohérent.
+//! PBT of the level memory (M2-3, T3): versioning invariants —
+//! `version == number of writes`, read-after-write keyed by
+//! `(NodeId, Level)`, and `taille` consistent.
 
 use lisage_algebra::interface::{Level, NodeId};
 use lisage_core::memoire::MemoireNiveau;
 use proptest::prelude::*;
 
 proptest! {
-    /// version(M) == nombre d'écritures ; read-after-write ; taille cohérent.
+    /// version(M) == number of writes; read-after-write; consistent size.
     #[test]
     fn test_memoire_niveau_invariants(
         ecritures in prop::collection::vec(
@@ -21,11 +21,11 @@ proptest! {
             std::collections::HashMap::new();
         for (i, (noeud, niveau, valeur)) in ecritures.iter().enumerate() {
             let ancien = memoire.ecrire(NodeId(*noeud), Level(*niveau), *valeur);
-            prop_assert_eq!(memoire.version(), (i + 1) as u64, "version == nombre d'écritures");
+            prop_assert_eq!(memoire.version(), (i + 1) as u64, "version == number of writes");
             prop_assert_eq!(ancien, attendu.insert((NodeId(*noeud), Level(*niveau)), *valeur));
         }
         prop_assert_eq!(memoire.taille(), attendu.len());
-        // Read-after-write : chaque clé lit la dernière valeur écrite.
+        // Read-after-write: each key reads the last written value.
         for ((noeud, niveau), valeur) in &attendu {
             prop_assert_eq!(memoire.lire(*noeud, *niveau), Some(valeur));
         }

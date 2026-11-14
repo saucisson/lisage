@@ -1,6 +1,6 @@
-//! PBT de R-collapse (M1-0) : `Controller::collapse` est pure ; toute
-//! implémentation fausse (toujours `None`, toujours la première cible) est
-//! réfutée par la propriété.
+//! PBT of R-collapse (M1-0): `Controller::collapse` is pure; any
+//! wrong implementation (always `None`, always the first target) is
+//! refuted by the property.
 
 use std::collections::BTreeMap;
 
@@ -67,16 +67,16 @@ fn test_collapse_cas_limites() {
 }
 
 proptest! {
-    /// R-collapse : `Some(cible)` ssi la table est non vide et toutes les
-    /// cibles sont égales ; `None` sinon.
+    /// R-collapse: `Some(target)` iff the table is non-empty and all the
+    /// targets are equal; `None` otherwise.
     #[test]
     fn test_collapse_pbt(pairs in prop::collection::vec((0u8..4, 0u32..10), 0..8)) {
         let arcs = arcs_of(pairs);
         let result = MockController::collapse(&arcs);
-        let premiere = arcs.values().next().copied();
-        let toutes_egales = premiere.is_some_and(|cible| arcs.values().all(|t| *t == cible));
-        if toutes_egales {
-            prop_assert_eq!(result, premiere);
+        let first = arcs.values().next().copied();
+        let all_equal = first.is_some_and(|target| arcs.values().all(|t| *t == target));
+        if all_equal {
+            prop_assert_eq!(result, first);
         } else {
             prop_assert_eq!(result, None);
         }

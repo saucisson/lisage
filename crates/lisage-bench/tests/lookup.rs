@@ -1,6 +1,6 @@
-//! Différentiel lookup (M1-5) : voie A = interprète de référence
-//! (`lisage_lang::interpreter::lookup`), voie DD = transduction `lookup`
-//! de `lisage-core` sur la map compilée. Triptyque C1, spec § 6.
+//! Lookup differential (M1-5): path A = reference interpreter
+//! (`lisage_lang::interpreter::lookup`), DD path = `lookup` transduction
+//! of `lisage-core` on the compiled map. Triptych C1, spec § 6.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -20,8 +20,8 @@ fn atome(valeur: u64) -> Value {
     Value::Atom(Atom(valeur))
 }
 
-/// Suit le chemin de la map dans le diagramme de sortie et renvoie le
-/// payload du terminal atteint.
+/// Follows the map's path in the output diagram and returns the
+/// payload of the reached terminal.
 fn payload_terminal(
     pool: &PoolSortie,
     mut noeud: NodeId,
@@ -36,9 +36,9 @@ fn payload_terminal(
                 let cle = Value::Atom(liste_cles[index]);
                 if level.0.is_multiple_of(2) {
                     match map.get(&cle) {
-                        Some(_) => noeud = *arcs.get(&PRESENT).expect("arc présent"),
-                        // Arc par défaut implicite ⇒ D_δ = ε(None) ; arc
-                        // explicite (sous-arbre greffé) ⇒ on le suit.
+                        Some(_) => noeud = *arcs.get(&PRESENT).expect("arc present"),
+                        // Implicit default arc ⇒ D_δ = ε(None); explicit
+                        // arc (grafted subtree) ⇒ follow it.
                         None => match arcs.get(&ABSENT) {
                             Some(&suite) => noeud = suite,
                             None => return None,
@@ -46,7 +46,7 @@ fn payload_terminal(
                     }
                 } else {
                     let Some(Value::Atom(valeur)) = map.get(&cle) else {
-                        panic!("clé présente avec valeur atomique")
+                        panic!("key present with atomic value")
                     };
                     noeud = *arcs.get(&valeur.0).expect("arc valeur");
                 }
@@ -56,8 +56,8 @@ fn payload_terminal(
 }
 
 proptest! {
-    /// C1 différentiel : lookup DD (voie B) == lookup interprète (voie A)
-    /// sur une map aléatoire à clés {0,1} et valeurs {0,1}.
+    /// C1 differential: DD lookup (path B) == interpreter lookup (path A)
+    /// on a random map with keys {0,1} and values {0,1}.
     #[test]
     fn test_c1_differentiel_lookup_voie_a_vs_dd(
         paires in prop::collection::vec((0u64..2, 0u64..2), 0..5),
@@ -91,20 +91,20 @@ proptest! {
         let (resultat, _) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
         let dd = payload_terminal(&sortie, resultat, &liste_cles, &map);
 
-        // Voie A : interprète de référence sur l'ensemble {map}.
+        // Path A: reference interpreter on the set {map}.
         let ensemble = BTreeSet::from([valeur.clone()]);
         let attendu = lookup(&ensemble, &atome(cle))[&valeur].clone();
         let attendu_opt = match attendu {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,
         };
-        prop_assert_eq!(dd, attendu_opt, "voie DD != voie A pour lookup");
+        prop_assert_eq!(dd, attendu_opt, "DD path != path A for lookup");
     }
 
-    /// C1 différentiel, cas collapsé : domaine valeur de cardinalité 1 ⇒
-    /// le niveau val(k) est R-collapsé à la compilation, `φ_out` le
-    /// ré-explicite (T-EXPAND + greffe). La voie DD doit toujours égaler
-    /// la voie A.
+    /// C1 differential, collapsed case: value domain of cardinal 1 ⇒
+    /// the val(k) level is R-collapsed at compilation, `φ_out`
+    /// re-explicits it (T-EXPAND + graft). The DD path must still equal
+    /// path A.
     #[test]
     fn test_c1_differentiel_lookup_collapsed_voie_a_vs_dd(
         paires in prop::collection::vec((0u64..2, 0u64..1), 0..5),
@@ -144,6 +144,6 @@ proptest! {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,
         };
-        prop_assert_eq!(dd, attendu_opt, "voie DD != voie A (cas collapsé)");
+        prop_assert_eq!(dd, attendu_opt, "DD path != path A (collapsed case)");
     }
 }

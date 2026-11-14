@@ -1,13 +1,13 @@
-//! Benchmark philosophes (M4-4, énoncé C8) : mesures de référence du fil
-//! rouge (docs/golden-thread-example-n-philosophers-end-to-end § 6-9 ; la mesure contre SDD/HSDD externe
-//! est hors périmètre de la CI). Prédictions falsifiables vérifiées ici :
-//! |R_n| = 20/56/152/416/1136 (n = 3..7), variante gaucher |R'_n| =
-//! 72/196/536/1464 (n = 4..7) avec ratio |R'_n|/|R_n| = 1,2887 **constant**,
-//! 7 formes (5 cellules légales + 2 terminaux) indépendantes de n, et le
-//! bord du prototype plat (union de maps) épinglé exactement, croissant en
-//! n. Pic vivant, firings et passes relevés via l'observateur. Toute
-//! mesure contraire fait échouer le test : c'est la falsification
-//! explicite.
+//! Philosophers benchmark (M4-4, statement C8): reference measurements of the
+//! golden thread (docs/golden-thread-example-n-philosophers-end-to-end § 6-9; the measurement against external SDD/HSDD
+//! is outside the CI perimeter). Falsifiable predictions checked here:
+//! |R_n| = 20/56/152/416/1136 (n = 3..7), left-handed variant |R'_n| =
+//! 72/196/536/1464 (n = 4..7) with ratio |R'_n|/|R_n| = 1,2887 **constant**,
+//! 7 forms (5 legal cells + 2 terminals) independent of n, and the
+//! flat prototype edge (union of maps) pinned exactly, growing with
+//! n. Live peak, firings and rounds read via the observer. Any
+//! contrary measurement fails the test: that is the explicit
+//! falsification.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -19,7 +19,7 @@ use lisage_core::pli::{compter, union};
 use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
-/// Ancre de test.
+/// Test anchor.
 const ANCRE_TEST: Anchor = Anchor(0);
 /// `think`.
 const PENSE: u64 = 0;
@@ -27,30 +27,30 @@ const PENSE: u64 = 0;
 const AFFAME: u64 = 1;
 /// `eat`.
 const MANGE: u64 = 2;
-/// `g` : état intermédiaire du philosophe gaucher (position 0 seule).
+/// `g`: intermediate state of the left-handed philosopher (position 0 only).
 const GAUCHER: u64 = 3;
-/// |R_n| attendus (fil rouge § 0, vérifiés par simulation jusqu'à n = 20).
+/// Expected |R_n| (golden thread § 0, verified by simulation up to n = 20).
 const R_ATTENDUS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152), (6, 416), (7, 1136)];
-/// |R'_n| attendus pour la variante gaucher (fil rouge § 9.2, n = 4..7).
+/// Expected |R'_n| for the left-handed variant (golden thread § 9.2, n = 4..7).
 const R_GAUCHER_ATTENDUS: &[(u64, u64)] = &[(4, 72), (5, 196), (6, 536), (7, 1464)];
-/// Ratio prédit |R'_n| / |R_n|, constant (fil rouge § 9.4).
+/// Predicted ratio |R'_n| / |R_n|, constant (golden thread § 9.4).
 const RATIO_GAUCHER: f64 = 1.2887;
-/// Tolérance sur le ratio (constance et valeur) — falsification explicite.
+/// Tolerance on the ratio (constancy and value) — explicit falsification.
 const TOLERANCE_RATIO: f64 = 0.01;
-/// Nombre de cellules légales de l'automate minimal (5 + 2 terminaux = 7 formes).
+/// Number of legal cells of the minimal automaton (5 + 2 terminals = 7 forms).
 const NB_CELLULES_LEGALES: usize = 5;
-/// Pas des clés de l'intercalage : clé `2i` = `pc_i`, clé `2i+1` = `left_i`.
+/// Step of the interleaving keys: key `2i` = `pc_i`, key `2i+1` = `left_i`.
 const PAS_CLE_INTERCALAGE: u64 = 2;
-/// Décalage de la clé `left_i` après la clé `pc_i` dans l'intercalage.
+/// Offset of the `left_i` key after the `pc_i` key in the interleaving.
 const DECALAGE_CLE_GAUCHE: u64 = 1;
-/// Nœuds vivants du prototype plat (union de maps) par n — bord mesuré,
-/// croissant en n. Le 4n − 4 du fil rouge concerne le prototype plat de
-/// l'automate encodé (hors périmètre de ce banc).
+/// Live nodes of the flat prototype (union of maps) per n — measured edge,
+/// growing with n. The 4n − 4 of the golden thread concerns the flat prototype of
+/// the encoded automaton (outside this bench's perimeter).
 const BORD_PLAT: &[(u64, usize)] = &[(3, 206), (4, 646), (5, 1850), (6, 5198), (7, 14362)];
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Observateur enregistreur : firings (NodeCreated) et passes (Round).
+/// Recording observer: firings (NodeCreated) and rounds (Round).
 #[derive(Default)]
 struct RecordingObserver {
     firings: Mutex<u64>,
@@ -67,9 +67,9 @@ impl Observer for RecordingObserver {
     }
 }
 
-/// Schéma de l'anneau déroulé en intercalage (fil rouge § 2) : `2n` clés,
-/// clé `2i` = `pc_i`, clé `2i+1` = `left_i` ; domaine {0,1,2} (+ g pour le
-/// gaucher).
+/// Schema of the ring unrolled in interleaving (golden thread § 2): `2n` keys,
+/// key `2i` = `pc_i`, key `2i+1` = `left_i`; domain {0,1,2} (+ g for the
+/// left-handed).
 fn schema_anneau(n: u64, gaucher: bool) -> Schema {
     let domaine = if gaucher {
         Domaine::nouveau(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE), Atom(GAUCHER)])
@@ -79,7 +79,7 @@ fn schema_anneau(n: u64, gaucher: bool) -> Schema {
     Schema::Map((0..PAS_CLE_INTERCALAGE * n).map(Atom).collect(), domaine)
 }
 
-/// Fourchette `left_i` dérivée du mot `pc` (fil rouge § 3).
+/// `left_i` fork derived from the `pc` word (golden thread § 3).
 fn fourchette(compteur_programme: &[u64], n: usize, i: usize) -> u64 {
     const LIBRE: u64 = 0;
     const TENUE: u64 = 1;
@@ -93,7 +93,7 @@ fn fourchette(compteur_programme: &[u64], n: usize, i: usize) -> u64 {
     }
 }
 
-/// Énumère les mots circulaires atteignables (régulier ou gaucher).
+/// Enumerates the reachable circular words (regular or left-handed).
 fn mots_atteignables(n: usize, gaucher: bool) -> Vec<Vec<u64>> {
     let mut resultat = Vec::new();
     let mut mot = vec![PENSE; n];
@@ -103,8 +103,8 @@ fn mots_atteignables(n: usize, gaucher: bool) -> Vec<Vec<u64>> {
         if circulaire_ok && gaucher_ok {
             resultat.push(mot.clone());
         }
-        // Incrémentation en base 3 ; le gaucher a une 4e valeur `g` en
-        // position 0 seule.
+        // Base-3 increment; the left-handed has a 4th value `g` at
+        // position 0 only.
         let mut i = n;
         loop {
             if i == 0 {
@@ -121,7 +121,7 @@ fn mots_atteignables(n: usize, gaucher: bool) -> Vec<Vec<u64>> {
     }
 }
 
-/// Construit R_n (ou R'_n) dans le pool : union des maps compilées.
+/// Builds R_n (or R'_n) in the pool: union of the compiled maps.
 fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
     let schema = schema_anneau(n, gaucher);
     let keys = SchemaKeys::new(schema.clone());
@@ -146,7 +146,7 @@ fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
     racine
 }
 
-/// Compte |R_n| par pli `(ℕ,+,×)` sur le schéma donné.
+/// Counts |R_n| via the `(ℕ,+,×)` pli on the given schema.
 fn compter_r_n(pool_entree: &PoolRef, schema: &Schema, racine: NodeId) -> u64 {
     let mut sortie = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -155,9 +155,9 @@ fn compter_r_n(pool_entree: &PoolRef, schema: &Schema, racine: NodeId) -> u64 {
     compter(pool_entree, &mut sortie, ANCRE_TEST, schema, racine).unwrap()
 }
 
-/// M4-4 : |R_n| par pli DD == énumération == valeurs du fil rouge
-/// (20/56/152/416/1136). Falsification explicite si la mesure dit autre
-/// chose.
+/// M4-4: |R_n| via DD pli == enumeration == golden-thread values
+/// (20/56/152/416/1136). Explicit falsification if the measurement says
+/// otherwise.
 #[test]
 fn test_bench_cardinaux_r_n() {
     for &(n, attendu) in R_ATTENDUS {
@@ -169,14 +169,17 @@ fn test_bench_cardinaux_r_n() {
         let racine = construire_r_n(&mut pool, n, false);
         let compte = compter_r_n(&pool, &schema, racine);
         let reference = mots_atteignables(n as usize, false).len() as u64;
-        assert_eq!(compte, reference, "n={n} : pli DD == énumération");
-        assert_eq!(compte, attendu, "n={n} : |R_{n}| = {attendu} (fil rouge)");
+        assert_eq!(compte, reference, "n={n}: DD pli == enumeration");
+        assert_eq!(
+            compte, attendu,
+            "n={n}: |R_{n}| = {attendu} (golden thread)"
+        );
     }
 }
 
-/// M4-4 : variante gaucher — |R'_n| = 72/196/536/1464 (n = 4..7) et ratio
-/// |R'_n| / |R_n| = 1,2887 **constant** (la classe irrégulière décale la
-/// constante, pas l'exposant). Falsification explicite hors tolérance.
+/// M4-4: left-handed variant — |R'_n| = 72/196/536/1464 (n = 4..7) and ratio
+/// |R'_n| / |R_n| = 1,2887 **constant** (the irregular class shifts the
+/// constant, not the exponent). Explicit falsification outside tolerance.
 #[test]
 fn test_bench_gaucher_ratio_constant() {
     let mut ratios = Vec::new();
@@ -187,15 +190,18 @@ fn test_bench_gaucher_ratio_constant() {
             Box::new(NoOpObserver),
         );
         let racine = construire_r_n(&mut pool, n, true);
-        // |R'_n| par pli DD == énumération de référence == fil rouge § 9.2.
+        // |R'_n| via DD pli == reference enumeration == golden thread § 9.2.
         let compte = compter_r_n(&pool, &schema, racine);
         let reference = mots_atteignables(n as usize, true).len() as u64;
-        assert_eq!(compte, reference, "n={n} : pli DD == énumération (gaucher)");
+        assert_eq!(
+            compte, reference,
+            "n={n}: DD pli == enumeration (left-handed)"
+        );
         assert_eq!(
             reference, attendu,
-            "n={n} : |R'_{n}| = {attendu} (fil rouge § 9.2)"
+            "n={n}: |R'_{n}| = {attendu} (golden thread § 9.2)"
         );
-        // |R_n| régulier pour le ratio.
+        // Regular |R_n| for the ratio.
         let schema_reg = schema_anneau(n, false);
         let mut pool_reg = Arena::new(
             ReferenceController::new(schema_reg.clone()),
@@ -207,10 +213,10 @@ fn test_bench_gaucher_ratio_constant() {
         ratios.push(ratio);
         assert!(
             (ratio - RATIO_GAUCHER).abs() < TOLERANCE_RATIO,
-            "n={n} : ratio gaucher {ratio} ≈ {RATIO_GAUCHER}"
+            "n={n}: left-handed ratio {ratio} ≈ {RATIO_GAUCHER}"
         );
     }
-    // Constance du ratio sur n = 4..7 (falsification explicite).
+    // Ratio constancy over n = 4..7 (explicit falsification).
     let min = ratios.iter().copied().fold(f64::INFINITY, f64::min);
     let max = ratios.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     assert!(
@@ -219,10 +225,10 @@ fn test_bench_gaucher_ratio_constant() {
     );
 }
 
-/// M4-4 : les **7 formes** = 5 cellules légales + 2 terminaux, indépendantes
-/// de n (O(1)) ; en contraste, le prototype plat (union de maps) a un nombre
-/// de nœuds vivants qui croît avec n (le bord, 4n − 4). Pic vivant et
-/// firings relevés via l'observateur.
+/// M4-4: the **7 forms** = 5 legal cells + 2 terminals, independent
+/// of n (O(1)); in contrast, the flat prototype (union of maps) has a number
+/// of live nodes that grows with n (the edge, 4n − 4). Live peak and
+/// firings read via the observer.
 #[test]
 fn test_bench_sept_formes_o1_et_bord() {
     let observateur = Arc::new(RecordingObserver::default());
@@ -242,7 +248,7 @@ fn test_bench_sept_formes_o1_et_bord() {
             Box::new(Pont(observateur.clone())),
         );
         let racine = construire_r_n(&mut pool, n, false);
-        // Signatures (pc, left) distinctes apparaissant dans R_n.
+        // Distinct (pc, left) signatures appearing in R_n.
         let mut vus: std::collections::BTreeSet<(u64, u64)> = std::collections::BTreeSet::new();
         for mot in mots_atteignables(n as usize, false) {
             for i in 0..n as usize {
@@ -252,34 +258,34 @@ fn test_bench_sept_formes_o1_et_bord() {
         assert_eq!(
             vus.len(),
             NB_CELLULES_LEGALES,
-            "n={n} : exactement 5 cellules légales (7 formes avec ⊥/⊤)"
+            "n={n}: exactly 5 legal cells (7 forms with ⊥/⊤)"
         );
         comptes_formes.push(vus.len());
-        // Bord du prototype plat : nœuds vivants du pool (pas de GC ici,
-        // le pic vivant = vivants après construction).
+        // Flat prototype edge: live nodes of the pool (no GC here,
+        // the live peak = live after construction).
         noeuds_plats.push(pool.vivants());
         creations += pool.metriques().creations;
         let _ = racine;
     }
-    // O(1) : le nombre de formes ne dépend pas de n.
+    // O(1): the number of forms does not depend on n.
     assert!(
         comptes_formes.windows(2).all(|w| w[0] == w[1]),
-        "formes constantes en n: {comptes_formes:?}"
+        "forms constant in n: {comptes_formes:?}"
     );
-    // Le bord du prototype plat est épinglé exactement (falsification
-    // explicite) et croît avec n.
+    // The flat prototype edge is pinned exactly (explicit falsification)
+    // and grows with n.
     for (&(n, attendu), &mesure) in BORD_PLAT.iter().zip(&noeuds_plats) {
-        assert_eq!(mesure, attendu, "n={n} : bord plat = {attendu} vivants");
+        assert_eq!(mesure, attendu, "n={n}: flat edge = {attendu} live");
     }
     assert!(
         noeuds_plats.windows(2).all(|w| w[1] > w[0]),
-        "le prototype plat croît avec n: {noeuds_plats:?}"
+        "the flat prototype grows with n: {noeuds_plats:?}"
     );
-    // Firings = événements NodeCreated == compteur de créations du pool.
+    // Firings = NodeCreated events == pool creation counter.
     let firings = *observateur.firings.lock().unwrap();
-    assert_eq!(firings, creations, "firings == créations du hash-consing");
-    // Passes = événements Round : aucune saturation pendant la construction
-    // par union (la narration Round ne doit pas disparaître silencieusement).
+    assert_eq!(firings, creations, "firings == hash-consing creations");
+    // Rounds = Round events: no saturation during the union construction
+    // (the Round narration must not silently disappear).
     let passes = *observateur.passes.lock().unwrap();
-    assert_eq!(passes, 0, "pas de round de saturation pendant l'union");
+    assert_eq!(passes, 0, "no saturation round during the union");
 }
