@@ -1,7 +1,7 @@
-//! Tests des événements non locaux (M2-5, spec § 7, énoncé T3) : le
-//! transfert `m(a) -= 1; m(b) += 1` compilé en transduction à mémoire de
-//! niveau — jeton hérité entre niveaux non adjacents, enregistrement du
-//! décrément dans `M`, idempotence, et terminaison sous `saturate`.
+//! Tests for non-local events (M2-5, spec § 7, statement T3): the transfer
+//! `m(a) -= 1; m(b) += 1` compiled as a level-memory transduction — inherited
+//! token between non-adjacent levels, recording of the decrement in `M`,
+//! idempotence, and termination under `saturate`.
 
 use std::collections::BTreeMap;
 
@@ -17,7 +17,7 @@ use lisage_lang::value::{Atom, Value};
 
 type PoolRef = Arena<ReferenceController>;
 
-/// Schéma `Map([a, b, c])` sur le domaine `{0, 1, 2, 3}`.
+/// Schema `Map([a, b, c])` over the domain `{0, 1, 2, 3}`.
 fn schema_map() -> Schema {
     Schema::Map(
         vec![Atom(0), Atom(1), Atom(2)],
@@ -32,7 +32,7 @@ fn nouveau_pool(schema: &Schema) -> PoolRef {
     )
 }
 
-/// Compile une map `clé ↦ valeur` (atomes) dans le pool.
+/// Compiles a map `key ↦ value` (atoms) in the pool.
 fn compiler_map(
     pool: &mut PoolRef,
     anchor: Anchor,
@@ -53,7 +53,7 @@ fn compiler_map(
     .unwrap()
 }
 
-/// Décompile un nœud en map `clé ↦ valeur` (atomes).
+/// Decompiles a node into a map `key ↦ value` (atoms).
 fn decompiler_map(
     pool: &PoolRef,
     schema: &Schema,
@@ -64,21 +64,21 @@ fn decompiler_map(
             .into_iter()
             .map(|(k, v)| match (k, v) {
                 (Value::Atom(Atom(k)), Value::Atom(Atom(v))) => (k, v),
-                _ => panic!("atomes attendus"),
+                _ => panic!("atoms expected"),
             })
             .collect(),
-        _ => panic!("map attendue"),
+        _ => panic!("map expected"),
     }
 }
 
-/// Cardinal d'un diagramme (nombre de membres de la famille dénotée).
+/// Cardinality of a diagram (number of members of the denoted family).
 fn cardinal(pool: &PoolRef, schema: &Schema, noeud: lisage_algebra::interface::NodeId) -> u64 {
     let mut sortie = nouveau_pool(schema);
     compter(pool, &mut sortie, Anchor(0), schema, noeud).unwrap()
 }
 
-/// M2-5, T3 : le transfert non local `a -= 1; b += 1` entre deux clés non
-/// adjacentes (a et b séparées par la clé c) s'applique en une passe.
+/// M2-5, T3: the non-local transfer `a -= 1; b += 1` between two non-adjacent
+/// keys (a and b separated by key c) applies in a single pass.
 #[test]
 fn test_transfert_a_vers_b_non_adjacent() {
     let schema = schema_map();
@@ -94,11 +94,11 @@ fn test_transfert_a_vers_b_non_adjacent() {
     assert_eq!(
         decompiler_map(&pool, &schema, resultat),
         attendu,
-        "m(a) -= 1 ; m(b) += 1, la clé intermédiaire c est inchangée"
+        "m(a) -= 1 ; m(b) += 1, the intermediate key c is unchanged"
     );
 }
 
-/// M2-5 : sans unité à transférer (m(a) = 0), la map est inchangée.
+/// M2-5: without a unit to transfer (m(a) = 0), the map is unchanged.
 #[test]
 fn test_transfert_sans_unite() {
     let schema = schema_map();
@@ -110,12 +110,12 @@ fn test_transfert_sans_unite() {
     let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
     let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
-    assert_eq!(resultat, initial, "m(a) = 0 : aucun transfert");
+    assert_eq!(resultat, initial, "m(a) = 0: no transfer");
 }
 
-/// M2-5, T3 : la mémoire de niveau enregistre le décrément au nœud émetteur
-/// (une entrée par nœud touché — surcoût O(w) par nœud), et la largeur de la
-/// transition est bornée.
+/// M2-5, T3: the level memory records the decrement at the emitting node (one
+/// entry per touched node — O(w) overhead per node), and the transition width
+/// is bounded.
 #[test]
 fn test_transfert_memoire_et_largeur() {
     let schema = schema_map();
@@ -128,23 +128,23 @@ fn test_transfert_memoire_et_largeur() {
     let mut runner = Transducteur::avec_politique(transfert, PolitiqueMemoire::ParNiveau);
     let _ = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
-    // Le décrément a été produit : une entrée mémoire, version bumpée (L1).
-    assert_eq!(runner.memoire().taille(), 1, "une entrée par nœud émetteur");
+    // The decrement was produced: one memory entry, version bumped (L1).
+    assert_eq!(runner.memoire().taille(), 1, "one entry per emitting node");
     assert!(
         runner.version_memoire() >= 1,
-        "chaque écriture bump la version"
+        "each write bumps the version"
     );
 }
 
-/// M2-5, cas limite épinglé : destination au maximum du domaine — la pose
-/// est abandonnée (arc conservé) mais le décrément de la source reste
-/// appliqué (sémantique par arc, spec § 7 `φ_disp(val(a), h, v)`).
+/// M2-5, pinned edge case: destination at the domain maximum — the placement
+/// is abandoned (arc kept) but the source's decrement is still applied
+/// (per-arc semantics, spec § 7 `φ_disp(val(a), h, v)`).
 #[test]
 fn test_transfert_destination_hors_domaine() {
     let schema = schema_map();
     let anchor = Anchor(0);
     let mut pool = nouveau_pool(&schema);
-    // m(a) = 2, m(b) = 3 = max du domaine {0,1,2,3}.
+    // m(a) = 2, m(b) = 3 = max of the domain {0,1,2,3}.
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 3)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
@@ -155,13 +155,13 @@ fn test_transfert_destination_hors_domaine() {
     assert_eq!(
         decompiler_map(&pool, &schema, resultat),
         attendu,
-        "m(b) au max : pose abandonnée, décrément de m(a) appliqué"
+        "m(b) at max: placement abandoned, m(a) decrement applied"
     );
 }
 
-/// M2-5 : sous `saturate`, le transfert itère jusqu'au point fixe
-/// ({a:2,b:0} → {a:1,b:1} → {a:0,b:2}) et termine (T2) — la famille
-/// croît de 1 membre par itération.
+/// M2-5: under `saturate`, the transfer iterates to the fixed point
+/// ({a:2,b:0} → {a:1,b:1} → {a:0,b:2}) and terminates (T2) — the family grows
+/// by 1 member per iteration.
 #[test]
 fn test_transfert_sous_saturate_termine() {
     let schema = Schema::Map(
@@ -189,18 +189,21 @@ fn test_transfert_sous_saturate_termine() {
         observateur: None,
     };
     let resultat = saturer(&mut params).unwrap();
-    assert_eq!(resultat.iterations, 3, "a:2,b:0 → a:1,b:1 → a:0,b:2 → fixe");
+    assert_eq!(
+        resultat.iterations, 3,
+        "a:2,b:0 → a:1,b:1 → a:0,b:2 → fixed"
+    );
     assert_eq!(
         cardinal(&pool, &schema, resultat.noeud),
         3,
-        "famille des trois états atteints"
+        "family of the three reached states"
     );
 }
 
-/// M2-5, régression : collision de clés au remap `v → v-1` sur un nœud
-/// `val(a)` multi-arcs (famille produite par union) — les deux sous-arbres
-/// doivent être **unionés**, pas écrasés. Famille {{a:0,b:0}, {a:1,b:0}} :
-/// le transfert donne {{a:0,b:0}, {a:0,b:1}} (cardinal 2, pas 1).
+/// M2-5, regression: key collision on the remap `v → v-1` over a multi-arc
+/// `val(a)` node (family produced by union) — the two subtrees must be
+/// **unioned**, not overwritten. Family {{a:0,b:0}, {a:1,b:0}}: the transfer
+/// gives {{a:0,b:0}, {a:0,b:1}} (cardinality 2, not 1).
 #[test]
 fn test_transfert_collision_source_union() {
     let schema = Schema::Map(
@@ -221,13 +224,13 @@ fn test_transfert_collision_source_union() {
     assert_eq!(
         cardinal(&pool, &schema, resultat),
         2,
-        "collision v→v-1 : les deux membres de la famille sont conservés"
+        "collision v→v-1: both members of the family are kept"
     );
 }
 
-/// M2-5, régression : collision au remap `u → u+1` sur un nœud `val(b)`
-/// multi-arcs — arc 2 → clé 3 et arc 3 (hors domaine, conservé) → clé 3.
-/// Famille {{a:1,b:2}, {a:2,b:3}} → {{a:0,b:3}, {a:1,b:3}} (cardinal 2).
+/// M2-5, regression: collision on the remap `u → u+1` over a multi-arc
+/// `val(b)` node — arc 2 → key 3 and arc 3 (out of domain, kept) → key 3.
+/// Family {{a:1,b:2}, {a:2,b:3}} → {{a:0,b:3}, {a:1,b:3}} (cardinality 2).
 #[test]
 fn test_transfert_collision_destination_union() {
     let schema = schema_map();
@@ -245,14 +248,14 @@ fn test_transfert_collision_destination_union() {
     assert_eq!(
         cardinal(&pool, &schema, resultat),
         2,
-        "collision u→u+1 : les deux membres de la famille sont conservés"
+        "collision u→u+1: both members of the family are kept"
     );
 }
 
-/// M2-5 : destination **absente** dans un membre d'une famille dont le nœud
-/// de présence est multi-arcs — l'arc ABSENT devient PRESENT avec la valeur
-/// transférée (unioné à l'arc PRESENT existant). Famille
-/// {{a:1,b:0,c:2}, {a:1,c:2}} → {a:0,b:1,c:2} (les deux membres coïncident).
+/// M2-5: destination **absent** in a member of a family whose presence node
+/// is multi-arc — the ABSENT arc becomes PRESENT with the transferred value
+/// (unioned with the existing PRESENT arc). Family {{a:1,b:0,c:2}, {a:1,c:2}}
+/// → {a:0,b:1,c:2} (the two members coincide).
 #[test]
 fn test_transfert_destination_absente_dans_famille() {
     let schema = schema_map();
@@ -271,6 +274,6 @@ fn test_transfert_destination_absente_dans_famille() {
     let attendu = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);
     assert_eq!(
         resultat, attendu,
-        "destination absente dans un membre : rendue présente avec l'unité transférée"
+        "destination absent in a member: made present with the transferred unit"
     );
 }

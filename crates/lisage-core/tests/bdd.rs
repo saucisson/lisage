@@ -1,5 +1,5 @@
-//! Tests de la configuration BDD classique (M1-8, C6) : compilation par
-//! table de vérité, comptage de nœuds, évaluation.
+//! Tests for the classic BDD configuration (M1-8, C6): compilation via
+//! truth table, node counting, evaluation.
 
 use lisage_algebra::interface::Anchor;
 use lisage_core::arena::Arena;
@@ -12,12 +12,12 @@ fn pool(nombre_variables: u32) -> PoolBdd {
     Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver))
 }
 
-/// Table de vérité de la constante ⊥.
+/// Truth table of the constant ⊥.
 fn table_constante(nombre_variables: u32, valeur: bool) -> Vec<bool> {
     vec![valeur; 1usize << nombre_variables]
 }
 
-/// Table de vérité du XOR de deux variables.
+/// Truth table of the XOR of two variables.
 fn table_xor2() -> Vec<bool> {
     (0..4u64).map(|a| (a & 1) != ((a >> 1) & 1)).collect()
 }
@@ -29,7 +29,7 @@ fn test_bdd_constantes_un_seul_terminal() {
     let keys = BddKeys::new(3);
     let racine_faux = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, false));
     let racine_vrai = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, true));
-    // R-collapse : aucune variable, un seul terminal visité.
+    // R-collapse: no variable, a single terminal visited.
     assert_eq!(compter_noeuds(&pool, racine_faux), 1);
     assert_eq!(compter_noeuds(&pool, racine_vrai), 1);
     assert!(!evaluer(&pool, racine_faux, 0b101).unwrap());
@@ -43,13 +43,13 @@ fn test_bdd_xor2_compte_et_evalue() {
     let keys = BddKeys::new(2);
     let table = table_xor2();
     let racine = compiler_bdd(&mut pool, anchor, &keys, &table);
-    // XOR(x0, x1) : racine x0 + deux nœuds x1 distincts + ⊥/⊤ = 5 nœuds.
+    // XOR(x0, x1): root x0 + two distinct x1 nodes + ⊥/⊤ = 5 nodes.
     assert_eq!(compter_noeuds(&pool, racine), 5);
     for a in 0..4u64 {
         assert_eq!(
             evaluer(&pool, racine, a).unwrap(),
             table[a as usize],
-            "affectation {a}"
+            "assignment {a}"
         );
     }
 }
@@ -59,8 +59,8 @@ fn test_bdd_projection_collapse() {
     let mut pool = pool(2);
     let anchor = Anchor(0);
     let keys = BddKeys::new(2);
-    // Projection sur x0 : les deux branches de la racine x1 potentielles
-    // sont constantes, R-collapse les réduit — racine x0 → (⊥, ⊤), 3 nœuds.
+    // Projection onto x0: the two potential branches of the x1 root are
+    // constant, R-collapse reduces them — root x0 → (⊥, ⊤), 3 nodes.
     let table = (0..4u64).map(|a| a & 1 == 1).collect::<Vec<bool>>();
     let racine = compiler_bdd(&mut pool, anchor, &keys, &table);
     assert_eq!(compter_noeuds(&pool, racine), 3);

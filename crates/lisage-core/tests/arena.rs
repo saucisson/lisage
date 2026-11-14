@@ -1,5 +1,5 @@
-//! Tests de l'arena (M1-1) : R-share (table unique), handles, événements
-//! de trace épinglés par un observateur enregistreur.
+//! Arena tests (M1-1): R-share (unique table), handles, trace events pinned
+//! by a recording observer.
 
 use std::collections::BTreeMap;
 use std::sync::Mutex;
@@ -42,7 +42,7 @@ impl Controller for MockController {
     }
 }
 
-/// Observateur enregistreur : épingle la narration (contrat ADR-0005).
+/// Recording observer: pins the narration (ADR-0005 contract).
 #[derive(Default)]
 struct RecordingObserver {
     events: Mutex<Vec<TraceEvent>>,
@@ -75,7 +75,7 @@ fn test_r_share_table_unique() {
     let anchor = Anchor(0);
     let premier = arena.intern(anchor, Form::Terminal(true));
     let second = arena.intern(anchor, Form::Terminal(true));
-    assert_eq!(premier, second, "R-share : même forme ⇒ même nœud");
+    assert_eq!(premier, second, "R-share: same form ⇒ same node");
     assert_eq!(arena.node_count(), 1);
 }
 
@@ -118,9 +118,9 @@ fn test_resolve_erreur_typee() {
     );
 }
 
-/// Algèbre de clés non identité : deux orthographes (0 et 2) ont la même
-/// forme normale — sert à prouver que la normalisation est appliquée avant
-/// le hachage (sinon C1 serait violé).
+/// Non-identity key algebra: two spellings (0 and 2) have the same normal
+/// form — used to prove that normalization is applied before hashing
+/// (otherwise C1 would be violated).
 struct NormalizingKeys;
 
 impl KeyAlgebra for NormalizingKeys {
@@ -179,7 +179,7 @@ fn test_normalisation_cles_avant_hachage() {
     );
     assert_eq!(
         via_0, via_2,
-        "clés 0 et 2, même forme normale ⇒ même nœud (C1)"
+        "keys 0 and 2, same normal form ⇒ same node (C1)"
     );
 }
 
@@ -217,7 +217,7 @@ fn test_events_reduction_applied() {
     let defaut = arena.terminal(anchor, false); // D_δ = NodeId(0)
     let autre = arena.terminal(anchor, true);
     let niveau = Level(3);
-    // R-collapse : tous les arcs mènent à D_δ et δ est explicite ⇒ Collapse(D_δ).
+    // R-collapse: all arcs lead to D_δ and δ is explicit ⇒ Collapse(D_δ).
     let cible = arena.intern(
         anchor,
         Form::Node {
@@ -226,7 +226,7 @@ fn test_events_reduction_applied() {
         },
     );
     assert_eq!(cible, defaut);
-    // R-default : l'arc δ(ℓ) mène à D_δ, il est retiré, la forme est conservée.
+    // R-default: the δ(ℓ) arc leads to D_δ, it is removed, the form is kept.
     let noeud = arena.intern(
         anchor,
         Form::Node {
@@ -241,14 +241,14 @@ fn test_events_reduction_applied() {
             rule: ReductionRule::Collapse,
             level: niveau,
         }),
-        "l'événement ReductionApplied{{Collapse}} doit être émis (trace épinglée)"
+        "the ReductionApplied{{Collapse}} event must be emitted (pinned trace)"
     );
     assert!(
         events.contains(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Default,
             level: niveau,
         }),
-        "l'événement ReductionApplied{{Default}} doit être émis (trace épinglée)"
+        "the ReductionApplied{{Default}} event must be emitted (pinned trace)"
     );
 }
 

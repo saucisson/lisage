@@ -1,86 +1,86 @@
-//! Port d'instrumentation (M1-0, M1-9) : `Observer` dans `core/`, no-op par
-//! défaut ; sérialiseur JSONL dans `lisage-liseuse`.
+//! Instrumentation port (M1-0, M1-9): `Observer` in `core/`, no-op by
+//! default; JSONL serializer in `lisage-liseuse`.
 
 use lisage_algebra::interface::{Handle, Level, NodeId};
 
-/// Règle de réduction appliquée à la création d'un handle (spec § 2.3).
+/// Reduction rule applied at handle creation (spec § 2.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ReductionRule {
-    /// R-share : la forme existait déjà, le nœud est partagé.
+    /// R-share: the form already existed, the node is shared.
     Share,
-    /// R-collapse : tous les arcs mènent à la même cible.
+    /// R-collapse: all arcs lead to the same target.
     Collapse,
-    /// R-default : l'arc δ(ℓ) menait au diagramme de défaut, il est supprimé.
+    /// R-default: the arc δ(ℓ) led to the default diagram, it is removed.
     Default,
 }
 
-/// Canal d'un attribut (vue 3 « pas à pas », canaux colorés — M2-6).
+/// Channel of an attribute (view 3 "step by step", colored channels — M2-6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum CanalAttr {
-    /// Attribut **hérité** (descendant, `φ_disp`) — rendu en bleu.
+    /// **Inherited** attribute (descending, `φ_disp`) — rendered in blue.
     Herite,
-    /// Attribut **synthétisé** (remontant, `φ_aggr`) — rendu en orange.
+    /// **Synthesized** attribute (ascending, `φ_aggr`) — rendered in orange.
     Synthétise,
-    /// **Mémoire de niveau** (écriture par `φ_out`) — rendu en violet.
+    /// **Level memory** (written by `φ_out`) — rendered in purple.
     Memoire,
 }
 
-/// Événements typés émis par le pool à la construction des diagrammes et
-/// par le runner de transductions pendant l'exécution (M2-6). C'est la
-/// trace que Liseuse sérialise et rend.
+/// Typed events emitted by the pool during diagram construction and by the
+/// transduction runner during execution (M2-6). This is the trace that
+/// Liseuse serializes and renders.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum TraceEvent {
-    /// Nœud créé dans le pool (après réductions).
+    /// Node created in the pool (after reductions).
     NodeCreated { node: NodeId, level: Option<Level> },
-    /// Nœud partagé : la forme était déjà internée (R-share).
+    /// Shared node: the form was already interned (R-share).
     NodeShared { node: NodeId },
-    /// Réduction appliquée à la création d'un handle.
+    /// Reduction applied at handle creation.
     ReductionApplied { rule: ReductionRule, level: Level },
-    /// Diagramme achevé : handle racine et taille du pool.
+    /// Diagram completed: root handle and pool size.
     DiagramBuilt { handle: Handle, nodes: usize },
-    /// Attribut circulant sur un canal (hérité/synthétisé/mémoire), M2-6.
+    /// Attribute flowing on a channel (inherited/synthesized/memory), M2-6.
     Attr {
-        /// Canal de l'attribut.
+        /// Channel of the attribute.
         canal: CanalAttr,
-        /// Nœud concerné.
+        /// Node concerned.
         noeud: NodeId,
-        /// Valeur (format `Debug`), affichée telle quelle.
+        /// Value (`Debug` format), displayed as-is.
         valeur: String,
     },
-    /// Mémo hit : le couple (op, nœud, h, version) était en computed table.
+    /// Memo hit: the tuple (op, node, h, version) was in the computed table.
     MemoHit {
-        /// Nœud dont la visite a hit.
+        /// Node whose visit hit.
         noeud: NodeId,
     },
-    /// Mémo miss : visite complète du sous-arbre.
+    /// Memo miss: full visit of the subtree.
     MemoMiss {
-        /// Nœud dont la visite a miss.
+        /// Node whose visit missed.
         noeud: NodeId,
     },
-    /// GC du pool bi-plan (M4-1) : vivants, collectés, compaction profilée.
+    /// GC of the bi-plan pool (M4-1): live, collected, profiled compaction.
     Gc {
-        /// Nœuds vivants après collecte.
+        /// Live nodes after collection.
         vivants: u64,
-        /// Nœuds collectés.
+        /// Collected nodes.
         collectes: u64,
-        /// Compaction effectuée (seuil de morts atteint).
+        /// Compaction performed (dead threshold reached).
         compaction: bool,
     },
-    /// Début d'un round de saturation (M2-6) : numéro de l'itération.
+    /// Start of a saturation round (M2-6): iteration number.
     Round {
-        /// Numéro du round (1-based).
+        /// Round number (1-based).
         numero: u32,
     },
 }
 
-/// Observateur de trace, no-op par défaut (Liseuse fournit le sien).
-/// Bornes `Send`/`Sync` figées (M1-0).
+/// Trace observer, no-op by default (Liseuse provides its own). `Send`/`Sync`
+/// bounds frozen (M1-0).
 pub trait Observer: Send + Sync {
-    /// Réception d'un événement de trace.
+    /// Reception of a trace event.
     fn on_event(&self, event: &TraceEvent);
 }
 
-/// Observateur no-op (défaut).
+/// No-op observer (default).
 pub struct NoOpObserver;
 
 impl Observer for NoOpObserver {
