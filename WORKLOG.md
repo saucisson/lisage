@@ -47,6 +47,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-14 - M6-3 docs/ translated to English, part B: golden threads, critical analyses, reader, spike, SVG (issue #106)
+
+- **Issue**: #106 (M6-3, milestone M6).
+- **Done**: the 6 French-named files under `docs/` (two golden-thread examples, two critical analyses, the reader, the philosophers SVG) are renamed to English and translated; `docs/spike-ffi-cudd-sylvan.md` (already English-named) is translated in place. Corrupted machine-translation tokens repaired (dein-flight/expallowed/impallowed/apin-flightix), French identifiers EN_VOL/LIBRE renamed to IN_FLIGHT/FREE, SVG labels and comments translated. Part of the three-way split of PR #180 (reviewer turn limit on the full diff).
+- **Evidence**: accent grep returns 0 for all touched files including the SVG; old-filename grep returns nothing outside `docs/audit-french-inventory.md`, `docs/glossary.md` and `WORKLOG.md` (intentional). `make check` not run: docs-only change, no code touched.
+- **Judgement calls**: none beyond the split itself (see part A entry).
+- **Escalations**: none.
+
 ## 2026-11-13 - M6-0 audit: machine-checkable inventory of French-language content (issue #103)
 
 - **Issue**: #103 (M6-0, milestone M6 "English-only documentation and code").
