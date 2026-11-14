@@ -38,15 +38,15 @@ fn schema_map() -> BoxedStrategy<(Schema, Value)> {
         prop::collection::vec(0u8..4, 1..4),
         prop::collection::vec((0u8..4, 0u8..3), 0..4),
     )
-        .prop_map(|(cles, paires)| {
-            let cles: Vec<Atom> = cles.into_iter().map(|c| Atom(u64::from(c))).collect();
+        .prop_map(|(keys, paires)| {
+            let keys: Vec<Atom> = keys.into_iter().map(|c| Atom(u64::from(c))).collect();
             let domaine_v = domaine(vec![0, 1, 2]);
             let map: BTreeMap<Value, Value> = paires
                 .into_iter()
-                .filter(|(c, _)| cles.contains(&Atom(u64::from(*c))))
+                .filter(|(c, _)| keys.contains(&Atom(u64::from(*c))))
                 .map(|(c, v)| (atome(u64::from(c)), atome(u64::from(v))))
                 .collect();
-            (Schema::Map(cles, domaine_v), Value::Map(map))
+            (Schema::Map(keys, domaine_v), Value::Map(map))
         })
         .boxed()
 }
@@ -87,10 +87,10 @@ fn schema_et_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
             prop::collection::vec((0u8..4, 0u8..3), 0..4),
             prop::collection::vec((0u8..4, 0u8..3), 0..4),
         )
-            .prop_map(|(cles, pa, pb)| {
-                let cles: Vec<Atom> = cles.into_iter().map(|c| Atom(u64::from(c))).collect();
+            .prop_map(|(keys, pa, pb)| {
+                let keys: Vec<Atom> = keys.into_iter().map(|c| Atom(u64::from(c))).collect();
                 let domaine_v = domaine(vec![0, 1, 2]);
-                let keys_filtre = cles.clone();
+                let keys_filtre = keys.clone();
                 let mk = move |paires: Vec<(u8, u8)>| {
                     Value::Map(
                         paires
@@ -100,7 +100,7 @@ fn schema_et_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
                             .collect(),
                     )
                 };
-                (Schema::Map(cles, domaine_v), mk(pa), mk(pb))
+                (Schema::Map(keys, domaine_v), mk(pa), mk(pb))
             }),
         (1u8..4, 0u8..4, 0u8..4).prop_map(|(taille, va, vb)| {
             let domaine = domaine((0..u64::from(taille)).collect());
