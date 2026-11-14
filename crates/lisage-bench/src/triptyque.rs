@@ -200,7 +200,7 @@ fn schema_petri(reseau: &ReseauPetri, ordre_cles: &[Atom]) -> Result<Schema, Err
         return Err(ErreurTriptyque::OrdreInvalide);
     }
     let max_jetons = jetons_max(reseau);
-    let domaine = Domaine::nouveau((0..=max_jetons).map(Atom).collect());
+    let domaine = Domaine::new((0..=max_jetons).map(Atom).collect());
     Ok(Schema::Map(ordre_cles.to_vec(), domaine))
 }
 

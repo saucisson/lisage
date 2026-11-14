@@ -26,7 +26,7 @@ fn test_ordre_canonique_vtree() {
 #[test]
 fn test_pi_valide_adopte() {
     let vtree = vtree_test();
-    let ordre = Order::nouveau(&vtree, vtree.ordre_plat()).unwrap();
+    let ordre = Order::new(&vtree, vtree.ordre_plat()).unwrap();
     assert_eq!(ordre.sequence(), &[Atom(0), Atom(1), Atom(2), Atom(3)]);
 }
 
@@ -40,7 +40,7 @@ fn test_autre_vtree_autre_ordre() {
     );
     let ordre = Order::canonique(&vtree);
     assert_eq!(ordre.sequence(), &[Atom(2), Atom(0), Atom(1)]);
-    let resultat = Order::nouveau(&vtree, vec![Atom(0), Atom(1), Atom(2)]);
+    let resultat = Order::new(&vtree, vec![Atom(0), Atom(1), Atom(2)]);
     assert_eq!(
         resultat.unwrap_err(),
         ErreurOrdre::ContrainteViolee {
@@ -54,7 +54,7 @@ fn test_autre_vtree_autre_ordre() {
 /// vtree constraint violated, rejected with the offending pair.
 #[test]
 fn test_pi_violant_vtree_rejete() {
-    let resultat = Order::nouveau(&vtree_test(), vec![Atom(2), Atom(0), Atom(1), Atom(3)]);
+    let resultat = Order::new(&vtree_test(), vec![Atom(2), Atom(0), Atom(1), Atom(3)]);
     assert_eq!(
         resultat.unwrap_err(),
         ErreurOrdre::ContrainteViolee {
@@ -67,7 +67,7 @@ fn test_pi_violant_vtree_rejete() {
 /// π that is not a permutation of the vtree's variables: rejected.
 #[test]
 fn test_pi_pas_une_permutation_rejete() {
-    let resultat = Order::nouveau(&vtree_test(), vec![Atom(0), Atom(1), Atom(2), Atom(9)]);
+    let resultat = Order::new(&vtree_test(), vec![Atom(0), Atom(1), Atom(2), Atom(9)]);
     assert_eq!(resultat.unwrap_err(), ErreurOrdre::PasUnePermutation);
 }
 

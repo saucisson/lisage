@@ -10,28 +10,28 @@ use lisage_plan::oracle::{
 /// M3-3: the rational is normalized (gcd) and arithmetic is exact.
 #[test]
 fn test_rationnel_normalise_et_exact() {
-    assert_eq!(Rationnel::nouveau(2, 4), Rationnel::nouveau(1, 2));
-    assert_eq!(Rationnel::nouveau(6, 3), Rationnel::entier(2));
-    assert_eq!(Rationnel::nouveau(5, 0), Rationnel::nouveau(0, 1));
-    let demi = Rationnel::nouveau(1, 2);
-    let quart = Rationnel::nouveau(1, 4);
-    assert_eq!(demi.multiplier(&quart), Rationnel::nouveau(1, 8));
-    assert!(Rationnel::nouveau(1, 3).inferieur_ou_egal(&Rationnel::nouveau(1, 2)));
-    assert!(!Rationnel::nouveau(2, 3).inferieur_ou_egal(&Rationnel::nouveau(1, 2)));
+    assert_eq!(Rationnel::new(2, 4), Rationnel::new(1, 2));
+    assert_eq!(Rationnel::new(6, 3), Rationnel::entier(2));
+    assert_eq!(Rationnel::new(5, 0), Rationnel::new(0, 1));
+    let demi = Rationnel::new(1, 2);
+    let quart = Rationnel::new(1, 4);
+    assert_eq!(demi.multiplier(&quart), Rationnel::new(1, 8));
+    assert!(Rationnel::new(1, 3).inferieur_ou_egal(&Rationnel::new(1, 2)));
+    assert!(!Rationnel::new(2, 3).inferieur_ou_egal(&Rationnel::new(1, 2)));
 }
 
 /// M3-3: the expected density is validated in [0, 1] at construction.
 #[test]
 fn test_parametres_densite_validee() {
-    assert!(ParametresOracle::nouveau(10, Rationnel::nouveau(1, 2), 3, 4).is_ok());
-    assert!(ParametresOracle::nouveau(10, Rationnel::nouveau(0, 1), 3, 4).is_ok());
-    assert!(ParametresOracle::nouveau(10, Rationnel::entier(1), 3, 4).is_ok());
+    assert!(ParametresOracle::new(10, Rationnel::new(1, 2), 3, 4).is_ok());
+    assert!(ParametresOracle::new(10, Rationnel::new(0, 1), 3, 4).is_ok());
+    assert!(ParametresOracle::new(10, Rationnel::entier(1), 3, 4).is_ok());
     assert_eq!(
-        ParametresOracle::nouveau(10, Rationnel::nouveau(2, 1), 3, 4).err(),
+        ParametresOracle::new(10, Rationnel::new(2, 1), 3, 4).err(),
         Some(ErreurOracle::DensiteHorsBornes)
     );
     assert_eq!(
-        ParametresOracle::nouveau(10, Rationnel::nouveau(3, 2), 3, 4).err(),
+        ParametresOracle::new(10, Rationnel::new(3, 2), 3, 4).err(),
         Some(ErreurOracle::DensiteHorsBornes)
     );
 }
@@ -39,16 +39,16 @@ fn test_parametres_densite_validee() {
 /// M3-3: the model predicts `1 + n·d` nodes and the corresponding total cost.
 #[test]
 fn test_prediction_taille_et_cout_total() {
-    let params = ParametresOracle::nouveau(10, Rationnel::nouveau(1, 2), 3, 4).unwrap();
+    let params = ParametresOracle::new(10, Rationnel::new(1, 2), 3, 4).unwrap();
     let prediction = Oracle::predire(&params);
     assert_eq!(prediction.taille_predite, 6, "1 + 10·(1/2) nodes");
     assert_eq!(prediction.cout_total_predit, 6 * 3 * 4);
 
     // Null density: only the terminal. Full density: the whole chain.
     let nul = Oracle::predire(
-        &ParametresOracle::nouveau(
+        &ParametresOracle::new(
             params.taille_domaine(),
-            Rationnel::nouveau(0, 1),
+            Rationnel::new(0, 1),
             params.cout_encodage(),
             params.requetes_aval(),
         )
@@ -56,7 +56,7 @@ fn test_prediction_taille_et_cout_total() {
     );
     assert_eq!(nul.taille_predite, 1);
     let plein = Oracle::predire(
-        &ParametresOracle::nouveau(
+        &ParametresOracle::new(
             params.taille_domaine(),
             Rationnel::entier(1),
             params.cout_encodage(),
@@ -79,10 +79,7 @@ fn test_garde_fou_differentiel() {
     assert!(!Oracle::garde_fou(100, 49).est_conforme());
     assert!(!Oracle::garde_fou(100, 201).est_conforme());
     // exact ratio.
-    assert_eq!(
-        VerdictGardeFou::nouveau(100, 150).ratio(),
-        Rationnel::nouveau(3, 2)
-    );
+    assert_eq!(VerdictGardeFou::new(100, 150).ratio(), Rationnel::new(3, 2));
     assert!(BORNE_INFERIEURE.inferieur_ou_egal(&BORNE_SUPERIEURE));
     // predicted = 0 (null encoding cost or queries): conforming iff measure = 0.
     assert!(Oracle::garde_fou(0, 0).est_conforme());
@@ -108,16 +105,15 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
 
     for _cas in 0..50 {
         let taille_domaine = 1 + suivant() % 100;
-        let densite = Rationnel::nouveau(suivant() % 101, 100);
+        let densite = Rationnel::new(suivant() % 101, 100);
         let cout_encodage = suivant() % 10; // 0 possible: predicted can be null
         let requetes_aval = suivant() % 20;
         let params =
-            ParametresOracle::nouveau(taille_domaine, densite, cout_encodage, requetes_aval)
-                .unwrap();
+            ParametresOracle::new(taille_domaine, densite, cout_encodage, requetes_aval).unwrap();
         let prediction = Oracle::predire(&params);
         // Monotonic in density.
         let plus_dense = Oracle::predire(
-            &ParametresOracle::nouveau(
+            &ParametresOracle::new(
                 params.taille_domaine(),
                 Rationnel::entier(1),
                 params.cout_encodage(),
@@ -128,7 +124,7 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
         assert!(prediction.taille_predite <= plus_dense.taille_predite);
         // Monotonic in downstream queries.
         let plus_de_requetes = Oracle::predire(
-            &ParametresOracle::nouveau(
+            &ParametresOracle::new(
                 params.taille_domaine(),
                 params.densite_attendue(),
                 params.cout_encodage(),

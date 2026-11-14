@@ -14,7 +14,7 @@ use lisage_lang::value::{Atom, Value};
 type PoolRef = Arena<ReferenceController>;
 
 fn pool() -> PoolRef {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
@@ -266,7 +266,7 @@ fn test_memo_fingerprint_op_noeud() {
 /// schema): identity over a compiled set.
 #[test]
 fn test_transduction_sur_diagramme_compile() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
     let mut entree = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),

@@ -37,7 +37,7 @@ pub struct Domaine {
 
 impl Domaine {
     /// Domain without default.
-    pub fn nouveau(valeurs: Vec<Atom>) -> Self {
+    pub fn new(valeurs: Vec<Atom>) -> Self {
         Domaine {
             valeurs,
             defaut: None,

@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 3: `nouveau` constructors renamed to `new` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `nouveau` identifier (public constructors `Domaine::nouveau`, `Cdd::nouveau`, `CddController::nouveau`, `Region::nouveau`, `Dbm::nouveau`, `Atelier…::nouveau`, plus local variables) to `new`, workspace-wide (53 files). No type had both `new` and `nouveau`, so no collision.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
+- **Judgement calls**: `nouveau` → `new` per glossary (construire → build/constructor); `nouvelle` was already renamed in part 2.
 ## 2026-11-14 - M6-6 part 2: lisage-algebra public API renamed to English (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

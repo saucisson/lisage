@@ -50,7 +50,7 @@ pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
     if a.est_vide() || b.est_vide() {
         return crate::region::VIDE;
     }
-    Intervalle::nouveau(
+    Intervalle::new(
         a.borne_inf().max(b.borne_inf()),
         a.borne_sup().min(b.borne_sup()),
     )

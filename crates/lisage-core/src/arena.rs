@@ -187,8 +187,8 @@ impl<C: Controller> Arena<C> {
         }
         self.nodes = nouveaux;
         for node in self.unique.values_mut() {
-            if let Some(Some(nouveau)) = remap.get(node.0 as usize) {
-                *node = *nouveau;
+            if let Some(Some(new)) = remap.get(node.0 as usize) {
+                *node = *new;
             }
         }
         for ensemble in self.index_niveaux.values_mut() {

@@ -146,7 +146,7 @@ fn cardinal(pool: &PoolRef, schema: &Schema, noeud: NodeId) -> u64 {
 /// step, the fixpoint is immediate (1 iteration) and `X ⊕ id(X) = X`.
 #[test]
 fn test_saturate_termine_et_point_fixe() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = nouveau_pool(&schema);
     let anchor = Anchor(0);
@@ -172,7 +172,7 @@ fn test_saturate_termine_et_point_fixe() {
 /// all levels of the schema.
 #[test]
 fn test_saturate_politiques_equivalentes() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
 
@@ -220,7 +220,7 @@ fn test_saturate_politiques_equivalentes() {
 /// if the `politique` parameter is ignored.
 #[test]
 fn test_saturate_statique_restreint_les_niveaux() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
+    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]));
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
 
@@ -286,7 +286,7 @@ fn test_saturate_statique_restreint_les_niveaux() {
 /// fixpoint loop, not a hand-rewritten loop).
 #[test]
 fn test_saturate_chaine_croissante_multi_iterations() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
+    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]));
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = nouveau_pool(&schema);
     let anchor = Anchor(0);

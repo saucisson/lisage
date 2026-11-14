@@ -76,7 +76,7 @@ pub fn compiler_bande<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: 
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(Dbm::nouveau(2, &[(1, 0, 2)]), vrai)]),
+            arcs: BTreeMap::from([(Dbm::new(2, &[(1, 0, 2)]), vrai)]),
         },
     );
     pool.intern(
@@ -84,8 +84,8 @@ pub fn compiler_bande<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: 
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([
-                (Dbm::nouveau(2, &[(0, 1, 1)]), niveau_1),
-                (Dbm::nouveau(2, &[(1, 0, -2)]), faux),
+                (Dbm::new(2, &[(0, 1, 1)]), niveau_1),
+                (Dbm::new(2, &[(1, 0, -2)]), faux),
             ]),
         },
     )

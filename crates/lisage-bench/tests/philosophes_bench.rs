@@ -72,9 +72,9 @@ impl Observer for RecordingObserver {
 /// left-handed).
 fn schema_anneau(n: u64, gaucher: bool) -> Schema {
     let domaine = if gaucher {
-        Domaine::nouveau(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE), Atom(GAUCHER)])
+        Domaine::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE), Atom(GAUCHER)])
     } else {
-        Domaine::nouveau(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)])
+        Domaine::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)])
     };
     Schema::Map((0..PAS_CLE_INTERCALAGE * n).map(Atom).collect(), domaine)
 }

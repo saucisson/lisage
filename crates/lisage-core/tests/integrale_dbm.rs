@@ -23,7 +23,7 @@ const TAILLE_DOMAINE: u64 = 4;
 
 fn pool() -> PoolDbm {
     Arena::new(
-        DbmController::nouveau(DbmKeys::new(TAILLE_DOMAINE)),
+        DbmController::new(DbmKeys::new(TAILLE_DOMAINE)),
         Box::new(NoOpObserver),
     )
 }
@@ -34,7 +34,7 @@ fn keys() -> DbmKeys {
 
 /// Full region of the box: no off-diagonal constraint.
 fn boite() -> Dbm {
-    Dbm::nouveau(2, &[])
+    Dbm::new(2, &[])
 }
 
 /// Collecting observer to pin the narration events.
@@ -44,7 +44,7 @@ struct Collecteur {
 }
 
 impl Collecteur {
-    fn nouveau() -> Self {
+    fn new() -> Self {
         Collecteur {
             evenements: Arc::new(Mutex::new(Vec::new())),
         }
@@ -71,16 +71,16 @@ fn test_mesure_zone_analytique() {
     // Empty zone → 0.
     assert_eq!(keys.mesure_zone(&INCOHERENT), 0);
     // Band −2 ≤ x−y ≤ 1: 16 − (4−1)²/2 − (4−2)²/2 = 16 − 4.5 − 2 = 9.5 → 19.
-    let bande = Dbm::nouveau(2, &[(0, 1, 1), (1, 0, 2)]);
+    let bande = Dbm::new(2, &[(0, 1, 1), (1, 0, 2)]);
     assert_eq!(keys.mesure_zone(&bande), 19);
     // Diagonal x = y: zero area.
-    let diagonale = Dbm::nouveau(2, &[(0, 1, 0), (1, 0, 0)]);
+    let diagonale = Dbm::new(2, &[(0, 1, 0), (1, 0, 0)]);
     assert_eq!(keys.mesure_zone(&diagonale), 0);
     // Constraint outside the box (a ≥ N): the full box.
-    let large = Dbm::nouveau(2, &[(0, 1, 5)]);
+    let large = Dbm::new(2, &[(0, 1, 5)]);
     assert_eq!(keys.mesure_zone(&large), 32);
     // Half-band 0 ≤ x−y ≤ 1: 16 − 8 − 4.5 = 3.5 → 7 (half-integer area).
-    let demi = Dbm::nouveau(2, &[(0, 1, 1), (1, 0, 0)]);
+    let demi = Dbm::new(2, &[(0, 1, 1), (1, 0, 0)]);
     assert_eq!(keys.mesure_zone(&demi), 7);
 }
 
@@ -104,12 +104,12 @@ fn test_integrale_restreinte_a_une_region() {
     let mut pool = pool();
     let racine = compiler_bande(&mut pool, ANCRE);
     // Restriction to {x − y ≤ 0}: band ∩ {−2 ≤ x−y ≤ 0}, area 6 → 12.
-    let sous_region = Dbm::nouveau(2, &[(0, 1, 0)]);
+    let sous_region = Dbm::new(2, &[(0, 1, 0)]);
     let mesure =
         integrale_dbm_constante(&pool, racine, &sous_region, &keys(), None).expect("interned node");
     assert_eq!(mesure, 12);
     // Restriction to a region disjoint from the band: zero measure.
-    let disjointe = Dbm::nouveau(2, &[(1, 0, -3)]); // x − y ≥ 3
+    let disjointe = Dbm::new(2, &[(1, 0, -3)]); // x − y ≥ 3
     let mesure_nulle =
         integrale_dbm_constante(&pool, racine, &disjointe, &keys(), None).expect("interned node");
     assert_eq!(mesure_nulle, 0);
@@ -166,7 +166,7 @@ fn test_differentiel_cardinal_contre_mesure() {
 fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
     let racine = compiler_bande(&mut pool, ANCRE);
-    let collecteur = Collecteur::nouveau();
+    let collecteur = Collecteur::new();
     let mesure = integrale_dbm_constante(&pool, racine, &boite(), &keys(), Some(&collecteur))
         .expect("interned node");
     assert_eq!(mesure, 19);
@@ -220,7 +220,7 @@ fn test_propriete_mesure_intersection_lcg() {
                 )
             })
             .collect();
-        Dbm::nouveau(2, &contraintes)
+        Dbm::new(2, &contraintes)
     };
     for _ in 0..NOMBRE_CAS {
         let a = tire(&mut suivant);

@@ -21,25 +21,25 @@ const TAILLE_DOMAINE: u64 = 4;
 
 fn pool() -> PoolCdd {
     Arena::new(
-        CddController::nouveau(CddKeys::new(TAILLE_DOMAINE)),
+        CddController::new(CddKeys::new(TAILLE_DOMAINE)),
         Box::new(NoOpObserver),
     )
 }
 
 #[test]
 fn test_normalisation_union() {
-    let a = Dbm::nouveau(2, &[(0, 1, 0)]);
-    let b = Dbm::nouveau(2, &[(1, 0, -2)]);
+    let a = Dbm::new(2, &[(0, 1, 0)]);
+    let b = Dbm::new(2, &[(1, 0, -2)]);
     // Sort + dedup: the writing [a, b, a] normalizes to the derived order [b, a].
-    let union = Cdd::nouveau(&[a.clone(), b.clone(), a.clone()]);
+    let union = Cdd::new(&[a.clone(), b.clone(), a.clone()]);
     assert_eq!(union.zones(), &[b.clone(), a.clone()]);
     assert!(!union.est_vide());
     // Empty zones are removed; zero zones = canonical empty union.
-    let avec_vide = Cdd::nouveau(&[a.clone(), lisage_core::dbm::INCOHERENT]);
+    let avec_vide = Cdd::new(&[a.clone(), lisage_core::dbm::INCOHERENT]);
     assert_eq!(avec_vide.zones(), &[a]);
-    assert_eq!(Cdd::nouveau(&[]), VIDE);
+    assert_eq!(Cdd::new(&[]), VIDE);
     assert!(VIDE.est_vide());
-    assert!(Cdd::nouveau(&[lisage_core::dbm::INCOHERENT]).est_vide());
+    assert!(Cdd::new(&[lisage_core::dbm::INCOHERENT]).est_vide());
 }
 
 /// Assumed non-canonicity (spec Q9 (i)): two writings of the same non-convex
@@ -47,11 +47,11 @@ fn test_normalisation_union() {
 /// zone included in another.
 #[test]
 fn test_non_canonicite_assumee() {
-    let grande = Dbm::nouveau(2, &[(0, 1, 5)]);
-    let incluse = Dbm::nouveau(2, &[(0, 1, 0)]);
+    let grande = Dbm::new(2, &[(0, 1, 5)]);
+    let incluse = Dbm::new(2, &[(0, 1, 0)]);
     assert!(grande.contient(&[0, 0]) && incluse.contient(&[0, 0]));
-    let union_avec_redondance = Cdd::nouveau(&[grande.clone(), incluse.clone()]);
-    let union_seule = Cdd::nouveau(std::slice::from_ref(&grande));
+    let union_avec_redondance = Cdd::new(&[grande.clone(), incluse.clone()]);
+    let union_seule = Cdd::new(std::slice::from_ref(&grande));
     // Semantically the same region (the included one is inside the big one)…
     for x in 0..TAILLE_DOMAINE {
         for y in 0..TAILLE_DOMAINE {
@@ -67,9 +67,9 @@ fn test_non_canonicite_assumee() {
 
 #[test]
 fn test_contient_semantique() {
-    let a = Dbm::nouveau(2, &[(0, 1, 0)]); // x − y ≤ 0
-    let b = Dbm::nouveau(2, &[(1, 0, -2)]); // x − y ≥ 2
-    let union = Cdd::nouveau(&[a, b]);
+    let a = Dbm::new(2, &[(0, 1, 0)]); // x − y ≤ 0
+    let b = Dbm::new(2, &[(1, 0, -2)]); // x − y ≥ 2
+    let union = Cdd::new(&[a, b]);
     assert!(union.contient(&[0, 0]));
     assert!(union.contient(&[1, 3]));
     assert!(union.contient(&[3, 1]));
@@ -79,14 +79,14 @@ fn test_contient_semantique() {
 
 #[test]
 fn test_intersection_distributive() {
-    let a = Dbm::nouveau(2, &[(0, 1, 0)]);
-    let b = Dbm::nouveau(2, &[(1, 0, -2)]);
-    let c = Dbm::nouveau(2, &[(0, 1, 1)]); // x − y ≤ 1
-    let union_ab = Cdd::nouveau(&[a.clone(), b.clone()]);
-    let union_c = Cdd::nouveau(std::slice::from_ref(&c));
+    let a = Dbm::new(2, &[(0, 1, 0)]);
+    let b = Dbm::new(2, &[(1, 0, -2)]);
+    let c = Dbm::new(2, &[(0, 1, 1)]); // x − y ≤ 1
+    let union_ab = Cdd::new(&[a.clone(), b.clone()]);
+    let union_c = Cdd::new(std::slice::from_ref(&c));
     // (A ∪ B) ∩ C = (A ∩ C) ∪ (B ∩ C); B ∩ C is empty (x−y ≥ 2 and x−y ≤ 1).
     let meet = union_ab.intersection(&union_c);
-    let attendu = Cdd::nouveau(&[a.intersection(&c)]);
+    let attendu = Cdd::new(&[a.intersection(&c)]);
     assert_eq!(meet, attendu);
     // Commutativity, idempotence on normalized forms.
     assert_eq!(
@@ -98,17 +98,17 @@ fn test_intersection_distributive() {
     assert_eq!(union_ab.intersection(&VIDE), VIDE);
     assert_eq!(VIDE.intersection(&union_ab), VIDE);
     // Meet of two disjoint unions → empty union.
-    let loin = Cdd::nouveau(&[Dbm::nouveau(2, &[(1, 0, -3)])]); // x − y ≥ 3
+    let loin = Cdd::new(&[Dbm::new(2, &[(1, 0, -3)])]); // x − y ≥ 3
     assert_eq!(union_c.intersection(&loin), VIDE);
 }
 
 #[test]
 fn test_couverture_boite_bornee() {
     let keys = CddKeys::new(TAILLE_DOMAINE);
-    let a = Dbm::nouveau(2, &[(0, 1, 0)]);
-    let b = Dbm::nouveau(2, &[(1, 0, -2)]);
-    let union = Cdd::nouveau(&[a, b]);
-    let complementaire = Cdd::nouveau(&[Dbm::nouveau(2, &[(1, 0, -1), (0, 1, 1)])]);
+    let a = Dbm::new(2, &[(0, 1, 0)]);
+    let b = Dbm::new(2, &[(1, 0, -2)]);
+    let union = Cdd::new(&[a, b]);
+    let complementaire = Cdd::new(&[Dbm::new(2, &[(1, 0, -1), (0, 1, 1)])]);
     // The partition {non-convex union, complement} covers the box [0, 4)².
     assert!(keys.couverture(&[union.clone(), complementaire.clone()]));
     // The union alone does not cover; neither does the empty family; nor the empty union.
@@ -186,12 +186,12 @@ fn test_propriete_intersection_lcg() {
                 )
             })
             .collect();
-        Dbm::nouveau(2, &contraintes)
+        Dbm::new(2, &contraintes)
     };
     let tire_union = |suivant: &mut dyn FnMut() -> u64| {
         let nombre_zones = 1 + suivant() % 3;
         let zones: Vec<Dbm> = (0..nombre_zones).map(|_| tire_zone(suivant)).collect();
-        Cdd::nouveau(&zones)
+        Cdd::new(&zones)
     };
     for _ in 0..NOMBRE_CAS {
         let a = tire_union(&mut suivant);

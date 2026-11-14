@@ -21,10 +21,7 @@ type PoolBool = Arena<ReferenceController>;
 
 /// Test schema: `Map({0,1}, {0,1})`.
 fn schema_test() -> Schema {
-    Schema::Map(
-        vec![Atom(0), Atom(1)],
-        Domaine::nouveau(vec![Atom(0), Atom(1)]),
-    )
+    Schema::Map(vec![Atom(0), Atom(1)], Domaine::new(vec![Atom(0), Atom(1)]))
 }
 
 /// Builds a `Value::Map` from (key, value) pairs.

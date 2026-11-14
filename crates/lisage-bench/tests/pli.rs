@@ -63,7 +63,7 @@ proptest! {
     ) {
         let schema = Schema::Map(
             vec![Atom(0), Atom(1)],
-            Domaine::nouveau(vec![Atom(0), Atom(1)]),
+            Domaine::new(vec![Atom(0), Atom(1)]),
         );
         let ensemble = ensemble_aleatoire(maps);
         let mut entree = Arena::new(

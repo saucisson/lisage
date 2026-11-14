@@ -21,7 +21,7 @@ fn pgcd(mut a: u64, mut b: u64) -> u64 {
 
 /// Exact rational, normalized (strictly positive denominator):
 /// exact arithmetic by default (roadmap § 10, M5-4 decision). Private
-/// fields: only [`Rationnel::nouveau`] constructs, the `den > 0` invariant
+/// fields: only [`Rationnel::new`] constructs, the `den > 0` invariant
 /// cannot be bypassed by a literal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Rationnel {
@@ -31,7 +31,7 @@ pub struct Rationnel {
 
 impl Rationnel {
     /// Rational `num/den`, normalized by the gcd; `den == 0` ⇒ 0/1.
-    pub fn nouveau(num: u64, den: u64) -> Self {
+    pub fn new(num: u64, den: u64) -> Self {
         if den == 0 {
             return Rationnel { num: 0, den: 1 };
         }
@@ -64,7 +64,7 @@ impl Rationnel {
     pub fn multiplier(&self, autre: &Self) -> Self {
         let num = self.num.saturating_mul(autre.num);
         let den = self.den.saturating_mul(autre.den);
-        Rationnel::nouveau(num, den)
+        Rationnel::new(num, den)
     }
 
     /// `self <= autre` in exact arithmetic (cross products, u128).
@@ -98,7 +98,7 @@ impl std::fmt::Display for ErreurOracle {
 impl std::error::Error for ErreurOracle {}
 
 /// Input parameters of the predictive model (M3-3). Private fields: only
-/// [`ParametresOracle::nouveau`] constructs, the density is validated in
+/// [`ParametresOracle::new`] constructs, the density is validated in
 /// [0, 1] there and cannot be bypassed by a literal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ParametresOracle {
@@ -110,13 +110,13 @@ pub struct ParametresOracle {
 
 impl ParametresOracle {
     /// Validated parameters: the expected density must fit in [0, 1].
-    pub fn nouveau(
+    pub fn new(
         taille_domaine: u64,
         densite_attendue: Rationnel,
         cout_encodage: u64,
         requetes_aval: u64,
     ) -> Result<Self, ErreurOracle> {
-        let zero = Rationnel::nouveau(0, 1);
+        let zero = Rationnel::new(0, 1);
         let un = Rationnel::entier(1);
         if !(zero.inferieur_ou_egal(&densite_attendue) && densite_attendue.inferieur_ou_egal(&un)) {
             return Err(ErreurOracle::DensiteHorsBornes);
@@ -185,7 +185,7 @@ impl Oracle {
     /// Differential guardrail (C4): compares the prediction to the actual
     /// measurement. Conforming if the measurement fits in [predicted/2, 2 × predicted].
     pub fn garde_fou(predit: u64, mesure: u64) -> VerdictGardeFou {
-        VerdictGardeFou::nouveau(predit, mesure)
+        VerdictGardeFou::new(predit, mesure)
     }
 }
 
@@ -200,16 +200,16 @@ pub struct VerdictGardeFou {
 
 impl VerdictGardeFou {
     /// Verdict between a prediction and a measurement.
-    pub fn nouveau(predit: u64, mesure: u64) -> Self {
+    pub fn new(predit: u64, mesure: u64) -> Self {
         VerdictGardeFou { predit, mesure }
     }
 
     /// Ratio measure/predicted in exact arithmetic. By convention of
-    /// [`Rationnel::nouveau`], `predicted == 0` gives ratio 0/1 (not a
+    /// [`Rationnel::new`], `predicted == 0` gives ratio 0/1 (not a
     /// saturated value); `est_conforme` does not go through `ratio` and
     /// handles `predicted == 0` directly.
     pub fn ratio(&self) -> Rationnel {
-        Rationnel::nouveau(self.mesure, self.predit)
+        Rationnel::new(self.mesure, self.predit)
     }
 
     /// Conforming if the measurement fits in [BORNE_INFERIEURE × predicted,

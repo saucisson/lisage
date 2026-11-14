@@ -437,7 +437,7 @@ fn charge_philosophes(
         (0..PAS_CLE_INTERCALAGE * nombre_philosophes)
             .map(Atom)
             .collect(),
-        Domaine::nouveau(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)]),
+        Domaine::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)]),
     );
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = Arena::new(
@@ -580,7 +580,7 @@ fn charge_fenetre(
     }
     let attendu = taille.saturating_mul(nb_bases);
     let mut pool = Arena::new(
-        AtelierController::nouveau(
+        AtelierController::new(
             BddController::new(VARIABLES_BDD_FENETRE),
             Reductions::sans_collapse(),
         ),

@@ -45,7 +45,7 @@ impl Observer for Collecteur {
 }
 
 fn schema_ensemble() -> Schema {
-    Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]))
+    Schema::Set(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]))
 }
 
 fn ensemble(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {

@@ -16,14 +16,14 @@ const ANCRE: Anchor = Anchor(0);
 
 fn pool(domaines: Vec<u64>) -> PoolRegion {
     Arena::new(
-        RegionController::nouveau(RegionKeys::new(domaines)),
+        RegionController::new(RegionKeys::new(domaines)),
         Box::new(NoOpObserver),
     )
 }
 
 #[test]
 fn test_intervalle_vide_normalise() {
-    let vide = Intervalle::nouveau(5, 3);
+    let vide = Intervalle::new(5, 3);
     assert_eq!(vide, VIDE);
     assert!(vide.est_vide());
     assert_eq!(vide.taille(), 0);
@@ -33,17 +33,17 @@ fn test_intervalle_vide_normalise() {
     assert_eq!(point.taille(), 1);
     assert!(point.contient(4));
     assert!(!point.contient(5));
-    assert_eq!(Intervalle::nouveau(2, 5).taille(), 4);
+    assert_eq!(Intervalle::new(2, 5).taille(), 4);
 }
 
 #[test]
 fn test_normal_form_canonique_et_idempotente() {
     let keys = RegionKeys::new(vec![8]);
     // Any writing of an empty interval has the same normal form.
-    assert_eq!(keys.normal_form(&Intervalle::nouveau(7, 2)), VIDE);
+    assert_eq!(keys.normal_form(&Intervalle::new(7, 2)), VIDE);
     assert_eq!(keys.normal_form(&VIDE), VIDE);
     // Forme normale idempotente, et stable sur les non-vides.
-    let intervalle = Intervalle::nouveau(2, 5);
+    let intervalle = Intervalle::new(2, 5);
     assert_eq!(keys.normal_form(&keys.normal_form(&intervalle)), intervalle);
 }
 
@@ -70,7 +70,7 @@ fn test_partage_pool_c1_relatif() {
     };
     let forme_vide_b = Form::Node {
         level: niveau,
-        arcs: BTreeMap::from([(Intervalle::nouveau(9, 2), terminal)]),
+        arcs: BTreeMap::from([(Intervalle::new(9, 2), terminal)]),
     };
     assert_eq!(
         pool.intern(ANCRE, forme_vide_a.clone()),
@@ -83,7 +83,7 @@ fn test_partage_pool_c1_relatif() {
     };
     let forme_point_b = Form::Node {
         level: niveau,
-        arcs: BTreeMap::from([(Intervalle::nouveau(3, 3), terminal)]),
+        arcs: BTreeMap::from([(Intervalle::new(3, 3), terminal)]),
     };
     assert_eq!(
         pool.intern(ANCRE, forme_point_a.clone()),
@@ -120,7 +120,7 @@ fn test_propriete_normalisation_lcg() {
         };
         let inf = suivant() % 16;
         let sup = suivant() % 16;
-        let intervalle = Intervalle::nouveau(inf, sup);
+        let intervalle = Intervalle::new(inf, sup);
         let normalisee = keys.normal_form(&intervalle);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
         assert_eq!(normalisee.est_vide(), inf > sup);
@@ -170,7 +170,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
                 fin += 1;
             }
             arcs.insert(
-                Intervalle::nouveau(point, fin),
+                Intervalle::new(point, fin),
                 if dans_s { vrai_terminal } else { faux_terminal },
             );
             point = fin + 1;

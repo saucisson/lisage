@@ -21,7 +21,7 @@ type PoolRef = Arena<ReferenceController>;
 fn schema_map() -> Schema {
     Schema::Map(
         vec![Atom(0), Atom(1), Atom(2)],
-        Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2), Atom(3)]),
+        Domaine::new(vec![Atom(0), Atom(1), Atom(2), Atom(3)]),
     )
 }
 
@@ -166,7 +166,7 @@ fn test_transfert_destination_hors_domaine() {
 fn test_transfert_sous_saturate_termine() {
     let schema = Schema::Map(
         vec![Atom(0), Atom(1)],
-        Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]),
+        Domaine::new(vec![Atom(0), Atom(1), Atom(2)]),
     );
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
@@ -208,7 +208,7 @@ fn test_transfert_sous_saturate_termine() {
 fn test_transfert_collision_source_union() {
     let schema = Schema::Map(
         vec![Atom(0), Atom(1)],
-        Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]),
+        Domaine::new(vec![Atom(0), Atom(1), Atom(2)]),
     );
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);

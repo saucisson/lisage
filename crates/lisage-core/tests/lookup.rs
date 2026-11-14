@@ -94,7 +94,7 @@ fn payload_terminal(
 #[test]
 fn test_lookup_cles_presentes() {
     let liste_cles = vec![Atom(0), Atom(1)];
-    let domaine_valeurs = Domaine::nouveau(vec![Atom(0), Atom(1)]);
+    let domaine_valeurs = Domaine::new(vec![Atom(0), Atom(1)]);
     let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
     let valeur = map_de(&[(0, 1), (1, 0)]);
     let Value::Map(ref map) = valeur else {
@@ -126,7 +126,7 @@ fn test_lookup_cles_presentes() {
 #[test]
 fn test_lookup_cle_absente() {
     let liste_cles = vec![Atom(0), Atom(1)];
-    let domaine_valeurs = Domaine::nouveau(vec![Atom(0), Atom(1)]);
+    let domaine_valeurs = Domaine::new(vec![Atom(0), Atom(1)]);
     let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
     let valeur = map_de(&[(0, 1)]);
     let Value::Map(ref map) = valeur else {
@@ -148,7 +148,7 @@ fn test_lookup_cle_absente() {
 #[test]
 fn test_lookup_niveau_valeur_collapsed_t_expand() {
     let liste_cles = vec![Atom(0)];
-    let domaine_valeurs = Domaine::nouveau(vec![Atom(0)]);
+    let domaine_valeurs = Domaine::new(vec![Atom(0)]);
     let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
     let valeur = map_de(&[(0, 0)]);
     let Value::Map(ref map) = valeur else {

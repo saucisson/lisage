@@ -21,7 +21,7 @@ const ANCRE_TEST_2: Anchor = Anchor(1);
 type PoolRef = Arena<ReferenceController>;
 
 fn schema_ensemble() -> Schema {
-    Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]))
+    Schema::Set(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]))
 }
 
 fn pool_neuf(schema: &Schema) -> PoolRef {

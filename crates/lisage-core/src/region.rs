@@ -18,7 +18,7 @@ pub const VIDE: Intervalle = Intervalle {
 };
 
 /// Region key: closed interval `[borne_inf, borne_sup]` of points of a
-/// bounded domain. Every construction goes through [`Intervalle::nouveau`],
+/// bounded domain. Every construction goes through [`Intervalle::new`],
 /// which normalizes the empty interval to [`VIDE`]: the derived equality is
 /// then set equality, and hash-consing respects C1 relative to the region
 /// algebra.
@@ -31,7 +31,7 @@ pub struct Intervalle {
 impl Intervalle {
     /// Closed interval `[borne_inf, borne_sup]`; if `borne_inf > borne_sup`,
     /// the interval is empty and normalized to [`VIDE`].
-    pub fn nouveau(borne_inf: u64, borne_sup: u64) -> Self {
+    pub fn new(borne_inf: u64, borne_sup: u64) -> Self {
         if borne_inf > borne_sup {
             VIDE
         } else {
@@ -44,7 +44,7 @@ impl Intervalle {
 
     /// Interval reduced to the point `v`.
     pub fn point(v: u64) -> Self {
-        Intervalle::nouveau(v, v)
+        Intervalle::new(v, v)
     }
 
     /// Lower bound, included.
@@ -63,7 +63,7 @@ impl Intervalle {
     }
 
     /// Number of points of the interval (0 if empty); saturated at
-    /// `u64::MAX` for `Intervalle::nouveau(0, u64::MAX)` (the public
+    /// `u64::MAX` for `Intervalle::new(0, u64::MAX)` (the public
     /// constructor accepts any pair of `u64`).
     pub fn taille(&self) -> u64 {
         if self.est_vide() {
@@ -105,7 +105,7 @@ impl KeyAlgebra for RegionKeys {
     type Key = Intervalle;
 
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
-        Intervalle::nouveau(key.borne_inf(), key.borne_sup())
+        Intervalle::new(key.borne_inf(), key.borne_sup())
     }
 
     fn cardinality(&self, level: Level) -> u64 {
@@ -126,7 +126,7 @@ pub struct RegionController {
 
 impl RegionController {
     /// Controller for the given region key algebra.
-    pub fn nouveau(keys: RegionKeys) -> Self {
+    pub fn new(keys: RegionKeys) -> Self {
         RegionController { keys }
     }
 }

@@ -15,7 +15,7 @@ use lisage_lang::value::Atom;
 type PoolRef = Arena<ReferenceController>;
 
 fn pool() -> PoolRef {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
@@ -206,7 +206,7 @@ fn test_politique_aucune_rejette_effet_memoire() {
 /// default in M1, `PerLevel` to allow the memory).
 #[test]
 fn test_politique_memoire_du_controleur() {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
     let controleur = ReferenceController::new(schema);
     assert_eq!(
         controleur.memory_policy(),

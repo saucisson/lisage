@@ -26,7 +26,7 @@ type PoolRef = Arena<ReferenceController>;
 fn schema_test() -> Schema {
     Schema::Map(
         (0..NOMBRE_CLES).map(Atom).collect(),
-        Domaine::nouveau((0..TAILLE_DOMAINE).map(Atom).collect()),
+        Domaine::new((0..TAILLE_DOMAINE).map(Atom).collect()),
     )
 }
 

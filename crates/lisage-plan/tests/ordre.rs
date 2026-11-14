@@ -24,7 +24,7 @@ impl MarqueOrdre<DomaineAtomes> for MarqueInverse {
     fn ordre(descripteur: &DomaineAtomes) -> Order<DomaineAtomes> {
         let mut pi = descripteur.cles_canoniques();
         pi.reverse();
-        Order::nouveau(descripteur, pi).expect("the reversed order is a valid permutation")
+        Order::new(descripteur, pi).expect("the reversed order is a valid permutation")
     }
 }
 
@@ -47,7 +47,7 @@ fn test_ordre_canonique_identite() {
 #[test]
 fn test_nouvel_ordre_permutation_valide() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
-    let ordre = Order::nouveau(&domaine, vec![Atom(2), Atom(0), Atom(1)]).unwrap();
+    let ordre = Order::new(&domaine, vec![Atom(2), Atom(0), Atom(1)]).unwrap();
     assert_eq!(
         ordre.permutation(),
         vec![1, 2, 0],
@@ -63,17 +63,17 @@ fn test_nouvel_ordre_rejete_si_pas_une_permutation() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1)]);
     // Missing key.
     assert_eq!(
-        Order::nouveau(&domaine, vec![Atom(0)]),
+        Order::new(&domaine, vec![Atom(0)]),
         Err(ErreurOrdre::PasUnePermutation)
     );
     // Duplicate key.
     assert_eq!(
-        Order::nouveau(&domaine, vec![Atom(0), Atom(0)]),
+        Order::new(&domaine, vec![Atom(0), Atom(0)]),
         Err(ErreurOrdre::PasUnePermutation)
     );
     // Key foreign to the type.
     assert_eq!(
-        Order::nouveau(&domaine, vec![Atom(0), Atom(7)]),
+        Order::new(&domaine, vec![Atom(0), Atom(7)]),
         Err(ErreurOrdre::PasUnePermutation)
     );
 }
@@ -88,7 +88,7 @@ fn test_contraintes_map_presence_avant_valeur() {
     assert_eq!(canonique.contraintes().len(), 2, "one constraint per key");
     // Canonical order: satisfies the constraints.
     assert!(
-        Order::nouveau(
+        Order::new(
             &cles,
             canonique
                 .permutation()
@@ -119,7 +119,7 @@ fn test_contraintes_map_presence_avant_valeur() {
         },
     ];
     assert_eq!(
-        Order::nouveau(&cles, violee),
+        Order::new(&cles, violee),
         Err(ErreurOrdre::ContrainteViolee {
             avant: CleMap {
                 cle: Atom(1),
@@ -134,7 +134,7 @@ fn test_contraintes_map_presence_avant_valeur() {
 
     // Presence and value of the same key swapped in total disorder:
     // any permutation that inverts a (presence, value) pair is rejected.
-    let inverse = Order::nouveau(
+    let inverse = Order::new(
         &cles,
         vec![
             CleMap {
@@ -170,7 +170,7 @@ fn test_contraintes_map_presence_avant_valeur() {
 fn test_alignement_en_valeur() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let ordre_a = Order::canonique(&domaine);
-    let ordre_b = Order::nouveau(&domaine, vec![Atom(2), Atom(1), Atom(0)]).unwrap();
+    let ordre_b = Order::new(&domaine, vec![Atom(2), Atom(1), Atom(0)]).unwrap();
     assert!(ordre_a.alignes(&ordre_a.clone()));
     assert!(!ordre_a.alignes(&ordre_b));
     assert!(ordre_a.alignement(&ordre_a.clone()).is_ok());
@@ -189,16 +189,16 @@ fn test_alignement_comme_typage_composition_sous_meme_marque() {
     let ordre = MarqueCanonique::ordre(&domaine);
     assert_eq!(ordre.taille(), 2);
 
-    let a = Aligne::<DomaineAtomes, MarqueCanonique, u32>::nouveau(2);
-    let b = Aligne::<DomaineAtomes, MarqueCanonique, u32>::nouveau(3);
+    let a = Aligne::<DomaineAtomes, MarqueCanonique, u32>::new(2);
+    let b = Aligne::<DomaineAtomes, MarqueCanonique, u32>::new(3);
     let somme = a.compose(&b, |x, y| x + y);
     assert_eq!(*somme.valeur(), 5);
 
     // The inverse mark carries another order: compose requires the same
     // mark on both sides (positive typing test; the negative case is a
     // compile-time rejection).
-    let c = Aligne::<DomaineAtomes, MarqueInverse, u32>::nouveau(10);
-    let d = Aligne::<DomaineAtomes, MarqueInverse, u32>::nouveau(1);
+    let c = Aligne::<DomaineAtomes, MarqueInverse, u32>::new(10);
+    let d = Aligne::<DomaineAtomes, MarqueInverse, u32>::new(1);
     assert_eq!(*c.compose(&d, |x, y| x - y).valeur(), 9);
     assert!(!MarqueCanonique::ordre(&domaine).alignes(&MarqueInverse::ordre(&domaine)));
 }
@@ -229,7 +229,7 @@ fn test_propriete_permutation_valide_bijection() {
             let j = (suivant() as usize) % (i + 1);
             pi.swap(i, j);
         }
-        let ordre = Order::nouveau(&domaine, pi.clone()).expect("valid permutation");
+        let ordre = Order::new(&domaine, pi.clone()).expect("valid permutation");
         assert_eq!(ordre.taille(), taille);
         let mut positions: Vec<usize> = (0..taille)
             .map(|i| ordre.position(&pi[i]).unwrap())

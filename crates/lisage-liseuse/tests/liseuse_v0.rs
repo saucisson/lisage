@@ -13,7 +13,7 @@ use lisage_liseuse::trace::{JsonlObserver, TRACE_VERSION, serialiser_evenement};
 type PoolRef = Arena<ReferenceController>;
 
 fn schema_ensemble() -> Schema {
-    Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]))
+    Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]))
 }
 
 fn ensemble(
