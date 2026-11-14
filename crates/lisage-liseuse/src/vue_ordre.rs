@@ -1,160 +1,160 @@
-//! Liseuse — **vue 1 : l'ordre et les contrôleurs** (M3-4, doc liseuse § 4) :
-//! la fiche contrôleur (les huit champs de `C`), l'ordre `O` rendu comme
-//! piste linéaire horizontale (ou arbre / vtree), les royaumes côte à côte,
-//! et les conversions fléchées avec leur coût.
+//! Reader — **view 1: the order and the controllers** (M3-4, reader doc § 4):
+//! the controller card (the eight fields of `C`), the order `O` rendered as
+//! a horizontal linear track (or tree / vtree), the kingdoms side by side,
+//! and the arrowed conversions with their cost.
 //!
-//! La liseuse ne dépend pas de `lisage-plan` (frontière de dépendances) :
-//! elle rend une **description neutre** ([`RoyaumeVue`], [`ConversionVue`])
-//! produite par le plan ; elle n'interprète jamais les libellés.
+//! The reader does not depend on `lisage-plan` (dependency boundary):
+//! it renders a **neutral description** ([`RoyaumeVue`], [`ConversionVue`])
+//! produced by the planner; it never interprets the labels.
 
 use crate::svg::echapper_xml;
 
-/// Largeur de la vue en pixels.
+/// Width of the view in pixels.
 const LARGEUR_VUE: u32 = 960;
-/// Marge extérieure en pixels.
+/// Outer margin in pixels.
 const MARGE: u32 = 20;
-/// Hauteur d'une ligne de la fiche contrôleur en pixels.
+/// Height of a controller-card line in pixels.
 const HAUTEUR_LIGNE_FICHE: u32 = 16;
-/// Hauteur d'une piste linéaire en pixels.
+/// Height of a linear track in pixels.
 const HAUTEUR_PISTE: u32 = 56;
-/// Hauteur d'un niveau d'arbre (vtree) en pixels.
+/// Height of a tree level (vtree) in pixels.
 const HAUTEUR_NIVEAU_ARBRE: u32 = 44;
-/// Largeur d'une boîte de la piste en pixels.
+/// Width of a track box in pixels.
 const LARGEUR_BOITE: u32 = 110;
-/// Couleur de la piste (bordures des niveaux).
+/// Track color (level borders).
 const COULEUR_PISTE: &str = "#2980b9";
-/// Couleur de la fiche contrôleur.
+/// Controller-card color.
 const COULEUR_FICHE: &str = "#555";
-/// Couleur des conversions fléchées.
+/// Arrowed-conversion color.
 const COULEUR_CONVERSION: &str = "#e67e22";
-/// Couleur du texte.
+/// Text color.
 const COULEUR_TEXTE: &str = "#222";
-/// Fond de la fiche contrôleur.
+/// Controller-card background.
 const FOND_FICHE: &str = "#f7f7f7";
-/// Fond des boîtes de niveau.
+/// Level-box background.
 const FOND_BOITE: &str = "#fff";
-/// Taille de police du titre de la vue.
+/// Font size of the view title.
 const TAILLE_TITRE: u32 = 14;
-/// Taille de police d'un nom de royaume / titre de fiche.
+/// Font size of a kingdom name / card title.
 const TAILLE_NOM: u32 = 13;
-/// Taille de police d'un champ de fiche.
+/// Font size of a card field.
 const TAILLE_CHAMP: u32 = 12;
-/// Taille de police d'un libellé de piste / conversion.
+/// Font size of a track / conversion label.
 const TAILLE_PISTE: u32 = 11;
-/// Décalage intérieur standard (marge dans un panneau).
+/// Standard inner offset (margin inside a panel).
 const DECALAGE: u32 = 8;
-/// Hauteur du bandeau de titre de la vue.
+/// Height of the view title band.
 const HAUTEUR_TITRE: u32 = 30;
-/// Espace après la piste d'un royaume.
+/// Space after a kingdom's track.
 const ESPACE_APRES_PISTE: u32 = 16;
-/// Offset vertical du titre de fiche.
+/// Vertical offset of the card title.
 const DECALAGE_TITRE_FICHE: u32 = 16;
-/// Offset vertical de la première ligne de champ.
+/// Vertical offset of the first field line.
 const DECALAGE_LIGNE_FICHE: u32 = 24;
-/// Offset vertical de la baseline d'une ligne de champ.
+/// Vertical offset of a field line's baseline.
 const BASELINE_LIGNE_FICHE: u32 = 12;
-/// Offset horizontal d'une boîte dans la piste.
+/// Horizontal offset of a box in the track.
 const DECALAGE_BOITE: u32 = 4;
-/// Baseline du texte dans une boîte de niveau.
+/// Text baseline in a level box.
 const BASELINE_BOITE: u32 = 18;
-/// Centre vertical d'une boîte de niveau.
+/// Vertical center of a level box.
 const MILIEU_BOITE: u32 = 14;
-/// Offset horizontal de la flèche de conversion.
+/// Horizontal offset of the conversion arrow.
 const DECALAGE_FLECHE: u32 = 40;
-/// Offset horizontal de l'étiquette de conversion.
+/// Horizontal offset of the conversion label.
 const DECALAGE_ETIQUETTE: u32 = 48;
-/// Offset vertical de l'étiquette de conversion sous le milieu de la flèche.
+/// Vertical offset of the conversion label below the arrow's middle.
 const DECALAGE_ETIQUETTE_Y: u32 = 4;
-/// Géométrie des marqueurs de flèche (taille, refX, refY).
+/// Arrow-marker geometry (size, refX, refY).
 const MARQUEUR_TAILLE: u32 = 8;
 const MARQUEUR_REF_Y: u32 = 4;
-/// Nombre de champs de la fiche contrôleur (C = huit champs).
+/// Number of controller-card fields (C = eight fields).
 const NOMBRE_CHAMPS_FICHE: u32 = 8;
-/// Hauteur d'une boîte de niveau en pixels.
+/// Height of a level box in pixels.
 const HAUTEUR_BOITE: u32 = 28;
-/// Épaisseur des traits en pixels.
+/// Stroke thickness in pixels.
 const EPAISSEUR_TRAIT: u32 = 2;
-/// Hauteur d'une ligne de conversion en pixels.
+/// Height of a conversion line in pixels.
 const HAUTEUR_LIGNE_CONVERSION: u32 = 30;
-/// Pointillés des flèches de conversion.
+/// Dashes of the conversion arrows.
 const DASH_CONVERSION: &str = "6 3";
 
-/// Hauteur de la fiche contrôleur en pixels.
+/// Height of the controller card in pixels.
 const fn hauteur_fiche() -> u32 {
     DECALAGE_LIGNE_FICHE + NOMBRE_CHAMPS_FICHE * HAUTEUR_LIGNE_FICHE
 }
 
-/// Fiche contrôleur : les huit champs de `C = (δ, Σ, décomposition + O, R,
-/// défauts, D^déf, encodage, attribution)`, en libellés neutres.
+/// Controller card: the eight fields of `C = (δ, Σ, decomposition + O, R,
+/// defaults, D^def, encoding, attribution)`, in neutral labels.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct FicheControleur {
-    /// δ : algèbre des clés et défauts par niveau.
+    /// δ: key algebra and per-level defaults.
     pub delta: String,
-    /// Σ : expression de types dépliée par l'ordre.
+    /// Σ: type expression unfolded by the order.
     pub sigma: String,
-    /// Décomposition + ordre O.
+    /// Decomposition + order O.
     pub decomposition_ordre: String,
-    /// R : règles de réduction.
+    /// R: reduction rules.
     pub regles: String,
-    /// Défauts désignés par niveau.
+    /// Defaults designated per level.
     pub defauts: String,
-    /// Défaut global D^déf désigné par le contrôleur.
+    /// Global default D^def designated by the controller.
     pub defaut_global: String,
-    /// Encodage (royaume) : balayage d'univers, énumération…
+    /// Encoding (kingdom): universe sweep, enumeration…
     pub encodage: String,
-    /// Attribution (canaux hérité/synthétisé/mémoire).
+    /// Attribution (inherited/synthesized/memory channels).
     pub attribution: String,
 }
 
-/// Nœud d'un arbre d'ordre (vtree) : un libellé et ses enfants.
+/// Node of an order tree (vtree): a label and its children.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NoeudVtree {
-    /// Libellé du nœud (fragment de la décomposition).
+    /// Node label (fragment of the decomposition).
     pub libelle: String,
-    /// Enfants (sous-arbres).
+    /// Children (subtrees).
     pub enfants: Vec<NoeudVtree>,
 }
 
-/// Piste d'ordre `O` : linéaire (niveaux dans l'ordre de balayage) ou
-/// structurée en arbre (vtree).
+/// Order track `O`: linear (levels in sweep order) or
+/// structured as a tree (vtree).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PisteOrdre {
-    /// O linéaire : libellés des niveaux dans l'ordre.
+    /// Linear O: level labels in order.
     Lineaire(Vec<String>),
-    /// O structuré : arbre (vtree).
+    /// Structured O: tree (vtree).
     Arbre(NoeudVtree),
 }
 
-/// Royaume de contrôleur : une fiche + une piste d'ordre.
+/// Controller kingdom: a card + an order track.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RoyaumeVue {
-    /// Nom du royaume (contrôleur).
+    /// Kingdom name (controller).
     pub nom: String,
-    /// Fiche contrôleur (huit champs).
+    /// Controller card (eight fields).
     pub fiche: FicheControleur,
-    /// Piste d'ordre.
+    /// Order track.
     pub piste: PisteOrdre,
 }
 
-/// Conversion fléchée entre deux royaumes, avec son coût (événement
-/// `Convert` : contrôleur source, cible, coût).
+/// Arrowed conversion between two kingdoms, with its cost (event
+/// `Convert`: source controller, target, cost).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ConversionVue {
-    /// Nom du royaume source.
+    /// Source kingdom name.
     pub source: String,
-    /// Nom du royaume cible.
+    /// Target kingdom name.
     pub cible: String,
-    /// Coût mesuré/prédit de la conversion.
+    /// Measured/predicted cost of the conversion.
     pub cout: u64,
 }
 
-/// Hauteur en pixels d'un arbre (vtree).
+/// Height in pixels of a tree (vtree).
 fn hauteur_arbre(noeud: &NoeudVtree) -> u32 {
     let hauteur_enfants = noeud.enfants.iter().map(hauteur_arbre).max().unwrap_or(0);
     HAUTEUR_NIVEAU_ARBRE + hauteur_enfants
 }
 
-/// Hauteur en pixels d'une piste.
+/// Height in pixels of a track.
 fn hauteur_piste(piste: &PisteOrdre) -> u32 {
     match piste {
         PisteOrdre::Lineaire(_) => HAUTEUR_PISTE,
@@ -162,17 +162,17 @@ fn hauteur_piste(piste: &PisteOrdre) -> u32 {
     }
 }
 
-/// Rend la fiche contrôleur (huit champs en panneau) ; retourne la hauteur
-/// rendue.
+/// Renders the controller card (eight fields in a panel); returns the
+/// rendered height.
 fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, largeur: u32) -> u32 {
     let champs = [
         ("δ", &fiche.delta),
         ("Σ", &fiche.sigma),
-        ("décomposition + O", &fiche.decomposition_ordre),
+        ("decomposition + O", &fiche.decomposition_ordre),
         ("R", &fiche.regles),
-        ("défauts", &fiche.defauts),
-        ("D^déf", &fiche.defaut_global),
-        ("encodage", &fiche.encodage),
+        ("defaults", &fiche.defauts),
+        ("D^def", &fiche.defaut_global),
+        ("encoding", &fiche.encodage),
         ("attribution", &fiche.attribution),
     ];
     debug_assert_eq!(champs.len() as u32, NOMBRE_CHAMPS_FICHE);
@@ -181,7 +181,7 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
         "<rect x=\"{x}\" y=\"{y}\" width=\"{largeur}\" height=\"{hauteur}\" fill=\"{FOND_FICHE}\" stroke=\"{COULEUR_FICHE}\"/>\n"
     ));
     svg.push_str(&format!(
-        "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_NOM}\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">fiche contrôleur</text>\n",
+        "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_NOM}\" font-weight=\"bold\" fill=\"{COULEUR_TEXTE}\">controller card</text>\n",
         x + DECALAGE,
         y + DECALAGE_TITRE_FICHE
     ));
@@ -197,8 +197,8 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
     hauteur
 }
 
-/// Rend une piste linéaire : les niveaux dans l'ordre de balayage, en
-/// boîtes reliées par des flèches.
+/// Renders a linear track: the levels in sweep order, in
+/// boxes linked by arrows.
 fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, largeur: u32) {
     let y_boite = y + DECALAGE;
     let nombre = niveaux.len().max(1) as u32;
@@ -227,8 +227,8 @@ fn rendre_piste_lineaire(svg: &mut String, niveaux: &[String], x: u32, y: u32, l
     }
 }
 
-/// Rend un arbre (vtree) : le nœud centré, les enfants répartis en largeur.
-/// Retourne la hauteur rendue.
+/// Renders a tree (vtree): the node centered, the children spread in width.
+/// Returns the rendered height.
 fn rendre_arbre(svg: &mut String, noeud: &NoeudVtree, x: u32, y: u32, largeur: u32) -> u32 {
     let centre_x = x + largeur / 2;
     svg.push_str(&format!(
@@ -260,7 +260,7 @@ fn rendre_arbre(svg: &mut String, noeud: &NoeudVtree, x: u32, y: u32, largeur: u
     HAUTEUR_NIVEAU_ARBRE + hauteur_max
 }
 
-/// Rend une piste d'ordre (linéaire ou arbre) ; retourne la hauteur rendue.
+/// Renders an order track (linear or tree); returns the rendered height.
 fn rendre_piste(svg: &mut String, piste: &PisteOrdre, x: u32, y: u32, largeur: u32) -> u32 {
     match piste {
         PisteOrdre::Lineaire(niveaux) => {
@@ -271,8 +271,8 @@ fn rendre_piste(svg: &mut String, piste: &PisteOrdre, x: u32, y: u32, largeur: u
     }
 }
 
-/// Position d'un royaume dans la vue (source de vérité unique du layout,
-/// utilisée par le rendu : les deux passes ne peuvent pas diverger).
+/// Position of a kingdom in the view (single source of truth of the layout,
+/// used by the rendering: the two passes cannot diverge).
 struct PositionRoyaume {
     y_nom: u32,
     y_fiche: u32,
@@ -280,8 +280,8 @@ struct PositionRoyaume {
     hauteur_piste: u32,
 }
 
-/// Calcule le layout complet : hauteur totale du SVG + position de chaque
-/// royaume (nom, fiche, piste).
+/// Computes the full layout: total SVG height + position of each
+/// kingdom (name, card, track).
 fn layout(royaumes: &[RoyaumeVue], nombre_conversions: usize) -> (u32, Vec<PositionRoyaume>) {
     let mut hauteur = MARGE + HAUTEUR_TITRE;
     let mut positions = Vec::new();
@@ -299,10 +299,10 @@ fn layout(royaumes: &[RoyaumeVue], nombre_conversions: usize) -> (u32, Vec<Posit
     (hauteur, positions)
 }
 
-/// Rend la vue ordre en SVG statique : pour chaque royaume, sa fiche
-/// contrôleur puis sa piste d'ordre ; les conversions fléchées avec leur
-/// coût relient les pistes des royaumes source/cible (ancrées au milieu de
-/// la piste, quelle que soit sa hauteur).
+/// Renders the order view as static SVG: for each kingdom, its
+/// controller card then its order track; the arrowed conversions with their
+/// cost link the tracks of the source/target kingdoms (anchored at the middle
+/// of the track, whatever its height).
 pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVue]) -> String {
     let largeur = LARGEUR_VUE - 2 * MARGE;
     let (hauteur, positions) = layout(royaumes, conversions.len());
@@ -310,7 +310,7 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{LARGEUR_VUE}\" height=\"{hauteur}\" viewBox=\"0 0 {LARGEUR_VUE} {hauteur}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_TAILLE},{MARQUEUR_REF_Y} L0,{MARQUEUR_TAILLE} z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARQUEUR_TAILLE}\" markerHeight=\"{MARQUEUR_TAILLE}\" refX=\"{MARQUEUR_TAILLE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_TAILLE},{MARQUEUR_REF_Y} L0,{MARQUEUR_TAILLE} z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
     );
     svg.push_str(&format!(
-        "<text x=\"{MARGE}\" y=\"{DECALAGE_TITRE_FICHE}\" font-family=\"serif\" font-size=\"{TAILLE_TITRE}\" fill=\"{COULEUR_TEXTE}\">vue ordre — {} royaume(x), {} conversion(s)</text>\n",
+        "<text x=\"{MARGE}\" y=\"{DECALAGE_TITRE_FICHE}\" font-family=\"serif\" font-size=\"{TAILLE_TITRE}\" fill=\"{COULEUR_TEXTE}\">order view — {} kingdom(s), {} conversion(s)</text>\n",
         royaumes.len(),
         conversions.len()
     ));
@@ -323,7 +323,7 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
         rendre_fiche(&mut svg, &royaume.fiche, MARGE, position.y_fiche, largeur);
         rendre_piste(&mut svg, &royaume.piste, MARGE, position.y_piste, largeur);
     }
-    // Conversions fléchées entre pistes, avec le coût.
+    // Arrowed conversions between tracks, with the cost.
     for conversion in conversions {
         let Some(index_source) = royaumes.iter().position(|r| r.nom == conversion.source) else {
             continue;
@@ -339,7 +339,7 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
             LARGEUR_VUE - MARGE
         ));
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_PISTE}\" text-anchor=\"end\" fill=\"{COULEUR_CONVERSION}\">convert {} → {} (coût {})</text>\n",
+            "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{TAILLE_PISTE}\" text-anchor=\"end\" fill=\"{COULEUR_CONVERSION}\">convert {} → {} (cost {})</text>\n",
             LARGEUR_VUE - MARGE - DECALAGE_ETIQUETTE,
             (y1 + y2) / 2 + DECALAGE_ETIQUETTE_Y,
             echapper_xml(&conversion.source),
@@ -355,8 +355,8 @@ pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
 mod tests {
     use super::*;
 
-    /// Le layout est cohérent : chaque piste est posée après sa fiche, et
-    /// la hauteur totale couvre toutes les pistes (pas de clipping).
+    /// The layout is consistent: each track is placed after its card, and
+    /// the total height covers all the tracks (no clipping).
     #[test]
     fn test_layout_coherent() {
         let royaumes = vec![
@@ -402,11 +402,11 @@ mod tests {
             assert_eq!(
                 position.y_piste,
                 position.y_fiche + hauteur_fiche() + DECALAGE,
-                "piste posée après la fiche"
+                "track placed after the card"
             );
             assert!(
                 position.y_piste + position.hauteur_piste <= hauteur,
-                "piste couverte par la hauteur totale"
+                "track covered by the total height"
             );
         }
         assert!(positions[1].y_piste > positions[0].y_piste);

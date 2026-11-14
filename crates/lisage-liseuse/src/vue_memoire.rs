@@ -1,90 +1,90 @@
-//! Vue mémoire et quotient (M4-5, doc liseuse § 5 « le pool en fond » et
-//! « le zoom sémantique ») : pools groupés par plan avec leurs métriques
-//! de GC, badges de multiplicité (replicas), classes du quotient
-//! (formes × ancres), et mode comparaison naïf/DD/Lisage. Rendu SVG
-//! statique, comme les autres vues.
+//! Memory and quotient view (M4-5, liseuse doc § 5 « the pool in the background » and
+//! « the semantic zoom »): pools grouped by plane with their GC
+//! metrics, multiplicity badges (replicas), quotient classes
+//! (forms × anchors), and naive/DD/Lisage comparison mode. Static SVG
+//! rendering, like the other views.
 
 use lisage_core::biplan::MetriquesPool;
 
-/// Taille de police du titre.
+/// Title font size.
 const TAILLE_TITRE: u32 = 14;
-/// Taille de police du corps.
+/// Body font size.
 const TAILLE_CORPS: u32 = 11;
-/// Marge gauche en pixels.
+/// Left margin in pixels.
 const MARGE_GAUCHE: u32 = 16;
-/// Hauteur d'une ligne de pool en pixels.
+/// Height of a pool line in pixels.
 const HAUTEUR_LIGNE_POOL: u32 = 18;
-/// Hauteur d'une ligne de classe du quotient en pixels.
+/// Height of a quotient class line in pixels.
 const HAUTEUR_LIGNE_CLASSE: u32 = 18;
-/// Hauteur d'une barre de comparaison en pixels.
+/// Height of a comparison bar in pixels.
 const HAUTEUR_BARRE: u32 = 22;
-/// Largeur maximale d'une barre de comparaison en pixels.
+/// Maximum width of a comparison bar in pixels.
 const LARGEUR_BARRE_MAX: u32 = 400;
-/// Couleur des barres naïf/DD.
+/// Color of the naive/DD bars.
 const COULEUR_BARRE_NEUTRE: &str = "#999";
-/// Couleur de la barre Lisage (mise en avant).
+/// Color of the Lisage bar (highlighted).
 const COULEUR_BARRE_LISAGE: &str = "#2a7";
-/// Couleur du badge de multiplicité.
+/// Color of the multiplicity badge.
 const COULEUR_BADGE: &str = "#c60";
-/// Décalage vertical entre panneaux en pixels.
+/// Vertical offset between panels in pixels.
 const DECALAGE_PANNEAU: u32 = 24;
-/// Hauteur réservée au titre en pixels.
+/// Height reserved for the title in pixels.
 const HAUTEUR_TITRE: u32 = 40;
-/// Marge basse en pixels.
+/// Bottom margin in pixels.
 const MARGE_BAS: u32 = 20;
-/// Largeur du panneau de comparaison au-delà de la barre max, en pixels.
+/// Width of the comparison panel beyond the max bar, in pixels.
 const LARGEUR_PANNEAU: u32 = 120;
-/// Position verticale du premier panneau en pixels.
+/// Vertical position of the first panel in pixels.
 const Y_PREMIER_PANNEAU: u32 = 44;
-/// Décalage horizontal du badge ×k dans une ligne de classe, en pixels.
+/// Horizontal offset of the ×k badge in a class line, in pixels.
 const DECALAGE_BADGE: u32 = 220;
-/// Hauteur intérieure d'une barre de comparaison en pixels.
+/// Inner height of a comparison bar in pixels.
 const HAUTEUR_BARRE_INTERIEURE: u32 = 14;
-/// Décalage horizontal des barres après le libellé, en pixels.
+/// Horizontal offset of the bars after the label, in pixels.
 const DECALAGE_BARRE: u32 = 60;
-/// Décalage vertical du rectangle de barre sous la ligne de texte, en pixels.
+/// Vertical offset of the bar rectangle under the text line, in pixels.
 const DECALAGE_TEXTE_BARRE: u32 = 12;
-/// Décalage horizontal de la valeur après la barre, en pixels.
+/// Horizontal offset of the value after the bar, in pixels.
 const DECALAGE_VALEUR: u32 = 6;
 
-/// Badge de multiplicité : un handle et combien de réplicas positionnels
-/// il représente (badge ×k affiché quand k > 1).
+/// Multiplicity badge: a handle and how many positional replicas
+/// it represents (×k badge displayed when k > 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BadgeMultiplicite {
-    /// Libellé du handle (triple contrôleur/ancre/forme réduit).
+    /// Handle label (reduced controller/anchor/form triple).
     pub handle: String,
-    /// Nombre de réplicas positionnels représentés.
+    /// Number of positional replicas represented.
     pub multiplicite: u64,
 }
 
-/// Classe du quotient : une forme sous une ancre, avec sa multiplicité
-/// (formes × ancres — C1 : même forme sous deux ancres = deux classes).
+/// Quotient class: a form under an anchor, with its multiplicity
+/// (forms × anchors — C1: same form under two anchors = two classes).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ClasseQuotient {
-    /// Libellé de la forme.
+    /// Form label.
     pub forme: String,
-    /// Libellé de l'ancre.
+    /// Anchor label.
     pub ancre: String,
-    /// Nombre de réplicas dans la classe.
+    /// Number of replicas in the class.
     pub multiplicite: u64,
 }
 
-/// Vue mémoire d'un pool : métriques de GC et vivants par plan.
+/// Memory view of a pool: GC metrics and live nodes per plane.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct VuePool {
-    /// Nom du pool (contrôleur).
+    /// Pool name (controller).
     pub nom: String,
-    /// Métriques du pool (créations, partages, vivants, morts, GC,
-    /// compactions, taux de hit).
+    /// Pool metrics (creations, shares, live, dead, GC,
+    /// compactions, hit rate).
     pub metriques: MetriquesPool,
-    /// Vivants du plan principal.
+    /// Live nodes of the main plane.
     pub vivants_principal: u64,
-    /// Vivants du plan d'ombre.
+    /// Live nodes of the shadow plane.
     pub vivants_ombre: u64,
 }
 
 impl ClasseQuotient {
-    /// Badge de multiplicité de la classe (handle = « forme @ ancre »).
+    /// Multiplicity badge of the class (handle = « form @ anchor »).
     pub fn badge(&self) -> BadgeMultiplicite {
         BadgeMultiplicite {
             handle: format!("{} @ {}", self.forme, self.ancre),
@@ -94,7 +94,7 @@ impl ClasseQuotient {
 }
 
 impl VuePool {
-    /// Vue d'un pool depuis ses métriques et les vivants par plan.
+    /// View of a pool from its metrics and the live nodes per plane.
     pub fn depuis_metriques(
         nom: &str,
         metriques: MetriquesPool,
@@ -110,18 +110,18 @@ impl VuePool {
     }
 }
 
-/// Comparaison naïf/DD/Lisage : nœuds vivants par mode de représentation.
+/// Naive/DD/Lisage comparison: live nodes per representation mode.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ComparaisonVue {
-    /// Nœuds vivants en énumération naïve (explicitation complète).
+    /// Live nodes in naive enumeration (full explicitation).
     pub naif: u64,
-    /// Nœuds vivants en DD plat.
+    /// Live nodes in flat DD.
     pub dd: u64,
-    /// Nœuds vivants en Lisage (formes partagées, O(1) + bord).
+    /// Live nodes in Lisage (shared forms, O(1) + edge).
     pub lisage: u64,
 }
 
-/// Largeur d'une barre de comparaison, proportionnelle au compte (max =
+/// Width of a comparison bar, proportional to the count (max =
 /// `LARGEUR_BARRE_MAX`).
 fn largeur_barre(compte: u64, max: u64) -> u32 {
     if max == 0 {
@@ -131,9 +131,9 @@ fn largeur_barre(compte: u64, max: u64) -> u32 {
     }
 }
 
-/// Rendu SVG statique de la vue mémoire et quotient : panneau des pools
-/// (métriques GC + vivants par plan), panneau des classes du quotient
-/// (formes × ancres avec badges ×k), barres de comparaison naïf/DD/Lisage.
+/// Static SVG rendering of the memory and quotient view: pools panel
+/// (GC metrics + live nodes per plane), quotient classes panel
+/// (forms × anchors with ×k badges), naive/DD/Lisage comparison bars.
 pub fn rendre_svg_vue_memoire(
     pools: &[VuePool],
     classes: &[ClasseQuotient],
@@ -148,18 +148,18 @@ pub fn rendre_svg_vue_memoire(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
     );
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"{TAILLE_TITRE}\">vue mémoire et quotient</text>\n"
+        "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"{TAILLE_TITRE}\">memory and quotient view</text>\n"
     ));
-    // Panneau des pools.
+    // Pools panel.
     let mut y = Y_PREMIER_PANNEAU;
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">pools (plan principal / ombre, GC)</text>\n"
+        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">pools (main / shadow plane, GC)</text>\n"
     ));
     for pool in pools {
         y += HAUTEUR_LIGNE_POOL;
         let metriques = &pool.metriques;
         svg.push_str(&format!(
-            "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{} : vivants={}/{} morts={} gc={} compactions={} hit={}%</text>\n",
+            "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">{} : alive={}/{} dead={} gc={} compactions={} hit={}%</text>\n",
             pool.nom,
             pool.vivants_principal,
             pool.vivants_ombre,
@@ -169,10 +169,10 @@ pub fn rendre_svg_vue_memoire(
             metriques.taux_hit()
         ));
     }
-    // Panneau des classes du quotient.
+    // Quotient classes panel.
     y += DECALAGE_PANNEAU;
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">classes du quotient (formes × ancres)</text>\n"
+        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">quotient classes (forms × anchors)</text>\n"
     ));
     for classe in classes {
         y += HAUTEUR_LIGNE_CLASSE;
@@ -189,14 +189,14 @@ pub fn rendre_svg_vue_memoire(
             ));
         }
     }
-    // Barres de comparaison naïf/DD/Lisage.
+    // Naive/DD/Lisage comparison bars.
     y += DECALAGE_PANNEAU;
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">comparaison naïf / DD / Lisage (nœuds vivants)</text>\n"
+        "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{TAILLE_CORPS}\">comparison naive / DD / Lisage (live nodes)</text>\n"
     ));
     let max = comparaison.naif.max(comparaison.dd).max(comparaison.lisage);
     for (libelle, compte, couleur) in [
-        ("naïf", comparaison.naif, COULEUR_BARRE_NEUTRE),
+        ("naive", comparaison.naif, COULEUR_BARRE_NEUTRE),
         ("DD", comparaison.dd, COULEUR_BARRE_NEUTRE),
         ("Lisage", comparaison.lisage, COULEUR_BARRE_LISAGE),
     ] {

@@ -1,5 +1,5 @@
-//! Tests de la Liseuse v0 (M1-9) : sérialiseur JSONL versionné et rendu SVG
-//! statique du diagramme (niveaux = clés).
+//! Liseuse v0 tests (M1-9): versioned JSONL serializer and static SVG
+//! rendering of the diagram (levels = keys).
 
 use std::collections::BTreeSet;
 
@@ -31,8 +31,8 @@ fn ensemble(
     compiler(pool, anchor, schema, &valeur).unwrap()
 }
 
-/// Le JSONL est versionné, une ligne = un événement, et la trace est
-/// déterministe (deux constructions identiques ⇒ même trace).
+/// The JSONL is versioned, one line = one event, and the trace is
+/// deterministic (two identical constructions ⇒ same trace).
 #[test]
 fn test_trace_jsonl_versionnee_et_deterministe() {
     let schema = schema_ensemble();
@@ -47,11 +47,11 @@ fn test_trace_jsonl_versionnee_et_deterministe() {
     let observateur_b = JsonlObserver::new();
     let racine_a = construire(&observateur_a);
     let racine_b = construire(&observateur_b);
-    assert_eq!(racine_a, racine_b, "C1 : même construction ⇒ même racine");
+    assert_eq!(racine_a, racine_b, "C1: same construction ⇒ same root");
     assert_eq!(
         observateur_a.lignes(),
         observateur_b.lignes(),
-        "trace déterministe (rejouable à l'identique)"
+        "deterministic trace (replayable identically)"
     );
 
     let lignes = observateur_a.lignes();
@@ -59,24 +59,24 @@ fn test_trace_jsonl_versionnee_et_deterministe() {
     for ligne in &lignes {
         assert!(
             ligne.starts_with(&format!("{{\"v\":{TRACE_VERSION},")),
-            "chaque ligne porte la version du schéma : {ligne}"
+            "each line carries the schema version: {ligne}"
         );
         assert!(ligne.ends_with('}'));
     }
-    // Le terminal d'acceptation est créé en premier.
+    // The acceptance terminal is created first.
     assert!(
         lignes[0].contains("\"type\":\"NodeCreated\"") && lignes[0].contains("\"level\":null"),
-        "terminal = niveau null : {}",
+        "terminal = null level: {}",
         lignes[0]
     );
-    // Le nœud de niveau 0 existe dans la trace.
+    // The level-0 node exists in the trace.
     assert!(
         lignes.iter().any(|l| l.contains("\"level\":0")),
-        "un nœud de niveau 0 a été créé"
+        "a level-0 node was created"
     );
 }
 
-/// Sérialisation exacte (golden) d'un événement de chaque type.
+/// Exact (golden) serialization of one event of each type.
 #[test]
 fn test_serialiser_evenement_golden() {
     use lisage_core::observer::{ReductionRule, TraceEvent};
@@ -113,7 +113,7 @@ fn test_serialiser_evenement_golden() {
     );
 }
 
-/// Le rendu SVG v0 est déterministe et montre niveaux, nœuds et terminaux.
+/// The v0 SVG rendering is deterministic and shows levels, nodes and terminals.
 #[test]
 fn test_svg_statique_deterministe() {
     let schema = schema_ensemble();
@@ -126,20 +126,23 @@ fn test_svg_statique_deterministe() {
 
     let svg = rendre_svg(&pool, racine);
     let svg2 = rendre_svg(&pool, racine);
-    assert_eq!(svg, svg2, "rendu déterministe (rejouable à l'identique)");
-    assert!(svg.starts_with("<svg "), "document SVG");
+    assert_eq!(
+        svg, svg2,
+        "deterministic rendering (replayable identically)"
+    );
+    assert!(svg.starts_with("<svg "), "SVG document");
     assert!(svg.trim_end().ends_with("</svg>"));
-    // Niveaux = clés : étiquette ℓ0 pour le niveau 0.
-    assert!(svg.contains("ℓ0"), "le niveau 0 est étiqueté");
-    // Terminal d'acceptation ⊤ rendu (⊥ est éliminé par R-default sur cet
-    // ensemble : l'arc « atome absent » vers ⊥ est implicite).
-    assert!(svg.contains('⊤'), "terminal d'acceptation rendu");
-    // Un arc au moins.
-    assert!(svg.contains("<line "), "au moins un arc rendu");
+    // Levels = keys: label ℓ0 for level 0.
+    assert!(svg.contains("ℓ0"), "level 0 is labeled");
+    // Acceptance terminal ⊤ rendered (⊥ is eliminated by R-default on this
+    // set: the « absent atom » arc to ⊥ is implicit).
+    assert!(svg.contains('⊤'), "acceptance terminal rendered");
+    // At least one arc.
+    assert!(svg.contains("<line "), "at least one arc rendered");
 }
 
-/// Le SVG échappe le XML (pas de `<` brut hors balises) — test via un payload
-/// booléen standard : on vérifie surtout la structure équilibrée.
+/// The SVG escapes XML (no raw `<` outside tags) — test via a standard
+/// boolean payload: we mostly check the balanced structure.
 #[test]
 fn test_svg_structure_equilibree() {
     let schema = schema_ensemble();
@@ -151,9 +154,6 @@ fn test_svg_structure_equilibree() {
     let svg = rendre_svg(&pool, racine);
     let ouvertures = svg.matches("<rect ").count();
     let fermetures_rect = svg.matches("/>").count();
-    assert!(ouvertures >= 2, "nœud + terminal rendus");
-    assert!(
-        fermetures_rect >= ouvertures,
-        "balises auto-fermantes présentes"
-    );
+    assert!(ouvertures >= 2, "node + terminal rendered");
+    assert!(fermetures_rect >= ouvertures, "self-closing tags present");
 }

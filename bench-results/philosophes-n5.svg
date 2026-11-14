@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="576" height="1950" viewBox="0 0 576 1950">
-<text x="40" y="24" font-family="serif" font-size="14">diagramme (niveaux = clés)</text>
+<text x="40" y="24" font-family="serif" font-size="14">diagram (levels = keys)</text>
 <line x1="68" y1="99" x2="68" y2="161" stroke="#555"/>
 <text x="68" y="130" font-family="serif" font-size="11" fill="#777">1</text>
 <line x1="68" y1="189" x2="68" y2="251" stroke="#555"/>
