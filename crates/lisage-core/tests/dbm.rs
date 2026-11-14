@@ -1,7 +1,7 @@
-//! Tests de l'algèbre de clés-régions DBM (backlog § 9, question ouverte 9
-//! de la spec, veine #83) : clôture canonique (C1 relatif à l'algèbre de
-//! régions), incohérence, cardinalité, défaut, partage au pool, et
-//! différentiel d'appartenance contre énumération naïve sur une petite boîte.
+//! Tests for the DBM region-key algebra (backlog § 9, open question 9 of the
+//! spec, vein #83): canonical closure (C1 relative to the region algebra),
+//! inconsistency, cardinality, default, pool sharing, and membership
+//! differential against naive enumeration over a small box.
 
 use std::collections::BTreeMap;
 
@@ -23,35 +23,35 @@ fn pool(taille_domaine: u64) -> PoolDbm {
 
 #[test]
 fn test_dbm_cloture_canonique() {
-    // x0 − x1 ≤ 2 et x1 − x0 ≤ 3 décrivent la même région que la clôture
-    // directe ; une contrainte redondante ne change pas la forme normale.
+    // x0 − x1 ≤ 2 and x1 − x0 ≤ 3 describe the same region as the direct
+    // closure; a redundant constraint does not change the normal form.
     let directe = Dbm::nouveau(2, &[(0, 1, 2), (1, 0, 3)]);
     let avec_redondance = Dbm::nouveau(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 5), (0, 0, 0)]);
-    assert_eq!(directe, avec_redondance, "clôture canonique");
-    // La clôture propage : x0−x1 ≤ 1 et x1−x2 ≤ 1 entraînent x0−x2 ≤ 2.
+    assert_eq!(directe, avec_redondance, "canonical closure");
+    // The closure propagates: x0−x1 ≤ 1 and x1−x2 ≤ 1 entail x0−x2 ≤ 2.
     let propagee = Dbm::nouveau(3, &[(0, 1, 1), (1, 2, 1)]);
     let explicite = Dbm::nouveau(3, &[(0, 1, 1), (1, 2, 1), (0, 2, 2)]);
     assert_eq!(
         propagee, explicite,
-        "la clôture propage les contraintes transitives"
+        "the closure propagates transitive constraints"
     );
 }
 
 #[test]
 fn test_dbm_incoherent_normalise() {
-    // x0 − x1 ≤ 2 et x1 − x0 ≤ −3 sont incompatibles : région vide.
+    // x0 − x1 ≤ 2 and x1 − x0 ≤ −3 are incompatible: empty region.
     let incoherente = Dbm::nouveau(2, &[(0, 1, 2), (1, 0, -3)]);
     assert_eq!(incoherente, INCOHERENT);
     assert!(incoherente.est_vide());
     assert!(!incoherente.contient(&[0, 0]));
-    // Toute région incohérente, quelle que soit son écriture, est INCOHERENT.
+    // Any inconsistent region, whatever its writing, is INCOHERENT.
     let autre = Dbm::nouveau(3, &[(0, 1, -1), (1, 2, 0), (2, 0, 0)]);
     assert_eq!(autre, INCOHERENT);
 }
 
 #[test]
 fn test_dbm_contient() {
-    // Région x0 − x1 ≤ 1 sur la boîte [0, 4)².
+    // Region x0 − x1 ≤ 1 over the box [0, 4)².
     let region = Dbm::nouveau(2, &[(0, 1, 1)]);
     assert!(region.contient(&[2, 2]));
     assert!(region.contient(&[3, 2]));
@@ -63,12 +63,12 @@ fn test_cardinalite_et_defaut() {
     let keys = DbmKeys::nouvelle(4);
     assert_eq!(keys.cardinality(Level(0)), 4);
     assert_eq!(keys.cardinality(Level(7)), 4);
-    // δ(ℓ) = la région vide, l'« absent » continu.
+    // δ(ℓ) = the empty region, the continuous "absent".
     assert_eq!(keys.default(Level(0)), Some(INCOHERENT));
 }
 
-/// C1 relatif : deux écritures d'une même région partagent le même nœud au
-/// pool (R-share après forme normale), deux régions distinctes non.
+/// Relative C1: two writings of the same region share the same node in the
+/// pool (R-share after normal form), two distinct regions do not.
 #[test]
 fn test_partage_pool_c1_relatif() {
     let mut pool = pool(4);
@@ -87,7 +87,7 @@ fn test_partage_pool_c1_relatif() {
     assert_eq!(
         pool.intern(ANCRE, forme_a.clone()),
         pool.intern(ANCRE, forme_b),
-        "même région sous deux écritures = même nœud"
+        "same region under two writings = same node"
     );
     let forme_vide_a = Form::Node {
         level: niveau,
@@ -100,7 +100,7 @@ fn test_partage_pool_c1_relatif() {
     assert_eq!(
         pool.intern(ANCRE, forme_vide_a),
         pool.intern(ANCRE, forme_vide_b),
-        "région vide sous deux écritures = même nœud"
+        "empty region under two writings = same node"
     );
     let forme_autre = Form::Node {
         level: niveau,
@@ -109,13 +109,13 @@ fn test_partage_pool_c1_relatif() {
     assert_ne!(
         pool.intern(ANCRE, forme_a),
         pool.intern(ANCRE, forme_autre),
-        "régions distinctes = nœuds distincts"
+        "distinct regions = distinct nodes"
     );
 }
 
-/// Propriété (LCG) : la forme normale est idempotente ; deux DBM tirées au
-/// hasard de même clôture sont égaux ; `contient` est cohérent avec la
-/// matrice normalisée.
+/// Property (LCG): the normal form is idempotent; two randomly drawn DBMs with
+/// the same closure are equal; `contient` is consistent with the normalized
+/// matrix.
 #[test]
 fn test_propriete_cloture_lcg() {
     const GRAINE_LCG: u64 = 0x853C_49E6_748F_EA9B;
@@ -145,7 +145,7 @@ fn test_propriete_cloture_lcg() {
         let dbm = Dbm::nouveau(n, &contraintes);
         let normalisee = keys.normal_form(&dbm);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
-        // Appartenance d'un point tiré au hasard, cohérente avec est_vide.
+        // Membership of a randomly drawn point, consistent with est_vide.
         let point: Vec<u64> = (0..n).map(|_| suivant() % 6).collect();
         if normalisee.est_vide() {
             assert!(!normalisee.contient(&point));
@@ -153,17 +153,17 @@ fn test_propriete_cloture_lcg() {
     }
 }
 
-/// Différentiel contre l'énumération naïve : un nœud de niveau 0 partitionne
-/// la boîte `[0, 4)²` en deux régions DBM (`x0 − x1 ≤ 0` vrai/faux) ; pour
-/// chaque point de la boîte, la cible lue dans le DD égale la cible naïve.
-/// L'arc région vide mène au défaut D_δ = terminal(false) : R-default.
+/// Differential against naive enumeration: a level-0 node partitions the box
+/// `[0, 4)²` into two DBM regions (`x0 − x1 ≤ 0` true/false); for each point
+/// of the box, the target read in the DD equals the naive target. The empty
+/// region arc leads to the default D_δ = terminal(false): R-default.
 #[test]
 fn test_differentiel_appartenance_contre_enumeration() {
     const TAILLE_DOMAINE: u64 = 4;
     let mut pool = pool(TAILLE_DOMAINE);
     let vrai_terminal = pool.intern(ANCRE, Form::Terminal(true));
     let faux_terminal = pool.intern(ANCRE, Form::Terminal(false));
-    // x0 − x1 ≤ 0  ⇔  x0 ≤ x1 ; le complémentaire est x1 − x0 ≤ −1.
+    // x0 − x1 ≤ 0  ⇔  x0 ≤ x1; the complement is x1 − x0 ≤ −1.
     let region_dessous = Dbm::nouveau(2, &[(0, 1, 0)]);
     let region_dessus = Dbm::nouveau(2, &[(1, 0, -1)]);
     let racine = pool.intern(
@@ -177,13 +177,13 @@ fn test_differentiel_appartenance_contre_enumeration() {
             ]),
         },
     );
-    let forme = pool.resolve(racine).expect("nœud interné");
+    let forme = pool.resolve(racine).expect("interned node");
     let Form::Node { arcs, .. } = forme else {
-        panic!("deux régions distinctes : pas de R-collapse");
+        panic!("two distinct regions: no R-collapse");
     };
     assert!(
         !arcs.contains_key(&INCOHERENT),
-        "R-default supprime l'arc vers le défaut"
+        "R-default removes the arc to the default"
     );
     for x0 in 0..TAILLE_DOMAINE {
         for x1 in 0..TAILLE_DOMAINE {
@@ -197,7 +197,7 @@ fn test_differentiel_appartenance_contre_enumeration() {
                 .iter()
                 .find(|(region, _)| region.contient(&point))
                 .map(|(_, cible)| *cible)
-                .expect("la partition couvre la boîte");
+                .expect("the partition covers the box");
             assert_eq!(cible_dd, cible_naive, "point {point:?}");
         }
     }
