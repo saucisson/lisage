@@ -47,6 +47,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-14 - M6-3 docs/ translated to English, part C: roadmap + doc-path references in crates (issue #106)
+
+- **Issue**: #106 (M6-3, milestone M6).
+- **Done**: `docs/feuille-de-route-lisage-jalons-et-issues.md` renamed to `docs/roadmap-lisage-milestones-and-issues.md` and translated; the doc-path references in the `crates/lisage-liseuse` / `crates/lisage-bench` doc comments updated to the new English filenames, and the touched comment lines translated to English (the rest of the crates comments is covered by M6-5, issue #108). Shipped last of the three-way split because the roadmap cross-references the other renamed docs.
+- **Evidence**: accent grep returns 0 on the new roadmap and on every added line of the crates diff; `cargo check` not run — doc-comment-only changes, and the full crates translation is gated by M6-5.
+- **Judgement calls**: none beyond the split itself (see part A entry).
+- **Escalations**: none.
+
 ## 2026-11-13 - M6-0 audit: machine-checkable inventory of French-language content (issue #103)
 
 - **Issue**: #103 (M6-0, milestone M6 "English-only documentation and code").

@@ -412,7 +412,7 @@ fn charge_alea_lcg(
 /// dérivée (libre/tenue/precedente), intercalés `pc_0 left_0 pc_1 …`.
 type EtatEtendu = Vec<u64>;
 
-/// Charge `philosophes` : R_n du fil rouge (docs/exemple-fil-rouge) lu depuis
+/// Loads `philosophes`: R_n of the golden thread (docs/golden-thread-example-n-philosophers-end-to-end) read from
 /// le fichier d'états étendus partagé par tous les outils (première ligne
 /// `n <n>`, puis un état étendu par ligne, valeurs séparées par des
 /// espaces). Construction : union des maps compilées sur le schéma

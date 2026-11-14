@@ -4,7 +4,7 @@
 //! par pli `(ℕ,+,×)`, opérations `map`/`filter`/`exists`, et vérification des
 //! **7 formes** (5 signatures internes + 2 terminaux) indépendamment de n.
 //!
-//! Modèle (docs/exemple-fil-rouge § 1-2) en **intercalage** : chaque cellule
+//! Model (docs/golden-thread-example-n-philosophers-end-to-end § 1-2) in **interleaving**: each cell
 //! i contribue deux clés, `2i` = `pc_i` et `2i+1` = `left_i`, toutes deux à
 //! domaine {0, 1, 2} (`think/hungry/eat` et `free/me/prev`). La fourchette
 //! `left_i` est déterminée par le mot `pc` : `me` si i mange, `prev` si i-1
@@ -33,7 +33,7 @@ pub const TENUE: u64 = 1;
 /// Valeur `prev` d'une fourchette.
 pub const PRECEDENTE: u64 = 2;
 
-/// Schéma de l'anneau déroulé en **intercalage** (docs/exemple-fil-rouge
+/// Diagram of the unrolled ring in **interleaving** (docs/golden-thread-example-n-philosophers-end-to-end
 /// § 2) : `2n` clés, clé `2i` = `pc_i`, clé `2i+1` = `left_i`, domaine
 /// `{0, 1, 2}` pour les deux.
 pub fn schema_anneau(n: u64) -> Schema {
@@ -123,7 +123,7 @@ pub fn compter_r_n(
 }
 
 /// Les 5 cellules légales (formes de l'automate minimal du langage des
-/// cellules légales, docs/exemple-fil-rouge § 3-4) : avec l'hérité
+/// legal cells, docs/golden-thread-example-n-philosophers-end-to-end § 3-4): with the inherited
 /// p = « le précédent mange », p = 0 autorise (think,free), (hungry,free),
 /// (eat,me) ; p = 1 autorise (think,prev), (hungry,prev). Avec les 2
 /// terminaux ⊥/⊤, ce sont les **7 formes** du fil rouge (niveau automate ;

@@ -12,7 +12,7 @@ use lisage_liseuse::philosophes::{
 };
 use lisage_liseuse::svg::rendre_svg;
 
-/// |R_n| attendus (docs/exemple-fil-rouge § 0, vérifiés par simulation).
+/// |R_n| expected (docs/golden-thread-example-n-philosophers-end-to-end § 0, verified by simulation).
 const R_ATTENDUS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152)];
 
 /// C8 : |R_n| par pli DD == énumération de référence == valeurs du fil rouge.
