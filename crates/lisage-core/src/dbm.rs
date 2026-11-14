@@ -27,7 +27,7 @@ pub const INCOHERENT: Dbm = Dbm {
 
 /// Convex region-key: DBM over `nombre_variables` variables, `matrice[i][j]`
 /// = bound `Some(c)` of the constraint `x_i − x_j ≤ c` (`None` = no
-/// constraint). Every construction goes through [`Dbm::nouveau`], which sets
+/// constraint). Every construction goes through [`Dbm::new`], which sets
 /// the diagonal to `x_i − x_i ≤ 0` and normalizes: canonical closure, and
 /// inconsistent region → [`INCOHERENT`]. The derived equality is then the
 /// equality of regions.
@@ -41,7 +41,7 @@ impl Dbm {
     /// DBM over `nombre_variables` variables from constraints
     /// `(i, j, c)` meaning `x_i − x_j ≤ c`, then normalization (canonical
     /// closure; inconsistency → [`INCOHERENT`]).
-    pub fn nouveau(nombre_variables: usize, contraintes: &[(usize, usize, i64)]) -> Self {
+    pub fn new(nombre_variables: usize, contraintes: &[(usize, usize, i64)]) -> Self {
         let n = nombre_variables;
         let mut matrice = vec![vec![None; n]; n];
         for (i, ligne) in matrice.iter_mut().enumerate() {
@@ -312,7 +312,7 @@ pub struct DbmController {
 
 impl DbmController {
     /// Controller for the given DBM region-key algebra.
-    pub fn nouveau(keys: DbmKeys) -> Self {
+    pub fn new(keys: DbmKeys) -> Self {
         DbmController { keys }
     }
 }

@@ -65,7 +65,7 @@ impl Transduction for EmetSingleton {
 
 /// `Set` schema over the domain `{0, 1, 2}`.
 fn schema_test() -> Schema {
-    Schema::Set(Domaine::nouveau((0..TAILLE_DOMAINE).map(Atom).collect()))
+    Schema::Set(Domaine::new((0..TAILLE_DOMAINE).map(Atom).collect()))
 }
 
 /// Builds a fresh pool for the given schema.

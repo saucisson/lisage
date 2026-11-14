@@ -33,7 +33,7 @@ use crate::dbm::Dbm;
 pub const VIDE: Cdd = Cdd { zones: Vec::new() };
 
 /// Non-convex region-key: finite union of closed DBM zones over
-/// `nombre_variables` clocks. Every construction goes through [`Cdd::nouveau`],
+/// `nombre_variables` clocks. Every construction goes through [`Cdd::new`],
 /// which normalizes: empty zones removed, sort, dedup — the
 /// *syntactic* normal form of the union (assumed non-canonicity, spec Q9 (i)).
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
@@ -43,7 +43,7 @@ pub struct Cdd {
 
 impl Cdd {
     /// Union of the given `zones`, normalized (empties removed, sort, dedup).
-    pub fn nouveau(zones: &[Dbm]) -> Self {
+    pub fn new(zones: &[Dbm]) -> Self {
         let mut normalisees: Vec<Dbm> = zones
             .iter()
             .filter(|zone| !zone.est_vide())
@@ -84,7 +84,7 @@ impl Cdd {
                 }
             }
         }
-        Cdd::nouveau(&zones)
+        Cdd::new(&zones)
     }
 }
 
@@ -164,7 +164,7 @@ impl KeyAlgebra for CddKeys {
     type Key = Cdd;
 
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
-        Cdd::nouveau(key.zones())
+        Cdd::new(key.zones())
     }
 
     fn cardinality(&self, _level: Level) -> u64 {
@@ -185,7 +185,7 @@ pub struct CddController {
 
 impl CddController {
     /// Controller for the given CDD region-key algebra.
-    pub fn nouveau(keys: CddKeys) -> Self {
+    pub fn new(keys: CddKeys) -> Self {
         CddController { keys }
     }
 }
@@ -266,10 +266,10 @@ pub fn compiler_union_horloges<P: Pool<Key = Cdd, Payload = bool>>(
 ) -> NodeId {
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let faux = pool.intern(anchor, Form::Terminal(false));
-    let zone_a = Dbm::nouveau(2, &[(0, 1, 0)]);
-    let zone_b = Dbm::nouveau(2, &[(1, 0, -2)]);
-    let union = Cdd::nouveau(&[zone_a, zone_b]);
-    let complementaire = Cdd::nouveau(&[Dbm::nouveau(2, &[(1, 0, -1), (0, 1, 1)])]);
+    let zone_a = Dbm::new(2, &[(0, 1, 0)]);
+    let zone_b = Dbm::new(2, &[(1, 0, -2)]);
+    let union = Cdd::new(&[zone_a, zone_b]);
+    let complementaire = Cdd::new(&[Dbm::new(2, &[(1, 0, -1), (0, 1, 1)])]);
     pool.intern(
         anchor,
         Form::Node {

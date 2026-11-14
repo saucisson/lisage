@@ -29,7 +29,7 @@ pub struct AncreComposee {
 
 impl AncreComposee {
     /// Null anchor: all fragments at start (zero).
-    pub fn nouveau() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 

@@ -22,7 +22,7 @@ impl MarqueOrdre<DomaineAtomes> for MarqueInverse {
     fn ordre(descripteur: &DomaineAtomes) -> Order<DomaineAtomes> {
         let mut pi = descripteur.cles_canoniques();
         pi.reverse();
-        Order::nouveau(descripteur, pi).expect("the reversed order is a valid permutation")
+        Order::new(descripteur, pi).expect("the reversed order is a valid permutation")
     }
 }
 
@@ -64,7 +64,7 @@ fn inversions<T: TypeOrdre>(source: &Order<T>, cible: &Order<T>) -> usize {
 fn test_conversion_identite_cout_nul() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let ordre = Order::canonique(&domaine);
-    let conversion = Conversion::nouveau(&ordre, &ordre.clone()).unwrap();
+    let conversion = Conversion::new(&ordre, &ordre.clone()).unwrap();
     assert!(conversion.est_identite());
     assert_eq!(conversion.cout(), 0);
     assert!(conversion.transpositions().is_empty());
@@ -76,8 +76,8 @@ fn test_conversion_identite_cout_nul() {
 fn test_conversion_transpositions_adjacentes() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let source = Order::canonique(&domaine);
-    let cible = Order::nouveau(&domaine, vec![Atom(2), Atom(1), Atom(0)]).unwrap();
-    let conversion = Conversion::nouveau(&source, &cible).unwrap();
+    let cible = Order::new(&domaine, vec![Atom(2), Atom(1), Atom(0)]).unwrap();
+    let conversion = Conversion::new(&source, &cible).unwrap();
     // Total inversion of 3 elements: 3 inversions, 3 transpositions.
     assert_eq!(conversion.cout(), 3);
     assert_eq!(conversion.transpositions().len(), 3);
@@ -100,7 +100,7 @@ fn test_conversion_ordres_inconvertibles() {
     let ordre_a = Order::canonique(&domaine_a);
     let ordre_b = Order::canonique(&domaine_b);
     assert_eq!(
-        Conversion::nouveau(&ordre_a, &ordre_b),
+        Conversion::new(&ordre_a, &ordre_b),
         Err(ErreurConversion::OrdresInconvertibles)
     );
 }
@@ -113,9 +113,9 @@ fn test_royaume_reordonner_contrat_type() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let source = MarqueCanonique::ordre(&domaine);
     let cible = MarqueInverse::ordre(&domaine);
-    let conversion = Conversion::nouveau(&source, &cible).unwrap();
+    let conversion = Conversion::new(&source, &cible).unwrap();
 
-    let royaume = Royaume::<DomaineAtomes, MarqueCanonique, MarqueBalayage, u32>::nouveau(7);
+    let royaume = Royaume::<DomaineAtomes, MarqueCanonique, MarqueBalayage, u32>::new(7);
     assert_eq!(*royaume.valeur(), 7);
     assert_eq!(
         Royaume::<DomaineAtomes, MarqueCanonique, MarqueBalayage, u32>::encodage(),
@@ -134,7 +134,7 @@ fn test_royaume_reordonner_contrat_type() {
     assert_eq!(conversion.cout(), 3, "predictable cost exposed");
 
     // Incompatible conversion (wrong source): typed error.
-    let mauvaise = Conversion::nouveau(&cible, &source).unwrap();
+    let mauvaise = Conversion::new(&cible, &source).unwrap();
     assert_eq!(
         royaume
             .reordonner::<MarqueInverse>(&domaine, &mauvaise)
@@ -171,9 +171,9 @@ fn test_propriete_cout_egal_inversions_et_transpositions_exactes() {
             let j = (suivant() as usize) % (i + 1);
             pi.swap(i, j);
         }
-        let cible = Order::nouveau(&domaine, pi).unwrap();
+        let cible = Order::new(&domaine, pi).unwrap();
 
-        let conversion = Conversion::nouveau(&source, &cible).unwrap();
+        let conversion = Conversion::new(&source, &cible).unwrap();
         assert_eq!(
             conversion.cout(),
             inversions(&source, &cible),

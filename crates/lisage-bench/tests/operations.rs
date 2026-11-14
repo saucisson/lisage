@@ -74,7 +74,7 @@ proptest! {
     ) {
         let schema = Schema::Map(
             vec![Atom(0), Atom(1)],
-            Domaine::nouveau(vec![Atom(0), Atom(1)]),
+            Domaine::new(vec![Atom(0), Atom(1)]),
         );
         let ensemble = ensemble_maps_aleatoire(maps);
         let mut entree = Arena::new(
@@ -107,7 +107,7 @@ proptest! {
     ) {
         let schema = Schema::Map(
             vec![Atom(0), Atom(1)],
-            Domaine::nouveau(vec![Atom(0), Atom(1)]),
+            Domaine::new(vec![Atom(0), Atom(1)]),
         );
         let ensemble = ensemble_maps_aleatoire(maps);
         let mut entree = Arena::new(
@@ -140,7 +140,7 @@ proptest! {
     fn test_c1_differentiel_map_voie_a_vs_dd(
         atomes in prop::collection::btree_set(0u64..3, 0..4)
     ) {
-        let schema = Schema::Atom(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
+        let schema = Schema::Atom(Domaine::new(vec![Atom(0), Atom(1), Atom(2)]));
         let ensemble: BTreeSet<Value> = atomes.iter().map(|v| atome(*v)).collect();
         let mut entree = Arena::new(
             ReferenceController::new(schema.clone()),

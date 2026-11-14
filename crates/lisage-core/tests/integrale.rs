@@ -23,7 +23,7 @@ const TAILLE_DOMAINE: u64 = 12;
 
 fn pool() -> PoolRegion {
     Arena::new(
-        RegionController::nouveau(RegionKeys::new(vec![TAILLE_DOMAINE])),
+        RegionController::new(RegionKeys::new(vec![TAILLE_DOMAINE])),
         Box::new(NoOpObserver),
     )
 }
@@ -35,7 +35,7 @@ struct Collecteur {
 }
 
 impl Collecteur {
-    fn nouveau() -> Self {
+    fn new() -> Self {
         Collecteur {
             evenements: Arc::new(Mutex::new(Vec::new())),
         }
@@ -54,27 +54,27 @@ impl Observer for Collecteur {
 
 /// Full region of the universe: [0, TAILLE_DOMAINE).
 fn region_pleine() -> Intervalle {
-    Intervalle::nouveau(0, TAILLE_DOMAINE - 1)
+    Intervalle::new(0, TAILLE_DOMAINE - 1)
 }
 
 #[test]
 fn test_mesure_intervalle_continue() {
     // Continuous length: [a, b] has measure b − a (the point has measure 0).
-    assert_eq!(mesure_intervalle(&Intervalle::nouveau(2, 5)), 3);
+    assert_eq!(mesure_intervalle(&Intervalle::new(2, 5)), 3);
     assert_eq!(mesure_intervalle(&Intervalle::point(4)), 0);
     assert_eq!(mesure_intervalle(&VIDE), 0);
-    assert_eq!(mesure_intervalle(&Intervalle::nouveau(0, 11)), 11);
+    assert_eq!(mesure_intervalle(&Intervalle::new(0, 11)), 11);
     // The discrete cardinal counts points: [2, 5] has 4.
-    assert_eq!(Intervalle::nouveau(2, 5).taille(), 4);
+    assert_eq!(Intervalle::new(2, 5).taille(), 4);
 }
 
 #[test]
 fn test_intersection_intervalles() {
-    let a = Intervalle::nouveau(2, 7);
-    let b = Intervalle::nouveau(5, 10);
-    assert_eq!(intersection(&a, &b), Intervalle::nouveau(5, 7));
+    let a = Intervalle::new(2, 7);
+    let b = Intervalle::new(5, 10);
+    assert_eq!(intersection(&a, &b), Intervalle::new(5, 7));
     // Disjoint → empty.
-    let c = Intervalle::nouveau(8, 10);
+    let c = Intervalle::new(8, 10);
     assert_eq!(intersection(&a, &c), VIDE);
     // Empty with anything → empty.
     assert_eq!(intersection(&VIDE, &a), VIDE);
@@ -89,7 +89,7 @@ fn test_intersection_intervalles() {
 #[test]
 fn test_integrale_union_deux_intervalles() {
     let mut pool = pool();
-    let intervalles = vec![Intervalle::nouveau(2, 5), Intervalle::nouveau(7, 9)];
+    let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
     let racine = compiler_union(&mut pool, ANCRE, &intervalles);
     let mesure = integrale_constante(&pool, racine, &region_pleine(), None).expect("interned node");
     // Continuous measure: (5−2) + (9−7) = 3 + 2 = 5.
@@ -105,14 +105,14 @@ fn test_integrale_union_deux_intervalles() {
 #[test]
 fn test_integrale_restreinte_a_une_region() {
     let mut pool = pool();
-    let intervalles = vec![Intervalle::nouveau(2, 8)];
+    let intervalles = vec![Intervalle::new(2, 8)];
     let racine = compiler_union(&mut pool, ANCRE, &intervalles);
     // Restriction to [5, 11]: measure of [2,8] ∩ [5,11] = [5,8], length 3.
-    let sous_region = Intervalle::nouveau(5, 11);
+    let sous_region = Intervalle::new(5, 11);
     let mesure = integrale_constante(&pool, racine, &sous_region, None).expect("interned node");
     assert_eq!(mesure, 3);
     // Restriction to a disjoint region: zero measure.
-    let disjointe = Intervalle::nouveau(9, 11);
+    let disjointe = Intervalle::new(9, 11);
     let mesure_nulle = integrale_constante(&pool, racine, &disjointe, None).expect("interned node");
     assert_eq!(mesure_nulle, 0);
 }
@@ -143,9 +143,9 @@ fn test_integrale_terminaux() {
 #[test]
 fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
-    let intervalles = vec![Intervalle::nouveau(2, 5), Intervalle::nouveau(7, 9)];
+    let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
     let racine = compiler_union(&mut pool, ANCRE, &intervalles);
-    let collecteur = Collecteur::nouveau();
+    let collecteur = Collecteur::new();
     let mesure = integrale_constante(&pool, racine, &region_pleine(), Some(&collecteur))
         .expect("interned node");
     assert_eq!(mesure, 5);
@@ -200,7 +200,7 @@ fn test_propriete_integrale_contre_cardinal_lcg() {
                 while fin + 1 < TAILLE_DOMAINE && ensemble.contains(&(fin + 1)) {
                     fin += 1;
                 }
-                intervalles.push(Intervalle::nouveau(point, fin));
+                intervalles.push(Intervalle::new(point, fin));
                 point = fin + 1;
             } else {
                 point += 1;

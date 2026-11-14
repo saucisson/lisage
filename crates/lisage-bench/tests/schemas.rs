@@ -12,7 +12,7 @@ use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
 
 fn domaine(valeurs: Vec<u64>) -> Domaine {
-    Domaine::nouveau(valeurs.into_iter().map(Atom).collect())
+    Domaine::new(valeurs.into_iter().map(Atom).collect())
 }
 
 fn atome(v: u64) -> Value {
@@ -154,7 +154,7 @@ fn test_t5_seq_round_trip_propriete() {
     proptest!(|(domaine_taille in 1u64..=4,
                  longueur_max in 1u32..=4,
                  elements in prop::collection::vec(0u64..4, 0..5))| {
-        let domaine = Domaine::nouveau((0..domaine_taille).map(Atom).collect());
+        let domaine = Domaine::new((0..domaine_taille).map(Atom).collect());
         let schema = Schema::Seq(domaine.clone(), longueur_max);
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = lisage_algebra::interface::Anchor(0);

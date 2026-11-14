@@ -64,7 +64,7 @@ fn pool_neuf() -> Arena<ReferenceController> {
 /// Cardinal of the flat DD of the set over the 4 keys (path B reference).
 fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Value>) -> u64 {
     let cles: Vec<Atom> = (0..4).map(Atom).collect();
-    let schema = Schema::Map(cles, Domaine::nouveau(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Map(cles, Domaine::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
     let ancre = Anchor(0);
     let mut racine = pool.intern(ancre, Form::Terminal(false));

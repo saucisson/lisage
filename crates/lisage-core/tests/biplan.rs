@@ -201,10 +201,10 @@ fn test_compaction_profilee() {
     // Compaction invalidates old NodeIds: the live root is remapped to a new
     // id, resolvable and indexed at level 1.
     let remap = pool.dernier_remap();
-    let nouveau = remap[racine.0 as usize].expect("live root remapped");
-    assert_ne!(nouveau, racine);
-    assert!(pool.resolve(nouveau).is_ok());
-    assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&nouveau));
+    let new = remap[racine.0 as usize].expect("live root remapped");
+    assert_ne!(new, racine);
+    assert!(pool.resolve(new).is_ok());
+    assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&new));
     // Le seuil n'est pas atteint avec peu de morts.
     assert!(!seuil_atteint(1, 100));
     assert_eq!(SEUIL_COMPACTION_NUM, 1);

@@ -21,17 +21,14 @@ const ANCRE: Anchor = Anchor(0);
 
 fn pool_bdd(reductions: Reductions) -> PoolBdd {
     Arena::new(
-        AtelierController::nouveau(BddController::new(2), reductions),
+        AtelierController::new(BddController::new(2), reductions),
         Box::new(NoOpObserver),
     )
 }
 
 fn pool_region(reductions: Reductions) -> PoolRegion {
     Arena::new(
-        AtelierController::nouveau(
-            RegionController::nouveau(RegionKeys::new(vec![3])),
-            reductions,
-        ),
+        AtelierController::new(RegionController::new(RegionKeys::new(vec![3])), reductions),
         Box::new(NoOpObserver),
     )
 }

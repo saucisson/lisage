@@ -78,7 +78,7 @@ pub struct Conversion<T: TypeOrdre> {
 impl<T: TypeOrdre> Conversion<T> {
     /// Conversion from `source` to `cible`: both orders must have the same
     /// canonical key set (same instantiated type).
-    pub fn nouveau(source: &Order<T>, cible: &Order<T>) -> Result<Self, ErreurConversion> {
+    pub fn new(source: &Order<T>, cible: &Order<T>) -> Result<Self, ErreurConversion> {
         if source.canoniques() != cible.canoniques() {
             return Err(ErreurConversion::OrdresInconvertibles);
         }
@@ -150,7 +150,7 @@ pub struct Royaume<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> {
 
 impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> {
     /// New value in the realm `(T, O, E)`.
-    pub fn nouveau(valeur: V) -> Self {
+    pub fn new(valeur: V) -> Self {
         Royaume {
             valeur,
             marqueur: PhantomData,
@@ -189,6 +189,6 @@ impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V: Clone> Royaume<T, O,
         {
             return Err(ErreurConversion::RoyaumeIncompatible);
         }
-        Ok(Royaume::nouveau(self.valeur.clone()))
+        Ok(Royaume::new(self.valeur.clone()))
     }
 }

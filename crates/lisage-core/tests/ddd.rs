@@ -18,7 +18,7 @@ const TAILLE_DOMAINE: u64 = 4;
 
 fn pool() -> PoolDbm {
     Arena::new(
-        DbmController::nouveau(DbmKeys::new(TAILLE_DOMAINE)),
+        DbmController::new(DbmKeys::new(TAILLE_DOMAINE)),
         Box::new(NoOpObserver),
     )
 }
@@ -26,16 +26,16 @@ fn pool() -> PoolDbm {
 #[test]
 fn test_intersection_meet_canonique() {
     // meet of x−y ≤ 1 and y−x ≤ 2 = the explicit band, normal form included.
-    let a = Dbm::nouveau(2, &[(0, 1, 1)]);
-    let b = Dbm::nouveau(2, &[(1, 0, 2)]);
+    let a = Dbm::new(2, &[(0, 1, 1)]);
+    let b = Dbm::new(2, &[(1, 0, 2)]);
     let meet = a.intersection(&b);
-    let bande = Dbm::nouveau(2, &[(0, 1, 1), (1, 0, 2)]);
+    let bande = Dbm::new(2, &[(0, 1, 1), (1, 0, 2)]);
     assert_eq!(meet, bande, "the meet of two regions is the band, closed");
     // Commutativity, idempotence.
     assert_eq!(a.intersection(&b), b.intersection(&a));
     assert_eq!(a.intersection(&a), a);
     // Meet with a disjoint region: incoherent → canonical empty region.
-    let disjoint = Dbm::nouveau(2, &[(1, 0, -3)]);
+    let disjoint = Dbm::new(2, &[(1, 0, -3)]);
     assert_eq!(a.intersection(&disjoint), INCOHERENT);
     // Any empty region gives the empty region.
     assert_eq!(a.intersection(&INCOHERENT), INCOHERENT);
@@ -45,8 +45,8 @@ fn test_intersection_meet_canonique() {
 #[test]
 fn test_couverture_boite_bornee() {
     let keys = DbmKeys::new(TAILLE_DOMAINE);
-    let dessous = Dbm::nouveau(2, &[(0, 1, 0)]);
-    let dessus = Dbm::nouveau(2, &[(1, 0, -1)]);
+    let dessous = Dbm::new(2, &[(0, 1, 0)]);
+    let dessus = Dbm::new(2, &[(1, 0, -1)]);
     // The partition {x ≤ y, x > y} covers the box [0, 4)².
     assert!(keys.couverture(&[dessous.clone(), dessus.clone()]));
     // A single half does not cover; neither does the empty family; neither does the empty region.
@@ -54,7 +54,7 @@ fn test_couverture_boite_bornee() {
     assert!(!keys.couverture(&[]));
     assert!(!keys.couverture(&[INCOHERENT]));
     // The band alone does not cover the box.
-    let bande = Dbm::nouveau(2, &[(0, 1, 1), (1, 0, 2)]);
+    let bande = Dbm::new(2, &[(0, 1, 1), (1, 0, 2)]);
     assert!(!keys.couverture(&[bande]));
 }
 
@@ -125,7 +125,7 @@ fn test_propriete_intersection_lcg() {
                 )
             })
             .collect();
-        Dbm::nouveau(2, &contraintes)
+        Dbm::new(2, &contraintes)
     };
     for _ in 0..NOMBRE_CAS {
         let a = tire(&mut suivant);

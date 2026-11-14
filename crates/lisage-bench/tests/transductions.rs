@@ -15,7 +15,7 @@ use proptest::prelude::*;
 type PoolRef = Arena<ReferenceController>;
 
 fn nouveau_pool() -> PoolRef {
-    let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
+    let schema = Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 

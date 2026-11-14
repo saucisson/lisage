@@ -17,7 +17,7 @@ const ANCRE: Anchor = Anchor(0);
 fn mesurer_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
     let schema = schema_anneau(n);
     let mut pool: Arena<AtelierController<ReferenceController>> = Arena::new(
-        AtelierController::nouveau(ReferenceController::new(schema.clone()), reductions),
+        AtelierController::new(ReferenceController::new(schema.clone()), reductions),
         Box::new(NoOpObserver),
     );
     let racine = construire_r_n(&mut pool, ANCRE, n);

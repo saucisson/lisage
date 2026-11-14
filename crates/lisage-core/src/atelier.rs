@@ -93,7 +93,7 @@ pub struct AtelierController<C: Controller> {
 
 impl<C: Controller> AtelierController<C> {
     /// Wraps `inner` with the `reductions` switches.
-    pub fn nouveau(inner: C, reductions: Reductions) -> Self {
+    pub fn new(inner: C, reductions: Reductions) -> Self {
         AtelierController { inner, reductions }
     }
 
@@ -580,7 +580,7 @@ impl AncreFenetre {
     /// Anchor `{base, horizon}`: the two named offsets of the SWP protocol.
     pub fn new(base: i64, horizon: i64) -> Self {
         AncreFenetre {
-            inner: AncreComposee::nouveau()
+            inner: AncreComposee::new()
                 .avec(fragment_base(), base)
                 .avec(fragment_horizon(), horizon),
         }

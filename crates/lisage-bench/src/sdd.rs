@@ -178,7 +178,7 @@ fn domaine_ensemble(ensemble: &BTreeSet<Value>) -> Domaine {
         })
         .max()
         .unwrap_or(0);
-    Domaine::nouveau((0..=max_valeur).map(Atom).collect())
+    Domaine::new((0..=max_valeur).map(Atom).collect())
 }
 
 /// Compiles a projection into a local DD: union of the projected maps under

@@ -12,7 +12,7 @@ use lisage_core::schema::{
 use lisage_lang::value::{Atom, Value};
 
 fn domaine(valeurs: &[u64]) -> Domaine {
-    Domaine::nouveau(valeurs.iter().map(|&v| Atom(v)).collect())
+    Domaine::new(valeurs.iter().map(|&v| Atom(v)).collect())
 }
 
 fn arena(schema: Schema) -> Arena<ReferenceController> {

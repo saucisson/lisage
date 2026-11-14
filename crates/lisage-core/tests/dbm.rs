@@ -16,7 +16,7 @@ const ANCRE: Anchor = Anchor(0);
 
 fn pool(taille_domaine: u64) -> PoolDbm {
     Arena::new(
-        DbmController::nouveau(DbmKeys::new(taille_domaine)),
+        DbmController::new(DbmKeys::new(taille_domaine)),
         Box::new(NoOpObserver),
     )
 }
@@ -25,12 +25,12 @@ fn pool(taille_domaine: u64) -> PoolDbm {
 fn test_dbm_cloture_canonique() {
     // x0 − x1 ≤ 2 and x1 − x0 ≤ 3 describe the same region as the direct
     // closure; a redundant constraint does not change the normal form.
-    let directe = Dbm::nouveau(2, &[(0, 1, 2), (1, 0, 3)]);
-    let avec_redondance = Dbm::nouveau(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 5), (0, 0, 0)]);
+    let directe = Dbm::new(2, &[(0, 1, 2), (1, 0, 3)]);
+    let avec_redondance = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 5), (0, 0, 0)]);
     assert_eq!(directe, avec_redondance, "canonical closure");
     // The closure propagates: x0−x1 ≤ 1 and x1−x2 ≤ 1 entail x0−x2 ≤ 2.
-    let propagee = Dbm::nouveau(3, &[(0, 1, 1), (1, 2, 1)]);
-    let explicite = Dbm::nouveau(3, &[(0, 1, 1), (1, 2, 1), (0, 2, 2)]);
+    let propagee = Dbm::new(3, &[(0, 1, 1), (1, 2, 1)]);
+    let explicite = Dbm::new(3, &[(0, 1, 1), (1, 2, 1), (0, 2, 2)]);
     assert_eq!(
         propagee, explicite,
         "the closure propagates transitive constraints"
@@ -40,19 +40,19 @@ fn test_dbm_cloture_canonique() {
 #[test]
 fn test_dbm_incoherent_normalise() {
     // x0 − x1 ≤ 2 and x1 − x0 ≤ −3 are incompatible: empty region.
-    let incoherente = Dbm::nouveau(2, &[(0, 1, 2), (1, 0, -3)]);
+    let incoherente = Dbm::new(2, &[(0, 1, 2), (1, 0, -3)]);
     assert_eq!(incoherente, INCOHERENT);
     assert!(incoherente.est_vide());
     assert!(!incoherente.contient(&[0, 0]));
     // Any inconsistent region, whatever its writing, is INCOHERENT.
-    let autre = Dbm::nouveau(3, &[(0, 1, -1), (1, 2, 0), (2, 0, 0)]);
+    let autre = Dbm::new(3, &[(0, 1, -1), (1, 2, 0), (2, 0, 0)]);
     assert_eq!(autre, INCOHERENT);
 }
 
 #[test]
 fn test_dbm_contient() {
     // Region x0 − x1 ≤ 1 over the box [0, 4)².
-    let region = Dbm::nouveau(2, &[(0, 1, 1)]);
+    let region = Dbm::new(2, &[(0, 1, 1)]);
     assert!(region.contient(&[2, 2]));
     assert!(region.contient(&[3, 2]));
     assert!(!region.contient(&[3, 1]));
@@ -74,8 +74,8 @@ fn test_partage_pool_c1_relatif() {
     let mut pool = pool(4);
     let terminal = pool.intern(ANCRE, Form::Terminal(true));
     let niveau = Level(0);
-    let region_a = Dbm::nouveau(2, &[(0, 1, 2), (1, 0, 3)]);
-    let region_b = Dbm::nouveau(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 9)]);
+    let region_a = Dbm::new(2, &[(0, 1, 2), (1, 0, 3)]);
+    let region_b = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 9)]);
     let forme_a = Form::Node {
         level: niveau,
         arcs: BTreeMap::from([(region_a, terminal)]),
@@ -95,7 +95,7 @@ fn test_partage_pool_c1_relatif() {
     };
     let forme_vide_b = Form::Node {
         level: niveau,
-        arcs: BTreeMap::from([(Dbm::nouveau(2, &[(0, 1, 1), (1, 0, -2)]), terminal)]),
+        arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 1), (1, 0, -2)]), terminal)]),
     };
     assert_eq!(
         pool.intern(ANCRE, forme_vide_a),
@@ -104,7 +104,7 @@ fn test_partage_pool_c1_relatif() {
     );
     let forme_autre = Form::Node {
         level: niveau,
-        arcs: BTreeMap::from([(Dbm::nouveau(2, &[(0, 1, 0)]), terminal)]),
+        arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 0)]), terminal)]),
     };
     assert_ne!(
         pool.intern(ANCRE, forme_a),
@@ -142,7 +142,7 @@ fn test_propriete_cloture_lcg() {
                 )
             })
             .collect();
-        let dbm = Dbm::nouveau(n, &contraintes);
+        let dbm = Dbm::new(n, &contraintes);
         let normalisee = keys.normal_form(&dbm);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
         // Membership of a randomly drawn point, consistent with est_vide.
@@ -164,8 +164,8 @@ fn test_differentiel_appartenance_contre_enumeration() {
     let vrai_terminal = pool.intern(ANCRE, Form::Terminal(true));
     let faux_terminal = pool.intern(ANCRE, Form::Terminal(false));
     // x0 − x1 ≤ 0  ⇔  x0 ≤ x1; the complement is x1 − x0 ≤ −1.
-    let region_dessous = Dbm::nouveau(2, &[(0, 1, 0)]);
-    let region_dessus = Dbm::nouveau(2, &[(1, 0, -1)]);
+    let region_dessous = Dbm::new(2, &[(0, 1, 0)]);
+    let region_dessus = Dbm::new(2, &[(1, 0, -1)]);
     let racine = pool.intern(
         ANCRE,
         Form::Node {

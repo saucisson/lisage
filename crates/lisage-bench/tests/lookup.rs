@@ -64,7 +64,7 @@ proptest! {
         cle in 0u64..2,
     ) {
         let liste_cles = vec![Atom(0), Atom(1)];
-        let domaine_valeurs = Domaine::nouveau(vec![Atom(0), Atom(1)]);
+        let domaine_valeurs = Domaine::new(vec![Atom(0), Atom(1)]);
         let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
         let map: BTreeMap<Value, Value> = paires
             .iter()
@@ -111,7 +111,7 @@ proptest! {
         cle in 0u64..2,
     ) {
         let liste_cles = vec![Atom(0), Atom(1)];
-        let domaine_valeurs = Domaine::nouveau(vec![Atom(0)]);
+        let domaine_valeurs = Domaine::new(vec![Atom(0)]);
         let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
         let map: BTreeMap<Value, Value> = paires
             .iter()

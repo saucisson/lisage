@@ -216,7 +216,7 @@ impl<T: TypeOrdre> Order<T> {
     /// Order given by permutation π, checked: π must be a
     /// permutation of the canonical keys and satisfy the type's constraints.
     /// type.
-    pub fn nouveau(descripteur: &T, pi: Vec<T::Cle>) -> Result<Self, ErreurOrdre<T::Cle>> {
+    pub fn new(descripteur: &T, pi: Vec<T::Cle>) -> Result<Self, ErreurOrdre<T::Cle>> {
         let canoniques = descripteur.cles_canoniques();
         let mut pi_triee = pi.clone();
         pi_triee.sort();
@@ -252,7 +252,7 @@ impl<T: TypeOrdre> Order<T> {
     /// the canonical order** (degraded reordering as fallback) and report it
     /// via the returned strategy.
     pub fn avec_aval_runtime(descripteur: &T, pi_runtime: Vec<T::Cle>) -> (Self, StrategieAval) {
-        match Order::nouveau(descripteur, pi_runtime) {
+        match Order::new(descripteur, pi_runtime) {
             Ok(ordre) => (ordre, StrategieAval::OrdreRuntime),
             Err(_cause) => (Order::canonique(descripteur), StrategieAval::RepliCanonique),
         }
@@ -330,7 +330,7 @@ pub struct Aligne<T: TypeOrdre, O: MarqueOrdre<T>, V> {
 
 impl<T: TypeOrdre, O: MarqueOrdre<T>, V> Aligne<T, O, V> {
     /// New operand, aligned on mark `O`.
-    pub fn nouveau(valeur: V) -> Self {
+    pub fn new(valeur: V) -> Self {
         Aligne {
             valeur,
             marqueur: PhantomData,
@@ -349,6 +349,6 @@ impl<T: TypeOrdre, O: MarqueOrdre<T>, V> Aligne<T, O, V> {
         autre: &Aligne<T, O, U>,
         combinaison: impl FnOnce(&V, &U) -> W,
     ) -> Aligne<T, O, W> {
-        Aligne::nouveau(combinaison(&self.valeur, autre.valeur()))
+        Aligne::new(combinaison(&self.valeur, autre.valeur()))
     }
 }

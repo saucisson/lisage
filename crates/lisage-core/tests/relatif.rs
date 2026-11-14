@@ -117,7 +117,7 @@ fn test_groupe_shift_saturation() {
 fn test_ancre_composee_fragments() {
     let machine = Fragment("machine".to_string());
     let convoyeur = Fragment("convoyeur".to_string());
-    let ancre = AncreComposee::nouveau()
+    let ancre = AncreComposee::new()
         .avec(machine.clone(), 3)
         .avec(convoyeur.clone(), -1);
     assert_eq!(ancre.decalage(&machine), 3);
@@ -136,7 +136,7 @@ fn test_ancre_composee_fragments() {
     // Canonical order: lexicographic by name.
     let noms: Vec<&str> = ancre.fragments().map(|(f, _)| f.0.as_str()).collect();
     assert_eq!(noms, ["convoyeur", "machine"]);
-    assert!(AncreComposee::nouveau().est_nulle());
+    assert!(AncreComposee::new().est_nulle());
 }
 
 /// M4-2, test model: the **sliding window**. The sequence base is the
@@ -218,7 +218,7 @@ fn test_ancres_composees_degradation_somme() {
     assert_eq!(pool.node_count(), attendu);
     assert!(attendu < (1 + NB_DECALAGES_PAR_FRAGMENT as usize).pow(2));
     // The composite anchor carries the two named shifts.
-    let ancre = AncreComposee::nouveau().avec(machine, 2).avec(convoyeur, 5);
+    let ancre = AncreComposee::new().avec(machine, 2).avec(convoyeur, 5);
     assert_eq!(ancre.decalage(&Fragment("machine".to_string())), 2);
     assert_eq!(ancre.decalage(&Fragment("convoyeur".to_string())), 5);
 }

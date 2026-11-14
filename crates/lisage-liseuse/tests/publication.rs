@@ -17,7 +17,7 @@ type PoolRef = Arena<ReferenceController>;
 
 /// Test schema: `Set({0,1})`.
 fn schema_test() -> Schema {
-    Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]))
+    Schema::Set(Domaine::new(vec![Atom(0), Atom(1)]))
 }
 
 /// Builds the diagram of the set `{0}` in a new pool.
