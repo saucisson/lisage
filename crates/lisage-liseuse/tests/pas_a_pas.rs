@@ -70,15 +70,15 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
     });
     assert_eq!(
         attr,
-        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"herite\",\"node\":3,\"valeur\":\"Transfert(1)\"}"
+        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::MemoHit { node: NodeId(7) }),
-        "{\"v\":2,\"type\":\"MemoHit\",\"node\":7}"
+        "{\"v\":2,\"type\":\"MemoHit\",\"noeud\":7}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::MemoMiss { node: NodeId(8) }),
-        "{\"v\":2,\"type\":\"MemoMiss\",\"node\":8}"
+        "{\"v\":2,\"type\":\"MemoMiss\",\"noeud\":8}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Round { numero: 2 }),
@@ -98,7 +98,7 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
             node: NodeId(1),
             valeur: "true".to_string(),
         }),
-        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"memoire\",\"node\":1,\"valeur\":\"true\"}"
+        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
     );
 }
 

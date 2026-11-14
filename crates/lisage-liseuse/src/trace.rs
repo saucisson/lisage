@@ -55,11 +55,11 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
         TraceEvent::NodeCreated { node, level } => (
             "NodeCreated",
             match level {
-                Some(niveau) => format!("\"node\":{},\"level\":{}", node.0, niveau.0),
-                None => format!("\"node\":{},\"level\":null", node.0),
+                Some(niveau) => format!("\"noeud\":{},\"level\":{}", node.0, niveau.0),
+                None => format!("\"noeud\":{},\"level\":null", node.0),
             },
         ),
-        TraceEvent::NodeShared { node } => ("NodeShared", format!("\"node\":{}", node.0)),
+        TraceEvent::NodeShared { node } => ("NodeShared", format!("\"noeud\":{}", node.0)),
         TraceEvent::ReductionApplied { rule, level } => (
             "Reduction",
             format!(
@@ -71,7 +71,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
         TraceEvent::DiagramBuilt { handle, nodes } => (
             "DiagramBuilt",
             format!(
-                "\"controller\":{},\"anchor\":{},\"node\":{},\"nodes\":{}",
+                "\"controller\":{},\"anchor\":{},\"noeud\":{},\"noeuds\":{}",
                 handle.controller.0, handle.anchor.0, handle.node.0, nodes
             ),
         ),
@@ -82,14 +82,14 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
         } => (
             "Attr",
             format!(
-                "\"canal\":\"{}\",\"node\":{},\"valeur\":\"{}\"",
+                "\"canal\":\"{}\",\"noeud\":{},\"valeur\":\"{}\"",
                 nom_canal(*canal),
                 node.0,
                 echapper_json(valeur)
             ),
         ),
-        TraceEvent::MemoHit { node } => ("MemoHit", format!("\"node\":{}", node.0)),
-        TraceEvent::MemoMiss { node } => ("MemoMiss", format!("\"node\":{}", node.0)),
+        TraceEvent::MemoHit { node } => ("MemoHit", format!("\"noeud\":{}", node.0)),
+        TraceEvent::MemoMiss { node } => ("MemoMiss", format!("\"noeud\":{}", node.0)),
         TraceEvent::Gc {
             vivants,
             collectes,
