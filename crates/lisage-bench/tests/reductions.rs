@@ -18,7 +18,7 @@ fn est_defaut(node: NodeId) -> bool {
 fn vers_arcs(paires: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
     paires
         .into_iter()
-        .map(|(cle, cible)| (u64::from(cle), NodeId(cible)))
+        .map(|(key, cible)| (u64::from(key), NodeId(cible)))
         .collect()
 }
 
@@ -63,14 +63,14 @@ proptest! {
     #[test]
     fn test_confluence_idempotence(
         paires in prop::collection::vec((0u8..4, 0u32..6), 0..6),
-        cle_defaut in proptest::option::of(0u8..4),
+        key_defaut in proptest::option::of(0u8..4),
         cardinalite in 1u64..5,
     ) {
         let arcs = vers_arcs(paires);
-        let cle = cle_defaut.map(u64::from);
-        let premiere = reduire(arcs.clone(), cle, &est_defaut, cardinalite);
+        let key = key_defaut.map(u64::from);
+        let premiere = reduire(arcs.clone(), key, &est_defaut, cardinalite);
         if let Reduction::Forme(arcs_reduits) = &premiere {
-            let seconde = reduire(arcs_reduits.clone(), cle, &est_defaut, cardinalite);
+            let seconde = reduire(arcs_reduits.clone(), key, &est_defaut, cardinalite);
             prop_assert_eq!(seconde, premiere, "reduce∘reduce = reduce");
         }
     }
@@ -80,13 +80,13 @@ proptest! {
     #[test]
     fn test_confluence_commutation(
         paires in prop::collection::vec((0u8..4, 0u32..6), 0..6),
-        cle_defaut in proptest::option::of(0u8..4),
+        key_defaut in proptest::option::of(0u8..4),
         cardinalite in 1u64..5,
     ) {
         let arcs = vers_arcs(paires);
-        let cle = cle_defaut.map(u64::from);
-        let direct = reduire(arcs.clone(), cle, &est_defaut, cardinalite);
-        let inverse = reduire_inverse(arcs, cle, &est_defaut, cardinalite);
+        let key = key_defaut.map(u64::from);
+        let direct = reduire(arcs.clone(), key, &est_defaut, cardinalite);
+        let inverse = reduire_inverse(arcs, key, &est_defaut, cardinalite);
         prop_assert_eq!(direct, inverse, "the two reduction orders commute");
     }
 }

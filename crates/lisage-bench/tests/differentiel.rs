@@ -43,7 +43,7 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
     Value::Map(
         paires
             .iter()
-            .map(|(cle, value)| (atome(*cle), atome(*value)))
+            .map(|(key, value)| (atome(*key), atome(*value)))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }

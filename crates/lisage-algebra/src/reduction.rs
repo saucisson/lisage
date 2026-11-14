@@ -31,13 +31,13 @@ pub fn collapse_arcs<Key: Ord>(arcs: &BTreeMap<Key, NodeId>) -> Option<NodeId> {
 
 /// Applies R-collapse then R-default to a node (spec § 2.3).
 ///
-/// - `cle_defaut`: δ(ℓ) if the level has a default arc;
+/// - `key_defaut`: δ(ℓ) if the level has a default arc;
 /// - `est_defaut`: predicate "this node is the default diagram D_δ"
 ///   designated by the controller (the implicit default arc denotes D_δ);
 /// - `cardinalite`: |Val(ℓ)|, required when the level has no default.
 pub fn reduire<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
-    cle_defaut: Option<Key>,
+    key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
     cardinalite: u64,
 ) -> Reduction<Key> {
@@ -49,9 +49,9 @@ pub fn reduire<Key: Ord + Clone>(
         // otherwise two explicit arcs to the same target denote distinct
         // paths (presence) and do not collapse.
         // Without a default, all values must be explicit.
-        let couvre = match &cle_defaut {
+        let couvre = match &key_defaut {
             None => arcs.len() as u64 >= cardinalite,
-            Some(cle) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(cle)),
+            Some(key) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(key)),
         };
         if couvre {
             return Reduction::Collapse(cible);
@@ -59,10 +59,10 @@ pub fn reduire<Key: Ord + Clone>(
     }
     // R-default: the explicit arc δ(ℓ) leading to D_δ is removed.
     let mut arcs = arcs;
-    if let Some(cle) = &cle_defaut
-        && arcs.get(cle).is_some_and(|cible| est_defaut(*cible))
+    if let Some(key) = &key_defaut
+        && arcs.get(key).is_some_and(|cible| est_defaut(*cible))
     {
-        arcs.remove(cle);
+        arcs.remove(key);
     }
     Reduction::Forme(arcs)
 }
@@ -72,14 +72,14 @@ pub fn reduire<Key: Ord + Clone>(
 /// R-collapse independently (didactic workshop, backlog § 9).
 pub fn reduire_sans_collapse<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
-    cle_defaut: Option<Key>,
+    key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
 ) -> Reduction<Key> {
     let mut arcs = arcs;
-    if let Some(cle) = &cle_defaut
-        && arcs.get(cle).is_some_and(|cible| est_defaut(*cible))
+    if let Some(key) = &key_defaut
+        && arcs.get(key).is_some_and(|cible| est_defaut(*cible))
     {
-        arcs.remove(cle);
+        arcs.remove(key);
     }
     Reduction::Forme(arcs)
 }
@@ -88,18 +88,18 @@ pub fn reduire_sans_collapse<Key: Ord + Clone>(
 /// checks that both orders give the same result.
 pub fn reduire_inverse<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
-    cle_defaut: Option<Key>,
+    key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
     cardinalite: u64,
 ) -> Reduction<Key> {
     let mut arcs = arcs;
     let mut cible_supprimee: Option<NodeId> = None;
-    if let Some(cle) = &cle_defaut
-        && let Some(cible) = arcs.get(cle)
+    if let Some(key) = &key_defaut
+        && let Some(cible) = arcs.get(key)
         && est_defaut(*cible)
     {
         cible_supprimee = Some(*cible);
-        arcs.remove(cle);
+        arcs.remove(key);
     }
     // If the default arc was the only arc, the node denotes D_δ: collapse.
     if arcs.is_empty() {
@@ -112,9 +112,9 @@ pub fn reduire_inverse<Key: Ord + Clone>(
         // Same coverage as `reduire` (confluence): with a default, collapse
         // only holds if only the δ arc is explicit or if the target is D_δ;
         // without a default, all values must be explicit.
-        let couvre = match &cle_defaut {
+        let couvre = match &key_defaut {
             None => arcs.len() as u64 >= cardinalite,
-            Some(cle) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(cle)),
+            Some(key) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(key)),
         };
         if couvre {
             return Reduction::Collapse(cible);
@@ -141,7 +141,7 @@ pub fn reduire_inverse<Key: Ord + Clone>(
 /// form = same node).
 pub fn reduire_dabs<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
-    cle_defaut: Option<Key>,
+    key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
     cardinalite: u64,
     defaut: Option<NodeId>,
@@ -149,7 +149,7 @@ pub fn reduire_dabs<Key: Ord + Clone>(
     // Target of D^default if at least one arc leads to it (used for D-trans A = ∅).
     let cible_defaut = defaut.or(arcs.values().find(|c| est_defaut(**c)).copied());
     // (D-abs): absorption over any subdomain, when the level has a default.
-    let arcs: BTreeMap<Key, NodeId> = match &cle_defaut {
+    let arcs: BTreeMap<Key, NodeId> = match &key_defaut {
         Some(_) => arcs
             .into_iter()
             .filter(|(_, cible)| !est_defaut(*cible))
@@ -158,7 +158,7 @@ pub fn reduire_dabs<Key: Ord + Clone>(
     };
     // (D-trans): A = ∅ after absorption → D^default (transparent node).
     // Inactive without a default key: absent arcs would not denote D^default.
-    if arcs.is_empty() && cle_defaut.is_some() {
+    if arcs.is_empty() && key_defaut.is_some() {
         return match cible_defaut {
             Some(cible) => Reduction::Collapse(cible),
             None => Reduction::Forme(arcs),
@@ -169,9 +169,9 @@ pub fn reduire_dabs<Key: Ord + Clone>(
     // target is D^default or if only the δ arc is explicit; without a
     // default, all values must be explicit.
     if let Some(cible) = collapse_arcs(&arcs) {
-        let couvre = match &cle_defaut {
+        let couvre = match &key_defaut {
             None => arcs.len() as u64 >= cardinalite,
-            Some(cle) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(cle)),
+            Some(key) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(key)),
         };
         if couvre {
             return Reduction::Collapse(cible);

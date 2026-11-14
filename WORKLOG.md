@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 8: `cle`/`cles`/`clef` identifiers renamed to `key`/`keys` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `cle`/`cles`/`clef` stem (word-boundary and `cle_*`/`_cle`/`Cle`/`CLE` compounds, incl. `cles_canoniques`, `liste_cles`, `CleMap`, `ErreurOrdre<Cle>`) to `key`/`keys`/`Key`/`KEY`, workspace-wide (38 files), per glossary (clé → key). Word-boundary patterns leave `oracle`/`socle`/`cycle` untouched.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; grep for the cle stems returns 0.
+- **Judgement calls**: `clef` → `key` (not `keyf`); compounds renamed in a second pass after the first missed `cles_*` files.
 ## 2026-11-14 - M6-6 part 7: `valeur` identifiers renamed to `value` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

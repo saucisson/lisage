@@ -90,12 +90,12 @@ fn schema_et_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
             .prop_map(|(cles, pa, pb)| {
                 let cles: Vec<Atom> = cles.into_iter().map(|c| Atom(u64::from(c))).collect();
                 let domaine_v = domaine(vec![0, 1, 2]);
-                let cles_filtre = cles.clone();
+                let keys_filtre = cles.clone();
                 let mk = move |paires: Vec<(u8, u8)>| {
                     Value::Map(
                         paires
                             .into_iter()
-                            .filter(|(c, _)| cles_filtre.contains(&Atom(u64::from(*c))))
+                            .filter(|(c, _)| keys_filtre.contains(&Atom(u64::from(*c))))
                             .map(|(c, v)| (atome(u64::from(c)), atome(u64::from(v))))
                             .collect(),
                     )

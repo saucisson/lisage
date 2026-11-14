@@ -138,7 +138,7 @@ fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
                     ),
                 ]
             })
-            .map(|(cle, value)| (Value::Atom(Atom(cle)), Value::Atom(Atom(value))))
+            .map(|(key, value)| (Value::Atom(Atom(key)), Value::Atom(Atom(value))))
             .collect();
         let membre = compiler(pool, ANCRE_TEST, &schema, &Value::Map(map)).unwrap();
         root = union(pool, &keys, ANCRE_TEST, root, membre).unwrap();

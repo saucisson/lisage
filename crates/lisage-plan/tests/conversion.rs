@@ -20,7 +20,7 @@ struct MarqueInverse;
 
 impl MarqueOrdre<DomaineAtomes> for MarqueInverse {
     fn ordre(descripteur: &DomaineAtomes) -> Order<DomaineAtomes> {
-        let mut pi = descripteur.cles_canoniques();
+        let mut pi = descripteur.keys_canoniques();
         pi.reverse();
         Order::new(descripteur, pi).expect("the reversed order is a valid permutation")
     }

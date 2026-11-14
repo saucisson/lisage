@@ -85,33 +85,33 @@ impl Controller for LookupController {
 /// Transduction `lookup(k)` on `Map(K, V)` (spec § 6.3).
 pub struct Lookup {
     /// Searched key.
-    cle: Atom,
+    key: Atom,
     /// Index of the key in the map's canonical order.
-    index_cle: usize,
+    index_key: usize,
     /// Value domain (for T-EXPAND).
     domaine_values: Domaine,
 }
 
 impl Lookup {
-    /// `lookup(cle)` for the `Map(liste_cles, domaine_values)` schema.
-    pub fn new(cle: Atom, liste_cles: Vec<Atom>, domaine_values: Domaine) -> Self {
-        let index_cle = liste_cles
+    /// `lookup(key)` for the `Map(liste_keys, domaine_values)` schema.
+    pub fn new(key: Atom, liste_keys: Vec<Atom>, domaine_values: Domaine) -> Self {
+        let index_key = liste_keys
             .iter()
-            .position(|c| *c == cle)
+            .position(|c| *c == key)
             .expect("the searched key must belong to the schema");
         Lookup {
-            cle,
-            index_cle,
+            key,
+            index_key,
             domaine_values,
         }
     }
 
     fn niveau_presence(&self) -> Level {
-        Schema::niveau_presence(self.index_cle)
+        Schema::niveau_presence(self.index_key)
     }
 
     fn niveau_value(&self) -> Level {
-        Schema::niveau_value(self.index_cle)
+        Schema::niveau_value(self.index_key)
     }
 
     /// Graft (spec § 6.4): replaces the terminals of the `node` sub-diagram
@@ -151,7 +151,7 @@ impl Transduction for Lookup {
     type M = ();
 
     fn fingerprint(&self) -> u64 {
-        FINGERPRINT_BASE_LOOKUP + self.cle.0
+        FINGERPRINT_BASE_LOOKUP + self.key.0
     }
 
     fn h0(&self) -> Mode {

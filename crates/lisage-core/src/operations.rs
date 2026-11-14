@@ -31,31 +31,31 @@ use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 const FINGERPRINT_BASE_GARDE: u64 = 5000;
 
 /// Set of keys present on the path of a map under construction.
-pub type ClePresentes = BTreeSet<u64>;
+pub type KeyPresentes = BTreeSet<u64>;
 
 /// Presence predicate on a map (example: `p(m) = present(a)`).
-pub type PredicatMap = Box<dyn Fn(&ClePresentes) -> bool + Send + Sync>;
+pub type PredicatMap = Box<dyn Fn(&KeyPresentes) -> bool + Send + Sync>;
 
 /// Transduction `exists(p)` on a set of maps (schema `Map`): fold over
 /// `(Bool, ∨, ∧)`, the verdict is resolved at the terminal on the complete
 /// path (spec § 5).
 pub struct Existe {
-    liste_cles: Vec<u64>,
+    liste_keys: Vec<u64>,
     predicat: PredicatMap,
 }
 
 impl Existe {
-    /// `exists(p)` for the given `Map(liste_cles, _)` schema; typed error if
+    /// `exists(p)` for the given `Map(liste_keys, _)` schema; typed error if
     /// the schema is not a map.
     pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
-        let Schema::Map(liste_cles, _) = schema else {
+        let Schema::Map(liste_keys, _) = schema else {
             return Err(CoreError::SchemaInattendu {
                 attendu: "Map",
                 recu: forme_schema(schema),
             });
         };
         Ok(Existe {
-            liste_cles: liste_cles.iter().map(|atome| atome.0).collect(),
+            liste_keys: liste_keys.iter().map(|atome| atome.0).collect(),
             predicat,
         })
     }
@@ -64,22 +64,22 @@ impl Existe {
 /// Transduction `filter(p)` (guard) on a set of maps: restriction, rejected
 /// members lead to `ε(false)` (spec § 4, `f_filter` = preimage of `p`).
 pub struct Filtre {
-    liste_cles: Vec<u64>,
+    liste_keys: Vec<u64>,
     predicat: PredicatMap,
 }
 
 impl Filtre {
-    /// `filter(p)` for the given `Map(liste_cles, _)` schema; typed error if
+    /// `filter(p)` for the given `Map(liste_keys, _)` schema; typed error if
     /// the schema is not a map.
     pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
-        let Schema::Map(liste_cles, _) = schema else {
+        let Schema::Map(liste_keys, _) = schema else {
             return Err(CoreError::SchemaInattendu {
                 attendu: "Map",
                 recu: forme_schema(schema),
             });
         };
         Ok(Filtre {
-            liste_cles: liste_cles.iter().map(|atome| atome.0).collect(),
+            liste_keys: liste_keys.iter().map(|atome| atome.0).collect(),
             predicat,
         })
     }
@@ -138,20 +138,20 @@ impl Image {
 /// Common descendant: updates the set of present keys along arc `v` of
 /// level `ℓ` (a presence level with the `present` arc adds the key; a value
 /// level changes nothing).
-fn disperser_chemin(liste_cles: &[u64], level: Level, h: &ClePresentes, arc: u64) -> ClePresentes {
+fn disperser_chemin(liste_keys: &[u64], level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
     let mut h = h.clone();
     if level.0.is_multiple_of(PAS_NIVEAU_MAP) && arc == PRESENT {
         let index = (level.0 / PAS_NIVEAU_MAP) as usize;
         // Guaranteed by `valider_niveaux` before the transduction.
-        if let Some(&cle) = liste_cles.get(index) {
-            h.insert(cle);
+        if let Some(&key) = liste_keys.get(index) {
+            h.insert(key);
         }
     }
     h
 }
 
 impl Transduction for Existe {
-    type H = ClePresentes;
+    type H = KeyPresentes;
     type S = BoolOu;
     type Out = bool;
     type M = ();
@@ -160,18 +160,18 @@ impl Transduction for Existe {
         FINGERPRINT_BASE_GARDE + 1
     }
 
-    fn h0(&self) -> ClePresentes {
-        ClePresentes::new()
+    fn h0(&self) -> KeyPresentes {
+        KeyPresentes::new()
     }
 
-    fn phi_disp(&self, level: Level, h: &ClePresentes, arc: u64) -> ClePresentes {
-        disperser_chemin(&self.liste_cles, level, h, arc)
+    fn phi_disp(&self, level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
+        disperser_chemin(&self.liste_keys, level, h, arc)
     }
 
     fn phi_aggr(
         &self,
         _level: Level,
-        _h: &ClePresentes,
+        _h: &KeyPresentes,
         arcs: &BTreeMap<u64, (Option<Level>, BoolOu)>,
     ) -> BoolOu {
         // (Bool, ∨, ∧): the A4 multiplier is ⊤ (|Val| ≥ 1), the fold is the
@@ -203,7 +203,7 @@ impl Transduction for Existe {
         pool: &mut P,
         anchor: Anchor,
         payload: bool,
-        h: &ClePresentes,
+        h: &KeyPresentes,
     ) -> (NodeId, BoolOu) {
         let verdict = payload && (self.predicat)(h);
         (
@@ -214,7 +214,7 @@ impl Transduction for Existe {
 }
 
 impl Transduction for Filtre {
-    type H = ClePresentes;
+    type H = KeyPresentes;
     type S = ();
     type Out = bool;
     type M = ();
@@ -223,18 +223,18 @@ impl Transduction for Filtre {
         FINGERPRINT_BASE_GARDE + 2
     }
 
-    fn h0(&self) -> ClePresentes {
-        ClePresentes::new()
+    fn h0(&self) -> KeyPresentes {
+        KeyPresentes::new()
     }
 
-    fn phi_disp(&self, level: Level, h: &ClePresentes, arc: u64) -> ClePresentes {
-        disperser_chemin(&self.liste_cles, level, h, arc)
+    fn phi_disp(&self, level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
+        disperser_chemin(&self.liste_keys, level, h, arc)
     }
 
     fn phi_aggr(
         &self,
         _level: Level,
-        _h: &ClePresentes,
+        _h: &KeyPresentes,
         _arcs: &BTreeMap<u64, (Option<Level>, ())>,
     ) {
     }
@@ -275,7 +275,7 @@ impl Transduction for Filtre {
         pool: &mut P,
         anchor: Anchor,
         payload: bool,
-        h: &ClePresentes,
+        h: &KeyPresentes,
     ) -> (NodeId, ()) {
         // Guard: the member is rejected (ε(false)) if the predicate fails.
         let garde = payload && (self.predicat)(h);

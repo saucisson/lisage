@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::operations::{ClePresentes, existe, filtrer, image};
+use lisage_core::operations::{KeyPresentes, existe, filtrer, image};
 use lisage_core::pli::union;
 use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::interpreter::{exists, filter, map};
@@ -54,8 +54,8 @@ fn compiler_ensemble(
 }
 
 /// Presence predicate, DD side: `p(m) = present(a)`.
-fn predicat_dd(cles: &ClePresentes) -> bool {
-    cles.contains(&0)
+fn predicat_dd(keys: &KeyPresentes) -> bool {
+    keys.contains(&0)
 }
 
 /// Same predicate, path A side (reference interpreter).

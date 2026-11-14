@@ -103,7 +103,7 @@ impl TransfertNonLocal {
         Schema::niveau_value(self.index_destination)
     }
 
-    /// Inserts the remapped arc `cle ↦ (n, s)` into `remap`; on key collision
+    /// Inserts the remapped arc `key ↦ (n, s)` into `remap`; on key collision
     /// (family: two arcs remapped to the same target), the two
     /// subtrees are **unioned**, never overwritten.
     fn inserer_remap<P: Pool<Key = u64, Payload = bool>>(
@@ -111,18 +111,18 @@ impl TransfertNonLocal {
         keys: &SchemaKeys,
         anchor: Anchor,
         remap: &mut BTreeMap<u64, (NodeId, ())>,
-        cle: u64,
+        key: u64,
         n: NodeId,
         s: (),
     ) {
-        match remap.remove(&cle) {
+        match remap.remove(&key) {
             Some((ancien, _)) => {
                 let fusion = union(pool, keys, anchor, ancien, n)
                     .expect("union of sub-arcs of the same pool");
-                remap.insert(cle, (fusion, s));
+                remap.insert(key, (fusion, s));
             }
             None => {
-                remap.insert(cle, (n, s));
+                remap.insert(key, (n, s));
             }
         }
     }

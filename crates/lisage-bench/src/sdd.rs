@@ -140,18 +140,18 @@ fn installer_niveau(
 
 /// Projects a set of maps onto a subset of keys (inter-level
 /// transduction, `lang/` level: pure set operation).
-pub fn projeter(ensemble: &BTreeSet<Value>, cles: &[Atom]) -> BTreeSet<Value> {
+pub fn projeter(ensemble: &BTreeSet<Value>, keys: &[Atom]) -> BTreeSet<Value> {
     ensemble
         .iter()
         .filter_map(|value| match value {
             Value::Map(map) => {
                 let projetee: BTreeMap<Value, Value> = map
                     .iter()
-                    .filter(|(cle, _)| match cle {
-                        Value::Atom(atome) => cles.contains(atome),
+                    .filter(|(key, _)| match key {
+                        Value::Atom(atome) => keys.contains(atome),
                         _ => false,
                     })
-                    .map(|(cle, value)| (cle.clone(), value.clone()))
+                    .map(|(key, value)| (key.clone(), value.clone()))
                     .collect();
                 Some(Value::Map(projetee))
             }

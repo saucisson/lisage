@@ -279,13 +279,13 @@ pub fn serialiser_ligne(mesure: &MesureConfrontation) -> String {
         mesure.charge.etiquette()
     ));
     ligne.push_str(",\"parametres\":{");
-    for (indice, (cle, value)) in mesure.parametres.iter().enumerate() {
+    for (indice, (key, value)) in mesure.parametres.iter().enumerate() {
         if indice > 0 {
             ligne.push(',');
         }
         ligne.push_str(&format!(
             "\"{}\":\"{}\"",
-            echapper_json(cle),
+            echapper_json(key),
             echapper_json(value)
         ));
     }

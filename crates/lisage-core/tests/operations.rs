@@ -7,7 +7,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::error::CoreError;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::operations::{ClePresentes, existe, filtrer, image};
+use lisage_core::operations::{KeyPresentes, existe, filtrer, image};
 use lisage_core::pli::union;
 use lisage_core::schema::{Domaine, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
@@ -22,7 +22,7 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
     Value::Map(
         paires
             .iter()
-            .map(|(cle, value)| (atome(*cle), atome(*value)))
+            .map(|(key, value)| (atome(*key), atome(*value)))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }
@@ -54,8 +54,8 @@ fn schema_map() -> Schema {
 }
 
 /// Presence predicate: `p(m) = present(a)`.
-fn predicat_exemple_spec(cles: &ClePresentes) -> bool {
-    cles.contains(&0)
+fn predicat_exemple_spec(keys: &KeyPresentes) -> bool {
+    keys.contains(&0)
 }
 
 /// `exists(p)`: fold over `(Bool, ∨, ∧)`, verdict resolved at the terminal.
@@ -85,7 +85,7 @@ fn test_existe_predicat_exemple_spec() {
         anchor,
         &schema,
         root,
-        Box::new(|cles: &ClePresentes| cles.contains(&0) && cles.contains(&1)),
+        Box::new(|keys: &KeyPresentes| keys.contains(&0) && keys.contains(&1)),
     )
     .unwrap();
     assert!(!aucun, "no member has both a and b present");
@@ -109,7 +109,7 @@ fn test_filtre_garde() {
         anchor,
         &schema,
         root,
-        Box::new(|cles: &ClePresentes| cles.contains(&0)),
+        Box::new(|keys: &KeyPresentes| keys.contains(&0)),
     )
     .unwrap();
     let attendu = compiler_ensemble(
@@ -158,7 +158,7 @@ fn test_existe_schema_non_map_erreur_typee() {
         anchor,
         &schema,
         root,
-        Box::new(|_: &ClePresentes| true),
+        Box::new(|_: &KeyPresentes| true),
     );
     assert_eq!(
         resultat.unwrap_err(),
@@ -195,7 +195,7 @@ fn test_filtre_niveau_hors_schema_erreur_typee() {
         anchor,
         &schema,
         malforme,
-        Box::new(|_: &ClePresentes| true),
+        Box::new(|_: &KeyPresentes| true),
     );
     assert_eq!(resultat.unwrap_err(), CoreError::NiveauHorsSchema(Level(4)));
 }

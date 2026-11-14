@@ -19,13 +19,13 @@ use lisage_lang::Atom;
 /// (`before`/`after` pairs required in any valid permutation).
 pub trait TypeOrdre {
     /// Ordered key of a level of the type.
-    type Cle: Clone + Ord + Hash + Debug;
+    type Key: Clone + Ord + Hash + Debug;
 
     /// Canonical sequence of keys (the type's default order).
-    fn cles_canoniques(&self) -> Vec<Self::Cle>;
+    fn keys_canoniques(&self) -> Vec<Self::Key>;
 
     /// Order constraints of the type: `before` must precede `after` in π.
-    fn contraintes(&self) -> Vec<(Self::Cle, Self::Cle)> {
+    fn contraintes(&self) -> Vec<(Self::Key, Self::Key)> {
         Vec::new()
     }
 }
@@ -36,13 +36,13 @@ pub trait TypeOrdre {
 pub struct DomaineAtomes(pub Vec<Atom>);
 
 impl TypeOrdre for DomaineAtomes {
-    type Cle = Atom;
+    type Key = Atom;
 
-    fn cles_canoniques(&self) -> Vec<Atom> {
-        let mut cles = self.0.clone();
-        cles.sort();
-        cles.dedup();
-        cles
+    fn keys_canoniques(&self) -> Vec<Atom> {
+        let mut keys = self.0.clone();
+        keys.sort();
+        keys.dedup();
+        keys
     }
 }
 
@@ -57,9 +57,9 @@ pub enum Phase {
 
 /// Key of a `Map(K, V)` level: (key, phase).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct CleMap {
+pub struct KeyMap {
     /// Key of the map.
-    pub cle: Atom,
+    pub key: Atom,
     /// Level phase: presence or value.
     pub phase: Phase,
 }
@@ -67,47 +67,47 @@ pub struct CleMap {
 /// Descriptor of type `Map(K, V)`: per-key constraint — presence
 /// precedes value (universe sweep, spec § 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ClesMap(pub Vec<Atom>);
+pub struct KeysMap(pub Vec<Atom>);
 
-impl ClesMap {
+impl KeysMap {
     /// Sorted canonical keys (no duplicates).
-    fn cles_triees(&self) -> Vec<Atom> {
-        let mut cles = self.0.clone();
-        cles.sort();
-        cles.dedup();
-        cles
+    fn keys_triees(&self) -> Vec<Atom> {
+        let mut keys = self.0.clone();
+        keys.sort();
+        keys.dedup();
+        keys
     }
 }
 
-impl TypeOrdre for ClesMap {
-    type Cle = CleMap;
+impl TypeOrdre for KeysMap {
+    type Key = KeyMap;
 
-    fn cles_canoniques(&self) -> Vec<CleMap> {
+    fn keys_canoniques(&self) -> Vec<KeyMap> {
         let mut niveaux = Vec::new();
-        for cle in self.cles_triees() {
-            niveaux.push(CleMap {
-                cle,
+        for key in self.keys_triees() {
+            niveaux.push(KeyMap {
+                key,
                 phase: Phase::Presence,
             });
-            niveaux.push(CleMap {
-                cle,
+            niveaux.push(KeyMap {
+                key,
                 phase: Phase::Value,
             });
         }
         niveaux
     }
 
-    fn contraintes(&self) -> Vec<(CleMap, CleMap)> {
-        self.cles_triees()
+    fn contraintes(&self) -> Vec<(KeyMap, KeyMap)> {
+        self.keys_triees()
             .into_iter()
-            .map(|cle| {
+            .map(|key| {
                 (
-                    CleMap {
-                        cle,
+                    KeyMap {
+                        key,
                         phase: Phase::Presence,
                     },
-                    CleMap {
-                        cle,
+                    KeyMap {
+                        key,
                         phase: Phase::Value,
                     },
                 )
@@ -118,22 +118,22 @@ impl TypeOrdre for ClesMap {
 
 /// Typed error of order construction or alignment (cause preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurOrdre<Cle> {
+pub enum ErreurOrdre<Key> {
     /// π is not a permutation of the canonical keys (missing key, duplicate,
     /// or foreign to the type).
     PasUnePermutation,
     /// Type constraint violated: `before` must precede `after` in π.
     ContrainteViolee {
         /// Key that should precede.
-        avant: Cle,
+        avant: Key,
         /// Key that should follow.
-        apres: Cle,
+        apres: Key,
     },
     /// Two orders of the same type are not aligned (different π).
     OrdresNonAlignes,
 }
 
-impl<Cle: Debug> std::fmt::Display for ErreurOrdre<Cle> {
+impl<Key: Debug> std::fmt::Display for ErreurOrdre<Key> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ErreurOrdre::PasUnePermutation => {
@@ -152,7 +152,7 @@ impl<Cle: Debug> std::fmt::Display for ErreurOrdre<Cle> {
     }
 }
 
-impl<Cle: Debug> std::error::Error for ErreurOrdre<Cle> {}
+impl<Key: Debug> std::error::Error for ErreurOrdre<Key> {}
 
 /// Strategy adopted by [`Order::avec_aval_runtime`] (M5-1, C3): the runtime
 /// order was accepted, or we fell back to the canonical order.
@@ -170,16 +170,16 @@ pub enum StrategieAval {
 #[derive(Debug)]
 pub struct Order<T: TypeOrdre> {
     /// Canonical keys of the type (π = identity on this sequence).
-    canoniques: Vec<T::Cle>,
+    canoniques: Vec<T::Key>,
     /// π: ordered sequence of keys (permutation of the canonicals).
-    sequence: Vec<T::Cle>,
+    sequence: Vec<T::Key>,
     /// Order constraints of the type, embedded.
-    contraintes: Vec<(T::Cle, T::Cle)>,
+    contraintes: Vec<(T::Key, T::Key)>,
     marqueur: PhantomData<fn() -> T>,
 }
 
 // Manual implementations: derives would add bounds on `T` itself,
-// whereas only the keys `T::Cle` participate in comparisons.
+// whereas only the keys `T::Key` participate in comparisons.
 impl<T: TypeOrdre> Clone for Order<T> {
     fn clone(&self) -> Self {
         Order {
@@ -204,7 +204,7 @@ impl<T: TypeOrdre> Eq for Order<T> {}
 impl<T: TypeOrdre> Order<T> {
     /// Canonical order of the type (π = identity).
     pub fn canonique(descripteur: &T) -> Self {
-        let canoniques = descripteur.cles_canoniques();
+        let canoniques = descripteur.keys_canoniques();
         Order {
             sequence: canoniques.clone(),
             canoniques,
@@ -216,8 +216,8 @@ impl<T: TypeOrdre> Order<T> {
     /// Order given by permutation π, checked: π must be a
     /// permutation of the canonical keys and satisfy the type's constraints.
     /// type.
-    pub fn new(descripteur: &T, pi: Vec<T::Cle>) -> Result<Self, ErreurOrdre<T::Cle>> {
-        let canoniques = descripteur.cles_canoniques();
+    pub fn new(descripteur: &T, pi: Vec<T::Key>) -> Result<Self, ErreurOrdre<T::Key>> {
+        let canoniques = descripteur.keys_canoniques();
         let mut pi_triee = pi.clone();
         pi_triee.sort();
         let mut canoniques_triees = canoniques.clone();
@@ -238,8 +238,8 @@ impl<T: TypeOrdre> Order<T> {
             };
             if !satisfait {
                 return Err(ErreurOrdre::ContrainteViolee {
-                    avant: <T::Cle as Clone>::clone(avant),
-                    apres: <T::Cle as Clone>::clone(apres),
+                    avant: <T::Key as Clone>::clone(avant),
+                    apres: <T::Key as Clone>::clone(apres),
                 });
             }
         }
@@ -251,7 +251,7 @@ impl<T: TypeOrdre> Order<T> {
     /// (not a permutation or constraint violated), we **fall back to
     /// the canonical order** (degraded reordering as fallback) and report it
     /// via the returned strategy.
-    pub fn avec_aval_runtime(descripteur: &T, pi_runtime: Vec<T::Cle>) -> (Self, StrategieAval) {
+    pub fn avec_aval_runtime(descripteur: &T, pi_runtime: Vec<T::Key>) -> (Self, StrategieAval) {
         match Order::new(descripteur, pi_runtime) {
             Ok(ordre) => (ordre, StrategieAval::OrdreRuntime),
             Err(_cause) => (Order::canonique(descripteur), StrategieAval::RepliCanonique),
@@ -259,12 +259,12 @@ impl<T: TypeOrdre> Order<T> {
     }
 
     /// Position (0-based) of a key in π.
-    pub fn position(&self, cle: &T::Cle) -> Option<usize> {
-        self.sequence.iter().position(|c| c == cle)
+    pub fn position(&self, key: &T::Key) -> Option<usize> {
+        self.sequence.iter().position(|c| c == key)
     }
 
     /// Key at a position of π.
-    pub fn cle(&self, position: usize) -> Option<&T::Cle> {
+    pub fn key(&self, position: usize) -> Option<&T::Key> {
         self.sequence.get(position)
     }
 
@@ -274,12 +274,12 @@ impl<T: TypeOrdre> Order<T> {
     }
 
     /// Ordered sequence of keys (π itself).
-    pub fn sequence(&self) -> &[T::Cle] {
+    pub fn sequence(&self) -> &[T::Key] {
         &self.sequence
     }
 
     /// Canonical keys of the type (π = identity on this sequence).
-    pub fn canoniques(&self) -> &[T::Cle] {
+    pub fn canoniques(&self) -> &[T::Key] {
         &self.canoniques
     }
 
@@ -287,12 +287,12 @@ impl<T: TypeOrdre> Order<T> {
     pub fn permutation(&self) -> Vec<usize> {
         self.canoniques
             .iter()
-            .map(|cle| self.position(cle).expect("canonical key present in π"))
+            .map(|key| self.position(key).expect("canonical key present in π"))
             .collect()
     }
 
     /// Order constraints embedded in `Order<T>`.
-    pub fn contraintes(&self) -> &[(T::Cle, T::Cle)] {
+    pub fn contraintes(&self) -> &[(T::Key, T::Key)] {
         &self.contraintes
     }
 
@@ -303,7 +303,7 @@ impl<T: TypeOrdre> Order<T> {
 
     /// Alignment checked between two orders of the same type, typed error
     /// otherwise (C3: two operands compose only under a common order).
-    pub fn alignement(&self, autre: &Self) -> Result<(), ErreurOrdre<T::Cle>> {
+    pub fn alignement(&self, autre: &Self) -> Result<(), ErreurOrdre<T::Key>> {
         if self.alignes(autre) {
             Ok(())
         } else {

@@ -25,7 +25,7 @@ fn atome(value: u64) -> Value {
 fn payload_terminal(
     pool: &PoolOutput,
     mut node: NodeId,
-    liste_cles: &[Atom],
+    liste_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
 ) -> Option<u64> {
     loop {
@@ -33,9 +33,9 @@ fn payload_terminal(
             Form::Terminal(payload) => return *payload,
             Form::Node { level, arcs } => {
                 let index = (level.0 / 2) as usize;
-                let cle = Value::Atom(liste_cles[index]);
+                let key = Value::Atom(liste_keys[index]);
                 if level.0.is_multiple_of(2) {
-                    match map.get(&cle) {
+                    match map.get(&key) {
                         Some(_) => node = *arcs.get(&PRESENT).expect("arc present"),
                         // Implicit default arc ⇒ D_δ = ε(None); explicit
                         // arc (grafted subtree) ⇒ follow it.
@@ -45,7 +45,7 @@ fn payload_terminal(
                         },
                     }
                 } else {
-                    let Some(Value::Atom(value)) = map.get(&cle) else {
+                    let Some(Value::Atom(value)) = map.get(&key) else {
                         panic!("key present with atomic value")
                     };
                     node = *arcs.get(&value.0).expect("arc value");
@@ -61,11 +61,11 @@ proptest! {
     #[test]
     fn test_c1_differentiel_lookup_voie_a_vs_dd(
         paires in prop::collection::vec((0u64..2, 0u64..2), 0..5),
-        cle in 0u64..2,
+        key in 0u64..2,
     ) {
-        let liste_cles = vec![Atom(0), Atom(1)];
+        let liste_keys = vec![Atom(0), Atom(1)];
         let domaine_values = Domaine::new(vec![Atom(0), Atom(1)]);
-        let schema = Schema::Map(liste_cles.clone(), domaine_values.clone());
+        let schema = Schema::Map(liste_keys.clone(), domaine_values.clone());
         let map: BTreeMap<Value, Value> = paires
             .iter()
             .map(|(k, v)| (atome(*k), atome(*v)))
@@ -82,18 +82,18 @@ proptest! {
         );
         let anchor = Anchor(0);
         let root = compiler(&mut input, anchor, &schema, &value).unwrap();
-        let cle_atome = Atom(cle);
+        let key_atome = Atom(key);
         let mut runner = Transducteur::new(Lookup::new(
-            cle_atome,
-            liste_cles.clone(),
+            key_atome,
+            liste_keys.clone(),
             domaine_values.clone(),
         ));
         let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
-        let dd = payload_terminal(&output, resultat, &liste_cles, &map);
+        let dd = payload_terminal(&output, resultat, &liste_keys, &map);
 
         // Path A: reference interpreter on the set {map}.
         let ensemble = BTreeSet::from([value.clone()]);
-        let attendu = lookup(&ensemble, &atome(cle))[&value].clone();
+        let attendu = lookup(&ensemble, &atome(key))[&value].clone();
         let attendu_opt = match attendu {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,
@@ -108,11 +108,11 @@ proptest! {
     #[test]
     fn test_c1_differentiel_lookup_collapsed_voie_a_vs_dd(
         paires in prop::collection::vec((0u64..2, 0u64..1), 0..5),
-        cle in 0u64..2,
+        key in 0u64..2,
     ) {
-        let liste_cles = vec![Atom(0), Atom(1)];
+        let liste_keys = vec![Atom(0), Atom(1)];
         let domaine_values = Domaine::new(vec![Atom(0)]);
-        let schema = Schema::Map(liste_cles.clone(), domaine_values.clone());
+        let schema = Schema::Map(liste_keys.clone(), domaine_values.clone());
         let map: BTreeMap<Value, Value> = paires
             .iter()
             .map(|(k, v)| (atome(*k), atome(*v)))
@@ -129,17 +129,17 @@ proptest! {
         );
         let anchor = Anchor(0);
         let root = compiler(&mut input, anchor, &schema, &value).unwrap();
-        let cle_atome = Atom(cle);
+        let key_atome = Atom(key);
         let mut runner = Transducteur::new(Lookup::new(
-            cle_atome,
-            liste_cles.clone(),
+            key_atome,
+            liste_keys.clone(),
             domaine_values.clone(),
         ));
         let (resultat, _) = runner.run(&input, &mut output, anchor, root).unwrap();
-        let dd = payload_terminal(&output, resultat, &liste_cles, &map);
+        let dd = payload_terminal(&output, resultat, &liste_keys, &map);
 
         let ensemble = BTreeSet::from([value.clone()]);
-        let attendu = lookup(&ensemble, &atome(cle))[&value].clone();
+        let attendu = lookup(&ensemble, &atome(key))[&value].clone();
         let attendu_opt = match attendu {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,

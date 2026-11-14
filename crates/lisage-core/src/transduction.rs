@@ -22,7 +22,7 @@ use crate::observer::{CanalAttr, Observer, TraceEvent};
 
 /// Memo key: (operation fingerprint, node, inherited attribute,
 /// level-memory version) — lemma L1.
-type CleMemo<H> = (u64, NodeId, H, u64);
+type KeyMemo<H> = (u64, NodeId, H, u64);
 
 /// Context of `φ_out` (T-NODE): groups the restructuring parameters
 /// (spec § 3.1: `φ_out(ℓ, h, {v ↦ (D', s)}, M)`).
@@ -101,7 +101,7 @@ pub trait Transduction: Send + Sync {
 /// level memory (M2-3).
 pub struct Transducteur<T: Transduction> {
     transduction: T,
-    memo: HashMap<CleMemo<T::H>, (NodeId, T::S)>,
+    memo: HashMap<KeyMemo<T::H>, (NodeId, T::S)>,
     memoire: MemoireNiveau<T::M>,
     politique: MemoryPolicy,
     observateur: Option<Arc<dyn Observer>>,
@@ -217,13 +217,13 @@ impl<T: Transduction> Transducteur<T> {
         PIn: Pool<Key = u64, Payload = bool>,
         POut: Pool<Key = u64, Payload = T::Out>,
     {
-        let cle = (
+        let key = (
             self.transduction.fingerprint(),
             node,
             h.clone(),
             self.memoire.version(),
         );
-        if let Some((resultat, s)) = self.memo.get(&cle) {
+        if let Some((resultat, s)) = self.memo.get(&key) {
             self.notifier(TraceEvent::MemoHit { node });
             return Ok((*resultat, s.clone()));
         }
@@ -280,7 +280,7 @@ impl<T: Transduction> Transducteur<T> {
                 (node_resultat, s)
             }
         };
-        self.memo.insert(cle, (resultat, s.clone()));
+        self.memo.insert(key, (resultat, s.clone()));
         Ok((resultat, s))
     }
 
@@ -295,13 +295,13 @@ impl<T: Transduction> Transducteur<T> {
         P: Pool<Key = u64, Payload = bool>,
         T: Transduction<Out = bool>,
     {
-        let cle = (
+        let key = (
             self.transduction.fingerprint(),
             node,
             h.clone(),
             self.memoire.version(),
         );
-        if let Some((resultat, s)) = self.memo.get(&cle) {
+        if let Some((resultat, s)) = self.memo.get(&key) {
             self.notifier(TraceEvent::MemoHit { node });
             return Ok((*resultat, s.clone()));
         }
@@ -358,7 +358,7 @@ impl<T: Transduction> Transducteur<T> {
                 (node_resultat, s)
             }
         };
-        self.memo.insert(cle, (resultat, s.clone()));
+        self.memo.insert(key, (resultat, s.clone()));
         Ok((resultat, s))
     }
 }

@@ -209,12 +209,12 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
             continue;
         }
         if let Ok(lisage_core::Form::Node { arcs, .. }) = pool.resolve(node) {
-            for (cle, cible) in arcs {
+            for (key, cible) in arcs {
                 pgf.push_str(&format!(
                     "\\draw[->] (n{}) -- (n{}) node[midway, above, font=\\ttfamily\\scriptsize] {{{}}};\n",
                     node.0,
                     cible.0,
-                    echapper_pgf(&cle.to_string())
+                    echapper_pgf(&key.to_string())
                 ));
                 pile.push(*cible);
             }
