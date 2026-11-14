@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4a-6: lisage-core saturate+integrale translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in `crates/lisage-core/src/saturate.rs`, `crates/lisage-core/src/integrale.rs`, `crates/lisage-core/tests/saturate.rs`, `crates/lisage-core/tests/integrale.rs`, `crates/lisage-core/tests/integrale_dbm.rs` to English. Public French identifiers are kept until dependent crates are translated.
+- **Evidence**: `cargo check -p lisage-core --tests` passes; `cargo test -p lisage-core` all tests pass; `cargo fmt -p lisage-core -- --check` clean after fmt. Full `make check` deferred to the last part.
+- **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-3 docs part 1/8: specification translated to English (issue #106)
 
 - **Issue**: #106 (M6-3, milestone M6).
