@@ -1,12 +1,12 @@
-//! Tests du vtree comme ordre de première classe (M5-3, C6) : ordre
-//! canonique = parcours plat, contraintes gauche-avant-droite vérifiées
-//! à la construction de `Order`, π valide adopté, π violant rejeté.
+//! Tests of the vtree as a first-class order (M5-3, C6): canonical
+//! order = flat traversal, left-before-right constraints checked
+//! at `Order` construction, valid π adopted, violating π rejected.
 
 use lisage_algebra::vtree::{ErreurVtree, Vtree};
 use lisage_lang::Atom;
 use lisage_plan::ordre::{ErreurOrdre, Order};
 
-/// Vtree de test : (x0, x1) à gauche, (x2, x3) à droite.
+/// Test vtree: (x0, x1) on the left, (x2, x3) on the right.
 fn vtree_test() -> Vtree {
     Vtree::noeud(
         Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
@@ -14,15 +14,15 @@ fn vtree_test() -> Vtree {
     )
 }
 
-/// Ordre canonique du vtree = parcours plat gauche-avant-droite.
+/// Canonical order of the vtree = flat left-before-right traversal.
 #[test]
 fn test_ordre_canonique_vtree() {
     let ordre = Order::canonique(&vtree_test());
     assert_eq!(ordre.sequence(), &[Atom(0), Atom(1), Atom(2), Atom(3)]);
 }
 
-/// Un vtree induit un ordre total (contrainte gauche-avant-droite à chaque
-/// nœud interne) : l'ordre plat est la seule permutation valide, adoptée.
+/// A vtree induces a total order (left-before-right constraint at each
+/// internal node): the flat order is the only valid permutation, adopted.
 #[test]
 fn test_pi_valide_adopte() {
     let vtree = vtree_test();
@@ -30,8 +30,8 @@ fn test_pi_valide_adopte() {
     assert_eq!(ordre.sequence(), &[Atom(0), Atom(1), Atom(2), Atom(3)]);
 }
 
-/// Une autre forme de vtree induit un autre ordre canonique : (x2, (x0, x1))
-/// donne l'ordre plat [2, 0, 1], et π = [0, 1, 2] viole la contrainte 2 < 0.
+/// Another vtree shape induces another canonical order: (x2, (x0, x1))
+/// gives flat order [2, 0, 1], and π = [0, 1, 2] violates constraint 2 < 0.
 #[test]
 fn test_autre_vtree_autre_ordre() {
     let vtree = Vtree::noeud(
@@ -50,8 +50,8 @@ fn test_autre_vtree_autre_ordre() {
     );
 }
 
-/// π plaçant une variable de droite avant une variable de gauche :
-/// contrainte du vtree violée, rejeté avec la paire fautive.
+/// π placing a right variable before a left variable:
+/// vtree constraint violated, rejected with the offending pair.
 #[test]
 fn test_pi_violant_vtree_rejete() {
     let resultat = Order::nouveau(&vtree_test(), vec![Atom(2), Atom(0), Atom(1), Atom(3)]);
@@ -64,14 +64,14 @@ fn test_pi_violant_vtree_rejete() {
     );
 }
 
-/// π qui n'est pas une permutation des variables du vtree : rejeté.
+/// π that is not a permutation of the vtree's variables: rejected.
 #[test]
 fn test_pi_pas_une_permutation_rejete() {
     let resultat = Order::nouveau(&vtree_test(), vec![Atom(0), Atom(1), Atom(2), Atom(9)]);
     assert_eq!(resultat.unwrap_err(), ErreurOrdre::PasUnePermutation);
 }
 
-/// Vtree invalide : variable en double, erreur typée.
+/// Invalid vtree: duplicate variable, typed error.
 #[test]
 fn test_vtree_variable_en_double_rejete() {
     let vtree = Vtree::noeud(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(0)));
@@ -81,8 +81,8 @@ fn test_vtree_variable_en_double_rejete() {
     );
 }
 
-/// Génère un vtree aléatoire sur `nombre_variables` variables, par LCG
-/// déterministe (mêmes constantes que les autres tests de propriété).
+/// Generates a random vtree over `nombre_variables` variables, by
+/// deterministic LCG (same constants as the other property tests).
 fn vtree_aleatoire(graine: &mut u64, nombre_variables: u64) -> Vtree {
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
@@ -106,9 +106,9 @@ fn vtree_aleatoire(graine: &mut u64, nombre_variables: u64) -> Vtree {
     construire(graine, &variables)
 }
 
-/// Vérifie structurellement (par parcours direct de l'arbre, indépendant de
-/// `contraintes_ordre`) que `sequence` place toute variable de gauche avant
-/// toute variable de droite à chaque nœud interne.
+/// Structurally checks (by direct tree traversal, independent of
+/// `contraintes_ordre`) that `sequence` places every left variable before
+/// every right variable at each internal node.
 fn verifier_gauche_avant_droite(vtree: &Vtree, sequence: &[Atom]) {
     if let Vtree::Noeud { gauche, droite } = vtree {
         for variable_gauche in gauche.ordre_plat() {
@@ -123,9 +123,9 @@ fn verifier_gauche_avant_droite(vtree: &Vtree, sequence: &[Atom]) {
     }
 }
 
-/// Propriété (cas générés par LCG) : pour tout vtree, l'ordre canonique est
-/// une permutation des variables et satisfait gauche-avant-droite à chaque
-/// nœud, vérifié par parcours direct de l'arbre.
+/// Property (LCG-generated cases): for any vtree, the canonical order is
+/// a permutation of the variables and satisfies left-before-right at each
+/// node, verified by direct tree traversal.
 #[test]
 fn test_propriete_ordre_canonique_satisfait_contraintes() {
     const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;

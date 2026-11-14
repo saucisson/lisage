@@ -1,12 +1,12 @@
-//! Tests de M3-2 (énoncé C3) : réordonner = convertir — `Conversion<T>`
-//! compilée en transpositions adjacentes à coût prévisible (inversions),
-//! et contrat typé étendu aux encodages via les `Royaume<T, O, E, V>`.
+//! M3-2 tests (claim C3): reorder = convert — `Conversion<T>`
+//! compiled into adjacent transpositions at predictable cost (inversions),
+//! and typed contract extended to encodings via `Royaume<T, O, E, V>`.
 
 use lisage_lang::Atom;
 use lisage_plan::conversion::{Conversion, Encodage, ErreurConversion, MarqueEncodage, Royaume};
 use lisage_plan::ordre::{DomaineAtomes, MarqueOrdre, Order, TypeOrdre};
 
-/// Marque portant l'ordre canonique sur un domaine d'atomes.
+/// Mark carrying the canonical order over an atom domain.
 struct MarqueCanonique;
 
 impl MarqueOrdre<DomaineAtomes> for MarqueCanonique {
@@ -15,18 +15,18 @@ impl MarqueOrdre<DomaineAtomes> for MarqueCanonique {
     }
 }
 
-/// Marque portant l'ordre inversé sur un domaine d'atomes.
+/// Mark carrying the reversed order over an atom domain.
 struct MarqueInverse;
 
 impl MarqueOrdre<DomaineAtomes> for MarqueInverse {
     fn ordre(descripteur: &DomaineAtomes) -> Order<DomaineAtomes> {
         let mut pi = descripteur.cles_canoniques();
         pi.reverse();
-        Order::nouveau(descripteur, pi).expect("l'ordre inversé est une permutation valide")
+        Order::nouveau(descripteur, pi).expect("the reversed order is a valid permutation")
     }
 }
 
-/// Marque d'encodage : balayage d'univers.
+/// Encoding mark: universe sweep.
 struct MarqueBalayage;
 
 impl MarqueEncodage for MarqueBalayage {
@@ -35,7 +35,7 @@ impl MarqueEncodage for MarqueBalayage {
     }
 }
 
-/// Marque d'encodage : compilation énumérative.
+/// Encoding mark: enumerative compilation.
 struct MarqueEnumeration;
 
 impl MarqueEncodage for MarqueEnumeration {
@@ -44,8 +44,8 @@ impl MarqueEncodage for MarqueEnumeration {
     }
 }
 
-/// Nombre d'inversions entre deux séquences (distance de Kendall tau),
-/// calculé indépendamment de `Conversion`.
+/// Number of inversions between two sequences (Kendall tau distance),
+/// computed independently of `Conversion`.
 fn inversions<T: TypeOrdre>(source: &Order<T>, cible: &Order<T>) -> usize {
     let sequence = cible.sequence();
     let mut compte = 0;
@@ -59,7 +59,7 @@ fn inversions<T: TypeOrdre>(source: &Order<T>, cible: &Order<T>) -> usize {
     compte
 }
 
-/// M3-2 : une conversion entre ordres alignés est l'identité (coût nul).
+/// M3-2: a conversion between aligned orders is the identity (zero cost).
 #[test]
 fn test_conversion_identite_cout_nul() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
@@ -70,21 +70,21 @@ fn test_conversion_identite_cout_nul() {
     assert!(conversion.transpositions().is_empty());
 }
 
-/// M3-2 : réordonner = convertir — la conversion est compilée en
-/// transpositions adjacentes dont le nombre est le coût prévisible.
+/// M3-2: reorder = convert — the conversion is compiled into
+/// adjacent transpositions whose count is the predictable cost.
 #[test]
 fn test_conversion_transpositions_adjacentes() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let source = Order::canonique(&domaine);
     let cible = Order::nouveau(&domaine, vec![Atom(2), Atom(1), Atom(0)]).unwrap();
     let conversion = Conversion::nouveau(&source, &cible).unwrap();
-    // Inversion totale de 3 éléments : 3 inversions, 3 transpositions.
+    // Total inversion of 3 elements: 3 inversions, 3 transpositions.
     assert_eq!(conversion.cout(), 3);
     assert_eq!(conversion.transpositions().len(), 3);
     for (i, j) in conversion.transpositions() {
-        assert_eq!(*j, i + 1, "transposition adjacente");
+        assert_eq!(*j, i + 1, "adjacent transposition");
     }
-    // Appliquer les transpositions à la cible redonne la source.
+    // Applying the transpositions to the target gives back the source.
     let mut sequence = cible.sequence().to_vec();
     for (i, j) in conversion.transpositions() {
         sequence.swap(*i, *j);
@@ -92,7 +92,7 @@ fn test_conversion_transpositions_adjacentes() {
     assert_eq!(sequence, source.sequence());
 }
 
-/// M3-2 : deux ordres de domaines différents sont inconvertibles.
+/// M3-2: two orders of different domains are inconvertible.
 #[test]
 fn test_conversion_ordres_inconvertibles() {
     let domaine_a = DomaineAtomes(vec![Atom(0), Atom(1)]);
@@ -105,9 +105,9 @@ fn test_conversion_ordres_inconvertibles() {
     );
 }
 
-/// M3-2 : contrat typé étendu aux encodages — le royaume expose son ordre
-/// et son encodage, et `reordonner` exige une conversion compatible avec
-/// les marques source et cible.
+/// M3-2: typed contract extended to encodings — the realm exposes its order
+/// and its encoding, and `reordonner` requires a conversion compatible with
+/// the source and target marks.
 #[test]
 fn test_royaume_reordonner_contrat_type() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
@@ -126,14 +126,14 @@ fn test_royaume_reordonner_contrat_type() {
         Encodage::Enumeration
     );
 
-    // Conversion compatible : la valeur passe dans le royaume cible.
+    // Compatible conversion: the value moves into the target realm.
     let converti = royaume
         .reordonner::<MarqueInverse>(&domaine, &conversion)
         .unwrap();
     assert_eq!(*converti.valeur(), 7);
-    assert_eq!(conversion.cout(), 3, "coût prévisible exposé");
+    assert_eq!(conversion.cout(), 3, "predictable cost exposed");
 
-    // Conversion incompatible (mauvaise source) : erreur typée.
+    // Incompatible conversion (wrong source): typed error.
     let mauvaise = Conversion::nouveau(&cible, &source).unwrap();
     assert_eq!(
         royaume
@@ -143,10 +143,10 @@ fn test_royaume_reordonner_contrat_type() {
     );
 }
 
-/// Propriété (LCG déterministe) : pour tous ordres source/cible sur le
-/// même domaine, le coût de la conversion égale le nombre d'inversions
-/// calculé indépendamment, et les transpositions appliquées à la cible
-/// redonnent la source.
+/// Property (deterministic LCG): for any source/target orders over the
+/// same domain, the conversion cost equals the independently computed
+/// inversion count, and the transpositions applied to the target give back
+/// the source.
 #[test]
 fn test_propriete_cout_egal_inversions_et_transpositions_exactes() {
     const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -165,7 +165,7 @@ fn test_propriete_cout_egal_inversions_et_transpositions_exactes() {
         let taille = 1 + (suivant() % 8) as usize;
         let domaine = DomaineAtomes((0..taille).map(|i| Atom(i as u64)).collect());
         let source = Order::canonique(&domaine);
-        // Cible : permutation aléatoire (Fisher-Yates déterministe).
+        // Target: random permutation (deterministic Fisher-Yates).
         let mut pi: Vec<Atom> = (0..taille).map(|i| Atom(i as u64)).collect();
         for i in (1..taille).rev() {
             let j = (suivant() as usize) % (i + 1);
@@ -177,13 +177,13 @@ fn test_propriete_cout_egal_inversions_et_transpositions_exactes() {
         assert_eq!(
             conversion.cout(),
             inversions(&source, &cible),
-            "coût = inversions (Kendall tau)"
+            "cost = inversions (Kendall tau)"
         );
         let mut sequence = cible.sequence().to_vec();
         for (i, j) in conversion.transpositions() {
             sequence.swap(*i, *j);
         }
-        assert_eq!(sequence, source.sequence(), "transpositions exactes");
+        assert_eq!(sequence, source.sequence(), "exact transpositions");
         assert_eq!(conversion.est_identite(), source == cible);
     }
 }

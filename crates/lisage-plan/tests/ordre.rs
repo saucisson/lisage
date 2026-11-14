@@ -1,6 +1,6 @@
-//! Tests de M3-1 (énoncé C3) : `Order<T>` valeur de première classe —
-//! permutation π vérifiée, contraintes du type embarquées, alignement
-//! comme typage (même marque `O`) et vérifié en valeur (`alignement`).
+//! M3-1 tests (claim C3): `Order<T>` first-class value —
+//! verified permutation π, embedded type constraints, alignment
+//! as typing (same mark `O`) and checked by value (`alignement`).
 
 use lisage_lang::Atom;
 use lisage_plan::ordre::{
@@ -8,7 +8,7 @@ use lisage_plan::ordre::{
     TypeOrdre,
 };
 
-/// Marque portant l'ordre canonique sur un domaine d'atomes.
+/// Mark carrying the canonical order over an atom domain.
 struct MarqueCanonique;
 
 impl MarqueOrdre<DomaineAtomes> for MarqueCanonique {
@@ -17,23 +17,23 @@ impl MarqueOrdre<DomaineAtomes> for MarqueCanonique {
     }
 }
 
-/// Marque portant l'ordre inversé sur un domaine d'atomes.
+/// Mark carrying the reversed order over an atom domain.
 struct MarqueInverse;
 
 impl MarqueOrdre<DomaineAtomes> for MarqueInverse {
     fn ordre(descripteur: &DomaineAtomes) -> Order<DomaineAtomes> {
         let mut pi = descripteur.cles_canoniques();
         pi.reverse();
-        Order::nouveau(descripteur, pi).expect("l'ordre inversé est une permutation valide")
+        Order::nouveau(descripteur, pi).expect("the reversed order is a valid permutation")
     }
 }
 
-/// M3-1 : l'ordre canonique est π = identité.
+/// M3-1: the canonical order is π = identity.
 #[test]
 fn test_ordre_canonique_identite() {
     let domaine = DomaineAtomes(vec![Atom(2), Atom(0), Atom(1), Atom(0)]);
     let ordre = Order::canonique(&domaine);
-    assert_eq!(ordre.taille(), 3, "doublons retirés du canonique");
+    assert_eq!(ordre.taille(), 3, "duplicates removed from canonical");
     assert_eq!(ordre.permutation(), vec![0, 1, 2]);
     assert_eq!(ordre.position(&Atom(0)), Some(0));
     assert_eq!(ordre.position(&Atom(2)), Some(2));
@@ -43,7 +43,7 @@ fn test_ordre_canonique_identite() {
     assert!(ordre.contraintes().is_empty());
 }
 
-/// M3-1 : une permutation valide est acceptée, avec les bonnes positions.
+/// M3-1: a valid permutation is accepted, with the right positions.
 #[test]
 fn test_nouvel_ordre_permutation_valide() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
@@ -51,42 +51,42 @@ fn test_nouvel_ordre_permutation_valide() {
     assert_eq!(
         ordre.permutation(),
         vec![1, 2, 0],
-        "π : canonique → position"
+        "π: canonical → position"
     );
     assert_eq!(ordre.position(&Atom(2)), Some(0));
     assert_eq!(ordre.cle(0), Some(&Atom(2)));
 }
 
-/// M3-1 : π qui n'est pas une permutation est rejetée (erreur typée).
+/// M3-1: π that is not a permutation is rejected (typed error).
 #[test]
 fn test_nouvel_ordre_rejete_si_pas_une_permutation() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1)]);
-    // Clé manquante.
+    // Missing key.
     assert_eq!(
         Order::nouveau(&domaine, vec![Atom(0)]),
         Err(ErreurOrdre::PasUnePermutation)
     );
-    // Clé en double.
+    // Duplicate key.
     assert_eq!(
         Order::nouveau(&domaine, vec![Atom(0), Atom(0)]),
         Err(ErreurOrdre::PasUnePermutation)
     );
-    // Clé étrangère au type.
+    // Key foreign to the type.
     assert_eq!(
         Order::nouveau(&domaine, vec![Atom(0), Atom(7)]),
         Err(ErreurOrdre::PasUnePermutation)
     );
 }
 
-/// M3-1 : les contraintes du type sont embarquées dans `Order<T>` et
-/// vérifiées — pour `Map(K, V)`, la présence d'une clé précède sa valeur.
+/// M3-1: the type's constraints are embedded in `Order<T>` and
+/// checked — for `Map(K, V)`, a key's presence precedes its value.
 #[test]
 fn test_contraintes_map_presence_avant_valeur() {
     let cles = ClesMap(vec![Atom(0), Atom(1)]);
     let canonique = Order::canonique(&cles);
     assert_eq!(canonique.taille(), 4);
-    assert_eq!(canonique.contraintes().len(), 2, "une contrainte par clé");
-    // Ordre canonique : satisfait les contraintes.
+    assert_eq!(canonique.contraintes().len(), 2, "one constraint per key");
+    // Canonical order: satisfies the constraints.
     assert!(
         Order::nouveau(
             &cles,
@@ -99,7 +99,7 @@ fn test_contraintes_map_presence_avant_valeur() {
         .is_ok()
     );
 
-    // Valeur avant présence pour la clé 1 : contrainte violée.
+    // Value before presence for key 1: constraint violated.
     let violee = vec![
         CleMap {
             cle: Atom(0),
@@ -132,8 +132,8 @@ fn test_contraintes_map_presence_avant_valeur() {
         })
     );
 
-    // Présence et valeur d'une même clé échangées dans le désordre total :
-    // toute permutation qui inverse une paire (présence, valeur) est rejetée.
+    // Presence and value of the same key swapped in total disorder:
+    // any permutation that inverts a (presence, value) pair is rejected.
     let inverse = Order::nouveau(
         &cles,
         vec![
@@ -165,7 +165,7 @@ fn test_contraintes_map_presence_avant_valeur() {
     );
 }
 
-/// M3-1 : alignement en valeur — deux ordres du même type alignés ssi même π.
+/// M3-1: alignment by value — two orders of the same type are aligned iff same π.
 #[test]
 fn test_alignement_en_valeur() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
@@ -180,9 +180,9 @@ fn test_alignement_en_valeur() {
     );
 }
 
-/// M3-1 : alignement comme typage — deux opérandes ne se composent que
-/// sous la même marque d'ordre `O` (même paramètre de type des deux côtés ;
-/// des marques différentes ne compileraient pas).
+/// M3-1: alignment as typing — two operands compose only under the same
+/// order mark `O` (same type parameter on both sides;
+/// different marks would not compile).
 #[test]
 fn test_alignement_comme_typage_composition_sous_meme_marque() {
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1)]);
@@ -194,18 +194,18 @@ fn test_alignement_comme_typage_composition_sous_meme_marque() {
     let somme = a.composer(&b, |x, y| x + y);
     assert_eq!(*somme.valeur(), 5);
 
-    // La marque inverse porte un autre ordre : composer exige la même
-    // marque des deux côtés (test de typage positif ; le cas négatif est
-    // un refus de compilation).
+    // The inverse mark carries another order: composer requires the same
+    // mark on both sides (positive typing test; the negative case is a
+    // compile-time rejection).
     let c = Aligne::<DomaineAtomes, MarqueInverse, u32>::nouveau(10);
     let d = Aligne::<DomaineAtomes, MarqueInverse, u32>::nouveau(1);
     assert_eq!(*c.composer(&d, |x, y| x - y).valeur(), 9);
     assert!(!MarqueCanonique::ordre(&domaine).alignes(&MarqueInverse::ordre(&domaine)));
 }
 
-/// Propriété (LCG déterministe) : pour toute permutation valide π d'un
-/// domaine de n atomes, `position ∘ cle` est l'identité et `permutation`
-/// est une bijection ; les contraintes Map sont satisfaites par le canonique.
+/// Property (deterministic LCG): for any valid permutation π of a domain
+/// of n atoms, `position ∘ cle` is the identity and `permutation`
+/// is a bijection; Map constraints are satisfied by the canonical order.
 #[test]
 fn test_propriete_permutation_valide_bijection() {
     const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -223,13 +223,13 @@ fn test_propriete_permutation_valide_bijection() {
     for _cas in 0..50 {
         let taille = 1 + (suivant() % 8) as usize;
         let domaine = DomaineAtomes((0..taille).map(|i| Atom(i as u64)).collect());
-        // Permutation aléatoire (mélange de Fisher-Yates déterministe).
+        // Random permutation (deterministic Fisher-Yates shuffle).
         let mut pi: Vec<Atom> = (0..taille).map(|i| Atom(i as u64)).collect();
         for i in (1..taille).rev() {
             let j = (suivant() as usize) % (i + 1);
             pi.swap(i, j);
         }
-        let ordre = Order::nouveau(&domaine, pi.clone()).expect("permutation valide");
+        let ordre = Order::nouveau(&domaine, pi.clone()).expect("valid permutation");
         assert_eq!(ordre.taille(), taille);
         let mut positions: Vec<usize> = (0..taille)
             .map(|i| ordre.position(&pi[i]).unwrap())
@@ -245,7 +245,7 @@ fn test_propriete_permutation_valide_bijection() {
         assert_eq!(permutation, (0..taille).collect::<Vec<_>>());
     }
 
-    // Contraintes Map : le canonique les satisfait toujours.
+    // Map constraints: the canonical order always satisfies them.
     let cles = ClesMap((0..5).map(Atom).collect());
     let canonique = Order::canonique(&cles);
     for (avant, apres) in canonique.contraintes() {
@@ -255,8 +255,8 @@ fn test_propriete_permutation_valide_bijection() {
 
 #[test]
 fn test_aval_runtime_ordre_valide_adopte() {
-    // π runtime valide (permutation respectant présence < valeur) :
-    // stratégie OrdreRuntime, séquence = π fournie.
+    // Valid runtime π (permutation respecting presence < value):
+    // OrdreRuntime strategy, sequence = provided π.
     let cles = ClesMap(vec![Atom(0), Atom(1)]);
     let presence_0 = CleMap {
         cle: Atom(0),
@@ -282,8 +282,8 @@ fn test_aval_runtime_ordre_valide_adopte() {
 
 #[test]
 fn test_aval_runtime_contrainte_violee_repli_canonique() {
-    // π runtime qui viole présence < valeur pour la clé 0 :
-    // repli sur l'ordre canonique (reordering dégradé en fallback).
+    // Runtime π that violates presence < value for key 0:
+    // fallback to the canonical order (degraded reordering as fallback).
     let cles = ClesMap(vec![Atom(0), Atom(1)]);
     let presence_0 = CleMap {
         cle: Atom(0),
@@ -311,7 +311,7 @@ fn test_aval_runtime_contrainte_violee_repli_canonique() {
 
 #[test]
 fn test_aval_runtime_pas_une_permutation_repli_canonique() {
-    // π runtime avec une clé en double / manquante : repli canonique aussi.
+    // Runtime π with a duplicate / missing key: canonical fallback too.
     let domaine = DomaineAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let pi_invalide = vec![Atom(0), Atom(0), Atom(2)];
     let (ordre, strategie) = Order::avec_aval_runtime(&domaine, pi_invalide);
