@@ -1,6 +1,6 @@
-//! Tests du pool bi-plan (M4-1, énoncé C5) : plans principal/ombre, index
-//! niveau → formes dans le plan d'ombre, GC mark-and-sweep, compaction
-//! profilée (seuil de morts), métriques de cache, événement `Gc`.
+//! Two-plane pool tests (M4-1, statement C5): main/shadow planes, level →
+//! forms index in the shadow plane, mark-and-sweep GC, profiled compaction
+//! (dead threshold), cache metrics, `Gc` event.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -12,26 +12,26 @@ use lisage_core::arena::Arena;
 use lisage_core::biplan::{Plan, SEUIL_COMPACTION_DEN, SEUIL_COMPACTION_NUM, seuil_atteint};
 use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
 
-/// Ancre de test (valeur arbitraire mais nommée).
+/// Test anchor (arbitrary but named value).
 const ANCRE_TEST: Anchor = Anchor(0);
-/// Niveau du nœud racine du petit diagramme.
+/// Level of the root node of the small diagram.
 const NIVEAU_RACINE: u32 = 1;
-/// Niveau du nœud orphelin du petit diagramme.
+/// Level of the orphan node of the small diagram.
 const NIVEAU_ORPHELIN: u32 = 2;
-/// Nombre d'orphelins ajoutés pour dépasser le seuil de compaction.
+/// Number of orphans added to exceed the compaction threshold.
 const NB_ORPHELINS: u64 = 20;
-/// Niveau de base des orphelins de la compaction profilée.
+/// Base level of the orphans of the profiled compaction.
 const NIVEAU_BASE_ORPHELINS: u32 = 10;
-/// Niveau du nœud interné dans le plan d'ombre.
+/// Level of the node interned in the shadow plane.
 const NIVEAU_OMBRE: u32 = 3;
-/// Niveau absent de l'index (test de l'ensemble vide).
+/// Level absent from the index (empty-set test).
 const NIVEAU_ABSENT: u32 = 9;
 
-/// Graine du LCG des tests de propriété (même constante que les autres suites).
+/// LCG seed of the property tests (same constant as the other suites).
 const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
-/// Multiplicateur du LCG des tests de propriété.
+/// LCG multiplier of the property tests.
 const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
-/// Incrément du LCG des tests de propriété.
+/// LCG increment of the property tests.
 const INCREMENT_LCG: u64 = 1442695040888963407;
 
 struct MockKeys;
@@ -66,7 +66,7 @@ impl Controller for MockController {
     }
 }
 
-/// Observateur enregistreur.
+/// Recording observer.
 #[derive(Default)]
 struct RecordingObserver {
     events: Mutex<Vec<TraceEvent>>,
@@ -82,8 +82,8 @@ fn arena() -> Arena<MockController> {
     Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver))
 }
 
-/// Construit un petit diagramme : nœud niveau 1 avec deux arcs vers deux
-/// terminaux, plus un nœud orphelin niveau 2.
+/// Builds a small diagram: level-1 node with two arcs to two terminals,
+/// plus an orphan level-2 node.
 fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
     let faux = pool.terminal(ANCRE_TEST, false);
     let vrai = pool.terminal(ANCRE_TEST, true);
@@ -104,14 +104,14 @@ fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
     (racine, orphelin)
 }
 
-/// M4-1 : plans principal/ombre et index du plan d'ombre (niveau → formes).
+/// M4-1: main/shadow planes and the shadow-plane index (level → forms).
 #[test]
 fn test_plans_et_index_ombre() {
     let mut pool = arena();
     let (racine, orphelin) = petit_diagramme(&mut pool);
-    // Par défaut, tout est dans le plan principal.
+    // By default, everything is in the main plane.
     assert_eq!(pool.plan_de(racine), Some(Plan::Principal));
-    // Un nœud interné dans le plan d'ombre y reste.
+    // A node interned in the shadow plane stays there.
     let ombre = pool.intern_plan(
         ANCRE_TEST,
         Form::Node {
@@ -122,25 +122,25 @@ fn test_plans_et_index_ombre() {
     );
     assert_eq!(pool.plan_de(ombre), Some(Plan::Ombre));
     assert_eq!(pool.plan_de(orphelin), Some(Plan::Principal));
-    // Index du plan d'ombre : niveau 1 contient la racine.
+    // Shadow-plane index: level 1 contains the root.
     assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&racine));
     assert!(pool.index_niveau(Level(NIVEAU_OMBRE)).contains(&ombre));
     assert!(pool.index_niveau(Level(NIVEAU_ABSENT)).is_empty());
 }
 
-/// M4-1 : GC mark-and-sweep — seuls les nœuds atteints depuis les racines
-/// survivent ; les tombstones sont retirées de la table unique et de
-/// l'index, et `resolve` les rejette.
+/// M4-1: mark-and-sweep GC — only nodes reached from the roots survive;
+/// tombstones are removed from the unique table and the index, and
+/// `resolve` rejects them.
 #[test]
 fn test_gc_mark_sweep() {
     let mut pool = arena();
     let (racine, orphelin) = petit_diagramme(&mut pool);
     let avant = pool.node_count();
     let stats = pool.gc(&[racine]);
-    // R-default a retiré l'arc par défaut : atteignables = racine + vrai.
-    assert_eq!(stats.vivants, 2, "racine + terminal vrai");
+    // R-default removed the default arc: reachable = root + true.
+    assert_eq!(stats.vivants, 2, "root + true terminal");
     assert_eq!(stats.collectes, (avant as u64) - 2);
-    // La compaction dépend du seuil profilé appliqué aux morts constatés.
+    // Compaction depends on the profiled threshold applied to observed dead.
     assert_eq!(
         stats.compaction,
         seuil_atteint(stats.collectes, avant as u64)
@@ -149,14 +149,14 @@ fn test_gc_mark_sweep() {
     assert_eq!(
         pool.resolve(orphelin),
         Err(PoolError::UnknownNode(orphelin)),
-        "nœud collecté = tombstone"
+        "collected node = tombstone"
     );
     assert!(
         !pool
             .index_niveau(Level(NIVEAU_ORPHELIN))
             .contains(&orphelin)
     );
-    // Ré-interner la forme de l'orphelin recrée un nœud (miss du cache).
+    // Re-interning the orphan's form creates a new node (cache miss).
     let vrai = pool.terminal(ANCRE_TEST, true);
     let faux = pool.terminal(ANCRE_TEST, false);
     let recree = pool.intern(
@@ -166,19 +166,19 @@ fn test_gc_mark_sweep() {
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
-    // Après compaction les ids sont recyclés : l'assertion porte sur la
-    // validité du nouveau nœud, pas sur la valeur de son id.
+    // After compaction ids are recycled: the assertion is on the validity of
+    // the new node, not on the value of its id.
     assert!(pool.resolve(recree).is_ok());
     assert_eq!(pool.plan_de(recree), Some(Plan::Principal));
 }
 
-/// M4-1 : compaction profilée — quand morts × 4 ≥ total, le GC compacte et
-/// remappe les `NodeId` ; les handles vivants restent valides.
+/// M4-1: profiled compaction — when dead × 4 ≥ total, the GC compacts and
+/// remaps the `NodeId`s; live handles stay valid.
 #[test]
 fn test_compaction_profilee() {
     let mut pool = arena();
     let (racine, _orphelin) = petit_diagramme(&mut pool);
-    // Beaucoup d'orphelins pour dépasser le seuil SEUIL_COMPACTION.
+    // Many orphans to exceed the SEUIL_COMPACTION threshold.
     let mut orphelins = Vec::new();
     for i in 0..NB_ORPHELINS {
         orphelins.push(pool.intern(
@@ -192,16 +192,16 @@ fn test_compaction_profilee() {
     let total = pool.node_count() as u64;
     assert!(
         seuil_atteint(NB_ORPHELINS, total),
-        "seuil de compaction atteint"
+        "compaction threshold reached"
     );
     let stats = pool.gc(&[racine]);
-    assert!(stats.compaction, "compaction profilée déclenchée");
+    assert!(stats.compaction, "profiled compaction triggered");
     assert_eq!(pool.vivants(), 2);
-    assert_eq!(pool.node_count(), 2, "tombstones compactées");
-    // La compaction invalide les anciens NodeId : la racine vivante est
-    // remappée vers un nouvel id, résolvable et indexé au niveau 1.
+    assert_eq!(pool.node_count(), 2, "tombstones compacted");
+    // Compaction invalidates old NodeIds: the live root is remapped to a new
+    // id, resolvable and indexed at level 1.
     let remap = pool.dernier_remap();
-    let nouveau = remap[racine.0 as usize].expect("racine vivante remappée");
+    let nouveau = remap[racine.0 as usize].expect("live root remapped");
     assert_ne!(nouveau, racine);
     assert!(pool.resolve(nouveau).is_ok());
     assert!(pool.index_niveau(Level(NIVEAU_RACINE)).contains(&nouveau));
@@ -211,8 +211,8 @@ fn test_compaction_profilee() {
     assert_eq!(SEUIL_COMPACTION_DEN, 4);
 }
 
-/// M4-1 : métriques de cache — créations/partages du hash-consing, taux de
-/// hit, compteurs de GC — et événement `Gc` émis vers l'observateur.
+/// M4-1: cache metrics — hash-consing creations/shares, hit rate, GC
+/// counters — and the `Gc` event emitted to the observer.
 #[test]
 fn test_metriques_cache_et_evenement_gc() {
     let observateur = Arc::new(RecordingObserver::default());
@@ -227,31 +227,31 @@ fn test_metriques_cache_et_evenement_gc() {
         Box::new(Pont(observateur.clone())),
     );
     let (racine, orphelin) = petit_diagramme(&mut pool);
-    // Re-interner la forme exacte de la racine : hit (R-share, même handle).
+    // Re-intern the exact form of the root: hit (R-share, same handle).
     let Form::Node { level, arcs } = pool.resolve(racine).unwrap().clone() else {
-        panic!("la racine est un nœud");
+        panic!("the root is a node");
     };
-    let partage = pool.intern(ANCRE_TEST, Form::Node { level, arcs });
-    assert_eq!(partage, racine, "R-share : même handle");
-    let metriques = pool.metriques();
+    let share = pool.intern(ANCRE_TEST, Form::Node { level, arcs });
+    assert_eq!(share, racine, "R-share: same handle");
+    let metrics = pool.metriques();
     assert!(
-        metriques.creations >= 4,
-        "créations comptées: {}",
-        metriques.creations
+        metrics.creations >= 4,
+        "creations counted: {}",
+        metrics.creations
     );
     assert!(
-        metriques.partages >= 1,
-        "partages comptés: {}",
-        metriques.partages
+        metrics.partages >= 1,
+        "shares counted: {}",
+        metrics.partages
     );
     assert!(pool.metriques().taux_hit() > 0);
     let stats = pool.gc(&[racine]);
-    let metriques = pool.metriques();
-    assert_eq!(metriques.gc, 1);
-    assert_eq!(metriques.vivants, stats.vivants);
-    assert_eq!(metriques.morts, stats.collectes);
-    assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
-    // Événement Gc émis.
+    let metrics = pool.metriques();
+    assert_eq!(metrics.gc, 1);
+    assert_eq!(metrics.vivants, stats.vivants);
+    assert_eq!(metrics.morts, stats.collectes);
+    assert_eq!(metrics.compactions, if stats.compaction { 1 } else { 0 });
+    // Gc event emitted.
     let events = observateur.events.lock().unwrap();
     assert!(
         events.iter().any(|e| matches!(
@@ -262,31 +262,31 @@ fn test_metriques_cache_et_evenement_gc() {
                 ..
             } if *vivants == stats.vivants && *collectes == stats.collectes
         )),
-        "événement Gc émis"
+        "Gc event emitted"
     );
     let _ = orphelin;
 }
 
-/// M4-1 : `intern_plan` sur un hit du hash-consing re-planne le nœud
-/// partagé (la forme existe déjà : le plan demandé écrase le plan
-/// courant du handle retourné).
+/// M4-1: `intern_plan` on a hash-consing hit re-plans the shared node
+/// (the form already exists: the requested plan overwrites the current
+/// plan of the returned handle).
 #[test]
 fn test_intern_plan_hit_cache_replanifie() {
     let mut pool = arena();
     let (racine, _orphelin) = petit_diagramme(&mut pool);
     assert_eq!(pool.plan_de(racine), Some(Plan::Principal));
     let Form::Node { level, arcs } = pool.resolve(racine).unwrap().clone() else {
-        panic!("la racine est un nœud");
+        panic!("the root is a node");
     };
-    // Hit du cache avec plan d'ombre : même handle, plan déplacé.
-    let meme = pool.intern_plan(ANCRE_TEST, Form::Node { level, arcs }, Plan::Ombre);
-    assert_eq!(meme, racine, "R-share : même handle");
+    // Cache hit with shadow plan: same handle, plan moved.
+    let same = pool.intern_plan(ANCRE_TEST, Form::Node { level, arcs }, Plan::Ombre);
+    assert_eq!(same, racine, "R-share: same handle");
     assert_eq!(pool.plan_de(racine), Some(Plan::Ombre));
 }
 
-/// M4-1 (tier propriété, LCG) : invariants du seuil de compaction, du taux
-/// de hit et du GC — borne `morts × 4 == total` incluse, `taux_hit` borné,
-/// `vivants + collectes == total` sur scénarios aléatoires.
+/// M4-1 (property tier, LCG): invariants of the compaction threshold, the
+/// hit rate and the GC — bound `dead × 4 == total` included, `taux_hit`
+/// bounded, `vivants + collectes == total` over random scenarios.
 #[test]
 fn test_propriete_seuil_taux_hit_et_invariant_gc() {
     let mut graine = GRAINE_LCG;
@@ -297,8 +297,8 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         graine >> 33
     };
 
-    // Seuil : la borne est incluse (morts × DEN == total × NUM → atteint),
-    // et un mort de moins ne l'atteint pas (pour total > 0).
+    // Threshold: the bound is included (dead × DEN == total × NUM → reached),
+    // and one dead less does not reach it (for total > 0).
     for _ in 0..1000 {
         let total = 1 + suivant() % 1000;
         let morts = suivant() % (total + 1);
@@ -306,39 +306,39 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
             seuil_atteint(morts, total),
             morts * SEUIL_COMPACTION_DEN >= total * SEUIL_COMPACTION_NUM
         );
-        assert!(!seuil_atteint(0, 0), "total nul : pas de compaction");
+        assert!(!seuil_atteint(0, 0), "zero total: no compaction");
     }
-    // Borne exacte : le plus petit `morts` atteignant le seuil est
-    // `ceil(total × NUM / DEN)` ; un mort de moins ne l'atteint pas.
+    // Exact bound: the smallest `dead` reaching the threshold is
+    // `ceil(total × NUM / DEN)`; one dead less does not reach it.
     for total in 1..=64u64 {
         let seuil = (total * SEUIL_COMPACTION_NUM).div_ceil(SEUIL_COMPACTION_DEN);
-        assert!(seuil_atteint(seuil, total), "borne atteinte: total={total}");
+        assert!(seuil_atteint(seuil, total), "bound reached: total={total}");
         assert!(
             !seuil_atteint(seuil - 1, total),
-            "un mort de moins sous la borne: total={total}"
+            "one dead below the bound: total={total}"
         );
     }
 
-    // Taux de hit : 0 sans activité, sinon pourcentage borné dans [0, 100].
+    // Hit rate: 0 without activity, otherwise a percentage bounded in [0, 100].
     for _ in 0..1000 {
         let creations = suivant() % 500;
-        let partages = suivant() % 500;
-        let metriques = lisage_core::biplan::MetriquesPool {
+        let shares = suivant() % 500;
+        let metrics = lisage_core::biplan::MetriquesPool {
             creations,
-            partages,
+            partages: shares,
             ..Default::default()
         };
-        let taux = metriques.taux_hit();
-        assert!(taux <= 100);
-        let attendu = partages
+        let rate = metrics.taux_hit();
+        assert!(rate <= 100);
+        let expected = shares
             .checked_mul(lisage_core::biplan::BASE_POURCENTAGE)
-            .and_then(|p| p.checked_div(creations + partages))
+            .and_then(|p| p.checked_div(creations + shares))
             .unwrap_or(0);
-        assert_eq!(taux, attendu);
+        assert_eq!(rate, expected);
     }
 
-    // Invariant du GC : vivants + collectes == total, et les métriques
-    // reflètent le dernier GC.
+    // GC invariant: vivants + collectes == total, and the metrics
+    // reflect the last GC.
     for _ in 0..100 {
         let mut pool = arena();
         let (racine, _orphelin) = petit_diagramme(&mut pool);
@@ -356,23 +356,23 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         let stats = pool.gc(&[racine]);
         assert_eq!(stats.vivants + stats.collectes, total);
         assert_eq!(stats.vivants, pool.vivants() as u64);
-        let metriques = pool.metriques();
-        assert_eq!(metriques.vivants, stats.vivants);
-        assert_eq!(metriques.morts, stats.collectes);
-        assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
+        let metrics = pool.metriques();
+        assert_eq!(metrics.vivants, stats.vivants);
+        assert_eq!(metrics.morts, stats.collectes);
+        assert_eq!(metrics.compactions, if stats.compaction { 1 } else { 0 });
     }
 }
 
-/// M4-1 (régression review) : un second GC sur le même pool sans
-/// compaction intermédiaire compte les vivants sur les entrées vivantes,
-/// pas sur le nombre de slots (qui inclut les tombstones du premier GC).
+/// M4-1 (review regression): a second GC on the same pool without
+/// intermediate compaction counts the living entries over the live entries,
+/// not over the slot count (which includes the tombstones of the first GC).
 #[test]
 fn test_gc_deux_fois_vivants_exacts() {
     let mut pool = arena();
     let (racine, _orphelin) = petit_diagramme(&mut pool);
-    // Chaîne de nœuds tous atteints depuis la racine : le premier GC ne
-    // collecte que l'orphelin et le terminal faux (2 morts sur un grand
-    // total), le seuil n'est pas atteint, les tombstones restent.
+    // Chain of nodes all reachable from the root: the first GC only
+    // collects the orphan and the false terminal (2 dead out of a large
+    // total), the threshold is not reached, the tombstones remain.
     let mut courant = racine;
     for i in 0..NB_ORPHELINS {
         courant = pool.intern(
@@ -383,18 +383,18 @@ fn test_gc_deux_fois_vivants_exacts() {
             },
         );
     }
-    // Racines = racine + extrémité de chaîne : toute la chaîne est atteinte,
-    // seuls l'orphelin et le terminal faux sont collectés.
-    let premier = pool.gc(&[racine, courant]);
-    assert!(!premier.compaction, "peu de morts : pas de compaction");
-    assert!(pool.node_count() > pool.vivants(), "tombstones conservées");
-    // Second GC : les vivants ne doivent pas compter les tombstones du
-    // premier GC — vivants + collectes == entrées vivantes avant le GC.
-    let vivantes_avant = pool.vivants() as u64;
+    // Roots = root + chain end: the whole chain is reachable,
+    // only the orphan and the false terminal are collected.
+    let first = pool.gc(&[racine, courant]);
+    assert!(!first.compaction, "few dead: no compaction");
+    assert!(pool.node_count() > pool.vivants(), "tombstones kept");
+    // Second GC: the living must not count the tombstones of the
+    // first GC — vivants + collectes == live entries before the GC.
+    let live_before = pool.vivants() as u64;
     let stats = pool.gc(&[racine, courant]);
     assert_eq!(stats.vivants, pool.vivants() as u64);
-    assert_eq!(stats.vivants + stats.collectes, vivantes_avant);
-    let metriques = pool.metriques();
-    assert_eq!(metriques.vivants, stats.vivants);
-    assert_eq!(metriques.gc, 2);
+    assert_eq!(stats.vivants + stats.collectes, live_before);
+    let metrics = pool.metriques();
+    assert_eq!(metrics.vivants, stats.vivants);
+    assert_eq!(metrics.gc, 2);
 }
