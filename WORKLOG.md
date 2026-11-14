@@ -47,6 +47,14 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 
+## 2026-11-14 - M6-3 docs/ translated to English, part A: specification, proposal, state of the art (issue #106)
+
+- **Issue**: #106 (M6-3, milestone M6).
+- **Done**: the 3 French-named files `spécification-…`, `proposition-lisage-…`, `état-de-l-art-…` under `docs/` are renamed to English and their content translated to English (including repair of corrupted machine-translation tokens found in review: dein-flight/expallowed/impallowed/apin-flightix). Split of the original PR #180 into three smaller PRs because the reviewer session hits its turn limit on the full ~2 100-line diff; the human authorized oversized PRs for M6, the split is a reviewer-feasibility measure, not a scope change.
+- **Evidence**: accent grep returns 0 for the three new files; old-filename grep returns nothing outside `docs/audit-french-inventory.md`, `docs/glossary.md` and `WORKLOG.md` (intentional). `make check` not run: docs-only change, no code touched.
+- **Judgement calls**: cross-references to renamed files live only in the roadmap (shipped in part C, merged last) and in crates doc comments (part C), so no broken links at any intermediate merge.
+- **Escalations**: none.
+
 ## 2026-11-13 - M6-0 audit: machine-checkable inventory of French-language content (issue #103)
 
 - **Issue**: #103 (M6-0, milestone M6 "English-only documentation and code").
