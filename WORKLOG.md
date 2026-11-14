@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4a-10: lisage-core biplan+bdd+error+lib+interface tests translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in `crates/lisage-core/src/biplan.rs`, `crates/lisage-core/src/bdd.rs`, `crates/lisage-core/src/error.rs`, `crates/lisage-core/src/lib.rs`, `crates/lisage-core/tests/biplan.rs`, `crates/lisage-core/tests/bdd.rs`, `crates/lisage-core/tests/interface.rs` to English. `tests/atelier.rs` left as-is: its only accented tokens are the public identifier `Synthétise`, kept until dependent crates are translated.
+- **Evidence**: accent grep returns 0 on every translated file (atelier.rs only matches `Synthétise`); `cargo check -p lisage-core --tests` passes; `cargo test -p lisage-core` all test suites pass (0 failed); `cargo fmt -p lisage-core -- --check` clean. Full `make check` deferred to the last part.
+- **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-5 part 4a-9: lisage-core memoire+region+add+ddd translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
