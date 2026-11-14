@@ -185,9 +185,9 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
             },
         );
         let compte_dd: u64 = match pool.resolve(root).expect("interned node") {
-            Form::Terminal(valeur) => {
+            Form::Terminal(value) => {
                 // R-collapse: S empty or full, the node reduces to the terminal.
-                if *valeur { TAILLE_DOMAINE } else { 0 }
+                if *value { TAILLE_DOMAINE } else { 0 }
             }
             Form::Node { arcs, .. } => {
                 assert!(

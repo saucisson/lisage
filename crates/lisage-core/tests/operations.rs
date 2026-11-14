@@ -14,15 +14,15 @@ use lisage_lang::value::{Atom, Value};
 
 type PoolRef = Arena<ReferenceController>;
 
-fn atome(valeur: u64) -> Value {
-    Value::Atom(Atom(valeur))
+fn atome(value: u64) -> Value {
+    Value::Atom(Atom(value))
 }
 
 fn map_de(paires: &[(u64, u64)]) -> Value {
     Value::Map(
         paires
             .iter()
-            .map(|(cle, valeur)| (atome(*cle), atome(*valeur)))
+            .map(|(cle, value)| (atome(*cle), atome(*value)))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }

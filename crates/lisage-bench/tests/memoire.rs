@@ -19,15 +19,15 @@ proptest! {
         prop_assert_eq!(memoire.version(), 0);
         let mut attendu: std::collections::HashMap<(NodeId, Level), u64> =
             std::collections::HashMap::new();
-        for (i, (node, niveau, valeur)) in ecritures.iter().enumerate() {
-            let ancien = memoire.ecrire(NodeId(*node), Level(*niveau), *valeur);
+        for (i, (node, niveau, value)) in ecritures.iter().enumerate() {
+            let ancien = memoire.ecrire(NodeId(*node), Level(*niveau), *value);
             prop_assert_eq!(memoire.version(), (i + 1) as u64, "version == number of writes");
-            prop_assert_eq!(ancien, attendu.insert((NodeId(*node), Level(*niveau)), *valeur));
+            prop_assert_eq!(ancien, attendu.insert((NodeId(*node), Level(*niveau)), *value));
         }
         prop_assert_eq!(memoire.taille(), attendu.len());
         // Read-after-write: each key reads the last written value.
-        for ((node, niveau), valeur) in &attendu {
-            prop_assert_eq!(memoire.lire(*node, *niveau), Some(valeur));
+        for ((node, niveau), value) in &attendu {
+            prop_assert_eq!(memoire.lire(*node, *niveau), Some(value));
         }
     }
 }

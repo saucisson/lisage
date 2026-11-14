@@ -116,7 +116,7 @@ fn test_royaume_reordonner_contrat_type() {
     let conversion = Conversion::new(&source, &cible).unwrap();
 
     let royaume = Royaume::<DomaineAtomes, MarqueCanonique, MarqueBalayage, u32>::new(7);
-    assert_eq!(*royaume.valeur(), 7);
+    assert_eq!(*royaume.value(), 7);
     assert_eq!(
         Royaume::<DomaineAtomes, MarqueCanonique, MarqueBalayage, u32>::encodage(),
         Encodage::BalayageUnivers
@@ -130,7 +130,7 @@ fn test_royaume_reordonner_contrat_type() {
     let converti = royaume
         .reordonner::<MarqueInverse>(&domaine, &conversion)
         .unwrap();
-    assert_eq!(*converti.valeur(), 7);
+    assert_eq!(*converti.value(), 7);
     assert_eq!(conversion.cout(), 3, "predictable cost exposed");
 
     // Incompatible conversion (wrong source): typed error.

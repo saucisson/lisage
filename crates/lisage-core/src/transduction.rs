@@ -239,7 +239,7 @@ impl<T: Transduction> Transducteur<T> {
                     self.notifier(TraceEvent::Attr {
                         canal: CanalAttr::Inherited,
                         node,
-                        valeur: format!("{h_arc:?}"),
+                        value: format!("{h_arc:?}"),
                     });
                     let (cible_resultat, s_arc) =
                         self.run_avec(pool_input, pool_output, anchor, cible, h_arc)?;
@@ -255,7 +255,7 @@ impl<T: Transduction> Transducteur<T> {
                 self.notifier(TraceEvent::Attr {
                     canal: CanalAttr::Synthesized,
                     node,
-                    valeur: format!("{s:?}"),
+                    value: format!("{s:?}"),
                 });
                 let ctx = ContextePhiOut {
                     anchor,
@@ -273,7 +273,7 @@ impl<T: Transduction> Transducteur<T> {
                     self.notifier(TraceEvent::Attr {
                         canal: CanalAttr::Memory,
                         node,
-                        valeur: format!("{:?}", effet.ecritures),
+                        value: format!("{:?}", effet.ecritures),
                     });
                 }
                 effet.apply(&mut self.memoire);
@@ -317,7 +317,7 @@ impl<T: Transduction> Transducteur<T> {
                     self.notifier(TraceEvent::Attr {
                         canal: CanalAttr::Inherited,
                         node,
-                        valeur: format!("{h_arc:?}"),
+                        value: format!("{h_arc:?}"),
                     });
                     let (cible_resultat, s_arc) =
                         self.run_avec_meme_pool(pool, anchor, cible, h_arc)?;
@@ -333,7 +333,7 @@ impl<T: Transduction> Transducteur<T> {
                 self.notifier(TraceEvent::Attr {
                     canal: CanalAttr::Synthesized,
                     node,
-                    valeur: format!("{s:?}"),
+                    value: format!("{s:?}"),
                 });
                 let ctx = ContextePhiOut {
                     anchor,
@@ -351,7 +351,7 @@ impl<T: Transduction> Transducteur<T> {
                     self.notifier(TraceEvent::Attr {
                         canal: CanalAttr::Memory,
                         node,
-                        valeur: format!("{:?}", effet.ecritures),
+                        value: format!("{:?}", effet.ecritures),
                     });
                 }
                 effet.apply(&mut self.memoire);

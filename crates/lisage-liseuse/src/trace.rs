@@ -75,17 +75,13 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                 handle.controller.0, handle.anchor.0, handle.node.0, nodes
             ),
         ),
-        TraceEvent::Attr {
-            canal,
-            node,
-            valeur,
-        } => (
+        TraceEvent::Attr { canal, node, value } => (
             "Attr",
             format!(
-                "\"canal\":\"{}\",\"noeud\":{},\"valeur\":\"{}\"",
+                "\"canal\":\"{}\",\"noeud\":{},@@WIRE_VALUE@@:\"{}\"",
                 nom_canal(*canal),
                 node.0,
-                echapper_json(valeur)
+                echapper_json(value)
             ),
         ),
         TraceEvent::MemoHit { node } => ("MemoHit", format!("\"noeud\":{}", node.0)),

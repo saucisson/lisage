@@ -45,7 +45,7 @@ pub enum TraceEvent {
         /// Node concerned.
         node: NodeId,
         /// Value (`Debug` format), displayed as-is.
-        valeur: String,
+        value: String,
     },
     /// Memo hit: the (op, node, h, version) tuple was in the computed table.
     MemoHit {

@@ -13,8 +13,8 @@ fn pool(nombre_variables: u32) -> PoolBdd {
 }
 
 /// Truth table of the constant ⊥.
-fn table_constante(nombre_variables: u32, valeur: bool) -> Vec<bool> {
-    vec![valeur; 1usize << nombre_variables]
+fn table_constante(nombre_variables: u32, value: bool) -> Vec<bool> {
+    vec![value; 1usize << nombre_variables]
 }
 
 /// Truth table of the XOR of two variables.

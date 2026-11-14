@@ -14,15 +14,15 @@ use lisage_lang::value::{Atom, Value};
 
 type PoolOutput = Arena<LookupController>;
 
-fn atome(valeur: u64) -> Value {
-    Value::Atom(Atom(valeur))
+fn atome(value: u64) -> Value {
+    Value::Atom(Atom(value))
 }
 
 fn map_de(paires: &[(u64, u64)]) -> Value {
     Value::Map(
         paires
             .iter()
-            .map(|(cle, valeur)| (atome(*cle), atome(*valeur)))
+            .map(|(cle, value)| (atome(*cle), atome(*value)))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }
@@ -31,8 +31,8 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
 fn executer_lookup(
     schema: &Schema,
     liste_cles: &[Atom],
-    domaine_valeurs: &Domaine,
-    valeur: &Value,
+    domaine_values: &Domaine,
+    value: &Value,
     cle: Atom,
 ) -> (PoolOutput, NodeId, BTreeMap<u64, NodeId>) {
     let mut input = Arena::new(
@@ -44,11 +44,11 @@ fn executer_lookup(
         Box::new(NoOpObserver),
     );
     let anchor = Anchor(0);
-    let root = compiler(&mut input, anchor, schema, valeur).unwrap();
+    let root = compiler(&mut input, anchor, schema, value).unwrap();
     let mut runner = Transducteur::new(Lookup::new(
         cle,
         liste_cles.to_vec(),
-        domaine_valeurs.clone(),
+        domaine_values.clone(),
     ));
     let (resultat, fragment) = runner.run(&input, &mut output, anchor, root).unwrap();
     (output, resultat, fragment)
@@ -80,10 +80,10 @@ fn payload_terminal(
                         },
                     }
                 } else {
-                    let Some(Value::Atom(valeur)) = map.get(&cle) else {
+                    let Some(Value::Atom(value)) = map.get(&cle) else {
                         panic!("key present with atomic value")
                     };
-                    node = *arcs.get(&valeur.0).expect("arc valeur");
+                    node = *arcs.get(&value.0).expect("arc value");
                 }
             }
         }
@@ -94,15 +94,15 @@ fn payload_terminal(
 #[test]
 fn test_lookup_cles_presentes() {
     let liste_cles = vec![Atom(0), Atom(1)];
-    let domaine_valeurs = Domaine::new(vec![Atom(0), Atom(1)]);
-    let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
-    let valeur = map_de(&[(0, 1), (1, 0)]);
-    let Value::Map(ref map) = valeur else {
+    let domaine_values = Domaine::new(vec![Atom(0), Atom(1)]);
+    let schema = Schema::Map(liste_cles.clone(), domaine_values.clone());
+    let value = map_de(&[(0, 1), (1, 0)]);
+    let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, resultat, fragment) =
-        executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(0));
+        executer_lookup(&schema, &liste_cles, &domaine_values, &value, Atom(0));
     assert_eq!(
         payload_terminal(&output, resultat, &liste_cles, map),
         Some(1),
@@ -114,7 +114,7 @@ fn test_lookup_cles_presentes() {
     );
 
     let (output, resultat, _) =
-        executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(1));
+        executer_lookup(&schema, &liste_cles, &domaine_values, &value, Atom(1));
     assert_eq!(
         payload_terminal(&output, resultat, &liste_cles, map),
         Some(0),
@@ -126,15 +126,15 @@ fn test_lookup_cles_presentes() {
 #[test]
 fn test_lookup_cle_absente() {
     let liste_cles = vec![Atom(0), Atom(1)];
-    let domaine_valeurs = Domaine::new(vec![Atom(0), Atom(1)]);
-    let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
-    let valeur = map_de(&[(0, 1)]);
-    let Value::Map(ref map) = valeur else {
+    let domaine_values = Domaine::new(vec![Atom(0), Atom(1)]);
+    let schema = Schema::Map(liste_cles.clone(), domaine_values.clone());
+    let value = map_de(&[(0, 1)]);
+    let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, resultat, fragment) =
-        executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(1));
+        executer_lookup(&schema, &liste_cles, &domaine_values, &value, Atom(1));
     assert_eq!(
         payload_terminal(&output, resultat, &liste_cles, map),
         None,
@@ -146,17 +146,17 @@ fn test_lookup_cle_absente() {
 /// Value domain of cardinality 1: the val(k) level is collapsed at compile
 /// time; φ_out re-explicits it (T-EXPAND) and grafts Some(v).
 #[test]
-fn test_lookup_niveau_valeur_collapsed_t_expand() {
+fn test_lookup_niveau_value_collapsed_t_expand() {
     let liste_cles = vec![Atom(0)];
-    let domaine_valeurs = Domaine::new(vec![Atom(0)]);
-    let schema = Schema::Map(liste_cles.clone(), domaine_valeurs.clone());
-    let valeur = map_de(&[(0, 0)]);
-    let Value::Map(ref map) = valeur else {
+    let domaine_values = Domaine::new(vec![Atom(0)]);
+    let schema = Schema::Map(liste_cles.clone(), domaine_values.clone());
+    let value = map_de(&[(0, 0)]);
+    let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, resultat, fragment) =
-        executer_lookup(&schema, &liste_cles, &domaine_valeurs, &valeur, Atom(0));
+        executer_lookup(&schema, &liste_cles, &domaine_values, &value, Atom(0));
     assert_eq!(
         payload_terminal(&output, resultat, &liste_cles, map),
         Some(0),

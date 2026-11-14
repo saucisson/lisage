@@ -185,13 +185,13 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
         x + DECALAGE,
         y + DECALAGE_TITRE_FICHE
     ));
-    for (index, (champ, valeur)) in champs.iter().enumerate() {
+    for (index, (champ, value)) in champs.iter().enumerate() {
         let ligne_y =
             y + DECALAGE_LIGNE_FICHE + index as u32 * HAUTEUR_LIGNE_FICHE + BASELINE_LIGNE_FICHE;
         svg.push_str(&format!(
             "<text x=\"{}\" y=\"{ligne_y}\" font-family=\"serif\" font-size=\"{TAILLE_CHAMP}\" fill=\"{COULEUR_TEXTE}\">{champ} = {}</text>\n",
             x + DECALAGE,
-            echapper_xml(valeur)
+            echapper_xml(value)
         ));
     }
     hauteur

@@ -35,15 +35,15 @@ fn test_c0_exemple_factice() {
     assert_eq!(voie_c(41), voie_a(41));
 }
 
-fn atome(valeur: u64) -> Value {
-    Value::Atom(Atom(valeur))
+fn atome(value: u64) -> Value {
+    Value::Atom(Atom(value))
 }
 
 fn map_de(paires: &[(u64, u64)]) -> Value {
     Value::Map(
         paires
             .iter()
-            .map(|(cle, valeur)| (atome(*cle), atome(*valeur)))
+            .map(|(cle, value)| (atome(*cle), atome(*value)))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }

@@ -174,7 +174,7 @@ pub fn mesurer<P: Pool>(
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root,
-            valeur: format!(
+            value: format!(
                 "nodes_partages={} chemins={} taille_depliee={}",
                 rapport.nodes_partages, rapport.chemins, rapport.taille_depliee
             ),
@@ -384,7 +384,7 @@ pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root_relative,
-            valeur: format!(
+            value: format!(
                 "encodage=relatif_vs_absolu nodes={} contre {}",
                 relatif.nodes_partages, absolu.nodes_partages
             ),
@@ -541,7 +541,7 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root_second,
-            valeur: format!(
+            value: format!(
                 "ordre={}_vs_{} nodes={} contre {}",
                 ordre_premier.etiquette(),
                 ordre_second.etiquette(),
@@ -692,7 +692,7 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root_apres,
-            valeur: format!(
+            value: format!(
                 "ancre={}_vs_{} nodes={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
                 ancre_avant.etiquette(),
                 ancre_apres.etiquette(),

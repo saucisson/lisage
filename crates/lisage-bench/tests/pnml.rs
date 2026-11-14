@@ -61,8 +61,8 @@ fn test_parse_modele_joue() {
 #[test]
 fn test_marquage_initial_vers_value() {
     let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
-    let valeur = marquage_initial(&reseau);
-    let marquage = marquage_depuis_value(&valeur).unwrap();
+    let value = marquage_initial(&reseau);
+    let marquage = marquage_depuis_value(&value).unwrap();
     assert_eq!(marquage.get(&Atom(0)), Some(&Atom(1)));
     assert_eq!(marquage.get(&Atom(1)), Some(&Atom(0)));
     assert_eq!(marquage.get(&Atom(2)), Some(&Atom(0)));

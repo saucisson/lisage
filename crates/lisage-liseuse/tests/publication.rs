@@ -27,8 +27,8 @@ fn diagramme_test() -> (PoolRef, NodeId) {
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let valeur = Value::Set(BTreeSet::from([Value::Atom(Atom(0))]));
-    let root = compiler(&mut pool, Anchor(0), &schema, &valeur).unwrap();
+    let value = Value::Set(BTreeSet::from([Value::Atom(Atom(0))]));
+    let root = compiler(&mut pool, Anchor(0), &schema, &value).unwrap();
     (pool, root)
 }
 

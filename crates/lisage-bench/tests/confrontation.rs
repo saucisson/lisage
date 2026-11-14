@@ -98,7 +98,7 @@ fn ecrire_fichier_etats(nombre: u64) -> PathBuf {
     let etats = etats_etendus(nombre as usize);
     let mut contenu = format!("n {nombre}\n");
     for etat in etats {
-        let ligne: Vec<String> = etat.iter().map(|valeur| valeur.to_string()).collect();
+        let ligne: Vec<String> = etat.iter().map(|value| value.to_string()).collect();
         contenu.push_str(&ligne.join(" "));
         contenu.push('\n');
     }
@@ -269,7 +269,7 @@ fn test_etats_etendus_coherents_avec_fil_rouge() {
         let etats = etats_etendus(nombre as usize);
         assert_eq!(etats.len() as u64, attendu, "n={nombre}: pinned |R_n|");
         assert!(etats.iter().all(|etat| {
-            etat.len() == 2 * nombre as usize && etat.iter().all(|valeur| *valeur <= MANGE)
+            etat.len() == 2 * nombre as usize && etat.iter().all(|value| *value <= MANGE)
         }));
     }
 }
@@ -336,9 +336,9 @@ fn test_narration_charge_epinglee() {
                 e,
                 TraceEvent::Attr {
                     canal: CanalAttr::Synthesized,
-                    valeur,
+                    value,
                     ..
-                } if valeur == attendu
+                } if value == attendu
             )),
             "the narration event carries the summary: {attendu}"
         );
