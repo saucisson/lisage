@@ -1,5 +1,5 @@
-//! Tests du moteur de transductions (M1-4, spec § 3.1, L3) : les deux
-//! canaux (hérité/synthétisé), l'agrégation φ_aggr et la mémo (op, nœud, h).
+//! Tests for the transduction engine (M1-4, spec § 3.1, L3): the two channels
+//! (inherited/synthesized), the φ_aggr aggregation and the memo (op, node, h).
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -18,7 +18,7 @@ fn pool() -> PoolRef {
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
-/// Transduction identité avec canal hérité = profondeur : H = u64.
+/// Identity transduction with inherited channel = depth: H = u64.
 struct IdentiteProfondeur;
 
 impl Transduction for IdentiteProfondeur {
@@ -66,7 +66,7 @@ impl Transduction for IdentiteProfondeur {
     }
 }
 
-/// Transduction comptage des chemins acceptants (canal synthétisé seul).
+/// Transduction counting accepting paths (synthesized channel only).
 struct CompteChemins {
     appels: std::sync::Arc<AtomicU64>,
 }
@@ -118,7 +118,7 @@ impl Transduction for CompteChemins {
     }
 }
 
-/// Identité sans canal hérité, pour comparer les fingerprints de mémo.
+/// Identity without inherited channel, to compare memo fingerprints.
 struct Identite;
 
 impl Transduction for Identite {
@@ -162,7 +162,7 @@ impl Transduction for Identite {
     }
 }
 
-/// Construit un petit DAG dans le pool d'entrée : b = ν(1, {0 ↦ a, 1 ↦ ⊤}),
+/// Builds a small DAG in the input pool: b = ν(1, {0 ↦ a, 1 ↦ ⊤}),
 /// a = ν(0, {0 ↦ ⊤, 1 ↦ ⊥}).
 fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
     let vrai = pool.intern(anchor, Form::Terminal(true));
@@ -184,8 +184,8 @@ fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
     (a, b)
 }
 
-/// Canal hérité : la transduction identité reconstruit les mêmes formes ;
-/// la profondeur remontée vaut la hauteur du DAG.
+/// Inherited channel: the identity transduction rebuilds the same forms; the
+/// returned depth equals the DAG's height.
 #[test]
 fn test_canal_herite_identite_et_profondeur() {
     let mut entree = pool();
@@ -197,13 +197,13 @@ fn test_canal_herite_identite_et_profondeur() {
     assert_eq!(
         sortie.resolve(resultat).unwrap(),
         entree.resolve(b).unwrap(),
-        "identité ⇒ mêmes formes"
+        "identity ⇒ same forms"
     );
-    assert_eq!(profondeur, 2, "profondeur max atteinte = hauteur du DAG");
+    assert_eq!(profondeur, 2, "max depth reached = DAG height");
 }
 
-/// Canal synthétisé : φ_aggr somme les poids des fils ; le comptage vaut le
-/// nombre de chemins acceptants (2 dans le DAG : 0·0 et 1).
+/// Synthesized channel: φ_aggr sums the children's weights; the count is the
+/// number of accepting paths (2 in the DAG: 0·0 and 1).
 #[test]
 fn test_canal_synthetise_comptage() {
     let mut entree = pool();
@@ -220,16 +220,16 @@ fn test_canal_synthetise_comptage() {
         sortie.resolve(resultat).unwrap(),
         entree.resolve(b).unwrap()
     );
-    assert_eq!(compte_chemins, 2, "deux chemins mènent à ⊤");
+    assert_eq!(compte_chemins, 2, "two paths lead to ⊤");
     assert_eq!(
         appels.load(Ordering::SeqCst),
         2,
-        "φ_out appelé une fois par nœud non terminal"
+        "φ_out called once per non-terminal node"
     );
 }
 
-/// Mémo (op, nœud, h) : une seconde exécution ne recalcule rien (hit mémo),
-/// et deux opérations de fingerprints distincts ont des entrées séparées.
+/// Memo (op, node, h): a second run recomputes nothing (memo hit), and two
+/// operations with distinct fingerprints have separate entries.
 #[test]
 fn test_memo_fingerprint_op_noeud() {
     let mut entree = pool();
@@ -244,26 +244,26 @@ fn test_memo_fingerprint_op_noeud() {
     assert_eq!(
         runner.taille_memo(),
         taille_apres_1,
-        "seconde exécution : que des hits mémo"
+        "second run: only memo hits"
     );
-    // 4 paires (nœud, h) distinctes : b, a, ⊤, ⊥.
+    // 4 distinct (node, h) pairs: b, a, ⊤, ⊥.
     assert_eq!(taille_apres_1, 4);
 
-    // Une autre opération (fingerprint différent) sur le même nœud : mémo
-    // séparée. Avec H = profondeur, ⊤ est visité à deux h distincts (1 via
-    // l'arc 1 de b, 2 via l'arc 0 de a) : 5 entrées (b, a, ⊤×2, ⊥).
+    // Another operation (different fingerprint) on the same node: separate
+    // memo. With H = depth, ⊤ is visited at two distinct h (1 via b's arc 1,
+    // 2 via a's arc 0): 5 entries (b, a, ⊤×2, ⊥).
     let mut autre = Transducteur::new(IdentiteProfondeur);
     let (r3, _) = autre.run(&entree, &mut sortie, anchor, b).unwrap();
     assert_eq!(sortie.resolve(r3).unwrap(), entree.resolve(b).unwrap());
     assert_eq!(
         autre.taille_memo(),
         5,
-        "mémo propre à l'opération et à h : clé (op, nœud, h)"
+        "memo specific to the operation and to h: key (op, node, h)"
     );
 }
 
-/// La transduction s'applique aussi à un diagramme compilé depuis une valeur
-/// (schéma M1-3) : identité sur un ensemble compilé.
+/// The transduction also applies to a diagram compiled from a value (M1-3
+/// schema): identity over a compiled set.
 #[test]
 fn test_transduction_sur_diagramme_compile() {
     let schema = Schema::Set(Domaine::nouveau(vec![Atom(0), Atom(1)]));
