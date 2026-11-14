@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4a-5: lisage-core relatif tests translated to English (PR #205, issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in `crates/lisage-core/tests/relatif.rs` to English. The biplan test changes from the original branch were already covered by part 4a-10 on `daily`, so the rebased diff only carries `relatif.rs`. Public French identifiers are kept until M6-6.
+- **Evidence**: `cargo fmt -p lisage-core -- --check` clean; `cargo test -p lisage-core` 146 passed, 0 failed. Full-workspace `make check` not run on this branch (crate-scoped gates only); it runs on `daily` after all M6-5 pull requests merge.
+- **Judgement calls**: comments/strings translated now, identifier renames deferred to M6-6.
 ## 2026-11-14 - M6-5 part 4a-4: lisage-core cdd+dabs translated to English (PR #204, issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
