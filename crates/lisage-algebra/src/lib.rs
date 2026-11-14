@@ -1,8 +1,8 @@
-//! Lisage algebra — niveau 2 : contrôleur étendu, transductions, réductions.
+//! Lisage algebra — level 2: extended controller, transductions, reductions.
 //!
-//! Cette crate porte le contrat du cœur ([`interface`]) : le pool de bas
-//! niveau (`lisage-core`) n'est qu'un stockage canonique implémentant ce
-//! contrat.
+//! This crate carries the core contract ([`interface`]): the low-level
+//! pool (`lisage-core`) is only a canonical storage implementing this
+//! contract.
 
 pub mod interface;
 pub mod reduction;

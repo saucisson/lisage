@@ -1,21 +1,20 @@
-//! Vtree (Darwiche) : ordre structuré en arbre sur les variables —
-//! paramètre du cadre, pas un mécanisme (proposition § 1.2, M5-3) : les
-//! SDD sententiels s'installent avec un vtree comme ordre (contrainte de
-//! décomposition : toute variable du sous-arbre gauche précède toute
-//! variable du sous-arbre droit) et une ancre locale par nœud (tour de
-//! contrôleurs comme motif d'instance).
+//! Vtree (Darwiche): tree-structured order over variables —
+//! a framework parameter, not a mechanism (proposal § 1.2, M5-3): sentential
+//! SDDs install with a vtree as order (decomposition constraint: every
+//! variable of the left subtree precedes every variable of the right
+//! subtree) and a local anchor per node (controller tour as instance pattern).
 //!
-//! Le vtree vit dans `lisage-algebra` (couche interface) pour être visible
-//! de `lisage-plan` (qui en fait un [`TypeOrdre`]) comme de `lisage-core`
-//! et `lisage-bench` (qui en dérivent des schémas et des ancres).
+//! The vtree lives in `lisage-algebra` (interface layer) to be visible
+//! from `lisage-plan` (which makes it a [`TypeOrdre`]) as from `lisage-core`
+//! and `lisage-bench` (which derive schemas and anchors from it).
 
 use lisage_lang::value::Atom;
 
-/// Erreur typée de construction d'un vtree.
+/// Typed error of vtree construction.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ErreurVtree {
-    /// La même variable apparaît dans deux feuilles distinctes : un vtree
-    /// est une décomposition, chaque variable n'y figure qu'une fois.
+    /// The same variable appears in two distinct leaves: a vtree
+    /// is a decomposition, each variable appears only once.
     VariableEnDouble(Atom),
 }
 
@@ -23,7 +22,7 @@ impl std::fmt::Display for ErreurVtree {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ErreurVtree::VariableEnDouble(atome) => {
-                write!(formatter, "variable {atome:?} en double dans le vtree")
+                write!(formatter, "variable {atome:?} duplicated in the vtree")
             }
         }
     }
@@ -31,27 +30,27 @@ impl std::fmt::Display for ErreurVtree {
 
 impl std::error::Error for ErreurVtree {}
 
-/// Vtree : arbre binaire dont les feuilles portent les variables.
+/// Vtree: binary tree whose leaves carry the variables.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Vtree {
-    /// Feuille : une variable.
+    /// Leaf: one variable.
     Feuille(Atom),
-    /// Nœud interne : sous-arbre gauche, sous-arbre droit.
+    /// Internal node: left subtree, right subtree.
     Noeud {
-        /// Sous-arbre des variables de gauche.
+        /// Subtree of left variables.
         gauche: Box<Vtree>,
-        /// Sous-arbre des variables de droite.
+        /// Subtree of right variables.
         droite: Box<Vtree>,
     },
 }
 
 impl Vtree {
-    /// Construit une feuille.
+    /// Builds a leaf.
     pub fn feuille(variable: Atom) -> Self {
         Vtree::Feuille(variable)
     }
 
-    /// Construit un nœud interne.
+    /// Builds an internal node.
     pub fn noeud(gauche: Vtree, droite: Vtree) -> Self {
         Vtree::Noeud {
             gauche: Box::new(gauche),
@@ -59,8 +58,8 @@ impl Vtree {
         }
     }
 
-    /// Variables du vtree dans l'ordre plat induit : sous-arbre gauche
-    /// avant sous-arbre droit, récursivement.
+    /// Variables of the vtree in the induced flat order: left subtree
+    /// before right subtree, recursively.
     pub fn ordre_plat(&self) -> Vec<Atom> {
         match self {
             Vtree::Feuille(variable) => vec![*variable],
@@ -72,12 +71,12 @@ impl Vtree {
         }
     }
 
-    /// Nombre de variables (taille de l'arbre).
+    /// Number of variables (size of the tree).
     pub fn nombre_variables(&self) -> usize {
         self.ordre_plat().len()
     }
 
-    /// Profondeur de l'arbre (feuille = 1).
+    /// Depth of the tree (leaf = 1).
     pub fn profondeur(&self) -> usize {
         match self {
             Vtree::Feuille(_) => 1,
@@ -85,14 +84,14 @@ impl Vtree {
         }
     }
 
-    /// Valide le vtree : chaque variable n'apparaît qu'une seule fois.
+    /// Validates the vtree: each variable appears only once.
     pub fn valider(&self) -> Result<(), ErreurVtree> {
         let mut vues = Vec::new();
         self.collecter_doublons(&mut vues)?;
         Ok(())
     }
 
-    /// Collecte la première variable vue en double, s'il y en a une.
+    /// Collects the first variable seen twice, if any.
     fn collecter_doublons(&self, vues: &mut Vec<Atom>) -> Result<(), ErreurVtree> {
         match self {
             Vtree::Feuille(variable) => {
@@ -109,15 +108,15 @@ impl Vtree {
         }
     }
 
-    /// Contraintes d'ordre du vtree : pour chaque nœud interne, toute
-    /// variable de gauche précède toute variable de droite.
+    /// Order constraints of the vtree: for each internal node, every
+    /// left variable precedes every right variable.
     pub fn contraintes_ordre(&self) -> Vec<(Atom, Atom)> {
         let mut contraintes = Vec::new();
         self.collecter_contraintes(&mut contraintes);
         contraintes
     }
 
-    /// Accumule les contraintes (gauche × droite) de chaque nœud interne.
+    /// Accumulates the (left × right) constraints of each internal node.
     fn collecter_contraintes(&self, contraintes: &mut Vec<(Atom, Atom)>) {
         if let Vtree::Noeud { gauche, droite } = self {
             for variable_gauche in gauche.ordre_plat() {

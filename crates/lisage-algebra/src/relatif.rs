@@ -1,12 +1,12 @@
-//! Formes relatives (M4-2, énoncé C8, spec § 2.4.5) : activation du **shift**
-//! (encodage relatif porté par l'ancre), **ancres composées** (décalages
-//! nommés par fragment) et **transformations de clés** désignées par le
-//! contrôleur (groupe d'action + section canonique des orbites).
+//! Relative forms (M4-2, claim C8, spec § 2.4.5): activation of the **shift**
+//! (relative encoding carried by the anchor), **composite anchors** (offsets
+//! named per fragment) and **key transformations** designated by the
+//! controller (action group + canonical section of orbits).
 //!
-//! Une seule idée : la forme est relative, le contexte porte l'absolu.
-//! Côté `algebra/` uniquement — le pool reste aveugle et inchangé (C1) :
-//! l'ancre (position) vit dans le handle, le terme de transformation
-//! (valeur) est un argument sur l'arc entrant, porté par l'appelant.
+//! One idea: the form is relative, the context carries the absolute.
+//! `algebra/` side only — the pool stays blind and unchanged (C1):
+//! the anchor (position) lives in the handle, the transformation
+//! term (value) is an argument on the incoming arc, carried by the caller.
 
 use std::collections::BTreeMap;
 use std::fmt::Debug;
@@ -14,37 +14,37 @@ use std::hash::Hash;
 
 use crate::interface::{Anchor, Handle, NodeId};
 
-/// Fragment nommé d'un réseau factorisé : l'ancre composée porte un
-/// décalage par fragment. Ordre canonique : lexicographique des noms.
+/// Named fragment of a factorized network: the composite anchor carries one
+/// offset per fragment. Canonical order: lexicographic of names.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Fragment(pub String);
 
-/// Ancre composée (spec § 2.4.5) : enregistrement nommé de décalages, un
-/// par fragment (`{machine : +i, convoyeur : +j}`). Zéro = début de
-/// fragment. Reste dans le handle (C1 inchangé), le pool reste aveugle.
+/// Composite anchor (spec § 2.4.5): named record of offsets, one per
+/// fragment (`{machine: +i, conveyor: +j}`). Zero = start of fragment.
+/// Stays in the handle (C1 unchanged), the pool stays blind.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
 pub struct AncreComposee {
     decalages: BTreeMap<Fragment, i64>,
 }
 
 impl AncreComposee {
-    /// Ancre nulle : tous les fragments en début (zéro).
+    /// Null anchor: all fragments at start (zero).
     pub fn nouveau() -> Self {
         Self::default()
     }
 
-    /// Construit une ancre avec le décalage donné pour un fragment.
+    /// Builds an anchor with the given offset for a fragment.
     pub fn avec(mut self, fragment: Fragment, decalage: i64) -> Self {
         self.decalages.insert(fragment, decalage);
         self
     }
 
-    /// Décalage d'un fragment ; 0 si absent (zéro = début de fragment).
+    /// Offset of a fragment; 0 if absent (zero = start of fragment).
     pub fn decalage(&self, fragment: &Fragment) -> i64 {
         self.decalages.get(fragment).copied().unwrap_or(0)
     }
 
-    /// Nouvelle ancre, un fragment décalé de `delta` (la glisse).
+    /// New anchor, one fragment shifted by `delta` (the slide).
     pub fn decalee(&self, fragment: &Fragment, delta: i64) -> Self {
         let mut resultat = self.clone();
         let courant = resultat.decalage(fragment);
@@ -52,8 +52,8 @@ impl AncreComposee {
         resultat
     }
 
-    /// Composition point par point des décalages (lecture absolue =
-    /// composition des arguments, O(1) par pas).
+    /// Pointwise composition of offsets (absolute reading = composition of
+    /// arguments, O(1) per step).
     pub fn composer(&self, autre: &AncreComposee) -> Self {
         let mut resultat = self.clone();
         for (fragment, decalage) in &autre.decalages {
@@ -65,33 +65,33 @@ impl AncreComposee {
         resultat
     }
 
-    /// Vrai si tous les décalages sont nuls (début de chaque fragment).
+    /// True if all offsets are zero (start of each fragment).
     pub fn est_nulle(&self) -> bool {
         self.decalages.values().all(|&d| d == 0)
     }
 
-    /// Itérateur sur les (fragment, décalage), ordre lexicographique des noms.
+    /// Iterator over (fragment, offset), lexicographic order of names.
     pub fn fragments(&self) -> impl Iterator<Item = (&Fragment, i64)> {
         self.decalages.iter().map(|(f, &d)| (f, d))
     }
 }
 
-/// Ancre relative : activation du shift (encodage relatif). La position
-/// absolue de la racine se lit `position + decalage` ; le décalage est
-/// l'argument accumulé (shift +1 par cellule, l'ancre borne le dépliage).
+/// Relative anchor: activation of the shift (relative encoding). The
+/// absolute position of the root reads `position + offset`; the offset is
+/// the accumulated argument (shift +1 per cell, the anchor bounds the unfolding).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct AncreRelative {
-    /// Position de base (ancre absolue d'origine).
+    /// Base position (original absolute anchor).
     pub position: u32,
-    /// Décalage accumulé (shift), peut être négatif.
+    /// Accumulated offset (shift), may be negative.
     pub decalage: i64,
 }
 
-/// Décalage nul : position de base.
+/// Null offset: base position.
 const DECALAGE_NUL: i64 = 0;
 
 impl AncreRelative {
-    /// Ancre relative en `position`, de décalage nul.
+    /// Relative anchor at `position`, with null offset.
     pub fn nouvelle(position: u32) -> Self {
         AncreRelative {
             position,
@@ -99,13 +99,13 @@ impl AncreRelative {
         }
     }
 
-    /// Depuis une ancre absolue (M1) : décalage nul.
+    /// From an absolute anchor (M1): null offset.
     pub fn depuis_ancre(ancre: Anchor) -> Self {
         Self::nouvelle(ancre.0)
     }
 
-    /// Nouvelle ancre relative, décalée de `delta` (la glisse de la
-    /// fenêtre glissante avance la base de f(δ)).
+    /// New relative anchor, shifted by `delta` (the sliding window's slide
+    /// advances the base by f(δ)).
     pub fn decalee(&self, delta: i64) -> Self {
         AncreRelative {
             position: self.position,
@@ -113,58 +113,58 @@ impl AncreRelative {
         }
     }
 
-    /// Position absolue = position de base + décalage accumulé.
+    /// Absolute position = base position + accumulated offset.
     pub fn absolue(&self) -> i64 {
         self.position as i64 + self.decalage
     }
 
-    /// Conversion en ancre absolue (saturée dans `u32`).
+    /// Conversion to absolute anchor (saturated into `u32`).
     pub fn vers_ancre(&self) -> Anchor {
         Anchor(self.absolue().clamp(0, u32::MAX as i64) as u32)
     }
 }
 
-/// Groupe de transformations de clés désigné par le contrôleur (spec §
-/// 2.4.5). Contrat d'algèbre : (i) l'action est décidable et **inversible**
-/// (un groupe : lecture absolue et produit exigent t⁻¹) ; (ii) les
-/// transformations sont des **bijections** ; (iii) la section canonique est
-/// **confluente** (forme normale, sinon pas de hash-consing) ; (v) la
-/// famille f est close par composition avec une loi calculable :
-/// f(n₁)∘f(n₂) = f(n₁ ⊕ n₂) ; (vi) l'argument est stocké **modulo le noyau
-/// de f**. La fonction vit dans le contrôleur, l'arc entrant porte
-/// l'argument ; le pool reste aveugle.
+/// Key transformation group designated by the controller (spec §
+/// 2.4.5). Algebra contract: (i) the action is decidable and **invertible**
+/// (a group: absolute reading and product require t⁻¹); (ii) the
+/// transformations are **bijections**; (iii) the canonical section is
+/// **confluent** (normal form, otherwise no hash-consing); (v) the
+/// family f is closed under composition with a computable law:
+/// f(n₁)∘f(n₂) = f(n₁ ⊕ n₂); (vi) the argument is stored **modulo the kernel
+/// of f**. The function lives in the controller, the incoming arc carries
+/// the argument; the pool stays blind.
 pub trait GroupeCles {
-    /// Clé stockée (domaine sur lequel G agit).
+    /// Stored key (domain on which G acts).
     type Cle: Clone + Ord + Hash + Debug;
-    /// Argument de la transformation (le terme de l'arc entrant).
+    /// Transformation argument (the term of the incoming arc).
     type Argument: Clone + Eq + Hash + Debug;
 
-    /// Action : clé effective = f(n)(clé stockée).
+    /// Action: effective key = f(n)(stored key).
     fn appliquer(&self, cle: &Self::Cle, argument: &Self::Argument) -> Self::Cle;
 
-    /// Loi de composition des arguments : f(n₁)∘f(n₂) = f(n₁ ⊕ n₂).
+    /// Composition law of arguments: f(n₁)∘f(n₂) = f(n₁ ⊕ n₂).
     fn composer(&self, premier: &Self::Argument, second: &Self::Argument) -> Self::Argument;
 
-    /// Argument neutre (transformation identité).
+    /// Neutral argument (identity transformation).
     fn neutre(&self) -> Self::Argument;
 
-    /// Inverse t⁻¹ de la transformation d'argument donné.
+    /// Inverse t⁻¹ of the transformation with the given argument.
     fn inverser(&self, argument: &Self::Argument) -> Self::Argument;
 
-    /// Section canonique des orbites (confluente) : normalise les arcs
-    /// d'une forme modulo G. Retourne `(argument, arcs normalisés)` —
-    /// l'argument vit sur l'arc entrant, la forme stockée est la section
-    /// de l'orbite.
+    /// Canonical section of orbits (confluent): normalizes the arcs
+    /// of a form modulo G. Returns `(argument, normalized arcs)` —
+    /// the argument lives on the incoming arc, the stored form is the
+    /// section of the orbit.
     fn section_arcs(
         &self,
         arcs: &BTreeMap<Self::Cle, NodeId>,
     ) -> (Self::Argument, BTreeMap<Self::Cle, NodeId>);
 }
 
-/// Instance canonique : le décalage +n, G = (ℤ, +) agissant sur les clés
-/// `u64`, **section « min = 0 »** — l'arc le plus petit est étiqueté 0 et
-/// l'argument `n` est le minimum des clés (Wireshark : numéros de séquence
-/// relatifs, précédent industriel de la clause (vi)).
+/// Canonical instance: the +n shift, G = (ℤ, +) acting on `u64` keys,
+/// **section "min = 0"** — the smallest arc is labeled 0 and the
+/// argument `n` is the minimum of the keys (Wireshark: relative sequence
+/// numbers, industrial precedent for clause (vi)).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GroupeShift;
 
@@ -173,7 +173,7 @@ impl GroupeCles for GroupeShift {
     type Argument = i64;
 
     fn appliquer(&self, cle: &u64, argument: &i64) -> u64 {
-        // Lecture effective saturée : la clé absolue reste dans ℕ.
+        // Saturated effective reading: the absolute key stays in ℕ.
         cle.saturating_add_signed(*argument)
     }
 
@@ -191,9 +191,9 @@ impl GroupeCles for GroupeShift {
 
     fn section_arcs(&self, arcs: &BTreeMap<u64, NodeId>) -> (i64, BTreeMap<u64, NodeId>) {
         match arcs.keys().next() {
-            // Forme sans arc : argument neutre, forme inchangée.
+            // Form without arc: neutral argument, form unchanged.
             None => (self.neutre(), arcs.clone()),
-            // Section min = 0 : on retranche le minimum à toutes les clés.
+            // Section min = 0: subtract the minimum from all keys.
             Some(&min) => (
                 min as i64,
                 arcs.iter()
@@ -204,24 +204,24 @@ impl GroupeCles for GroupeShift {
     }
 }
 
-/// Arc d'entrée : la valeur d'un DD est un **arc** (terme f(n), handle),
-/// pas un nœud nu (spec § 2.4.5 « L'arc de racine »). Deux DD partageant
-/// tous leurs nœuds mais différant d'entrée sont deux DD distincts.
+/// Entry arc: the value of a DD is an **arc** (term f(n), handle),
+/// not a bare node (spec § 2.4.5 "The root arc"). Two DDs sharing
+/// all their nodes but differing in entry are two distinct DDs.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ArcEntree<Argument> {
-    /// Argument de la transformation (terme f(n) porté par l'arc).
+    /// Transformation argument (term f(n) carried by the arc).
     pub argument: Argument,
-    /// Handle de la racine.
+    /// Handle of the root.
     pub handle: Handle,
 }
 
 impl<Argument: Clone> ArcEntree<Argument> {
-    /// Nouvel arc d'entrée (argument, handle).
+    /// New entry arc (argument, handle).
     pub fn nouvelle(argument: Argument, handle: Handle) -> Self {
         ArcEntree { argument, handle }
     }
 
-    /// Lecture absolue d'une clé stockée : clé effective = f(n)(clé).
+    /// Absolute reading of a stored key: effective key = f(n)(key).
     pub fn lire_cle<Cle>(
         &self,
         groupe: &impl GroupeCles<Cle = Cle, Argument = Argument>,
@@ -230,8 +230,8 @@ impl<Argument: Clone> ArcEntree<Argument> {
         groupe.appliquer(cle, &self.argument)
     }
 
-    /// Composition de deux lectures : l'argument s'accumule (n₁ ⊕ n₂),
-    /// O(1) par pas (invariant de Q6) ; le handle final est celui du second.
+    /// Composition of two readings: the argument accumulates (n₁ ⊕ n₂),
+    /// O(1) per step (invariant of Q6); the final handle is that of the second.
     pub fn composer(
         &self,
         groupe: &impl GroupeCles<Argument = Argument>,
