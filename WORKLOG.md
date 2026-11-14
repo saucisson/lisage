@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 part 4a-9: lisage-core memoire+region+add+ddd translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in `crates/lisage-core/src/memoire.rs`, `crates/lisage-core/src/region.rs`, `crates/lisage-core/src/add.rs`, `crates/lisage-core/src/ddd.rs`, `crates/lisage-core/tests/memoire.rs`, `crates/lisage-core/tests/region.rs`, `crates/lisage-core/tests/add.rs`, `crates/lisage-core/tests/ddd.rs` to English. Public French identifiers are kept until dependent crates are translated.
+- **Evidence**: `cargo check -p lisage-core --tests` passes; `cargo test -p lisage-core` all 25 test suites pass; `cargo fmt -p lisage-core -- --check` clean after fmt. Full `make check` deferred to the last part.
+- **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-5 part 4a-8: lisage-core arena+observer+lookup translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
