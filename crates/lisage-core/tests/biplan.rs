@@ -231,26 +231,26 @@ fn test_metriques_cache_et_evenement_gc() {
     let Form::Node { level, arcs } = pool.resolve(racine).unwrap().clone() else {
         panic!("the root is a node");
     };
-    let share = pool.intern(ANCRE_TEST, Form::Node { level, arcs });
-    assert_eq!(share, racine, "R-share: same handle");
-    let metrics = pool.metriques();
+    let partage = pool.intern(ANCRE_TEST, Form::Node { level, arcs });
+    assert_eq!(partage, racine, "R-partage: meme handle");
+    let metriques = pool.metriques();
     assert!(
-        metrics.creations >= 4,
+        metriques.creations >= 4,
         "creations counted: {}",
-        metrics.creations
+        metriques.creations
     );
     assert!(
-        metrics.partages >= 1,
-        "shares counted: {}",
-        metrics.partages
+        metriques.partages >= 1,
+        "partages counted: {}",
+        metriques.partages
     );
     assert!(pool.metriques().taux_hit() > 0);
     let stats = pool.gc(&[racine]);
-    let metrics = pool.metriques();
-    assert_eq!(metrics.gc, 1);
-    assert_eq!(metrics.vivants, stats.vivants);
-    assert_eq!(metrics.morts, stats.collectes);
-    assert_eq!(metrics.compactions, if stats.compaction { 1 } else { 0 });
+    let metriques = pool.metriques();
+    assert_eq!(metriques.gc, 1);
+    assert_eq!(metriques.vivants, stats.vivants);
+    assert_eq!(metriques.morts, stats.collectes);
+    assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     // Gc event emitted.
     let events = observateur.events.lock().unwrap();
     assert!(
@@ -279,8 +279,8 @@ fn test_intern_plan_hit_cache_replanifie() {
         panic!("the root is a node");
     };
     // Cache hit with shadow plan: same handle, plan moved.
-    let same = pool.intern_plan(ANCRE_TEST, Form::Node { level, arcs }, Plan::Ombre);
-    assert_eq!(same, racine, "R-share: same handle");
+    let meme = pool.intern_plan(ANCRE_TEST, Form::Node { level, arcs }, Plan::Ombre);
+    assert_eq!(meme, racine, "R-partage: meme handle");
     assert_eq!(pool.plan_de(racine), Some(Plan::Ombre));
 }
 
@@ -322,19 +322,19 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
     // Hit rate: 0 without activity, otherwise a percentage bounded in [0, 100].
     for _ in 0..1000 {
         let creations = suivant() % 500;
-        let shares = suivant() % 500;
-        let metrics = lisage_core::biplan::MetriquesPool {
+        let partages = suivant() % 500;
+        let metriques = lisage_core::biplan::MetriquesPool {
             creations,
-            partages: shares,
+            partages,
             ..Default::default()
         };
-        let rate = metrics.taux_hit();
-        assert!(rate <= 100);
-        let expected = shares
+        let taux = metriques.taux_hit();
+        assert!(taux <= 100);
+        let attendu = partages
             .checked_mul(lisage_core::biplan::BASE_POURCENTAGE)
-            .and_then(|p| p.checked_div(creations + shares))
+            .and_then(|p| p.checked_div(creations + partages))
             .unwrap_or(0);
-        assert_eq!(rate, expected);
+        assert_eq!(taux, attendu);
     }
 
     // GC invariant: vivants + collectes == total, and the metrics
@@ -356,10 +356,10 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         let stats = pool.gc(&[racine]);
         assert_eq!(stats.vivants + stats.collectes, total);
         assert_eq!(stats.vivants, pool.vivants() as u64);
-        let metrics = pool.metriques();
-        assert_eq!(metrics.vivants, stats.vivants);
-        assert_eq!(metrics.morts, stats.collectes);
-        assert_eq!(metrics.compactions, if stats.compaction { 1 } else { 0 });
+        let metriques = pool.metriques();
+        assert_eq!(metriques.vivants, stats.vivants);
+        assert_eq!(metriques.morts, stats.collectes);
+        assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     }
 }
 
@@ -385,16 +385,16 @@ fn test_gc_deux_fois_vivants_exacts() {
     }
     // Roots = root + chain end: the whole chain is reachable,
     // only the orphan and the false terminal are collected.
-    let first = pool.gc(&[racine, courant]);
-    assert!(!first.compaction, "few dead: no compaction");
+    let premier = pool.gc(&[racine, courant]);
+    assert!(!premier.compaction, "few dead: no compaction");
     assert!(pool.node_count() > pool.vivants(), "tombstones kept");
     // Second GC: the living must not count the tombstones of the
     // first GC — vivants + collectes == live entries before the GC.
-    let live_before = pool.vivants() as u64;
+    let vivantes_avant = pool.vivants() as u64;
     let stats = pool.gc(&[racine, courant]);
     assert_eq!(stats.vivants, pool.vivants() as u64);
-    assert_eq!(stats.vivants + stats.collectes, live_before);
-    let metrics = pool.metriques();
-    assert_eq!(metrics.vivants, stats.vivants);
-    assert_eq!(metrics.gc, 2);
+    assert_eq!(stats.vivants + stats.collectes, vivantes_avant);
+    let metriques = pool.metriques();
+    assert_eq!(metriques.vivants, stats.vivants);
+    assert_eq!(metriques.gc, 2);
 }
