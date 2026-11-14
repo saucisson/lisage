@@ -1,16 +1,16 @@
-//! `lookup(k)` — l'opération-test (M1-5, spec § 6) : transduction de
-//! `DD⟨Δ_map, Bool⟩` vers `DD⟨Δ_map, Option(V)⟩`.
+//! `lookup(k)` — the test operation (M1-5, spec § 6): transduction from
+//! `DD⟨Δ_map, Bool⟩` to `DD⟨Δ_map, Option(V)⟩`.
 //!
-//! Deux modes hérités (spec § 6.3) : `Cherche` (au-dessus de l'axe de la
-//! clé) et `Extrait` (dans l'axe) ; le mode `Stop(v)` porte la valeur extraite.
-//! L'attribut synthétisé est un **fragment de DD** (pas un scalaire) : les
-//! arcs du niveau valeur de la clé, cibles = terminaux `ε(Some(v))` du pool
-//! de sortie. Quand le niveau `val(k)` a été collapsé (R-collapse), `φ_out`
-//! le ré-explicite (T-EXPAND) et greffe le fragment sur chaque continuation
+//! Two inherited modes (spec § 6.3): `Cherche` (above the key's axis) and
+//! `Extrait` (in the axis); the `Stop(v)` mode carries the extracted value.
+//! The synthesized attribute is a **DD fragment** (not a scalar): the arcs
+//! of the key's value level, targets = `ε(Some(v))` terminals of the output
+//! pool. When the `val(k)` level was collapsed (R-collapse), `φ_out`
+//! re-explicits it (T-EXPAND) and grafts the fragment onto each continuation
 //! (spec § 6.2, § 6.4).
 //!
-//! Le diagramme de sortie vit dans un pool à part (`LookupController`,
-//! payload `Option<u64>` ; D_δ = `ε(None)`, la clé absente).
+//! The output diagram lives in a separate pool (`LookupController`, payload
+//! `Option<u64>`; D_δ = `ε(None)`, the absent key).
 
 use std::collections::BTreeMap;
 
@@ -20,35 +20,35 @@ use lisage_lang::value::Atom;
 use crate::schema::{Domaine, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
 
-/// Base du namespace de fingerprints de la famille `lookup` (clé = base + valeur).
+/// Base of the fingerprint namespace of the `lookup` family (key = base + value).
 const FINGERPRINT_BASE_LOOKUP: u64 = 3000;
 
-/// Mode hérité de `lookup` (spec § 6.3).
+/// Inherited mode of `lookup` (spec § 6.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Mode {
-    /// Au-dessus de l'axe de la clé cherchée.
+    /// Above the axis of the searched key.
     Cherche,
-    /// Dans l'axe de la clé cherchée (le niveau valeur vient).
+    /// In the axis of the searched key (the value level is next).
     Extrait,
-    /// Valeur `v` extraite au niveau `val(k)` : le terminal vaut `Some(v)`.
+    /// Value `v` extracted at level `val(k)`: the terminal is `Some(v)`.
     Stop(u64),
 }
 
-/// Contrôleur du pool de sortie de `lookup` : payload `Option<u64>`
-/// (`None` = clé absente), mêmes niveaux que le schéma de la map.
+/// Controller of the `lookup` output pool: payload `Option<u64>` (`None` =
+/// absent key), same levels as the map schema.
 pub struct LookupController {
     schema: Schema,
     keys: SchemaKeys,
 }
 
 impl LookupController {
-    /// Contrôleur pour le schéma de la map cherchée.
+    /// Controller for the searched map's schema.
     pub fn new(schema: Schema) -> Self {
         let keys = SchemaKeys::new(schema.clone());
         LookupController { schema, keys }
     }
 
-    /// Schéma de cette instance.
+    /// Schema of this instance.
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
@@ -82,23 +82,23 @@ impl Controller for LookupController {
     }
 }
 
-/// Transduction `lookup(k)` sur `Map(K, V)` (spec § 6.3).
+/// Transduction `lookup(k)` on `Map(K, V)` (spec § 6.3).
 pub struct Lookup {
-    /// Clé cherchée.
+    /// Searched key.
     cle: Atom,
-    /// Index de la clé dans l'ordre canonique de la map.
+    /// Index of the key in the map's canonical order.
     index_cle: usize,
-    /// Domaine des valeurs (pour le T-EXPAND).
+    /// Value domain (for T-EXPAND).
     domaine_valeurs: Domaine,
 }
 
 impl Lookup {
-    /// `lookup(cle)` pour le schéma `Map(liste_cles, domaine_valeurs)`.
+    /// `lookup(cle)` for the `Map(liste_cles, domaine_valeurs)` schema.
     pub fn new(cle: Atom, liste_cles: Vec<Atom>, domaine_valeurs: Domaine) -> Self {
         let index_cle = liste_cles
             .iter()
             .position(|c| *c == cle)
-            .expect("la clé cherchée doit appartenir au schéma");
+            .expect("the searched key must belong to the schema");
         Lookup {
             cle,
             index_cle,
@@ -114,8 +114,8 @@ impl Lookup {
         Schema::niveau_valeur(self.index_cle)
     }
 
-    /// Greffe (spec § 6.4) : remplace les terminaux du sous-diagramme
-    /// `noeud` par `ε(payload)`, nœuds internes reconstruits à l'identique.
+    /// Graft (spec § 6.4): replaces the terminals of the `noeud` sub-diagram
+    /// with `ε(payload)`, internal nodes rebuilt identically.
     fn greffer<P: Pool<Key = u64, Payload = Option<u64>>>(
         pool: &mut P,
         anchor: Anchor,
@@ -144,8 +144,8 @@ impl Lookup {
 
 impl Transduction for Lookup {
     type H = Mode;
-    /// Fragment de DD synthétisé : arcs du niveau valeur de la clé,
-    /// cibles = terminaux `ε(Some(v))` du pool de sortie.
+    /// Synthesized DD fragment: arcs of the key's value level, targets =
+    /// `ε(Some(v))` terminals of the output pool.
     type S = BTreeMap<u64, NodeId>;
     type Out = Option<u64>;
     type M = ();
@@ -184,7 +184,7 @@ impl Transduction for Lookup {
         _h: &Mode,
         arcs: &BTreeMap<u64, (Option<Level>, Self::S)>,
     ) -> Self::S {
-        // Union canonique des fragments (fusion des arcs du niveau valeur).
+        // Canonical union of the fragments (merge of the value-level arcs).
         let mut fragment = BTreeMap::new();
         for (_, s) in arcs.values() {
             fragment.extend(s.iter().map(|(v, n)| (*v, *n)));
@@ -201,10 +201,10 @@ impl Transduction for Lookup {
         let level = ctx.level;
         let h = ctx.h;
         let arcs = ctx.arcs;
-        // T-EXPAND (spec § 6.2) au niveau de présence de la clé cherchée :
-        // si le fils `présent` n'est pas un nœud `val(k)` (niveau collapsé),
-        // on ré-explicite le niveau valeur et on greffe `Some(v)` sur chaque
-        // continuation, pour chaque valeur `v` du domaine.
+        // T-EXPAND (spec § 6.2) at the presence level of the searched key: if
+        // the `present` child is not a `val(k)` node (collapsed level), we
+        // re-explicit the value level and graft `Some(v)` onto each
+        // continuation, for each value `v` of the domain.
         if *h == Mode::Cherche && level == self.niveau_presence() {
             let enfant_present = arcs.get(&PRESENT).map(|(n, _)| *n);
             if let Some(enfant) = enfant_present {
@@ -245,8 +245,8 @@ impl Transduction for Lookup {
                 }
             }
         }
-        // Restructuration standard : on ré-émet le nœud avec les fils
-        // transduits (l'arc par défaut mène à D_δ = ε(None), implicite).
+        // Standard restructuring: we re-emit the node with the transduced
+        // children (the default arc leads to D_δ = ε(None), implicit).
         let arcs = arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(anchor, Form::Node { level, arcs }),
@@ -266,8 +266,8 @@ impl Transduction for Lookup {
                 let terminal = pool.intern(anchor, Form::Terminal(Some(*v)));
                 (terminal, BTreeMap::from([(*v, terminal)]))
             }
-            // Cherche (clé pas encore atteinte) ou Extrait (niveau val(k)
-            // implicite, greffé plus haut) : pas trouvé ⇒ None.
+            // Cherche (key not yet reached) or Extrait (implicit val(k) level,
+            // grafted above): not found ⇒ None.
             Mode::Cherche | Mode::Extrait => {
                 let terminal = pool.intern(anchor, Form::Terminal(None));
                 (terminal, BTreeMap::new())
