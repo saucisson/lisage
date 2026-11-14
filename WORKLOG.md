@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 11: `memoire`/`observateur`/`reseau` renamed to `memory`/`observer`/`network` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `memoire`/`observateur`/`reseau` stem (lowercase, CamelCase, UPPER_CASE, plurals) to `memory`/`observer`/`network`, workspace-wide (33 files), per glossary, including module file renames (`src/memoire.rs` → `src/memory.rs`, `src/vue_memoire.rs` → `src/vue_memory.rs`, plus the three test files) and the `mod` declarations. The JSONL v2 wire value `"memoire"` (canal name in trace.rs and its pinned test copy) is protected and stays French (contract).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for the three stems outside the wire literal returns 0.
+- **Judgement calls**: wire canal value `"memoire"` kept (contract); module files renamed with `git mv` so history follows.
 ## 2026-11-14 - M6-6 part 10: `niveau`/`mesure` identifiers renamed to `level`/`measure` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

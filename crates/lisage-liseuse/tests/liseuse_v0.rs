@@ -36,25 +36,25 @@ fn ensemble(
 #[test]
 fn test_trace_jsonl_versionnee_et_deterministe() {
     let schema = schema_ensemble();
-    let construire = |observateur: &JsonlObserver| {
+    let construire = |observer: &JsonlObserver| {
         let mut pool = Arena::new(
             ReferenceController::new(schema.clone()),
-            Box::new(observateur.clone()),
+            Box::new(observer.clone()),
         );
         ensemble(&mut pool, Anchor(0), &schema, &[0])
     };
-    let observateur_a = JsonlObserver::new();
-    let observateur_b = JsonlObserver::new();
-    let root_a = construire(&observateur_a);
-    let root_b = construire(&observateur_b);
+    let observer_a = JsonlObserver::new();
+    let observer_b = JsonlObserver::new();
+    let root_a = construire(&observer_a);
+    let root_b = construire(&observer_b);
     assert_eq!(root_a, root_b, "C1: same construction ⇒ same root");
     assert_eq!(
-        observateur_a.lignes(),
-        observateur_b.lignes(),
+        observer_a.lignes(),
+        observer_b.lignes(),
         "deterministic trace (replayable identically)"
     );
 
-    let lignes = observateur_a.lignes();
+    let lignes = observer_a.lignes();
     assert!(!lignes.is_empty());
     for ligne in &lignes {
         assert!(

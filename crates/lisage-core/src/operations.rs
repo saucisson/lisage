@@ -184,7 +184,7 @@ impl Transduction for Existe {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
+    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(
@@ -194,7 +194,7 @@ impl Transduction for Existe {
                     arcs,
                 },
             ),
-            crate::memoire::EffetMemoire::new(),
+            crate::memory::EffetMemory::new(),
         )
     }
 
@@ -243,7 +243,7 @@ impl Transduction for Filtre {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
+    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
         // (A2): if all children lead to ε(false), the node is ε(false)
         // (nodes produced by the runner are always resolvable).
         let tout_rejete = !ctx.arcs.is_empty()
@@ -254,7 +254,7 @@ impl Transduction for Filtre {
         if tout_rejete {
             return (
                 pool.intern(ctx.anchor, Form::Terminal(false)),
-                crate::memoire::EffetMemoire::new(),
+                crate::memory::EffetMemory::new(),
             );
         }
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
@@ -266,7 +266,7 @@ impl Transduction for Filtre {
                     arcs,
                 },
             ),
-            crate::memoire::EffetMemoire::new(),
+            crate::memory::EffetMemory::new(),
         )
     }
 
@@ -305,7 +305,7 @@ impl Transduction for Image {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
+    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
         // Relabeling: arc v becomes f(v).
         let arcs = ctx
             .arcs
@@ -320,7 +320,7 @@ impl Transduction for Image {
                     arcs,
                 },
             ),
-            crate::memoire::EffetMemoire::new(),
+            crate::memory::EffetMemory::new(),
         )
     }
 

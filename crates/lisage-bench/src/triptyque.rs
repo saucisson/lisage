@@ -23,7 +23,7 @@ use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, Sche
 use lisage_lang::value::{Atom, Value};
 use lisage_plan::ordre::{KeyMap, KeysMap, Order, Phase, StrategieAval};
 
-use crate::pnml::{self, ReseauPetri};
+use crate::pnml::{self, NetworkPetri};
 
 /// Anchor of the measurement bench.
 const ANCRE_BANC: Anchor = Anchor(0);
@@ -87,20 +87,20 @@ pub struct MeasureVoie {
 }
 
 /// Path A (reference): cardinal of the explicit reachable space.
-pub fn voie_a(reseau: &ReseauPetri) -> MeasureVoie {
+pub fn voie_a(network: &NetworkPetri) -> MeasureVoie {
     MeasureVoie {
-        cardinal: pnml::espace_atteignable(reseau).len() as u64,
+        cardinal: pnml::espace_atteignable(network).len() as u64,
         nodes_vivants: 0,
     }
 }
 
 /// Path B: DD of the reachable space with **fixed order** (canonical
 /// order of the places, key = place index).
-pub fn voie_b(reseau: &ReseauPetri) -> Result<MeasureVoie, ErreurTriptyque> {
-    let ordre_canonique: Vec<Atom> = (0..reseau.nombre_places())
+pub fn voie_b(network: &NetworkPetri) -> Result<MeasureVoie, ErreurTriptyque> {
+    let ordre_canonique: Vec<Atom> = (0..network.nombre_places())
         .map(|index| Atom(index as u64))
         .collect();
-    voie_dd(reseau, &ordre_canonique)
+    voie_dd(network, &ordre_canonique)
 }
 
 /// Result of path C: the measurement of the DD built with the adopted order,
@@ -120,13 +120,13 @@ pub struct ResultatVoieC {
 /// on the `KeysMap` descriptor); the adopted order (runtime or canonical) is
 /// used to build the schema.
 pub fn voie_c(
-    reseau: &ReseauPetri,
+    network: &NetworkPetri,
     ordre_runtime: &[Atom],
 ) -> Result<ResultatVoieC, ErreurTriptyque> {
-    if reseau.nombre_places() == 0 {
+    if network.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
     }
-    let keys: Vec<Atom> = (0..reseau.nombre_places())
+    let keys: Vec<Atom> = (0..network.nombre_places())
         .map(|index| Atom(index as u64))
         .collect();
     let descripteur = KeysMap(keys);
@@ -155,18 +155,18 @@ pub fn voie_c(
             Phase::Value => None,
         })
         .collect();
-    let measure = voie_dd(reseau, &ordre_adopte)?;
+    let measure = voie_dd(network, &ordre_adopte)?;
     Ok(ResultatVoieC { measure, strategie })
 }
 
 /// Builds the DD of the reachable space in the given key order,
 /// then measures (cardinal via pli, live nodes after construction).
-fn voie_dd(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, ErreurTriptyque> {
-    if reseau.nombre_places() == 0 {
+fn voie_dd(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, ErreurTriptyque> {
+    if network.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
     }
-    let schema = schema_petri(reseau, ordre_keys)?;
-    let espace = pnml::espace_atteignable(reseau);
+    let schema = schema_petri(network, ordre_keys)?;
+    let espace = pnml::espace_atteignable(network);
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
@@ -187,8 +187,8 @@ fn voie_dd(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, Err
 /// `Map(K, V)` schema of a net marking: keys = places in
 /// the given order (π), value domain = `0..=max_jetons` bounded by
 /// the reachable space. π must be a permutation of the place indexes.
-fn schema_petri(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<Schema, ErreurTriptyque> {
-    let mut attendues: Vec<Atom> = (0..reseau.nombre_places())
+fn schema_petri(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<Schema, ErreurTriptyque> {
+    let mut attendues: Vec<Atom> = (0..network.nombre_places())
         .map(|index| Atom(index as u64))
         .collect();
     let mut recues = ordre_keys.to_vec();
@@ -197,15 +197,15 @@ fn schema_petri(reseau: &ReseauPetri, ordre_keys: &[Atom]) -> Result<Schema, Err
     if recues != attendues {
         return Err(ErreurTriptyque::OrdreInvalide);
     }
-    let max_jetons = jetons_max(reseau);
+    let max_jetons = jetons_max(network);
     let domain = Domain::new((0..=max_jetons).map(Atom).collect());
     Ok(Schema::Map(ordre_keys.to_vec(), domain))
 }
 
 /// Maximum number of tokens observed on a place in the
 /// reachable space (bound of the value domain).
-fn jetons_max(reseau: &ReseauPetri) -> u64 {
-    pnml::espace_atteignable(reseau)
+fn jetons_max(network: &NetworkPetri) -> u64 {
+    pnml::espace_atteignable(network)
         .iter()
         .filter_map(pnml::marquage_depuis_value)
         .flat_map(|marquage| marquage.into_values())

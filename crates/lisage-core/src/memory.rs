@@ -9,27 +9,27 @@ use std::hash::Hash;
 use lisage_algebra::interface::{Level, NodeId};
 
 /// Level-memory key: (emitting node, level).
-pub type KeyMemoire = (NodeId, Level);
+pub type KeyMemory = (NodeId, Level);
 
 /// Versioned level memory: `M : (id(node), ℓ) ⇀ V` (spec § 3.1). The version
 /// is incremented at each write; it enters the computed-table key (lemma L1:
 /// `τ(n, h)` pure in `(id(n), h, version(M))`).
 #[derive(Clone, Debug)]
-pub struct MemoireLevel<V: Clone + Eq + Hash + Debug> {
-    inputs: HashMap<KeyMemoire, V>,
+pub struct MemoryLevel<V: Clone + Eq + Hash + Debug> {
+    inputs: HashMap<KeyMemory, V>,
     version: u64,
 }
 
-impl<V: Clone + Eq + Hash + Debug> Default for MemoireLevel<V> {
+impl<V: Clone + Eq + Hash + Debug> Default for MemoryLevel<V> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<V: Clone + Eq + Hash + Debug> MemoireLevel<V> {
+impl<V: Clone + Eq + Hash + Debug> MemoryLevel<V> {
     /// Empty memory, version 0.
     pub fn new() -> Self {
-        MemoireLevel {
+        MemoryLevel {
             inputs: HashMap::new(),
             version: 0,
         }
@@ -61,36 +61,36 @@ impl<V: Clone + Eq + Hash + Debug> MemoireLevel<V> {
 /// Memory effect produced by `φ_out` (spec § 3.1: `M ← M ⊕ μ`): list of writes
 /// to apply after the node restructuring.
 #[derive(Clone, Debug)]
-pub struct EffetMemoire<V: Clone + Eq + Hash + Debug> {
+pub struct EffetMemory<V: Clone + Eq + Hash + Debug> {
     /// Writes `(node, level, value)` to apply in the memory.
     pub ecritures: Vec<(NodeId, Level, V)>,
 }
 
-impl<V: Clone + Eq + Hash + Debug> Default for EffetMemoire<V> {
+impl<V: Clone + Eq + Hash + Debug> Default for EffetMemory<V> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<V: Clone + Eq + Hash + Debug> EffetMemoire<V> {
+impl<V: Clone + Eq + Hash + Debug> EffetMemory<V> {
     /// Empty effect: no write.
     pub fn new() -> Self {
-        EffetMemoire {
+        EffetMemory {
             ecritures: Vec::new(),
         }
     }
 
     /// Effect with a single write.
     pub fn une(node: NodeId, level: Level, value: V) -> Self {
-        EffetMemoire {
+        EffetMemory {
             ecritures: vec![(node, level, value)],
         }
     }
 
     /// Applies the effect to the memory (increments the version per write).
-    pub fn apply(&self, memoire: &mut MemoireLevel<V>) {
+    pub fn apply(&self, memory: &mut MemoryLevel<V>) {
         for (node, level, value) in &self.ecritures {
-            memoire.ecrire(*node, *level, value.clone());
+            memory.ecrire(*node, *level, value.clone());
         }
     }
 }

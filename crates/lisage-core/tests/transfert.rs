@@ -117,7 +117,7 @@ fn test_transfert_sans_unite() {
 /// entry per touched node — O(w) overhead per node), and the transition width
 /// is bounded.
 #[test]
-fn test_transfert_memoire_et_largeur() {
+fn test_transfert_memory_et_largeur() {
     let schema = schema_map();
     let anchor = Anchor(0);
     let mut pool = new_pool(&schema);
@@ -129,11 +129,8 @@ fn test_transfert_memoire_et_largeur() {
     let _ = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
     // The decrement was produced: one memory entry, version bumped (L1).
-    assert_eq!(runner.memoire().size(), 1, "one entry per emitting node");
-    assert!(
-        runner.version_memoire() >= 1,
-        "each write bumps the version"
-    );
+    assert_eq!(runner.memory().size(), 1, "one entry per emitting node");
+    assert!(runner.version_memory() >= 1, "each write bumps the version");
 }
 
 /// M2-5, pinned edge case: destination at the domain maximum — the placement
@@ -186,7 +183,7 @@ fn test_transfert_sous_saturate_termine() {
         anchor,
         initial,
         nombre_levels: schema.nombre_levels(),
-        observateur: None,
+        observer: None,
     };
     let resultat = saturer(&mut params).unwrap();
     assert_eq!(

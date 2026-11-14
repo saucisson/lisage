@@ -39,7 +39,7 @@ impl Transduction for Identite {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<Self::M>) {
+    ) -> (NodeId, lisage_core::memory::EffetMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -48,7 +48,7 @@ impl Transduction for Identite {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffetMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -84,7 +84,7 @@ impl Transduction for CompteChemins {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<Self::M>) {
+    ) -> (NodeId, lisage_core::memory::EffetMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -93,7 +93,7 @@ impl Transduction for CompteChemins {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memoire::EffetMemoire::new(),
+            lisage_core::memory::EffetMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(

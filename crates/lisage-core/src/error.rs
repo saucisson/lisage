@@ -21,7 +21,7 @@ pub enum CoreError {
     LevelHorsSchema(Level),
     /// Memory effect produced while the controller's policy is `NoMemory`
     /// (M2-3, T3).
-    MemoireNonAutorisee,
+    MemoryNonAutorisee,
     /// Fixpoint loop (`saturate`, M2-4) exceeding the safety bound (T2
     /// guarantees termination on a bounded schema; exceeding the bound
     /// signals a regression).
@@ -45,7 +45,7 @@ impl std::fmt::Display for CoreError {
             CoreError::LevelHorsSchema(level) => {
                 write!(formatter, "level outside schema: {level:?}")
             }
-            CoreError::MemoireNonAutorisee => {
+            CoreError::MemoryNonAutorisee => {
                 write!(formatter, "memory effect produced with the NoMemory policy")
             }
             CoreError::NonTerminaison { borne } => {

@@ -48,9 +48,9 @@ impl Transduction for EmetSingleton {
         &self,
         _pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memoire::EffetMemoire<()>) {
+    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
         let _ = ctx;
-        (self.singleton, lisage_core::memoire::EffetMemoire::new())
+        (self.singleton, lisage_core::memory::EffetMemory::new())
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
         &self,
@@ -127,7 +127,7 @@ proptest! {
             anchor,
             initial: node_initial,
             nombre_levels: schema.nombre_levels(),
-            observateur: None,
+            observer: None,
         };
         let premier = saturer(&mut params).unwrap();
 
@@ -149,7 +149,7 @@ proptest! {
             anchor,
             initial: premier.node,
             nombre_levels: schema.nombre_levels(),
-            observateur: None,
+            observer: None,
         };
         let second = saturer(&mut params).unwrap();
         prop_assert_eq!(second.iterations, 1, "fixpoint: 1 iteration");

@@ -62,7 +62,7 @@ pub struct ParametresSaturation<'a, T, P> {
     pub nombre_levels: u32,
     /// Trace observer (M2-6): receives one `Round` per iteration and the
     /// events of the step runner. `None` = no trace.
-    pub observateur: Option<Arc<dyn Observer>>,
+    pub observer: Option<Arc<dyn Observer>>,
 }
 
 /// Result of a saturation: fixpoint node + iteration count.
@@ -142,7 +142,7 @@ impl<T: Transduction> Transduction for RestreintAuxLevels<T> {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memoire::EffetMemoire<Self::M>) {
+    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
         if self.levels_actifs.contains(&ctx.level) {
             let node_input = ctx.node_input;
             let level = ctx.level;
@@ -164,7 +164,7 @@ impl<T: Transduction> Transduction for RestreintAuxLevels<T> {
                         arcs,
                     },
                 ),
-                crate::memoire::EffetMemoire::new(),
+                crate::memory::EffetMemory::new(),
             )
         }
     }
@@ -209,18 +209,18 @@ where
                 borne: BORNE_ITERATIONS,
             });
         }
-        if let Some(observateur) = &params.observateur {
-            observateur.on_event(&TraceEvent::Round { numero: iterations });
+        if let Some(observer) = &params.observer {
+            observer.on_event(&TraceEvent::Round { numero: iterations });
         }
         let etape = RestreintAuxLevels::new(params.transduction.clone(), levels_actifs.clone());
         // Spec § 7: saturate steps can produce a memory effect
         // (T3, M2-5) — PerLevel policy. The memory lives for one pass:
         // the runner (and its memory) is recreated at each iteration.
-        let mut runner = match &params.observateur {
-            Some(observateur) => Transducteur::avec_observateur(
+        let mut runner = match &params.observer {
+            Some(observer) => Transducteur::avec_observer(
                 etape,
                 lisage_algebra::interface::MemoryPolicy::PerLevel,
-                Arc::clone(observateur),
+                Arc::clone(observer),
             ),
             None => Transducteur::avec_politique(
                 etape,

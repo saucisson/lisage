@@ -9,9 +9,7 @@ use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_core::{Anchor, Form, NodeId};
 use lisage_lang::value::{Atom, Value};
-use lisage_liseuse::vue_memoire::{
-    ClasseQuotient, ComparaisonVue, VuePool, rendre_svg_vue_memoire,
-};
+use lisage_liseuse::vue_memory::{ClasseQuotient, ComparaisonVue, VuePool, rendre_svg_vue_memory};
 
 /// Test anchor.
 const ANCRE_TEST: Anchor = Anchor(0);
@@ -108,7 +106,7 @@ fn test_classes_quotient_formes_par_ancres() {
 /// ×k badge, comparison bars with proportional width (real parsed coordinate,
 /// not a byte offset), determinism.
 #[test]
-fn test_rendre_svg_vue_memoire() {
+fn test_rendre_svg_vue_memory() {
     let schema = schema_ensemble();
     let mut pool = pool_neuf(&schema);
     let root = ensemble(&mut pool, ANCRE_TEST, &schema, &[0, 1]);
@@ -132,7 +130,7 @@ fn test_rendre_svg_vue_memoire() {
         dd: 15,
         lisage: 7,
     };
-    let svg = rendre_svg_vue_memoire(&[vue_pool], &classes, &comparaison);
+    let svg = rendre_svg_vue_memory(&[vue_pool], &classes, &comparaison);
     // Panels and contents.
     assert!(svg.contains("memory and quotient view"));
     assert!(svg.contains("pools (main / shadow plane, GC)"));
@@ -161,7 +159,7 @@ fn test_rendre_svg_vue_memoire() {
     let attendu = 7 * 400 / 152;
     assert_eq!(largeur_lisage, attendu, "proportional Lisage bar");
     // Determinism.
-    let svg2 = rendre_svg_vue_memoire(
+    let svg2 = rendre_svg_vue_memory(
         &[VuePool::depuis_metriques(
             "reference",
             pool.metriques(),
@@ -183,7 +181,7 @@ fn test_comparaison_naif_dd_lisage() {
         dd: 15,
         lisage: 7,
     };
-    let svg = rendre_svg_vue_memoire(&[], &[], &comparaison);
+    let svg = rendre_svg_vue_memory(&[], &[], &comparaison);
     assert!(svg.contains("536754176"));
     assert!(svg.contains("Lisage"));
     // The naive bar reaches the max width (it is the max).

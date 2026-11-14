@@ -404,15 +404,15 @@ pub struct PnmlDocument(pub String);
 
 /// Petri net parsed from PNML.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ReseauPetri {
+pub struct NetworkPetri {
     pub places: Vec<Place>,
     pub transitions: Vec<Transition>,
     pub arcs: Vec<Arc>,
 }
 
-impl ReseauPetri {
+impl NetworkPetri {
     /// Parses a complete PNML document.
-    pub fn depuis_pnml(document: &PnmlDocument) -> Result<ReseauPetri, PnmlError> {
+    pub fn depuis_pnml(document: &PnmlDocument) -> Result<NetworkPetri, PnmlError> {
         let root = parser_xml(&document.0)?;
         let XmlNode::Element { nom, enfants, .. } = &root else {
             return Err(PnmlError::ElementInattendu {
@@ -456,7 +456,7 @@ impl ReseauPetri {
             }
         }
         let arcs = resoudre_arcs(&places, &transitions, &arcs_bruts)?;
-        Ok(ReseauPetri {
+        Ok(NetworkPetri {
             places,
             transitions,
             arcs,
@@ -649,8 +649,8 @@ fn parser_arc(attributs: &BTreeMap<String, String>) -> Result<ArcBrut, PnmlError
 pub type Marquage = BTreeMap<Atom, Atom>;
 
 /// Converts the initial marking of the net into a [`Value::Map`].
-pub fn marquage_initial(reseau: &ReseauPetri) -> Value {
-    let map: BTreeMap<Value, Value> = reseau
+pub fn marquage_initial(network: &NetworkPetri) -> Value {
+    let map: BTreeMap<Value, Value> = network
         .places
         .iter()
         .enumerate()
@@ -680,8 +680,8 @@ pub fn marquage_depuis_value(value: &Value) -> Option<Marquage> {
 }
 
 /// Input places of a transition (arcs place → transition).
-fn places_entrantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> Vec<&'a PlaceId> {
-    reseau
+fn places_entrantes<'a>(network: &'a NetworkPetri, transition: &TransitionId) -> Vec<&'a PlaceId> {
+    network
         .arcs
         .iter()
         .filter_map(|arc| match (&arc.source, &arc.cible) {
@@ -692,8 +692,8 @@ fn places_entrantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> V
 }
 
 /// Output places of a transition (arcs transition → place).
-fn places_sortantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> Vec<&'a PlaceId> {
-    reseau
+fn places_sortantes<'a>(network: &'a NetworkPetri, transition: &TransitionId) -> Vec<&'a PlaceId> {
+    network
         .arcs
         .iter()
         .filter_map(|arc| match (&arc.source, &arc.cible) {
@@ -706,12 +706,12 @@ fn places_sortantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> V
 /// A transition is enabled if each input place has at least
 /// one token.
 pub fn est_sensibilisee(
-    reseau: &ReseauPetri,
+    network: &NetworkPetri,
     transition: &TransitionId,
     marquage: &Marquage,
 ) -> bool {
-    places_entrantes(reseau, transition).iter().all(|place| {
-        let Some(index) = reseau.index_place(place) else {
+    places_entrantes(network, transition).iter().all(|place| {
+        let Some(index) = network.index_place(place) else {
             return false;
         };
         marquage
@@ -723,18 +723,18 @@ pub fn est_sensibilisee(
 
 /// Fires a transition: removes one token from each input place,
 /// adds one token to each output place.
-pub fn tirer(reseau: &ReseauPetri, transition: &TransitionId, marquage: &Marquage) -> Marquage {
+pub fn tirer(network: &NetworkPetri, transition: &TransitionId, marquage: &Marquage) -> Marquage {
     let mut resultat = marquage.clone();
-    for place in places_entrantes(reseau, transition) {
-        if let Some(index) = reseau.index_place(place) {
+    for place in places_entrantes(network, transition) {
+        if let Some(index) = network.index_place(place) {
             let key = Atom(index as u64);
             if let Some(jetons) = resultat.get_mut(&key) {
                 jetons.0 = jetons.0.saturating_sub(1);
             }
         }
     }
-    for place in places_sortantes(reseau, transition) {
-        if let Some(index) = reseau.index_place(place) {
+    for place in places_sortantes(network, transition) {
+        if let Some(index) = network.index_place(place) {
             let key = Atom(index as u64);
             resultat
                 .entry(key)
@@ -747,15 +747,15 @@ pub fn tirer(reseau: &ReseauPetri, transition: &TransitionId, marquage: &Marquag
 
 /// Semantic step: all successor markings of all enabled
 /// transitions, encoded as `Value::Map` (path A).
-pub fn pas_semantique(reseau: &ReseauPetri, ensemble: &BTreeSet<Value>) -> BTreeSet<Value> {
+pub fn pas_semantique(network: &NetworkPetri, ensemble: &BTreeSet<Value>) -> BTreeSet<Value> {
     let mut successeurs = BTreeSet::new();
     for value in ensemble {
         let Some(marquage) = marquage_depuis_value(value) else {
             continue;
         };
-        for transition in &reseau.transitions {
-            if est_sensibilisee(reseau, &transition.identifiant, &marquage) {
-                let suivant = tirer(reseau, &transition.identifiant, &marquage);
+        for transition in &network.transitions {
+            if est_sensibilisee(network, &transition.identifiant, &marquage) {
+                let suivant = tirer(network, &transition.identifiant, &marquage);
                 let map: BTreeMap<Value, Value> = suivant
                     .into_iter()
                     .map(|(key, compte)| (Value::Atom(key), Value::Atom(compte)))
@@ -769,7 +769,7 @@ pub fn pas_semantique(reseau: &ReseauPetri, ensemble: &BTreeSet<Value>) -> BTree
 
 /// Reachable marking space (path A, increasing fixpoint over
 /// the reference `lang/` interpreter).
-pub fn espace_atteignable(reseau: &ReseauPetri) -> BTreeSet<Value> {
-    let initial = BTreeSet::from([marquage_initial(reseau)]);
-    lisage_lang::interpreter::saturate(|ensemble| pas_semantique(reseau, ensemble), initial)
+pub fn espace_atteignable(network: &NetworkPetri) -> BTreeSet<Value> {
+    let initial = BTreeSet::from([marquage_initial(network)]);
+    lisage_lang::interpreter::saturate(|ensemble| pas_semantique(network, ensemble), initial)
 }

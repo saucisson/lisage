@@ -60,27 +60,27 @@ pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
 /// 1D region-key diagram, restricted to the current `region`
 /// (continuous interpretation: Lebesgue measure, saturated `u64`).
 ///
-/// `observateur`: narration channel (ADR-0100) — each visited node emits
+/// `observer`: narration channel (ADR-0100) — each visited node emits
 /// an `Attr`/`Synthesized` event with the computed measure.
 pub fn integrale_constante<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &P,
     root: NodeId,
     region: &Intervalle,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<u64, PoolError> {
     let mut memo: HashMap<(NodeId, Intervalle), u64> = HashMap::new();
-    integrale(pool, root, region, observateur, &mut memo)
+    integrale(pool, root, region, observer, &mut memo)
 }
 
 fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
     pool: &P,
     node: NodeId,
     region: &Intervalle,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
     memo: &mut HashMap<(NodeId, Intervalle), u64>,
 ) -> Result<u64, PoolError> {
     if let Some(total) = memo.get(&(node, *region)) {
-        if let Some(obs) = observateur {
+        if let Some(obs) = observer {
             obs.on_event(&TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
                 node,
@@ -99,13 +99,13 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
                 if sous_region.est_vide() {
                     continue;
                 }
-                let contribution = integrale(pool, *cible, &sous_region, observateur, memo)?;
+                let contribution = integrale(pool, *cible, &sous_region, observer, memo)?;
                 somme = somme.saturating_add(contribution);
             }
             somme
         }
     };
-    if let Some(obs) = observateur {
+    if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node,
@@ -121,17 +121,17 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
 /// intersected with the bounded box of `keys`. The measure is the
 /// **doubled** area (`i128`, exact) — see [`DbmKeys::measure_zone`].
 ///
-/// `observateur`: narration channel (ADR-0100) — each visited node emits
+/// `observer`: narration channel (ADR-0100) — each visited node emits
 /// an `Attr`/`Synthesized` event with the computed measure.
 pub fn integrale_dbm_constante<P: Pool<Key = Dbm, Payload = bool>>(
     pool: &P,
     root: NodeId,
     region: &Dbm,
     keys: &DbmKeys,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
 ) -> Result<i128, PoolError> {
     let mut memo: HashMap<(NodeId, Dbm), i128> = HashMap::new();
-    integrale_dbm(pool, root, region, keys, observateur, &mut memo)
+    integrale_dbm(pool, root, region, keys, observer, &mut memo)
 }
 
 fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
@@ -139,11 +139,11 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
     node: NodeId,
     region: &Dbm,
     keys: &DbmKeys,
-    observateur: Option<&dyn Observer>,
+    observer: Option<&dyn Observer>,
     memo: &mut HashMap<(NodeId, Dbm), i128>,
 ) -> Result<i128, PoolError> {
     if let Some(total) = memo.get(&(node, region.clone())) {
-        if let Some(obs) = observateur {
+        if let Some(obs) = observer {
             obs.on_event(&TraceEvent::Attr {
                 canal: CanalAttr::Synthesized,
                 node,
@@ -162,14 +162,13 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
                 if sous_region.est_vide() {
                     continue;
                 }
-                let contribution =
-                    integrale_dbm(pool, *cible, &sous_region, keys, observateur, memo)?;
+                let contribution = integrale_dbm(pool, *cible, &sous_region, keys, observer, memo)?;
                 somme += contribution;
             }
             somme
         }
     };
-    if let Some(obs) = observateur {
+    if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node,

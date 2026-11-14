@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 
 use lisage_bench::pnml::{
-    PlaceId, PnmlDocument, PnmlError, ReseauPetri, TransitionId, espace_atteignable,
+    NetworkPetri, PlaceId, PnmlDocument, PnmlError, TransitionId, espace_atteignable,
     est_sensibilisee, marquage_depuis_value, marquage_initial, pas_semantique, tirer,
 };
 use lisage_lang::value::Atom;
@@ -43,25 +43,25 @@ const PNML_BOUCL: &str = r#"<pnml><net>
 
 #[test]
 fn test_parse_modele_joue() {
-    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
-    assert_eq!(reseau.nombre_places(), 3);
-    assert_eq!(reseau.nombre_transitions(), 2);
-    assert_eq!(reseau.arcs.len(), 4);
-    assert_eq!(reseau.places[0].identifiant, PlaceId("p0".to_string()));
-    assert_eq!(reseau.places[0].nom.as_deref(), Some("source"));
-    assert_eq!(reseau.places[0].marquage_initial, 1);
-    assert_eq!(reseau.places[1].marquage_initial, 0);
+    let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
+    assert_eq!(network.nombre_places(), 3);
+    assert_eq!(network.nombre_transitions(), 2);
+    assert_eq!(network.arcs.len(), 4);
+    assert_eq!(network.places[0].identifiant, PlaceId("p0".to_string()));
+    assert_eq!(network.places[0].nom.as_deref(), Some("source"));
+    assert_eq!(network.places[0].marquage_initial, 1);
+    assert_eq!(network.places[1].marquage_initial, 0);
     assert_eq!(
-        reseau.transitions[0].identifiant,
+        network.transitions[0].identifiant,
         TransitionId("t1".to_string())
     );
-    assert_eq!(reseau.transitions[0].nom.as_deref(), Some("aller_a"));
+    assert_eq!(network.transitions[0].nom.as_deref(), Some("aller_a"));
 }
 
 #[test]
 fn test_marquage_initial_vers_value() {
-    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
-    let value = marquage_initial(&reseau);
+    let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
+    let value = marquage_initial(&network);
     let marquage = marquage_depuis_value(&value).unwrap();
     assert_eq!(marquage.get(&Atom(0)), Some(&Atom(1)));
     assert_eq!(marquage.get(&Atom(1)), Some(&Atom(0)));
@@ -70,54 +70,54 @@ fn test_marquage_initial_vers_value() {
 
 #[test]
 fn test_sensibilisation_et_tir() {
-    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
-    let initial = marquage_depuis_value(&marquage_initial(&reseau)).unwrap();
+    let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
+    let initial = marquage_depuis_value(&marquage_initial(&network)).unwrap();
     let t1 = TransitionId("t1".to_string());
     let t2 = TransitionId("t2".to_string());
-    assert!(est_sensibilisee(&reseau, &t1, &initial));
-    assert!(est_sensibilisee(&reseau, &t2, &initial));
-    let apres_t1 = tirer(&reseau, &t1, &initial);
+    assert!(est_sensibilisee(&network, &t1, &initial));
+    assert!(est_sensibilisee(&network, &t2, &initial));
+    let apres_t1 = tirer(&network, &t1, &initial);
     assert_eq!(apres_t1.get(&Atom(0)), Some(&Atom(0)));
     assert_eq!(apres_t1.get(&Atom(1)), Some(&Atom(1)));
-    assert!(!est_sensibilisee(&reseau, &t1, &apres_t1));
-    assert!(!est_sensibilisee(&reseau, &t2, &apres_t1));
+    assert!(!est_sensibilisee(&network, &t1, &apres_t1));
+    assert!(!est_sensibilisee(&network, &t2, &apres_t1));
 }
 
 #[test]
 fn test_espace_atteignable_voie_a() {
-    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
-    let espace = espace_atteignable(&reseau);
+    let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
+    let espace = espace_atteignable(&network);
     // 3 markings: initial, after t1, after t2.
     assert_eq!(espace.len(), 3);
-    let initial = marquage_initial(&reseau);
+    let initial = marquage_initial(&network);
     assert!(espace.contains(&initial));
 }
 
 #[test]
 fn test_pas_semantique_depuis_ensemble() {
-    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
-    let initial = BTreeSet::from([marquage_initial(&reseau)]);
-    let successeurs = pas_semantique(&reseau, &initial);
+    let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
+    let initial = BTreeSet::from([marquage_initial(&network)]);
+    let successeurs = pas_semantique(&network, &initial);
     assert_eq!(successeurs.len(), 2);
 }
 
 #[test]
 fn test_boucle_espace_stable() {
-    let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(PNML_BOUCL.to_string())).unwrap();
-    let espace = espace_atteignable(&reseau);
+    let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_BOUCL.to_string())).unwrap();
+    let espace = espace_atteignable(&network);
     assert_eq!(espace.len(), 1);
 }
 
 #[test]
 fn test_erreur_xml_mal_forme() {
     let resultat =
-        ReseauPetri::depuis_pnml(&PnmlDocument("<pnml><net><place id=\"p0\">".to_string()));
+        NetworkPetri::depuis_pnml(&PnmlDocument("<pnml><net><place id=\"p0\">".to_string()));
     assert!(matches!(resultat, Err(PnmlError::XmlMalForme { .. })));
 }
 
 #[test]
 fn test_erreur_attribut_manquant() {
-    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(
+    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(
         "<pnml><net><place/></net></pnml>".to_string(),
     ));
     assert!(matches!(
@@ -132,7 +132,7 @@ fn test_erreur_attribut_manquant() {
 #[test]
 fn test_erreur_arc_vers_inconnu() {
     let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t9\"/></net></pnml>";
-    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
+    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(resultat, Err(PnmlError::ArcVersInconnu { .. })));
 }
 
@@ -140,21 +140,21 @@ fn test_erreur_arc_vers_inconnu() {
 fn test_erreur_arc_mal_oriente() {
     // Two linked transitions: badly oriented arc, rejected at parsing.
     let document = "<pnml><net><transition id=\"t1\"/><transition id=\"t2\"/><arc source=\"t1\" target=\"t2\"/></net></pnml>";
-    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
+    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(resultat, Err(PnmlError::ArcMalOriente { .. })));
 }
 
 #[test]
 fn test_erreur_poids_non_supporte() {
     let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t1\" weight=\"2\"/></net></pnml>";
-    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
+    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(resultat, Err(PnmlError::PoidsNonSupporte { .. })));
 }
 
 #[test]
 fn test_erreur_element_inattendu() {
     // Root other than <pnml>.
-    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument("<foo/>".to_string()));
+    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument("<foo/>".to_string()));
     assert!(matches!(
         resultat,
         Err(PnmlError::ElementInattendu {
@@ -163,7 +163,7 @@ fn test_erreur_element_inattendu() {
         })
     ));
     // <pnml> without <net>.
-    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument("<pnml/>".to_string()));
+    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument("<pnml/>".to_string()));
     assert!(matches!(
         resultat,
         Err(PnmlError::ElementInattendu { attendu: "net", .. })
@@ -173,7 +173,7 @@ fn test_erreur_element_inattendu() {
 #[test]
 fn test_erreur_nombre_invalide() {
     let document = "<pnml><net><place id=\"p0\"><initialMarking><text>abc</text></initialMarking></place></net></pnml>";
-    let resultat = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string()));
+    let resultat = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(
         resultat,
         Err(PnmlError::NombreInvalide {
@@ -191,7 +191,7 @@ fn test_erreur_nombre_invalide() {
 /// marking 0..=2), `nombre_transitions` transitions, each transition
 /// linked to an input place and an output place (possibly
 /// the same).
-fn reseau_aleatoire(
+fn network_aleatoire(
     nombre_places: usize,
     nombre_transitions: usize,
     marquages: Vec<u64>,
@@ -231,11 +231,11 @@ proptest! {
             m.truncate(nombre_places);
             m
         };
-        let document = reseau_aleatoire(nombre_places, nombre_transitions, marquages);
-        let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
-        let espace = espace_atteignable(&reseau);
-        prop_assert!(espace.contains(&marquage_initial(&reseau)));
-        let successeurs = pas_semantique(&reseau, &espace);
+        let document = network_aleatoire(nombre_places, nombre_transitions, marquages);
+        let network = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
+        let espace = espace_atteignable(&network);
+        prop_assert!(espace.contains(&marquage_initial(&network)));
+        let successeurs = pas_semantique(&network, &espace);
         prop_assert!(successeurs.is_subset(&espace));
     }
 
@@ -254,13 +254,13 @@ proptest! {
             m.truncate(nombre_places);
             m
         };
-        let document = reseau_aleatoire(nombre_places, nombre_transitions, marquages);
-        let reseau = ReseauPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
-        let initial = marquage_depuis_value(&marquage_initial(&reseau)).unwrap();
+        let document = network_aleatoire(nombre_places, nombre_transitions, marquages);
+        let network = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
+        let initial = marquage_depuis_value(&marquage_initial(&network)).unwrap();
         let total_avant: u64 = initial.values().map(|a| a.0).sum();
-        for transition in &reseau.transitions {
-            if est_sensibilisee(&reseau, &transition.identifiant, &initial) {
-                let suivant = tirer(&reseau, &transition.identifiant, &initial);
+        for transition in &network.transitions {
+            if est_sensibilisee(&network, &transition.identifiant, &initial) {
+                let suivant = tirer(&network, &transition.identifiant, &initial);
                 // The resulting marking has one entry per place.
                 prop_assert_eq!(suivant.len(), nombre_places);
                 // Documented invariant: firing moves one token (weight 1

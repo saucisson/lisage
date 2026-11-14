@@ -32,7 +32,7 @@ use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
-use crate::memoire::{EffetMemoire, MemoireLevel};
+use crate::memory::{EffetMemory, MemoryLevel};
 use crate::pli::union;
 use crate::schema::{ABSENT, Domain, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
@@ -135,14 +135,14 @@ impl TransfertNonLocal {
         &self,
         pool: &mut P,
         anchor: Anchor,
-        memoire: &MemoireLevel<bool>,
+        memory: &MemoryLevel<bool>,
         node_input: NodeId,
         level: Level,
         arcs: BTreeMap<u64, (NodeId, ())>,
-    ) -> (BTreeMap<u64, (NodeId, ())>, EffetMemoire<bool>) {
+    ) -> (BTreeMap<u64, (NodeId, ())>, EffetMemory<bool>) {
         // Already produced by this node at this visit? (idempotence M).
-        if memoire.lire(node_input, level) == Some(&true) {
-            return (arcs, EffetMemoire::new());
+        if memory.lire(node_input, level) == Some(&true) {
+            return (arcs, EffetMemory::new());
         }
         let mut remap = BTreeMap::new();
         let mut decremente = false;
@@ -155,9 +155,9 @@ impl TransfertNonLocal {
             }
         }
         let effet = if decremente {
-            EffetMemoire::une(node_input, level, true)
+            EffetMemory::une(node_input, level, true)
         } else {
-            EffetMemoire::new()
+            EffetMemory::new()
         };
         (remap, effet)
     }
@@ -270,31 +270,31 @@ impl Transduction for TransfertNonLocal {
         &self,
         pool: &mut P,
         ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, EffetMemoire<bool>) {
+    ) -> (NodeId, EffetMemory<bool>) {
         let ContextePhiOut {
             anchor,
             level,
             h,
             arcs,
-            memoire,
+            memory,
             node_input,
         } = ctx;
         let (arcs, effet) = if level == self.level_source() {
-            self.decremente_source(pool, anchor, memoire, node_input, level, arcs)
+            self.decremente_source(pool, anchor, memory, node_input, level, arcs)
         } else if level == Schema::level_presence(self.index_destination)
             && matches!(h, EtatTransfert::Transfert(_))
         {
             (
                 self.pose_presence_destination(pool, anchor, h, arcs),
-                EffetMemoire::new(),
+                EffetMemory::new(),
             )
         } else if level == self.level_destination() && matches!(h, EtatTransfert::Transfert(_)) {
             (
                 self.pose_value_destination(pool, anchor, h, arcs),
-                EffetMemoire::new(),
+                EffetMemory::new(),
             )
         } else {
-            (arcs, EffetMemoire::new())
+            (arcs, EffetMemory::new())
         };
         let arcs = arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (pool.intern(anchor, Form::Node { level, arcs }), effet)

@@ -231,7 +231,7 @@ fn test_bench_gaucher_ratio_constant() {
 /// firings read via the observer.
 #[test]
 fn test_bench_sept_formes_o1_et_bord() {
-    let observateur = Arc::new(RecordingObserver::default());
+    let observer = Arc::new(RecordingObserver::default());
     struct Pont(Arc<RecordingObserver>);
     impl Observer for Pont {
         fn on_event(&self, event: &TraceEvent) {
@@ -245,7 +245,7 @@ fn test_bench_sept_formes_o1_et_bord() {
         let schema = schema_anneau(n, false);
         let mut pool = Arena::new(
             ReferenceController::new(schema.clone()),
-            Box::new(Pont(observateur.clone())),
+            Box::new(Pont(observer.clone())),
         );
         let root = construire_r_n(&mut pool, n, false);
         // Distinct (pc, left) signatures appearing in R_n.
@@ -282,10 +282,10 @@ fn test_bench_sept_formes_o1_et_bord() {
         "the flat prototype grows with n: {nodes_plats:?}"
     );
     // Firings = NodeCreated events == pool creation counter.
-    let firings = *observateur.firings.lock().unwrap();
+    let firings = *observer.firings.lock().unwrap();
     assert_eq!(firings, creations, "firings == hash-consing creations");
     // Rounds = Round events: no saturation during the union construction
     // (the Round narration must not silently disappear).
-    let passes = *observateur.passes.lock().unwrap();
+    let passes = *observer.passes.lock().unwrap();
     assert_eq!(passes, 0, "no saturation round during the union");
 }
