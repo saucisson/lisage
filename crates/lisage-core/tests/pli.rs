@@ -1,6 +1,6 @@
-//! Tests du pli et des semi-anneaux (M1-6, spec § 5, A4/A5) : `Pli<S>`
-//! (count sur `(ℕ,+,×)`, pli Bool sur `(Bool,∨,∧)`), expansion-comptage
-//! A4 sur niveaux collapsés, et `union` (merge de construction Bool).
+//! Tests for the fold and semirings (M1-6, spec § 5, A4/A5): `Pli<S>`
+//! (count over `(ℕ,+,×)`, Bool fold over `(Bool,∨,∧)`), A4 counting
+//! expansion on collapsed levels, and `union` (Bool construction merge).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -34,7 +34,7 @@ fn pool(schema: &Schema) -> PoolRef {
     )
 }
 
-/// Compile un ensemble de maps en un seul diagramme (union des membres).
+/// Compiles a set of maps into a single diagram (union of the members).
 fn compiler_ensemble(
     pool: &mut PoolRef,
     anchor: Anchor,
@@ -50,9 +50,9 @@ fn compiler_ensemble(
     resultat
 }
 
-/// Exemple de la spec § 5 : `S = {{a↦0}, {a↦1}}` sur `Map([a], {0,1})` —
-/// le niveau `val(a)` est collapsé, le chemin explicite est unique mais
-/// `|S| = 2` (A4 : le cardinal du niveau entre dans l'agrégation).
+/// Spec § 5 example: `S = {{a↦0}, {a↦1}}` on `Map([a], {0,1})` — the
+/// `val(a)` level is collapsed, the explicit path is unique but `|S| = 2`
+/// (A4: the level cardinal enters the aggregation).
 #[test]
 fn test_count_niveau_collapsed_a4_exemple_spec() {
     let schema = Schema::Map(vec![Atom(0)], Domaine::nouveau(vec![Atom(0), Atom(1)]));
@@ -61,16 +61,16 @@ fn test_count_niveau_collapsed_a4_exemple_spec() {
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
     let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
-    // Le niveau val(a) a été collapsé : un seul arc explicite.
+    // The val(a) level was collapsed: a single explicit arc.
     let Form::Node { arcs, .. } = entree.resolve(racine).unwrap() else {
-        panic!("nœud de présence attendu")
+        panic!("presence node expected")
     };
-    assert_eq!(arcs.len(), 1, "un seul chemin explicite");
+    assert_eq!(arcs.len(), 1, "a single explicit path");
     let total = compter(&entree, &mut sortie, anchor, &schema, racine).unwrap();
-    assert_eq!(total, 2, "A4 : |Val(val(a))| × 1 = 2");
+    assert_eq!(total, 2, "A4: |Val(val(a))| × 1 = 2");
 }
 
-/// Comptage sur un ensemble de maps à deux clés (pas de collapse ici).
+/// Counting on a set of two-key maps (no collapse here).
 #[test]
 fn test_count_ensemble_maps() {
     let schema = Schema::Map(
@@ -86,8 +86,8 @@ fn test_count_ensemble_maps() {
     assert_eq!(total, 2);
 }
 
-/// Ensemble vide : le pli vaut zéro. Ensemble plein (toutes les maps) :
-/// le comptage vaut le produit des cardinalités (tout niveau collapsé).
+/// Empty set: the fold is zero. Full set (all maps): the count is the
+/// product of the cardinalities (every level collapsed).
 #[test]
 fn test_count_ensemble_vide_et_plein() {
     let schema = Schema::Map(vec![Atom(0)], Domaine::nouveau(vec![Atom(0), Atom(1)]));
@@ -102,7 +102,7 @@ fn test_count_ensemble_vide_et_plein() {
         0
     );
 
-    // Toutes les maps sur une clé à valeurs {0,1} : {a↦0} et {a↦1}.
+    // All maps over one key with values {0,1}: {a↦0} and {a↦1}.
     let plein = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
     let racine_plein = compiler_ensemble(&mut entree, anchor, &schema, &plein);
     assert_eq!(
@@ -111,7 +111,7 @@ fn test_count_ensemble_vide_et_plein() {
     );
 }
 
-/// Pli sur `(Bool, ∨, ∧)` : « l'ensemble est non vide » (∃-summary).
+/// Fold over `(Bool, ∨, ∧)`: "the set is non-empty" (∃-summary).
 #[test]
 fn test_pli_boolou_non_vide() {
     let schema = Schema::Map(vec![Atom(0)], Domaine::nouveau(vec![Atom(0), Atom(1)]));
@@ -125,16 +125,16 @@ fn test_pli_boolou_non_vide() {
     let (_, s_vide) = runner
         .run(&entree, &mut sortie, anchor, racine_vide)
         .unwrap();
-    assert_eq!(s_vide, BoolOu(false), "ensemble vide ⇒ faux");
+    assert_eq!(s_vide, BoolOu(false), "empty set ⇒ false");
 
     let non_vide = BTreeSet::from([map_de(&[(0, 1)])]);
     let racine = compiler_ensemble(&mut entree, anchor, &schema, &non_vide);
     let (_, s) = runner.run(&entree, &mut sortie, anchor, racine).unwrap();
-    assert_eq!(s, BoolOu(true), "ensemble non vide ⇒ vrai");
+    assert_eq!(s, BoolOu(true), "non-empty set ⇒ true");
 }
 
-/// Union (merge de construction Bool, A5) : idempotente, ⊥ neutre ; ⊤ est
-/// le membre « tout par défaut » (la map vide), pas un absorbant.
+/// Union (Bool construction merge, A5): idempotent, ⊥ neutral; ⊤ is the
+/// "all by default" member (the empty map), not an absorbing element.
 #[test]
 fn test_union_merge_construction_bool() {
     let schema = Schema::Map(vec![Atom(0)], Domaine::nouveau(vec![Atom(0), Atom(1)]));
@@ -149,12 +149,12 @@ fn test_union_merge_construction_bool() {
     assert_eq!(
         union(&mut entree, &keys, anchor, m0, m0).unwrap(),
         m0,
-        "idempotente"
+        "idempotent"
     );
     assert_eq!(
         union(&mut entree, &keys, anchor, m0, faux).unwrap(),
         m0,
-        "⊥ neutre"
+        "⊥ neutral"
     );
     let les_deux = union(&mut entree, &keys, anchor, m0, m1).unwrap();
     let les_trois = union(&mut entree, &keys, anchor, les_deux, vide).unwrap();
@@ -162,11 +162,11 @@ fn test_union_merge_construction_bool() {
     assert_eq!(
         compter(&entree, &mut sortie, anchor, &schema, les_deux).unwrap(),
         2,
-        "l'union de deux membres compte 2"
+        "the union of two members counts 2"
     );
     assert_eq!(
         compter(&entree, &mut sortie, anchor, &schema, les_trois).unwrap(),
         3,
-        "⊤ = map vide : un troisième membre, pas d'absorption"
+        "⊤ = empty map: a third member, no absorption"
     );
 }

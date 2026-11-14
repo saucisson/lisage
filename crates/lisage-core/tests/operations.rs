@@ -1,5 +1,5 @@
-//! Tests des opérations à canal hérité seul (M1-6, spec § 4) : `exists`
-//! (pli `(Bool,∨,∧)`), `filter` (garde), `map` (réétiquetage d'atomes).
+//! Tests for the inherited-channel-only operations (M1-6, spec § 4):
+//! `exists` (fold `(Bool,∨,∧)`), `filter` (guard), `map` (atom relabeling).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -56,12 +56,12 @@ fn schema_map() -> Schema {
     )
 }
 
-/// Prédicat de présence : `p(m) = présent(a)`.
+/// Presence predicate: `p(m) = present(a)`.
 fn predicat_exemple_spec(cles: &ClePresentes) -> bool {
     cles.contains(&0)
 }
 
-/// `exists(p)` : pli sur `(Bool, ∨, ∧)`, verdict résolu au terminal.
+/// `exists(p)`: fold over `(Bool, ∨, ∧)`, verdict resolved at the terminal.
 #[test]
 fn test_existe_predicat_exemple_spec() {
     let schema = schema_map();
@@ -80,7 +80,7 @@ fn test_existe_predicat_exemple_spec() {
         Box::new(predicat_exemple_spec),
     )
     .unwrap();
-    assert!(verdict, "a↦1 satisfait p (présent(a))");
+    assert!(verdict, "a↦1 satisfies p (present(a))");
 
     let aucun = existe(
         &entree,
@@ -91,11 +91,11 @@ fn test_existe_predicat_exemple_spec() {
         Box::new(|cles: &ClePresentes| cles.contains(&0) && cles.contains(&1)),
     )
     .unwrap();
-    assert!(!aucun, "aucun membre n'a a et b présents");
+    assert!(!aucun, "no member has both a and b present");
 }
 
-/// `filter(p)` : garde, le diagramme de sortie est l'ensemble filtré
-/// (canonique : même ensemble ⇒ même nœud, C1).
+/// `filter(p)`: guard, the output diagram is the filtered set (canonical:
+/// same set ⇒ same node, C1).
 #[test]
 fn test_filtre_garde() {
     let schema = schema_map();
@@ -105,7 +105,7 @@ fn test_filtre_garde() {
     let ensemble = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
     let racine = compiler_ensemble(&mut entree, anchor, &schema, &ensemble);
 
-    // Garde « clé 0 présente ».
+    // Guard "key 0 present".
     let filtre = filtrer(
         &entree,
         &mut sortie,
@@ -121,10 +121,10 @@ fn test_filtre_garde() {
         &schema,
         &BTreeSet::from([map_de(&[(0, 1)])]),
     );
-    assert_eq!(filtre, attendu, "C1 : même ensemble filtré ⇒ même nœud");
+    assert_eq!(filtre, attendu, "C1: same filtered set ⇒ same node");
 }
 
-/// `map(f)` : réétiquetage des atomes d'un ensemble (schéma `Atom`).
+/// `map(f)`: relabeling of the atoms of a set (schema `Atom`).
 #[test]
 fn test_image_reetiquetage_atomes() {
     let schema = Schema::Atom(Domaine::nouveau(vec![Atom(0), Atom(1), Atom(2)]));
@@ -149,11 +149,11 @@ fn test_image_reetiquetage_atomes() {
         &schema,
         &BTreeSet::from([atome(1), atome(0)]),
     );
-    assert_eq!(image, attendu, "C1 : même image ⇒ même nœud");
+    assert_eq!(image, attendu, "C1: same image ⇒ same node");
 }
 
-/// `exists` sur un schéma non-Map : erreur typée `SchemaInattendu`, pas de
-/// panique à la frontière publique.
+/// `exists` on a non-Map schema: typed error `SchemaInattendu`, no panic at
+/// the public boundary.
 #[test]
 fn test_existe_schema_non_map_erreur_typee() {
     let schema = Schema::Atom(Domaine::nouveau(vec![Atom(0)]));
@@ -179,8 +179,8 @@ fn test_existe_schema_non_map_erreur_typee() {
     );
 }
 
-/// `filter` sur un nœud dont le niveau dépasse le schéma : erreur typée
-/// `NiveauHorsSchema` (au lieu d'un indice hors limites).
+/// `filter` on a node whose level exceeds the schema: typed error
+/// `NiveauHorsSchema` (instead of an out-of-bounds index).
 #[test]
 fn test_filtre_niveau_hors_schema_erreur_typee() {
     let schema = schema_map();
@@ -189,8 +189,8 @@ fn test_filtre_niveau_hors_schema_erreur_typee() {
     let anchor = Anchor(0);
     let terminal_faux = entree.intern(anchor, Form::Terminal(false));
     let terminal_vrai = entree.intern(anchor, Form::Terminal(true));
-    // Niveau 4 hors du schéma (2 clés ⇒ niveaux 0..3) ; arcs distincts pour
-    // éviter tout collapse à l'internage.
+    // Level 4 outside the schema (2 keys ⇒ levels 0..3); distinct arcs to
+    // avoid any collapse at interning.
     let malforme = entree.intern(
         anchor,
         Form::Node {

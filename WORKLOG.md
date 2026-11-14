@@ -52,6 +52,14 @@ One entry per commit or pull request:
 - **Done**: reverts the local identifier renames in `saturate.rs` (`input_node`/`node` → `noeud_entree`/`noeud`, comments stay translated — identifiers are M6-6 scope); translates the unaccented French string literals `mesure={total}` / `mesure_memo={total}` in `src/integrale.rs` to `measure=` / `measure_memo=` and updates the pinned copies in `tests/integrale.rs` / `tests/integrale_dbm.rs`.
 - **Evidence**: `cargo test -p lisage-core --test integrale --test integrale_dbm --test saturate` ok (18 passed); `cargo fmt -p lisage-core -- --check` clean; grep `mesure=` returns nothing outside kept identifiers.
 - **Judgement calls**: unaccented French strings are invisible to the accent grep — the reviewer catches them; JSONL wire fields (`noeud`, `valeur`…) stay French as contract.
+## 2026-11-14 - M6-5 part 4a-7: lisage-core operations+pli translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in `crates/lisage-core/src/operations.rs`, `crates/lisage-core/src/pli.rs`, `crates/lisage-core/tests/operations.rs`, `crates/lisage-core/tests/pli.rs` to English. Public French identifiers are kept until dependent crates are translated.
+- **Evidence**: `cargo check -p lisage-core --tests` passes; `cargo test -p lisage-core` all 25 test suites pass; `cargo fmt -p lisage-core -- --check` clean. Full `make check` deferred to the last part.
+- **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-5 part 4a-6: lisage-core saturate+integrale translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
