@@ -1,9 +1,9 @@
-//! Tests de l'instance-test DDD-différence (backlog § 9, question ouverte 9
-//! de la spec, veine #83) : contrat de clés côté contrôleur (intersection =
-//! meet des DBM, couverture de la boîte bornée), puis le diagramme de la
-//! bande `x − y ≤ 1 ∧ y − x ≤ 2` construit par régions explicites —
-//! différentiel d'appartenance contre énumération naïve sur une petite
-//! boîte, et partage au pool (C1 relatif à l'algèbre de régions).
+//! Tests for the DDD-difference test instance (backlog § 9, open question 9
+//! of the spec, vein #83): key contract on the controller side (intersection =
+//! meet of DBMs, coverage of the bounded box), then the diagram of the band
+//! `x − y ≤ 1 ∧ y − x ≤ 2` built by explicit regions — membership differential
+//! against naive enumeration over a small box, and pool sharing (C1 relative
+//! to the region algebra).
 
 use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, Pool};
 use lisage_core::arena::Arena;
@@ -25,22 +25,19 @@ fn pool() -> PoolDbm {
 
 #[test]
 fn test_intersection_meet_canonique() {
-    // meet de x−y ≤ 1 et y−x ≤ 2 = la bande explicite, forme normale incluse.
+    // meet of x−y ≤ 1 and y−x ≤ 2 = the explicit band, normal form included.
     let a = Dbm::nouveau(2, &[(0, 1, 1)]);
     let b = Dbm::nouveau(2, &[(1, 0, 2)]);
     let meet = a.intersection(&b);
     let bande = Dbm::nouveau(2, &[(0, 1, 1), (1, 0, 2)]);
-    assert_eq!(
-        meet, bande,
-        "le meet de deux régions est la bande, clôturée"
-    );
-    // Commutativité, idempotence.
+    assert_eq!(meet, bande, "the meet of two regions is the band, closed");
+    // Commutativity, idempotence.
     assert_eq!(a.intersection(&b), b.intersection(&a));
     assert_eq!(a.intersection(&a), a);
-    // Meet avec une région disjointe : incohérent → région vide canonique.
+    // Meet with a disjoint region: inconsistent → canonical empty region.
     let disjoint = Dbm::nouveau(2, &[(1, 0, -3)]);
     assert_eq!(a.intersection(&disjoint), INCOHERENT);
-    // Toute région vide donne la région vide.
+    // Any empty region gives the empty region.
     assert_eq!(a.intersection(&INCOHERENT), INCOHERENT);
     assert_eq!(INCOHERENT.intersection(&a), INCOHERENT);
 }
@@ -50,63 +47,60 @@ fn test_couverture_boite_bornee() {
     let keys = DbmKeys::nouvelle(TAILLE_DOMAINE);
     let dessous = Dbm::nouveau(2, &[(0, 1, 0)]);
     let dessus = Dbm::nouveau(2, &[(1, 0, -1)]);
-    // La partition {x ≤ y, x > y} couvre la boîte [0, 4)².
+    // The partition {x ≤ y, x > y} covers the box [0, 4)².
     assert!(keys.couverture(&[dessous.clone(), dessus.clone()]));
-    // Une seule moitié ne couvre pas ; famille vide non plus ; région vide non plus.
+    // A single half does not cover; neither does the empty family; nor the empty region.
     assert!(!keys.couverture(&[dessous]));
     assert!(!keys.couverture(&[]));
     assert!(!keys.couverture(&[INCOHERENT]));
-    // La bande seule ne couvre pas la boîte.
+    // The band alone does not cover the box.
     let bande = Dbm::nouveau(2, &[(0, 1, 1), (1, 0, 2)]);
     assert!(!keys.couverture(&[bande]));
 }
 
-/// Instance-test : la bande compilée par régions explicites a la sémantique
-/// attendue sur toute la boîte, et tient en O(1) nœuds contre T² points —
-/// le balayage d'univers ne compile pas, le royaume libre DDD est assumé.
+/// Test instance: the band compiled by explicit regions has the expected
+/// semantics over the whole box, and fits in O(1) nodes vs T² points — the
+/// universe sweep does not compile, the free DDD kingdom is assumed.
 #[test]
 fn test_bande_differentiel_contre_enumeration() {
     let mut pool = pool();
     let racine = compiler_bande(&mut pool, ANCRE);
-    // Quatre nœuds : true, false, le niveau 1, la racine — contre 16 points.
+    // Four nodes: true, false, level 1, the root — vs 16 points.
     assert_eq!(compter_noeuds(&pool, racine), 4);
     for x in 0..TAILLE_DOMAINE {
         for y in 0..TAILLE_DOMAINE {
             let point = [x, y];
             let attendu = i128::from(x) - i128::from(y) <= 1 && i128::from(y) - i128::from(x) <= 2;
-            let lu = evaluer(&pool, racine, &point).expect("nœud interné");
+            let lu = evaluer(&pool, racine, &point).expect("interned node");
             assert_eq!(
                 lu.unwrap_or(false),
                 attendu,
-                "point {point:?} : l'absent continu vaut false"
+                "point {point:?}: the continuous absent is false"
             );
         }
     }
 }
 
-/// C1 relatif : deux constructions de la même bande partagent la racine au
-/// pool (R-share après forme normale des régions).
+/// Relative C1: two constructions of the same band share the root in the pool
+/// (R-share after the regions' normal form).
 #[test]
 fn test_partage_pool_bande() {
     let mut pool = pool();
     let racine_a = compiler_bande(&mut pool, ANCRE);
     let racine_b = compiler_bande(&mut pool, ANCRE);
-    assert_eq!(racine_a, racine_b, "même bande = même racine");
-    // La racine a bien deux arcs au niveau 0 (région + complémentaire).
-    let Form::Node { arcs, .. } = pool.resolve(racine_a).expect("nœud interné") else {
-        panic!("la racine est un nœud");
+    assert_eq!(racine_a, racine_b, "same band = same root");
+    // The root indeed has two arcs at level 0 (region + complement).
+    let Form::Node { arcs, .. } = pool.resolve(racine_a).expect("interned node") else {
+        panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2);
     let keys = DbmKeys::nouvelle(TAILLE_DOMAINE);
     let regions: Vec<Dbm> = arcs.keys().cloned().collect();
-    assert!(
-        keys.couverture(&regions),
-        "les arcs du niveau 0 couvrent la boîte"
-    );
+    assert!(keys.couverture(&regions), "the level-0 arcs cover the box");
 }
 
-/// Propriété (LCG) : l'intersection est commutative, idempotente, et tout
-/// point du meet appartient aux deux régions.
+/// Property (LCG): the intersection is commutative, idempotent, and every
+/// point of the meet belongs to both regions.
 #[test]
 fn test_propriete_intersection_lcg() {
     const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -137,7 +131,7 @@ fn test_propriete_intersection_lcg() {
         let a = tire(&mut suivant);
         let b = tire(&mut suivant);
         let meet = a.intersection(&b);
-        assert_eq!(meet, b.intersection(&a), "commutativité");
+        assert_eq!(meet, b.intersection(&a), "commutativity");
         assert_eq!(a.intersection(&a), a, "idempotence");
         let point = [suivant() % TAILLE_DOMAINE, suivant() % TAILLE_DOMAINE];
         if meet.contient(&point) {
@@ -146,8 +140,8 @@ fn test_propriete_intersection_lcg() {
     }
 }
 
-/// Le contrat de clés reste déclaré côté contrôleur : cardinalité et défaut
-/// du niveau sont ceux de l'algèbre DBM (la couverture se teste à part).
+/// The key contract remains declared on the controller side: cardinality and
+/// level default are those of the DBM algebra (coverage is tested separately).
 #[test]
 fn test_contrat_cle_niveau() {
     let keys = DbmKeys::nouvelle(TAILLE_DOMAINE);

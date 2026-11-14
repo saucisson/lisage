@@ -1,11 +1,10 @@
-//! Configuration du contrôleur en **BDD classique** (M1-8, énoncé C6) :
-//! variables booléennes ordonnées, arcs `0`/`1` toujours explicites, aucune
-//! clé par défaut désignée — R-default est inactif, seules les réductions
-//! R-share (hash-consing) et R-collapse s'appliquent. C'est la configuration
-//! « témoin » de référence pour la reproduction à l'identique (C6) : le nombre
-//! de nœuds d'une fonction booléenne doit être identique chez tout témoin
-//! BDD indépendant (mini-BDD interne, CUDD/Sylvan via FFI — voir
-//! `docs/spike-ffi-cudd-sylvan.md`).
+//! Controller configuration in **classic BDD** (M1-8, statement C6): ordered
+//! boolean variables, arcs `0`/`1` always explicit, no default key designated
+//! — R-default is inactive, only R-share (hash-consing) and R-collapse
+//! reductions apply. This is the reference "witness" configuration for exact
+//! reproduction (C6): the node count of a boolean function must be identical
+//! across any independent BDD witness (internal mini-BDD, CUDD/Sylvan via FFI
+//! — see `docs/spike-ffi-cudd-sylvan.md`).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -13,23 +12,23 @@ use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 
-/// Cardinalité d'un niveau BDD : deux arcs, `0` (bas) et `1` (haut).
+/// Cardinality of a BDD level: two arcs, `0` (low) and `1` (high).
 pub const CARDINALITE_BDD: u64 = 2;
 
-/// Algèbre de clés d'un BDD classique sur `nombre_variables` variables :
-/// le niveau ℓ est la variable ℓ, `Val(ℓ) = {0, 1}`, pas de δ(ℓ).
+/// Key algebra of a classic BDD over `nombre_variables` variables: level ℓ is
+/// variable ℓ, `Val(ℓ) = {0, 1}`, no δ(ℓ).
 #[derive(Clone)]
 pub struct BddKeys {
     nombre_variables: u32,
 }
 
 impl BddKeys {
-    /// Algèbre de clés pour `nombre_variables` variables ordonnées 0..n-1.
+    /// Key algebra for `nombre_variables` ordered variables 0..n-1.
     pub fn new(nombre_variables: u32) -> Self {
         BddKeys { nombre_variables }
     }
 
-    /// Nombre de variables du BDD.
+    /// Number of variables of the BDD.
     pub fn nombre_variables(&self) -> u32 {
         self.nombre_variables
     }
@@ -51,14 +50,14 @@ impl KeyAlgebra for BddKeys {
     }
 }
 
-/// Contrôleur BDD classique : payload booléen, aucun diagramme de défaut
-/// désigné par niveau (R-default inactif), R-collapse seul.
+/// Classic BDD controller: boolean payload, no default diagram designated per
+/// level (R-default inactive), R-collapse only.
 pub struct BddController {
     keys: BddKeys,
 }
 
 impl BddController {
-    /// Contrôleur pour `nombre_variables` variables ordonnées 0..n-1.
+    /// Controller for `nombre_variables` ordered variables 0..n-1.
     pub fn new(nombre_variables: u32) -> Self {
         BddController {
             keys: BddKeys::new(nombre_variables),
@@ -82,10 +81,10 @@ impl Controller for BddController {
     }
 }
 
-/// Compile une table de vérité en BDD classique par expansion de Shannon
-/// descendante : la racine est au niveau 0, le niveau ℓ décide la variable
-/// ℓ. `table[a]` = valeur de la fonction sur l'affectation `a` (bit ℓ de
-/// `a` = variable ℓ) ; la longueur doit être `2^n`.
+/// Compiles a truth table into a classic BDD by descending Shannon expansion:
+/// the root is at level 0, level ℓ decides variable ℓ. `table[a]` = value of
+/// the function on assignment `a` (bit ℓ of `a` = variable ℓ); the length
+/// must be `2^n`.
 pub fn compiler_bdd<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -96,14 +95,14 @@ pub fn compiler_bdd<P: Pool<Key = u64, Payload = bool>>(
     assert_eq!(
         table.len(),
         1usize << nombre_variables,
-        "table de vérité de taille 2^n (invariant interne)"
+        "truth table of size 2^n (internal invariant)"
     );
     shannon(pool, anchor, Level(0), table)
 }
 
-/// Expansion de Shannon : `table` est indexée par les bits des variables
-/// `level.0..n` (bit ℓ de l'indice = variable ℓ) ; les positions paires
-/// (bit de la variable courante = 0) donnent l'arc 0, les impaires l'arc 1.
+/// Shannon expansion: `table` is indexed by the bits of variables
+/// `level.0..n` (bit ℓ of the index = variable ℓ); even positions (bit of the
+/// current variable = 0) give arc 0, odd ones arc 1.
 fn shannon<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -126,7 +125,7 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
     )
 }
 
-/// Compte les nœuds distincts atteignables depuis `racine`, terminaux compris.
+/// Counts the distinct nodes reachable from `racine`, terminals included.
 pub fn compter_noeuds<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: NodeId) -> u64 {
     let mut visite = BTreeSet::new();
     let mut pile = vec![racine];
@@ -141,7 +140,7 @@ pub fn compter_noeuds<P: Pool<Key = u64, Payload = bool>>(pool: &P, racine: Node
     visite.len() as u64
 }
 
-/// Évalue le BDD sur une affectation (bit ℓ = variable ℓ).
+/// Evaluates the BDD on an assignment (bit ℓ = variable ℓ).
 pub fn evaluer<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     racine: NodeId,
