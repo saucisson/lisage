@@ -151,7 +151,7 @@ fn test_propriete_commutation_lcg() {
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
     let mut graine = GRAINE_LCG;
-    let mut suivant = || {
+    let mut next = || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
@@ -161,15 +161,15 @@ fn test_propriete_commutation_lcg() {
     // re-seeded at `amorce` (same form guaranteed).
     fn arbre(pool: &mut PoolBdd, profondeur: u32, amorce: u64) -> NodeId {
         let mut graine = amorce;
-        fn suivant(graine: &mut u64) -> u64 {
+        fn next(graine: &mut u64) -> u64 {
             *graine = graine
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
             *graine
         }
         fn construit(pool: &mut PoolBdd, profondeur: u32, graine: &mut u64) -> NodeId {
-            if profondeur == 0 || !suivant(graine).is_multiple_of(3) {
-                return pool.intern(ANCRE, Form::Terminal(suivant(graine) % 2 == 1));
+            if profondeur == 0 || !next(graine).is_multiple_of(3) {
+                return pool.intern(ANCRE, Form::Terminal(next(graine) % 2 == 1));
             }
             let gauche = construit(pool, profondeur - 1, graine);
             let droite = construit(pool, profondeur - 1, graine);
@@ -184,7 +184,7 @@ fn test_propriete_commutation_lcg() {
         construit(pool, profondeur, &mut graine)
     }
     for _ in 0..NOMBRE_CAS {
-        let amorce = suivant();
+        let amorce = next();
         let mut avec = pool_bdd(Reductions::TOUTES);
         let root_avec = arbre(&mut avec, 3, amorce);
         let mut sans = pool_bdd(Reductions::AUCUNE);
@@ -563,16 +563,16 @@ fn test_propriete_glisse_composition_lcg() {
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
     let mut graine = GRAINE_LCG;
-    let mut suivant = || {
+    let mut next = || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
         graine
     };
     for _ in 0..NOMBRE_CAS {
-        let a = suivant() as i64 % 1000;
-        let b = suivant() as i64 % 1000;
-        let horizon = suivant() as i64 % 16 + 1;
+        let a = next() as i64 % 1000;
+        let b = next() as i64 % 1000;
+        let horizon = next() as i64 % 16 + 1;
         let ancre = AncreFenetre::new(0, horizon);
         assert_eq!(
             ancre.glessee(a).glessee(b),

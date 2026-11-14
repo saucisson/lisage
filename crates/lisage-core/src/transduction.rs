@@ -223,13 +223,13 @@ impl<T: Transduction> Transducteur<T> {
             h.clone(),
             self.memory.version(),
         );
-        if let Some((resultat, s)) = self.memo.get(&key) {
+        if let Some((result, s)) = self.memo.get(&key) {
             self.notifier(TraceEvent::MemoHit { node });
-            return Ok((*resultat, s.clone()));
+            return Ok((*result, s.clone()));
         }
         self.notifier(TraceEvent::MemoMiss { node });
         let forme = pool_input.resolve(node)?.clone();
-        let (resultat, s) = match forme {
+        let (result, s) = match forme {
             Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
             Form::Node { level, arcs } => {
                 let mut enfants = BTreeMap::new();
@@ -241,14 +241,14 @@ impl<T: Transduction> Transducteur<T> {
                         node,
                         value: format!("{h_arc:?}"),
                     });
-                    let (cible_resultat, s_arc) =
+                    let (cible_result, s_arc) =
                         self.run_avec(pool_input, pool_output, anchor, cible, h_arc)?;
                     let level_cible = match pool_input.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
                         Err(erreur) => return Err(erreur.into()),
                     };
-                    enfants.insert(arc, (cible_resultat, s_arc.clone()));
+                    enfants.insert(arc, (cible_result, s_arc.clone()));
                     s_arcs.insert(arc, (level_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
@@ -265,7 +265,7 @@ impl<T: Transduction> Transducteur<T> {
                     memory: &self.memory,
                     node_input: node,
                 };
-                let (node_resultat, effet) = self.transduction.phi_out(pool_output, ctx);
+                let (node_result, effet) = self.transduction.phi_out(pool_output, ctx);
                 if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoryNonAutorisee);
                 }
@@ -277,11 +277,11 @@ impl<T: Transduction> Transducteur<T> {
                     });
                 }
                 effet.apply(&mut self.memory);
-                (node_resultat, s)
+                (node_result, s)
             }
         };
-        self.memo.insert(key, (resultat, s.clone()));
-        Ok((resultat, s))
+        self.memo.insert(key, (result, s.clone()));
+        Ok((result, s))
     }
 
     fn run_avec_meme_pool<P>(
@@ -301,13 +301,13 @@ impl<T: Transduction> Transducteur<T> {
             h.clone(),
             self.memory.version(),
         );
-        if let Some((resultat, s)) = self.memo.get(&key) {
+        if let Some((result, s)) = self.memo.get(&key) {
             self.notifier(TraceEvent::MemoHit { node });
-            return Ok((*resultat, s.clone()));
+            return Ok((*result, s.clone()));
         }
         self.notifier(TraceEvent::MemoMiss { node });
         let forme = pool.resolve(node)?.clone();
-        let (resultat, s) = match forme {
+        let (result, s) = match forme {
             Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
             Form::Node { level, arcs } => {
                 let mut enfants = BTreeMap::new();
@@ -319,14 +319,14 @@ impl<T: Transduction> Transducteur<T> {
                         node,
                         value: format!("{h_arc:?}"),
                     });
-                    let (cible_resultat, s_arc) =
+                    let (cible_result, s_arc) =
                         self.run_avec_meme_pool(pool, anchor, cible, h_arc)?;
                     let level_cible = match pool.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
                         Err(erreur) => return Err(erreur.into()),
                     };
-                    enfants.insert(arc, (cible_resultat, s_arc.clone()));
+                    enfants.insert(arc, (cible_result, s_arc.clone()));
                     s_arcs.insert(arc, (level_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
@@ -343,7 +343,7 @@ impl<T: Transduction> Transducteur<T> {
                     memory: &self.memory,
                     node_input: node,
                 };
-                let (node_resultat, effet) = self.transduction.phi_out(pool, ctx);
+                let (node_result, effet) = self.transduction.phi_out(pool, ctx);
                 if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoryNonAutorisee);
                 }
@@ -355,10 +355,10 @@ impl<T: Transduction> Transducteur<T> {
                     });
                 }
                 effet.apply(&mut self.memory);
-                (node_resultat, s)
+                (node_result, s)
             }
         };
-        self.memo.insert(key, (resultat, s.clone()));
-        Ok((resultat, s))
+        self.memo.insert(key, (result, s.clone()));
+        Ok((result, s))
     }
 }

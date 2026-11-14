@@ -38,9 +38,9 @@ proptest! {
             "C6: identical reproduction of the node count"
         );
         for a in 0..(1u64 << nombre_variables) {
-            let attendu = table[a as usize];
-            prop_assert_eq!(evaluer(&pool, root, a).unwrap(), attendu, "arena, assignment {}", a);
-            prop_assert_eq!(temoin.evaluer(root_temoin, a), attendu, "witness, assignment {}", a);
+            let expected = table[a as usize];
+            prop_assert_eq!(evaluer(&pool, root, a).unwrap(), expected, "arena, assignment {}", a);
+            prop_assert_eq!(temoin.evaluer(root_temoin, a), expected, "witness, assignment {}", a);
         }
     }
 }

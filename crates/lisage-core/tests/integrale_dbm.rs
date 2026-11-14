@@ -203,28 +203,28 @@ fn test_propriete_measure_intersection_lcg() {
     const NOMBRE_CAS: u64 = 30;
     let keys = keys();
     let mut graine = GRAINE_LCG;
-    let mut suivant = || {
+    let mut next = || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
         graine
     };
-    let tire = |suivant: &mut dyn FnMut() -> u64| {
-        let nombre_contraintes = suivant() % 4;
+    let tire = |next: &mut dyn FnMut() -> u64| {
+        let nombre_contraintes = next() % 4;
         let contraintes: Vec<(usize, usize, i64)> = (0..nombre_contraintes)
             .map(|_| {
                 (
-                    (suivant() % 2) as usize,
-                    (suivant() % 2) as usize,
-                    (suivant() % 9) as i64 - 4,
+                    (next() % 2) as usize,
+                    (next() % 2) as usize,
+                    (next() % 9) as i64 - 4,
                 )
             })
             .collect();
         Dbm::new(2, &contraintes)
     };
     for _ in 0..NOMBRE_CAS {
-        let a = tire(&mut suivant);
-        let b = tire(&mut suivant);
+        let a = tire(&mut next);
+        let b = tire(&mut next);
         let meet = a.intersection(&b);
         let measure_meet = keys.measure_zone(&meet);
         assert_eq!(keys.measure_zone(&INCOHERENT), 0);

@@ -86,8 +86,8 @@ fn test_intersection_distributive() {
     let union_c = Cdd::new(std::slice::from_ref(&c));
     // (A ∪ B) ∩ C = (A ∩ C) ∪ (B ∩ C); B ∩ C is empty (x−y ≥ 2 and x−y ≤ 1).
     let meet = union_ab.intersection(&union_c);
-    let attendu = Cdd::new(&[a.intersection(&c)]);
-    assert_eq!(meet, attendu);
+    let expected = Cdd::new(&[a.intersection(&c)]);
+    assert_eq!(meet, expected);
     // Commutativity, idempotence on normalized forms.
     assert_eq!(
         union_ab.intersection(&union_c),
@@ -131,11 +131,11 @@ fn test_union_horloges_differentiel_contre_enumeration() {
     for x in 0..SIZE_DOMAIN {
         for y in 0..SIZE_DOMAIN {
             let point = [x, y];
-            let attendu = i128::from(x) - i128::from(y) <= 0 || i128::from(x) - i128::from(y) >= 2;
+            let expected = i128::from(x) - i128::from(y) <= 0 || i128::from(x) - i128::from(y) >= 2;
             let lu = evaluer(&pool, root, &point).expect("interned node");
             assert_eq!(
                 lu.unwrap_or(false),
-                attendu,
+                expected,
                 "point {point:?}: the continuous absent is false"
             );
         }
@@ -169,33 +169,33 @@ fn test_propriete_intersection_lcg() {
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
     let mut graine = GRAINE_LCG;
-    let mut suivant = || {
+    let mut next = || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
         graine
     };
-    let tire_zone = |suivant: &mut dyn FnMut() -> u64| {
-        let nombre_contraintes = suivant() % 4;
+    let tire_zone = |next: &mut dyn FnMut() -> u64| {
+        let nombre_contraintes = next() % 4;
         let contraintes: Vec<(usize, usize, i64)> = (0..nombre_contraintes)
             .map(|_| {
                 (
-                    (suivant() % 2) as usize,
-                    (suivant() % 2) as usize,
-                    (suivant() % 7) as i64 - 3,
+                    (next() % 2) as usize,
+                    (next() % 2) as usize,
+                    (next() % 7) as i64 - 3,
                 )
             })
             .collect();
         Dbm::new(2, &contraintes)
     };
-    let tire_union = |suivant: &mut dyn FnMut() -> u64| {
-        let nombre_zones = 1 + suivant() % 3;
-        let zones: Vec<Dbm> = (0..nombre_zones).map(|_| tire_zone(suivant)).collect();
+    let tire_union = |next: &mut dyn FnMut() -> u64| {
+        let nombre_zones = 1 + next() % 3;
+        let zones: Vec<Dbm> = (0..nombre_zones).map(|_| tire_zone(next)).collect();
         Cdd::new(&zones)
     };
     for _ in 0..NOMBRE_CAS {
-        let a = tire_union(&mut suivant);
-        let b = tire_union(&mut suivant);
+        let a = tire_union(&mut next);
+        let b = tire_union(&mut next);
         let meet = a.intersection(&b);
         assert_eq!(meet, b.intersection(&a), "commutativity");
         // Semantic idempotence (not syntactic: the meet adds the cross
@@ -211,7 +211,7 @@ fn test_propriete_intersection_lcg() {
                 );
             }
         }
-        let point = [suivant() % SIZE_DOMAIN, suivant() % SIZE_DOMAIN];
+        let point = [next() % SIZE_DOMAIN, next() % SIZE_DOMAIN];
         if meet.contient(&point) {
             assert!(a.contient(&point) && b.contient(&point));
         }

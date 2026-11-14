@@ -80,8 +80,8 @@ pub enum PnmlError {
     /// Malformed XML (unclosed tag, attribute without value, etc.).
     XmlMalForme { position: usize, detail: String },
     /// Unexpected PNML element at this point.
-    ElementInattendu {
-        attendu: &'static str,
+    ElementInexpected {
+        expected: &'static str,
         trouve: String,
     },
     /// Mandatory attribute absent.
@@ -109,8 +109,8 @@ impl std::fmt::Display for PnmlError {
             PnmlError::XmlMalForme { position, detail } => {
                 write!(formatter, "malformed XML at position {position}: {detail}")
             }
-            PnmlError::ElementInattendu { attendu, trouve } => {
-                write!(formatter, "expected element {attendu}, found <{trouve}>")
+            PnmlError::ElementInexpected { expected, trouve } => {
+                write!(formatter, "expected element {expected}, found <{trouve}>")
             }
             PnmlError::AttributManquant { element, attribut } => {
                 write!(formatter, "attribute {attribut} missing on <{element}>")
@@ -223,15 +223,15 @@ fn lire_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlErro
     Ok(value)
 }
 
-fn attendre(octets: &[char], position: &mut usize, attendu: char) -> Result<(), PnmlError> {
+fn attendre(octets: &[char], position: &mut usize, expected: char) -> Result<(), PnmlError> {
     match octets.get(*position) {
-        Some(&c) if c == attendu => {
+        Some(&c) if c == expected => {
             *position += 1;
             Ok(())
         }
         _ => Err(PnmlError::XmlMalForme {
             position: *position,
-            detail: format!("'{attendu}' expected"),
+            detail: format!("'{expected}' expected"),
         }),
     }
 }
@@ -415,14 +415,14 @@ impl NetworkPetri {
     pub fn depuis_pnml(document: &PnmlDocument) -> Result<NetworkPetri, PnmlError> {
         let root = parser_xml(&document.0)?;
         let XmlNode::Element { nom, enfants, .. } = &root else {
-            return Err(PnmlError::ElementInattendu {
-                attendu: ELEMENT_PNML,
+            return Err(PnmlError::ElementInexpected {
+                expected: ELEMENT_PNML,
                 trouve: "text".to_string(),
             });
         };
         if nom != ELEMENT_PNML {
-            return Err(PnmlError::ElementInattendu {
-                attendu: ELEMENT_PNML,
+            return Err(PnmlError::ElementInexpected {
+                expected: ELEMENT_PNML,
                 trouve: nom.clone(),
             });
         }
@@ -432,8 +432,8 @@ impl NetworkPetri {
                 XmlNode::Element { nom, enfants, .. } if nom == ELEMENT_NET => Some(enfants),
                 _ => None,
             })
-            .ok_or_else(|| PnmlError::ElementInattendu {
-                attendu: ELEMENT_NET,
+            .ok_or_else(|| PnmlError::ElementInexpected {
+                expected: ELEMENT_NET,
                 trouve: "nothing".to_string(),
             })?;
         let mut places = Vec::new();
@@ -724,11 +724,11 @@ pub fn est_sensibilisee(
 /// Fires a transition: removes one token from each input place,
 /// adds one token to each output place.
 pub fn tirer(network: &NetworkPetri, transition: &TransitionId, marquage: &Marquage) -> Marquage {
-    let mut resultat = marquage.clone();
+    let mut result = marquage.clone();
     for place in places_entrantes(network, transition) {
         if let Some(index) = network.index_place(place) {
             let key = Atom(index as u64);
-            if let Some(jetons) = resultat.get_mut(&key) {
+            if let Some(jetons) = result.get_mut(&key) {
                 jetons.0 = jetons.0.saturating_sub(1);
             }
         }
@@ -736,13 +736,13 @@ pub fn tirer(network: &NetworkPetri, transition: &TransitionId, marquage: &Marqu
     for place in places_sortantes(network, transition) {
         if let Some(index) = network.index_place(place) {
             let key = Atom(index as u64);
-            resultat
+            result
                 .entry(key)
                 .and_modify(|jetons| jetons.0 += 1)
                 .or_insert(Atom(1));
         }
     }
-    resultat
+    result
 }
 
 /// Semantic step: all successor markings of all enabled
@@ -755,8 +755,8 @@ pub fn pas_semantique(network: &NetworkPetri, ensemble: &BTreeSet<Value>) -> BTr
         };
         for transition in &network.transitions {
             if est_sensibilisee(network, &transition.identifiant, &marquage) {
-                let suivant = tirer(network, &transition.identifiant, &marquage);
-                let map: BTreeMap<Value, Value> = suivant
+                let next = tirer(network, &transition.identifiant, &marquage);
+                let map: BTreeMap<Value, Value> = next
                     .into_iter()
                     .map(|(key, compte)| (Value::Atom(key), Value::Atom(compte)))
                     .collect();

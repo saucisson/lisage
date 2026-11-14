@@ -11,9 +11,9 @@ pub enum CoreError {
     /// Operation requested on an empty pool.
     EmptyArena,
     /// Unexpected schema at an operation boundary.
-    SchemaInattendu {
+    SchemaInexpected {
         /// Expected schema shape.
-        attendu: &'static str,
+        expected: &'static str,
         /// Received schema shape.
         recu: &'static str,
     },
@@ -36,10 +36,10 @@ impl std::fmt::Display for CoreError {
         match self {
             CoreError::Pool(error) => write!(formatter, "pool error: {error}"),
             CoreError::EmptyArena => write!(formatter, "the pool is empty"),
-            CoreError::SchemaInattendu { attendu, recu } => {
+            CoreError::SchemaInexpected { expected, recu } => {
                 write!(
                     formatter,
-                    "unexpected schema: expected {attendu}, got {recu}"
+                    "unexpected schema: expected {expected}, got {recu}"
                 )
             }
             CoreError::LevelHorsSchema(level) => {

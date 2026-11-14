@@ -225,23 +225,23 @@ fn test_sans_key_defaut_pas_dabs() {
 #[test]
 fn test_dtrans_forme_vide_litterale() {
     let est_defaut = |node: NodeId| node == NODE_DEFAUT;
-    let resultat = reduire_dabs(
+    let result = reduire_dabs(
         BTreeMap::new(),
         Some(0),
         &est_defaut,
         CARDINALITE_MOCK,
         Some(NODE_DEFAUT),
     );
-    assert_eq!(resultat, Reduction::Collapse(NODE_DEFAUT));
+    assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
     // Without a designated D^def: the empty form remains an empty form.
-    let resultat = reduire_dabs(
+    let result = reduire_dabs(
         BTreeMap::new(),
         Some(0),
         &est_defaut,
         CARDINALITE_MOCK,
         None,
     );
-    assert_eq!(resultat, Reduction::Forme(BTreeMap::new()));
+    assert_eq!(result, Reduction::Forme(BTreeMap::new()));
 }
 
 /// M4-3 (property tier, LCG): confluence of the generalized default —
@@ -252,7 +252,7 @@ fn test_dtrans_forme_vide_litterale() {
 fn test_propriete_dabs_confluence() {
     let est_defaut = |node: NodeId| node == NODE_DEFAUT;
     let mut graine = GRAINE_LCG;
-    let mut suivant = move || {
+    let mut next = move || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
@@ -260,15 +260,15 @@ fn test_propriete_dabs_confluence() {
     };
 
     for _ in 0..1000 {
-        let nb_arcs = suivant() % 6;
+        let nb_arcs = next() % 6;
         let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
             .map(|_| {
-                let key = suivant() % CARDINALITE_MOCK;
-                let cible = NodeId((suivant() % 3) as u32);
+                let key = next() % CARDINALITE_MOCK;
+                let cible = NodeId((next() % 3) as u32);
                 (key, cible)
             })
             .collect();
-        let key_defaut = if suivant() % 2 == 0 { Some(0) } else { None };
+        let key_defaut = if next() % 2 == 0 { Some(0) } else { None };
 
         let defaut = key_defaut.map(|_| NODE_DEFAUT);
         let premier = reduire_dabs(

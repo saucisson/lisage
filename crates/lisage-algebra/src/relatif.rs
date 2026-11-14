@@ -46,23 +46,23 @@ impl AncreComposee {
 
     /// New anchor, one fragment shifted by `delta` (the slide).
     pub fn decalee(&self, fragment: &Fragment, delta: i64) -> Self {
-        let mut resultat = self.clone();
-        let courant = resultat.decalage(fragment);
-        resultat.decalages.insert(fragment.clone(), courant + delta);
-        resultat
+        let mut result = self.clone();
+        let courant = result.decalage(fragment);
+        result.decalages.insert(fragment.clone(), courant + delta);
+        result
     }
 
     /// Pointwise composition of offsets (absolute reading = composition of
     /// arguments, O(1) per step).
     pub fn compose(&self, autre: &AncreComposee) -> Self {
-        let mut resultat = self.clone();
+        let mut result = self.clone();
         for (fragment, decalage) in &autre.decalages {
-            let courant = resultat.decalage(fragment);
-            resultat
+            let courant = result.decalage(fragment);
+            result
                 .decalages
                 .insert(fragment.clone(), courant + *decalage);
         }
-        resultat
+        result
     }
 
     /// True if all offsets are zero (start of each fragment).

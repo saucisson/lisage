@@ -154,7 +154,7 @@ fn test_propriete_cout_egal_inversions_et_transpositions_exactes() {
     const INCREMENT_LCG: u64 = 1442695040888963407;
 
     let mut graine = GRAINE_LCG;
-    let mut suivant = move || {
+    let mut next = move || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
@@ -162,13 +162,13 @@ fn test_propriete_cout_egal_inversions_et_transpositions_exactes() {
     };
 
     for _cas in 0..50 {
-        let size = 1 + (suivant() % 8) as usize;
+        let size = 1 + (next() % 8) as usize;
         let domain = DomainAtomes((0..size).map(|i| Atom(i as u64)).collect());
         let source = Order::canonique(&domain);
         // Target: random permutation (deterministic Fisher-Yates).
         let mut pi: Vec<Atom> = (0..size).map(|i| Atom(i as u64)).collect();
         for i in (1..size).rev() {
-            let j = (suivant() as usize) % (i + 1);
+            let j = (next() as usize) % (i + 1);
             pi.swap(i, j);
         }
         let cible = Order::new(&domain, pi).unwrap();

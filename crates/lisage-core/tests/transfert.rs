@@ -88,12 +88,12 @@ fn test_transfert_a_vers_b_non_adjacent() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+    let (result, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
-    let attendu = BTreeMap::from([(0, 1), (1, 1), (2, 1)]);
+    let expected = BTreeMap::from([(0, 1), (1, 1), (2, 1)]);
     assert_eq!(
-        decompiler_map(&pool, &schema, resultat),
-        attendu,
+        decompiler_map(&pool, &schema, result),
+        expected,
         "m(a) -= 1 ; m(b) += 1, the intermediate key c is unchanged"
     );
 }
@@ -108,9 +108,9 @@ fn test_transfert_sans_unite() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+    let (result, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
-    assert_eq!(resultat, initial, "m(a) = 0: no transfer");
+    assert_eq!(result, initial, "m(a) = 0: no transfer");
 }
 
 /// M2-5, T3: the level memory records the decrement at the emitting node (one
@@ -146,12 +146,12 @@ fn test_transfert_destination_hors_domain() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
+    let (result, _) = runner.run_meme_pool(&mut pool, anchor, initial).unwrap();
 
-    let attendu = BTreeMap::from([(0, 1), (1, 3)]);
+    let expected = BTreeMap::from([(0, 1), (1, 3)]);
     assert_eq!(
-        decompiler_map(&pool, &schema, resultat),
-        attendu,
+        decompiler_map(&pool, &schema, result),
+        expected,
         "m(b) at max: placement abandoned, m(a) decrement applied"
     );
 }
@@ -185,13 +185,10 @@ fn test_transfert_sous_saturate_termine() {
         nombre_levels: schema.nombre_levels(),
         observer: None,
     };
-    let resultat = saturer(&mut params).unwrap();
+    let result = saturer(&mut params).unwrap();
+    assert_eq!(result.iterations, 3, "a:2,b:0 → a:1,b:1 → a:0,b:2 → fixed");
     assert_eq!(
-        resultat.iterations, 3,
-        "a:2,b:0 → a:1,b:1 → a:0,b:2 → fixed"
-    );
-    assert_eq!(
-        cardinal(&pool, &schema, resultat.node),
+        cardinal(&pool, &schema, result.node),
         3,
         "family of the three reached states"
     );
@@ -217,9 +214,9 @@ fn test_transfert_collision_source_union() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
+    let (result, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
     assert_eq!(
-        cardinal(&pool, &schema, resultat),
+        cardinal(&pool, &schema, result),
         2,
         "collision v→v-1: both members of the family are kept"
     );
@@ -241,9 +238,9 @@ fn test_transfert_collision_destination_union() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
+    let (result, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
     assert_eq!(
-        cardinal(&pool, &schema, resultat),
+        cardinal(&pool, &schema, result),
         2,
         "collision u→u+1: both members of the family are kept"
     );
@@ -266,11 +263,11 @@ fn test_transfert_destination_absente_dans_famille() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
-    let (resultat, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
+    let (result, _) = runner.run_meme_pool(&mut pool, anchor, famille).unwrap();
 
-    let attendu = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);
+    let expected = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);
     assert_eq!(
-        resultat, attendu,
+        result, expected,
         "destination absent in a member: made present with the transferred unit"
     );
 }

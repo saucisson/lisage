@@ -70,11 +70,11 @@ fn test_bande_differentiel_contre_enumeration() {
     for x in 0..SIZE_DOMAIN {
         for y in 0..SIZE_DOMAIN {
             let point = [x, y];
-            let attendu = i128::from(x) - i128::from(y) <= 1 && i128::from(y) - i128::from(x) <= 2;
+            let expected = i128::from(x) - i128::from(y) <= 1 && i128::from(y) - i128::from(x) <= 2;
             let lu = evaluer(&pool, root, &point).expect("interned node");
             assert_eq!(
                 lu.unwrap_or(false),
-                attendu,
+                expected,
                 "point {point:?}: the continuous absent means false"
             );
         }
@@ -108,32 +108,32 @@ fn test_propriete_intersection_lcg() {
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
     let mut graine = GRAINE_LCG;
-    let mut suivant = || {
+    let mut next = || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
         graine
     };
-    let tire = |suivant: &mut dyn FnMut() -> u64| {
-        let nombre_contraintes = suivant() % 4;
+    let tire = |next: &mut dyn FnMut() -> u64| {
+        let nombre_contraintes = next() % 4;
         let contraintes: Vec<(usize, usize, i64)> = (0..nombre_contraintes)
             .map(|_| {
                 (
-                    (suivant() % 2) as usize,
-                    (suivant() % 2) as usize,
-                    (suivant() % 7) as i64 - 3,
+                    (next() % 2) as usize,
+                    (next() % 2) as usize,
+                    (next() % 7) as i64 - 3,
                 )
             })
             .collect();
         Dbm::new(2, &contraintes)
     };
     for _ in 0..NOMBRE_CAS {
-        let a = tire(&mut suivant);
-        let b = tire(&mut suivant);
+        let a = tire(&mut next);
+        let b = tire(&mut next);
         let meet = a.intersection(&b);
         assert_eq!(meet, b.intersection(&a), "commutativity");
         assert_eq!(a.intersection(&a), a, "idempotence");
-        let point = [suivant() % SIZE_DOMAIN, suivant() % SIZE_DOMAIN];
+        let point = [next() % SIZE_DOMAIN, next() % SIZE_DOMAIN];
         if meet.contient(&point) {
             assert!(a.contient(&point) && b.contient(&point));
         }

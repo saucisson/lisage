@@ -116,7 +116,7 @@ fn test_erreurs_typees() {
     assert_eq!(
         erreur,
         SchemaError::TypeMismatch {
-            attendu: "set",
+            expected: "set",
             recu: "atom"
         }
     );

@@ -101,16 +101,16 @@ pub enum SchemaError {
     /// The value does not match the schema (different Σ shape).
     TypeMismatch {
         /// Shape expected by the schema.
-        attendu: &'static str,
+        expected: &'static str,
         /// Shape received.
         recu: &'static str,
     },
     /// Atom outside the domain declared by the schema.
     HorsDomain(Atom),
     /// Diagram node incompatible with the schema (decompilation).
-    NodeInattendu {
+    NodeInexpected {
         /// Shape expected at this position.
-        attendu: &'static str,
+        expected: &'static str,
         /// Node encountered.
         node: NodeId,
     },
@@ -121,14 +121,14 @@ pub enum SchemaError {
 impl std::fmt::Display for SchemaError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SchemaError::TypeMismatch { attendu, recu } => {
-                write!(formatter, "type mismatch: expected {attendu}, got {recu}")
+            SchemaError::TypeMismatch { expected, recu } => {
+                write!(formatter, "type mismatch: expected {expected}, got {recu}")
             }
             SchemaError::HorsDomain(atome) => write!(formatter, "atom outside domain: {atome:?}"),
-            SchemaError::NodeInattendu { attendu, node } => {
+            SchemaError::NodeInexpected { expected, node } => {
                 write!(
                     formatter,
-                    "unexpected node: expected {attendu}, node {node:?}"
+                    "unexpected node: expected {expected}, node {node:?}"
                 )
             }
             SchemaError::Pool(error) => write!(formatter, "pool error: {error}"),
@@ -294,7 +294,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                     Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
                     autre => {
                         return Err(SchemaError::TypeMismatch {
-                            attendu: "set of atoms",
+                            expected: "set of atoms",
                             recu: forme_value(autre),
                         });
                     }
@@ -315,7 +315,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             compiler_tag(pool, anchor, liste, domain_values, *discriminant, payload)
         }
         (schema, value) => Err(SchemaError::TypeMismatch {
-            attendu: forme_schema(schema),
+            expected: forme_schema(schema),
             recu: forme_value(value),
         }),
     }
@@ -331,7 +331,7 @@ fn valider_map(
     for (key, value) in map {
         let Value::Atom(atome_key) = key else {
             return Err(SchemaError::TypeMismatch {
-                attendu: "atomic key",
+                expected: "atomic key",
                 recu: forme_value(key),
             });
         };
@@ -340,7 +340,7 @@ fn valider_map(
         }
         let Value::Atom(atome_value) = value else {
             return Err(SchemaError::TypeMismatch {
-                attendu: "atomic value",
+                expected: "atomic value",
                 recu: forme_value(value),
             });
         };
@@ -418,7 +418,7 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
         }
         Some(autre) => {
             return Err(SchemaError::TypeMismatch {
-                attendu: "atomic value",
+                expected: "atomic value",
                 recu: forme_value(autre),
             });
         }
@@ -438,7 +438,7 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
 fn valider_seq(domain: &Domain, longueur_max: u32, elements: &[Value]) -> Result<(), SchemaError> {
     if elements.len() > longueur_max as usize {
         return Err(SchemaError::TypeMismatch {
-            attendu: "bounded-length sequence",
+            expected: "bounded-length sequence",
             recu: "sequence too long",
         });
     }
@@ -448,7 +448,7 @@ fn valider_seq(domain: &Domain, longueur_max: u32, elements: &[Value]) -> Result
             Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
             autre => {
                 return Err(SchemaError::TypeMismatch {
-                    attendu: "atomic element",
+                    expected: "atomic element",
                     recu: forme_value(autre),
                 });
             }
@@ -526,7 +526,7 @@ fn valider_tag(
         Value::Atom(atome) if domain_values.contient(*atome) => Ok(()),
         Value::Atom(atome) => Err(SchemaError::HorsDomain(*atome)),
         autre => Err(SchemaError::TypeMismatch {
-            attendu: "atomic payload",
+            expected: "atomic payload",
             recu: forme_value(autre),
         }),
     }
@@ -545,7 +545,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
     let terminal = pool.intern(anchor, Form::Terminal(true));
     let Value::Atom(atome_value) = payload else {
         return Err(SchemaError::TypeMismatch {
-            attendu: "atomic payload",
+            expected: "atomic payload",
             recu: forme_value(payload),
         });
     };
@@ -581,21 +581,21 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             if matches!(pool.resolve(node), Ok(Form::Terminal(true))) {
                 return match domain.values.first() {
                     Some(atome) if domain.size() == 1 => Ok(Value::Atom(*atome)),
-                    _ => Err(SchemaError::NodeInattendu {
-                        attendu: "atomic-level node",
+                    _ => Err(SchemaError::NodeInexpected {
+                        expected: "atomic-level node",
                         node,
                     }),
                 };
             }
             let Form::Node { level, arcs } = pool.resolve(node)? else {
-                return Err(SchemaError::NodeInattendu {
-                    attendu: "atomic-level node",
+                return Err(SchemaError::NodeInexpected {
+                    expected: "atomic-level node",
                     node,
                 });
             };
             if *level != Level(0) {
-                return Err(SchemaError::NodeInattendu {
-                    attendu: "level 0",
+                return Err(SchemaError::NodeInexpected {
+                    expected: "level 0",
                     node,
                 });
             }
@@ -608,8 +608,8 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
                     return Err(SchemaError::HorsDomain(atome));
                 }
             }
-            Err(SchemaError::NodeInattendu {
-                attendu: "arc to terminal true",
+            Err(SchemaError::NodeInexpected {
+                expected: "arc to terminal true",
                 node,
             })
         }
@@ -639,27 +639,27 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
     node: NodeId,
 ) -> Result<Value, SchemaError> {
     let Form::Node { level, arcs } = pool.resolve(node)? else {
-        return Err(SchemaError::NodeInattendu {
-            attendu: "discriminant node",
+        return Err(SchemaError::NodeInexpected {
+            expected: "discriminant node",
             node,
         });
     };
     if *level != Level(0) {
-        return Err(SchemaError::NodeInattendu {
-            attendu: "discriminant level (0)",
+        return Err(SchemaError::NodeInexpected {
+            expected: "discriminant level (0)",
             node,
         });
     }
     let Some((&index, &node_value)) = arcs.iter().next() else {
-        return Err(SchemaError::NodeInattendu {
-            attendu: "discriminant arc",
+        return Err(SchemaError::NodeInexpected {
+            expected: "discriminant arc",
             node,
         });
     };
     let discriminant = *liste
         .get(index as usize)
-        .ok_or(SchemaError::NodeInattendu {
-            attendu: "valid discriminant index",
+        .ok_or(SchemaError::NodeInexpected {
+            expected: "valid discriminant index",
             node,
         })?;
     let Form::Node {
@@ -667,20 +667,20 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
         arcs: arcs_value,
     } = pool.resolve(node_value)?
     else {
-        return Err(SchemaError::NodeInattendu {
-            attendu: "value node",
+        return Err(SchemaError::NodeInexpected {
+            expected: "value node",
             node: node_value,
         });
     };
     if *level_value != Level(1) {
-        return Err(SchemaError::NodeInattendu {
-            attendu: "value level (1)",
+        return Err(SchemaError::NodeInexpected {
+            expected: "value level (1)",
             node: node_value,
         });
     }
     let Some((&value, _)) = arcs_value.iter().next() else {
-        return Err(SchemaError::NodeInattendu {
-            attendu: "value arc",
+        return Err(SchemaError::NodeInexpected {
+            expected: "value arc",
             node: node_value,
         });
     };
@@ -702,15 +702,15 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
         match pool.resolve(node)? {
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
-                return Err(SchemaError::NodeInattendu {
-                    attendu: "terminal true or position node",
+                return Err(SchemaError::NodeInexpected {
+                    expected: "terminal true or position node",
                     node,
                 });
             }
             Form::Node { level, arcs } => {
                 if level.0 > longueur_max {
-                    return Err(SchemaError::NodeInattendu {
-                        attendu: "position level or end marker",
+                    return Err(SchemaError::NodeInexpected {
+                        expected: "position level or end marker",
                         node,
                     });
                 }
@@ -719,14 +719,14 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
                     if arcs.contains_key(&PRESENT) {
                         return Ok(());
                     }
-                    return Err(SchemaError::NodeInattendu {
-                        attendu: "end marker present",
+                    return Err(SchemaError::NodeInexpected {
+                        expected: "end marker present",
                         node,
                     });
                 }
                 let Some((&arc, &suite)) = arcs.iter().next() else {
-                    return Err(SchemaError::NodeInattendu {
-                        attendu: "position arc",
+                    return Err(SchemaError::NodeInexpected {
+                        expected: "position arc",
                         node,
                     });
                 };
@@ -756,16 +756,16 @@ fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
         match pool.resolve(node)? {
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
-                return Err(SchemaError::NodeInattendu {
-                    attendu: "terminal true (empty set) or presence node",
+                return Err(SchemaError::NodeInexpected {
+                    expected: "terminal true (empty set) or presence node",
                     node,
                 });
             }
             Form::Node { level, arcs } => {
                 let index = level.0 as usize;
                 if index >= domain.size() {
-                    return Err(SchemaError::NodeInattendu {
-                        attendu: "domain presence level",
+                    return Err(SchemaError::NodeInexpected {
+                        expected: "domain presence level",
                         node,
                     });
                 }
@@ -775,8 +775,8 @@ fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
                 } else if let Some(&suite) = arcs.get(&ABSENT) {
                     node = suite;
                 } else {
-                    return Err(SchemaError::NodeInattendu {
-                        attendu: "presence arc",
+                    return Err(SchemaError::NodeInexpected {
+                        expected: "presence arc",
                         node,
                     });
                 }
@@ -795,22 +795,22 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
         match pool.resolve(node)? {
             Form::Terminal(true) => return Ok(()),
             Form::Terminal(false) => {
-                return Err(SchemaError::NodeInattendu {
-                    attendu: "terminal true (empty map) or presence node",
+                return Err(SchemaError::NodeInexpected {
+                    expected: "terminal true (empty map) or presence node",
                     node,
                 });
             }
             Form::Node { level, arcs } => {
                 if !level.0.is_multiple_of(PAS_LEVEL_MAP) {
-                    return Err(SchemaError::NodeInattendu {
-                        attendu: "presence level",
+                    return Err(SchemaError::NodeInexpected {
+                        expected: "presence level",
                         node,
                     });
                 }
                 let index = (level.0 / PAS_LEVEL_MAP) as usize;
                 if index >= liste_keys.len() {
-                    return Err(SchemaError::NodeInattendu {
-                        attendu: "presence level of a key",
+                    return Err(SchemaError::NodeInexpected {
+                        expected: "presence level of a key",
                         node,
                     });
                 }
@@ -820,20 +820,20 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                         arcs: arcs_value,
                     } = pool.resolve(node_value)?
                     else {
-                        return Err(SchemaError::NodeInattendu {
-                            attendu: "value-level node",
+                        return Err(SchemaError::NodeInexpected {
+                            expected: "value-level node",
                             node: node_value,
                         });
                     };
                     if *level_value != Schema::level_value(index) {
-                        return Err(SchemaError::NodeInattendu {
-                            attendu: "value level of the key",
+                        return Err(SchemaError::NodeInexpected {
+                            expected: "value level of the key",
                             node: node_value,
                         });
                     }
                     let Some((&value, &suite)) = arcs_value.iter().next() else {
-                        return Err(SchemaError::NodeInattendu {
-                            attendu: "value arc",
+                        return Err(SchemaError::NodeInexpected {
+                            expected: "value arc",
                             node: node_value,
                         });
                     };
@@ -842,8 +842,8 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                 } else if let Some(&suite) = arcs.get(&ABSENT) {
                     node = suite;
                 } else {
-                    return Err(SchemaError::NodeInattendu {
-                        attendu: "presence arc",
+                    return Err(SchemaError::NodeInexpected {
+                        expected: "presence arc",
                         node,
                     });
                 }

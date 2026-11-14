@@ -47,8 +47,8 @@ fn executer_lookup(
     let root = compiler(&mut input, anchor, schema, value).unwrap();
     let mut runner =
         Transducteur::new(Lookup::new(key, liste_keys.to_vec(), domain_values.clone()));
-    let (resultat, fragment) = runner.run(&input, &mut output, anchor, root).unwrap();
-    (output, resultat, fragment)
+    let (result, fragment) = runner.run(&input, &mut output, anchor, root).unwrap();
+    (output, result, fragment)
 }
 
 /// Follows the map's path in the output diagram and returns the payload of
@@ -98,10 +98,10 @@ fn test_lookup_keys_presentes() {
         panic!("map")
     };
 
-    let (output, resultat, fragment) =
+    let (output, result, fragment) =
         executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(0));
     assert_eq!(
-        payload_terminal(&output, resultat, &liste_keys, map),
+        payload_terminal(&output, result, &liste_keys, map),
         Some(1),
         "lookup(a) = 1"
     );
@@ -110,10 +110,10 @@ fn test_lookup_keys_presentes() {
         "the fragment carries the value arc 1 to ε(Some(1))"
     );
 
-    let (output, resultat, _) =
+    let (output, result, _) =
         executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(1));
     assert_eq!(
-        payload_terminal(&output, resultat, &liste_keys, map),
+        payload_terminal(&output, result, &liste_keys, map),
         Some(0),
         "lookup(b) = 0"
     );
@@ -130,10 +130,10 @@ fn test_lookup_key_absente() {
         panic!("map")
     };
 
-    let (output, resultat, fragment) =
+    let (output, result, fragment) =
         executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(1));
     assert_eq!(
-        payload_terminal(&output, resultat, &liste_keys, map),
+        payload_terminal(&output, result, &liste_keys, map),
         None,
         "lookup(b) = None, absent key"
     );
@@ -152,10 +152,10 @@ fn test_lookup_level_value_collapsed_t_expand() {
         panic!("map")
     };
 
-    let (output, resultat, fragment) =
+    let (output, result, fragment) =
         executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(0));
     assert_eq!(
-        payload_terminal(&output, resultat, &liste_keys, map),
+        payload_terminal(&output, result, &liste_keys, map),
         Some(0),
         "T-EXPAND: lookup(a) = 0 despite the collapsed value level"
     );

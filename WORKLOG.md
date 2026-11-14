@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 12: `resultat`/`attendu`/`suivant` renamed to `result`/`expected`/`next` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames every `resultat`/`Resultat`, `attendu`/`Attendu` (incl. `attendus`/`attendues` → `expected_list`/`expected_f`) and `suivant`/`Suivant` stem to `result`/`Result`, `expected`/`Expected`, `next`/`Next`, workspace-wide (55 files), per glossary (résultat → result, attendu → expected, suivant → next).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for the three stems returns 0.
+- **Judgement calls**: French plural forms `attendus`/`attendues` mapped to `expected_list`/`expected_f` to keep distinct bindings distinct.
 ## 2026-11-14 - M6-6 part 11: `memoire`/`observateur`/`reseau` renamed to `memory`/`observer`/`network` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

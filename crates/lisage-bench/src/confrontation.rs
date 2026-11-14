@@ -170,7 +170,7 @@ pub enum ErreurConfrontation {
     /// not match the expected value.
     VerifieEchoue {
         /// The expected value.
-        attendu: u64,
+        expected: u64,
         /// The obtained value.
         obtenu: u64,
     },
@@ -196,10 +196,10 @@ impl std::fmt::Display for ErreurConfrontation {
             ErreurConfrontation::InvalidInput { detail } => {
                 write!(formatter, "invalid input: {detail}")
             }
-            ErreurConfrontation::VerifieEchoue { attendu, obtenu } => {
+            ErreurConfrontation::VerifieEchoue { expected, obtenu } => {
                 write!(
                     formatter,
-                    "cross-check failed: expected {attendu}, got {obtenu}"
+                    "cross-check failed: expected {expected}, got {obtenu}"
                 )
             }
             ErreurConfrontation::Interne { source } => {
@@ -371,13 +371,13 @@ fn charge_alea_lcg(
     let nodes_temoin = temoin.compter_nodes(root_temoin);
     if nodes != nodes_temoin {
         return Err(ErreurConfrontation::VerifieEchoue {
-            attendu: nodes_temoin,
+            expected: nodes_temoin,
             obtenu: nodes,
         });
     }
     if temoin.evaluer(root_temoin, 0) != table[0] {
         return Err(ErreurConfrontation::VerifieEchoue {
-            attendu: table[0] as u64,
+            expected: table[0] as u64,
             obtenu: temoin.evaluer(root_temoin, 0) as u64,
         });
     }
@@ -450,7 +450,7 @@ fn charge_philosophes(
             detail: format!("states file {chemin} unreadable: {erreur}"),
         })?;
     let etats = lire_etats(nombre_philosophes, &contenu)?;
-    let attendu = etats.len() as u64;
+    let expected = etats.len() as u64;
     let mut root = pool.intern(ANCRE_MEASURE, Form::Terminal(false));
     for etat in &etats {
         let map: BTreeMap<Value, Value> = etat
@@ -464,9 +464,9 @@ fn charge_philosophes(
     let verifie = compter_pli(&pool, &mut output, ANCRE_MEASURE, &schema, root)?;
     let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
-    if verifie != attendu {
+    if verifie != expected {
         return Err(ErreurConfrontation::VerifieEchoue {
-            attendu,
+            expected,
             obtenu: verifie,
         });
     }
@@ -574,7 +574,7 @@ fn charge_fenetre(
             detail: "size and nb_bases must be ≥ 1".to_string(),
         });
     }
-    let attendu = size.saturating_mul(nb_bases);
+    let expected = size.saturating_mul(nb_bases);
     let mut pool = Arena::new(
         AtelierController::new(
             BddController::new(VARIABLES_BDD_FENETRE),
@@ -587,9 +587,9 @@ fn charge_fenetre(
     let verifie = compter_chemins(&pool, root)?;
     let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
-    if verifie != attendu {
+    if verifie != expected {
         return Err(ErreurConfrontation::VerifieEchoue {
-            attendu,
+            expected,
             obtenu: verifie,
         });
     }

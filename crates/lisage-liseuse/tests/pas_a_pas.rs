@@ -244,7 +244,7 @@ fn test_saturate_emet_rounds() {
         nombre_levels: schema.nombre_levels(),
         observer: Some(Arc::new(collecteur.clone())),
     };
-    let resultat = saturer(&mut params).unwrap();
+    let result = saturer(&mut params).unwrap();
     let rounds: Vec<u32> = collecteur
         .prendre()
         .iter()
@@ -254,7 +254,7 @@ fn test_saturate_emet_rounds() {
         })
         .collect();
     assert_eq!(rounds, vec![1], "identity: 1 round (immediate fixpoint)");
-    assert_eq!(resultat.iterations, 1);
+    assert_eq!(result.iterations, 1);
 }
 
 /// M2-6: the scrubber replays the state at a given position (nodes, attributes,
@@ -413,7 +413,7 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
     const INCREMENT_LCG: u64 = 1442695040888963407;
 
     let mut graine = GRAINE_LCG;
-    let mut suivant = move || {
+    let mut next = move || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
@@ -421,11 +421,11 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
     };
 
     for _cas in 0..50 {
-        let longueur = 1 + (suivant() % 40) as usize;
+        let longueur = 1 + (next() % 40) as usize;
         let evenements: Vec<TraceEvent> = (0..longueur)
             .map(|_| {
-                let node = NodeId(1 + (suivant() % 6) as u32);
-                match suivant() % 5 {
+                let node = NodeId(1 + (next() % 6) as u32);
+                match next() % 5 {
                     0 => TraceEvent::NodeCreated { node, level: None },
                     1 => TraceEvent::Attr {
                         canal: CanalAttr::Inherited,
@@ -435,7 +435,7 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
                     2 => TraceEvent::MemoHit { node },
                     3 => TraceEvent::MemoMiss { node },
                     _ => TraceEvent::Round {
-                        numero: 1 + (suivant() % 3) as u32,
+                        numero: 1 + (next() % 3) as u32,
                     },
                 }
             })

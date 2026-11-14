@@ -183,14 +183,14 @@ fn test_propriete_integrale_contre_cardinal_lcg() {
     const NOMBRE_CAS: u64 = 30;
     let mut graine = GRAINE_LCG;
     for _ in 0..NOMBRE_CAS {
-        let mut suivant = || {
+        let mut next = || {
             graine = graine
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
             graine
         };
         // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
-        let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| suivant() % 2 == 1).collect();
+        let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
         // Compression into disjoint intervals.
         let mut intervalles = Vec::new();
         let mut point = 0;
@@ -211,15 +211,15 @@ fn test_propriete_integrale_contre_cardinal_lcg() {
         let measure =
             integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
         // Analytic measure: sum of (end − start) of the intervals.
-        let measure_attendue: u64 = intervalles
+        let measure_expectede: u64 = intervalles
             .iter()
             .map(|i| i.borne_sup().saturating_sub(i.borne_inf()))
             .sum();
-        assert_eq!(measure, measure_attendue, "integral == sum of lengths");
+        assert_eq!(measure, measure_expectede, "integral == sum of lengths");
         // Analytic cardinal: |S|.
-        let cardinal_attendu = ensemble.len() as u64;
+        let cardinal_expected = ensemble.len() as u64;
         let cardinal: u64 = intervalles.iter().map(Intervalle::size).sum();
-        assert_eq!(cardinal, cardinal_attendu, "cardinal == |S|");
+        assert_eq!(cardinal, cardinal_expected, "cardinal == |S|");
         // On the continuum, measure ≤ cardinal (each point has measure 0).
         assert!(measure <= cardinal);
     }

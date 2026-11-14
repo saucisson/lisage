@@ -111,11 +111,8 @@ fn test_handles_unicite() {
 #[test]
 fn test_resolve_erreur_typee() {
     let (arena, _trace) = arena_avec_trace();
-    let resultat = arena.resolve(NodeId(99));
-    assert_eq!(
-        resultat,
-        Err(lisage_core::PoolError::UnknownNode(NodeId(99)))
-    );
+    let result = arena.resolve(NodeId(99));
+    assert_eq!(result, Err(lisage_core::PoolError::UnknownNode(NodeId(99))));
 }
 
 /// Non-identity key algebra: two spellings (0 and 2) have the same normal

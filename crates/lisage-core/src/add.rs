@@ -76,20 +76,20 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
 ) -> Result<NodeId, SchemaError> {
     let Schema::Map(liste_keys, domain) = schema else {
         return Err(SchemaError::TypeMismatch {
-            attendu: "map",
+            expected: "map",
             recu: "other schema",
         });
     };
     let Value::Map(map) = value else {
         return Err(SchemaError::TypeMismatch {
-            attendu: "map",
+            expected: "map",
             recu: "other value",
         });
     };
     for (key, value) in map {
         let (Value::Atom(atome_key), Value::Atom(atome_value)) = (key, value) else {
             return Err(SchemaError::TypeMismatch {
-                attendu: "atomic key and value",
+                expected: "atomic key and value",
                 recu: "non-atomic",
             });
         };

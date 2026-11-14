@@ -286,7 +286,7 @@ fn test_intern_plan_hit_cache_replanifie() {
 #[test]
 fn test_propriete_seuil_taux_hit_et_invariant_gc() {
     let mut graine = GRAINE_LCG;
-    let mut suivant = move || {
+    let mut next = move || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
@@ -296,8 +296,8 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
     // Threshold: the bound is included (dead × DEN == total × NUM → reached),
     // and one dead less does not reach it (for total > 0).
     for _ in 0..1000 {
-        let total = 1 + suivant() % 1000;
-        let morts = suivant() % (total + 1);
+        let total = 1 + next() % 1000;
+        let morts = next() % (total + 1);
         assert_eq!(
             seuil_atteint(morts, total),
             morts * SEUIL_COMPACTION_DEN >= total * SEUIL_COMPACTION_NUM
@@ -317,8 +317,8 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
 
     // Hit rate: 0 without activity, otherwise a percentage bounded in [0, 100].
     for _ in 0..1000 {
-        let creations = suivant() % 500;
-        let partages = suivant() % 500;
+        let creations = next() % 500;
+        let partages = next() % 500;
         let metriques = lisage_core::biplan::MetriquesPool {
             creations,
             partages,
@@ -326,11 +326,11 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         };
         let taux = metriques.taux_hit();
         assert!(taux <= 100);
-        let attendu = partages
+        let expected = partages
             .checked_mul(lisage_core::biplan::BASE_POURCENTAGE)
             .and_then(|p| p.checked_div(creations + partages))
             .unwrap_or(0);
-        assert_eq!(taux, attendu);
+        assert_eq!(taux, expected);
     }
 
     // GC invariant: vivants + collectes == total, and the metrics
@@ -338,7 +338,7 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
     for _ in 0..100 {
         let mut pool = arena();
         let (root, _orphelin) = petit_diagramme(&mut pool);
-        let nb_orphelins = suivant() % 30;
+        let nb_orphelins = next() % 30;
         for i in 0..nb_orphelins {
             pool.intern(
                 ANCRE_TEST,

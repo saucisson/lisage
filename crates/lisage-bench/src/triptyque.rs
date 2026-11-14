@@ -107,7 +107,7 @@ pub fn voie_b(network: &NetworkPetri) -> Result<MeasureVoie, ErreurTriptyque> {
 /// and the planner's downstream strategy (runtime order adopted, or canonical
 /// fallback).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ResultatVoieC {
+pub struct ResultVoieC {
     /// Measurement of the DD with the order adopted by the planner.
     pub measure: MeasureVoie,
     /// Downstream strategy: `OrdreRuntime` if π was valid, `RepliCanonique`
@@ -122,7 +122,7 @@ pub struct ResultatVoieC {
 pub fn voie_c(
     network: &NetworkPetri,
     ordre_runtime: &[Atom],
-) -> Result<ResultatVoieC, ErreurTriptyque> {
+) -> Result<ResultVoieC, ErreurTriptyque> {
     if network.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
     }
@@ -156,7 +156,7 @@ pub fn voie_c(
         })
         .collect();
     let measure = voie_dd(network, &ordre_adopte)?;
-    Ok(ResultatVoieC { measure, strategie })
+    Ok(ResultVoieC { measure, strategie })
 }
 
 /// Builds the DD of the reachable space in the given key order,
@@ -188,13 +188,13 @@ fn voie_dd(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, E
 /// the given order (π), value domain = `0..=max_jetons` bounded by
 /// the reachable space. π must be a permutation of the place indexes.
 fn schema_petri(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<Schema, ErreurTriptyque> {
-    let mut attendues: Vec<Atom> = (0..network.nombre_places())
+    let mut expected_f: Vec<Atom> = (0..network.nombre_places())
         .map(|index| Atom(index as u64))
         .collect();
     let mut recues = ordre_keys.to_vec();
-    attendues.sort();
+    expected_f.sort();
     recues.sort();
-    if recues != attendues {
+    if recues != expected_f {
         return Err(ErreurTriptyque::OrdreInvalide);
     }
     let max_jetons = jetons_max(network);

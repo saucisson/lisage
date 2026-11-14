@@ -124,21 +124,21 @@ fn test_propriete_cloture_lcg() {
     const NOMBRE_CAS: u64 = 30;
     let keys = DbmKeys::new(6);
     let mut graine = GRAINE_LCG;
-    let mut suivant = || {
+    let mut next = || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
         graine
     };
     for _ in 0..NOMBRE_CAS {
-        let n = 2 + (suivant() % 2) as usize;
-        let nombre_contraintes = suivant() % 5;
+        let n = 2 + (next() % 2) as usize;
+        let nombre_contraintes = next() % 5;
         let contraintes: Vec<(usize, usize, i64)> = (0..nombre_contraintes)
             .map(|_| {
                 (
-                    (suivant() % n as u64) as usize,
-                    (suivant() % n as u64) as usize,
-                    (suivant() % 7) as i64 - 3,
+                    (next() % n as u64) as usize,
+                    (next() % n as u64) as usize,
+                    (next() % 7) as i64 - 3,
                 )
             })
             .collect();
@@ -146,7 +146,7 @@ fn test_propriete_cloture_lcg() {
         let normalisee = keys.normal_form(&dbm);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
         // Membership of a randomly drawn point, consistent with est_vide.
-        let point: Vec<u64> = (0..n).map(|_| suivant() % 6).collect();
+        let point: Vec<u64> = (0..n).map(|_| next() % 6).collect();
         if normalisee.est_vide() {
             assert!(!normalisee.contient(&point));
         }

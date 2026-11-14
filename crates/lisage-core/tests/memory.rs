@@ -147,9 +147,9 @@ fn test_transduction_avec_memory_ecrit() {
     let mut runner =
         Transducteur::avec_politique(EcritMemory { lus: lus.clone() }, MemoryPolicy::PerLevel);
     assert_eq!(runner.version_memory(), 0, "empty memory at start");
-    let (resultat, _) = runner.run(&input, &mut output, anchor, b).unwrap();
+    let (result, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
-        output.resolve(resultat).unwrap(),
+        output.resolve(result).unwrap(),
         input.resolve(b).unwrap(),
         "identity copy"
     );
@@ -163,7 +163,7 @@ fn test_transduction_avec_memory_ecrit() {
     // each node re-reads the value stored on the first pass.
     let (r2, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
-        r2, resultat,
+        r2, result,
         "determinism: same result (the bumped version invalidates the memo, the node is recomputed)"
     );
     let total_lus = lus.load(std::sync::atomic::Ordering::SeqCst);
@@ -192,13 +192,13 @@ fn test_politique_aucune_rejette_effet_memory() {
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     // NoMemory policy (default): the memory effect must be rejected.
     let mut runner = Transducteur::new(EcritMemory { lus: lus.clone() });
-    let resultat = runner.run(&input, &mut output, anchor, a);
+    let result = runner.run(&input, &mut output, anchor, a);
     assert!(
         matches!(
-            resultat,
+            result,
             Err(lisage_core::error::CoreError::MemoryNonAutorisee)
         ),
-        "NoMemory policy ⇒ memory effect rejected, got {resultat:?}"
+        "NoMemory policy ⇒ memory effect rejected, got {result:?}"
     );
 }
 

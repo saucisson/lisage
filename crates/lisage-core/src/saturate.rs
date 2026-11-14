@@ -67,7 +67,7 @@ pub struct ParametresSaturation<'a, T, P> {
 
 /// Result of a saturation: fixpoint node + iteration count.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ResultatSaturation {
+pub struct ResultSaturation {
     /// Fixpoint node reached.
     pub node: NodeId,
     /// Number of iterations of the fixpoint loop.
@@ -189,7 +189,7 @@ impl<T: Transduction> Transduction for RestreintAuxLevels<T> {
 /// [`BORNE_ITERATIONS`] is only a safety net against a regression.
 pub fn saturer<T, P>(
     params: &mut ParametresSaturation<'_, T, P>,
-) -> Result<ResultatSaturation, CoreError>
+) -> Result<ResultSaturation, CoreError>
 where
     T: Transduction<Out = bool> + Clone,
     P: Pool<Key = u64, Payload = bool>,
@@ -228,9 +228,9 @@ where
             ),
         };
         let (image, _) = runner.run_meme_pool(params.pool, params.anchor, courant)?;
-        let suivant = union(params.pool, params.keys, params.anchor, courant, image)?;
-        if suivant == courant {
-            return Ok(ResultatSaturation {
+        let next = union(params.pool, params.keys, params.anchor, courant, image)?;
+        if next == courant {
+            return Ok(ResultSaturation {
                 node: courant,
                 iterations,
             });
@@ -241,12 +241,12 @@ where
             let modifies = runner.transduction().levels_modifies();
             levels_actifs.retain(|level| modifies.contains(level));
             if levels_actifs.is_empty() {
-                return Ok(ResultatSaturation {
-                    node: suivant,
+                return Ok(ResultSaturation {
+                    node: next,
                     iterations,
                 });
             }
         }
-        courant = suivant;
+        courant = next;
     }
 }

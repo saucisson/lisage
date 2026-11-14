@@ -214,9 +214,9 @@ fn test_ancres_composees_degradation_somme() {
         );
     }
     // 1 terminal + k₁ + k₂ nodes: the sum, not the product k₁ × k₂.
-    let attendu = 1 + 2 * NB_DECALAGES_PAR_FRAGMENT as usize;
-    assert_eq!(pool.node_count(), attendu);
-    assert!(attendu < (1 + NB_DECALAGES_PAR_FRAGMENT as usize).pow(2));
+    let expected = 1 + 2 * NB_DECALAGES_PAR_FRAGMENT as usize;
+    assert_eq!(pool.node_count(), expected);
+    assert!(expected < (1 + NB_DECALAGES_PAR_FRAGMENT as usize).pow(2));
     // The composite anchor carries the two named shifts.
     let ancre = AncreComposee::new().avec(machine, 2).avec(convoyeur, 5);
     assert_eq!(ancre.decalage(&Fragment("machine".to_string())), 2);
@@ -231,7 +231,7 @@ fn test_ancres_composees_degradation_somme() {
 fn test_propriete_groupe_shift() {
     let groupe = ShiftGroup;
     let mut graine = GRAINE_LCG;
-    let mut suivant = move || {
+    let mut next = move || {
         graine = graine
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
@@ -242,9 +242,9 @@ fn test_propriete_groupe_shift() {
 
     for _ in 0..1000 {
         // Random arcs (keys in [0, BORNE), arbitrary targets).
-        let nb_arcs = 1 + suivant() % 8;
+        let nb_arcs = 1 + next() % 8;
         let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
-            .map(|_| (suivant() % BORNE, NodeId(suivant() as u32)))
+            .map(|_| (next() % BORNE, NodeId(next() as u32)))
             .collect();
         // (iii) Confluence: the section is idempotent — applied to the
         // normalized form, it yields the neutral argument and the same form.
@@ -258,9 +258,9 @@ fn test_propriete_groupe_shift() {
 
         // (v) Homomorphism: f(n₁ ⊕ n₂) = f(n₁)∘f(n₂). Key large enough that
         // the intermediate readings do not saturate to 0.
-        let key_grande = BORNE + suivant() % BORNE;
-        let a1 = (suivant() % (2 * BORNE)) as i64 - BORNE as i64;
-        let a2 = (suivant() % (2 * BORNE)) as i64 - BORNE as i64;
+        let key_grande = BORNE + next() % BORNE;
+        let a1 = (next() % (2 * BORNE)) as i64 - BORNE as i64;
+        let a2 = (next() % (2 * BORNE)) as i64 - BORNE as i64;
         let compose = groupe.compose(&a1, &a2);
         assert_eq!(
             groupe.apply(&key_grande, &compose),
@@ -268,15 +268,15 @@ fn test_propriete_groupe_shift() {
         );
 
         // (i) Inverse: f(n) then f(n)⁻¹ = identity (key large enough).
-        let n = (suivant() % BORNE) as i64;
+        let n = (next() % BORNE) as i64;
         assert_eq!(
             groupe.apply(&groupe.apply(&key_grande, &n), &groupe.invert(&n)),
             key_grande
         );
 
         // (vi) Trivial kernel: f injective over the arguments.
-        let n1 = (suivant() % BORNE) as i64;
-        let n2 = (suivant() % BORNE) as i64;
+        let n1 = (next() % BORNE) as i64;
+        let n2 = (next() % BORNE) as i64;
         if groupe.apply(&key_grande, &n1) == groupe.apply(&key_grande, &n2) {
             assert_eq!(
                 n1, n2,

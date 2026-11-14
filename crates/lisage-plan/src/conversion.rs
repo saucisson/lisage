@@ -92,8 +92,8 @@ impl<T: TypeOrdre> Conversion<T> {
             triee = true;
             for index in 0..sequence.len().saturating_sub(1) {
                 let position_courante = source.position(&sequence[index]);
-                let position_suivante = source.position(&sequence[index + 1]);
-                if position_courante > position_suivante {
+                let position_nexte = source.position(&sequence[index + 1]);
+                if position_courante > position_nexte {
                     sequence.swap(index, index + 1);
                     transpositions.push((index, index + 1));
                     triee = false;

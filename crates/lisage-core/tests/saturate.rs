@@ -163,9 +163,9 @@ fn test_saturate_termine_et_point_fixe() {
         nombre_levels: schema.nombre_levels(),
         observer: None,
     };
-    let resultat = saturer(&mut params).unwrap();
-    assert_eq!(resultat.iterations, 1, "identity: immediate fixpoint (T2)");
-    assert_eq!(resultat.node, initial, "X ⊕ id(X) = X");
+    let result = saturer(&mut params).unwrap();
+    assert_eq!(result.iterations, 1, "identity: immediate fixpoint (T2)");
+    assert_eq!(result.node, initial, "X ⊕ id(X) = X");
 }
 
 /// M2-4: both policies reach the same fixpoint when `Statique` declares
@@ -258,7 +258,7 @@ fn test_saturate_statique_restreint_les_levels() {
     let etape_a = EmetSingleton {
         singleton: singleton_a,
     };
-    let attendu_a = union(&mut pool_a, &keys, anchor, initial_a, singleton_a).unwrap();
+    let expected_a = union(&mut pool_a, &keys, anchor, initial_a, singleton_a).unwrap();
     let mut params = ParametresSaturation {
         transduction: &etape_a,
         politique: &politique_auto,
@@ -271,7 +271,7 @@ fn test_saturate_statique_restreint_les_levels() {
     };
     let r_auto = saturer(&mut params).unwrap();
     assert_eq!(
-        r_auto.node, attendu_a,
+        r_auto.node, expected_a,
         "all levels active: the fixpoint contains the emitted singleton"
     );
     assert!(
@@ -293,7 +293,7 @@ fn test_saturate_chaine_croissante_multi_iterations() {
 
     let initial = compiler_ensemble(&mut pool, anchor, &schema, &[0]);
     let singleton_2 = compiler_ensemble(&mut pool, anchor, &schema, &[2]);
-    let attendu = union(&mut pool, &keys, anchor, initial, singleton_2).unwrap();
+    let expected = union(&mut pool, &keys, anchor, initial, singleton_2).unwrap();
     let etape = EmetSingleton {
         singleton: singleton_2,
     };
@@ -308,16 +308,16 @@ fn test_saturate_chaine_croissante_multi_iterations() {
         nombre_levels: schema.nombre_levels(),
         observer: None,
     };
-    let resultat = saturer(&mut params).unwrap();
+    let result = saturer(&mut params).unwrap();
     assert!(
-        resultat.iterations >= 2,
+        result.iterations >= 2,
         "increasing chain: several iterations, got {}",
-        resultat.iterations
+        result.iterations
     );
-    assert!(resultat.iterations <= BORNE_ITERATIONS, "termination (T2)");
+    assert!(result.iterations <= BORNE_ITERATIONS, "termination (T2)");
     assert_eq!(
-        resultat.node, attendu,
+        result.node, expected,
         "fixpoint = union of the initial and the singleton"
     );
-    assert_eq!(cardinal(&pool, &schema, resultat.node), 2);
+    assert_eq!(cardinal(&pool, &schema, result.node), 2);
 }

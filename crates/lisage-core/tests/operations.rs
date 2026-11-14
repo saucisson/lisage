@@ -41,12 +41,12 @@ fn compiler_ensemble(
     ensemble: &BTreeSet<Value>,
 ) -> NodeId {
     let keys = SchemaKeys::new(schema.clone());
-    let mut resultat = pool.intern(anchor, Form::Terminal(false));
+    let mut result = pool.intern(anchor, Form::Terminal(false));
     for membre in ensemble {
         let n = compiler(pool, anchor, schema, membre).unwrap();
-        resultat = union(pool, &keys, anchor, resultat, n).unwrap();
+        result = union(pool, &keys, anchor, result, n).unwrap();
     }
-    resultat
+    result
 }
 
 fn schema_map() -> Schema {
@@ -112,13 +112,13 @@ fn test_filtre_garde() {
         Box::new(|keys: &KeyPresentes| keys.contains(&0)),
     )
     .unwrap();
-    let attendu = compiler_ensemble(
+    let expected = compiler_ensemble(
         &mut output,
         anchor,
         &schema,
         &BTreeSet::from([map_de(&[(0, 1)])]),
     );
-    assert_eq!(filtre, attendu, "C1: same filtered set ⇒ same node");
+    assert_eq!(filtre, expected, "C1: same filtered set ⇒ same node");
 }
 
 /// `map(f)`: relabeling of the atoms of a set (schema `Atom`).
@@ -133,16 +133,16 @@ fn test_image_reetiquetage_atomes() {
 
     // f(v) = (v + 1) mod 3 : {0, 2} ↦ {1, 0}.
     let image = image(&input, &mut output, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
-    let attendu = compiler_ensemble(
+    let expected = compiler_ensemble(
         &mut output,
         anchor,
         &schema,
         &BTreeSet::from([atome(1), atome(0)]),
     );
-    assert_eq!(image, attendu, "C1: same image ⇒ same node");
+    assert_eq!(image, expected, "C1: same image ⇒ same node");
 }
 
-/// `exists` on a non-Map schema: typed error `SchemaInattendu`, no panic at
+/// `exists` on a non-Map schema: typed error `SchemaInexpected`, no panic at
 /// the public boundary.
 #[test]
 fn test_existe_schema_non_map_erreur_typee() {
@@ -152,7 +152,7 @@ fn test_existe_schema_non_map_erreur_typee() {
     let anchor = Anchor(0);
     let root = input.intern(anchor, Form::Terminal(false));
 
-    let resultat = existe(
+    let result = existe(
         &input,
         &mut output,
         anchor,
@@ -161,9 +161,9 @@ fn test_existe_schema_non_map_erreur_typee() {
         Box::new(|_: &KeyPresentes| true),
     );
     assert_eq!(
-        resultat.unwrap_err(),
-        CoreError::SchemaInattendu {
-            attendu: "Map",
+        result.unwrap_err(),
+        CoreError::SchemaInexpected {
+            expected: "Map",
             recu: "Atom"
         }
     );
@@ -189,7 +189,7 @@ fn test_filtre_level_hors_schema_erreur_typee() {
         },
     );
 
-    let resultat = filtrer(
+    let result = filtrer(
         &input,
         &mut output,
         anchor,
@@ -197,5 +197,5 @@ fn test_filtre_level_hors_schema_erreur_typee() {
         malforme,
         Box::new(|_: &KeyPresentes| true),
     );
-    assert_eq!(resultat.unwrap_err(), CoreError::LevelHorsSchema(Level(4)));
+    assert_eq!(result.unwrap_err(), CoreError::LevelHorsSchema(Level(4)));
 }
