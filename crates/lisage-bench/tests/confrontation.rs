@@ -299,7 +299,7 @@ fn test_narration_charge_epinglee() {
     let mesure =
         executer(&Charge::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("charge exécutée");
     let attendu = format!(
-        "charge=alea-lcg noeuds={} verifie={}",
+        "workload=alea-lcg nodes={} check={}",
         mesure.noeuds, SATISFACTIONS_LCG_N4
     );
     // Les trois charges émettent leur récapitulatif : philosophes et
@@ -321,11 +321,11 @@ fn test_narration_charge_epinglee() {
     let attendus = [
         attendu,
         format!(
-            "charge=philosophes noeuds={} verifie={}",
+            "workload=philosophes nodes={} check={}",
             mesure_philo.noeuds, mesure_philo.verifie
         ),
         format!(
-            "charge=fenetre encodage=relatif noeuds={} verifie={}",
+            "workload=fenetre encoding=relatif nodes={} check={}",
             mesure_fenetre.noeuds, mesure_fenetre.verifie
         ),
     ];

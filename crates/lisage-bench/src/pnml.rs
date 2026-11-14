@@ -1,69 +1,69 @@
-//! Parseur PNML et conversion vers `lang/` (M5-2, énoncés C3/C4).
+//! PNML parser and conversion to `lang/` (M5-2, statements C3/C4).
 //!
-//! C'est un parseur de **format externe** (PNML, le standard d'échange
-//! des réseaux de Petri de la Model Checking Contest), pas du langage
-//! Lisage : il produit des [`Value`] du niveau 1, consommables par
-//! l'interprète de référence (voie A du triptyque). Aucune dépendance
-//! externe : le XML est parsé à la main, en lecture seule.
+//! This is a parser of an **external format** (PNML, the Petri-net exchange
+//! standard of the Model Checking Contest), not of the
+//! Lisage language: it produces level-1 [`Value`]s, consumable by
+//! the reference interpreter (path A of the triptych). No external
+//! dependency: the XML is parsed by hand, read-only.
 //!
-//! Sous-ensemble PNML supporté (suffisant pour les modèles MCC
-//! "place/transition" usuels) : `<pnml><net><place id><initialMarking>
-//! <text>n</text>`, `<transition id>`, `<arc id source target>` avec
-//! `source`/`target` référençant chacun une place et une transition
-//! (dans un sens ou dans l'autre). Les annotations de nom
-//! (`<name><text>…</text></name>`) sont lues quand présentes. Un arc
-//! portant un attribut `weight` autre que `1` est rejeté. Les entités
-//! XML (`&amp;` etc.) ne sont pas décodées — acceptable pour les
-//! modèles MCC PT-net.
+//! Supported PNML subset (sufficient for the usual MCC
+//! "place/transition" models): `<pnml><net><place id><initialMarking>
+//! <text>n</text>`, `<transition id>`, `<arc id source target>` with
+//! `source`/`target` each referencing a place and a transition
+//! (in either direction). Name annotations
+//! (`<name><text>…</text></name>`) are read when present. An arc
+//! carrying a `weight` attribute other than `1` is rejected. XML
+//! entities (`&amp;` etc.) are not decoded — acceptable for
+//! MCC PT-net models.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_lang::value::{Atom, Value};
 
 // ---------------------------------------------------------------------------
-// Constantes du format
+// Format constants
 // ---------------------------------------------------------------------------
 
-/// Élément racine PNML.
+/// PNML root element.
 const ELEMENT_PNML: &str = "pnml";
-/// Élément réseau.
+/// Network element.
 const ELEMENT_NET: &str = "net";
-/// Élément place.
+/// Place element.
 const ELEMENT_PLACE: &str = "place";
-/// Élément transition.
+/// Transition element.
 const ELEMENT_TRANSITION: &str = "transition";
-/// Élément arc.
+/// Arc element.
 const ELEMENT_ARC: &str = "arc";
-/// Attribut identifiant.
+/// Identifier attribute.
 const ATTRIBUT_ID: &str = "id";
-/// Attribut source d'arc.
+/// Arc source attribute.
 const ATTRIBUT_SOURCE: &str = "source";
-/// Attribut cible d'arc.
+/// Arc target attribute.
 const ATTRIBUT_TARGET: &str = "target";
-/// Attribut poids d'arc (sous-ensemble : poids 1 uniquement).
+/// Arc weight attribute (subset: weight 1 only).
 const ATTRIBUT_WEIGHT: &str = "weight";
-/// Annotation de nom.
+/// Name annotation.
 const ELEMENT_NAME: &str = "name";
-/// Conteneur de texte PNML.
+/// PNML text container.
 const ELEMENT_TEXT: &str = "text";
-/// Marquage initial.
+/// Initial marking.
 const ELEMENT_MARQUAGE: &str = "initialMarking";
-/// Poids d'arc accepté (les poids > 1 sont hors sous-ensemble).
+/// Accepted arc weight (weights > 1 are outside the subset).
 const POIDS_ACCEPTE: &str = "1";
 
 // ---------------------------------------------------------------------------
-// Types distincts pour les identifiants de nœuds (ADR-0006)
+// Distinct types for node identifiers (ADR-0006)
 // ---------------------------------------------------------------------------
 
-/// Identifiant d'une place, type distinct à la frontière.
+/// Identifier of a place, distinct type at the boundary.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct PlaceId(pub String);
 
-/// Identifiant d'une transition, type distinct à la frontière.
+/// Identifier of a transition, distinct type at the boundary.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TransitionId(pub String);
 
-/// Extrémité d'un arc : toujours un nœud du réseau.
+/// End of an arc: always a node of the net.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum NoeudId {
     Place(PlaceId),
@@ -71,35 +71,35 @@ pub enum NoeudId {
 }
 
 // ---------------------------------------------------------------------------
-// Erreurs typées
+// Typed errors
 // ---------------------------------------------------------------------------
 
-/// Erreur typée du parseur PNML.
+/// Typed error of the PNML parser.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PnmlError {
-    /// XML mal formé (balise non fermée, attribut sans valeur, etc.).
+    /// Malformed XML (unclosed tag, attribute without value, etc.).
     XmlMalForme { position: usize, detail: String },
-    /// Élément PNML inattendu à cet endroit.
+    /// Unexpected PNML element at this point.
     ElementInattendu {
         attendu: &'static str,
         trouve: String,
     },
-    /// Attribut obligatoire absent.
+    /// Mandatory attribute absent.
     AttributManquant {
         element: &'static str,
         attribut: &'static str,
     },
-    /// Valeur numérique invalide.
+    /// Invalid numeric value.
     NombreInvalide {
         element: &'static str,
         texte: String,
     },
-    /// Arc dont une extrémité n'existe pas dans le réseau.
+    /// Arc whose one end does not exist in the net.
     ArcVersInconnu { source: String, cible: String },
-    /// Arc mal orienté : les deux extrémités sont des places, ou deux
-    /// transitions (un arc PNML relie une place et une transition).
+    /// Badly oriented arc: both ends are places, or two
+    /// transitions (a PNML arc links a place and a transition).
     ArcMalOriente { source: String, cible: String },
-    /// Poids d'arc hors sous-ensemble (seul le poids 1 est supporté).
+    /// Arc weight outside the subset (only weight 1 is supported).
     PoidsNonSupporte { poids: String },
 }
 
@@ -107,33 +107,30 @@ impl std::fmt::Display for PnmlError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PnmlError::XmlMalForme { position, detail } => {
-                write!(
-                    formatter,
-                    "XML mal formé à la position {position}: {detail}"
-                )
+                write!(formatter, "malformed XML at position {position}: {detail}")
             }
             PnmlError::ElementInattendu { attendu, trouve } => {
-                write!(formatter, "élément attendu {attendu}, trouvé <{trouve}>")
+                write!(formatter, "expected element {attendu}, found <{trouve}>")
             }
             PnmlError::AttributManquant { element, attribut } => {
-                write!(formatter, "attribut {attribut} manquant sur <{element}>")
+                write!(formatter, "attribute {attribut} missing on <{element}>")
             }
             PnmlError::NombreInvalide { element, texte } => {
-                write!(formatter, "nombre invalide dans <{element}>: {texte:?}")
+                write!(formatter, "invalid number in <{element}>: {texte:?}")
             }
             PnmlError::ArcVersInconnu { source, cible } => {
-                write!(formatter, "arc de {source:?} vers {cible:?} inconnu")
+                write!(formatter, "arc from {source:?} to {cible:?} unknown")
             }
             PnmlError::ArcMalOriente { source, cible } => {
                 write!(
                     formatter,
-                    "arc mal orienté de {source:?} vers {cible:?} (place↔transition attendu)"
+                    "badly oriented arc from {source:?} to {cible:?} (place↔transition expected)"
                 )
             }
             PnmlError::PoidsNonSupporte { poids } => {
                 write!(
                     formatter,
-                    "poids d'arc {poids:?} non supporté (poids 1 uniquement)"
+                    "arc weight {poids:?} not supported (weight 1 only)"
                 )
             }
         }
@@ -143,10 +140,10 @@ impl std::fmt::Display for PnmlError {
 impl std::error::Error for PnmlError {}
 
 // ---------------------------------------------------------------------------
-// XML minimal (lecture seule) — fonctions de taille bornée
+// Minimal XML (read-only) — bounded-size functions
 // ---------------------------------------------------------------------------
 
-/// Nœud XML : élément avec attributs et enfants, ou texte.
+/// XML node: element with attributes and children, or text.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum XmlNoeud {
     Element {
@@ -157,7 +154,7 @@ enum XmlNoeud {
     Texte(String),
 }
 
-/// Analyse un document XML en arbre de [`XmlNoeud`].
+/// Parses an XML document into a [`XmlNoeud`] tree.
 fn parser_xml(document: &str) -> Result<XmlNoeud, PnmlError> {
     let octets: Vec<char> = document.chars().collect();
     let mut position = 0;
@@ -166,7 +163,7 @@ fn parser_xml(document: &str) -> Result<XmlNoeud, PnmlError> {
     if position != octets.len() {
         return Err(PnmlError::XmlMalForme {
             position,
-            detail: "contenu après l'élément racine".to_string(),
+            detail: "content after the root element".to_string(),
         });
     }
     Ok(racine)
@@ -178,7 +175,7 @@ fn sauter_espaces(octets: &[char], position: &mut usize) {
     }
 }
 
-/// Lit un nom XML (alphanumérique + `_ - : .`).
+/// Reads an XML name (alphanumeric + `_ - : .`).
 fn lire_nom(octets: &[char], position: &mut usize) -> Result<String, PnmlError> {
     let debut = *position;
     while *position < octets.len()
@@ -190,24 +187,24 @@ fn lire_nom(octets: &[char], position: &mut usize) -> Result<String, PnmlError> 
     if *position == debut {
         return Err(PnmlError::XmlMalForme {
             position: *position,
-            detail: "nom attendu".to_string(),
+            detail: "name expected".to_string(),
         });
     }
     Ok(octets[debut..*position].iter().collect())
 }
 
-/// Lit une chaîne entre guillemets simples ou doubles.
+/// Reads a string between single or double quotes.
 fn lire_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlError> {
     let Some(&delimiteur) = octets.get(*position) else {
         return Err(PnmlError::XmlMalForme {
             position: *position,
-            detail: "chaîne entre guillemets attendue".to_string(),
+            detail: "quoted string expected".to_string(),
         });
     };
     if delimiteur != '"' && delimiteur != '\'' {
         return Err(PnmlError::XmlMalForme {
             position: *position,
-            detail: "chaîne entre guillemets attendue".to_string(),
+            detail: "quoted string expected".to_string(),
         });
     }
     *position += 1;
@@ -218,7 +215,7 @@ fn lire_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlErro
     if *position >= octets.len() {
         return Err(PnmlError::XmlMalForme {
             position: *position,
-            detail: "chaîne non terminée".to_string(),
+            detail: "unterminated string".to_string(),
         });
     }
     let valeur: String = octets[debut..*position].iter().collect();
@@ -234,13 +231,13 @@ fn attendre(octets: &[char], position: &mut usize, attendu: char) -> Result<(), 
         }
         _ => Err(PnmlError::XmlMalForme {
             position: *position,
-            detail: format!("'{attendu}' attendu"),
+            detail: format!("'{attendu}' expected"),
         }),
     }
 }
 
-/// Saute jusqu'au prochain `>` (prologue `<?…?>`, commentaires, CDATA
-/// tronqué — les entités ne sont pas décodées, voir la doc du module).
+/// Skips to the next `>` (prologue `<?…?>`, comments, truncated
+/// CDATA — entities are not decoded, see the module doc).
 fn sauter_jusqu_a(octets: &[char], position: &mut usize, cible: char) {
     while *position < octets.len() && octets[*position] != cible {
         *position += 1;
@@ -250,8 +247,8 @@ fn sauter_jusqu_a(octets: &[char], position: &mut usize, cible: char) {
     }
 }
 
-/// Lit la balise ouvrante `<nom attr="v" …>` ou `<nom …/>`.
-/// Retourne `(nom, attributs, est_auto_fermante)`.
+/// Reads the opening tag `<nom attr="v" …>` or `<nom …/>`.
+/// Returns `(nom, attributs, est_auto_fermante)`.
 fn lire_balise_ouvrante(
     octets: &[char],
     position: &mut usize,
@@ -264,7 +261,7 @@ fn lire_balise_ouvrante(
         let Some(&c) = octets.get(*position) else {
             return Err(PnmlError::XmlMalForme {
                 position: *position,
-                detail: format!("balise <{nom}> non fermée"),
+                detail: format!("unclosed tag <{nom}>"),
             });
         };
         match c {
@@ -289,7 +286,7 @@ fn lire_balise_ouvrante(
     }
 }
 
-/// Lit un tronçon de texte jusqu'au prochain '<'.
+/// Reads a text chunk up to the next '<'.
 fn lire_texte(octets: &[char], position: &mut usize) -> String {
     let debut = *position;
     while *position < octets.len() && octets[*position] != '<' {
@@ -302,29 +299,29 @@ fn lire_texte(octets: &[char], position: &mut usize) -> String {
         .to_string()
 }
 
-/// Lit la balise fermante `</nom>` et vérifie la correspondance.
+/// Reads the closing tag `</nom>` and checks the match.
 fn lire_balise_fermante(octets: &[char], position: &mut usize, nom: &str) -> Result<(), PnmlError> {
     *position += 2; // '</'
     let nom_fermeture = lire_nom(octets, position)?;
     if nom_fermeture != nom {
         return Err(PnmlError::XmlMalForme {
             position: *position,
-            detail: format!("fermeture </{nom_fermeture}> pour <{nom}>"),
+            detail: format!("closing </{nom_fermeture}> for <{nom}>"),
         });
     }
     attendre(octets, position, '>')
 }
 
-/// Parse un élément complet (récursif).
+/// Parses a complete element (recursive).
 fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNoeud, PnmlError> {
     sauter_espaces(octets, position);
     if octets.get(*position) != Some(&'<') {
         return Err(PnmlError::XmlMalForme {
             position: *position,
-            detail: "élément attendu".to_string(),
+            detail: "element expected".to_string(),
         });
     }
-    // Prologue ou commentaire : on saute, on relance.
+    // Prologue or comment: skip, retry.
     if matches!(octets.get(*position + 1), Some('?') | Some('!')) {
         sauter_jusqu_a(octets, position, '>');
         return parser_element(octets, position);
@@ -345,7 +342,7 @@ fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNoeud, Pnm
     })
 }
 
-/// Parse les enfants d'un élément jusqu'à sa balise fermante.
+/// Parses the children of an element up to its closing tag.
 fn parser_enfants(
     octets: &[char],
     position: &mut usize,
@@ -357,7 +354,7 @@ fn parser_enfants(
         let Some(&c) = octets.get(*position) else {
             return Err(PnmlError::XmlMalForme {
                 position: *position,
-                detail: format!("fin de document dans <{nom}>"),
+                detail: format!("end of document inside <{nom}>"),
             });
         };
         if c == '<' {
@@ -376,10 +373,10 @@ fn parser_enfants(
 }
 
 // ---------------------------------------------------------------------------
-// Modèle PNML
+// PNML model
 // ---------------------------------------------------------------------------
 
-/// Place d'un réseau de Petri.
+/// Place of a Petri net.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Place {
     pub identifiant: PlaceId,
@@ -387,25 +384,25 @@ pub struct Place {
     pub marquage_initial: u64,
 }
 
-/// Transition d'un réseau de Petri.
+/// Transition of a Petri net.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Transition {
     pub identifiant: TransitionId,
     pub nom: Option<String>,
 }
 
-/// Arc orienté place↔transition (poids 1).
+/// Oriented arc place↔transition (weight 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Arc {
     pub source: NoeudId,
     pub cible: NoeudId,
 }
 
-/// Document PNML brut, type distinct à la frontière (ADR-0006).
+/// Raw PNML document, distinct type at the boundary (ADR-0006).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PnmlDocument(pub String);
 
-/// Réseau de Petri parsé depuis PNML.
+/// Petri net parsed from PNML.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReseauPetri {
     pub places: Vec<Place>,
@@ -414,13 +411,13 @@ pub struct ReseauPetri {
 }
 
 impl ReseauPetri {
-    /// Parse un document PNML complet.
+    /// Parses a complete PNML document.
     pub fn depuis_pnml(document: &PnmlDocument) -> Result<ReseauPetri, PnmlError> {
         let racine = parser_xml(&document.0)?;
         let XmlNoeud::Element { nom, enfants, .. } = &racine else {
             return Err(PnmlError::ElementInattendu {
                 attendu: ELEMENT_PNML,
-                trouve: "texte".to_string(),
+                trouve: "text".to_string(),
             });
         };
         if nom != ELEMENT_PNML {
@@ -437,7 +434,7 @@ impl ReseauPetri {
             })
             .ok_or_else(|| PnmlError::ElementInattendu {
                 attendu: ELEMENT_NET,
-                trouve: "rien".to_string(),
+                trouve: "nothing".to_string(),
             })?;
         let mut places = Vec::new();
         let mut transitions = Vec::new();
@@ -466,17 +463,17 @@ impl ReseauPetri {
         })
     }
 
-    /// Nombre de places.
+    /// Number of places.
     pub fn nombre_places(&self) -> usize {
         self.places.len()
     }
 
-    /// Nombre de transitions.
+    /// Number of transitions.
     pub fn nombre_transitions(&self) -> usize {
         self.transitions.len()
     }
 
-    /// Index d'une place d'après son identifiant.
+    /// Index of a place from its identifier.
     pub fn index_place(&self, identifiant: &PlaceId) -> Option<usize> {
         self.places
             .iter()
@@ -484,15 +481,15 @@ impl ReseauPetri {
     }
 }
 
-/// Arc brut tel que parsé (identifiants encore non résolus).
+/// Raw arc as parsed (identifiers not yet resolved).
 struct ArcBrut {
     source: String,
     cible: String,
 }
 
-/// Résout les identifiants d'arcs en [`NoeudId`] et vérifie que chaque
-/// arc relie une place et une transition dont les deux extrémités
-/// existent.
+/// Resolves arc identifiers into [`NoeudId`] and checks that each
+/// arc links a place and a transition whose both ends
+/// exist.
 fn resoudre_arcs(
     places: &[Place],
     transitions: &[Transition],
@@ -520,11 +517,11 @@ fn resoudre_arc(
             });
         }
     };
-    let mal_oriente = matches!(
+    let badly_oriented = matches!(
         (&source, &cible),
         (NoeudId::Place(_), NoeudId::Place(_)) | (NoeudId::Transition(_), NoeudId::Transition(_))
     );
-    if mal_oriente {
+    if badly_oriented {
         return Err(PnmlError::ArcMalOriente {
             source: brut.source.clone(),
             cible: brut.cible.clone(),
@@ -561,9 +558,9 @@ fn attribut_obligatoire(
         })
 }
 
-/// Texte d'un élément `<name><text>…</text></name>` ou
-/// `<initialMarking><text>…</text></initialMarking>` : le texte est
-/// soit un enfant direct, soit dans un sous-élément `<text>`.
+/// Text of a `<name><text>…</text></name>` or
+/// `<initialMarking><text>…</text></initialMarking>` element: the text is
+/// either a direct child, or inside a `<text>` sub-element.
 fn lire_texte_enfant(enfants: &[XmlNoeud], element: &str) -> Option<String> {
     for enfant in enfants {
         let XmlNoeud::Element { nom, enfants, .. } = enfant else {
@@ -643,15 +640,15 @@ fn parser_arc(attributs: &BTreeMap<String, String>) -> Result<ArcBrut, PnmlError
 }
 
 // ---------------------------------------------------------------------------
-// Conversion vers lang/ (niveau 1)
+// Conversion to lang/ (level 1)
 // ---------------------------------------------------------------------------
 
-/// Marquage d'un réseau : place → nombre de jetons, encodé comme
-/// `Value::Map` du niveau 1 (clé = `Value::Atom` de l'index de place,
-/// valeur = `Value::Atom` du compte).
+/// Marking of a net: place → token count, encoded as a level-1
+/// `Value::Map` (key = `Value::Atom` of the place index,
+/// value = `Value::Atom` of the count).
 pub type Marquage = BTreeMap<Atom, Atom>;
 
-/// Convertit le marquage initial du réseau en [`Value::Map`].
+/// Converts the initial marking of the net into a [`Value::Map`].
 pub fn marquage_initial(reseau: &ReseauPetri) -> Value {
     let map: BTreeMap<Value, Value> = reseau
         .places
@@ -667,7 +664,7 @@ pub fn marquage_initial(reseau: &ReseauPetri) -> Value {
     Value::Map(map)
 }
 
-/// Extrait le [`Marquage`] d'une [`Value::Map`] produite par
+/// Extracts the [`Marquage`] from a [`Value::Map`] produced by
 /// [`marquage_initial`].
 pub fn marquage_depuis_value(valeur: &Value) -> Option<Marquage> {
     match valeur {
@@ -682,7 +679,7 @@ pub fn marquage_depuis_value(valeur: &Value) -> Option<Marquage> {
     }
 }
 
-/// Places entrantes d'une transition (arcs place → transition).
+/// Input places of a transition (arcs place → transition).
 fn places_entrantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> Vec<&'a PlaceId> {
     reseau
         .arcs
@@ -694,7 +691,7 @@ fn places_entrantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> V
         .collect()
 }
 
-/// Places sortantes d'une transition (arcs transition → place).
+/// Output places of a transition (arcs transition → place).
 fn places_sortantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> Vec<&'a PlaceId> {
     reseau
         .arcs
@@ -706,8 +703,8 @@ fn places_sortantes<'a>(reseau: &'a ReseauPetri, transition: &TransitionId) -> V
         .collect()
 }
 
-/// Une transition est sensibilisée si chaque place entrante a au moins
-/// un jeton.
+/// A transition is enabled if each input place has at least
+/// one token.
 pub fn est_sensibilisee(
     reseau: &ReseauPetri,
     transition: &TransitionId,
@@ -724,8 +721,8 @@ pub fn est_sensibilisee(
     })
 }
 
-/// Tirez une transition : retire un jeton de chaque place entrante,
-/// ajoute un jeton à chaque place sortante.
+/// Fires a transition: removes one token from each input place,
+/// adds one token to each output place.
 pub fn tirer(reseau: &ReseauPetri, transition: &TransitionId, marquage: &Marquage) -> Marquage {
     let mut resultat = marquage.clone();
     for place in places_entrantes(reseau, transition) {
@@ -748,8 +745,8 @@ pub fn tirer(reseau: &ReseauPetri, transition: &TransitionId, marquage: &Marquag
     resultat
 }
 
-/// Pas sémantique : tous les marquages successeurs de toutes les
-/// transitions sensibilisées, encodés en `Value::Map` (voie A).
+/// Semantic step: all successor markings of all enabled
+/// transitions, encoded as `Value::Map` (path A).
 pub fn pas_semantique(reseau: &ReseauPetri, ensemble: &BTreeSet<Value>) -> BTreeSet<Value> {
     let mut successeurs = BTreeSet::new();
     for valeur in ensemble {
@@ -770,8 +767,8 @@ pub fn pas_semantique(reseau: &ReseauPetri, ensemble: &BTreeSet<Value>) -> BTree
     successeurs
 }
 
-/// Espace des marquages atteignables (voie A, point fixe croissant sur
-/// l'interprète de référence `lang/`).
+/// Reachable marking space (path A, increasing fixpoint over
+/// the reference `lang/` interpreter).
 pub fn espace_atteignable(reseau: &ReseauPetri) -> BTreeSet<Value> {
     let initial = BTreeSet::from([marquage_initial(reseau)]);
     lisage_lang::interpreter::saturate(|ensemble| pas_semantique(reseau, ensemble), initial)

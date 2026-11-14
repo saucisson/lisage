@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 bench part 1: lisage-bench src translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates comments, doc-comments and string literals in `crates/lisage-bench/src/confrontation.rs`, `pnml.rs`, `triptyque.rs`, `sdd.rs`, `temoin_bdd.rs`, `differentiel.rs`, `lib.rs`, `src/bin/confrontation.rs`, plus the `description` in `Cargo.toml`. Three pinned narration strings in `tests/confrontation.rs` updated to match the new English event payloads (`workload=… nodes=… check=…`). Public French identifiers are kept until dependent crates are translated.
+- **Evidence**: accent grep returns 0 across `crates/lisage-bench/src/` except the kept `Synthétise` identifier; `cargo check -p lisage-bench --tests` passes; `cargo test -p lisage-bench` all 24 test suites pass; `cargo fmt -p lisage-bench -- --check` clean. Remaining French in `tests/` and `benches/` is the next part.
+- **Judgement calls**: comments/strings translated now, public identifiers deferred; the CLI usage line was translated as a string literal, pinned test updated accordingly.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-5 backend: lisage-backend translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
