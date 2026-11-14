@@ -1,28 +1,27 @@
-//! Algèbre de clés-régions, fragment **intervalles** (backlog § 9 de la
-//! feuille de route, question ouverte 9 de la spec) : la clé d'arc est un
-//! intervalle borné sur le domaine d'un niveau — une région convexe 1D,
-//! premier cas de « intervalles puis DBM ».
+//! Region key algebra, **intervals** fragment (backlog § 9 of the roadmap,
+//! open question 9 of the spec): the arc key is a bounded interval over a
+//! level's domain — a 1D convex region, first case of "intervals then DBM".
 //!
-//! Le domaine d'un niveau reste fini (`[0, taille)`) ; la clé décrit un
-//! *ensemble de points* du domaine, avec égalité décidable et forme normale
-//! canonique : C1 devient relatif à l'algèbre de régions. L'intervalle vide
-//! est l'« absent » continu δ(ℓ), miroir de `ABSENT` pour `Set`. Le pli sur
-//! dimension continue (intégrale, semi-anneau à mesures) et les DBM restent
-//! hors de ce fragment.
+//! A level's domain stays finite (`[0, taille)`); the key describes a *set
+//! of points* of the domain, with decidable equality and canonical normal
+//! form: C1 becomes relative to the region algebra. The empty interval is
+//! the continuous "absent" δ(ℓ), mirror of `ABSENT` for `Set`. The fold
+//! over a continuous dimension (integral, measure semiring) and DBMs remain
+//! outside this fragment.
 
 use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};
 
-/// Intervalle vide canonique : `borne_inf > borne_sup`, normalisé à `(1, 0)`.
+/// Canonical empty interval: `borne_inf > borne_sup`, normalized to `(1, 0)`.
 pub const VIDE: Intervalle = Intervalle {
     borne_inf: 1,
     borne_sup: 0,
 };
 
-/// Clé-région : intervalle fermé `[borne_inf, borne_sup]` de points d'un
-/// domaine borné. Toute construction passe par [`Intervalle::nouveau`], qui
-/// normalise l'intervalle vide à [`VIDE`] : l'égalité dérivée est alors
-/// l'égalité ensembliste, et le hash-consing respecte C1 relativement à
-/// l'algèbre de régions.
+/// Region key: closed interval `[borne_inf, borne_sup]` of points of a
+/// bounded domain. Every construction goes through [`Intervalle::nouveau`],
+/// which normalizes the empty interval to [`VIDE`]: the derived equality is
+/// then set equality, and hash-consing respects C1 relative to the region
+/// algebra.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Intervalle {
     borne_inf: u64,
@@ -30,8 +29,8 @@ pub struct Intervalle {
 }
 
 impl Intervalle {
-    /// Intervalle fermé `[borne_inf, borne_sup]` ; si `borne_inf > borne_sup`,
-    /// l'intervalle est vide et normalisé à [`VIDE`].
+    /// Closed interval `[borne_inf, borne_sup]`; if `borne_inf > borne_sup`,
+    /// the interval is empty and normalized to [`VIDE`].
     pub fn nouveau(borne_inf: u64, borne_sup: u64) -> Self {
         if borne_inf > borne_sup {
             VIDE
@@ -43,29 +42,29 @@ impl Intervalle {
         }
     }
 
-    /// Intervalle réduit au point `v`.
+    /// Interval reduced to the point `v`.
     pub fn point(v: u64) -> Self {
         Intervalle::nouveau(v, v)
     }
 
-    /// Borne inférieure, incluse.
+    /// Lower bound, included.
     pub fn borne_inf(&self) -> u64 {
         self.borne_inf
     }
 
-    /// Borne supérieure, incluse.
+    /// Upper bound, included.
     pub fn borne_sup(&self) -> u64 {
         self.borne_sup
     }
 
-    /// L'intervalle est-il vide ?
+    /// Is the interval empty?
     pub fn est_vide(&self) -> bool {
         self.borne_inf > self.borne_sup
     }
 
-    /// Nombre de points de l'intervalle (0 si vide) ; saturé à `u64::MAX`
-    /// pour `Intervalle::nouveau(0, u64::MAX)` (le constructeur public
-    /// accepte toute paire de `u64`).
+    /// Number of points of the interval (0 if empty); saturated at
+    /// `u64::MAX` for `Intervalle::nouveau(0, u64::MAX)` (the public
+    /// constructor accepts any pair of `u64`).
     pub fn taille(&self) -> u64 {
         if self.est_vide() {
             0
@@ -76,27 +75,27 @@ impl Intervalle {
         }
     }
 
-    /// Le point `v` appartient-il à l'intervalle ?
+    /// Does the point `v` belong to the interval?
     pub fn contient(&self, v: u64) -> bool {
         !self.est_vide() && self.borne_inf <= v && v <= self.borne_sup
     }
 }
 
-/// Algèbre de clés-régions sur des domaines bornés par niveau :
-/// `Val(ℓ) = [0, domaines[ℓ])`, une clé = un intervalle de points de ce
-/// domaine, `δ(ℓ)` = l'intervalle vide.
+/// Region key algebra over per-level bounded domains: `Val(ℓ) = [0,
+/// domaines[ℓ])`, a key = an interval of points of that domain, `δ(ℓ)` =
+/// the empty interval.
 #[derive(Clone)]
 pub struct RegionKeys {
     domaines: Vec<u64>,
 }
 
 impl RegionKeys {
-    /// Algèbre pour les tailles de domaine par niveau (index = niveau).
+    /// Algebra for per-level domain sizes (index = level).
     pub fn nouvelle(domaines: Vec<u64>) -> Self {
         RegionKeys { domaines }
     }
 
-    /// Taille du domaine du niveau `ℓ`, c'est-à-dire `Val(ℓ) = [0, taille)`.
+    /// Domain size of level `ℓ`, i.e. `Val(ℓ) = [0, taille)`.
     pub fn taille_domaine(&self, level: Level) -> u64 {
         self.domaines[level.0 as usize]
     }
@@ -118,15 +117,15 @@ impl KeyAlgebra for RegionKeys {
     }
 }
 
-/// Contrôleur à clés-régions : payload booléen, `D_δ` = région vide →
-/// `false` (miroir de la présence `Set` : l'arc absent mène à
-/// `terminal(false)` et R-default le supprime).
+/// Region-key controller: boolean payload, `D_δ` = empty region → `false`
+/// (mirror of `Set` presence: the absent arc leads to `terminal(false)` and
+/// R-default removes it).
 pub struct RegionController {
     keys: RegionKeys,
 }
 
 impl RegionController {
-    /// Contrôleur pour l'algèbre de clés-régions donnée.
+    /// Controller for the given region key algebra.
     pub fn nouveau(keys: RegionKeys) -> Self {
         RegionController { keys }
     }

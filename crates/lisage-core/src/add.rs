@@ -1,11 +1,11 @@
-//! ADD/MTBDD (M5-4, énoncé C7, question ouverte n° 8 de la spec § 10) :
-//! **construction levée** — merge non idempotent à poids sur les terminaux,
-//! table unique indexée par les poids (le handle inclut le poids, donc deux
-//! terminaux de poids différents sont des handles distincts), ⊕ pointwise
-//! à la ADD. Garde-fou de compatibilité (A5) : un pli pondéré n'est exact
-//! que sur cette construction levée ; sur une construction Bool
-//! (`union` idempotent), seul le cardinal est exact — la multiplicité est
-//! détruite à l'écriture.
+//! ADD/MTBDD (M5-4, statement C7, open question n° 8 of spec § 10):
+//! **lifted construction** — non-idempotent merge with weights on the
+//! terminals, unique table indexed by the weights (the handle includes the
+//! weight, so two terminals of different weights are distinct handles), ⊕
+//! pointwise like ADD. Compatibility guard (A5): a weighted fold is exact
+//! only on this lifted construction; on a Bool construction (idempotent
+//! `union`), only the cardinal is exact — multiplicity is destroyed at
+//! write time.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -17,24 +17,24 @@ use crate::error::CoreError;
 use crate::schema::{ABSENT, PAS_NIVEAU_MAP, PRESENT, Schema, SchemaError, SchemaKeys};
 use lisage_lang::value::{Atom, Value};
 
-/// Empreinte du contrôleur ADD (distincte de `ReferenceController`).
+/// Fingerprint of the ADD controller (distinct from `ReferenceController`).
 const FINGERPRINT_ADD: ControllerId = ControllerId(2);
 
-/// Contrôleur de la construction levée ADD : payload = poids `u64` sur les
-/// terminaux, `D_δ = terminal(0)` (poids nul) aux niveaux de présence.
+/// Controller of the lifted ADD construction: payload = weight `u64` on the
+/// terminals, `D_δ = terminal(0)` (zero weight) at presence levels.
 pub struct AddController {
     schema: Schema,
     keys: SchemaKeys,
 }
 
 impl AddController {
-    /// Contrôleur ADD pour le schéma donné.
+    /// ADD controller for the given schema.
     pub fn new(schema: Schema) -> Self {
         let keys = SchemaKeys::new(schema.clone());
         AddController { schema, keys }
     }
 
-    /// Schéma de cette instance.
+    /// Schema of this instance.
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
@@ -65,8 +65,8 @@ impl Controller for AddController {
     }
 }
 
-/// Compile une `Value::Map` en diagramme pondéré de poids donné (balayage
-/// d'univers, miroir de `schema::compiler` pour payload `u64`).
+/// Compiles a `Value::Map` into a weighted diagram of the given weight
+/// (universe sweep, mirror of `schema::compiler` for payload `u64`).
 pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     anchor: Anchor,
@@ -77,20 +77,20 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
     let Schema::Map(liste_cles, domaine) = schema else {
         return Err(SchemaError::TypeMismatch {
             attendu: "map",
-            recu: "autre schéma",
+            recu: "other schema",
         });
     };
     let Value::Map(map) = valeur else {
         return Err(SchemaError::TypeMismatch {
             attendu: "map",
-            recu: "autre valeur",
+            recu: "other value",
         });
     };
     for (cle, valeur) in map {
         let (Value::Atom(atome_cle), Value::Atom(atome_valeur)) = (cle, valeur) else {
             return Err(SchemaError::TypeMismatch {
-                attendu: "clé et valeur atomiques",
-                recu: "non atomique",
+                attendu: "atomic key and value",
+                recu: "non-atomic",
             });
         };
         if !liste_cles.contains(atome_cle) {
@@ -105,7 +105,7 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
     ))
 }
 
-/// Compilation récursive d'une map en chaîne présence/valeur pondérée.
+/// Recursive compilation of a map into a weighted presence/value chain.
 fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     anchor: Anchor,
@@ -141,9 +141,9 @@ fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
     )
 }
 
-/// Merge de construction ADD : ⊕ pointwise sur les poids des terminaux,
-/// **non idempotent** (`merge_add(a, a)` double les poids — la table unique
-/// est indexée par les poids, le collapse des doublons est perdu).
+/// ADD construction merge: ⊕ pointwise on the terminal weights,
+/// **non-idempotent** (`merge_add(a, a)` doubles the weights — the unique
+/// table is indexed by the weights, duplicate collapse is lost).
 pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     keys: &SchemaKeys,
@@ -209,10 +209,10 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
     }
 }
 
-/// Merge d'un nœud de niveau `level` avec un autre diagramme `autre`
-/// (terminal de poids > 0, ou nœud plus profond) : le chemin de `autre`
-/// passe par l'arc par défaut `δ(level)` si le niveau en a un, sinon par
-/// toutes les valeurs du niveau.
+/// Merge of a node of level `level` with another diagram `autre` (terminal
+/// of weight > 0, or a deeper node): the path of `autre` goes through the
+/// default arc `δ(level)` if the level has one, otherwise through all the
+/// values of the level.
 fn merge_avec_autre<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     keys: &SchemaKeys,
@@ -243,9 +243,9 @@ fn merge_avec_autre<P: Pool<Key = u64, Payload = u64>>(
     Ok(pool.intern(anchor, Form::Node { level, arcs }))
 }
 
-/// Pli pondéré : somme des poids des terminaux sur tous les chemins
-/// acceptants (expansion-comptage A4 comme `Pli`). Exact **uniquement** sur
-/// une construction levée ADD — c'est le garde-fou de compatibilité (Q8).
+/// Weighted fold: sum of the terminal weights over all accepting paths
+/// (A4 counting expansion like `Pli`). Exact **only** on a lifted ADD
+/// construction — this is the compatibility guard (Q8).
 pub fn somme_poids<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
     schema: &Schema,
@@ -257,7 +257,7 @@ pub fn somme_poids<P: Pool<Key = u64, Payload = u64>>(
     somme(pool, &keys, nombre_niveaux, noeud, &mut memo)
 }
 
-/// Somme pondérée récursive avec mémo sur les nœuds.
+/// Recursive weighted sum with memo on nodes.
 fn somme<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
     keys: &SchemaKeys,
@@ -282,7 +282,7 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
                     multiplicateur(keys, nombre_niveaux, level, *arc, niveau_cible);
                 total += multiplicateur * somme(pool, keys, nombre_niveaux, *cible, memo)?;
             }
-            // Arc par défaut implicite : D_δ = terminal(0), de poids nul.
+            // Implicit default arc: D_δ = terminal(0), of zero weight.
             total
         }
     };
@@ -290,9 +290,9 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
     Ok(total)
 }
 
-/// (A4) multiplicateur de l'arc `arc` du niveau `level` vers un fils de
-/// niveau `niveau_cible` (`None` = terminal) : produit des cardinalités des
-/// niveaux valeur sautés sur le chemin (miroir de `Pli::multiplicateur`).
+/// (A4) multiplier of arc `arc` from level `level` to a child of level
+/// `niveau_cible` (`None` = terminal): product of the cardinalities of the
+/// value levels skipped on the path (mirror of `Pli::multiplicateur`).
 fn multiplicateur(
     keys: &SchemaKeys,
     nombre_niveaux: u32,

@@ -1,18 +1,18 @@
-//! Instance-test **DDD-différence** (backlog § 9 de la feuille de route,
-//! question ouverte 9 de la spec, veine #83 après les fragments intervalles
-//! et DBM) : les *Difference Decision Diagrams* de Møller & Andersen (~2002)
-//! — contraintes de différence symboliques (DBM) pour les automates
-//! temporisés — comme instance vivante de l'algèbre de clés-régions.
+//! **DDD-difference** instance-test (backlog § 9 of the roadmap, open
+//! question 9 of the spec, thread #83 after the intervals and DBM
+//! fragments): *Difference Decision Diagrams* by Møller & Andersen (~2002)
+//! — symbolic difference constraints (DBM) for timed automata — as a living
+//! instance of the region key algebra.
 //!
-//! Le contrat de clés (forme normale, couverture, intersection) est déclaré
-//! côté contrôleur (`Dbm`, `DbmKeys`) ; le pool ne change pas. L'ordre O
-//! s'entend sur le treillis des régions : un nœud partitionne la boîte en
-//! régions convexes, et l'arc absent vaut l'« absent » continu δ(ℓ) = région
-//! vide → payload par défaut. Le balayage d'univers (énumération des points
-//! du domaine) ne compile que si l'univers est borné à régions énumérables
-//! (spec Q9) : la construction du diagramme passe par les régions
-//! explicites, jamais par l'énumération des points — royaume libre DDD
-//! assumé sur le continu.
+//! The key contract (normal form, coverage, intersection) is declared on
+//! the controller side (`Dbm`, `DbmKeys`); the pool does not change. The
+//! order O is understood on the region lattice: a node partitions the box
+//! into convex regions, and the absent arc means the continuous "absent"
+//! δ(ℓ) = empty region → default payload. Universe sweep (enumeration of
+//! domain points) only compiles if the universe is bounded to enumerable
+//! regions (spec Q9): diagram construction goes through explicit regions,
+//! never through point enumeration — free DDD domain assumed on the
+//! continuum.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -20,9 +20,9 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool, PoolError};
 
 use crate::dbm::Dbm;
 
-/// Évalue un DDD-différence sur un point du domaine : à chaque nœud, suit
-/// l'arc dont la région contient le point. `Ok(None)` si aucun arc ne
-/// couvre le point : l'arc absent vaut δ(ℓ), l'« absent » continu.
+/// Evaluates a DDD-difference on a domain point: at each node, follows the
+/// arc whose region contains the point. `Ok(None)` if no arc covers the
+/// point: the absent arc means δ(ℓ), the continuous "absent".
 pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
     pool: &P,
     racine: NodeId,
@@ -46,7 +46,7 @@ pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
     }
 }
 
-/// Compte les nœuds distincts atteignables depuis `racine`, terminaux compris.
+/// Counts the distinct nodes reachable from `racine`, terminals included.
 pub fn compter_noeuds<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, racine: NodeId) -> u64 {
     let mut visite = BTreeSet::new();
     let mut pile = vec![racine];
@@ -61,14 +61,14 @@ pub fn compter_noeuds<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, racine: Node
     visite.len() as u64
 }
 
-/// Instance-test : la bande `x − y ≤ 1 ∧ y − x ≤ 2` sur deux horloges,
-/// compilée en deux niveaux par régions explicites (aucun balayage
-/// d'univers à la construction) :
+/// Instance-test: the band `x − y ≤ 1 ∧ y − x ≤ 2` over two clocks,
+/// compiled into two levels by explicit regions (no universe sweep at
+/// construction):
 ///
-/// - niveau 0 : `x − y ≤ 1` mène au niveau 1, le complémentaire
-///   `y − x ≤ −2` mène à `false` (les deux arcs couvrent la boîte) ;
-/// - niveau 1 : `y − x ≤ 2` mène à `true` ; hors de cette région, l'arc
-///   absent vaut δ(ℓ) → `false`.
+/// - level 0: `x − y ≤ 1` leads to level 1, the complement `y − x ≤ −2`
+///   leads to `false` (the two arcs cover the box);
+/// - level 1: `y − x ≤ 2` leads to `true`; outside this region, the absent
+///   arc means δ(ℓ) → `false`.
 pub fn compiler_bande<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: Anchor) -> NodeId {
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let faux = pool.intern(anchor, Form::Terminal(false));
