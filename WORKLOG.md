@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-5 backend: lisage-backend translated to English (issue #108)
+
+- **Issue**: #108 (M6-5, milestone M6).
+- **Done**: translates the doc-comment in `crates/lisage-backend/src/lib.rs` and the `description` in `crates/lisage-backend/Cargo.toml` to English. lisage-backend is now accent-free.
+- **Evidence**: accent grep returns 0 across `crates/lisage-backend/`; `cargo check -p lisage-backend` passes. Tests not run: comment/metadata-only change.
+- **Judgement calls**: none.
+- **Escalations**: none.
+
 ## 2026-11-14 - M6-5 part 4a-11: lisage-core atelier leftover translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
