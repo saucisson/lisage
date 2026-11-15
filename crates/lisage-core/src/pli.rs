@@ -42,9 +42,9 @@ pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
     /// Cardinality of a level, translated into the semiring (A4).
     fn depuis_cardinalite(cardinalite: u64) -> Self;
     /// ⊕ (aggregation of children).
-    fn plus(&self, autre: &Self) -> Self;
+    fn plus(&self, other: &Self) -> Self;
     /// × (weight of arcs by subtotals).
-    fn fois(&self, autre: &Self) -> Self;
+    fn fois(&self, other: &Self) -> Self;
 }
 
 /// `(ℕ, +, ×)`: the semiring of cardinal counting (spec § 5).
@@ -63,11 +63,11 @@ impl SemiAnneau for Naturel {
     fn depuis_cardinalite(cardinalite: u64) -> Self {
         Naturel(cardinalite)
     }
-    fn plus(&self, autre: &Self) -> Self {
-        Naturel(self.0 + autre.0)
+    fn plus(&self, other: &Self) -> Self {
+        Naturel(self.0 + other.0)
     }
-    fn fois(&self, autre: &Self) -> Self {
-        Naturel(self.0 * autre.0)
+    fn fois(&self, other: &Self) -> Self {
+        Naturel(self.0 * other.0)
     }
 }
 
@@ -87,11 +87,11 @@ impl SemiAnneau for BoolOu {
     fn depuis_cardinalite(cardinalite: u64) -> Self {
         BoolOu(cardinalite > 0)
     }
-    fn plus(&self, autre: &Self) -> Self {
-        BoolOu(self.0 || autre.0)
+    fn plus(&self, other: &Self) -> Self {
+        BoolOu(self.0 || other.0)
     }
-    fn fois(&self, autre: &Self) -> Self {
-        BoolOu(self.0 && autre.0)
+    fn fois(&self, other: &Self) -> Self {
+        BoolOu(self.0 && other.0)
     }
 }
 
@@ -259,7 +259,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
         (Form::Node { level, arcs }, Form::Terminal(pb)) => {
             if pb {
                 let vrai = pool.intern(anchor, Form::Terminal(true));
-                union_avec_autre(pool, keys, anchor, level, arcs, vrai)
+                union_avec_other(pool, keys, anchor, level, arcs, vrai)
             } else {
                 Ok(a)
             }
@@ -267,7 +267,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
         (Form::Terminal(pa), Form::Node { level, arcs }) => {
             if pa {
                 let vrai = pool.intern(anchor, Form::Terminal(true));
-                union_avec_autre(pool, keys, anchor, level, arcs, vrai)
+                union_avec_other(pool, keys, anchor, level, arcs, vrai)
             } else {
                 Ok(b)
             }
@@ -304,31 +304,31 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
                 ))
             } else if level_a < level_b {
                 // Node b is the continuation of a's default arc.
-                union_avec_autre(pool, keys, anchor, level_a, arcs_a, b)
+                union_avec_other(pool, keys, anchor, level_a, arcs_a, b)
             } else {
-                union_avec_autre(pool, keys, anchor, level_b, arcs_b, a)
+                union_avec_other(pool, keys, anchor, level_b, arcs_b, a)
             }
         }
     }
 }
 
-/// Union of a node of level `level` with another diagram `autre` (terminal
-/// `⊤`, or a deeper node): the path of `autre` goes through the default arc
+/// Union of a node of level `level` with another diagram `other` (terminal
+/// `⊤`, or a deeper node): the path of `other` goes through the default arc
 /// `δ(level)` if the level has one (absent arcs mean δ); otherwise (value
 /// level) it goes through **all** values of the level, explicit or not.
-fn union_avec_autre<P: Pool<Key = u64, Payload = bool>>(
+fn union_avec_other<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     keys: &SchemaKeys,
     anchor: Anchor,
     level: Level,
     mut arcs: BTreeMap<u64, NodeId>,
-    autre: NodeId,
+    other: NodeId,
 ) -> Result<NodeId, CoreError> {
     match keys.default(level) {
         Some(defaut) => {
             let cible = match arcs.remove(&defaut) {
-                Some(cible) => union(pool, keys, anchor, cible, autre)?,
-                None => autre,
+                Some(cible) => union(pool, keys, anchor, cible, other)?,
+                None => other,
             };
             arcs.insert(defaut, cible);
         }
@@ -336,8 +336,8 @@ fn union_avec_autre<P: Pool<Key = u64, Payload = bool>>(
             let cardinalite = keys.cardinality(level);
             for v in 0..cardinalite {
                 let cible = match arcs.remove(&v) {
-                    Some(cible) => union(pool, keys, anchor, cible, autre)?,
-                    None => autre,
+                    Some(cible) => union(pool, keys, anchor, cible, other)?,
+                    None => other,
                 };
                 arcs.insert(v, cible);
             }

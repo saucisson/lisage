@@ -23,11 +23,11 @@ pub struct Fragment(pub String);
 /// fragment (`{machine: +i, conveyor: +j}`). Zero = start of fragment.
 /// Stays in the handle (C1 unchanged), the pool stays blind.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
-pub struct AncreComposee {
+pub struct AnchorComposee {
     decalages: BTreeMap<Fragment, i64>,
 }
 
-impl AncreComposee {
+impl AnchorComposee {
     /// Null anchor: all fragments at start (zero).
     pub fn new() -> Self {
         Self::default()
@@ -54,9 +54,9 @@ impl AncreComposee {
 
     /// Pointwise composition of offsets (absolute reading = composition of
     /// arguments, O(1) per step).
-    pub fn compose(&self, autre: &AncreComposee) -> Self {
+    pub fn compose(&self, other: &AnchorComposee) -> Self {
         let mut result = self.clone();
-        for (fragment, decalage) in &autre.decalages {
+        for (fragment, decalage) in &other.decalages {
             let courant = result.decalage(fragment);
             result
                 .decalages
@@ -80,7 +80,7 @@ impl AncreComposee {
 /// absolute position of the root reads `position + offset`; the offset is
 /// the accumulated argument (shift +1 per cell, the anchor bounds the unfolding).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct AncreRelative {
+pub struct AnchorRelative {
     /// Base position (original absolute anchor).
     pub position: u32,
     /// Accumulated offset (shift), may be negative.
@@ -90,24 +90,24 @@ pub struct AncreRelative {
 /// Null offset: base position.
 const DECALAGE_NUL: i64 = 0;
 
-impl AncreRelative {
+impl AnchorRelative {
     /// Relative anchor at `position`, with null offset.
     pub fn new(position: u32) -> Self {
-        AncreRelative {
+        AnchorRelative {
             position,
             decalage: DECALAGE_NUL,
         }
     }
 
     /// From an absolute anchor (M1): null offset.
-    pub fn depuis_ancre(ancre: Anchor) -> Self {
-        Self::new(ancre.0)
+    pub fn depuis_anchor(anchor: Anchor) -> Self {
+        Self::new(anchor.0)
     }
 
     /// New relative anchor, shifted by `delta` (the sliding window's slide
     /// advances the base by f(δ)).
     pub fn decalee(&self, delta: i64) -> Self {
-        AncreRelative {
+        AnchorRelative {
             position: self.position,
             decalage: self.decalage + delta,
         }
@@ -119,7 +119,7 @@ impl AncreRelative {
     }
 
     /// Conversion to absolute anchor (saturated into `u32`).
-    pub fn vers_ancre(&self) -> Anchor {
+    pub fn vers_anchor(&self) -> Anchor {
         Anchor(self.absolue().clamp(0, u32::MAX as i64) as u32)
     }
 }
@@ -235,11 +235,11 @@ impl<Argument: Clone> InputArc<Argument> {
     pub fn compose(
         &self,
         groupe: &impl CycleGroup<Argument = Argument>,
-        autre: &InputArc<Argument>,
+        other: &InputArc<Argument>,
     ) -> InputArc<Argument> {
         InputArc {
-            argument: groupe.compose(&self.argument, &autre.argument),
-            handle: autre.handle,
+            argument: groupe.compose(&self.argument, &other.argument),
+            handle: other.handle,
         }
     }
 }

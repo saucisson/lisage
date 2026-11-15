@@ -74,10 +74,10 @@ impl Cdd {
     /// point-by-point meets of the zones, then normalization (empty meets
     /// are removed). The meet of two unions of zones is a union of
     /// zones: the lattice is closed.
-    pub fn intersection(&self, autre: &Cdd) -> Cdd {
+    pub fn intersection(&self, other: &Cdd) -> Cdd {
         let mut zones: Vec<Dbm> = Vec::new();
         for a in &self.zones {
-            for b in &autre.zones {
+            for b in &other.zones {
                 let meet = a.intersection(b);
                 if !meet.est_vide() {
                     zones.push(meet);

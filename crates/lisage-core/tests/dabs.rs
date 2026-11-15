@@ -14,7 +14,7 @@ use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 
 /// LCG seed for property tests (same constant as the other suites).
-const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
 /// LCG multiplier for property tests.
 const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 /// LCG increment for property tests.
@@ -25,7 +25,7 @@ const CARDINALITE_MOCK: u64 = 4;
 /// Test level.
 const LEVEL_TEST: u32 = 1;
 /// Test anchor.
-const ANCRE_TEST: Anchor = Anchor(0);
+const ANCHOR_TEST: Anchor = Anchor(0);
 
 /// Node 0 plays the role of the default diagram D^def in property tests.
 const NODE_DEFAUT: NodeId = NodeId(0);
@@ -96,10 +96,10 @@ fn arena_23() -> Arena<MockController> {
 #[test]
 fn test_dabs_absorption_tout_sous_domain() {
     let mut pool = arena_dabs();
-    let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
-    let vrai = pool.intern(ANCRE_TEST, Form::Terminal(true));
+    let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
+    let vrai = pool.intern(ANCHOR_TEST, Form::Terminal(true));
     let node = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(0, faux), (1, vrai), (2, faux), (3, faux)]),
@@ -120,10 +120,10 @@ fn test_dabs_absorption_tout_sous_domain() {
 #[test]
 fn test_sans_dabs_rdefault_seul() {
     let mut pool = arena_23();
-    let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
-    let vrai = pool.intern(ANCRE_TEST, Form::Terminal(true));
+    let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
+    let vrai = pool.intern(ANCHOR_TEST, Form::Terminal(true));
     let node = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(0, faux), (1, vrai), (2, faux)]),
@@ -144,9 +144,9 @@ fn test_sans_dabs_rdefault_seul() {
 #[test]
 fn test_dtrans_forme_vide_collapse() {
     let mut pool = arena_dabs();
-    let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
+    let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
     let node = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(3, faux)]),
@@ -162,11 +162,11 @@ fn test_dtrans_forme_vide_collapse() {
 #[test]
 fn test_dtrans_couverture() {
     let mut pool = arena_dabs();
-    let vrai = pool.intern(ANCRE_TEST, Form::Terminal(true));
+    let vrai = pool.intern(ANCHOR_TEST, Form::Terminal(true));
     // Only the explicit δ = 0 arc, target ⊤: covers (absents = D^def ≠ ⊤,
     // but the coverage rule allows collapse on the δ arc alone).
     let seul_delta = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(0, vrai)]),
@@ -175,7 +175,7 @@ fn test_dtrans_couverture() {
     assert_eq!(seul_delta, vrai, "δ arc alone: collapse into its target");
     // Two explicit arcs toward ⊤, outside coverage: no collapse.
     let deux_arcs = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, vrai), (2, vrai)]),
@@ -202,9 +202,9 @@ fn test_sans_key_defaut_pas_dabs() {
         },
         Box::new(NoOpObserver),
     );
-    let faux = pool.intern(ANCRE_TEST, Form::Terminal(false));
+    let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
     let node = pool.intern(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
             arcs: BTreeMap::from([(1, faux), (2, faux)]),
@@ -251,12 +251,12 @@ fn test_dtrans_forme_vide_litterale() {
 #[test]
 fn test_propriete_dabs_confluence() {
     let est_defaut = |node: NodeId| node == NODE_DEFAUT;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = move || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine >> 33
+        seed >> 33
     };
 
     for _ in 0..1000 {

@@ -18,7 +18,7 @@ use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
 
 type PoolRegion = Arena<RegionController>;
 
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 const SIZE_DOMAIN: u64 = 12;
 
 fn pool() -> PoolRegion {
@@ -90,7 +90,7 @@ fn test_intersection_intervalles() {
 fn test_integrale_union_deux_intervalles() {
     let mut pool = pool();
     let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
-    let root = compiler_union(&mut pool, ANCRE, &intervalles);
+    let root = compiler_union(&mut pool, ANCHOR, &intervalles);
     let measure = integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
     // Continuous measure: (5−2) + (9−7) = 3 + 2 = 5.
     assert_eq!(measure, 5, "integral = sum of lengths");
@@ -106,7 +106,7 @@ fn test_integrale_union_deux_intervalles() {
 fn test_integrale_restreinte_a_une_region() {
     let mut pool = pool();
     let intervalles = vec![Intervalle::new(2, 8)];
-    let root = compiler_union(&mut pool, ANCRE, &intervalles);
+    let root = compiler_union(&mut pool, ANCHOR, &intervalles);
     // Restriction to [5, 11]: measure of [2,8] ∩ [5,11] = [5,8], length 3.
     let sous_region = Intervalle::new(5, 11);
     let measure = integrale_constante(&pool, root, &sous_region, None).expect("interned node");
@@ -122,8 +122,8 @@ fn test_integrale_restreinte_a_une_region() {
 #[test]
 fn test_integrale_terminaux() {
     let mut pool = pool();
-    let vrai = pool.intern(ANCRE, Form::Terminal(true));
-    let faux = pool.intern(ANCRE, Form::Terminal(false));
+    let vrai = pool.intern(ANCHOR, Form::Terminal(true));
+    let faux = pool.intern(ANCHOR, Form::Terminal(false));
     let pleine = region_pleine();
     assert_eq!(
         integrale_constante(&pool, vrai, &pleine, None).expect("interned node"),
@@ -144,7 +144,7 @@ fn test_integrale_terminaux() {
 fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
     let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
-    let root = compiler_union(&mut pool, ANCRE, &intervalles);
+    let root = compiler_union(&mut pool, ANCHOR, &intervalles);
     let collecteur = Collecteur::new();
     let measure = integrale_constante(&pool, root, &region_pleine(), Some(&collecteur))
         .expect("interned node");
@@ -177,17 +177,17 @@ fn test_narration_evenements_attr_synthesized() {
 /// and the discrete cardinal equals |S|.
 #[test]
 fn test_propriete_integrale_contre_cardinal_lcg() {
-    const GRAINE_LCG: u64 = 0xC0FF_EE00_1234_5678;
+    const SEED_LCG: u64 = 0xC0FF_EE00_1234_5678;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     for _ in 0..NOMBRE_CAS {
         let mut next = || {
-            graine = graine
+            seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
-            graine
+            seed
         };
         // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
         let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
@@ -207,7 +207,7 @@ fn test_propriete_integrale_contre_cardinal_lcg() {
             }
         }
         let mut pool = pool();
-        let root = compiler_union(&mut pool, ANCRE, &intervalles);
+        let root = compiler_union(&mut pool, ANCHOR, &intervalles);
         let measure =
             integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
         // Analytic measure: sum of (end − start) of the intervals.

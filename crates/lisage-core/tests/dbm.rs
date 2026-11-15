@@ -12,7 +12,7 @@ use lisage_core::observer::NoOpObserver;
 
 type PoolDbm = Arena<DbmController>;
 
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 
 fn pool(size_domain: u64) -> PoolDbm {
     Arena::new(
@@ -45,8 +45,8 @@ fn test_dbm_incoherent_normalise() {
     assert!(incoherente.est_vide());
     assert!(!incoherente.contient(&[0, 0]));
     // Any inconsistent region, whatever its writing, is INCOHERENT.
-    let autre = Dbm::new(3, &[(0, 1, -1), (1, 2, 0), (2, 0, 0)]);
-    assert_eq!(autre, INCOHERENT);
+    let other = Dbm::new(3, &[(0, 1, -1), (1, 2, 0), (2, 0, 0)]);
+    assert_eq!(other, INCOHERENT);
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn test_cardinalite_et_defaut() {
 #[test]
 fn test_partage_pool_c1_relatif() {
     let mut pool = pool(4);
-    let terminal = pool.intern(ANCRE, Form::Terminal(true));
+    let terminal = pool.intern(ANCHOR, Form::Terminal(true));
     let level = Level(0);
     let region_a = Dbm::new(2, &[(0, 1, 2), (1, 0, 3)]);
     let region_b = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 9)]);
@@ -85,8 +85,8 @@ fn test_partage_pool_c1_relatif() {
         arcs: BTreeMap::from([(region_b, terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCRE, forme_a.clone()),
-        pool.intern(ANCRE, forme_b),
+        pool.intern(ANCHOR, forme_a.clone()),
+        pool.intern(ANCHOR, forme_b),
         "same region under two writings = same node"
     );
     let forme_vide_a = Form::Node {
@@ -98,17 +98,17 @@ fn test_partage_pool_c1_relatif() {
         arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 1), (1, 0, -2)]), terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCRE, forme_vide_a),
-        pool.intern(ANCRE, forme_vide_b),
+        pool.intern(ANCHOR, forme_vide_a),
+        pool.intern(ANCHOR, forme_vide_b),
         "empty region under two writings = same node"
     );
-    let forme_autre = Form::Node {
+    let forme_other = Form::Node {
         level,
         arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 0)]), terminal)]),
     };
     assert_ne!(
-        pool.intern(ANCRE, forme_a),
-        pool.intern(ANCRE, forme_autre),
+        pool.intern(ANCHOR, forme_a),
+        pool.intern(ANCHOR, forme_other),
         "distinct regions = distinct nodes"
     );
 }
@@ -118,17 +118,17 @@ fn test_partage_pool_c1_relatif() {
 /// matrix.
 #[test]
 fn test_propriete_cloture_lcg() {
-    const GRAINE_LCG: u64 = 0x853C_49E6_748F_EA9B;
+    const SEED_LCG: u64 = 0x853C_49E6_748F_EA9B;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
     let keys = DbmKeys::new(6);
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine
+        seed
     };
     for _ in 0..NOMBRE_CAS {
         let n = 2 + (next() % 2) as usize;
@@ -161,13 +161,13 @@ fn test_propriete_cloture_lcg() {
 fn test_differentiel_appartenance_contre_enumeration() {
     const SIZE_DOMAIN: u64 = 4;
     let mut pool = pool(SIZE_DOMAIN);
-    let vrai_terminal = pool.intern(ANCRE, Form::Terminal(true));
-    let faux_terminal = pool.intern(ANCRE, Form::Terminal(false));
+    let vrai_terminal = pool.intern(ANCHOR, Form::Terminal(true));
+    let faux_terminal = pool.intern(ANCHOR, Form::Terminal(false));
     // x0 − x1 ≤ 0  ⇔  x0 ≤ x1; the complement is x1 − x0 ≤ −1.
     let region_dessous = Dbm::new(2, &[(0, 1, 0)]);
     let region_dessus = Dbm::new(2, &[(1, 0, -1)]);
     let root = pool.intern(
-        ANCRE,
+        ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([

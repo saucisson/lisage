@@ -66,14 +66,14 @@ fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Valu
     let keys: Vec<Atom> = (0..4).map(Atom).collect();
     let schema = Schema::Map(keys, Domain::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
-    let ancre = Anchor(0);
-    let mut root = pool.intern(ancre, Form::Terminal(false));
+    let anchor = Anchor(0);
+    let mut root = pool.intern(anchor, Form::Terminal(false));
     for value in ensemble {
-        let membre = compiler(pool, ancre, &schema, value).unwrap();
-        root = union(pool, &keys, ancre, root, membre).unwrap();
+        let membre = compiler(pool, anchor, &schema, value).unwrap();
+        root = union(pool, &keys, anchor, root, membre).unwrap();
     }
     let mut output = pool_pour_sdd(&vtree_test(), ensemble);
-    compter(pool, &mut output, ancre, &schema, root).unwrap()
+    compter(pool, &mut output, anchor, &schema, root).unwrap()
 }
 
 /// C6 falsification: global cardinal of the flat DD == cardinal of the
@@ -145,14 +145,14 @@ fn test_canonicite_par_handle_reinstallation_identique() {
 /// distinct handles (quotient classes), same form under the same anchor = same
 /// handle.
 #[test]
-fn test_canonicite_deux_ancres_distinctes() {
+fn test_canonicite_deux_anchors_distinctes() {
     let mut pool = pool_neuf();
     let forme = Form::Terminal(true);
-    let meme_ancre_a = pool.intern(Anchor(0), forme.clone());
-    let meme_ancre_b = pool.intern(Anchor(0), forme.clone());
-    let autre_ancre = pool.intern(Anchor(1), forme);
-    assert_eq!(meme_ancre_a, meme_ancre_b);
-    assert_ne!(meme_ancre_a, autre_ancre);
+    let meme_anchor_a = pool.intern(Anchor(0), forme.clone());
+    let meme_anchor_b = pool.intern(Anchor(0), forme.clone());
+    let other_anchor = pool.intern(Anchor(1), forme);
+    assert_eq!(meme_anchor_a, meme_anchor_b);
+    assert_ne!(meme_anchor_a, other_anchor);
 }
 
 /// Projection: keeps only the requested keys.

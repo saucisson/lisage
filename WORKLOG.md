@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 13: `ancre`/`graine`/`autre` renamed to `anchor`/`seed`/`other` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `ancre`→`anchor`, `graine`→`seed`, `autre`→`other` (all cases, compounds included), workspace-wide (42 files), per glossary. One parameter collision fixed by hand (`construire_fenetre_ancree` had both `anchor: Anchor` and `ancre: &AnchorFenetre`; the latter is now `window_anchor`). Split from the larger part-13 batch to stay under the PR size budget.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; word-boundary grep for the stems returns 0.
+- **Judgement calls**: none beyond the glossary mapping.
 ## 2026-11-14 - M6-6 part 12: `resultat`/`attendu`/`suivant` renamed to `result`/`expected`/`next` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).

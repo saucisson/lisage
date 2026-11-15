@@ -155,7 +155,7 @@ proptest! {
         let dd = image(&input, &mut output, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
         let expected_ensemble = map(&ensemble, |v| match v {
             Value::Atom(a) => atome((a.0 + 1) % 3),
-            autre => autre.clone(),
+            other => other.clone(),
         });
         let expected = compiler_ensemble(&mut output, anchor, &schema, &expected_ensemble);
         prop_assert_eq!(dd, expected, "DD path != path A (map), C1 structural");

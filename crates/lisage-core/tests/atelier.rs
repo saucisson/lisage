@@ -17,7 +17,7 @@ use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
 type PoolBdd = Arena<AtelierController<BddController>>;
 type PoolRegion = Arena<AtelierController<RegionController>>;
 
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 
 fn pool_bdd(reductions: Reductions) -> PoolBdd {
     Arena::new(
@@ -39,9 +39,9 @@ fn pool_region(reductions: Reductions) -> PoolRegion {
 fn test_collapse_commute() {
     // 1-variable BDD: {0 → ⊥, 1 → ⊥}.
     let mut avec = pool_bdd(Reductions::TOUTES);
-    let faux = avec.intern(ANCRE, Form::Terminal(false));
+    let faux = avec.intern(ANCHOR, Form::Terminal(false));
     let root_avec = avec.intern(
-        ANCRE,
+        ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, faux), (1, faux)]),
@@ -53,9 +53,9 @@ fn test_collapse_commute() {
     assert_eq!(rapport.chemins, 1);
 
     let mut sans = pool_bdd(Reductions::sans_collapse());
-    let faux = sans.intern(ANCRE, Form::Terminal(false));
+    let faux = sans.intern(ANCHOR, Form::Terminal(false));
     let root_sans = sans.intern(
-        ANCRE,
+        ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, faux), (1, faux)]),
@@ -72,10 +72,10 @@ fn test_collapse_commute() {
 fn test_defaut_commute() {
     // Region over domain [0, 3): {point 0 → ⊤, VIDE → ⊥}.
     let mut avec = pool_region(Reductions::TOUTES);
-    let vrai = avec.intern(ANCRE, Form::Terminal(true));
-    let faux = avec.intern(ANCRE, Form::Terminal(false));
+    let vrai = avec.intern(ANCHOR, Form::Terminal(true));
+    let faux = avec.intern(ANCHOR, Form::Terminal(false));
     let root_avec = avec.intern(
-        ANCRE,
+        ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(Intervalle::point(0), vrai), (VIDE, faux)]),
@@ -90,10 +90,10 @@ fn test_defaut_commute() {
     assert_eq!(rapport.chemins, 1);
 
     let mut sans = pool_region(Reductions::sans_defaut());
-    let vrai = sans.intern(ANCRE, Form::Terminal(true));
-    let faux = sans.intern(ANCRE, Form::Terminal(false));
+    let vrai = sans.intern(ANCHOR, Form::Terminal(true));
+    let faux = sans.intern(ANCHOR, Form::Terminal(false));
     let root_sans = sans.intern(
-        ANCRE,
+        ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(Intervalle::point(0), vrai), (VIDE, faux)]),
@@ -114,17 +114,17 @@ fn test_defaut_commute() {
 #[test]
 fn test_chemins_contre_nodes() {
     let mut pool = pool_bdd(Reductions::sans_collapse());
-    let vrai = pool.intern(ANCRE, Form::Terminal(true));
-    let faux = pool.intern(ANCRE, Form::Terminal(false));
+    let vrai = pool.intern(ANCHOR, Form::Terminal(true));
+    let faux = pool.intern(ANCHOR, Form::Terminal(false));
     let n1 = pool.intern(
-        ANCRE,
+        ANCHOR,
         Form::Node {
             level: Level(1),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
     let root = pool.intern(
-        ANCRE,
+        ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, n1), (1, n1)]),
@@ -146,42 +146,42 @@ fn test_chemins_contre_nodes() {
 /// pools (same seed).
 #[test]
 fn test_propriete_commutation_lcg() {
-    const GRAINE_LCG: u64 = 0x0A7E_11E5_2026_1110;
+    const SEED_LCG: u64 = 0x0A7E_11E5_2026_1110;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine
+        seed
     };
     // Builds a random binary tree of depth ≤ 3 in the pool, with its own LCG
     // re-seeded at `amorce` (same form guaranteed).
     fn arbre(pool: &mut PoolBdd, profondeur: u32, amorce: u64) -> NodeId {
-        let mut graine = amorce;
-        fn next(graine: &mut u64) -> u64 {
-            *graine = graine
+        let mut seed = amorce;
+        fn next(seed: &mut u64) -> u64 {
+            *seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
-            *graine
+            *seed
         }
-        fn construit(pool: &mut PoolBdd, profondeur: u32, graine: &mut u64) -> NodeId {
-            if profondeur == 0 || !next(graine).is_multiple_of(3) {
-                return pool.intern(ANCRE, Form::Terminal(next(graine) % 2 == 1));
+        fn construit(pool: &mut PoolBdd, profondeur: u32, seed: &mut u64) -> NodeId {
+            if profondeur == 0 || !next(seed).is_multiple_of(3) {
+                return pool.intern(ANCHOR, Form::Terminal(next(seed) % 2 == 1));
             }
-            let gauche = construit(pool, profondeur - 1, graine);
-            let droite = construit(pool, profondeur - 1, graine);
+            let gauche = construit(pool, profondeur - 1, seed);
+            let droite = construit(pool, profondeur - 1, seed);
             pool.intern(
-                ANCRE,
+                ANCHOR,
                 Form::Node {
                     level: Level(profondeur),
                     arcs: BTreeMap::from([(0, gauche), (1, droite)]),
                 },
             )
         }
-        construit(pool, profondeur, &mut graine)
+        construit(pool, profondeur, &mut seed)
     }
     for _ in 0..NOMBRE_CAS {
         let amorce = next();
@@ -222,17 +222,17 @@ fn test_narration_measure() {
     }
 
     let mut pool = pool_bdd(Reductions::sans_collapse());
-    let vrai = pool.intern(ANCRE, Form::Terminal(true));
-    let faux = pool.intern(ANCRE, Form::Terminal(false));
+    let vrai = pool.intern(ANCHOR, Form::Terminal(true));
+    let faux = pool.intern(ANCHOR, Form::Terminal(false));
     let n1 = pool.intern(
-        ANCRE,
+        ANCHOR,
         Form::Node {
             level: Level(1),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
     let root = pool.intern(
-        ANCRE,
+        ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, n1), (1, n1)]),
@@ -270,7 +270,7 @@ fn test_fenetre_absolu_croit_relatif_constant() {
     // (R-collapse commuted: an all-true window would otherwise collapse.)
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport =
-        comparer_encodages_fenetre(&mut pool, ANCRE, SIZE, 10, None).expect("interned nodes");
+        comparer_encodages_fenetre(&mut pool, ANCHOR, SIZE, 10, None).expect("interned nodes");
     assert_eq!(rapport.absolu.nodes_partages, 12);
     assert_eq!(rapport.relatif.nodes_partages, 3);
     // Same logical object: same paths (10 bases × 4 keys) and same unfolded
@@ -283,7 +283,7 @@ fn test_fenetre_absolu_croit_relatif_constant() {
     // 100 bases: the relative encoding stays at 3 nodes (constant), the absolute one grows to 102.
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport =
-        comparer_encodages_fenetre(&mut pool, ANCRE, SIZE, 100, None).expect("interned nodes");
+        comparer_encodages_fenetre(&mut pool, ANCHOR, SIZE, 100, None).expect("interned nodes");
     assert_eq!(
         rapport.relatif.nodes_partages, 3,
         "the relative encoding is O(1)"
@@ -318,7 +318,7 @@ fn test_narration_comparaison_encodages() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = comparer_encodages_fenetre(&mut pool, ANCRE, 4, 10, Some(&collecteur))
+    let rapport = comparer_encodages_fenetre(&mut pool, ANCHOR, 4, 10, Some(&collecteur))
         .expect("interned nodes");
     assert_eq!(rapport.relatif.nodes_partages, 3);
     let events = collecteur.evenements.lock().expect("mutex").clone();
@@ -360,7 +360,7 @@ fn test_ordre_change_nodes_pas_chemins() {
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport = comparer_ordres(
         &mut pool,
-        ANCRE,
+        ANCHOR,
         &table,
         &Ordre::naturel(4),
         &Ordre::personnalise(vec![0, 2, 1, 3]),
@@ -384,8 +384,8 @@ fn test_ordre_naturel_equivaut_a_compiler_bdd() {
 
     let table = table_ou_deux_paires();
     let mut pool = pool_bdd(Reductions::TOUTES);
-    let via_atelier = compiler_bdd_ordre(&mut pool, ANCRE, &Ordre::naturel(4), &table);
-    let via_bdd = compiler_bdd(&mut pool, ANCRE, &BddKeys::new(4), &table);
+    let via_atelier = compiler_bdd_ordre(&mut pool, ANCHOR, &Ordre::naturel(4), &table);
+    let via_bdd = compiler_bdd(&mut pool, ANCHOR, &BddKeys::new(4), &table);
     assert_eq!(via_atelier, via_bdd);
 }
 
@@ -405,7 +405,7 @@ fn test_ordre_intercale_croissance_six_variables() {
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport = comparer_ordres(
         &mut pool,
-        ANCRE,
+        ANCHOR,
         &table,
         &Ordre::naturel(6),
         &Ordre::personnalise(vec![0, 2, 4, 1, 3, 5]),
@@ -444,7 +444,7 @@ fn test_narration_comparaison_ordres() {
     };
     let rapport = comparer_ordres(
         &mut pool,
-        ANCRE,
+        ANCHOR,
         &table,
         &Ordre::naturel(4),
         &Ordre::personnalise(vec![0, 2, 1, 3]),
@@ -470,27 +470,27 @@ fn test_narration_comparaison_ordres() {
 /// movement of the base within the anchor `{base, horizon}`; the horizon does
 /// not move and the absolute reading of the window advances.
 #[test]
-fn test_ancre_fenetre_glisse() {
-    use lisage_core::atelier::AncreFenetre;
+fn test_anchor_fenetre_glisse() {
+    use lisage_core::atelier::AnchorFenetre;
 
-    let ancre = AncreFenetre::new(0, 4);
-    assert_eq!(ancre.base(), 0);
-    assert_eq!(ancre.horizon(), 4);
-    assert_eq!(ancre.fenetre_absolue(), (0, 4));
+    let anchor = AnchorFenetre::new(0, 4);
+    assert_eq!(anchor.base(), 0);
+    assert_eq!(anchor.horizon(), 4);
+    assert_eq!(anchor.fenetre_absolue(), (0, 4));
     assert_eq!(
-        ancre.key_input(),
+        anchor.key_input(),
         0,
         "the base is the argument of the entry arc"
     );
-    assert_eq!(ancre.etiquette(), "{base: 0, horizon: 4}");
-    let glissee = ancre.glessee(2);
+    assert_eq!(anchor.etiquette(), "{base: 0, horizon: 4}");
+    let glissee = anchor.glessee(2);
     assert_eq!(glissee.base(), 2);
     assert_eq!(glissee.horizon(), 4, "the slide only affects the base");
     assert_eq!(glissee.fenetre_absolue(), (2, 6));
     assert_eq!(glissee.key_input(), 2);
     assert_eq!(glissee.etiquette(), "{base: 2, horizon: 4}");
     // The original anchor is unchanged (the slide produces a new anchor).
-    assert_eq!(ancre.base(), 0);
+    assert_eq!(anchor.base(), 0);
 }
 
 /// The window read under two composite anchors: each anchor has its root
@@ -500,17 +500,19 @@ fn test_ancre_fenetre_glisse() {
 /// created at each step, never the form.
 #[test]
 fn test_glisse_pool_constant_lectures_differentes() {
-    use lisage_core::atelier::{AncreFenetre, comparer_ancres_fenetre, construire_fenetre_ancree};
+    use lisage_core::atelier::{
+        AnchorFenetre, comparer_anchors_fenetre, construire_fenetre_anchore,
+    };
 
     const SIZE: u64 = 4;
     // (R-collapse commuted: an all-true window would otherwise collapse.)
     let mut pool = pool_bdd(Reductions::sans_collapse());
-    let rapport = comparer_ancres_fenetre(
+    let rapport = comparer_anchors_fenetre(
         &mut pool,
-        ANCRE,
+        ANCHOR,
         SIZE,
-        &AncreFenetre::new(0, 4),
-        &AncreFenetre::new(7, 4),
+        &AnchorFenetre::new(0, 4),
+        &AnchorFenetre::new(7, 4),
         None,
     )
     .expect("interned nodes");
@@ -533,15 +535,16 @@ fn test_glisse_pool_constant_lectures_differentes() {
     // the entry arc, the window form reached is always the same and the pool
     // creates only one root per slide — never a copy of the window.
     let nodes_avant = pool.node_count();
-    let (_, fenetre) = construire_fenetre_ancree(&mut pool, ANCRE, SIZE, &AncreFenetre::new(0, 4));
-    let ancre = AncreFenetre::new(100, SIZE as i64);
+    let (_, fenetre) =
+        construire_fenetre_anchore(&mut pool, ANCHOR, SIZE, &AnchorFenetre::new(0, 4));
+    let anchor = AnchorFenetre::new(100, SIZE as i64);
     for delta in 0..50 {
-        let glissee = ancre.glessee(delta);
+        let glissee = anchor.glessee(delta);
         assert_eq!(
             glissee.fenetre_absolue(),
             (100 + delta, 100 + delta + SIZE as i64)
         );
-        let (root, fenetre_glissee) = construire_fenetre_ancree(&mut pool, ANCRE, SIZE, &glissee);
+        let (root, fenetre_glissee) = construire_fenetre_anchore(&mut pool, ANCHOR, SIZE, &glissee);
         assert_eq!(fenetre_glissee, fenetre, "window form shared at each slide");
         assert_ne!(root, fenetre, "each base has its own root");
     }
@@ -556,31 +559,31 @@ fn test_glisse_pool_constant_lectures_differentes() {
 /// sliding by `a + b` — and the horizon is invariant (30 cases).
 #[test]
 fn test_propriete_glisse_composition_lcg() {
-    use lisage_core::atelier::AncreFenetre;
+    use lisage_core::atelier::AnchorFenetre;
 
-    const GRAINE_LCG: u64 = 0x5EED_2026_1112_4E11;
+    const SEED_LCG: u64 = 0x5EED_2026_1112_4E11;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine
+        seed
     };
     for _ in 0..NOMBRE_CAS {
         let a = next() as i64 % 1000;
         let b = next() as i64 % 1000;
         let horizon = next() as i64 % 16 + 1;
-        let ancre = AncreFenetre::new(0, horizon);
+        let anchor = AnchorFenetre::new(0, horizon);
         assert_eq!(
-            ancre.glessee(a).glessee(b),
-            ancre.glessee(a + b),
+            anchor.glessee(a).glessee(b),
+            anchor.glessee(a + b),
             "the slide composes: f(a)∘f(b) = f(a+b)"
         );
         assert_eq!(
-            ancre.glessee(a).horizon(),
+            anchor.glessee(a).horizon(),
             horizon,
             "the horizon is invariant"
         );
@@ -591,10 +594,10 @@ fn test_propriete_glisse_composition_lcg() {
 /// `Attr`/`Synthesized` event carrying the two labels, the two node counts and
 /// the two absolute readings.
 #[test]
-fn test_narration_comparaison_ancres() {
+fn test_narration_comparaison_anchors() {
     use std::sync::{Arc, Mutex};
 
-    use lisage_core::atelier::{AncreFenetre, comparer_ancres_fenetre};
+    use lisage_core::atelier::{AnchorFenetre, comparer_anchors_fenetre};
     use lisage_core::observer::{CanalAttr, TraceEvent};
 
     #[derive(Clone)]
@@ -611,12 +614,12 @@ fn test_narration_comparaison_ancres() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = comparer_ancres_fenetre(
+    let rapport = comparer_anchors_fenetre(
         &mut pool,
-        ANCRE,
+        ANCHOR,
         4,
-        &AncreFenetre::new(0, 4),
-        &AncreFenetre::new(2, 4),
+        &AnchorFenetre::new(0, 4),
+        &AnchorFenetre::new(2, 4),
         Some(&collecteur),
     )
     .expect("interned nodes");
@@ -629,7 +632,7 @@ fn test_narration_comparaison_ancres() {
                 canal: CanalAttr::Synthesized,
                 value,
                 ..
-            } if value == "ancre={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} nodes=3 contre 3 lecture=[0..4) contre [2..6) pool=4"
+            } if value == "anchor={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} nodes=3 contre 3 lecture=[0..4) contre [2..6) pool=4"
         )),
         "the narration event carries the anchor comparison"
     );

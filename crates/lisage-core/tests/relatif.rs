@@ -11,13 +11,13 @@ use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool,
 };
 use lisage_algebra::relatif::{
-    AncreComposee, AncreRelative, CycleGroup, Fragment, InputArc, ShiftGroup,
+    AnchorComposee, AnchorRelative, CycleGroup, Fragment, InputArc, ShiftGroup,
 };
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 
 /// LCG seed for property tests (same constant as the other suites).
-const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
 /// LCG multiplier for property tests.
 const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 /// LCG increment for property tests.
@@ -78,23 +78,23 @@ fn arena() -> Arena<MockController> {
 /// `position + decalage`, the slide shifts, the return to an absolute anchor
 /// is saturated.
 #[test]
-fn test_ancre_relative_shift() {
-    let ancre = AncreRelative::new(POSITION_BASE);
-    assert_eq!(ancre.decalage, 0);
-    assert_eq!(ancre.absolue(), POSITION_BASE as i64);
-    let glissee = ancre.decalee(1).decalee(1).decalee(-1);
+fn test_anchor_relative_shift() {
+    let anchor = AnchorRelative::new(POSITION_BASE);
+    assert_eq!(anchor.decalage, 0);
+    assert_eq!(anchor.absolue(), POSITION_BASE as i64);
+    let glissee = anchor.decalee(1).decalee(1).decalee(-1);
     assert_eq!(glissee.absolue(), POSITION_BASE as i64 + 1);
-    assert_eq!(glissee.vers_ancre(), Anchor(POSITION_BASE + 1));
+    assert_eq!(glissee.vers_anchor(), Anchor(POSITION_BASE + 1));
     // From an absolute M1 anchor: zero shift.
-    let depuis = AncreRelative::depuis_ancre(Anchor(7));
+    let depuis = AnchorRelative::depuis_anchor(Anchor(7));
     assert_eq!(depuis.decalage, 0);
     assert_eq!(depuis.absolue(), 7);
     // Saturation of the conversion to an absolute anchor: a negative shift
     // below position 0 clamps to 0 (no wrap), an overflow above clamps to
     // u32::MAX.
-    assert_eq!(AncreRelative::new(0).decalee(-1).vers_ancre(), Anchor(0));
+    assert_eq!(AnchorRelative::new(0).decalee(-1).vers_anchor(), Anchor(0));
     assert_eq!(
-        AncreRelative::new(u32::MAX).decalee(5).vers_ancre(),
+        AnchorRelative::new(u32::MAX).decalee(5).vers_anchor(),
         Anchor(u32::MAX)
     );
 }
@@ -114,29 +114,29 @@ fn test_groupe_shift_saturation() {
 /// zero = fragment start; lexicographic order of names; pointwise
 /// composition.
 #[test]
-fn test_ancre_composee_fragments() {
+fn test_anchor_composee_fragments() {
     let machine = Fragment("machine".to_string());
     let convoyeur = Fragment("convoyeur".to_string());
-    let ancre = AncreComposee::new()
+    let anchor = AnchorComposee::new()
         .avec(machine.clone(), 3)
         .avec(convoyeur.clone(), -1);
-    assert_eq!(ancre.decalage(&machine), 3);
-    assert_eq!(ancre.decalage(&convoyeur), -1);
+    assert_eq!(anchor.decalage(&machine), 3);
+    assert_eq!(anchor.decalage(&convoyeur), -1);
     // Absent fragment: zero = fragment start.
-    assert_eq!(ancre.decalage(&Fragment("autre".to_string())), 0);
-    assert!(!ancre.est_nulle());
+    assert_eq!(anchor.decalage(&Fragment("other".to_string())), 0);
+    assert!(!anchor.est_nulle());
     // The slide shifts a single fragment.
-    let glissee = ancre.decalee(&machine, 2);
+    let glissee = anchor.decalee(&machine, 2);
     assert_eq!(glissee.decalage(&machine), 5);
     assert_eq!(glissee.decalage(&convoyeur), -1);
     // Pointwise composition (absolute reading = sum of the arguments).
-    let composee = ancre.compose(&glissee);
+    let composee = anchor.compose(&glissee);
     assert_eq!(composee.decalage(&machine), 8);
     assert_eq!(composee.decalage(&convoyeur), -2);
     // Canonical order: lexicographic by name.
-    let noms: Vec<&str> = ancre.fragments().map(|(f, _)| f.0.as_str()).collect();
+    let noms: Vec<&str> = anchor.fragments().map(|(f, _)| f.0.as_str()).collect();
     assert_eq!(noms, ["convoyeur", "machine"]);
-    assert!(AncreComposee::new().est_nulle());
+    assert!(AnchorComposee::new().est_nulle());
 }
 
 /// M4-2, test model: the **sliding window**. The sequence base is the
@@ -188,7 +188,7 @@ fn test_fenetre_glissante_pool_constant() {
 /// M4-2: composite anchors — the degradation stays in O(Σ kᵢ) irregular
 /// points, never in O(∏): the forms factorize per fragment.
 #[test]
-fn test_ancres_composees_degradation_somme() {
+fn test_anchors_composees_degradation_somme() {
     let mut pool = arena();
     let anchor = Anchor(0);
     let vrai = pool.intern(anchor, Form::Terminal(true));
@@ -218,9 +218,9 @@ fn test_ancres_composees_degradation_somme() {
     assert_eq!(pool.node_count(), expected);
     assert!(expected < (1 + NB_DECALAGES_PAR_FRAGMENT as usize).pow(2));
     // The composite anchor carries the two named shifts.
-    let ancre = AncreComposee::new().avec(machine, 2).avec(convoyeur, 5);
-    assert_eq!(ancre.decalage(&Fragment("machine".to_string())), 2);
-    assert_eq!(ancre.decalage(&Fragment("convoyeur".to_string())), 5);
+    let anchor = AnchorComposee::new().avec(machine, 2).avec(convoyeur, 5);
+    assert_eq!(anchor.decalage(&Fragment("machine".to_string())), 2);
+    assert_eq!(anchor.decalage(&Fragment("convoyeur".to_string())), 5);
 }
 
 /// M4-2 (property tier, LCG): contract of the transformation group —
@@ -230,12 +230,12 @@ fn test_ancres_composees_degradation_somme() {
 #[test]
 fn test_propriete_groupe_shift() {
     let groupe = ShiftGroup;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = move || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine >> 33
+        seed >> 33
     };
     // Bound on the test's arguments/keys: no saturation.
     const BORNE: u64 = 500;
