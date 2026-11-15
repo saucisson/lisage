@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 14: `cardinal`/`cardinalite`/`premier`/`dernier`/`meme` renamed to `cardinality`/`first`/`last`/`same` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `cardinal`/`cardinalite`→`cardinality`, `premier`/`premiere`→`first`, `dernier`→`last`, `meme`→`same` (all cases, compounds included), workspace-wide (40 files), per glossary. `cardinals`→`cardinalities`; existing English `cardinality`/`cardinalities` protected with a negative lookahead so no `cardinalityity` artifacts.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
+- **Judgement calls**: `meme` is not in the glossary; mapped to `same` as the direct translation.
 ## 2026-11-14 - M6-6 part 13: `ancre`/`graine`/`autre` renamed to `anchor`/`seed`/`other` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
