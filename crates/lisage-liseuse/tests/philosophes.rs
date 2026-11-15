@@ -7,8 +7,8 @@ use lisage_core::Anchor;
 use lisage_core::operations::{KeyPresentes, existe, filtrer};
 use lisage_core::pli::compter;
 use lisage_liseuse::philosophes::{
-    cellules_legales, compter_r_n, construire_mangeurs, construire_r_n, mots_atteignables,
-    pool_neuf, schema_anneau, schema_mangeurs,
+    build_mangeurs, build_r_n, cellules_legales, compter_r_n, mots_atteignables, pool_neuf,
+    schema_anneau, schema_mangeurs,
 };
 use lisage_liseuse::svg::rendre_svg;
 
@@ -23,7 +23,7 @@ fn test_c8_cardinaux_r3_r4_r5() {
         let mut input = pool_neuf(&schema);
         let mut output = pool_neuf(&schema);
         let anchor = Anchor(0);
-        let root = construire_r_n(&mut input, anchor, n);
+        let root = build_r_n(&mut input, anchor, n);
         let compte = compter_r_n(&input, &mut output, anchor, n, root);
         let reference = mots_atteignables(n as usize).len() as u64;
         assert_eq!(compte, reference, "n={n} : DD fold == enumeration");
@@ -43,7 +43,7 @@ fn test_filter_cellule_zero_mange() {
         let mut input = pool_neuf(&schema);
         let mut output = pool_neuf(&schema);
         let anchor = Anchor(0);
-        let root = construire_mangeurs(&mut input, anchor, n);
+        let root = build_mangeurs(&mut input, anchor, n);
         let filtre = filtrer(
             &input,
             &mut output,
@@ -84,7 +84,7 @@ fn test_exists_sur_r_n() {
         let mut input = pool_neuf(&schema);
         let mut output = pool_neuf(&schema);
         let anchor = Anchor(0);
-        let root = construire_mangeurs(&mut input, anchor, n);
+        let root = build_mangeurs(&mut input, anchor, n);
         let un_mange = existe(
             &input,
             &mut output,
@@ -124,7 +124,7 @@ fn test_sept_formes_contre_r_n() {
         let schema = schema_anneau(n);
         let mut input = pool_neuf(&schema);
         let anchor = Anchor(0);
-        let root = construire_r_n(&mut input, anchor, n);
+        let root = build_r_n(&mut input, anchor, n);
 
         // Nodes reachable from the root + terminals seen.
         let mut atteignables = std::collections::BTreeSet::new();
@@ -238,7 +238,7 @@ fn test_figure_svg_r5_exportee() {
     let n = 5u64;
     let schema = schema_anneau(n);
     let mut input = pool_neuf(&schema);
-    let root = construire_r_n(&mut input, Anchor(0), n);
+    let root = build_r_n(&mut input, Anchor(0), n);
     let svg = rendre_svg(&input, root);
     assert!(svg.starts_with("<svg ") && svg.contains("ℓ0"));
     assert_eq!(svg, rendre_svg(&input, root), "deterministic rendering");

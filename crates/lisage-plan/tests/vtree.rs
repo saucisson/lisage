@@ -86,14 +86,14 @@ fn test_vtree_variable_en_double_rejete() {
 fn vtree_aleatoire(seed: &mut u64, number_variables: u64) -> Vtree {
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    fn construire(seed: &mut u64, variables: &[Atom]) -> Vtree {
+    fn build(seed: &mut u64, variables: &[Atom]) -> Vtree {
         if variables.len() == 1 {
             return Vtree::feuille(variables[0]);
         }
         let point_coupe = (next(seed) % (variables.len() as u64 - 1)) as usize + 1;
         Vtree::node(
-            construire(seed, &variables[..point_coupe]),
-            construire(seed, &variables[point_coupe..]),
+            build(seed, &variables[..point_coupe]),
+            build(seed, &variables[point_coupe..]),
         )
     }
     fn next(seed: &mut u64) -> u64 {
@@ -103,7 +103,7 @@ fn vtree_aleatoire(seed: &mut u64, number_variables: u64) -> Vtree {
         *seed
     }
     let variables: Vec<Atom> = (0..number_variables).map(Atom).collect();
-    construire(seed, &variables)
+    build(seed, &variables)
 }
 
 /// Structurally checks (by direct tree traversal, independent of
@@ -130,13 +130,13 @@ fn verifier_gauche_avant_droite(vtree: &Vtree, sequence: &[Atom]) {
 fn test_propriete_order_canonique_satisfait_contraintes() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const NUMBER_CAS: u64 = 50;
-    const BORNE_VARIABLES: u64 = 8;
+    const BOUND_VARIABLES: u64 = 8;
     let mut seed = SEED_LCG;
     for _ in 0..NUMBER_CAS {
         seed = seed
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
-        let number_variables = 2 + seed % (BORNE_VARIABLES - 1);
+        let number_variables = 2 + seed % (BOUND_VARIABLES - 1);
         let vtree = vtree_aleatoire(&mut seed, number_variables);
         assert!(vtree.valider().is_ok());
         let order = Order::canonique(&vtree);

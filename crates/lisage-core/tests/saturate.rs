@@ -14,7 +14,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{compter, union};
-use lisage_core::saturate::{BORNE_ITERATIONS, ParametresSaturation, PolitiqueSaturation, saturer};
+use lisage_core::saturate::{BOUND_ITERATIONS, ParametresSaturation, PolitiqueSaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::{Atom, Value};
@@ -314,7 +314,7 @@ fn test_saturate_chaine_croissante_multi_iterations() {
         "increasing chain: several iterations, got {}",
         result.iterations
     );
-    assert!(result.iterations <= BORNE_ITERATIONS, "termination (T2)");
+    assert!(result.iterations <= BOUND_ITERATIONS, "termination (T2)");
     assert_eq!(
         result.node, expected,
         "fixpoint = union of the initial and the singleton"

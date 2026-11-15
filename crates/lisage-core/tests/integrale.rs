@@ -213,7 +213,7 @@ fn test_propriete_integrale_contre_cardinality_lcg() {
         // Analytic measure: sum of (end − start) of the intervals.
         let measure_expectede: u64 = intervalles
             .iter()
-            .map(|i| i.borne_sup().saturating_sub(i.borne_inf()))
+            .map(|i| i.bound_sup().saturating_sub(i.bound_inf()))
             .sum();
         assert_eq!(measure, measure_expectede, "integral == sum of lengths");
         // Analytic cardinality: |S|.

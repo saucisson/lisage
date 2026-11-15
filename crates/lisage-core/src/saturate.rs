@@ -24,7 +24,7 @@ use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
 /// Safety bound of the fixpoint loop (T2 guarantees termination on a
 /// bounded schema; the bound is only there to detect a regression).
-pub const BORNE_ITERATIONS: u32 = 1_000;
+pub const BOUND_ITERATIONS: u32 = 1_000;
 
 /// Fingerprint salt of the [`RestreintAuxLevels`] wrapper: domain-separates
 /// the wrapper's fingerprint from that of the inner transduction.
@@ -186,7 +186,7 @@ impl<T: Transduction> Transduction for RestreintAuxLevels<T> {
 ///
 /// Termination (T2) is guaranteed on a bounded schema: the set of canonical
 /// forms is finite and the chain is increasing for denotation inclusion.
-/// [`BORNE_ITERATIONS`] is only a safety net against a regression.
+/// [`BOUND_ITERATIONS`] is only a safety net against a regression.
 pub fn saturer<T, P>(
     params: &mut ParametresSaturation<'_, T, P>,
 ) -> Result<ResultSaturation, CoreError>
@@ -204,9 +204,9 @@ where
     let mut iterations = 0u32;
     loop {
         iterations += 1;
-        if iterations > BORNE_ITERATIONS {
+        if iterations > BOUND_ITERATIONS {
             return Err(CoreError::NonTerminaison {
-                borne: BORNE_ITERATIONS,
+                bound: BOUND_ITERATIONS,
             });
         }
         if let Some(observer) = &params.observer {

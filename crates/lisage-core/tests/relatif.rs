@@ -26,7 +26,7 @@ const INCREMENT_LCG: u64 = 1442695040888963407;
 /// Declared mock cardinality: large enough to never collapse.
 const CARDINALITY_MOCK: u64 = 1_000_000;
 /// Size of the sliding window of the test model.
-const SIZE_FENETRE: u64 = 4;
+const SIZE_WINDOW: u64 = 4;
 /// Number of slides of the sliding window of the test model.
 const NB_GLISSES: u64 = 50;
 /// Number of shifts per fragment in the O(Σ kᵢ) degradation test.
@@ -145,27 +145,27 @@ fn test_anchor_composee_fragments() {
 /// at O(1) forms while the base ranges over ℕ, and the absolute reading gives
 /// back the window {base..base+W-1}.
 #[test]
-fn test_fenetre_glissante_pool_constant() {
+fn test_window_glissante_pool_constant() {
     let groupe = ShiftGroup;
     let mut pool = arena();
     let anchor = Anchor(0);
     let vrai = pool.intern(anchor, Form::Terminal(true));
     // Relative window: keys 0..W-1 (min = 0 section), all true.
-    let arcs: BTreeMap<u64, NodeId> = (0..SIZE_FENETRE).map(|k| (k, vrai)).collect();
-    let fenetre = pool.intern(
+    let arcs: BTreeMap<u64, NodeId> = (0..SIZE_WINDOW).map(|k| (k, vrai)).collect();
+    let window = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
             arcs,
         },
     );
-    let nodes_apres_fenetre = pool.node_count();
+    let nodes_apres_window = pool.node_count();
     // Slide: the base advances by 1 at each step, the stored form is
     // unchanged (R-share), only the entry arc's argument changes.
     for base in 0..NB_GLISSES as i64 {
-        let arc = InputArc::new(base, pool.handle(fenetre, anchor));
+        let arc = InputArc::new(base, pool.handle(window, anchor));
         // Absolute reading: the window covers {base..base+W-1}.
-        for k in 0..SIZE_FENETRE {
+        for k in 0..SIZE_WINDOW {
             assert_eq!(arc.read_key(&groupe, &k), (base + k as i64) as u64);
         }
         // Re-intern the same relative form: hit, no node created.
@@ -173,14 +173,14 @@ fn test_fenetre_glissante_pool_constant() {
             anchor,
             Form::Node {
                 level: Level(1),
-                arcs: (0..SIZE_FENETRE).map(|k| (k, vrai)).collect(),
+                arcs: (0..SIZE_WINDOW).map(|k| (k, vrai)).collect(),
             },
         );
-        assert_eq!(same, fenetre, "shared relative form");
+        assert_eq!(same, window, "shared relative form");
     }
     assert_eq!(
         pool.node_count(),
-        nodes_apres_fenetre,
+        nodes_apres_window,
         "the pool stays at O(1) forms during the slide"
     );
 }
@@ -238,13 +238,13 @@ fn test_propriete_groupe_shift() {
         seed >> 33
     };
     // Bound on the test's arguments/keys: no saturation.
-    const BORNE: u64 = 500;
+    const BOUND: u64 = 500;
 
     for _ in 0..1000 {
-        // Random arcs (keys in [0, BORNE), arbitrary targets).
+        // Random arcs (keys in [0, BOUND), arbitrary targets).
         let nb_arcs = 1 + next() % 8;
         let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
-            .map(|_| (next() % BORNE, NodeId(next() as u32)))
+            .map(|_| (next() % BOUND, NodeId(next() as u32)))
             .collect();
         // (iii) Confluence: the section is idempotent — applied to the
         // normalized form, it yields the neutral argument and the same form.
@@ -258,9 +258,9 @@ fn test_propriete_groupe_shift() {
 
         // (v) Homomorphism: f(n₁ ⊕ n₂) = f(n₁)∘f(n₂). Key large enough that
         // the intermediate readings do not saturate to 0.
-        let key_grande = BORNE + next() % BORNE;
-        let a1 = (next() % (2 * BORNE)) as i64 - BORNE as i64;
-        let a2 = (next() % (2 * BORNE)) as i64 - BORNE as i64;
+        let key_grande = BOUND + next() % BOUND;
+        let a1 = (next() % (2 * BOUND)) as i64 - BOUND as i64;
+        let a2 = (next() % (2 * BOUND)) as i64 - BOUND as i64;
         let compose = groupe.compose(&a1, &a2);
         assert_eq!(
             groupe.apply(&key_grande, &compose),
@@ -268,15 +268,15 @@ fn test_propriete_groupe_shift() {
         );
 
         // (i) Inverse: f(n) then f(n)⁻¹ = identity (key large enough).
-        let n = (next() % BORNE) as i64;
+        let n = (next() % BOUND) as i64;
         assert_eq!(
             groupe.apply(&groupe.apply(&key_grande, &n), &groupe.invert(&n)),
             key_grande
         );
 
         // (vi) Trivial kernel: f injective over the arguments.
-        let n1 = (next() % BORNE) as i64;
-        let n2 = (next() % BORNE) as i64;
+        let n1 = (next() % BOUND) as i64;
+        let n2 = (next() % BOUND) as i64;
         if groupe.apply(&key_grande, &n1) == groupe.apply(&key_grande, &n2) {
             assert_eq!(
                 n1, n2,

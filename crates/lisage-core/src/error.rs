@@ -27,7 +27,7 @@ pub enum CoreError {
     /// signals a regression).
     NonTerminaison {
         /// Iteration bound exceeded.
-        borne: u32,
+        bound: u32,
     },
 }
 
@@ -48,10 +48,10 @@ impl std::fmt::Display for CoreError {
             CoreError::MemoryNonAutorisee => {
                 write!(formatter, "memory effect produced with the NoMemory policy")
             }
-            CoreError::NonTerminaison { borne } => {
+            CoreError::NonTerminaison { bound } => {
                 write!(
                     formatter,
-                    "saturation did not terminate after {borne} iterations"
+                    "saturation did not terminate after {bound} iterations"
                 )
             }
         }

@@ -39,8 +39,8 @@ pub fn measure_intervalle(intervalle: &Intervalle) -> u64 {
         0
     } else {
         intervalle
-            .borne_sup()
-            .saturating_sub(intervalle.borne_inf())
+            .bound_sup()
+            .saturating_sub(intervalle.bound_inf())
     }
 }
 
@@ -51,8 +51,8 @@ pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
         return crate::region::VIDE;
     }
     Intervalle::new(
-        a.borne_inf().max(b.borne_inf()),
-        a.borne_sup().min(b.borne_sup()),
+        a.bound_inf().max(b.bound_inf()),
+        a.bound_sup().min(b.bound_sup()),
     )
 }
 
@@ -194,7 +194,7 @@ pub fn compiler_union<P: Pool<Key = Intervalle, Payload = bool>>(
         intervalles.windows(2).all(|pair| {
             let a = &pair[0];
             let b = &pair[1];
-            a.est_vide() || b.est_vide() || a.borne_sup() < b.borne_inf()
+            a.est_vide() || b.est_vide() || a.bound_sup() < b.bound_inf()
         }),
         "compiler_union requires disjoint intervals (precondition)"
     );

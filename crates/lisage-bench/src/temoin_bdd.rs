@@ -49,10 +49,10 @@ impl MiniBdd {
     /// variable ℓ) by recursive Shannon expansion.
     pub fn compiler_table(&mut self, number_variables: u32, table: &[bool]) -> u32 {
         assert_eq!(table.len(), 1usize << number_variables);
-        self.construire(0, number_variables, table)
+        self.build(0, number_variables, table)
     }
 
-    fn construire(&mut self, variable: u32, number_variables: u32, table: &[bool]) -> u32 {
+    fn build(&mut self, variable: u32, number_variables: u32, table: &[bool]) -> u32 {
         if variable == number_variables {
             return if table[0] {
                 TERMINAL_VRAI
@@ -63,8 +63,8 @@ impl MiniBdd {
         // Bit ℓ of the index = variable ℓ: even positions = arc 0.
         let bas_table: Vec<bool> = table.iter().step_by(2).copied().collect();
         let haut_table: Vec<bool> = table.iter().skip(1).step_by(2).copied().collect();
-        let bas = self.construire(variable + 1, number_variables, &bas_table);
-        let haut = self.construire(variable + 1, number_variables, &haut_table);
+        let bas = self.build(variable + 1, number_variables, &bas_table);
+        let haut = self.build(variable + 1, number_variables, &haut_table);
         self.fabriquer_node(variable, bas, haut)
     }
 
