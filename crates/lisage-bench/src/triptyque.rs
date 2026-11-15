@@ -21,7 +21,7 @@ use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{compter, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
-use lisage_plan::ordre::{KeyMap, KeysMap, Order, Phase, StrategieAval};
+use lisage_plan::order::{KeyMap, KeysMap, Order, Phase, StrategieAval};
 
 use crate::pnml::{self, NetworkPetri};
 
@@ -35,7 +35,7 @@ pub enum ErreurTriptyque {
     SansPlace,
     /// π is not a permutation of the place keys (key missing, duplicated,
     /// or foreign to the net).
-    OrdreInvalide,
+    OrderInvalide,
     /// Error compiling a marking against the schema.
     Schema(SchemaError),
     /// Core error (union, pli) while building the DD.
@@ -46,7 +46,7 @@ impl std::fmt::Display for ErreurTriptyque {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ErreurTriptyque::SansPlace => write!(formatter, "the net has no place"),
-            ErreurTriptyque::OrdreInvalide => {
+            ErreurTriptyque::OrderInvalide => {
                 write!(formatter, "π is not a permutation of the place keys")
             }
             ErreurTriptyque::Schema(erreur) => write!(formatter, "schema error: {erreur}"),
@@ -97,10 +97,10 @@ pub fn voie_a(network: &NetworkPetri) -> MeasureVoie {
 /// Path B: DD of the reachable space with **fixed order** (canonical
 /// order of the places, key = place index).
 pub fn voie_b(network: &NetworkPetri) -> Result<MeasureVoie, ErreurTriptyque> {
-    let ordre_canonique: Vec<Atom> = (0..network.nombre_places())
+    let order_canonique: Vec<Atom> = (0..network.nombre_places())
         .map(|index| Atom(index as u64))
         .collect();
-    voie_dd(network, &ordre_canonique)
+    voie_dd(network, &order_canonique)
 }
 
 /// Result of path C: the measurement of the DD built with the adopted order,
@@ -110,7 +110,7 @@ pub fn voie_b(network: &NetworkPetri) -> Result<MeasureVoie, ErreurTriptyque> {
 pub struct ResultVoieC {
     /// Measurement of the DD with the order adopted by the planner.
     pub measure: MeasureVoie,
-    /// Downstream strategy: `OrdreRuntime` if π was valid, `RepliCanonique`
+    /// Downstream strategy: `OrderRuntime` if π was valid, `RepliCanonique`
     /// otherwise (canonical order adopted instead).
     pub strategie: StrategieAval,
 }
@@ -121,7 +121,7 @@ pub struct ResultVoieC {
 /// used to build the schema.
 pub fn voie_c(
     network: &NetworkPetri,
-    ordre_runtime: &[Atom],
+    order_runtime: &[Atom],
 ) -> Result<ResultVoieC, ErreurTriptyque> {
     if network.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
@@ -131,7 +131,7 @@ pub fn voie_c(
         .collect();
     let descripteur = KeysMap(keys);
     // π runtime: presence then value for each key, in the requested order.
-    let pi_runtime: Vec<KeyMap> = ordre_runtime
+    let pi_runtime: Vec<KeyMap> = order_runtime
         .iter()
         .flat_map(|key| {
             [
@@ -146,8 +146,8 @@ pub fn voie_c(
             ]
         })
         .collect();
-    let (ordre, strategie) = Order::avec_aval_runtime(&descripteur, pi_runtime);
-    let ordre_adopte: Vec<Atom> = ordre
+    let (order, strategie) = Order::avec_aval_runtime(&descripteur, pi_runtime);
+    let order_adopte: Vec<Atom> = order
         .sequence()
         .iter()
         .filter_map(|key_map| match key_map.phase {
@@ -155,17 +155,17 @@ pub fn voie_c(
             Phase::Value => None,
         })
         .collect();
-    let measure = voie_dd(network, &ordre_adopte)?;
+    let measure = voie_dd(network, &order_adopte)?;
     Ok(ResultVoieC { measure, strategie })
 }
 
 /// Builds the DD of the reachable space in the given key order,
 /// then measures (cardinality via pli, live nodes after construction).
-fn voie_dd(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, ErreurTriptyque> {
+fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, ErreurTriptyque> {
     if network.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
     }
-    let schema = schema_petri(network, ordre_keys)?;
+    let schema = schema_petri(network, order_keys)?;
     let espace = pnml::espace_atteignable(network);
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -187,19 +187,19 @@ fn voie_dd(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, E
 /// `Map(K, V)` schema of a net marking: keys = places in
 /// the given order (π), value domain = `0..=max_jetons` bounded by
 /// the reachable space. π must be a permutation of the place indexes.
-fn schema_petri(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<Schema, ErreurTriptyque> {
+fn schema_petri(network: &NetworkPetri, order_keys: &[Atom]) -> Result<Schema, ErreurTriptyque> {
     let mut expected_f: Vec<Atom> = (0..network.nombre_places())
         .map(|index| Atom(index as u64))
         .collect();
-    let mut recues = ordre_keys.to_vec();
+    let mut recues = order_keys.to_vec();
     expected_f.sort();
     recues.sort();
     if recues != expected_f {
-        return Err(ErreurTriptyque::OrdreInvalide);
+        return Err(ErreurTriptyque::OrderInvalide);
     }
     let max_jetons = jetons_max(network);
     let domain = Domain::new((0..=max_jetons).map(Atom).collect());
-    Ok(Schema::Map(ordre_keys.to_vec(), domain))
+    Ok(Schema::Map(order_keys.to_vec(), domain))
 }
 
 /// Maximum number of tokens observed on a place in the

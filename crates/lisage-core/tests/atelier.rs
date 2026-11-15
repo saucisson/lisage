@@ -353,17 +353,17 @@ fn table_ou_deux_paires() -> Vec<bool> {
 /// (R-collapse commuted: otherwise the paths would merge.)
 /// Natural order [0,1,2,3]: 10 nodes; interleaved [0,2,1,3]: 12 nodes.
 #[test]
-fn test_ordre_change_nodes_pas_chemins() {
-    use lisage_core::atelier::{Ordre, comparer_ordres};
+fn test_order_change_nodes_pas_chemins() {
+    use lisage_core::atelier::{Order, comparer_orders};
 
     let table = table_ou_deux_paires();
     let mut pool = pool_bdd(Reductions::sans_collapse());
-    let rapport = comparer_ordres(
+    let rapport = comparer_orders(
         &mut pool,
         ANCHOR,
         &table,
-        &Ordre::naturel(4),
-        &Ordre::personnalise(vec![0, 2, 1, 3]),
+        &Order::naturel(4),
+        &Order::personnalise(vec![0, 2, 1, 3]),
         None,
     )
     .expect("interned nodes");
@@ -379,12 +379,12 @@ fn test_ordre_change_nodes_pas_chemins() {
 /// The workshop's natural order is exactly the reference `compiler_bdd`
 /// (same interned forms, same `NodeId` in the same pool).
 #[test]
-fn test_ordre_naturel_equivaut_a_compiler_bdd() {
-    use lisage_core::atelier::{Ordre, compiler_bdd_ordre};
+fn test_order_naturel_equivaut_a_compiler_bdd() {
+    use lisage_core::atelier::{Order, compiler_bdd_order};
 
     let table = table_ou_deux_paires();
     let mut pool = pool_bdd(Reductions::TOUTES);
-    let via_atelier = compiler_bdd_ordre(&mut pool, ANCHOR, &Ordre::naturel(4), &table);
+    let via_atelier = compiler_bdd_order(&mut pool, ANCHOR, &Order::naturel(4), &table);
     let via_bdd = compiler_bdd(&mut pool, ANCHOR, &BddKeys::new(4), &table);
     assert_eq!(via_atelier, via_bdd);
 }
@@ -393,8 +393,8 @@ fn test_ordre_naturel_equivaut_a_compiler_bdd() {
 /// natural order groups the pairs (15 nodes), the interleaved order
 /// [0,2,4,1,3,5] separates them (25 nodes) — same 64 paths on both sides.
 #[test]
-fn test_ordre_intercale_croissance_six_variables() {
-    use lisage_core::atelier::{Ordre, comparer_ordres};
+fn test_order_intercale_croissance_six_variables() {
+    use lisage_core::atelier::{Order, comparer_orders};
 
     let table: Vec<bool> = (0..64)
         .map(|a| {
@@ -403,12 +403,12 @@ fn test_ordre_intercale_croissance_six_variables() {
         })
         .collect();
     let mut pool = pool_bdd(Reductions::sans_collapse());
-    let rapport = comparer_ordres(
+    let rapport = comparer_orders(
         &mut pool,
         ANCHOR,
         &table,
-        &Ordre::naturel(6),
-        &Ordre::personnalise(vec![0, 2, 4, 1, 3, 5]),
+        &Order::naturel(6),
+        &Order::personnalise(vec![0, 2, 4, 1, 3, 5]),
         None,
     )
     .expect("interned nodes");
@@ -421,10 +421,10 @@ fn test_ordre_intercale_croissance_six_variables() {
 /// Narration (ADR-0100): the order comparison emits an `Attr`/`Synthesized`
 /// event carrying the two order labels and the two node counts.
 #[test]
-fn test_narration_comparaison_ordres() {
+fn test_narration_comparaison_orders() {
     use std::sync::{Arc, Mutex};
 
-    use lisage_core::atelier::{Ordre, comparer_ordres};
+    use lisage_core::atelier::{Order, comparer_orders};
     use lisage_core::observer::{CanalAttr, TraceEvent};
 
     #[derive(Clone)]
@@ -442,12 +442,12 @@ fn test_narration_comparaison_ordres() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = comparer_ordres(
+    let rapport = comparer_orders(
         &mut pool,
         ANCHOR,
         &table,
-        &Ordre::naturel(4),
-        &Ordre::personnalise(vec![0, 2, 1, 3]),
+        &Order::naturel(4),
+        &Order::personnalise(vec![0, 2, 1, 3]),
         Some(&collecteur),
     )
     .expect("interned nodes");
@@ -460,7 +460,7 @@ fn test_narration_comparaison_ordres() {
                 canal: CanalAttr::Synthesized,
                 value,
                 ..
-            } if value == "ordre=[0,1,2,3]_vs_[0,2,1,3] nodes=10 contre 12"
+            } if value == "order=[0,1,2,3]_vs_[0,2,1,3] nodes=10 contre 12"
         )),
         "the narration event carries the order comparison"
     );

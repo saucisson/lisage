@@ -22,8 +22,8 @@
 //!
 //! Fragment 3 (ordering parameter, backlog § 9):
 //!
-//! - [`Ordre`]: level → variable permutation, applied at compile time;
-//! - [`compiler_bdd_ordre`] / [`comparer_ordres`]: the same boolean function
+//! - [`Order`]: level → variable permutation, applied at compile time;
+//! - [`compiler_bdd_order`] / [`comparer_orders`]: the same boolean function
 //!   compiled under two orderings — same paths (2^n, one per assignment),
 //!   different shared nodes: "the diagram is a function of the
 //!   controller", the ordering is visible to the naked eye.
@@ -398,22 +398,22 @@ pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
 /// composite anchor"): level → variable permutation. Level ℓ decides
 /// variable `permutation[ℓ]`; the natural ordering is the identity.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Ordre {
+pub struct Order {
     /// `permutation[ℓ]` = variable decided at level ℓ.
     permutation: Vec<u32>,
 }
 
-impl Ordre {
+impl Order {
     /// Natural ordering: level ℓ decides variable ℓ.
     pub fn naturel(nombre_variables: u32) -> Self {
-        Ordre {
+        Order {
             permutation: (0..nombre_variables).collect(),
         }
     }
 
     /// Reversed ordering: level ℓ decides variable n-1-ℓ.
     pub fn inverse(nombre_variables: u32) -> Self {
-        Ordre {
+        Order {
             permutation: (0..nombre_variables).rev().collect(),
         }
     }
@@ -429,7 +429,7 @@ impl Ordre {
             (0..permutation.len() as u32).collect::<Vec<_>>(),
             "the ordering is a permutation of 0..n (internal invariant)"
         );
-        Ordre { permutation }
+        Order { permutation }
     }
 
     /// Number of variables.
@@ -449,31 +449,31 @@ impl Ordre {
     }
 }
 
-/// Compiles a truth table into a classic BDD under the given `ordre`:
+/// Compiles a truth table into a classic BDD under the given `order`:
 /// top-down Shannon expansion, level ℓ decides variable
-/// `ordre.variable_au_level(ℓ)`. `table[a]` = value of the function on
+/// `order.variable_au_level(ℓ)`. `table[a]` = value of the function on
 /// assignment `a` (bit ℓ of `a` = variable ℓ); the length must be
 /// `2^n`.
-pub fn compiler_bdd_ordre<P: Pool<Key = u64, Payload = bool>>(
+pub fn compiler_bdd_order<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    ordre: &Ordre,
+    order: &Order,
     table: &[bool],
 ) -> NodeId {
-    let nombre_variables = ordre.nombre_variables();
+    let nombre_variables = order.nombre_variables();
     assert_eq!(
         table.len(),
         1usize << nombre_variables,
         "truth table of size 2^n (internal invariant)"
     );
-    // Permute the table: bit ℓ of the local index = bit `ordre[ℓ]` of
+    // Permute the table: bit ℓ of the local index = bit `order[ℓ]` of
     // the original index, then the classic Shannon expansion applies
     // (at level ℓ we branch on bit ℓ of the local index).
     let table_locale: Vec<bool> = (0..table.len())
         .map(|indice| {
             let mut original = 0usize;
             for level in 0..nombre_variables {
-                original |= ((indice >> level) & 1) << ordre.variable_au_level(level) as usize;
+                original |= ((indice >> level) & 1) << order.variable_au_level(level) as usize;
             }
             table[original]
         })
@@ -509,7 +509,7 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
 
 /// Didactic comparison of two orderings on the same boolean function.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct RapportComparaisonOrdres {
+pub struct RapportComparaisonOrders {
     /// Metrics under the first ordering.
     pub first: RapportAtelier,
     /// Metrics under the second ordering.
@@ -520,21 +520,21 @@ pub struct RapportComparaisonOrdres {
 /// paths (2^n, one per assignment — same logical object), different shared
 /// nodes — the ordering changes the diagram, not the function.
 /// `observer`: ADR-0100 narration.
-pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
+pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     table: &[bool],
-    ordre_first: &Ordre,
-    ordre_second: &Ordre,
+    order_first: &Order,
+    order_second: &Order,
     observer: Option<&dyn Observer>,
-) -> Result<RapportComparaisonOrdres, PoolError> {
+) -> Result<RapportComparaisonOrders, PoolError> {
     assert_eq!(
-        ordre_first.nombre_variables(),
-        ordre_second.nombre_variables(),
+        order_first.nombre_variables(),
+        order_second.nombre_variables(),
         "both orderings cover the same number of variables (internal invariant)"
     );
-    let root_first = compiler_bdd_ordre(pool, anchor, ordre_first, table);
-    let root_second = compiler_bdd_ordre(pool, anchor, ordre_second, table);
+    let root_first = compiler_bdd_order(pool, anchor, order_first, table);
+    let root_second = compiler_bdd_order(pool, anchor, order_second, table);
     let first = measure(pool, root_first, observer)?;
     let second = measure(pool, root_second, observer)?;
     if let Some(obs) = observer {
@@ -542,15 +542,15 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
             canal: CanalAttr::Synthesized,
             node: root_second,
             value: format!(
-                "ordre={}_vs_{} nodes={} contre {}",
-                ordre_first.etiquette(),
-                ordre_second.etiquette(),
+                "order={}_vs_{} nodes={} contre {}",
+                order_first.etiquette(),
+                order_second.etiquette(),
                 first.nodes_partages,
                 second.nodes_partages
             ),
         });
     }
-    Ok(RapportComparaisonOrdres { first, second })
+    Ok(RapportComparaisonOrders { first, second })
 }
 
 /// Fragment named "base" of the composite anchor of the sliding window

@@ -4,7 +4,7 @@
 
 use lisage_algebra::vtree::{ErreurVtree, Vtree};
 use lisage_lang::Atom;
-use lisage_plan::ordre::{ErreurOrdre, Order};
+use lisage_plan::order::{ErreurOrder, Order};
 
 /// Test vtree: (x0, x1) on the left, (x2, x3) on the right.
 fn vtree_test() -> Vtree {
@@ -16,9 +16,9 @@ fn vtree_test() -> Vtree {
 
 /// Canonical order of the vtree = flat left-before-right traversal.
 #[test]
-fn test_ordre_canonique_vtree() {
-    let ordre = Order::canonique(&vtree_test());
-    assert_eq!(ordre.sequence(), &[Atom(0), Atom(1), Atom(2), Atom(3)]);
+fn test_order_canonique_vtree() {
+    let order = Order::canonique(&vtree_test());
+    assert_eq!(order.sequence(), &[Atom(0), Atom(1), Atom(2), Atom(3)]);
 }
 
 /// A vtree induces a total order (left-before-right constraint at each
@@ -26,24 +26,24 @@ fn test_ordre_canonique_vtree() {
 #[test]
 fn test_pi_valide_adopte() {
     let vtree = vtree_test();
-    let ordre = Order::new(&vtree, vtree.ordre_plat()).unwrap();
-    assert_eq!(ordre.sequence(), &[Atom(0), Atom(1), Atom(2), Atom(3)]);
+    let order = Order::new(&vtree, vtree.order_plat()).unwrap();
+    assert_eq!(order.sequence(), &[Atom(0), Atom(1), Atom(2), Atom(3)]);
 }
 
 /// Another vtree shape induces another canonical order: (x2, (x0, x1))
 /// gives flat order [2, 0, 1], and π = [0, 1, 2] violates constraint 2 < 0.
 #[test]
-fn test_other_vtree_other_ordre() {
+fn test_other_vtree_other_order() {
     let vtree = Vtree::node(
         Vtree::feuille(Atom(2)),
         Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
     );
-    let ordre = Order::canonique(&vtree);
-    assert_eq!(ordre.sequence(), &[Atom(2), Atom(0), Atom(1)]);
+    let order = Order::canonique(&vtree);
+    assert_eq!(order.sequence(), &[Atom(2), Atom(0), Atom(1)]);
     let result = Order::new(&vtree, vec![Atom(0), Atom(1), Atom(2)]);
     assert_eq!(
         result.unwrap_err(),
-        ErreurOrdre::ContrainteViolee {
+        ErreurOrder::ContrainteViolee {
             avant: Atom(2),
             apres: Atom(0),
         }
@@ -57,7 +57,7 @@ fn test_pi_violant_vtree_rejete() {
     let result = Order::new(&vtree_test(), vec![Atom(2), Atom(0), Atom(1), Atom(3)]);
     assert_eq!(
         result.unwrap_err(),
-        ErreurOrdre::ContrainteViolee {
+        ErreurOrder::ContrainteViolee {
             avant: Atom(0),
             apres: Atom(2),
         }
@@ -68,7 +68,7 @@ fn test_pi_violant_vtree_rejete() {
 #[test]
 fn test_pi_pas_une_permutation_rejete() {
     let result = Order::new(&vtree_test(), vec![Atom(0), Atom(1), Atom(2), Atom(9)]);
-    assert_eq!(result.unwrap_err(), ErreurOrdre::PasUnePermutation);
+    assert_eq!(result.unwrap_err(), ErreurOrder::PasUnePermutation);
 }
 
 /// Invalid vtree: duplicate variable, typed error.
@@ -107,12 +107,12 @@ fn vtree_aleatoire(seed: &mut u64, nombre_variables: u64) -> Vtree {
 }
 
 /// Structurally checks (by direct tree traversal, independent of
-/// `contraintes_ordre`) that `sequence` places every left variable before
+/// `contraintes_order`) that `sequence` places every left variable before
 /// every right variable at each internal node.
 fn verifier_gauche_avant_droite(vtree: &Vtree, sequence: &[Atom]) {
     if let Vtree::Node { gauche, droite } = vtree {
-        for variable_gauche in gauche.ordre_plat() {
-            for variable_droite in droite.ordre_plat() {
+        for variable_gauche in gauche.order_plat() {
+            for variable_droite in droite.order_plat() {
                 let position_gauche = sequence.iter().position(|a| *a == variable_gauche).unwrap();
                 let position_droite = sequence.iter().position(|a| *a == variable_droite).unwrap();
                 assert!(position_gauche < position_droite);
@@ -127,7 +127,7 @@ fn verifier_gauche_avant_droite(vtree: &Vtree, sequence: &[Atom]) {
 /// a permutation of the variables and satisfies left-before-right at each
 /// node, verified by direct tree traversal.
 #[test]
-fn test_propriete_ordre_canonique_satisfait_contraintes() {
+fn test_propriete_order_canonique_satisfait_contraintes() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const NOMBRE_CAS: u64 = 50;
     const BORNE_VARIABLES: u64 = 8;
@@ -139,8 +139,8 @@ fn test_propriete_ordre_canonique_satisfait_contraintes() {
         let nombre_variables = 2 + seed % (BORNE_VARIABLES - 1);
         let vtree = vtree_aleatoire(&mut seed, nombre_variables);
         assert!(vtree.valider().is_ok());
-        let ordre = Order::canonique(&vtree);
-        let sequence = ordre.sequence();
+        let order = Order::canonique(&vtree);
+        let sequence = order.sequence();
         let mut triee = sequence.to_vec();
         triee.sort();
         let mut expected_f: Vec<Atom> = (0..nombre_variables).map(Atom).collect();

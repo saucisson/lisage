@@ -93,7 +93,7 @@ pub struct FicheControleur {
     /// Σ: type expression unfolded by the order.
     pub sigma: String,
     /// Decomposition + order O.
-    pub decomposition_ordre: String,
+    pub decomposition_order: String,
     /// R: reduction rules.
     pub regles: String,
     /// Defaults designated per level.
@@ -118,7 +118,7 @@ pub struct NodeVtree {
 /// Order track `O`: linear (levels in sweep order) or
 /// structured as a tree (vtree).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum PisteOrdre {
+pub enum PisteOrder {
     /// Linear O: level labels in order.
     Lineaire(Vec<String>),
     /// Structured O: tree (vtree).
@@ -133,7 +133,7 @@ pub struct RoyaumeVue {
     /// Controller card (eight fields).
     pub fiche: FicheControleur,
     /// Order track.
-    pub piste: PisteOrdre,
+    pub piste: PisteOrder,
 }
 
 /// Arrowed conversion between two kingdoms, with its cost (event
@@ -155,10 +155,10 @@ fn hauteur_arbre(node: &NodeVtree) -> u32 {
 }
 
 /// Height in pixels of a track.
-fn hauteur_piste(piste: &PisteOrdre) -> u32 {
+fn hauteur_piste(piste: &PisteOrder) -> u32 {
     match piste {
-        PisteOrdre::Lineaire(_) => HAUTEUR_PISTE,
-        PisteOrdre::Arbre(root) => hauteur_arbre(root),
+        PisteOrder::Lineaire(_) => HAUTEUR_PISTE,
+        PisteOrder::Arbre(root) => hauteur_arbre(root),
     }
 }
 
@@ -168,7 +168,7 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
     let champs = [
         ("δ", &fiche.delta),
         ("Σ", &fiche.sigma),
-        ("decomposition + O", &fiche.decomposition_ordre),
+        ("decomposition + O", &fiche.decomposition_order),
         ("R", &fiche.regles),
         ("defaults", &fiche.defauts),
         ("D^def", &fiche.defaut_global),
@@ -261,13 +261,13 @@ fn rendre_arbre(svg: &mut String, node: &NodeVtree, x: u32, y: u32, largeur: u32
 }
 
 /// Renders an order track (linear or tree); returns the rendered height.
-fn rendre_piste(svg: &mut String, piste: &PisteOrdre, x: u32, y: u32, largeur: u32) -> u32 {
+fn rendre_piste(svg: &mut String, piste: &PisteOrder, x: u32, y: u32, largeur: u32) -> u32 {
     match piste {
-        PisteOrdre::Lineaire(levels) => {
+        PisteOrder::Lineaire(levels) => {
             rendre_piste_lineaire(svg, levels, x, y, largeur);
             HAUTEUR_PISTE
         }
-        PisteOrdre::Arbre(root) => rendre_arbre(svg, root, x, y, largeur),
+        PisteOrder::Arbre(root) => rendre_arbre(svg, root, x, y, largeur),
     }
 }
 
@@ -303,7 +303,7 @@ fn layout(royaumes: &[RoyaumeVue], nombre_conversions: usize) -> (u32, Vec<Posit
 /// controller card then its order track; the arrowed conversions with their
 /// cost link the tracks of the source/target kingdoms (anchored at the middle
 /// of the track, whatever its height).
-pub fn rendre_svg_vue_ordre(royaumes: &[RoyaumeVue], conversions: &[ConversionVue]) -> String {
+pub fn rendre_svg_vue_order(royaumes: &[RoyaumeVue], conversions: &[ConversionVue]) -> String {
     let largeur = LARGEUR_VUE - 2 * MARGE;
     let (hauteur, positions) = layout(royaumes, conversions.len());
     let mut svg = format!(
@@ -365,28 +365,28 @@ mod tests {
                 fiche: FicheControleur {
                     delta: String::new(),
                     sigma: String::new(),
-                    decomposition_ordre: String::new(),
+                    decomposition_order: String::new(),
                     regles: String::new(),
                     defauts: String::new(),
                     defaut_global: String::new(),
                     encodage: String::new(),
                     attribution: String::new(),
                 },
-                piste: PisteOrdre::Lineaire(vec!["x".to_string()]),
+                piste: PisteOrder::Lineaire(vec!["x".to_string()]),
             },
             RoyaumeVue {
                 nom: "b".to_string(),
                 fiche: FicheControleur {
                     delta: String::new(),
                     sigma: String::new(),
-                    decomposition_ordre: String::new(),
+                    decomposition_order: String::new(),
                     regles: String::new(),
                     defauts: String::new(),
                     defaut_global: String::new(),
                     encodage: String::new(),
                     attribution: String::new(),
                 },
-                piste: PisteOrdre::Arbre(NodeVtree {
+                piste: PisteOrder::Arbre(NodeVtree {
                     libelle: "r".to_string(),
                     enfants: vec![NodeVtree {
                         libelle: "e".to_string(),
