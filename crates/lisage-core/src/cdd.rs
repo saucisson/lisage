@@ -66,8 +66,8 @@ impl Cdd {
 
     /// Does the point `point[i] = x_i` belong to the union (semantics,
     /// decidable: membership in one of the zones)?
-    pub fn contient(&self, point: &[u64]) -> bool {
-        self.zones.iter().any(|zone| zone.contient(point))
+    pub fn contains(&self, point: &[u64]) -> bool {
+        self.zones.iter().any(|zone| zone.contains(point))
     }
 
     /// Intersection (meet) of two unions: distributivity — the union of the
@@ -140,7 +140,7 @@ impl CddKeys {
         // Universe sweep of the bounded box (odometer over n variables).
         let mut point = vec![0u64; n];
         loop {
-            if !regions.iter().any(|region| region.contient(&point)) {
+            if !regions.iter().any(|region| region.contains(&point)) {
                 return false;
             }
             // Odometer increment.
@@ -221,7 +221,7 @@ pub fn evaluate<P: Pool<Key = Cdd, Payload = bool>>(
             Form::Node { arcs, .. } => {
                 match arcs
                     .iter()
-                    .find(|(region, _)| region.contient(point))
+                    .find(|(region, _)| region.contains(point))
                     .map(|(_, cible)| *cible)
                 {
                     Some(cible) => node = cible,

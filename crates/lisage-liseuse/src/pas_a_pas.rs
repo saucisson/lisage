@@ -37,7 +37,7 @@ const COULEUR_AUTRE: &str = "#999";
 /// Color of the diagram arcs.
 const COULEUR_ARC: &str = "#555";
 /// Color of the arc labels.
-const COULEUR_ETIQUETTE: &str = "#777";
+const COULEUR_LABEL: &str = "#777";
 /// Color of the position cursor on the timeline (black).
 const COULEUR_CURSEUR: &str = "#000";
 /// Background of terminals.
@@ -244,7 +244,7 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
                     arrivee.y + y_decalage - 14
                 ));
                 svg.push_str(&format!(
-                    "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" fill=\"{COULEUR_ETIQUETTE}\">{}</text>\n",
+                    "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" fill=\"{COULEUR_LABEL}\">{}</text>\n",
                     (depart.x + arrivee.x) / 2,
                     (depart.y + arrivee.y) / 2 + y_decalage,
                     echapper_xml(&key.to_string())

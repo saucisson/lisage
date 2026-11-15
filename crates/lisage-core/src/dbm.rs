@@ -146,7 +146,7 @@ impl Dbm {
     }
 
     /// Does the point `point[i] = x_i` belong to the region?
-    pub fn contient(&self, point: &[u64]) -> bool {
+    pub fn contains(&self, point: &[u64]) -> bool {
         if self.est_vide() {
             return false;
         }
@@ -267,7 +267,7 @@ impl DbmKeys {
         // Universe sweep of the bounded box (odometer over n variables).
         let mut point = vec![0u64; n];
         loop {
-            if !regions.iter().any(|region| region.contient(&point)) {
+            if !regions.iter().any(|region| region.contains(&point)) {
                 return false;
             }
             // Odometer increment.

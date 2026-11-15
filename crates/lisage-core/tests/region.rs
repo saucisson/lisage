@@ -27,12 +27,12 @@ fn test_intervalle_vide_normalise() {
     assert_eq!(vide, VIDE);
     assert!(vide.est_vide());
     assert_eq!(vide.size(), 0);
-    assert!(!vide.contient(3));
+    assert!(!vide.contains(3));
     let point = Intervalle::point(4);
     assert!(!point.est_vide());
     assert_eq!(point.size(), 1);
-    assert!(point.contient(4));
-    assert!(!point.contient(5));
+    assert!(point.contains(4));
+    assert!(!point.contains(5));
     assert_eq!(Intervalle::new(2, 5).size(), 4);
 }
 
@@ -102,7 +102,7 @@ fn test_partage_pool_c1_relatif() {
 }
 
 /// Property (LCG): the normal form is idempotent, and size/est_vide/
-/// contient are consistent with the normalized representation.
+/// contains are consistent with the normalized representation.
 #[test]
 fn test_propriete_normalisation_lcg() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -127,7 +127,7 @@ fn test_propriete_normalisation_lcg() {
         assert_eq!(normalisee.size(), if inf > sup { 0 } else { sup - inf + 1 });
         let point = next() % 16;
         assert_eq!(
-            normalisee.contient(point),
+            normalisee.contains(point),
             !normalisee.est_vide() && inf <= point && point <= sup
         );
     }

@@ -52,18 +52,18 @@ fn test_legende_auto_depuis_legende_des_canaux() {
     let theme = Theme::publication();
     let legende = rendre_legende_svg(&theme, 10, 20);
     assert_eq!(LEGENDE_CANAUX.len(), 3);
-    for (canal, etiquette, couleur) in LEGENDE_CANAUX {
+    for (canal, label, couleur) in LEGENDE_CANAUX {
         assert!(
             legende.contains(&format!("fill=\"{couleur}\"")),
             "color of {canal:?}"
         );
-        assert!(legende.contains(etiquette), "label of {canal:?}");
+        assert!(legende.contains(label), "label of {canal:?}");
     }
     // The publication SVG with legend embeds the three channels.
     let (pool, root) = diagramme_test();
     let svg = rendre_svg_publication(&pool, root, "fig", &theme, true);
-    for (_canal, etiquette, _couleur) in LEGENDE_CANAUX {
-        assert!(svg.contains(etiquette));
+    for (_canal, label, _couleur) in LEGENDE_CANAUX {
+        assert!(svg.contains(label));
     }
     // Without legend: no channel swatch.
     let svg_sans = rendre_svg_publication(&pool, root, "fig", &theme, false);

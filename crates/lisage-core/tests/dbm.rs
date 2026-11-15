@@ -43,19 +43,19 @@ fn test_dbm_incoherent_normalise() {
     let incoherente = Dbm::new(2, &[(0, 1, 2), (1, 0, -3)]);
     assert_eq!(incoherente, INCOHERENT);
     assert!(incoherente.est_vide());
-    assert!(!incoherente.contient(&[0, 0]));
+    assert!(!incoherente.contains(&[0, 0]));
     // Any inconsistent region, whatever its writing, is INCOHERENT.
     let other = Dbm::new(3, &[(0, 1, -1), (1, 2, 0), (2, 0, 0)]);
     assert_eq!(other, INCOHERENT);
 }
 
 #[test]
-fn test_dbm_contient() {
+fn test_dbm_contains() {
     // Region x0 − x1 ≤ 1 over the box [0, 4)².
     let region = Dbm::new(2, &[(0, 1, 1)]);
-    assert!(region.contient(&[2, 2]));
-    assert!(region.contient(&[3, 2]));
-    assert!(!region.contient(&[3, 1]));
+    assert!(region.contains(&[2, 2]));
+    assert!(region.contains(&[3, 2]));
+    assert!(!region.contains(&[3, 1]));
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn test_partage_pool_c1_relatif() {
 }
 
 /// Property (LCG): the normal form is idempotent; two randomly drawn DBMs with
-/// the same closure are equal; `contient` is consistent with the normalized
+/// the same closure are equal; `contains` is consistent with the normalized
 /// matrix.
 #[test]
 fn test_propriete_cloture_lcg() {
@@ -148,7 +148,7 @@ fn test_propriete_cloture_lcg() {
         // Membership of a randomly drawn point, consistent with est_vide.
         let point: Vec<u64> = (0..n).map(|_| next() % 6).collect();
         if normalisee.est_vide() {
-            assert!(!normalisee.contient(&point));
+            assert!(!normalisee.contains(&point));
         }
     }
 }
@@ -195,7 +195,7 @@ fn test_differentiel_appartenance_contre_enumeration() {
             };
             let cible_dd = arcs
                 .iter()
-                .find(|(region, _)| region.contient(&point))
+                .find(|(region, _)| region.contains(&point))
                 .map(|(_, cible)| *cible)
                 .expect("the partition covers the box");
             assert_eq!(cible_dd, cible_naive, "point {point:?}");

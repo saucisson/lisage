@@ -176,7 +176,7 @@ impl TransfertNonLocal {
             return arcs;
         };
         let montant = *montant;
-        if self.domain.contient(Atom(montant))
+        if self.domain.contains(Atom(montant))
             && let Some((suite, _)) = arcs.remove(&ABSENT)
         {
             let node_value = pool.intern(
@@ -219,7 +219,7 @@ impl TransfertNonLocal {
         let mut remap = BTreeMap::new();
         for (u, (n, s)) in arcs {
             let cible = u + montant;
-            if self.domain.contient(Atom(cible)) {
+            if self.domain.contains(Atom(cible)) {
                 Self::inserer_remap(pool, &self.keys, anchor, &mut remap, cible, n, s);
             } else {
                 Self::inserer_remap(pool, &self.keys, anchor, &mut remap, u, n, s);

@@ -86,7 +86,7 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Gc {
-            vivants: 12,
+            live: 12,
             collectes: 5,
             compaction: true,
         }),

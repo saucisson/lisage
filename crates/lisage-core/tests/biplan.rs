@@ -138,14 +138,14 @@ fn test_gc_mark_sweep() {
     let avant = pool.node_count();
     let stats = pool.gc(&[root]);
     // R-default removed the default arc: reachable = root + true.
-    assert_eq!(stats.vivants, 2, "root + true terminal");
+    assert_eq!(stats.live, 2, "root + true terminal");
     assert_eq!(stats.collectes, (avant as u64) - 2);
     // Compaction depends on the profiled threshold applied to observed dead.
     assert_eq!(
         stats.compaction,
         seuil_atteint(stats.collectes, avant as u64)
     );
-    assert_eq!(pool.vivants(), 2);
+    assert_eq!(pool.live(), 2);
     assert_eq!(
         pool.resolve(orphelin),
         Err(PoolError::UnknownNode(orphelin)),
@@ -192,7 +192,7 @@ fn test_compaction_profilee() {
     );
     let stats = pool.gc(&[root]);
     assert!(stats.compaction, "profiled compaction triggered");
-    assert_eq!(pool.vivants(), 2);
+    assert_eq!(pool.live(), 2);
     assert_eq!(pool.node_count(), 2, "tombstones compacted");
     // Compaction invalidates old NodeIds: the live root is remapped to a new
     // id, resolvable and indexed at level 1.
@@ -244,7 +244,7 @@ fn test_metriques_cache_et_evenement_gc() {
     let stats = pool.gc(&[root]);
     let metriques = pool.metriques();
     assert_eq!(metriques.gc, 1);
-    assert_eq!(metriques.vivants, stats.vivants);
+    assert_eq!(metriques.live, stats.live);
     assert_eq!(metriques.morts, stats.collectes);
     assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     // Gc event emitted.
@@ -253,10 +253,10 @@ fn test_metriques_cache_et_evenement_gc() {
         events.iter().any(|e| matches!(
             e,
             TraceEvent::Gc {
-                vivants,
+                live,
                 collectes,
                 ..
-            } if *vivants == stats.vivants && *collectes == stats.collectes
+            } if *live == stats.live && *collectes == stats.collectes
         )),
         "Gc event emitted"
     );
@@ -282,7 +282,7 @@ fn test_intern_plan_hit_cache_replanifie() {
 
 /// M4-1 (property tier, LCG): invariants of the compaction threshold, the
 /// hit rate and the GC — bound `dead × 4 == total` included, `taux_hit`
-/// bounded, `vivants + collectes == total` over random scenarios.
+/// bounded, `live + collectes == total` over random scenarios.
 #[test]
 fn test_propriete_seuil_taux_hit_et_invariant_gc() {
     let mut seed = SEED_LCG;
@@ -333,7 +333,7 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         assert_eq!(taux, expected);
     }
 
-    // GC invariant: vivants + collectes == total, and the metrics
+    // GC invariant: live + collectes == total, and the metrics
     // reflect the last GC.
     for _ in 0..100 {
         let mut pool = arena();
@@ -350,10 +350,10 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         }
         let total = pool.node_count() as u64;
         let stats = pool.gc(&[root]);
-        assert_eq!(stats.vivants + stats.collectes, total);
-        assert_eq!(stats.vivants, pool.vivants() as u64);
+        assert_eq!(stats.live + stats.collectes, total);
+        assert_eq!(stats.live, pool.live() as u64);
         let metriques = pool.metriques();
-        assert_eq!(metriques.vivants, stats.vivants);
+        assert_eq!(metriques.live, stats.live);
         assert_eq!(metriques.morts, stats.collectes);
         assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     }
@@ -363,7 +363,7 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
 /// intermediate compaction counts the living entries over the live entries,
 /// not over the slot count (which includes the tombstones of the first GC).
 #[test]
-fn test_gc_deux_fois_vivants_exacts() {
+fn test_gc_deux_fois_live_exacts() {
     let mut pool = arena();
     let (root, _orphelin) = petit_diagramme(&mut pool);
     // Chain of nodes all reachable from the root: the first GC only
@@ -383,14 +383,14 @@ fn test_gc_deux_fois_vivants_exacts() {
     // only the orphan and the false terminal are collected.
     let first = pool.gc(&[root, courant]);
     assert!(!first.compaction, "few dead: no compaction");
-    assert!(pool.node_count() > pool.vivants(), "tombstones kept");
+    assert!(pool.node_count() > pool.live(), "tombstones kept");
     // Second GC: the living must not count the tombstones of the
-    // first GC — vivants + collectes == live entries before the GC.
-    let vivantes_avant = pool.vivants() as u64;
+    // first GC — live + collectes == live entries before the GC.
+    let vivantes_avant = pool.live() as u64;
     let stats = pool.gc(&[root, courant]);
-    assert_eq!(stats.vivants, pool.vivants() as u64);
-    assert_eq!(stats.vivants + stats.collectes, vivantes_avant);
+    assert_eq!(stats.live, pool.live() as u64);
+    assert_eq!(stats.live + stats.collectes, vivantes_avant);
     let metriques = pool.metriques();
-    assert_eq!(metriques.vivants, stats.vivants);
+    assert_eq!(metriques.live, stats.live);
     assert_eq!(metriques.gc, 2);
 }

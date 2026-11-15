@@ -29,7 +29,7 @@ pub struct Theme {
     /// Arc color.
     pub arete: &'static str,
     /// Arc label color.
-    pub etiquette: &'static str,
+    pub label: &'static str,
     /// Figure background.
     pub fond: &'static str,
     /// Node background.
@@ -48,7 +48,7 @@ impl Theme {
             size_legende: 11,
             encre: "#1a1a1a",
             arete: "#444444",
-            etiquette: "#666666",
+            label: "#666666",
             fond: "#ffffff",
             fond_node: "#ffffff",
             fond_terminal: "#f4f4f4",
@@ -60,7 +60,7 @@ impl Theme {
         Couleurs {
             encre: self.encre,
             arete: self.arete,
-            etiquette: self.etiquette,
+            label: self.label,
             fond_node: self.fond_node,
             fond_terminal: self.fond_terminal,
         }
@@ -82,7 +82,7 @@ const LARGEUR_LEGENDE: u32 = 220;
 /// Size of a channel color swatch in pixels.
 const SIZE_PAVE_LEGENDE: u32 = 12;
 /// Horizontal offset between the swatch and its label in pixels.
-const DECALAGE_ETIQUETTE_LEGENDE: u32 = 18;
+const DECALAGE_LABEL_LEGENDE: u32 = 18;
 /// Vertical offset of the swatch relative to the text line in pixels.
 const DECALAGE_PAVE_LEGENDE: u32 = 10;
 /// Margin between the diagram and the legend column in pixels.
@@ -96,7 +96,7 @@ const MARGE_BAS: u32 = 20;
 /// per channel, auto-generated from [`LEGENDE_CANAUX`]).
 pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
     let mut svg = String::new();
-    for (index, (_canal, etiquette, couleur)) in LEGENDE_CANAUX.iter().enumerate() {
+    for (index, (_canal, label, couleur)) in LEGENDE_CANAUX.iter().enumerate() {
         let ligne_y = y + index as u32 * HAUTEUR_LEGENDE;
         svg.push_str(&format!(
             "<rect x=\"{x}\" y=\"{}\" width=\"{SIZE_PAVE_LEGENDE}\" height=\"{SIZE_PAVE_LEGENDE}\" fill=\"{couleur}\"/>\n",
@@ -104,12 +104,12 @@ pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
         ));
         svg.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" font-family=\"{}\" font-size=\"{}\" fill=\"{}\">{}</text>\n",
-            x + DECALAGE_ETIQUETTE_LEGENDE,
+            x + DECALAGE_LABEL_LEGENDE,
             ligne_y,
             theme.police,
             theme.size_legende,
             theme.encre,
-            echapper_xml(etiquette)
+            echapper_xml(label)
         ));
     }
     svg

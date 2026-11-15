@@ -96,7 +96,7 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
         if !liste_keys.contains(atome_key) {
             return Err(SchemaError::HorsDomain(*atome_key));
         }
-        if !domain.contient(*atome_value) {
+        if !domain.contains(*atome_value) {
             return Err(SchemaError::HorsDomain(*atome_value));
         }
     }

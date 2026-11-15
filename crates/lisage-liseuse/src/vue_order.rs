@@ -62,9 +62,9 @@ const MILIEU_BOITE: u32 = 14;
 /// Horizontal offset of the conversion arrow.
 const DECALAGE_FLECHE: u32 = 40;
 /// Horizontal offset of the conversion label.
-const DECALAGE_ETIQUETTE: u32 = 48;
+const DECALAGE_LABEL: u32 = 48;
 /// Vertical offset of the conversion label below the arrow's middle.
-const DECALAGE_ETIQUETTE_Y: u32 = 4;
+const DECALAGE_LABEL_Y: u32 = 4;
 /// Arrow-marker geometry (size, refX, refY).
 const MARQUEUR_SIZE: u32 = 8;
 const MARQUEUR_REF_Y: u32 = 4;
@@ -340,8 +340,8 @@ pub fn rendre_svg_vue_order(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
         ));
         svg.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{SIZE_PISTE}\" text-anchor=\"end\" fill=\"{COULEUR_CONVERSION}\">convert {} → {} (cost {})</text>\n",
-            LARGEUR_VUE - MARGE - DECALAGE_ETIQUETTE,
-            (y1 + y2) / 2 + DECALAGE_ETIQUETTE_Y,
+            LARGEUR_VUE - MARGE - DECALAGE_LABEL,
+            (y1 + y2) / 2 + DECALAGE_LABEL_Y,
             echapper_xml(&conversion.source),
             echapper_xml(&conversion.cible),
             conversion.cout
