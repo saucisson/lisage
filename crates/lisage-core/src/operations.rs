@@ -27,7 +27,7 @@ use crate::pli::{BoolOu, SemiAnneau};
 use crate::schema::{PAS_LEVEL_MAP, PRESENT, Schema};
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
-/// Base of the fingerprint namspace of the guard/image family.
+/// Base of the fingerprint namespace of the guard/image family.
 const FINGERPRINT_BASE_GARDE: u64 = 5000;
 
 /// Set of keys present on the path of a map under construction.
