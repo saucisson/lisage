@@ -122,13 +122,13 @@ impl<S: SemiAnneau> Pli<S> {
     }
 
     /// (A4) multiplier of arc `v` from level `ℓ` to a child of level
-    /// `level_cible` (`None` = terminal): product of the cardinalities of
+    /// `level_target` (`None` = terminal): product of the cardinalities of
     /// the levels skipped **on the arc's path**. A skipped value level was
     /// collapsed with all its explicit values ⇒ factor `|Val(n)|`; a
     /// skipped presence level only collapses through its default arc
     /// (factor 1) and its value level `n+1` is off the path.
-    fn multiplicateur(&self, level: Level, arc: u64, level_cible: Option<Level>) -> S {
-        let bound = match level_cible {
+    fn multiplicateur(&self, level: Level, arc: u64, level_target: Option<Level>) -> S {
+        let bound = match level_target {
             Some(level) => level.0,
             None => self.number_levels,
         };
@@ -170,8 +170,8 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
 
     fn phi_aggr(&self, level: Level, _h: &(), arcs: &BTreeMap<u64, (Option<Level>, S)>) -> S {
         let mut total = S::zero();
-        for (arc, (level_cible, s)) in arcs {
-            let multiplicateur = self.multiplicateur(level, *arc, *level_cible);
+        for (arc, (level_target, s)) in arcs {
+            let multiplicateur = self.multiplicateur(level, *arc, *level_target);
             total = total.plus(&multiplicateur.fois(s));
         }
         // Implicit default arc (R-default): its continuation is D_δ, of
@@ -284,14 +284,14 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
         ) => {
             if level_a == level_b {
                 let mut arcs = arcs_a;
-                for (arc, cible_b) in arcs_b {
+                for (arc, target_b) in arcs_b {
                     match arcs.remove(&arc) {
-                        Some(cible_a) => {
-                            let uni = union(pool, keys, anchor, cible_a, cible_b)?;
+                        Some(target_a) => {
+                            let uni = union(pool, keys, anchor, target_a, target_b)?;
                             arcs.insert(arc, uni);
                         }
                         None => {
-                            arcs.insert(arc, cible_b);
+                            arcs.insert(arc, target_b);
                         }
                     }
                 }
@@ -326,20 +326,20 @@ fn union_with_other<P: Pool<Key = u64, Payload = bool>>(
 ) -> Result<NodeId, CoreError> {
     match keys.default(level) {
         Some(defaut) => {
-            let cible = match arcs.remove(&defaut) {
-                Some(cible) => union(pool, keys, anchor, cible, other)?,
+            let target = match arcs.remove(&defaut) {
+                Some(target) => union(pool, keys, anchor, target, other)?,
                 None => other,
             };
-            arcs.insert(defaut, cible);
+            arcs.insert(defaut, target);
         }
         None => {
             let cardinality = keys.cardinality(level);
             for v in 0..cardinality {
-                let cible = match arcs.remove(&v) {
-                    Some(cible) => union(pool, keys, anchor, cible, other)?,
+                let target = match arcs.remove(&v) {
+                    Some(target) => union(pool, keys, anchor, target, other)?,
                     None => other,
                 };
-                arcs.insert(v, cible);
+                arcs.insert(v, target);
             }
         }
     }

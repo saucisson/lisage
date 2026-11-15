@@ -362,8 +362,8 @@ fn test_rendu_svg_step_by_step_channels_et_fantomes() {
             level: None,
         });
         if let Ok(lisage_core::Form::Node { arcs, .. }) = pool.resolve(n) {
-            for cible in arcs.values() {
-                stack.push(*cible);
+            for target in arcs.values() {
+                stack.push(*target);
             }
         }
     }

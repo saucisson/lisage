@@ -113,8 +113,8 @@ fn valider_levels<P: Pool<Key = u64, Payload = bool>>(
             if level.0 >= schema.number_levels() {
                 return Err(CoreError::LevelHorsSchema(*level));
             }
-            for cible in arcs.values() {
-                valider_levels(pool, schema, *cible, visite)?;
+            for target in arcs.values() {
+                valider_levels(pool, schema, *target, visite)?;
             }
             Ok(())
         }

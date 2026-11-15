@@ -95,10 +95,10 @@ pub enum PnmlError {
         texte: String,
     },
     /// Arc whose one end does not exist in the net.
-    ArcVersInconnu { source: String, cible: String },
+    ArcVersInconnu { source: String, target: String },
     /// Badly oriented arc: both ends are places, or two
     /// transitions (a PNML arc links a place and a transition).
-    ArcMalOriente { source: String, cible: String },
+    ArcMalOriente { source: String, target: String },
     /// Arc weight outside the subset (only weight 1 is supported).
     WeightNonSupporte { weight: String },
 }
@@ -118,13 +118,13 @@ impl std::fmt::Display for PnmlError {
             PnmlError::NumberInvalide { element, texte } => {
                 write!(formatter, "invalid number in <{element}>: {texte:?}")
             }
-            PnmlError::ArcVersInconnu { source, cible } => {
-                write!(formatter, "arc from {source:?} to {cible:?} unknown")
+            PnmlError::ArcVersInconnu { source, target } => {
+                write!(formatter, "arc from {source:?} to {target:?} unknown")
             }
-            PnmlError::ArcMalOriente { source, cible } => {
+            PnmlError::ArcMalOriente { source, target } => {
                 write!(
                     formatter,
-                    "badly oriented arc from {source:?} to {cible:?} (place↔transition expected)"
+                    "badly oriented arc from {source:?} to {target:?} (place↔transition expected)"
                 )
             }
             PnmlError::WeightNonSupporte { weight } => {
@@ -238,8 +238,8 @@ fn attendre(octets: &[char], position: &mut usize, expected: char) -> Result<(),
 
 /// Skips to the next `>` (prologue `<?…?>`, comments, truncated
 /// CDATA — entities are not decoded, see the module doc).
-fn sauter_jusqu_a(octets: &[char], position: &mut usize, cible: char) {
-    while *position < octets.len() && octets[*position] != cible {
+fn sauter_jusqu_a(octets: &[char], position: &mut usize, target: char) {
+    while *position < octets.len() && octets[*position] != target {
         *position += 1;
     }
     if *position < octets.len() {
@@ -395,7 +395,7 @@ pub struct Transition {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Arc {
     pub source: NodeId,
-    pub cible: NodeId,
+    pub target: NodeId,
 }
 
 /// Raw PNML document, distinct type at the boundary (ADR-0006).
@@ -484,7 +484,7 @@ impl NetworkPetri {
 /// Raw arc as parsed (identifiers not yet resolved).
 struct ArcBrut {
     source: String,
-    cible: String,
+    target: String,
 }
 
 /// Resolves arc identifiers into [`NodeId`] and checks that each
@@ -507,27 +507,27 @@ fn resoudre_arc(
     brut: &ArcBrut,
 ) -> Result<Arc, PnmlError> {
     let source = resoudre_node(places, transitions, &brut.source);
-    let cible = resoudre_node(places, transitions, &brut.cible);
-    let (source, cible) = match (source, cible) {
-        (Some(source), Some(cible)) => (source, cible),
+    let target = resoudre_node(places, transitions, &brut.target);
+    let (source, target) = match (source, target) {
+        (Some(source), Some(target)) => (source, target),
         _ => {
             return Err(PnmlError::ArcVersInconnu {
                 source: brut.source.clone(),
-                cible: brut.cible.clone(),
+                target: brut.target.clone(),
             });
         }
     };
     let badly_oriented = matches!(
-        (&source, &cible),
+        (&source, &target),
         (NodeId::Place(_), NodeId::Place(_)) | (NodeId::Transition(_), NodeId::Transition(_))
     );
     if badly_oriented {
         return Err(PnmlError::ArcMalOriente {
             source: brut.source.clone(),
-            cible: brut.cible.clone(),
+            target: brut.target.clone(),
         });
     }
-    Ok(Arc { source, cible })
+    Ok(Arc { source, target })
 }
 
 fn resoudre_node(
@@ -639,8 +639,8 @@ fn parser_arc(attributes: &BTreeMap<String, String>) -> Result<ArcBrut, PnmlErro
         });
     }
     let source = attribute_obligatoire(attributes, ELEMENT_ARC, ATTRIBUTE_SOURCE)?;
-    let cible = attribute_obligatoire(attributes, ELEMENT_ARC, ATTRIBUTE_TARGET)?;
-    Ok(ArcBrut { source, cible })
+    let target = attribute_obligatoire(attributes, ELEMENT_ARC, ATTRIBUTE_TARGET)?;
+    Ok(ArcBrut { source, target })
 }
 
 // ---------------------------------------------------------------------------
@@ -688,7 +688,7 @@ fn places_entrantes<'a>(network: &'a NetworkPetri, transition: &TransitionId) ->
     network
         .arcs
         .iter()
-        .filter_map(|arc| match (&arc.source, &arc.cible) {
+        .filter_map(|arc| match (&arc.source, &arc.target) {
             (NodeId::Place(p), NodeId::Transition(t)) if t == transition => Some(p),
             _ => None,
         })
@@ -700,7 +700,7 @@ fn places_sortantes<'a>(network: &'a NetworkPetri, transition: &TransitionId) ->
     network
         .arcs
         .iter()
-        .filter_map(|arc| match (&arc.source, &arc.cible) {
+        .filter_map(|arc| match (&arc.source, &arc.target) {
             (NodeId::Transition(t), NodeId::Place(p)) if t == transition => Some(p),
             _ => None,
         })

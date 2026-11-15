@@ -192,7 +192,7 @@ fn test_differentiel_union_intervals_contre_enumeration() {
                     "R-default removes the arc to the default"
                 );
                 arcs.iter()
-                    .filter(|(_, cible)| **cible == vrai_terminal)
+                    .filter(|(_, target)| **target == vrai_terminal)
                     .map(|(interval, _)| interval.size())
                     .sum()
             }

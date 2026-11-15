@@ -36,9 +36,9 @@ pub fn evaluate<P: Pool<Key = Dbm, Payload = bool>>(
                 match arcs
                     .iter()
                     .find(|(region, _)| region.contains(point))
-                    .map(|(_, cible)| *cible)
+                    .map(|(_, target)| *target)
                 {
-                    Some(cible) => node = cible,
+                    Some(target) => node = target,
                     None => return Ok(None),
                 }
             }

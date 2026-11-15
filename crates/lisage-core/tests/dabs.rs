@@ -264,8 +264,8 @@ fn test_propriete_dabs_confluence() {
         let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
             .map(|_| {
                 let key = next() % CARDINALITY_MOCK;
-                let cible = NodeId((next() % 3) as u32);
-                (key, cible)
+                let target = NodeId((next() % 3) as u32);
+                (key, target)
             })
             .collect();
         let key_defaut = if next() % 2 == 0 { Some(0) } else { None };
@@ -311,7 +311,7 @@ fn test_propriete_dabs_confluence() {
         // D-trans / R-collapse: a collapse only happens if the coverage is
         // satisfied (same rules as `reduce`) or if A = ∅ after absorption
         // (then the target is D^def).
-        if let Reduction::Collapse(cible) = &first {
+        if let Reduction::Collapse(target) = &first {
             // Same arcs after D-abs as in `reduce_dabs`.
             let arcs_filtres: BTreeMap<u64, NodeId> = match key_defaut {
                 Some(_) => arcs
@@ -325,12 +325,12 @@ fn test_propriete_dabs_confluence() {
             let couvre = match key_defaut {
                 None => arcs_filtres.len() as u64 >= CARDINALITY_MOCK,
                 Some(key) => {
-                    est_defaut(*cible)
+                    est_defaut(*target)
                         || toutes_defaut
                         || (arcs_filtres.len() == 1 && arcs_filtres.contains_key(&key))
                 }
             };
-            assert!(couvre, "lawful collapse: target={cible:?}");
+            assert!(couvre, "lawful collapse: target={target:?}");
         }
     }
 }

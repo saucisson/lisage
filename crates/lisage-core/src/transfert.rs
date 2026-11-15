@@ -218,9 +218,9 @@ impl TransfertNonLocal {
         let montant = *montant;
         let mut remap = BTreeMap::new();
         for (u, (n, s)) in arcs {
-            let cible = u + montant;
-            if self.domain.contains(Atom(cible)) {
-                Self::inserer_remap(pool, &self.keys, anchor, &mut remap, cible, n, s);
+            let target = u + montant;
+            if self.domain.contains(Atom(target)) {
+                Self::inserer_remap(pool, &self.keys, anchor, &mut remap, target, n, s);
             } else {
                 Self::inserer_remap(pool, &self.keys, anchor, &mut remap, u, n, s);
             }

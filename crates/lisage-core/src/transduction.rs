@@ -234,22 +234,22 @@ impl<T: Transduction> Transducteur<T> {
             Form::Node { level, arcs } => {
                 let mut children = BTreeMap::new();
                 let mut s_arcs = BTreeMap::new();
-                for (arc, cible) in arcs {
+                for (arc, target) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
                     self.notifier(TraceEvent::Attr {
                         channel: ChannelAttr::Inherited,
                         node,
                         value: format!("{h_arc:?}"),
                     });
-                    let (cible_result, s_arc) =
-                        self.run_with(pool_input, pool_output, anchor, cible, h_arc)?;
-                    let level_cible = match pool_input.resolve(cible) {
+                    let (target_result, s_arc) =
+                        self.run_with(pool_input, pool_output, anchor, target, h_arc)?;
+                    let level_target = match pool_input.resolve(target) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
                         Err(error) => return Err(error.into()),
                     };
-                    children.insert(arc, (cible_result, s_arc.clone()));
-                    s_arcs.insert(arc, (level_cible, s_arc));
+                    children.insert(arc, (target_result, s_arc.clone()));
+                    s_arcs.insert(arc, (level_target, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {
@@ -312,22 +312,22 @@ impl<T: Transduction> Transducteur<T> {
             Form::Node { level, arcs } => {
                 let mut children = BTreeMap::new();
                 let mut s_arcs = BTreeMap::new();
-                for (arc, cible) in arcs {
+                for (arc, target) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
                     self.notifier(TraceEvent::Attr {
                         channel: ChannelAttr::Inherited,
                         node,
                         value: format!("{h_arc:?}"),
                     });
-                    let (cible_result, s_arc) =
-                        self.run_with_same_pool(pool, anchor, cible, h_arc)?;
-                    let level_cible = match pool.resolve(cible) {
+                    let (target_result, s_arc) =
+                        self.run_with_same_pool(pool, anchor, target, h_arc)?;
+                    let level_target = match pool.resolve(target) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
                         Err(error) => return Err(error.into()),
                     };
-                    children.insert(arc, (cible_result, s_arc.clone()));
-                    s_arcs.insert(arc, (level_cible, s_arc));
+                    children.insert(arc, (target_result, s_arc.clone()));
+                    s_arcs.insert(arc, (level_target, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {

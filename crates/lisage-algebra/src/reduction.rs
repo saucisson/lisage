@@ -42,7 +42,7 @@ pub fn reduce<Key: Ord + Clone>(
     cardinality: u64,
 ) -> Reduction<Key> {
     // R-collapse on the complete set: the implicit default arc denotes D_δ.
-    if let Some(cible) = collapse_arcs(&arcs) {
+    if let Some(target) = collapse_arcs(&arcs) {
         // Coverage (spec § 2.2: any absent arc denotes δ(ℓ)): with a
         // default, collapse only holds if only the δ arc is explicit
         // (absent arcs take value δ, same path) or if the target is D_δ;
@@ -51,16 +51,16 @@ pub fn reduce<Key: Ord + Clone>(
         // Without a default, all values must be explicit.
         let couvre = match &key_defaut {
             None => arcs.len() as u64 >= cardinality,
-            Some(key) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(key)),
+            Some(key) => est_defaut(target) || (arcs.len() == 1 && arcs.contains_key(key)),
         };
         if couvre {
-            return Reduction::Collapse(cible);
+            return Reduction::Collapse(target);
         }
     }
     // R-default: the explicit arc δ(ℓ) leading to D_δ is removed.
     let mut arcs = arcs;
     if let Some(key) = &key_defaut
-        && arcs.get(key).is_some_and(|cible| est_defaut(*cible))
+        && arcs.get(key).is_some_and(|target| est_defaut(*target))
     {
         arcs.remove(key);
     }
@@ -77,7 +77,7 @@ pub fn reduce_without_collapse<Key: Ord + Clone>(
 ) -> Reduction<Key> {
     let mut arcs = arcs;
     if let Some(key) = &key_defaut
-        && arcs.get(key).is_some_and(|cible| est_defaut(*cible))
+        && arcs.get(key).is_some_and(|target| est_defaut(*target))
     {
         arcs.remove(key);
     }
@@ -93,31 +93,31 @@ pub fn reduce_inverse<Key: Ord + Clone>(
     cardinality: u64,
 ) -> Reduction<Key> {
     let mut arcs = arcs;
-    let mut cible_supprimee: Option<NodeId> = None;
+    let mut target_supprimee: Option<NodeId> = None;
     if let Some(key) = &key_defaut
-        && let Some(cible) = arcs.get(key)
-        && est_defaut(*cible)
+        && let Some(target) = arcs.get(key)
+        && est_defaut(*target)
     {
-        cible_supprimee = Some(*cible);
+        target_supprimee = Some(*target);
         arcs.remove(key);
     }
     // If the default arc was the only arc, the node denotes D_δ: collapse.
     if arcs.is_empty() {
-        return match cible_supprimee {
-            Some(cible) => Reduction::Collapse(cible),
+        return match target_supprimee {
+            Some(target) => Reduction::Collapse(target),
             None => Reduction::Form(arcs),
         };
     }
-    if let Some(cible) = collapse_arcs(&arcs) {
+    if let Some(target) = collapse_arcs(&arcs) {
         // Same coverage as `reduce` (confluence): with a default, collapse
         // only holds if only the δ arc is explicit or if the target is D_δ;
         // without a default, all values must be explicit.
         let couvre = match &key_defaut {
             None => arcs.len() as u64 >= cardinality,
-            Some(key) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(key)),
+            Some(key) => est_defaut(target) || (arcs.len() == 1 && arcs.contains_key(key)),
         };
         if couvre {
-            return Reduction::Collapse(cible);
+            return Reduction::Collapse(target);
         }
     }
     Reduction::Form(arcs)
@@ -147,20 +147,20 @@ pub fn reduce_dabs<Key: Ord + Clone>(
     defaut: Option<NodeId>,
 ) -> Reduction<Key> {
     // Target of D^default if at least one arc leads to it (used for D-trans A = ∅).
-    let cible_defaut = defaut.or(arcs.values().find(|c| est_defaut(**c)).copied());
+    let target_defaut = defaut.or(arcs.values().find(|c| est_defaut(**c)).copied());
     // (D-abs): absorption over any subdomain, when the level has a default.
     let arcs: BTreeMap<Key, NodeId> = match &key_defaut {
         Some(_) => arcs
             .into_iter()
-            .filter(|(_, cible)| !est_defaut(*cible))
+            .filter(|(_, target)| !est_defaut(*target))
             .collect(),
         None => arcs,
     };
     // (D-trans): A = ∅ after absorption → D^default (transparent node).
     // Inactive without a default key: absent arcs would not denote D^default.
     if arcs.is_empty() && key_defaut.is_some() {
-        return match cible_defaut {
-            Some(cible) => Reduction::Collapse(cible),
+        return match target_defaut {
+            Some(target) => Reduction::Collapse(target),
             None => Reduction::Form(arcs),
         };
     }
@@ -168,13 +168,13 @@ pub fn reduce_dabs<Key: Ord + Clone>(
     // `reduce` (confluence): with a default, collapse only holds if the
     // target is D^default or if only the δ arc is explicit; without a
     // default, all values must be explicit.
-    if let Some(cible) = collapse_arcs(&arcs) {
+    if let Some(target) = collapse_arcs(&arcs) {
         let couvre = match &key_defaut {
             None => arcs.len() as u64 >= cardinality,
-            Some(key) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(key)),
+            Some(key) => est_defaut(target) || (arcs.len() == 1 && arcs.contains_key(key)),
         };
         if couvre {
-            return Reduction::Collapse(cible);
+            return Reduction::Collapse(target);
         }
     }
     Reduction::Form(arcs)

@@ -197,7 +197,7 @@ impl CycleGroup for ShiftGroup {
             Some(&min) => (
                 min as i64,
                 arcs.iter()
-                    .map(|(key, cible)| (key - min, *cible))
+                    .map(|(key, target)| (key - min, *target))
                     .collect(),
             ),
         }

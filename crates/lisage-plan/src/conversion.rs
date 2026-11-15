@@ -69,23 +69,23 @@ impl std::error::Error for ErrorConversion {}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Conversion<T: TypeOrder> {
     source: Order<T>,
-    cible: Order<T>,
+    target: Order<T>,
     /// Adjacent transpositions (positions in the sequence) composing
-    /// π_source → π_cible, in application order.
+    /// π_source → π_target, in application order.
     transpositions: Vec<(usize, usize)>,
 }
 
 impl<T: TypeOrder> Conversion<T> {
-    /// Conversion from `source` to `cible`: both orders must have the same
+    /// Conversion from `source` to `target`: both orders must have the same
     /// canonical key set (same instantiated type).
-    pub fn new(source: &Order<T>, cible: &Order<T>) -> Result<Self, ErrorConversion> {
-        if source.canoniques() != cible.canoniques() {
+    pub fn new(source: &Order<T>, target: &Order<T>) -> Result<Self, ErrorConversion> {
+        if source.canoniques() != target.canoniques() {
             return Err(ErrorConversion::OrdersInconvertibles);
         }
         // Bubble sort of the target sequence toward the source order,
         // recording each adjacent transposition: the number of
         // transpositions equals the number of inversions.
-        let mut sequence = cible.sequence().to_vec();
+        let mut sequence = target.sequence().to_vec();
         let mut transpositions = Vec::new();
         let mut triee = false;
         while !triee {
@@ -103,7 +103,7 @@ impl<T: TypeOrder> Conversion<T> {
         debug_assert_eq!(sequence, source.sequence());
         Ok(Conversion {
             source: source.clone(),
-            cible: cible.clone(),
+            target: target.clone(),
             transpositions,
         })
     }
@@ -114,8 +114,8 @@ impl<T: TypeOrder> Conversion<T> {
     }
 
     /// Arrival order of the conversion.
-    pub fn cible(&self) -> &Order<T> {
-        &self.cible
+    pub fn target(&self) -> &Order<T> {
+        &self.target
     }
 
     /// Predictable cost of the transduction: number of inversions between
@@ -185,7 +185,7 @@ impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V: Clone> Royaume<T, O,
         conversion: &Conversion<T>,
     ) -> Result<Royaume<T, O2, E, V>, ErrorConversion> {
         if conversion.source() != &O::order(descripteur)
-            || conversion.cible() != &O2::order(descripteur)
+            || conversion.target() != &O2::order(descripteur)
         {
             return Err(ErrorConversion::RoyaumeIncompatible);
         }
