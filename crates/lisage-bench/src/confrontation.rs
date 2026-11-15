@@ -330,9 +330,9 @@ fn rss_max_ko() -> Result<u64, ErreurConfrontation> {
 
 /// Generates the deterministic LCG truth table over `n` variables (high bit
 /// of the state, same LCG as the M1-8 baseline).
-fn table_lcg(nombre_variables: u32) -> Vec<bool> {
+fn table_lcg(number_variables: u32) -> Vec<bool> {
     let mut etat = SEED_LCG;
-    (0..(1usize << nombre_variables))
+    (0..(1usize << number_variables))
         .map(|_| {
             etat = etat
                 .wrapping_mul(MULTIPLICATEUR_LCG)
@@ -347,19 +347,19 @@ fn table_lcg(nombre_variables: u32) -> Vec<bool> {
 /// is run: the arena's node count must equal the independent mini-BDD
 /// witness's, and the evaluation must follow the table.
 fn charge_alea_lcg(
-    nombre_variables: u32,
+    number_variables: u32,
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
-    if nombre_variables == 0 || nombre_variables > VARIABLES_MAXIMALES_ALEA {
+    if number_variables == 0 || number_variables > VARIABLES_MAXIMALES_ALEA {
         return Err(ErreurConfrontation::ParametresInvalides {
             charge: Charge::AleaLcg.etiquette(),
             detail: format!("n must be in 1..={VARIABLES_MAXIMALES_ALEA}"),
         });
     }
-    let keys = BddKeys::new(nombre_variables);
-    let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
+    let keys = BddKeys::new(number_variables);
+    let mut pool = Arena::new(BddController::new(number_variables), Box::new(NoOpObserver));
     let debut = Instant::now();
-    let table = table_lcg(nombre_variables);
+    let table = table_lcg(number_variables);
     let expected_satisfactions = table.iter().filter(|value| **value).count() as u64;
     let root = compiler_bdd(&mut pool, ANCHOR_MEASURE, &keys, &table);
     let nodes = compter_nodes_bdd(&pool, root);
@@ -367,7 +367,7 @@ fn charge_alea_lcg(
     // C6 falsification: the arena and the independent mini-BDD witness must
     // count the same number of nodes on the same table.
     let mut temoin = crate::temoin_bdd::MiniBdd::new();
-    let root_temoin = temoin.compiler_table(nombre_variables, &table);
+    let root_temoin = temoin.compiler_table(number_variables, &table);
     let nodes_temoin = temoin.compter_nodes(root_temoin);
     if nodes != nodes_temoin {
         return Err(ErreurConfrontation::VerifieEchoue {
@@ -396,7 +396,7 @@ fn charge_alea_lcg(
     Ok(MeasureConfrontation {
         variante: Variante::Bdd,
         charge: Charge::AleaLcg,
-        parametres: vec![("n".to_string(), nombre_variables.to_string())],
+        parametres: vec![("n".to_string(), number_variables.to_string())],
         encodage: None,
         temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
@@ -416,11 +416,11 @@ type EtatEtendu = Vec<u64>;
 /// interleaved schema; the cardinality via the `(ℕ,+,×)` pli must be the number
 /// of states in the file.
 fn charge_philosophes(
-    nombre_philosophes: u64,
+    number_philosophes: u64,
     chemin: &str,
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
-    if nombre_philosophes == 0 || nombre_philosophes > PHILOSOPHES_MAXIMAUX {
+    if number_philosophes == 0 || number_philosophes > PHILOSOPHES_MAXIMAUX {
         return Err(ErreurConfrontation::ParametresInvalides {
             charge: Charge::Philosophes.etiquette(),
             detail: format!("n must be in 1..={PHILOSOPHES_MAXIMAUX}"),
@@ -430,7 +430,7 @@ fn charge_philosophes(
     // manager init at the witnesses. Measured block: input reading +
     // construction + counting.
     let schema = Schema::Map(
-        (0..PAS_CLE_INTERCALAGE * nombre_philosophes)
+        (0..PAS_CLE_INTERCALAGE * number_philosophes)
             .map(Atom)
             .collect(),
         Domain::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)]),
@@ -449,7 +449,7 @@ fn charge_philosophes(
         std::fs::read_to_string(chemin).map_err(|erreur| ErreurConfrontation::InvalidInput {
             detail: format!("states file {chemin} unreadable: {erreur}"),
         })?;
-    let etats = lire_etats(nombre_philosophes, &contenu)?;
+    let etats = lire_etats(number_philosophes, &contenu)?;
     let expected = etats.len() as u64;
     let mut root = pool.intern(ANCHOR_MEASURE, Form::Terminal(false));
     for etat in &etats {
@@ -485,7 +485,7 @@ fn charge_philosophes(
     Ok(MeasureConfrontation {
         variante: Variante::Mdd,
         charge: Charge::Philosophes,
-        parametres: vec![("n".to_string(), nombre_philosophes.to_string())],
+        parametres: vec![("n".to_string(), number_philosophes.to_string())],
         encodage: None,
         temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
@@ -497,10 +497,10 @@ fn charge_philosophes(
 /// Reads and validates the extended-states file: first line `n <n>`, then
 /// `2n` values per line in `{0, 1, 2}`.
 fn lire_etats(
-    nombre_philosophes: u64,
+    number_philosophes: u64,
     contenu: &str,
 ) -> Result<Vec<EtatEtendu>, ErreurConfrontation> {
-    let nombre_values = PAS_CLE_INTERCALAGE as usize * nombre_philosophes as usize;
+    let number_values = PAS_CLE_INTERCALAGE as usize * number_philosophes as usize;
     let mut lignes = contenu.lines();
     let first = lignes
         .next()
@@ -519,9 +519,9 @@ fn lire_etats(
             .map_err(|_| ErreurConfrontation::InvalidInput {
                 detail: format!("unreadable n: {}", champs_first[1]),
             })?;
-    if n_declare != nombre_philosophes {
+    if n_declare != number_philosophes {
         return Err(ErreurConfrontation::InvalidInput {
-            detail: format!("declared n {n_declare} ≠ requested n {nombre_philosophes}"),
+            detail: format!("declared n {n_declare} ≠ requested n {number_philosophes}"),
         });
     }
     let mut etats = Vec::new();
@@ -536,13 +536,13 @@ fn lire_etats(
         let etat = etat.map_err(|_| ErreurConfrontation::InvalidInput {
             detail: format!("line {}: unreadable value", numero + 2),
         })?;
-        if etat.len() != nombre_values {
+        if etat.len() != number_values {
             return Err(ErreurConfrontation::InvalidInput {
                 detail: format!(
                     "line {}: {} values, {} expected",
                     numero + 2,
                     etat.len(),
-                    nombre_values
+                    number_values
                 ),
             });
         }
@@ -640,13 +640,13 @@ pub fn executer(
                         charge: Charge::AleaLcg.etiquette(),
                         detail: "expected: alea-lcg <n>".to_string(),
                     })?;
-            let nombre_variables =
+            let number_variables =
                 seul.parse::<u32>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
                         charge: Charge::AleaLcg.etiquette(),
                         detail: format!("unreadable n: {seul}"),
                     })?;
-            charge_alea_lcg(nombre_variables, observer)
+            charge_alea_lcg(number_variables, observer)
         }
         Charge::Philosophes => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
@@ -655,14 +655,14 @@ pub fn executer(
                     detail: "expected: philosophes <n> <path>".to_string(),
                 }
             })?;
-            let nombre_philosophes =
+            let number_philosophes =
                 first
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
                         charge: Charge::Philosophes.etiquette(),
                         detail: format!("unreadable n: {first}"),
                     })?;
-            charge_philosophes(nombre_philosophes, second, observer)
+            charge_philosophes(number_philosophes, second, observer)
         }
         Charge::Fenetre => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {

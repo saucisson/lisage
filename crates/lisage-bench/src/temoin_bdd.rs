@@ -47,13 +47,13 @@ impl MiniBdd {
 
     /// Builds the BDD of a truth table (`table[a]`, bit ℓ of `a` =
     /// variable ℓ) by recursive Shannon expansion.
-    pub fn compiler_table(&mut self, nombre_variables: u32, table: &[bool]) -> u32 {
-        assert_eq!(table.len(), 1usize << nombre_variables);
-        self.construire(0, nombre_variables, table)
+    pub fn compiler_table(&mut self, number_variables: u32, table: &[bool]) -> u32 {
+        assert_eq!(table.len(), 1usize << number_variables);
+        self.construire(0, number_variables, table)
     }
 
-    fn construire(&mut self, variable: u32, nombre_variables: u32, table: &[bool]) -> u32 {
-        if variable == nombre_variables {
+    fn construire(&mut self, variable: u32, number_variables: u32, table: &[bool]) -> u32 {
+        if variable == number_variables {
             return if table[0] {
                 TERMINAL_VRAI
             } else {
@@ -63,8 +63,8 @@ impl MiniBdd {
         // Bit ℓ of the index = variable ℓ: even positions = arc 0.
         let bas_table: Vec<bool> = table.iter().step_by(2).copied().collect();
         let haut_table: Vec<bool> = table.iter().skip(1).step_by(2).copied().collect();
-        let bas = self.construire(variable + 1, nombre_variables, &bas_table);
-        let haut = self.construire(variable + 1, nombre_variables, &haut_table);
+        let bas = self.construire(variable + 1, number_variables, &bas_table);
+        let haut = self.construire(variable + 1, number_variables, &haut_table);
         self.fabriquer_node(variable, bas, haut)
     }
 

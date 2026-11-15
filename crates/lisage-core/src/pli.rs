@@ -100,7 +100,7 @@ impl SemiAnneau for BoolOu {
 /// is the fold value. `Pli<Naturel>` = `count`.
 pub struct Pli<S: SemiAnneau> {
     keys: SchemaKeys,
-    nombre_levels: u32,
+    number_levels: u32,
     _semi_anneau: PhantomData<S>,
 }
 
@@ -108,10 +108,10 @@ impl<S: SemiAnneau> Pli<S> {
     /// Fold over the given schema (the level cardinalities come from the
     /// schema's key algebra, A4).
     pub fn new(schema: Schema) -> Self {
-        let nombre_levels = schema.nombre_levels();
+        let number_levels = schema.number_levels();
         Pli {
             keys: SchemaKeys::new(schema),
-            nombre_levels,
+            number_levels,
             _semi_anneau: PhantomData,
         }
     }
@@ -130,7 +130,7 @@ impl<S: SemiAnneau> Pli<S> {
     fn multiplicateur(&self, level: Level, arc: u64, level_cible: Option<Level>) -> S {
         let borne = match level_cible {
             Some(level) => level.0,
-            None => self.nombre_levels,
+            None => self.number_levels,
         };
         // Next level on the arc's path: a value level is always followed; a
         // presence followed by the default arc skips the value level.

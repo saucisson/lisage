@@ -167,7 +167,7 @@ fn test_propriete_intersection_lcg() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
+    const NUMBER_CAS: u64 = 30;
     let mut seed = SEED_LCG;
     let mut next = || {
         seed = seed
@@ -176,8 +176,8 @@ fn test_propriete_intersection_lcg() {
         seed
     };
     let tire_zone = |next: &mut dyn FnMut() -> u64| {
-        let nombre_contraintes = next() % 4;
-        let contraintes: Vec<(usize, usize, i64)> = (0..nombre_contraintes)
+        let number_contraintes = next() % 4;
+        let contraintes: Vec<(usize, usize, i64)> = (0..number_contraintes)
             .map(|_| {
                 (
                     (next() % 2) as usize,
@@ -189,11 +189,11 @@ fn test_propriete_intersection_lcg() {
         Dbm::new(2, &contraintes)
     };
     let tire_union = |next: &mut dyn FnMut() -> u64| {
-        let nombre_zones = 1 + next() % 3;
-        let zones: Vec<Dbm> = (0..nombre_zones).map(|_| tire_zone(next)).collect();
+        let number_zones = 1 + next() % 3;
+        let zones: Vec<Dbm> = (0..number_zones).map(|_| tire_zone(next)).collect();
         Cdd::new(&zones)
     };
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         let a = tire_union(&mut next);
         let b = tire_union(&mut next);
         let meet = a.intersection(&b);

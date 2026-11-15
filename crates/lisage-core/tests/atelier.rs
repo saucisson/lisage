@@ -149,7 +149,7 @@ fn test_propriete_commutation_lcg() {
     const SEED_LCG: u64 = 0x0A7E_11E5_2026_1110;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
+    const NUMBER_CAS: u64 = 30;
     let mut seed = SEED_LCG;
     let mut next = || {
         seed = seed
@@ -183,7 +183,7 @@ fn test_propriete_commutation_lcg() {
         }
         construit(pool, profondeur, &mut seed)
     }
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         let amorce = next();
         let mut avec = pool_bdd(Reductions::TOUTES);
         let root_avec = arbre(&mut avec, 3, amorce);
@@ -565,7 +565,7 @@ fn test_propriete_glisse_composition_lcg() {
     const SEED_LCG: u64 = 0x5EED_2026_1112_4E11;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
+    const NUMBER_CAS: u64 = 30;
     let mut seed = SEED_LCG;
     let mut next = || {
         seed = seed
@@ -573,7 +573,7 @@ fn test_propriete_glisse_composition_lcg() {
             .wrapping_add(INCREMENT_LCG);
         seed
     };
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         let a = next() as i64 % 1000;
         let b = next() as i64 % 1000;
         let horizon = next() as i64 % 16 + 1;

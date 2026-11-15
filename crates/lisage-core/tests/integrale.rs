@@ -180,9 +180,9 @@ fn test_propriete_integrale_contre_cardinality_lcg() {
     const SEED_LCG: u64 = 0xC0FF_EE00_1234_5678;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
+    const NUMBER_CAS: u64 = 30;
     let mut seed = SEED_LCG;
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         let mut next = || {
             seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)

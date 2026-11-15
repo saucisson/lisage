@@ -36,10 +36,10 @@ const SATISFACTIONS_LCG_N4: u64 = 7;
 const SATISFACTIONS_LCG_N12: u64 = 2074;
 
 /// `left_i` fork derived from the `pc` word (golden thread § 3).
-fn fourchette(compteur_programme: &[u64], nombre: usize, indice: usize) -> u64 {
+fn fourchette(compteur_programme: &[u64], number: usize, indice: usize) -> u64 {
     if compteur_programme[indice] == MANGE {
         TENUE
-    } else if compteur_programme[(indice + nombre - 1) % nombre] == MANGE {
+    } else if compteur_programme[(indice + number - 1) % number] == MANGE {
         PRECEDENTE
     } else {
         0
@@ -50,23 +50,23 @@ fn fourchette(compteur_programme: &[u64], nombre: usize, indice: usize) -> u64 {
 /// `eat` neighbors, derived forks, interleaved `pc_0 left_0 pc_1 …`. Same
 /// algorithm as the Python orchestrator (`scripts/confrontation.py`): the
 /// generation ↔ pins consistency is checked by a dedicated test.
-fn etats_etendus(nombre: usize) -> Vec<Vec<u64>> {
+fn etats_etendus(number: usize) -> Vec<Vec<u64>> {
     let mut mots = Vec::new();
-    let mut mot = vec![PENSE; nombre];
+    let mut mot = vec![PENSE; number];
     loop {
-        let circulaire_ok = (0..nombre)
-            .all(|indice| !(mot[indice] == MANGE && mot[(indice + 1) % nombre] == MANGE));
+        let circulaire_ok = (0..number)
+            .all(|indice| !(mot[indice] == MANGE && mot[(indice + 1) % number] == MANGE));
         if circulaire_ok {
             mots.push(mot.clone());
         }
-        let mut indice = nombre;
+        let mut indice = number;
         loop {
             if indice == 0 {
                 return mots
                     .into_iter()
                     .map(|mot| {
-                        (0..nombre)
-                            .flat_map(|i| [mot[i], fourchette(&mot, nombre, i)])
+                        (0..number)
+                            .flat_map(|i| [mot[i], fourchette(&mot, number, i)])
                             .collect()
                     })
                     .collect();
@@ -89,14 +89,14 @@ static COMPTEUR_FICHIERS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atom
 /// Writes the shared extended-states file (same format as the
 /// Python orchestrator: first line `n <n>`, then one state per line) and
 /// returns its path.
-fn ecrire_fichier_etats(nombre: u64) -> PathBuf {
+fn ecrire_fichier_etats(number: u64) -> PathBuf {
     let numero = COMPTEUR_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let chemin = std::env::temp_dir().join(format!(
-        "confrontation-test-philosophes-{nombre}-{}-{numero}.txt",
+        "confrontation-test-philosophes-{number}-{}-{numero}.txt",
         std::process::id()
     ));
-    let etats = etats_etendus(nombre as usize);
-    let mut contenu = format!("n {nombre}\n");
+    let etats = etats_etendus(number as usize);
+    let mut contenu = format!("n {number}\n");
     for etat in etats {
         let ligne: Vec<String> = etat.iter().map(|value| value.to_string()).collect();
         contenu.push_str(&ligne.join(" "));
@@ -140,13 +140,13 @@ fn test_alea_lcg_bornes_refusees() {
 /// (33), cardinality via pli == number of states in the file.
 #[test]
 fn test_philosophes_fil_rouge_epingle() {
-    for &(nombre, expected) in R_EXPECTEDS {
-        let chemin = ecrire_fichier_etats(nombre);
-        let parametres = vec![nombre.to_string(), chemin.display().to_string()];
+    for &(number, expected) in R_EXPECTEDS {
+        let chemin = ecrire_fichier_etats(number);
+        let parametres = vec![number.to_string(), chemin.display().to_string()];
         let measure = executer(&Charge::Philosophes, &parametres, None).expect("workload run");
-        assert_eq!(measure.verifie, expected, "n={nombre}: pinned |R_n|");
+        assert_eq!(measure.verifie, expected, "n={number}: pinned |R_n|");
         assert_eq!(measure.variante, Variante::Mdd);
-        if nombre == 3 {
+        if number == 3 {
             assert_eq!(measure.nodes, NODES_R3, "R_3: 33 shared nodes");
         }
         assert!(measure.rss_max_ko > 0);
@@ -265,11 +265,11 @@ fn test_serialisation_ligne_epinglee() {
 /// n = 3..7, each state with 2n values in {0,1,2}.
 #[test]
 fn test_etats_etendus_coherents_avec_fil_rouge() {
-    for &(nombre, expected) in R_EXPECTEDS {
-        let etats = etats_etendus(nombre as usize);
-        assert_eq!(etats.len() as u64, expected, "n={nombre}: pinned |R_n|");
+    for &(number, expected) in R_EXPECTEDS {
+        let etats = etats_etendus(number as usize);
+        assert_eq!(etats.len() as u64, expected, "n={number}: pinned |R_n|");
         assert!(etats.iter().all(|etat| {
-            etat.len() == 2 * nombre as usize && etat.iter().all(|value| *value <= MANGE)
+            etat.len() == 2 * number as usize && etat.iter().all(|value| *value <= MANGE)
         }));
     }
 }

@@ -252,16 +252,16 @@ pub fn somme_poids<P: Pool<Key = u64, Payload = u64>>(
     node: NodeId,
 ) -> Result<u64, CoreError> {
     let keys = SchemaKeys::new(schema.clone());
-    let nombre_levels = schema.nombre_levels();
+    let number_levels = schema.number_levels();
     let mut memo = HashMap::new();
-    somme(pool, &keys, nombre_levels, node, &mut memo)
+    somme(pool, &keys, number_levels, node, &mut memo)
 }
 
 /// Recursive weighted sum with memo on nodes.
 fn somme<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
     keys: &SchemaKeys,
-    nombre_levels: u32,
+    number_levels: u32,
     node: NodeId,
     memo: &mut HashMap<NodeId, u64>,
 ) -> Result<u64, CoreError> {
@@ -278,8 +278,8 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
                     Form::Node { level, .. } => Some(level),
                     Form::Terminal(_) => None,
                 };
-                let multiplicateur = multiplicateur(keys, nombre_levels, level, *arc, level_cible);
-                total += multiplicateur * somme(pool, keys, nombre_levels, *cible, memo)?;
+                let multiplicateur = multiplicateur(keys, number_levels, level, *arc, level_cible);
+                total += multiplicateur * somme(pool, keys, number_levels, *cible, memo)?;
             }
             // Implicit default arc: D_δ = terminal(0), of zero weight.
             total
@@ -294,14 +294,14 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
 /// value levels skipped on the path (mirror of `Pli::multiplicateur`).
 fn multiplicateur(
     keys: &SchemaKeys,
-    nombre_levels: u32,
+    number_levels: u32,
     level: Level,
     arc: u64,
     level_cible: Option<Level>,
 ) -> u64 {
     let borne = match level_cible {
         Some(level) => level.0,
-        None => nombre_levels,
+        None => number_levels,
     };
     let mut n = match keys.default(level) {
         Some(defaut) if arc == defaut => level.0 + PAS_LEVEL_MAP,

@@ -57,7 +57,7 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
             }
         }
     }
-    let nombre_levels = levels.len() as u32;
+    let number_levels = levels.len() as u32;
     let mut placement = BTreeMap::new();
     for (index_level, (_level, nodes)) in levels.iter().enumerate() {
         let y = MARGE_HAUT + index_level as u32 * HAUTEUR_LEVEL + HAUTEUR_LEVEL / 2;
@@ -67,7 +67,7 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
         }
     }
     // Terminals: bottom line.
-    let y_terminal = MARGE_HAUT + nombre_levels * HAUTEUR_LEVEL + HAUTEUR_LEVEL / 2;
+    let y_terminal = MARGE_HAUT + number_levels * HAUTEUR_LEVEL + HAUTEUR_LEVEL / 2;
     let mut index_terminal = 0u32;
     for node in &visites {
         if !placement.contains_key(node) {
@@ -76,7 +76,7 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
             index_terminal += 1;
         }
     }
-    (placement, nombre_levels)
+    (placement, number_levels)
 }
 
 /// Color palette of the SVG rendering.
@@ -178,10 +178,10 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
 
 /// Renders the sub-diagram reachable from `root` as static SVG.
 pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> String {
-    let (placement, nombre_levels) = placer(pool, root);
+    let (placement, number_levels) = placer(pool, root);
     let largeur =
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
-    let hauteur = MARGE_HAUT + (nombre_levels + 1) * HAUTEUR_LEVEL + 20;
+    let hauteur = MARGE_HAUT + (number_levels + 1) * HAUTEUR_LEVEL + 20;
     let mut svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
     );

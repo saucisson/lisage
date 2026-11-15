@@ -405,16 +405,16 @@ pub struct Order {
 
 impl Order {
     /// Natural ordering: level ℓ decides variable ℓ.
-    pub fn naturel(nombre_variables: u32) -> Self {
+    pub fn naturel(number_variables: u32) -> Self {
         Order {
-            permutation: (0..nombre_variables).collect(),
+            permutation: (0..number_variables).collect(),
         }
     }
 
     /// Reversed ordering: level ℓ decides variable n-1-ℓ.
-    pub fn inverse(nombre_variables: u32) -> Self {
+    pub fn inverse(number_variables: u32) -> Self {
         Order {
-            permutation: (0..nombre_variables).rev().collect(),
+            permutation: (0..number_variables).rev().collect(),
         }
     }
 
@@ -433,7 +433,7 @@ impl Order {
     }
 
     /// Number of variables.
-    pub fn nombre_variables(&self) -> u32 {
+    pub fn number_variables(&self) -> u32 {
         self.permutation.len() as u32
     }
 
@@ -460,10 +460,10 @@ pub fn compiler_bdd_order<P: Pool<Key = u64, Payload = bool>>(
     order: &Order,
     table: &[bool],
 ) -> NodeId {
-    let nombre_variables = order.nombre_variables();
+    let number_variables = order.number_variables();
     assert_eq!(
         table.len(),
-        1usize << nombre_variables,
+        1usize << number_variables,
         "truth table of size 2^n (internal invariant)"
     );
     // Permute the table: bit ℓ of the local index = bit `order[ℓ]` of
@@ -472,7 +472,7 @@ pub fn compiler_bdd_order<P: Pool<Key = u64, Payload = bool>>(
     let table_locale: Vec<bool> = (0..table.len())
         .map(|indice| {
             let mut original = 0usize;
-            for level in 0..nombre_variables {
+            for level in 0..number_variables {
                 original |= ((indice >> level) & 1) << order.variable_au_level(level) as usize;
             }
             table[original]
@@ -529,8 +529,8 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
     observer: Option<&dyn Observer>,
 ) -> Result<RapportComparaisonOrders, PoolError> {
     assert_eq!(
-        order_first.nombre_variables(),
-        order_second.nombre_variables(),
+        order_first.number_variables(),
+        order_second.number_variables(),
         "both orderings cover the same number of variables (internal invariant)"
     );
     let root_first = compiler_bdd_order(pool, anchor, order_first, table);

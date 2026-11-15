@@ -200,7 +200,7 @@ fn test_propriete_measure_intersection_lcg() {
     const SEED_LCG: u64 = 0xDEAD_BEEF_CAFE_F00D;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
+    const NUMBER_CAS: u64 = 30;
     let keys = keys();
     let mut seed = SEED_LCG;
     let mut next = || {
@@ -210,8 +210,8 @@ fn test_propriete_measure_intersection_lcg() {
         seed
     };
     let tire = |next: &mut dyn FnMut() -> u64| {
-        let nombre_contraintes = next() % 4;
-        let contraintes: Vec<(usize, usize, i64)> = (0..nombre_contraintes)
+        let number_contraintes = next() % 4;
+        let contraintes: Vec<(usize, usize, i64)> = (0..number_contraintes)
             .map(|_| {
                 (
                     (next() % 2) as usize,
@@ -222,7 +222,7 @@ fn test_propriete_measure_intersection_lcg() {
             .collect();
         Dbm::new(2, &contraintes)
     };
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         let a = tire(&mut next);
         let b = tire(&mut next);
         let meet = a.intersection(&b);

@@ -59,7 +59,7 @@ pub struct ParametresSaturation<'a, T, P> {
     /// Initial node `D`.
     pub initial: NodeId,
     /// Number of levels of the schema (for AutoDetectee: all levels).
-    pub nombre_levels: u32,
+    pub number_levels: u32,
     /// Trace observer (M2-6): receives one `Round` per iteration and the
     /// events of the step runner. `None` = no trace.
     pub observer: Option<Arc<dyn Observer>>,
@@ -197,7 +197,7 @@ where
     // Active levels according to the policy.
     let mut levels_actifs: Vec<Level> = match params.politique {
         PolitiqueSaturation::Statique(levels) => levels.clone(),
-        PolitiqueSaturation::AutoDetectee => (0..params.nombre_levels).map(Level).collect(),
+        PolitiqueSaturation::AutoDetectee => (0..params.number_levels).map(Level).collect(),
     };
 
     let mut courant = params.initial;

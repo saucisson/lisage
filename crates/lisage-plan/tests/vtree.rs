@@ -81,9 +81,9 @@ fn test_vtree_variable_en_double_rejete() {
     );
 }
 
-/// Generates a random vtree over `nombre_variables` variables, by
+/// Generates a random vtree over `number_variables` variables, by
 /// deterministic LCG (same constants as the other property tests).
-fn vtree_aleatoire(seed: &mut u64, nombre_variables: u64) -> Vtree {
+fn vtree_aleatoire(seed: &mut u64, number_variables: u64) -> Vtree {
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     fn construire(seed: &mut u64, variables: &[Atom]) -> Vtree {
@@ -102,7 +102,7 @@ fn vtree_aleatoire(seed: &mut u64, nombre_variables: u64) -> Vtree {
             .wrapping_add(INCREMENT_LCG);
         *seed
     }
-    let variables: Vec<Atom> = (0..nombre_variables).map(Atom).collect();
+    let variables: Vec<Atom> = (0..number_variables).map(Atom).collect();
     construire(seed, &variables)
 }
 
@@ -129,21 +129,21 @@ fn verifier_gauche_avant_droite(vtree: &Vtree, sequence: &[Atom]) {
 #[test]
 fn test_propriete_order_canonique_satisfait_contraintes() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
-    const NOMBRE_CAS: u64 = 50;
+    const NUMBER_CAS: u64 = 50;
     const BORNE_VARIABLES: u64 = 8;
     let mut seed = SEED_LCG;
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         seed = seed
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
-        let nombre_variables = 2 + seed % (BORNE_VARIABLES - 1);
-        let vtree = vtree_aleatoire(&mut seed, nombre_variables);
+        let number_variables = 2 + seed % (BORNE_VARIABLES - 1);
+        let vtree = vtree_aleatoire(&mut seed, number_variables);
         assert!(vtree.valider().is_ok());
         let order = Order::canonique(&vtree);
         let sequence = order.sequence();
         let mut triee = sequence.to_vec();
         triee.sort();
-        let mut expected_f: Vec<Atom> = (0..nombre_variables).map(Atom).collect();
+        let mut expected_f: Vec<Atom> = (0..number_variables).map(Atom).collect();
         expected_f.sort();
         assert_eq!(triee, expected_f);
         verifier_gauche_avant_droite(&vtree, sequence);

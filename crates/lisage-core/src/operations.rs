@@ -110,7 +110,7 @@ fn valider_levels<P: Pool<Key = u64, Payload = bool>>(
     match pool.resolve(node)? {
         Form::Terminal(_) => Ok(()),
         Form::Node { level, arcs } => {
-            if level.0 >= schema.nombre_levels() {
+            if level.0 >= schema.number_levels() {
                 return Err(CoreError::LevelHorsSchema(*level));
             }
             for cible in arcs.values() {

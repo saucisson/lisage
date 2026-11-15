@@ -230,7 +230,7 @@ fn test_saturate_emet_rounds() {
     let initial = ensemble(&mut pool, anchor, &schema, &[0]);
 
     let collecteur = Collecteur::new();
-    let levels: Vec<lisage_core::Level> = (0..schema.nombre_levels())
+    let levels: Vec<lisage_core::Level> = (0..schema.number_levels())
         .map(lisage_core::Level)
         .collect();
     let politique = PolitiqueSaturation::Statique(levels);
@@ -241,7 +241,7 @@ fn test_saturate_emet_rounds() {
         keys: &keys,
         anchor,
         initial,
-        nombre_levels: schema.nombre_levels(),
+        number_levels: schema.number_levels(),
         observer: Some(Arc::new(collecteur.clone())),
     };
     let result = saturer(&mut params).unwrap();

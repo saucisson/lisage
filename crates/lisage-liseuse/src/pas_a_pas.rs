@@ -342,10 +342,10 @@ pub fn rendre_svg_pas_a_pas<P: Pool<Key = u64, Payload = bool>>(
     diff: &DiffTrace,
 ) -> String {
     let etat = scrubber.etat();
-    let (placement, nombre_levels) = placer(pool, root);
+    let (placement, number_levels) = placer(pool, root);
     let largeur =
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
-    let hauteur = MARGE_HAUT + HAUTEUR_FRISE + (nombre_levels + 1) * HAUTEUR_LEVEL + 20;
+    let hauteur = MARGE_HAUT + HAUTEUR_FRISE + (number_levels + 1) * HAUTEUR_LEVEL + 20;
     let mut svg = String::new();
     ouvrir_svg(&mut svg, largeur, hauteur, scrubber, &etat);
     rendre_frise(&mut svg, scrubber, largeur);

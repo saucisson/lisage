@@ -108,10 +108,10 @@ fn test_propriete_normalisation_lcg() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
+    const NUMBER_CAS: u64 = 30;
     let keys = RegionKeys::new(vec![16]);
     let mut seed = SEED_LCG;
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         let mut next = || {
             seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
@@ -142,13 +142,13 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
     const SEED_LCG: u64 = 0x2545_F491_4F6C_DD1D;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
+    const NUMBER_CAS: u64 = 30;
     const SIZE_DOMAIN: u64 = 12;
     let mut pool = pool(vec![SIZE_DOMAIN]);
     let vrai_terminal = pool.intern(ANCHOR, Form::Terminal(true));
     let faux_terminal = pool.intern(ANCHOR, Form::Terminal(false));
     let mut seed = SEED_LCG;
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         let mut next = || {
             seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
