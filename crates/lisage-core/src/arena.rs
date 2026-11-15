@@ -137,8 +137,8 @@ impl<C: Controller> Arena<C> {
         // Removal of tombstones from the unique table and the shadow index.
         self.unique
             .retain(|_, node| self.nodes[node.0 as usize].forme.is_some());
-        for ensemble in self.index_levels.values_mut() {
-            ensemble.retain(|node| self.nodes[node.0 as usize].forme.is_some());
+        for set in self.index_levels.values_mut() {
+            set.retain(|node| self.nodes[node.0 as usize].forme.is_some());
         }
         // Live nodes counted on actually-live entries (not derived from the
         // slot count, which includes tombstones from a previous GC without
@@ -191,8 +191,8 @@ impl<C: Controller> Arena<C> {
                 *node = *new;
             }
         }
-        for ensemble in self.index_levels.values_mut() {
-            *ensemble = ensemble
+        for set in self.index_levels.values_mut() {
+            *set = set
                 .iter()
                 .filter_map(|node| remap.get(node.0 as usize).copied().flatten())
                 .collect();

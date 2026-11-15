@@ -35,15 +35,15 @@ fn pool(schema: &Schema) -> PoolRef {
 }
 
 /// Compiles a set of maps into a single diagram (union of the members).
-fn compiler_ensemble(
+fn compiler_set(
     pool: &mut PoolRef,
     anchor: Anchor,
     schema: &Schema,
-    ensemble: &BTreeSet<Value>,
+    set: &BTreeSet<Value>,
 ) -> NodeId {
     let keys = SchemaKeys::new(schema.clone());
     let mut result = pool.intern(anchor, Form::Terminal(false));
-    for membre in ensemble {
+    for membre in set {
         let n = compiler(pool, anchor, schema, membre).unwrap();
         result = union(pool, &keys, anchor, result, n).unwrap();
     }
@@ -59,8 +59,8 @@ fn test_count_level_collapsed_a4_exemple_spec() {
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
-    let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+    let set = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
+    let root = compiler_set(&mut input, anchor, &schema, &set);
     // The val(a) level was collapsed: a single explicit arc.
     let Form::Node { arcs, .. } = input.resolve(root).unwrap() else {
         panic!("presence node expected")
@@ -72,13 +72,13 @@ fn test_count_level_collapsed_a4_exemple_spec() {
 
 /// Counting on a set of two-key maps (no collapse here).
 #[test]
-fn test_count_ensemble_maps() {
+fn test_count_set_maps() {
     let schema = Schema::Map(vec![Atom(0), Atom(1)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([map_de(&[(0, 1), (1, 0)]), map_de(&[(0, 0)])]);
-    let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+    let set = BTreeSet::from([map_de(&[(0, 1), (1, 0)]), map_de(&[(0, 0)])]);
+    let root = compiler_set(&mut input, anchor, &schema, &set);
     let total = count(&input, &mut output, anchor, &schema, root).unwrap();
     assert_eq!(total, 2);
 }
@@ -86,14 +86,14 @@ fn test_count_ensemble_maps() {
 /// Empty set: the fold is zero. Full set (all maps): the count is the
 /// product of the cardinalities (every level collapsed).
 #[test]
-fn test_count_ensemble_empty_et_plein() {
+fn test_count_set_empty_et_plein() {
     let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
 
     let empty = BTreeSet::new();
-    let root_empty = compiler_ensemble(&mut input, anchor, &schema, &empty);
+    let root_empty = compiler_set(&mut input, anchor, &schema, &empty);
     assert_eq!(
         count(&input, &mut output, anchor, &schema, root_empty).unwrap(),
         0
@@ -101,7 +101,7 @@ fn test_count_ensemble_empty_et_plein() {
 
     // All maps over one key with values {0,1}: {a↦0} and {a↦1}.
     let plein = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
-    let root_plein = compiler_ensemble(&mut input, anchor, &schema, &plein);
+    let root_plein = compiler_set(&mut input, anchor, &schema, &plein);
     assert_eq!(
         count(&input, &mut output, anchor, &schema, root_plein).unwrap(),
         2
@@ -118,12 +118,12 @@ fn test_pli_boolou_non_empty() {
 
     let mut runner = Transducteur::new(Pli::<BoolOu>::new(schema.clone()));
     let empty = BTreeSet::new();
-    let root_empty = compiler_ensemble(&mut input, anchor, &schema, &empty);
+    let root_empty = compiler_set(&mut input, anchor, &schema, &empty);
     let (_, s_empty) = runner.run(&input, &mut output, anchor, root_empty).unwrap();
     assert_eq!(s_empty, BoolOu(false), "empty set ⇒ false");
 
     let non_empty = BTreeSet::from([map_de(&[(0, 1)])]);
-    let root = compiler_ensemble(&mut input, anchor, &schema, &non_empty);
+    let root = compiler_set(&mut input, anchor, &schema, &non_empty);
     let (_, s) = runner.run(&input, &mut output, anchor, root).unwrap();
     assert_eq!(s, BoolOu(true), "non-empty set ⇒ true");
 }

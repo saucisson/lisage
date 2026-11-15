@@ -44,11 +44,11 @@ impl Observer for Collecteur {
     }
 }
 
-fn schema_ensemble() -> Schema {
+fn schema_set() -> Schema {
     Schema::Set(Domain::new(vec![Atom(0), Atom(1), Atom(2)]))
 }
 
-fn ensemble(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {
+fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {
     compiler(
         pool,
         anchor,
@@ -106,13 +106,13 @@ fn test_serialisation_v2_evenements_pas_a_pas() {
 /// inherited/synthesized channels during an observed transduction.
 #[test]
 fn test_runner_emet_memo_et_attr() {
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let anchor = Anchor(0);
-    let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
+    let root = set(&mut pool, anchor, &schema, &[0, 1]);
 
     let collecteur = Collecteur::new();
     let mut runner = Transducteur::with_observer(
@@ -220,14 +220,14 @@ impl lisage_core::transduction::Transduction for Identite {
 /// provided.
 #[test]
 fn test_saturate_emet_rounds() {
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let anchor = Anchor(0);
-    let initial = ensemble(&mut pool, anchor, &schema, &[0]);
+    let initial = set(&mut pool, anchor, &schema, &[0]);
 
     let collecteur = Collecteur::new();
     let levels: Vec<lisage_core::Level> = (0..schema.number_levels())
@@ -326,13 +326,13 @@ fn test_scrubber_replay_et_diff() {
 /// as dashed, draws the timeline with the rounds, and is deterministic.
 #[test]
 fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let anchor = Anchor(0);
-    let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
+    let root = set(&mut pool, anchor, &schema, &[0, 1]);
 
     let collecteur = Collecteur::new();
     let mut runner = Transducteur::with_observer(

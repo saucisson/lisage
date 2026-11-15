@@ -59,10 +59,10 @@ fn singleton_bool(pool: &mut PoolBool, map: &Value) -> NodeId {
 
 /// Builds the set of maps in the ADD pool by non-idempotent merge of the
 /// weight-1 singletons.
-fn build_add(pool: &mut PoolAdd, ensemble: &BTreeSet<Value>) -> NodeId {
+fn build_add(pool: &mut PoolAdd, set: &BTreeSet<Value>) -> NodeId {
     let keys = SchemaKeys::new(schema_test());
     let mut root = pool.intern(ANCHOR, Form::Terminal(0));
-    for map in ensemble {
+    for map in set {
         let membre = singleton_add(pool, map, 1);
         root = merge_add(pool, &keys, ANCHOR, root, membre).unwrap();
     }
@@ -70,10 +70,10 @@ fn build_add(pool: &mut PoolAdd, ensemble: &BTreeSet<Value>) -> NodeId {
 }
 
 /// Builds the set of maps in the Bool pool by idempotent union.
-fn build_bool(pool: &mut PoolBool, ensemble: &BTreeSet<Value>) -> NodeId {
+fn build_bool(pool: &mut PoolBool, set: &BTreeSet<Value>) -> NodeId {
     let keys = SchemaKeys::new(schema_test());
     let mut root = pool.intern(ANCHOR, Form::Terminal(false));
-    for map in ensemble {
+    for map in set {
         let membre = singleton_bool(pool, map);
         root = union(pool, &keys, ANCHOR, root, membre).unwrap();
     }
@@ -119,7 +119,7 @@ fn test_merge_non_idempotent() {
 /// cardinality, equal to the fold count on the Bool construction.
 #[test]
 fn test_somme_poids_egale_cardinality() {
-    let ensemble: BTreeSet<Value> = [
+    let set: BTreeSet<Value> = [
         map_de(&[(0, 0), (1, 0)]),
         map_de(&[(0, 0), (1, 1)]),
         map_de(&[(0, 1), (1, 0)]),
@@ -127,10 +127,10 @@ fn test_somme_poids_egale_cardinality() {
     .into_iter()
     .collect();
     let mut pool_a = pool_add();
-    let root_add = build_add(&mut pool_a, &ensemble);
+    let root_add = build_add(&mut pool_a, &set);
     assert_eq!(somme_poids(&pool_a, &schema_test(), root_add).unwrap(), 3);
     let mut pool_b = pool_bool();
-    let root_bool = build_bool(&mut pool_b, &ensemble);
+    let root_bool = build_bool(&mut pool_b, &set);
     assert_eq!(cardinality_bool(&pool_b, root_bool), 3);
 }
 
@@ -141,7 +141,7 @@ fn test_somme_poids_egale_cardinality() {
 #[test]
 fn test_garde_fou_compatibilite_doublon() {
     let map = map_de(&[(0, 1), (1, 1)]);
-    let ensemble: BTreeSet<Value> = [
+    let set: BTreeSet<Value> = [
         map_de(&[(0, 0), (1, 0)]),
         map_de(&[(0, 0), (1, 1)]),
         map.clone(),
@@ -151,7 +151,7 @@ fn test_garde_fou_compatibilite_doublon() {
     let mut pool_a = pool_add();
     let keys = SchemaKeys::new(schema_test());
     let mut root = pool_a.intern(ANCHOR, Form::Terminal(0));
-    for membre in &ensemble {
+    for membre in &set {
         let singleton = singleton_add(&mut pool_a, membre, 1);
         root = merge_add(&mut pool_a, &keys, ANCHOR, root, singleton).unwrap();
     }
@@ -160,7 +160,7 @@ fn test_garde_fou_compatibilite_doublon() {
     root = merge_add(&mut pool_a, &keys, ANCHOR, root, doublon).unwrap();
     assert_eq!(somme_poids(&pool_a, &schema_test(), root).unwrap(), 4);
     let mut pool_b = pool_bool();
-    let root_bool = build_bool(&mut pool_b, &ensemble);
+    let root_bool = build_bool(&mut pool_b, &set);
     assert_eq!(cardinality_bool(&pool_b, root_bool), 3);
 }
 
@@ -179,7 +179,7 @@ fn test_propriete_somme_poids_egale_cardinality_lcg() {
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
         let number_maps = (seed % 5) as usize;
-        let mut ensemble = BTreeSet::new();
+        let mut set = BTreeSet::new();
         for _ in 0..number_maps {
             seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
@@ -189,16 +189,16 @@ fn test_propriete_somme_poids_egale_cardinality_lcg() {
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
             let x1 = seed % 2;
-            ensemble.insert(map_de(&[(0, x0), (1, x1)]));
+            set.insert(map_de(&[(0, x0), (1, x1)]));
         }
         let mut pool_a = pool_add();
-        let root_add = build_add(&mut pool_a, &ensemble);
+        let root_add = build_add(&mut pool_a, &set);
         let mut pool_b = pool_bool();
-        let root_bool = build_bool(&mut pool_b, &ensemble);
+        let root_bool = build_bool(&mut pool_b, &set);
         assert_eq!(
             somme_poids(&pool_a, &schema_test(), root_add).unwrap(),
-            ensemble.len() as u64
+            set.len() as u64
         );
-        assert_eq!(cardinality_bool(&pool_b, root_bool), ensemble.len() as u64);
+        assert_eq!(cardinality_bool(&pool_b, root_bool), set.len() as u64);
     }
 }

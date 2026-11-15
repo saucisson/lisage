@@ -23,7 +23,7 @@ fn atome(value: u64) -> Value {
 }
 
 /// Small set of maps generated randomly (keys {0,1} × values {0,1}).
-fn ensemble_maps_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
+fn set_maps_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
     maps.into_iter()
         .map(|(a, b, c, d)| {
             let mut map = BTreeMap::new();
@@ -38,15 +38,15 @@ fn ensemble_maps_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
         .collect()
 }
 
-fn compiler_ensemble(
+fn compiler_set(
     pool: &mut PoolRef,
     anchor: Anchor,
     schema: &Schema,
-    ensemble: &BTreeSet<Value>,
+    set: &BTreeSet<Value>,
 ) -> NodeId {
     let keys = SchemaKeys::new(schema.clone());
     let mut result = pool.intern(anchor, Form::Terminal(false));
-    for membre in ensemble {
+    for membre in set {
         let n = compiler(pool, anchor, schema, membre).unwrap();
         result = union(pool, &keys, anchor, result, n).unwrap();
     }
@@ -76,7 +76,7 @@ proptest! {
             vec![Atom(0), Atom(1)],
             Domain::new(vec![Atom(0), Atom(1)]),
         );
-        let ensemble = ensemble_maps_aleatoire(maps);
+        let set = set_maps_aleatoire(maps);
         let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
@@ -86,7 +86,7 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+        let root = compiler_set(&mut input, anchor, &schema, &set);
         let dd = existe(
             &input,
             &mut output,
@@ -96,7 +96,7 @@ proptest! {
             Box::new(predicat_dd),
         )
         .unwrap();
-        prop_assert_eq!(dd, exists(&ensemble, predicat_lang), "DD path != path A (exists)");
+        prop_assert_eq!(dd, exists(&set, predicat_lang), "DD path != path A (exists)");
     }
 
     /// C1 differential: filter DD == set filtered by path A,
@@ -109,7 +109,7 @@ proptest! {
             vec![Atom(0), Atom(1)],
             Domain::new(vec![Atom(0), Atom(1)]),
         );
-        let ensemble = ensemble_maps_aleatoire(maps);
+        let set = set_maps_aleatoire(maps);
         let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
@@ -119,7 +119,7 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+        let root = compiler_set(&mut input, anchor, &schema, &set);
         let dd = filtrer(
             &input,
             &mut output,
@@ -129,8 +129,8 @@ proptest! {
             Box::new(predicat_dd),
         )
         .unwrap();
-        let expected_ensemble = filter(&ensemble, predicat_lang);
-        let expected = compiler_ensemble(&mut output, anchor, &schema, &expected_ensemble);
+        let expected_set = filter(&set, predicat_lang);
+        let expected = compiler_set(&mut output, anchor, &schema, &expected_set);
         prop_assert_eq!(dd, expected, "DD path != path A (filter), C1 structural");
     }
 
@@ -141,7 +141,7 @@ proptest! {
         atomes in prop::collection::btree_set(0u64..3, 0..4)
     ) {
         let schema = Schema::Atom(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));
-        let ensemble: BTreeSet<Value> = atomes.iter().map(|v| atome(*v)).collect();
+        let set: BTreeSet<Value> = atomes.iter().map(|v| atome(*v)).collect();
         let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
@@ -151,13 +151,13 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+        let root = compiler_set(&mut input, anchor, &schema, &set);
         let dd = image(&input, &mut output, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
-        let expected_ensemble = map(&ensemble, |v| match v {
+        let expected_set = map(&set, |v| match v {
             Value::Atom(a) => atome((a.0 + 1) % 3),
             other => other.clone(),
         });
-        let expected = compiler_ensemble(&mut output, anchor, &schema, &expected_ensemble);
+        let expected = compiler_set(&mut output, anchor, &schema, &expected_set);
         prop_assert_eq!(dd, expected, "DD path != path A (map), C1 structural");
     }
 }

@@ -21,7 +21,7 @@ fn atome(value: u64) -> Value {
 }
 
 /// Small set of maps generated randomly (keys {0,1} × values {0,1}).
-fn ensemble_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
+fn set_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
     maps.into_iter()
         .map(|(a, b, c, d)| {
             let mut map = BTreeMap::new();
@@ -37,15 +37,15 @@ fn ensemble_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
 }
 
 /// Compiles a set of maps into a single diagram (union of the members).
-fn compiler_ensemble(
+fn compiler_set(
     pool: &mut PoolRef,
     anchor: Anchor,
     schema: &Schema,
-    ensemble: &BTreeSet<Value>,
+    set: &BTreeSet<Value>,
 ) -> NodeId {
     let keys = SchemaKeys::new(schema.clone());
     let mut result = pool.intern(anchor, Form::Terminal(false));
-    for membre in ensemble {
+    for membre in set {
         let n = compiler(pool, anchor, schema, membre).unwrap();
         result = union(pool, &keys, anchor, result, n).unwrap();
     }
@@ -65,7 +65,7 @@ proptest! {
             vec![Atom(0), Atom(1)],
             Domain::new(vec![Atom(0), Atom(1)]),
         );
-        let ensemble = ensemble_aleatoire(maps);
+        let set = set_aleatoire(maps);
         let mut input = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
@@ -75,8 +75,8 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let anchor = Anchor(0);
-        let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+        let root = compiler_set(&mut input, anchor, &schema, &set);
         let dd = count_pli(&input, &mut output, anchor, &schema, root).unwrap();
-        prop_assert_eq!(dd, count(&ensemble), "DD path (A4 fold) != path A (count)");
+        prop_assert_eq!(dd, count(&set), "DD path (A4 fold) != path A (count)");
     }
 }

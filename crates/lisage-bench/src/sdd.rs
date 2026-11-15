@@ -87,8 +87,8 @@ pub struct LevelSdd {
 /// Pool for an SDD installation: the controller carries the **root** schema
 /// (all the vtree variables, domain of the complete set) — the
 /// R-default reductions at interning are driven by this schema.
-pub fn pool_pour_sdd(vtree: &Vtree, ensemble: &BTreeSet<Value>) -> Arena<ReferenceController> {
-    let schema = Schema::Map(vtree.order_plat(), domain_ensemble(ensemble));
+pub fn pool_pour_sdd(vtree: &Vtree, set: &BTreeSet<Value>) -> Arena<ReferenceController> {
+    let schema = Schema::Map(vtree.order_plat(), domain_set(set));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
@@ -98,12 +98,12 @@ pub fn pool_pour_sdd(vtree: &Vtree, ensemble: &BTreeSet<Value>) -> Arena<Referen
 pub fn installer_sdd(
     pool: &mut Arena<ReferenceController>,
     vtree: &Vtree,
-    ensemble: &BTreeSet<Value>,
+    set: &BTreeSet<Value>,
 ) -> Result<LevelSdd, ErreurSdd> {
     vtree.valider()?;
-    let domain = domain_ensemble(ensemble);
+    let domain = domain_set(set);
     let mut counter_anchors = 0u32;
-    installer_level(pool, vtree, ensemble, &domain, &mut counter_anchors)
+    installer_level(pool, vtree, set, &domain, &mut counter_anchors)
 }
 
 /// Installs one vtree level: projection of the set on the variables
@@ -111,7 +111,7 @@ pub fn installer_sdd(
 fn installer_level(
     pool: &mut Arena<ReferenceController>,
     vtree: &Vtree,
-    ensemble: &BTreeSet<Value>,
+    set: &BTreeSet<Value>,
     domain: &Domain,
     counter_anchors: &mut u32,
 ) -> Result<LevelSdd, ErreurSdd> {
@@ -121,7 +121,7 @@ fn installer_level(
     }
     let anchor = Anchor(*counter_anchors);
     *counter_anchors += 1;
-    let projection = projeter(ensemble, &variables);
+    let projection = projeter(set, &variables);
     let schema = Schema::Map(variables, domain.clone());
     let root = compiler_projection(pool, &schema, &projection, anchor)?;
     let cardinality = count_level(pool, &schema, root, anchor)?;
@@ -138,9 +138,8 @@ fn installer_level(
 
 /// Projects a set of maps onto a subset of keys (inter-level
 /// transduction, `lang/` level: pure set operation).
-pub fn projeter(ensemble: &BTreeSet<Value>, keys: &[Atom]) -> BTreeSet<Value> {
-    ensemble
-        .iter()
+pub fn projeter(set: &BTreeSet<Value>, keys: &[Atom]) -> BTreeSet<Value> {
+    set.iter()
         .filter_map(|value| match value {
             Value::Map(map) => {
                 let projetee: BTreeMap<Value, Value> = map
@@ -161,8 +160,8 @@ pub fn projeter(ensemble: &BTreeSet<Value>, keys: &[Atom]) -> BTreeSet<Value> {
 /// Value domain of the complete set: `0..=max` observed over all
 /// the maps (shared by all levels, so that the controller schema
 /// and the local schemas have the same level cardinalities).
-fn domain_ensemble(ensemble: &BTreeSet<Value>) -> Domain {
-    let max_value = ensemble
+fn domain_set(set: &BTreeSet<Value>) -> Domain {
+    let max_value = set
         .iter()
         .filter_map(|value| match value {
             Value::Map(map) => map

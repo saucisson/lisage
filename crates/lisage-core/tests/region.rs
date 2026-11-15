@@ -156,14 +156,14 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
             seed
         };
         // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
-        let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
+        let set: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
         // Compression of S and its complement into disjoint intervals.
         let mut arcs = BTreeMap::new();
         let mut point = 0;
         while point < SIZE_DOMAIN {
-            let dans_s = ensemble.contains(&point);
+            let dans_s = set.contains(&point);
             let mut fin = point;
-            while fin + 1 < SIZE_DOMAIN && ensemble.contains(&(fin + 1)) == dans_s {
+            while fin + 1 < SIZE_DOMAIN && set.contains(&(fin + 1)) == dans_s {
                 fin += 1;
             }
             arcs.insert(
@@ -199,7 +199,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
         };
         assert_eq!(
             count_dd,
-            ensemble.len() as u64,
+            set.len() as u64,
             "DD count == naive cardinality of S"
         );
     }

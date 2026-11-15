@@ -92,8 +92,8 @@ proptest! {
         let dd = payload_terminal(&output, result, &liste_keys, &map);
 
         // Path A: reference interpreter on the set {map}.
-        let ensemble = BTreeSet::from([value.clone()]);
-        let expected = lookup(&ensemble, &atome(key))[&value].clone();
+        let set = BTreeSet::from([value.clone()]);
+        let expected = lookup(&set, &atome(key))[&value].clone();
         let expected_opt = match expected {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,
@@ -138,8 +138,8 @@ proptest! {
         let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
         let dd = payload_terminal(&output, result, &liste_keys, &map);
 
-        let ensemble = BTreeSet::from([value.clone()]);
-        let expected = lookup(&ensemble, &atome(key))[&value].clone();
+        let set = BTreeSet::from([value.clone()]);
+        let expected = lookup(&set, &atome(key))[&value].clone();
         let expected_opt = match expected {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,

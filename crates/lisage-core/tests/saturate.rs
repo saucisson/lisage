@@ -121,12 +121,7 @@ fn new_pool(schema: &Schema) -> PoolRef {
 }
 
 /// Compiles a set of atoms into the pool.
-fn compiler_ensemble(
-    pool: &mut PoolRef,
-    anchor: Anchor,
-    schema: &Schema,
-    atomes: &[u64],
-) -> NodeId {
+fn compiler_set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {
     compiler(
         pool,
         anchor,
@@ -150,7 +145,7 @@ fn test_saturate_termine_et_point_fixe() {
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = new_pool(&schema);
     let anchor = Anchor(0);
-    let initial = compiler_ensemble(&mut pool, anchor, &schema, &[0]);
+    let initial = compiler_set(&mut pool, anchor, &schema, &[0]);
 
     let politique = PolitiqueSaturation::AutoDetectee;
     let mut params = ParametresSaturation {
@@ -181,7 +176,7 @@ fn test_saturate_politiques_equivalentes() {
     let politique_auto = PolitiqueSaturation::AutoDetectee;
 
     let mut pool_s = new_pool(&schema);
-    let initial_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[0]);
+    let initial_s = compiler_set(&mut pool_s, anchor, &schema, &[0]);
     let mut params = ParametresSaturation {
         transduction: &Identite,
         politique: &politique_statique,
@@ -195,7 +190,7 @@ fn test_saturate_politiques_equivalentes() {
     let r_statique = saturer(&mut params).unwrap();
 
     let mut pool_a = new_pool(&schema);
-    let initial_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[0]);
+    let initial_a = compiler_set(&mut pool_a, anchor, &schema, &[0]);
     let mut params = ParametresSaturation {
         transduction: &Identite,
         politique: &politique_auto,
@@ -228,8 +223,8 @@ fn test_saturate_statique_restreint_les_levels() {
     let levels_without_root: Vec<Level> = (1..schema.number_levels()).map(Level).collect();
     let politique_statique = PolitiqueSaturation::Statique(levels_without_root);
     let mut pool_s = new_pool(&schema);
-    let initial_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[0]);
-    let singleton_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[2]);
+    let initial_s = compiler_set(&mut pool_s, anchor, &schema, &[0]);
+    let singleton_s = compiler_set(&mut pool_s, anchor, &schema, &[2]);
     let etape_s = EmetSingleton {
         singleton: singleton_s,
     };
@@ -253,8 +248,8 @@ fn test_saturate_statique_restreint_les_levels() {
     // AutoDetectee policy: all levels active, the singleton is reached.
     let politique_auto = PolitiqueSaturation::AutoDetectee;
     let mut pool_a = new_pool(&schema);
-    let initial_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[0]);
-    let singleton_a = compiler_ensemble(&mut pool_a, anchor, &schema, &[2]);
+    let initial_a = compiler_set(&mut pool_a, anchor, &schema, &[0]);
+    let singleton_a = compiler_set(&mut pool_a, anchor, &schema, &[2]);
     let etape_a = EmetSingleton {
         singleton: singleton_a,
     };
@@ -291,8 +286,8 @@ fn test_saturate_chaine_croissante_multi_iterations() {
     let mut pool = new_pool(&schema);
     let anchor = Anchor(0);
 
-    let initial = compiler_ensemble(&mut pool, anchor, &schema, &[0]);
-    let singleton_2 = compiler_ensemble(&mut pool, anchor, &schema, &[2]);
+    let initial = compiler_set(&mut pool, anchor, &schema, &[0]);
+    let singleton_2 = compiler_set(&mut pool, anchor, &schema, &[2]);
     let expected = union(&mut pool, &keys, anchor, initial, singleton_2).unwrap();
     let etape = EmetSingleton {
         singleton: singleton_2,

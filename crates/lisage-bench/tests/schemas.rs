@@ -19,16 +19,16 @@ fn atome(v: u64) -> Value {
     Value::Atom(Atom(v))
 }
 
-fn schema_ensemble() -> BoxedStrategy<(Schema, Value)> {
+fn schema_set() -> BoxedStrategy<(Schema, Value)> {
     (1u8..5, prop::collection::vec(0u8..5, 0..6))
         .prop_map(|(size, elements)| {
             let domain = domain((0..u64::from(size)).collect());
-            let ensemble: BTreeSet<Value> = elements
+            let set: BTreeSet<Value> = elements
                 .into_iter()
                 .filter(|&e| u64::from(e) < u64::from(size))
                 .map(|e| atome(u64::from(e)))
                 .collect();
-            (Schema::Set(domain), Value::Set(ensemble))
+            (Schema::Set(domain), Value::Set(set))
         })
         .boxed()
 }
@@ -117,7 +117,7 @@ fn schema_et_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
 proptest! {
     /// Round-trip: decompiler(compiler(v)) = v for the three bounded schemas.
     #[test]
-    fn test_round_trip_compilation((schema, value) in prop_oneof![schema_ensemble(), schema_map(), schema_atome()]) {
+    fn test_round_trip_compilation((schema, value) in prop_oneof![schema_set(), schema_map(), schema_atome()]) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = Anchor(0);
         let root = compiler(&mut pool, anchor, &schema, &value).unwrap();

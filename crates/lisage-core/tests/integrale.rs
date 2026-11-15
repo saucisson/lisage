@@ -190,14 +190,14 @@ fn test_propriete_integrale_contre_cardinality_lcg() {
             seed
         };
         // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
-        let ensemble: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
+        let set: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
         // Compression into disjoint intervals.
         let mut intervalles = Vec::new();
         let mut point = 0;
         while point < SIZE_DOMAIN {
-            if ensemble.contains(&point) {
+            if set.contains(&point) {
                 let mut fin = point;
-                while fin + 1 < SIZE_DOMAIN && ensemble.contains(&(fin + 1)) {
+                while fin + 1 < SIZE_DOMAIN && set.contains(&(fin + 1)) {
                     fin += 1;
                 }
                 intervalles.push(Intervalle::new(point, fin));
@@ -217,7 +217,7 @@ fn test_propriete_integrale_contre_cardinality_lcg() {
             .sum();
         assert_eq!(measure, measure_expectede, "integral == sum of lengths");
         // Analytic cardinality: |S|.
-        let cardinality_expected = ensemble.len() as u64;
+        let cardinality_expected = set.len() as u64;
         let cardinality: u64 = intervalles.iter().map(Intervalle::size).sum();
         assert_eq!(cardinality, cardinality_expected, "cardinality == |S|");
         // On the continuum, measure ≤ cardinality (each point has measure 0).

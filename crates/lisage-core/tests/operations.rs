@@ -34,15 +34,15 @@ fn pool(schema: &Schema) -> PoolRef {
     )
 }
 
-fn compiler_ensemble(
+fn compiler_set(
     pool: &mut PoolRef,
     anchor: Anchor,
     schema: &Schema,
-    ensemble: &BTreeSet<Value>,
+    set: &BTreeSet<Value>,
 ) -> NodeId {
     let keys = SchemaKeys::new(schema.clone());
     let mut result = pool.intern(anchor, Form::Terminal(false));
-    for membre in ensemble {
+    for membre in set {
         let n = compiler(pool, anchor, schema, membre).unwrap();
         result = union(pool, &keys, anchor, result, n).unwrap();
     }
@@ -65,8 +65,8 @@ fn test_existe_predicat_exemple_spec() {
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
-    let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+    let set = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
+    let root = compiler_set(&mut input, anchor, &schema, &set);
 
     let verdict = existe(
         &input,
@@ -99,8 +99,8 @@ fn test_filtre_garde() {
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
-    let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+    let set = BTreeSet::from([map_de(&[(0, 1)]), map_de(&[(1, 0)])]);
+    let root = compiler_set(&mut input, anchor, &schema, &set);
 
     // Guard "key 0 present".
     let filtre = filtrer(
@@ -112,7 +112,7 @@ fn test_filtre_garde() {
         Box::new(|keys: &KeyPresentes| keys.contains(&0)),
     )
     .unwrap();
-    let expected = compiler_ensemble(
+    let expected = compiler_set(
         &mut output,
         anchor,
         &schema,
@@ -128,12 +128,12 @@ fn test_image_reetiquetage_atomes() {
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
-    let ensemble = BTreeSet::from([atome(0), atome(2)]);
-    let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
+    let set = BTreeSet::from([atome(0), atome(2)]);
+    let root = compiler_set(&mut input, anchor, &schema, &set);
 
     // f(v) = (v + 1) mod 3 : {0, 2} ↦ {1, 0}.
     let image = image(&input, &mut output, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
-    let expected = compiler_ensemble(
+    let expected = compiler_set(
         &mut output,
         anchor,
         &schema,
