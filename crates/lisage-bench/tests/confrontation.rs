@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use lisage_bench::confrontation::{
-    Charge, ErrorConfrontation, MeasureConfrontation, OUTIL, Variante, executer, serialiser_ligne,
+    ErrorConfrontation, MeasureConfrontation, OUTIL, Variante, Workload, executer, serialiser_ligne,
 };
 use lisage_core::atelier::Encodage;
 
@@ -112,10 +112,10 @@ fn ecrire_fichier_etats(number: u64) -> PathBuf {
 #[test]
 fn test_alea_lcg_satisfactions_epinglees() {
     for (n, satisfait) in [(4, SATISFACTIONS_LCG_N4), (12, SATISFACTIONS_LCG_N12)] {
-        let measure = executer(&Charge::AleaLcg, &[n.to_string()], None).expect("workload run");
+        let measure = executer(&Workload::AleaLcg, &[n.to_string()], None).expect("workload run");
         assert_eq!(OUTIL, "lisage");
         assert_eq!(measure.variante, Variante::Bdd);
-        assert_eq!(measure.charge, Charge::AleaLcg);
+        assert_eq!(measure.workload, Workload::AleaLcg);
         assert_eq!(measure.verifie, satisfait, "n={n}: pinned satisfactions");
         assert!(measure.nodes > 0, "n={n}: non-empty diagram");
         assert!(measure.temps_ms.is_finite(), "n={n}: measured time");
@@ -128,10 +128,10 @@ fn test_alea_lcg_satisfactions_epinglees() {
 fn test_alea_lcg_bounds_refusees() {
     for n in [0, 25] {
         let error =
-            executer(&Charge::AleaLcg, &[n.to_string()], None).expect_err("bounds rejected");
+            executer(&Workload::AleaLcg, &[n.to_string()], None).expect_err("bounds rejected");
         assert!(matches!(
             error,
-            ErrorConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
+            ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "alea-lcg"
         ));
     }
 }
@@ -143,7 +143,7 @@ fn test_philosophes_fil_rouge_epingle() {
     for &(number, expected) in R_EXPECTEDS {
         let chemin = ecrire_fichier_etats(number);
         let parametres = vec![number.to_string(), chemin.display().to_string()];
-        let measure = executer(&Charge::Philosophes, &parametres, None).expect("workload run");
+        let measure = executer(&Workload::Philosophes, &parametres, None).expect("workload run");
         assert_eq!(measure.verifie, expected, "n={number}: pinned |R_n|");
         assert_eq!(measure.variante, Variante::Mdd);
         if number == 3 {
@@ -159,10 +159,10 @@ fn test_philosophes_fil_rouge_epingle() {
 fn test_philosophes_bound_refusee() {
     let chemin = ecrire_fichier_etats(3);
     let parametres = vec!["33".to_string(), chemin.display().to_string()];
-    let error = executer(&Charge::Philosophes, &parametres, None).expect_err("bound rejected");
+    let error = executer(&Workload::Philosophes, &parametres, None).expect_err("bound rejected");
     assert!(matches!(
         error,
-        ErrorConfrontation::ParametresInvalides { charge, .. } if charge == "philosophes"
+        ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "philosophes"
     ));
 }
 
@@ -186,7 +186,7 @@ fn test_philosophers_inputs_invalid() {
         ));
         std::fs::write(&chemin, contenu).expect("invalid file written");
         let parametres = vec!["3".to_string(), chemin.display().to_string()];
-        let error = executer(&Charge::Philosophes, &parametres, None);
+        let error = executer(&Workload::Philosophes, &parametres, None);
         assert!(error.is_err(), "invalid input rejected: {contenu:?}");
         assert!(
             matches!(error, Err(ErrorConfrontation::InvalidInput { .. })),
@@ -200,10 +200,14 @@ fn test_philosophers_inputs_invalid() {
 /// visible to the naked eye (didactic workshop, fragment 2).
 #[test]
 fn test_window_encodages_epingles() {
-    let absolu =
-        executer(&Charge::Window, &["4".to_string(), "10".to_string()], None).expect("absolute");
+    let absolu = executer(
+        &Workload::Window,
+        &["4".to_string(), "10".to_string()],
+        None,
+    )
+    .expect("absolute");
     let relatif = executer(
-        &Charge::Window,
+        &Workload::Window,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
         None,
     )
@@ -219,13 +223,13 @@ fn test_window_encodages_epingles() {
 /// Unknown workload (binary edge: parsed into an enum, `None`) and
 /// missing parameters: typed errors.
 #[test]
-fn test_charges_inconnues_refusees() {
-    assert_eq!(Charge::depuis_nom("inexistante"), None);
-    assert_eq!(Charge::depuis_nom("alea-lcg"), Some(Charge::AleaLcg));
-    let error = executer(&Charge::AleaLcg, &[], None).expect_err("missing parameters");
+fn test_workloads_inconnues_refusees() {
+    assert_eq!(Workload::depuis_nom("inexistante"), None);
+    assert_eq!(Workload::depuis_nom("alea-lcg"), Some(Workload::AleaLcg));
+    let error = executer(&Workload::AleaLcg, &[], None).expect_err("missing parameters");
     assert!(matches!(
         error,
-        ErrorConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
+        ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "alea-lcg"
     ));
 }
 
@@ -235,7 +239,7 @@ fn test_charges_inconnues_refusees() {
 fn test_serialisation_ligne_epinglee() {
     let measure = MeasureConfrontation {
         variante: Variante::Mdd,
-        charge: Charge::Window,
+        workload: Workload::Window,
         parametres: vec![
             ("taille".to_string(), "4".to_string()),
             ("nb_bases".to_string(), "10".to_string()),
@@ -278,7 +282,7 @@ fn test_etats_etendus_coherents_with_fil_rouge() {
 /// `Attr`/`Synthesized` event carrying the summary — pinned by a
 /// collecting observer.
 #[test]
-fn test_narration_charge_epinglee() {
+fn test_narration_workload_epinglee() {
     use std::sync::{Arc, Mutex};
 
     use lisage_core::observer::{CanalAttr, Observer, TraceEvent};
@@ -297,7 +301,7 @@ fn test_narration_charge_epinglee() {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
     let measure =
-        executer(&Charge::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("workload run");
+        executer(&Workload::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("workload run");
     let expected = format!(
         "workload=alea-lcg nodes={} check={}",
         measure.nodes, SATISFACTIONS_LCG_N4
@@ -307,13 +311,13 @@ fn test_narration_charge_epinglee() {
     // would fail this test).
     let chemin = ecrire_fichier_etats(3);
     let measure_philo = executer(
-        &Charge::Philosophes,
+        &Workload::Philosophes,
         &["3".to_string(), chemin.display().to_string()],
         Some(&collecteur),
     )
     .expect("philosophes workload run");
     let measure_window = executer(
-        &Charge::Window,
+        &Workload::Window,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
         Some(&collecteur),
     )

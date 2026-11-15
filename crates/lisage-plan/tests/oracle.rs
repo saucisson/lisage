@@ -72,18 +72,18 @@ fn test_prediction_size_et_cout_total() {
 #[test]
 fn test_garde_fou_differentiel() {
     // conforming: measure = predicted, and at bounds [predicted/2, 2 × predicted].
-    assert!(Oracle::garde_fou(100, 100).est_conforme());
-    assert!(Oracle::garde_fou(100, 50).est_conforme());
-    assert!(Oracle::garde_fou(100, 200).est_conforme());
+    assert!(Oracle::garde_fou(100, 100).est_conforming());
+    assert!(Oracle::garde_fou(100, 50).est_conforming());
+    assert!(Oracle::garde_fou(100, 200).est_conforming());
     // out of bounds: model falsified.
-    assert!(!Oracle::garde_fou(100, 49).est_conforme());
-    assert!(!Oracle::garde_fou(100, 201).est_conforme());
+    assert!(!Oracle::garde_fou(100, 49).est_conforming());
+    assert!(!Oracle::garde_fou(100, 201).est_conforming());
     // exact ratio.
     assert_eq!(VerdictGardeFou::new(100, 150).ratio(), Rationnel::new(3, 2));
     assert!(BOUND_INFERIEURE.inferieur_ou_egal(&BOUND_SUPERIEURE));
     // predicted = 0 (null encoding cost or queries): conforming iff measure = 0.
-    assert!(Oracle::garde_fou(0, 0).est_conforme());
-    assert!(!Oracle::garde_fou(0, 1).est_conforme());
+    assert!(Oracle::garde_fou(0, 0).est_conforming());
+    assert!(!Oracle::garde_fou(0, 1).est_conforming());
 }
 
 /// Property (deterministic LCG): the prediction is monotonic in density
@@ -136,7 +136,7 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
         // Guardrail conforming when measure = prediction.
         assert!(
             Oracle::garde_fou(prediction.cout_total_predit, prediction.cout_total_predit)
-                .est_conforme()
+                .est_conforming()
         );
     }
 }

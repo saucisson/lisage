@@ -6,28 +6,28 @@
 
 use std::process::ExitCode;
 
-use lisage_bench::confrontation::{Charge, executer, serialiser_ligne};
+use lisage_bench::confrontation::{Workload, executer, serialiser_ligne};
 
 /// Code de output : usage incorrect.
 const CODE_USAGE: u8 = 2;
 
 /// Workload usage line, written as-is on stderr.
-const USAGE_CHARGES: &str =
+const USAGE_WORKLOADS: &str =
     "workloads: alea-lcg <n> | philosophes <n> <path> | window <size> <nb_bases> [absolu|relatif]";
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let Some((nom_charge, parametres)) = arguments.split_first() else {
+    let Some((nom_workload, parametres)) = arguments.split_first() else {
         eprintln!("usage: confrontation <workload> [parameters…]");
-        eprintln!("{USAGE_CHARGES}");
+        eprintln!("{USAGE_WORKLOADS}");
         return ExitCode::from(CODE_USAGE);
     };
-    let Some(charge) = Charge::depuis_nom(nom_charge) else {
-        eprintln!("unknown workload: {nom_charge}");
-        eprintln!("{USAGE_CHARGES}");
+    let Some(workload) = Workload::depuis_nom(nom_workload) else {
+        eprintln!("unknown workload: {nom_workload}");
+        eprintln!("{USAGE_WORKLOADS}");
         return ExitCode::from(CODE_USAGE);
     };
-    match executer(&charge, parametres, None) {
+    match executer(&workload, parametres, None) {
         Ok(measure) => {
             println!("{}", serialiser_ligne(&measure));
             ExitCode::SUCCESS

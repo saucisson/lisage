@@ -142,7 +142,7 @@ fn test_without_dabs_rdefault_seul() {
 /// M4-3 (D-trans): A = ∅ after absorption → collapse into D^def. A node whose
 /// only arc (key 3, off δ) leads to D^def is transparent: it is D^def itself.
 #[test]
-fn test_dtrans_forme_empty_collapse() {
+fn test_dtrans_form_empty_collapse() {
     let mut pool = arena_dabs();
     let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
     let node = pool.intern(
@@ -223,7 +223,7 @@ fn test_without_key_defaut_pas_dabs() {
 /// M4-3 (D-trans): a literally empty form (A = ∅) with a designated default
 /// collapses into D^def, even without any arc to designate it.
 #[test]
-fn test_dtrans_forme_empty_litterale() {
+fn test_dtrans_form_empty_litterale() {
     let est_defaut = |node: NodeId| node == NODE_DEFAUT;
     let result = reduce_dabs(
         BTreeMap::new(),
@@ -241,7 +241,7 @@ fn test_dtrans_forme_empty_litterale() {
         CARDINALITY_MOCK,
         None,
     );
-    assert_eq!(result, Reduction::Forme(BTreeMap::new()));
+    assert_eq!(result, Reduction::Form(BTreeMap::new()));
 }
 
 /// M4-3 (property tier, LCG): confluence of the generalized default —
@@ -280,7 +280,7 @@ fn test_propriete_dabs_confluence() {
         );
         // Idempotence: a reduced form is a fixed point (a Collapse targets a
         // node, not an arc form — nothing to re-reduce).
-        if let Reduction::Forme(arcs_reduceds) = &first {
+        if let Reduction::Form(arcs_reduceds) = &first {
             let second = reduce_dabs(
                 arcs_reduceds.clone(),
                 key_defaut,
@@ -293,7 +293,7 @@ fn test_propriete_dabs_confluence() {
 
         // D-abs: when δ(ℓ) exists, no arc toward D^def remains.
         if key_defaut.is_some()
-            && let Reduction::Forme(a) = &first
+            && let Reduction::Form(a) = &first
         {
             assert!(
                 a.values().all(|c| !est_defaut(*c)),

@@ -72,15 +72,15 @@ impl MiniBdd {
     /// (same convention as `lisage_core::bdd::count_nodes`).
     pub fn count_nodes(&self, root: u32) -> u64 {
         let mut visite = std::collections::BTreeSet::new();
-        let mut pile = vec![root];
-        while let Some(node) = pile.pop() {
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
             if !visite.insert(node) {
                 continue;
             }
             let (variable, bas, haut) = self.nodes[node as usize];
             if variable != u32::MAX {
-                pile.push(bas);
-                pile.push(haut);
+                stack.push(bas);
+                stack.push(haut);
             }
         }
         visite.len() as u64

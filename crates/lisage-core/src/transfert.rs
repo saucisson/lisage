@@ -42,7 +42,7 @@ use lisage_lang::value::Atom;
 const FINGERPRINT_TRANSFERT: u64 = 5001;
 /// Number of levels touched by a transfer between two keys: presence +
 /// value of the source, presence + value of the destination.
-pub const LARGEUR_TRANSFERT: u32 = 4;
+pub const WIDTH_TRANSFERT: u32 = 4;
 
 /// Inherited attribute of the transfer: state of the token between levels.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -89,8 +89,8 @@ impl TransfertNonLocal {
     }
 
     /// Width `w` of the transition: touched levels (T3, poly(w) overhead).
-    pub fn largeur(&self) -> u32 {
-        LARGEUR_TRANSFERT
+    pub fn width(&self) -> u32 {
+        WIDTH_TRANSFERT
     }
 
     /// Value level of the source key.

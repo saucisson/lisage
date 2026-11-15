@@ -129,13 +129,13 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
 /// Counts the distinct nodes reachable from `root`, terminals included.
 pub fn count_nodes<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
     let mut visite = BTreeSet::new();
-    let mut pile = vec![root];
-    while let Some(node) = pile.pop() {
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
         if !visite.insert(node) {
             continue;
         }
         if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
-            pile.extend(arcs.values().copied());
+            stack.extend(arcs.values().copied());
         }
     }
     visite.len() as u64

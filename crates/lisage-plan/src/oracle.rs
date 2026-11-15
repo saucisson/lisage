@@ -204,7 +204,7 @@ impl VerdictGardeFou {
 
     /// Ratio measure/predicted in exact arithmetic. By convention of
     /// [`Rationnel::new`], `predicted == 0` gives ratio 0/1 (not a
-    /// saturated value); `est_conforme` does not go through `ratio` and
+    /// saturated value); `est_conforming` does not go through `ratio` and
     /// handles `predicted == 0` directly.
     pub fn ratio(&self) -> Rationnel {
         Rationnel::new(self.measure, self.predit)
@@ -215,7 +215,7 @@ impl VerdictGardeFou {
     /// (cross products in u128), hence correct also for `predicted == 0`
     /// (conforming iff `measurement == 0`). Out of bounds, the model is
     /// falsified (C4).
-    pub fn est_conforme(&self) -> bool {
+    pub fn est_conforming(&self) -> bool {
         let predit = self.predit as u128;
         let measure = self.measure as u128;
         // BOUND_INFERIEURE <= measure/predicted <=> min.num·predicted <= measure·min.den

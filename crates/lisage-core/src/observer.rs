@@ -63,7 +63,7 @@ pub enum TraceEvent {
         live: u64,
         /// Collected nodes.
         collectes: u64,
-        /// Compaction performed (dead threshold reached).
+        /// Compaction performd (dead threshold reached).
         compaction: bool,
     },
     /// Start of a saturation round (M2-6): iteration number.

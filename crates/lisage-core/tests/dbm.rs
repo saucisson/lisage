@@ -76,39 +76,39 @@ fn test_partage_pool_c1_relatif() {
     let level = Level(0);
     let region_a = Dbm::new(2, &[(0, 1, 2), (1, 0, 3)]);
     let region_b = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 9)]);
-    let forme_a = Form::Node {
+    let form_a = Form::Node {
         level,
         arcs: BTreeMap::from([(region_a, terminal)]),
     };
-    let forme_b = Form::Node {
+    let form_b = Form::Node {
         level,
         arcs: BTreeMap::from([(region_b, terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCHOR, forme_a.clone()),
-        pool.intern(ANCHOR, forme_b),
+        pool.intern(ANCHOR, form_a.clone()),
+        pool.intern(ANCHOR, form_b),
         "same region under two writings = same node"
     );
-    let forme_empty_a = Form::Node {
+    let form_empty_a = Form::Node {
         level,
         arcs: BTreeMap::from([(INCOHERENT, terminal)]),
     };
-    let forme_empty_b = Form::Node {
+    let form_empty_b = Form::Node {
         level,
         arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 1), (1, 0, -2)]), terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCHOR, forme_empty_a),
-        pool.intern(ANCHOR, forme_empty_b),
+        pool.intern(ANCHOR, form_empty_a),
+        pool.intern(ANCHOR, form_empty_b),
         "empty region under two writings = same node"
     );
-    let forme_other = Form::Node {
+    let form_other = Form::Node {
         level,
         arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 0)]), terminal)]),
     };
     assert_ne!(
-        pool.intern(ANCHOR, forme_a),
-        pool.intern(ANCHOR, forme_other),
+        pool.intern(ANCHOR, form_a),
+        pool.intern(ANCHOR, form_other),
         "distinct regions = distinct nodes"
     );
 }
@@ -177,8 +177,8 @@ fn test_differentiel_appartenance_contre_enumeration() {
             ]),
         },
     );
-    let forme = pool.resolve(root).expect("interned node");
-    let Form::Node { arcs, .. } = forme else {
+    let form = pool.resolve(root).expect("interned node");
+    let Form::Node { arcs, .. } = form else {
         panic!("two distinct regions: no R-collapse");
     };
     assert!(

@@ -36,7 +36,7 @@
 //!   carried by the incoming arc;
 //! - [`build_window_anchored`] / [`comparer_anchors_window`]: the
 //!   window read under two anchors — each anchor has its own root, the
-//!   relative shape of the window is shared (`same_forme`), only the
+//!   relative shape of the window is shared (`same_form`), only the
 //!   absolute readings differ: "the anchor moves, the pool never does".
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -186,13 +186,13 @@ pub fn measure<P: Pool>(
 /// Counts the distinct nodes reachable from `root`, terminals included.
 pub fn count_nodes<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     let mut visite = BTreeSet::new();
-    let mut pile = vec![root];
-    while let Some(node) = pile.pop() {
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
         if !visite.insert(node) {
             continue;
         }
         if let Form::Node { arcs, .. } = pool.resolve(node)? {
-            pile.extend(arcs.values().copied());
+            stack.extend(arcs.values().copied());
         }
     }
     Ok(visite.len() as u64)
@@ -653,7 +653,7 @@ pub struct ReportComparaisonAnchors {
     pub apres: ReportAtelier,
     /// True if both readings reach the same window shape
     /// (`NodeId`): moving the base does not duplicate the shape.
-    pub same_forme: bool,
+    pub same_form: bool,
     /// Node count of the pool after both readings (one root per
     /// anchor, a single window shape).
     pub nodes_pool: u64,
@@ -666,7 +666,7 @@ pub struct ReportComparaisonAnchors {
 /// Compares the sliding window read under two composite anchors: each
 /// anchor builds its own root (the incoming arc carries its base), but the
 /// relative shape of the window (keys `0..size-1`, min section = 0) is
-/// shared — `same_forme` true, same nodes, same paths — only the
+/// shared — `same_form` true, same nodes, same paths — only the
 /// absolute readings differ. This is the slide of the SWP protocol:
 /// "the anchor moves, the pool never does": moving the base does not
 /// duplicate the window shape. `observer`: ADR-0100 narration.
@@ -683,7 +683,7 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
     let (root_avant, window_avant) = build_window_anchored(pool, anchor, size, anchor_avant);
     let (root_apres, window_apres) = build_window_anchored(pool, anchor, size, anchor_apres);
     let nodes_pool = pool.node_count() as u64;
-    let same_forme = window_avant == window_apres;
+    let same_form = window_avant == window_apres;
     let avant = measure(pool, root_avant, observer)?;
     let apres = measure(pool, root_apres, observer)?;
     if let Some(obs) = observer {
@@ -709,7 +709,7 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
     Ok(ReportComparaisonAnchors {
         avant,
         apres,
-        same_forme,
+        same_form,
         nodes_pool,
         lecture_avant: anchor_avant.window_absolue(),
         lecture_apres: anchor_apres.window_absolue(),

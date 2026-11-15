@@ -57,14 +57,14 @@ impl MetriquesPool {
     }
 }
 
-/// GC statistics: live, collected, compaction performed.
+/// GC statistics: live, collected, compaction performd.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StatsGc {
     /// Live nodes (reached from the roots).
     pub live: u64,
     /// Collected nodes (tombstones set).
     pub collectes: u64,
-    /// Compaction performed (dead threshold reached).
+    /// Compaction performd (dead threshold reached).
     pub compaction: bool,
 }
 
@@ -72,7 +72,7 @@ pub struct StatsGc {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub(crate) struct NodeEntry<Key, Payload> {
     pub plan: Plan,
-    pub forme: Option<lisage_algebra::interface::Form<Key, Payload>>,
+    pub form: Option<lisage_algebra::interface::Form<Key, Payload>>,
 }
 
 /// Shadow-plane index: level → live nodes of that level.

@@ -295,7 +295,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                     other => {
                         return Err(SchemaError::TypeMismatch {
                             expected: "set of atoms",
-                            recu: forme_value(other),
+                            recu: form_value(other),
                         });
                     }
                 }
@@ -315,8 +315,8 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             compiler_tag(pool, anchor, liste, domain_values, *discriminant, payload)
         }
         (schema, value) => Err(SchemaError::TypeMismatch {
-            expected: forme_schema(schema),
-            recu: forme_value(value),
+            expected: form_schema(schema),
+            recu: form_value(value),
         }),
     }
 }
@@ -332,7 +332,7 @@ fn valider_map(
         let Value::Atom(atome_key) = key else {
             return Err(SchemaError::TypeMismatch {
                 expected: "atomic key",
-                recu: forme_value(key),
+                recu: form_value(key),
             });
         };
         if !liste_keys.contains(atome_key) {
@@ -341,7 +341,7 @@ fn valider_map(
         let Value::Atom(atome_value) = value else {
             return Err(SchemaError::TypeMismatch {
                 expected: "atomic value",
-                recu: forme_value(value),
+                recu: form_value(value),
             });
         };
         if !domain_values.contains(*atome_value) {
@@ -351,7 +351,7 @@ fn valider_map(
     Ok(())
 }
 
-fn forme_schema(schema: &Schema) -> &'static str {
+fn form_schema(schema: &Schema) -> &'static str {
     match schema {
         Schema::Atom(_) => "atom",
         Schema::Set(_) => "set",
@@ -361,7 +361,7 @@ fn forme_schema(schema: &Schema) -> &'static str {
     }
 }
 
-fn forme_value(value: &Value) -> &'static str {
+fn form_value(value: &Value) -> &'static str {
     match value {
         Value::Atom(_) => "atom",
         Value::Set(_) => "set",
@@ -419,7 +419,7 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
         Some(other) => {
             return Err(SchemaError::TypeMismatch {
                 expected: "atomic value",
-                recu: forme_value(other),
+                recu: form_value(other),
             });
         }
         None => BTreeMap::from([(ABSENT, suite)]),
@@ -449,7 +449,7 @@ fn valider_seq(domain: &Domain, longueur_max: u32, elements: &[Value]) -> Result
             other => {
                 return Err(SchemaError::TypeMismatch {
                     expected: "atomic element",
-                    recu: forme_value(other),
+                    recu: form_value(other),
                 });
             }
         }
@@ -527,7 +527,7 @@ fn valider_tag(
         Value::Atom(atome) => Err(SchemaError::HorsDomain(*atome)),
         other => Err(SchemaError::TypeMismatch {
             expected: "atomic payload",
-            recu: forme_value(other),
+            recu: form_value(other),
         }),
     }
 }
@@ -546,7 +546,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
     let Value::Atom(atome_value) = payload else {
         return Err(SchemaError::TypeMismatch {
             expected: "atomic payload",
-            recu: forme_value(payload),
+            recu: form_value(payload),
         });
     };
     let node_value = pool.intern(

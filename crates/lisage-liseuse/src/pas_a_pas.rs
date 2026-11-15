@@ -14,8 +14,7 @@ use lisage_core::observer::{CanalAttr, TraceEvent};
 use lisage_core::{Form, NodeId, Pool};
 
 use crate::svg::{
-    DEMI_LARGEUR, HAUTEUR_LEVEL, LARGEUR_NODE, MARGE_GAUCHE, MARGE_HAUT, Placement, echapper_xml,
-    placer,
+    DEMI_WIDTH, HEIGHT_LEVEL, MARGE_GAUCHE, MARGE_HAUT, Placement, WIDTH_NODE, echapper_xml, placer,
 };
 
 /// Color of the inherited channel (blue).
@@ -45,7 +44,7 @@ const COULEUR_FOND_TERMINAL: &str = "#eee";
 /// Background of internal nodes.
 const COULEUR_FOND_NODE: &str = "#fff";
 /// Height of the timeline in pixels.
-const HAUTEUR_FRISE: u32 = 46;
+const HEIGHT_FRISE: u32 = 46;
 
 /// State of the trace at a scrubber position: replay of events
 /// `0..k`.
@@ -166,7 +165,7 @@ fn couleur_node(etat: &EtatTrace, node: NodeId) -> &'static str {
 /// Height and color of a timeline tick according to the event type.
 fn tiret_frise(evenement: &TraceEvent) -> (u32, &'static str) {
     match evenement {
-        TraceEvent::Round { .. } => (HAUTEUR_FRISE - 16, COULEUR_MEMORY),
+        TraceEvent::Round { .. } => (HEIGHT_FRISE - 16, COULEUR_MEMORY),
         TraceEvent::MemoHit { .. } => (10, COULEUR_MEMO_HIT),
         TraceEvent::MemoMiss { .. } => (10, COULEUR_MEMO_MISS),
         TraceEvent::Attr { canal, .. } => (10, couleur_canal(*canal)),
@@ -175,9 +174,9 @@ fn tiret_frise(evenement: &TraceEvent) -> (u32, &'static str) {
 }
 
 /// Opens the SVG document and renders the title (position, rounds, memo counters).
-fn ouvrir_svg(svg: &mut String, largeur: u32, hauteur: u32, scrubber: &Scrubber, etat: &EtatTrace) {
+fn ouvrir_svg(svg: &mut String, width: u32, height: u32, scrubber: &Scrubber, etat: &EtatTrace) {
     svg.push_str(&format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\">\n"
     ));
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"20\" font-family=\"serif\" font-size=\"14\">step by step — position {}/{}, rounds {}, memo {}/{}</text>\n",
@@ -191,21 +190,21 @@ fn ouvrir_svg(svg: &mut String, largeur: u32, hauteur: u32, scrubber: &Scrubber,
 
 /// Renders the timeline: one tick per event, and the cursor of the
 /// current position highlighted.
-fn rendre_frise(svg: &mut String, scrubber: &Scrubber, largeur: u32) {
+fn rendre_frise(svg: &mut String, scrubber: &Scrubber, width: u32) {
     let y_frise = MARGE_HAUT + 8;
-    let largeur_frise = largeur - 2 * MARGE_GAUCHE;
+    let width_frise = width - 2 * MARGE_GAUCHE;
     let pas = if scrubber.longueur() == 0 {
         0
     } else {
-        largeur_frise / scrubber.longueur() as u32
+        width_frise / scrubber.longueur() as u32
     };
     for (index, evenement) in scrubber.evenements.iter().enumerate() {
         let x = MARGE_GAUCHE + index as u32 * pas;
-        let (hauteur_tiret, couleur) = tiret_frise(evenement);
+        let (height_tiret, couleur) = tiret_frise(evenement);
         svg.push_str(&format!(
             "<line x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" stroke=\"{couleur}\" stroke-width=\"2\"/>\n",
-            y_frise + HAUTEUR_FRISE - 16 - hauteur_tiret,
-            y_frise + HAUTEUR_FRISE - 16
+            y_frise + HEIGHT_FRISE - 16 - height_tiret,
+            y_frise + HEIGHT_FRISE - 16
         ));
     }
     if scrubber.position() > 0 && scrubber.position() <= scrubber.longueur() {
@@ -213,7 +212,7 @@ fn rendre_frise(svg: &mut String, scrubber: &Scrubber, largeur: u32) {
         svg.push_str(&format!(
             "<line x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" stroke=\"{COULEUR_CURSEUR}\" stroke-width=\"2\"/>\n",
             y_frise,
-            y_frise + HAUTEUR_FRISE - 12
+            y_frise + HEIGHT_FRISE - 12
         ));
     }
 }
@@ -226,9 +225,9 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
     placement: &BTreeMap<NodeId, Placement>,
     y_decalage: u32,
 ) {
-    let mut pile = vec![root];
+    let mut stack = vec![root];
     let mut deja_vu = BTreeSet::new();
-    while let Some(node) = pile.pop() {
+    while let Some(node) = stack.pop() {
         if !deja_vu.insert(node) {
             continue;
         }
@@ -249,7 +248,7 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
                     (depart.y + arrivee.y) / 2 + y_decalage,
                     echapper_xml(&key.to_string())
                 ));
-                pile.push(*cible);
+                stack.push(*cible);
             }
         }
     }
@@ -275,12 +274,12 @@ fn rendre_node<P: Pool<Key = u64, Payload = bool>>(
     } else {
         format!("stroke=\"{couleur}\" stroke-width=\"2\"")
     };
-    let x = position.x - DEMI_LARGEUR;
+    let x = position.x - DEMI_WIDTH;
     let y = position.y + y_decalage - 14;
     match pool.resolve(node) {
         Ok(Form::Terminal(payload)) => {
             svg.push_str(&format!(
-                "<rect x=\"{x}\" y=\"{y}\" width=\"{LARGEUR_NODE}\" height=\"28\" fill=\"{COULEUR_FOND_TERMINAL}\" {style}/>\n"
+                "<rect x=\"{x}\" y=\"{y}\" width=\"{WIDTH_NODE}\" height=\"28\" fill=\"{COULEUR_FOND_TERMINAL}\" {style}/>\n"
             ));
             svg.push_str(&format!(
                 "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">{}</text>\n",
@@ -291,7 +290,7 @@ fn rendre_node<P: Pool<Key = u64, Payload = bool>>(
         }
         Ok(Form::Node { level, .. }) => {
             svg.push_str(&format!(
-                "<rect x=\"{x}\" y=\"{y}\" width=\"{LARGEUR_NODE}\" height=\"28\" fill=\"{COULEUR_FOND_NODE}\" {style}/>\n"
+                "<rect x=\"{x}\" y=\"{y}\" width=\"{WIDTH_NODE}\" height=\"28\" fill=\"{COULEUR_FOND_NODE}\" {style}/>\n"
             ));
             svg.push_str(&format!(
                 "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">ℓ{} n{}</text>\n",
@@ -343,13 +342,12 @@ pub fn rendre_svg_pas_a_pas<P: Pool<Key = u64, Payload = bool>>(
 ) -> String {
     let etat = scrubber.etat();
     let (placement, number_levels) = placer(pool, root);
-    let largeur =
-        MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
-    let hauteur = MARGE_HAUT + HAUTEUR_FRISE + (number_levels + 1) * HAUTEUR_LEVEL + 20;
+    let width = MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_WIDTH;
+    let height = MARGE_HAUT + HEIGHT_FRISE + (number_levels + 1) * HEIGHT_LEVEL + 20;
     let mut svg = String::new();
-    ouvrir_svg(&mut svg, largeur, hauteur, scrubber, &etat);
-    rendre_frise(&mut svg, scrubber, largeur);
-    let y_decalage = HAUTEUR_FRISE + 8;
+    ouvrir_svg(&mut svg, width, height, scrubber, &etat);
+    rendre_frise(&mut svg, scrubber, width);
+    let y_decalage = HEIGHT_FRISE + 8;
     rendre_arcs(&mut svg, pool, root, &placement, y_decalage);
     rendre_nodes(&mut svg, pool, &placement, diff, &etat, y_decalage);
     svg.push_str("</svg>\n");

@@ -62,7 +62,7 @@ fn test_vue_pool_depuis_metriques_gc() {
 /// M4-5: quotient classes (forms × anchors) — C1 in action: the same
 /// form interned under two different anchors forms two distinct classes.
 #[test]
-fn test_classes_quotient_formes_par_anchors() {
+fn test_classes_quotient_forms_par_anchors() {
     let schema = schema_set();
     let mut pool = pool_neuf(&schema);
     let handle_anchor_0 = set(&mut pool, ANCHOR_TEST, &schema, &[0]);
@@ -74,12 +74,12 @@ fn test_classes_quotient_formes_par_anchors() {
     // Two classes (form {0}, anchor 0) and (form {0}, anchor 1).
     let classes = [
         ClasseQuotient {
-            forme: "{0}".to_string(),
+            form: "{0}".to_string(),
             anchor: "anchor 0".to_string(),
             multiplicite: 1,
         },
         ClasseQuotient {
-            forme: "{0}".to_string(),
+            form: "{0}".to_string(),
             anchor: "anchor 1".to_string(),
             multiplicite: 1,
         },
@@ -93,7 +93,7 @@ fn test_classes_quotient_formes_par_anchors() {
         "R-share: same handle under the same anchor"
     );
     let classe = ClasseQuotient {
-        forme: "{0}".to_string(),
+        form: "{0}".to_string(),
         anchor: "anchor 0".to_string(),
         multiplicite: 3,
     };
@@ -115,12 +115,12 @@ fn test_rendre_svg_vue_memory() {
     let vue_pool = VuePool::depuis_metriques("reference", pool.metriques(), stats_gc.live, 0);
     let classes = vec![
         ClasseQuotient {
-            forme: "{0,1}".to_string(),
+            form: "{0,1}".to_string(),
             anchor: "anchor 0".to_string(),
             multiplicite: 1,
         },
         ClasseQuotient {
-            forme: "{2}".to_string(),
+            form: "{2}".to_string(),
             anchor: "anchor 0".to_string(),
             multiplicite: 6,
         },
@@ -144,7 +144,7 @@ fn test_rendre_svg_vue_memory() {
     assert!(!svg.contains("×1"));
     // Bars: width of the Lisage bar parsed from the SVG (real
     // coordinate) — proportional to 7/152 of the max width.
-    let largeur_lisage = svg
+    let width_lisage = svg
         .lines()
         .find_map(|ligne| {
             if ligne.contains("fill=\"#2a7\"") {
@@ -157,7 +157,7 @@ fn test_rendre_svg_vue_memory() {
         })
         .expect("Lisage bar present");
     let expected = 7 * 400 / 152;
-    assert_eq!(largeur_lisage, expected, "proportional Lisage bar");
+    assert_eq!(width_lisage, expected, "proportional Lisage bar");
     // Determinism.
     let svg2 = rendre_svg_vue_memory(
         &[VuePool::depuis_metriques(
@@ -185,7 +185,7 @@ fn test_comparaison_naif_dd_lisage() {
     assert!(svg.contains("536754176"));
     assert!(svg.contains("Lisage"));
     // The naive bar reaches the max width (it is the max).
-    let largeur_naif = svg
+    let width_naif = svg
         .lines()
         .find_map(|ligne| {
             if ligne.contains("fill=\"#999\"") {
@@ -197,7 +197,7 @@ fn test_comparaison_naif_dd_lisage() {
             }
         })
         .expect("naive bar present");
-    assert_eq!(largeur_naif, 400, "the max reaches the max width");
+    assert_eq!(width_naif, 400, "the max reaches the max width");
     // Shadow plane: a node interned in the shadow plane is counted apart.
     let schema = schema_set();
     let mut pool = pool_neuf(&schema);

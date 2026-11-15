@@ -51,7 +51,7 @@ impl Existe {
         let Schema::Map(liste_keys, _) = schema else {
             return Err(CoreError::SchemaInexpected {
                 expected: "Map",
-                recu: forme_schema(schema),
+                recu: form_schema(schema),
             });
         };
         Ok(Existe {
@@ -75,7 +75,7 @@ impl Filtre {
         let Schema::Map(liste_keys, _) = schema else {
             return Err(CoreError::SchemaInexpected {
                 expected: "Map",
-                recu: forme_schema(schema),
+                recu: form_schema(schema),
             });
         };
         Ok(Filtre {
@@ -86,7 +86,7 @@ impl Filtre {
 }
 
 /// Name of the shape of a schema (for typed errors).
-fn forme_schema(schema: &Schema) -> &'static str {
+fn form_schema(schema: &Schema) -> &'static str {
     match schema {
         Schema::Atom(_) => "Atom",
         Schema::Set(_) => "Set",

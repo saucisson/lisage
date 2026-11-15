@@ -147,10 +147,10 @@ fn test_canonicite_par_handle_reinstallation_identique() {
 #[test]
 fn test_canonicite_deux_anchors_distinctes() {
     let mut pool = pool_neuf();
-    let forme = Form::Terminal(true);
-    let same_anchor_a = pool.intern(Anchor(0), forme.clone());
-    let same_anchor_b = pool.intern(Anchor(0), forme.clone());
-    let other_anchor = pool.intern(Anchor(1), forme);
+    let form = Form::Terminal(true);
+    let same_anchor_a = pool.intern(Anchor(0), form.clone());
+    let same_anchor_b = pool.intern(Anchor(0), form.clone());
+    let other_anchor = pool.intern(Anchor(1), form);
     assert_eq!(same_anchor_a, same_anchor_b);
     assert_ne!(same_anchor_a, other_anchor);
 }

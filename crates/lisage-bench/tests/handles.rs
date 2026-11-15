@@ -48,7 +48,7 @@ fn nouvelle_arena() -> Arena<MockController> {
     Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver))
 }
 
-fn forme_aleatoire(paires: Vec<(u8, u32)>, level: u8) -> Form<u64, bool> {
+fn form_aleatoire(paires: Vec<(u8, u32)>, level: u8) -> Form<u64, bool> {
     Form::Node {
         level: Level(u32::from(level)),
         arcs: paires
@@ -63,13 +63,13 @@ proptest! {
     /// (same arena or distinct arenas) gives the same handle.
     #[test]
     fn test_c1_unicite_handles(paires in prop::collection::vec((0u8..3, 0u32..4), 0..5), level in 0u8..4) {
-        let forme = forme_aleatoire(paires, level);
+        let form = form_aleatoire(paires, level);
         let anchor = Anchor(0);
         let mut arena_a = nouvelle_arena();
         let mut arena_b = nouvelle_arena();
-        let node_a1 = arena_a.intern(anchor, forme.clone());
-        let node_a2 = arena_a.intern(anchor, forme.clone());
-        let node_b = arena_b.intern(anchor, forme);
+        let node_a1 = arena_a.intern(anchor, form.clone());
+        let node_a2 = arena_a.intern(anchor, form.clone());
+        let node_b = arena_b.intern(anchor, form);
         prop_assert_eq!(node_a1, node_a2, "same form ⇒ same node in the same arena");
         prop_assert_eq!(node_a1, node_b, "same form ⇒ same node across arenas");
         prop_assert_eq!(arena_a.handle(node_a1, anchor), arena_b.handle(node_b, anchor));
@@ -90,8 +90,8 @@ proptest! {
             reduce(arcs, Some(0), &est_defaut, 2)
         };
         prop_assume!(!paires_a.is_empty() && !paires_b.is_empty());
-        let forme_a = forme_aleatoire(paires_a.clone(), level);
-        let forme_b = forme_aleatoire(paires_b.clone(), level);
+        let form_a = form_aleatoire(paires_a.clone(), level);
+        let form_b = form_aleatoire(paires_b.clone(), level);
         let reducede_a = reducede(paires_a);
         let reducede_b = reducede(paires_b);
         let mut arena = nouvelle_arena();
@@ -103,8 +103,8 @@ proptest! {
         prop_assert_eq!(defaut, NodeId(0));
         let other = arena.terminal(anchor, true);
         prop_assert_eq!(other, NodeId(1));
-        let node_a = arena.intern(anchor, forme_a);
-        let node_b = arena.intern(anchor, forme_b);
+        let node_a = arena.intern(anchor, form_a);
+        let node_b = arena.intern(anchor, form_b);
         // C1, uniqueness: same reduced form ⇒ same handle (shared node).
         if reducede_a == reducede_b {
             prop_assert_eq!(node_a, node_b, "same reduced form ⇒ same handle (C1)");

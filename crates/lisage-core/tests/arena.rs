@@ -80,7 +80,7 @@ fn test_r_share_table_unique() {
 }
 
 #[test]
-fn test_formes_distinctes_nodes_distincts() {
+fn test_forms_distinctes_nodes_distincts() {
     let (mut arena, _trace) = arena_with_trace();
     let anchor = Anchor(0);
     let vrai_ = arena.intern(anchor, Form::Terminal(true));

@@ -103,7 +103,7 @@ fn test_metriques_gc_et_compaction() {
     assert_eq!(stats.live + stats.collectes, total);
 
     let metriques = pool.metriques();
-    assert_eq!(metriques.gc, 1, "a single GC performed");
+    assert_eq!(metriques.gc, 1, "a single GC performd");
     assert_eq!(metriques.live, stats.live);
     assert_eq!(metriques.morts, stats.collectes);
     assert_eq!(

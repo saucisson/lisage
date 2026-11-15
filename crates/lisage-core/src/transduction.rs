@@ -228,8 +228,8 @@ impl<T: Transduction> Transducteur<T> {
             return Ok((*result, s.clone()));
         }
         self.notifier(TraceEvent::MemoMiss { node });
-        let forme = pool_input.resolve(node)?.clone();
-        let (result, s) = match forme {
+        let form = pool_input.resolve(node)?.clone();
+        let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
             Form::Node { level, arcs } => {
                 let mut enfants = BTreeMap::new();
@@ -306,8 +306,8 @@ impl<T: Transduction> Transducteur<T> {
             return Ok((*result, s.clone()));
         }
         self.notifier(TraceEvent::MemoMiss { node });
-        let forme = pool.resolve(node)?.clone();
-        let (result, s) = match forme {
+        let form = pool.resolve(node)?.clone();
+        let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
             Form::Node { level, arcs } => {
                 let mut enfants = BTreeMap::new();

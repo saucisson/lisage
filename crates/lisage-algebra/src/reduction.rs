@@ -13,7 +13,7 @@ pub enum Reduction<Key> {
     /// R-collapse: the form reduces to this target.
     Collapse(NodeId),
     /// Reduced form (R-default applied), to be interned as-is.
-    Forme(BTreeMap<Key, NodeId>),
+    Form(BTreeMap<Key, NodeId>),
 }
 
 /// Pure R-collapse: all targets equal ⇒ `Some(target)`, otherwise `None`.
@@ -64,7 +64,7 @@ pub fn reduce<Key: Ord + Clone>(
     {
         arcs.remove(key);
     }
-    Reduction::Forme(arcs)
+    Reduction::Form(arcs)
 }
 
 /// R-default **alone** (without R-collapse): the explicit arc δ(ℓ) leading
@@ -81,7 +81,7 @@ pub fn reduce_without_collapse<Key: Ord + Clone>(
     {
         arcs.remove(key);
     }
-    Reduction::Forme(arcs)
+    Reduction::Form(arcs)
 }
 
 /// Reverse order (R-default first, then R-collapse) — the confluence PBT
@@ -105,7 +105,7 @@ pub fn reduce_inverse<Key: Ord + Clone>(
     if arcs.is_empty() {
         return match cible_supprimee {
             Some(cible) => Reduction::Collapse(cible),
-            None => Reduction::Forme(arcs),
+            None => Reduction::Form(arcs),
         };
     }
     if let Some(cible) = collapse_arcs(&arcs) {
@@ -120,7 +120,7 @@ pub fn reduce_inverse<Key: Ord + Clone>(
             return Reduction::Collapse(cible);
         }
     }
-    Reduction::Forme(arcs)
+    Reduction::Form(arcs)
 }
 
 /// (D-abs) + (D-trans) — generalized default (spec § 2.4.1, M4-3, claim A6).
@@ -161,7 +161,7 @@ pub fn reduce_dabs<Key: Ord + Clone>(
     if arcs.is_empty() && key_defaut.is_some() {
         return match cible_defaut {
             Some(cible) => Reduction::Collapse(cible),
-            None => Reduction::Forme(arcs),
+            None => Reduction::Form(arcs),
         };
     }
     // R-collapse / (D-trans) "all targets ≡ D", same coverage rule as
@@ -177,5 +177,5 @@ pub fn reduce_dabs<Key: Ord + Clone>(
             return Reduction::Collapse(cible);
         }
     }
-    Reduction::Forme(arcs)
+    Reduction::Form(arcs)
 }
