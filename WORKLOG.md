@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 24: `politique`/`groupe`/`somme`/`chemin`/`liste`/`intervalle`/`espace` renamed to `policy`/`group`/`sum`/`path`/`list`/`interval`/`space` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `politique`→`policy`, `groupe`→`group`, `somme`→`sum`, `chemin`→`path`, `liste`→`list`, `intervalle`→`interval`, `espace`→`space` (all cases, plurals included), workspace-wide (35 files), per glossary. Collision guards: `grouped`/`listed` protected with a negative lookahead (`(?!d)`); `whitespace` repaired after the pass (`split_whitspace`→`split_whitespace`, `is_whitspace`→`is_whitespace`).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns only `grouped`/`listed`.
+- **Judgement calls**: none beyond the glossary mapping.
 ## 2026-11-14 - M6-6 part 23: `forme`/`pile`/`largeur`/`charge`/`hauteur` renamed to `form`/`stack`/`width`/`workload`/`height`, wire key `charge` protected (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
