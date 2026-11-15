@@ -61,7 +61,7 @@ pub enum TraceEvent {
     Gc {
         /// Live nodes after collection.
         live: u64,
-        /// Collectd nodes.
+        /// Collected nodes.
         collected: u64,
         /// Compaction performed (dead threshold reached).
         compaction: bool,
