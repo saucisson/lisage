@@ -747,9 +747,9 @@ pub fn tirer(network: &NetworkPetri, transition: &TransitionId, marquage: &Marqu
 
 /// Semantic step: all successor markings of all enabled
 /// transitions, encoded as `Value::Map` (path A).
-pub fn pas_semantique(network: &NetworkPetri, ensemble: &BTreeSet<Value>) -> BTreeSet<Value> {
+pub fn pas_semantique(network: &NetworkPetri, set: &BTreeSet<Value>) -> BTreeSet<Value> {
     let mut successeurs = BTreeSet::new();
-    for value in ensemble {
+    for value in set {
         let Some(marquage) = marquage_depuis_value(value) else {
             continue;
         };
@@ -771,5 +771,5 @@ pub fn pas_semantique(network: &NetworkPetri, ensemble: &BTreeSet<Value>) -> BTr
 /// the reference `lang/` interpreter).
 pub fn espace_atteignable(network: &NetworkPetri) -> BTreeSet<Value> {
     let initial = BTreeSet::from([marquage_initial(network)]);
-    lisage_lang::interpreter::saturate(|ensemble| pas_semantique(network, ensemble), initial)
+    lisage_lang::interpreter::saturate(|set| pas_semantique(network, set), initial)
 }

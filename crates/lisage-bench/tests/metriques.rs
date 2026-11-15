@@ -15,9 +15,9 @@ const SIZE_DOMAIN: u64 = 4;
 /// Test anchor.
 const ANCHOR_TEST: Anchor = Anchor(0);
 /// Atoms of the first compiled set (cache hit afterwards).
-const ENSEMBLE_PARTAGE: [u64; 2] = [0, 1];
+const SET_PARTAGE: [u64; 2] = [0, 1];
 /// Atoms of the root set of the GC scenario.
-const ENSEMBLE_ROOT: [u64; 3] = [0, 1, 2];
+const SET_ROOT: [u64; 3] = [0, 1, 2];
 /// Number of orphan sets in the GC scenario.
 const NB_ORPHELINS: u64 = 8;
 /// Last atom of the domain, present in each orphan.
@@ -39,12 +39,7 @@ fn new_pool(schema: &Schema) -> PoolRef {
 }
 
 /// Compiles a set of atoms into the pool.
-fn compiler_ensemble(
-    pool: &mut PoolRef,
-    anchor: Anchor,
-    schema: &Schema,
-    atomes: &[u64],
-) -> NodeId {
+fn compiler_set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {
     compiler(
         pool,
         anchor,
@@ -62,14 +57,14 @@ fn compiler_ensemble(
 fn test_metriques_cache_hash_consing() {
     let schema = schema_test();
     let mut pool = new_pool(&schema);
-    let first = compiler_ensemble(&mut pool, ANCHOR_TEST, &schema, &ENSEMBLE_PARTAGE);
+    let first = compiler_set(&mut pool, ANCHOR_TEST, &schema, &SET_PARTAGE);
     let metriques = pool.metriques();
     let creations_apres_first = metriques.creations;
     assert!(creations_apres_first > 0, "creations counted");
     assert_eq!(metriques.partages, 0, "no share yet");
 
     // Recompile the same set: R-share, no new node created.
-    let partage = compiler_ensemble(&mut pool, ANCHOR_TEST, &schema, &ENSEMBLE_PARTAGE);
+    let partage = compiler_set(&mut pool, ANCHOR_TEST, &schema, &SET_PARTAGE);
     assert_eq!(partage, first, "same form = same handle");
     let metriques = pool.metriques();
     assert_eq!(
@@ -92,10 +87,10 @@ fn test_metriques_cache_hash_consing() {
 fn test_metriques_gc_et_compaction() {
     let schema = schema_test();
     let mut pool = new_pool(&schema);
-    let root = compiler_ensemble(&mut pool, ANCHOR_TEST, &schema, &ENSEMBLE_ROOT);
+    let root = compiler_set(&mut pool, ANCHOR_TEST, &schema, &SET_ROOT);
     // Orphans: many forms not reachable from the root.
     for i in 0..NB_ORPHELINS {
-        compiler_ensemble(
+        compiler_set(
             &mut pool,
             ANCHOR_TEST,
             &schema,

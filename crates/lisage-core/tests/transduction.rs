@@ -273,11 +273,11 @@ fn test_transduction_sur_diagramme_compile() {
         Box::new(NoOpObserver),
     );
     let anchor = Anchor(0);
-    let ensemble = Value::Set(std::collections::BTreeSet::from([
+    let set = Value::Set(std::collections::BTreeSet::from([
         Value::Atom(Atom(0)),
         Value::Atom(Atom(1)),
     ]));
-    let root = compiler(&mut input, anchor, &schema, &ensemble).unwrap();
+    let root = compiler(&mut input, anchor, &schema, &set).unwrap();
     let mut runner = Transducteur::new(Identite);
     let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
     assert_eq!(

@@ -12,16 +12,11 @@ use lisage_liseuse::trace::{JsonlObserver, TRACE_VERSION, serialiser_evenement};
 
 type PoolRef = Arena<ReferenceController>;
 
-fn schema_ensemble() -> Schema {
+fn schema_set() -> Schema {
     Schema::Set(Domain::new(vec![Atom(0), Atom(1)]))
 }
 
-fn ensemble(
-    pool: &mut PoolRef,
-    anchor: Anchor,
-    schema: &Schema,
-    atomes: &[u64],
-) -> lisage_core::NodeId {
+fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> lisage_core::NodeId {
     let value = Value::Set(
         atomes
             .iter()
@@ -35,13 +30,13 @@ fn ensemble(
 /// deterministic (two identical constructions ⇒ same trace).
 #[test]
 fn test_trace_jsonl_versionnee_et_deterministe() {
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let build = |observer: &JsonlObserver| {
         let mut pool = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(observer.clone()),
         );
-        ensemble(&mut pool, Anchor(0), &schema, &[0])
+        set(&mut pool, Anchor(0), &schema, &[0])
     };
     let observer_a = JsonlObserver::new();
     let observer_b = JsonlObserver::new();
@@ -116,13 +111,13 @@ fn test_serialiser_evenement_golden() {
 /// The v0 SVG rendering is deterministic and shows levels, nodes and terminals.
 #[test]
 fn test_svg_statique_deterministe() {
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let anchor = Anchor(0);
-    let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
+    let root = set(&mut pool, anchor, &schema, &[0, 1]);
 
     let svg = rendre_svg(&pool, root);
     let svg2 = rendre_svg(&pool, root);
@@ -145,12 +140,12 @@ fn test_svg_statique_deterministe() {
 /// boolean payload: we mostly check the balanced structure.
 #[test]
 fn test_svg_structure_equilibree() {
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
-    let root = ensemble(&mut pool, Anchor(0), &schema, &[1]);
+    let root = set(&mut pool, Anchor(0), &schema, &[1]);
     let svg = rendre_svg(&pool, root);
     let ouvertures = svg.matches("<rect ").count();
     let fermetures_rect = svg.matches("/>").count();

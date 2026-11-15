@@ -77,12 +77,7 @@ fn new_pool(schema: &Schema) -> PoolRef {
 }
 
 /// Compiles a set of atoms into the pool.
-fn compiler_ensemble(
-    pool: &mut PoolRef,
-    anchor: Anchor,
-    schema: &Schema,
-    atomes: &[u64],
-) -> NodeId {
+fn compiler_set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {
     compiler(
         pool,
         anchor,
@@ -115,8 +110,8 @@ proptest! {
         let politique = PolitiqueSaturation::Statique(levels);
 
         let mut pool = new_pool(&schema);
-        let node_initial = compiler_ensemble(&mut pool, anchor, &schema, &initial);
-        let singleton = compiler_ensemble(&mut pool, anchor, &schema, &[ajout]);
+        let node_initial = compiler_set(&mut pool, anchor, &schema, &initial);
+        let singleton = compiler_set(&mut pool, anchor, &schema, &[ajout]);
         let etape = EmetSingleton { singleton };
 
         let mut params = ParametresSaturation {

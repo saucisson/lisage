@@ -12,16 +12,16 @@ use lisage_lang::interpreter;
 use lisage_lang::value::Value;
 
 /// Path A (reference): explicit set counting, source of truth.
-pub fn voie_a_count(ensemble: &BTreeSet<Value>) -> u64 {
-    interpreter::count(ensemble)
+pub fn voie_a_count(set: &BTreeSet<Value>) -> u64 {
+    interpreter::count(set)
 }
 
 /// Path B (fixed-order DD): placeholder until the M1-1..M1-6 core exists.
-pub fn voie_b_count(_ensemble: &BTreeSet<Value>) -> u64 {
+pub fn voie_b_count(_set: &BTreeSet<Value>) -> u64 {
     0
 }
 
 /// Path C (Lisage + planner): placeholder likewise.
-pub fn voie_c_count(_ensemble: &BTreeSet<Value>) -> u64 {
+pub fn voie_c_count(_set: &BTreeSet<Value>) -> u64 {
     0
 }

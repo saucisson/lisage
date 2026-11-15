@@ -18,7 +18,7 @@ const ANCHOR_TEST_2: Anchor = Anchor(1);
 
 type PoolRef = Arena<ReferenceController>;
 
-fn schema_ensemble() -> Schema {
+fn schema_set() -> Schema {
     Schema::Set(Domain::new(vec![Atom(0), Atom(1), Atom(2)]))
 }
 
@@ -29,7 +29,7 @@ fn pool_neuf(schema: &Schema) -> PoolRef {
     )
 }
 
-fn ensemble(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {
+fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {
     compiler(
         pool,
         anchor,
@@ -43,11 +43,11 @@ fn ensemble(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64])
 /// compactions) and the live nodes per plane after a GC.
 #[test]
 fn test_vue_pool_depuis_metriques_gc() {
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let mut pool = pool_neuf(&schema);
-    let root = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0, 1]);
+    let root = set(&mut pool, ANCHOR_TEST, &schema, &[0, 1]);
     // Orphan collected by the GC.
-    let _orphelin = ensemble(&mut pool, ANCHOR_TEST, &schema, &[2]);
+    let _orphelin = set(&mut pool, ANCHOR_TEST, &schema, &[2]);
     let stats_gc = pool.gc(&[root]);
     let metriques = pool.metriques();
     let vue = VuePool::depuis_metriques("reference", metriques, stats_gc.live, 0);
@@ -63,10 +63,10 @@ fn test_vue_pool_depuis_metriques_gc() {
 /// form interned under two different anchors forms two distinct classes.
 #[test]
 fn test_classes_quotient_formes_par_anchors() {
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let mut pool = pool_neuf(&schema);
-    let handle_anchor_0 = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0]);
-    let handle_anchor_1 = ensemble(&mut pool, ANCHOR_TEST_2, &schema, &[0]);
+    let handle_anchor_0 = set(&mut pool, ANCHOR_TEST, &schema, &[0]);
+    let handle_anchor_1 = set(&mut pool, ANCHOR_TEST_2, &schema, &[0]);
     assert_ne!(
         handle_anchor_0, handle_anchor_1,
         "C1: same form, different anchors = distinct handles"
@@ -87,7 +87,7 @@ fn test_classes_quotient_formes_par_anchors() {
     // The two classes are distinct (C1): forms × anchors.
     assert_ne!(classes[0], classes[1]);
     // Multiplicity badge: a handle shared 3 times under the same anchor.
-    let partage = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0]);
+    let partage = set(&mut pool, ANCHOR_TEST, &schema, &[0]);
     assert_eq!(
         partage, handle_anchor_0,
         "R-share: same handle under the same anchor"
@@ -107,10 +107,10 @@ fn test_classes_quotient_formes_par_anchors() {
 /// not a byte offset), determinism.
 #[test]
 fn test_rendre_svg_vue_memory() {
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let mut pool = pool_neuf(&schema);
-    let root = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0, 1]);
-    let _orphelin = ensemble(&mut pool, ANCHOR_TEST, &schema, &[2]);
+    let root = set(&mut pool, ANCHOR_TEST, &schema, &[0, 1]);
+    let _orphelin = set(&mut pool, ANCHOR_TEST, &schema, &[2]);
     let stats_gc = pool.gc(&[root]);
     let vue_pool = VuePool::depuis_metriques("reference", pool.metriques(), stats_gc.live, 0);
     let classes = vec![
@@ -199,9 +199,9 @@ fn test_comparaison_naif_dd_lisage() {
         .expect("naive bar present");
     assert_eq!(largeur_naif, 400, "the max reaches the max width");
     // Shadow plane: a node interned in the shadow plane is counted apart.
-    let schema = schema_ensemble();
+    let schema = schema_set();
     let mut pool = pool_neuf(&schema);
-    let root = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0]);
+    let root = set(&mut pool, ANCHOR_TEST, &schema, &[0]);
     let ombre = pool.intern_plan(
         ANCHOR_TEST,
         Form::Node {

@@ -300,7 +300,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                     }
                 }
             }
-            compiler_ensemble(pool, anchor, domain, elements, 0)
+            compiler_set(pool, anchor, domain, elements, 0)
         }
         (Schema::Map(liste_keys, domain_values), Value::Map(map)) => {
             valider_map(liste_keys, domain_values, map)?;
@@ -371,7 +371,7 @@ fn forme_value(value: &Value) -> &'static str {
     }
 }
 
-fn compiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
+fn compiler_set<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     domain: &Domain,
@@ -381,7 +381,7 @@ fn compiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
     if index == domain.size() {
         return Ok(pool.intern(anchor, Form::Terminal(true)));
     }
-    let suite = compiler_ensemble(pool, anchor, domain, elements, index + 1)?;
+    let suite = compiler_set(pool, anchor, domain, elements, index + 1)?;
     let present = elements.contains(&Value::Atom(domain.values[index]));
     let arc = if present { PRESENT } else { ABSENT };
     Ok(pool.intern(
@@ -615,7 +615,7 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
         }
         Schema::Set(domain) => {
             let mut elements = BTreeSet::new();
-            decompiler_ensemble(pool, domain, node, &mut elements)?;
+            decompiler_set(pool, domain, node, &mut elements)?;
             Ok(Value::Set(elements))
         }
         Schema::Map(liste_keys, _) => {
@@ -746,7 +746,7 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
     }
 }
 
-fn decompiler_ensemble<P: Pool<Key = u64, Payload = bool>>(
+fn decompiler_set<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     domain: &Domain,
     mut node: NodeId,

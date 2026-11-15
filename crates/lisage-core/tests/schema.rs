@@ -60,12 +60,12 @@ fn test_compilation_map_exemple_spec() {
 /// R-collapse skips the presence levels of absent elements (ZDD style): {a}
 /// over {a, b} compiles into a single node k_a? → present → ⊤.
 #[test]
-fn test_ensemble_absents_collapses() {
+fn test_set_absents_collapses() {
     let schema = Schema::Set(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
-    let ensemble = Value::Set(BTreeSet::from([atome(0)]));
-    let root = compiler(&mut pool, anchor, &schema, &ensemble).unwrap();
+    let set = Value::Set(BTreeSet::from([atome(0)]));
+    let root = compiler(&mut pool, anchor, &schema, &set).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
     assert_eq!(
         pool.resolve(root).unwrap(),
@@ -145,7 +145,7 @@ fn test_schema_atome() {
 /// The empty set compiles to the accepting terminal ⊤ (empty path), and the
 /// full set to the complete chain of presences.
 #[test]
-fn test_ensemble_empty_et_plein() {
+fn test_set_empty_et_plein() {
     let schema = Schema::Set(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
@@ -198,9 +198,9 @@ fn test_round_trip() {
 
     let schema = Schema::Set(domain(&[0, 1, 2]));
     let mut pool = arena(schema.clone());
-    let ensemble = Value::Set(BTreeSet::from([atome(0), atome(2)]));
-    let root = compiler(&mut pool, anchor, &schema, &ensemble).unwrap();
-    assert_eq!(decompiler(&pool, &schema, root).unwrap(), ensemble);
+    let set = Value::Set(BTreeSet::from([atome(0), atome(2)]));
+    let root = compiler(&mut pool, anchor, &schema, &set).unwrap();
+    assert_eq!(decompiler(&pool, &schema, root).unwrap(), set);
 
     let schema = Schema::Atom(domain(&[0, 1]));
     let mut pool = arena(schema.clone());

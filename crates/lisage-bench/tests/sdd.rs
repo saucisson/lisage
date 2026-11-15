@@ -33,46 +33,46 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
 
 /// Set decomposable along the vtree: S = A × B with A = {x0 = x1}
 /// (2 maps over {0,1}) and B = {x2 = x3} (2 maps over {2,3}) — 4 maps over 4 keys.
-fn ensemble_decomposable() -> BTreeSet<Value> {
-    let mut ensemble = BTreeSet::new();
+fn set_decomposable() -> BTreeSet<Value> {
+    let mut set = BTreeSet::new();
     for a in 0..=1u64 {
         for b in 0..=1u64 {
-            ensemble.insert(map_de(&[(0, a), (1, a), (2, b), (3, b)]));
+            set.insert(map_de(&[(0, a), (1, a), (2, b), (3, b)]));
         }
     }
-    ensemble
+    set
 }
 
 /// Non-decomposable set: {x0 = x2} — 8 maps over 4 keys.
-fn ensemble_non_decomposable() -> BTreeSet<Value> {
-    let mut ensemble = BTreeSet::new();
+fn set_non_decomposable() -> BTreeSet<Value> {
+    let mut set = BTreeSet::new();
     for c in 0..=1u64 {
         for x1 in 0..=1u64 {
             for x3 in 0..=1u64 {
-                ensemble.insert(map_de(&[(0, c), (1, x1), (2, c), (3, x3)]));
+                set.insert(map_de(&[(0, c), (1, x1), (2, c), (3, x3)]));
             }
         }
     }
-    ensemble
+    set
 }
 
 /// Pool for a test: root schema of the test vtree over {0,1}.
 fn pool_neuf() -> Arena<ReferenceController> {
-    pool_pour_sdd(&vtree_test(), &ensemble_decomposable())
+    pool_pour_sdd(&vtree_test(), &set_decomposable())
 }
 
 /// Cardinality of the flat DD of the set over the 4 keys (path B reference).
-fn cardinality_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Value>) -> u64 {
+fn cardinality_plat(pool: &mut Arena<ReferenceController>, set: &BTreeSet<Value>) -> u64 {
     let keys: Vec<Atom> = (0..4).map(Atom).collect();
     let schema = Schema::Map(keys, Domain::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
     let mut root = pool.intern(anchor, Form::Terminal(false));
-    for value in ensemble {
+    for value in set {
         let membre = compiler(pool, anchor, &schema, value).unwrap();
         root = union(pool, &keys, anchor, root, membre).unwrap();
     }
-    let mut output = pool_pour_sdd(&vtree_test(), ensemble);
+    let mut output = pool_pour_sdd(&vtree_test(), set);
     count(pool, &mut output, anchor, &schema, root).unwrap()
 }
 
@@ -81,26 +81,26 @@ fn cardinality_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<V
 /// vtree, root cardinality == product of the cardinalities of the two subtrees.
 #[test]
 fn test_cardinality_global_egal_produit_des_locaux_si_decomposable() {
-    let ensemble = ensemble_decomposable();
+    let set = set_decomposable();
     let mut pool = pool_neuf();
-    let level = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
+    let level = installer_sdd(&mut pool, &vtree_test(), &set).unwrap();
     assert_eq!(level.cardinality, 4);
     let gauche = installer_sdd(
         &mut pool,
         &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
-        &ensemble,
+        &set,
     )
     .unwrap();
     let droite = installer_sdd(
         &mut pool,
         &Vtree::node(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
-        &ensemble,
+        &set,
     )
     .unwrap();
     assert_eq!(gauche.cardinality, 2);
     assert_eq!(droite.cardinality, 2);
     assert_eq!(level.cardinality, gauche.cardinality * droite.cardinality);
-    assert_eq!(cardinality_plat(&mut pool, &ensemble), 4);
+    assert_eq!(cardinality_plat(&mut pool, &set), 4);
 }
 
 /// Non-decomposable set: the product of the local cardinalities upper-bounds the
@@ -108,36 +108,36 @@ fn test_cardinality_global_egal_produit_des_locaux_si_decomposable() {
 /// cardinality remaining exact and equal to the flat DD.
 #[test]
 fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
-    let ensemble = ensemble_non_decomposable();
+    let set = set_non_decomposable();
     let mut pool = pool_neuf();
-    let level = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
+    let level = installer_sdd(&mut pool, &vtree_test(), &set).unwrap();
     assert_eq!(level.cardinality, 8);
     let gauche = installer_sdd(
         &mut pool,
         &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
-        &ensemble,
+        &set,
     )
     .unwrap();
     let droite = installer_sdd(
         &mut pool,
         &Vtree::node(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
-        &ensemble,
+        &set,
     )
     .unwrap();
     assert_eq!(gauche.cardinality, 4);
     assert_eq!(droite.cardinality, 4);
     assert!(gauche.cardinality * droite.cardinality >= level.cardinality);
-    assert_eq!(cardinality_plat(&mut pool, &ensemble), 8);
+    assert_eq!(cardinality_plat(&mut pool, &set), 8);
 }
 
 /// C1 canonicity by handle: reinstalling the same vtree on the same
 /// set in the same pool gives the same handles (hash-consing).
 #[test]
 fn test_canonicite_par_handle_reinstallation_identique() {
-    let ensemble = ensemble_decomposable();
+    let set = set_decomposable();
     let mut pool = pool_neuf();
-    let first = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
-    let second = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
+    let first = installer_sdd(&mut pool, &vtree_test(), &set).unwrap();
+    let second = installer_sdd(&mut pool, &vtree_test(), &set).unwrap();
     assert_eq!(first, second);
 }
 
@@ -158,8 +158,8 @@ fn test_canonicite_deux_anchors_distinctes() {
 /// Projection: keeps only the requested keys.
 #[test]
 fn test_projection() {
-    let ensemble = ensemble_decomposable();
-    let projection = projeter(&ensemble, &[Atom(0), Atom(1)]);
+    let set = set_decomposable();
+    let projection = projeter(&set, &[Atom(0), Atom(1)]);
     assert_eq!(projection.len(), 2);
     for value in &projection {
         let Value::Map(map) = value else {

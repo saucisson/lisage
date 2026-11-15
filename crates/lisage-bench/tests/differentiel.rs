@@ -49,7 +49,7 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
 }
 
 /// Small set of maps generated randomly (universe {0,1} × keys {0,1}).
-fn ensemble_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
+fn set_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
     maps.into_iter()
         .map(|(a, b, c, d)| {
             let mut map = BTreeMap::new();
@@ -67,15 +67,15 @@ fn ensemble_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
 #[test]
 #[ignore = "red (M1-7): path B placeholder until M1-6 (#13)"]
 fn test_c1_differentiel_count_voie_a_vs_b() {
-    let ensemble = ensemble_aleatoire(vec![(1, 1, 1, 0), (1, 0, 1, 0)]);
-    assert_eq!(voie_a_count(&ensemble), voie_b_count(&ensemble));
+    let set = set_aleatoire(vec![(1, 1, 1, 0), (1, 0, 1, 0)]);
+    assert_eq!(voie_a_count(&set), voie_b_count(&set));
 }
 
 #[test]
 #[ignore = "red (M1-7): path C placeholder until M1-6 (#13)"]
 fn test_c1_differentiel_count_voie_a_vs_c() {
-    let ensemble = ensemble_aleatoire(vec![(1, 1, 1, 0), (1, 0, 1, 0)]);
-    assert_eq!(voie_a_count(&ensemble), voie_c_count(&ensemble));
+    let set = set_aleatoire(vec![(1, 1, 1, 0), (1, 0, 1, 0)]);
+    assert_eq!(voie_a_count(&set), voie_c_count(&set));
 }
 
 proptest! {
@@ -83,26 +83,26 @@ proptest! {
     /// differential against B/C will be un-ignored when the DD paths exist.
     #[test]
     fn test_voie_a_count_egale_cardinality(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
-        let ensemble = ensemble_aleatoire(maps);
-        prop_assert_eq!(voie_a_count(&ensemble), count(&ensemble));
-        prop_assert_eq!(voie_a_count(&ensemble), ensemble.len() as u64);
+        let set = set_aleatoire(maps);
+        prop_assert_eq!(voie_a_count(&set), count(&set));
+        prop_assert_eq!(voie_a_count(&set), set.len() as u64);
     }
 
     /// Path A: `filter` keeps only a subset (monotone count).
     #[test]
     fn test_voie_a_filter_count(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
-        let ensemble = ensemble_aleatoire(maps);
-        let garde = filter(&ensemble, |m| m != &map_de(&[(0, 1), (1, 1)]));
-        prop_assert!(count(&garde) <= count(&ensemble));
+        let set = set_aleatoire(maps);
+        let garde = filter(&set, |m| m != &map_de(&[(0, 1), (1, 1)]));
+        prop_assert!(count(&garde) <= count(&set));
     }
 
     /// Path A: `lookup(k)` of a member m equals m(k) (None if absent).
     #[test]
     fn test_voie_a_lookup(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
-        let ensemble = ensemble_aleatoire(maps);
-        let result = lookup(&ensemble, &atome(0));
-        prop_assert_eq!(result.len(), ensemble.len());
-        for membre in &ensemble {
+        let set = set_aleatoire(maps);
+        let result = lookup(&set, &atome(0));
+        prop_assert_eq!(result.len(), set.len());
+        for membre in &set {
             let expected = match membre {
                 Value::Map(map) => map.get(&atome(0)).cloned(),
                 _ => None,

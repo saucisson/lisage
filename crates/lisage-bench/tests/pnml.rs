@@ -94,7 +94,7 @@ fn test_espace_atteignable_voie_a() {
 }
 
 #[test]
-fn test_pas_semantique_depuis_ensemble() {
+fn test_pas_semantique_depuis_set() {
     let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
     let initial = BTreeSet::from([marquage_initial(&network)]);
     let successeurs = pas_semantique(&network, &initial);
