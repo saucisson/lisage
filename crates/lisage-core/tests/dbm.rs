@@ -1,6 +1,6 @@
 //! Tests for the DBM region-key algebra (backlog § 9, open question 9 of the
 //! spec, vein #83): canonical closure (C1 relative to the region algebra),
-//! inconsistency, cardinalityity, default, pool sharing, and membership
+//! inconsistency, cardinality, default, pool sharing, and membership
 //! differential against naive enumeration over a small box.
 
 use std::collections::BTreeMap;
@@ -59,10 +59,10 @@ fn test_dbm_contient() {
 }
 
 #[test]
-fn test_cardinalityity_et_defaut() {
+fn test_cardinality_et_defaut() {
     let keys = DbmKeys::new(4);
-    assert_eq!(keys.cardinalityity(Level(0)), 4);
-    assert_eq!(keys.cardinalityity(Level(7)), 4);
+    assert_eq!(keys.cardinality(Level(0)), 4);
+    assert_eq!(keys.cardinality(Level(7)), 4);
     // δ(ℓ) = the empty region, the continuous "absent".
     assert_eq!(keys.default(Level(0)), Some(INCOHERENT));
 }

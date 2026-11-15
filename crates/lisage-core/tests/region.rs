@@ -1,6 +1,6 @@
 //! Region key algebra tests, intervals fragment (backlog § 9, open question
 //! 9 of the spec): canonical normal form (C1 relative to the region
-//! algebra), cardinalityity, default, pool sharing, and differential against
+//! algebra), cardinality, default, pool sharing, and differential against
 //! naive enumeration on one level.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -48,10 +48,10 @@ fn test_normal_form_canonique_et_idempotente() {
 }
 
 #[test]
-fn test_cardinalityity_et_defaut_par_level() {
+fn test_cardinality_et_defaut_par_level() {
     let keys = RegionKeys::new(vec![8, 3]);
-    assert_eq!(keys.cardinalityity(Level(0)), 8);
-    assert_eq!(keys.cardinalityity(Level(1)), 3);
+    assert_eq!(keys.cardinality(Level(0)), 8);
+    assert_eq!(keys.cardinality(Level(1)), 3);
     // δ(ℓ) = the empty interval, the continuous "absent".
     assert_eq!(keys.default(Level(0)), Some(VIDE));
     assert_eq!(keys.default(Level(1)), Some(VIDE));

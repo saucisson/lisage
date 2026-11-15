@@ -302,8 +302,8 @@ fn test_seq_marqueur_fin_key_requise() {
         );
     }
     // Cardinality: |D|+1 per position, 2 at the marker level.
-    assert_eq!(keys.cardinalityity(Level(0)), 4);
-    assert_eq!(keys.cardinalityity(Level(3)), 2);
+    assert_eq!(keys.cardinality(Level(0)), 4);
+    assert_eq!(keys.cardinality(Level(3)), 2);
 }
 
 /// M2-2: Tag — typed union compilation and round-trip (C2).

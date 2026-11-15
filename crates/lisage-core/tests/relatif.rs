@@ -23,8 +23,8 @@ const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 /// LCG increment for property tests.
 const INCREMENT_LCG: u64 = 1442695040888963407;
 
-/// Declared mock cardinalityity: large enough to never collapse.
-const CARDINALITY_TMP_MOCK: u64 = 1_000_000;
+/// Declared mock cardinality: large enough to never collapse.
+const CARDINALITY_MOCK: u64 = 1_000_000;
 /// Size of the sliding window of the test model.
 const SIZE_FENETRE: u64 = 4;
 /// Number of slides of the sliding window of the test model.
@@ -45,8 +45,8 @@ impl KeyAlgebra for MockKeys {
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
         *key
     }
-    fn cardinalityity(&self, _level: Level) -> u64 {
-        CARDINALITY_TMP_MOCK
+    fn cardinality(&self, _level: Level) -> u64 {
+        CARDINALITY_MOCK
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
         None

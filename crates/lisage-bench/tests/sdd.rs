@@ -1,7 +1,7 @@
 //! Tests of the sentential SDD installation without ad hoc extension
 //! (M5-3, C6): vtree = structured order, controller tower = local anchor
 //! per node, C1 canonicity by handle, global cardinality = product of the
-//! local cardinalitys when the function is decomposable along the vtree.
+//! local cardinalities when the function is decomposable along the vtree.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -78,7 +78,7 @@ fn cardinality_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<V
 
 /// C6 falsification: global cardinality of the flat DD == cardinality of the
 /// hierarchical installation, and for a set decomposable along the
-/// vtree, root cardinality == product of the cardinalitys of the two subtrees.
+/// vtree, root cardinality == product of the cardinalities of the two subtrees.
 #[test]
 fn test_cardinality_global_egal_produit_des_locaux_si_decomposable() {
     let ensemble = ensemble_decomposable();
@@ -103,7 +103,7 @@ fn test_cardinality_global_egal_produit_des_locaux_si_decomposable() {
     assert_eq!(cardinality_plat(&mut pool, &ensemble), 4);
 }
 
-/// Non-decomposable set: the product of the local cardinalitys upper-bounds the
+/// Non-decomposable set: the product of the local cardinalities upper-bounds the
 /// global cardinality (over-approximation of the decomposition), the global
 /// cardinality remaining exact and equal to the flat DD.
 #[test]

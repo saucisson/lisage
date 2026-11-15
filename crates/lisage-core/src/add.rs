@@ -230,8 +230,8 @@ fn merge_avec_other<P: Pool<Key = u64, Payload = u64>>(
             arcs.insert(defaut, cible);
         }
         None => {
-            let cardinalityity = keys.cardinalityity(level);
-            for v in 0..cardinalityity {
+            let cardinality = keys.cardinality(level);
+            for v in 0..cardinality {
                 let cible = match arcs.remove(&v) {
                     Some(cible) => merge_add(pool, keys, anchor, cible, other)?,
                     None => other,
@@ -290,7 +290,7 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
 }
 
 /// (A4) multiplier of arc `arc` from level `level` to a child of level
-/// `level_cible` (`None` = terminal): product of the cardinalityities of the
+/// `level_cible` (`None` = terminal): product of the cardinalities of the
 /// value levels skipped on the path (mirror of `Pli::multiplicateur`).
 fn multiplicateur(
     keys: &SchemaKeys,
@@ -312,7 +312,7 @@ fn multiplicateur(
         if keys.default(Level(n)).is_some() {
             n += PAS_LEVEL_MAP;
         } else {
-            produit *= keys.cardinalityity(Level(n));
+            produit *= keys.cardinality(Level(n));
             n += 1;
         }
     }

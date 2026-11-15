@@ -197,7 +197,7 @@ fn test_transfert_sous_saturate_termine() {
 /// M2-5, regression: key collision on the remap `v → v-1` over a multi-arc
 /// `val(a)` node (family produced by union) — the two subtrees must be
 /// **unioned**, not overwritten. Family {{a:0,b:0}, {a:1,b:0}}: the transfer
-/// gives {{a:0,b:0}, {a:0,b:1}} (cardinalityity 2, not 1).
+/// gives {{a:0,b:0}, {a:0,b:1}} (cardinality 2, not 1).
 #[test]
 fn test_transfert_collision_source_union() {
     let schema = Schema::Map(
@@ -224,7 +224,7 @@ fn test_transfert_collision_source_union() {
 
 /// M2-5, regression: collision on the remap `u → u+1` over a multi-arc
 /// `val(b)` node — arc 2 → key 3 and arc 3 (out of domain, kept) → key 3.
-/// Family {{a:1,b:2}, {a:2,b:3}} → {{a:0,b:3}, {a:1,b:3}} (cardinalityity 2).
+/// Family {{a:1,b:2}, {a:2,b:3}} → {{a:0,b:3}, {a:1,b:3}} (cardinality 2).
 #[test]
 fn test_transfert_collision_destination_union() {
     let schema = schema_map();

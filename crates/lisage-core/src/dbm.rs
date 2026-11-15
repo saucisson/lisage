@@ -294,7 +294,7 @@ impl KeyAlgebra for DbmKeys {
         key.normaliser()
     }
 
-    fn cardinalityity(&self, _level: Level) -> u64 {
+    fn cardinality(&self, _level: Level) -> u64 {
         self.size_domain
     }
 

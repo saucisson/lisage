@@ -72,7 +72,7 @@ pub trait KeyAlgebra: Send + Sync {
     fn normal_form(&self, key: &Self::Key) -> Self::Key;
 
     /// Cardinality |Val(ℓ)|, which enters the fold aggregation (A4).
-    fn cardinalityity(&self, level: Level) -> u64;
+    fn cardinality(&self, level: Level) -> u64;
 
     /// Default value δ(ℓ) of the level, if the level has one.
     fn default(&self, level: Level) -> Option<Self::Key>;

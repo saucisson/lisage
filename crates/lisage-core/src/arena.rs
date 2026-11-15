@@ -22,7 +22,7 @@ type KeyInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
 
 /// Arena: canonical, content-addressed storage of forms. Holds the
 /// controller instance: its key algebra (parameterized by the schema, M1-3)
-/// decides normal forms, cardinalityities and defaults.
+/// decides normal forms, cardinalities and defaults.
 pub struct Arena<C: Controller> {
     nodes: Vec<NodeEntry<C::Key, C::Payload>>,
     unique: HashMap<KeyInterning<C::Key, C::Payload>, NodeId>,
@@ -232,7 +232,7 @@ impl<C: Controller> Arena<C> {
         } else {
             None
         };
-        let cardinalityity = self.controleur.keys().cardinalityity(level);
+        let cardinality = self.controleur.keys().cardinality(level);
         let payload_defaut = if default_active {
             self.controleur.default_payload(level)
         } else {
@@ -253,9 +253,9 @@ impl<C: Controller> Arena<C> {
                     .get(&(Self::CONTROLLER, anchor, Form::Terminal(p.clone())))
                     .copied()
             });
-            crate_reduction_dabs(arcs, key_defaut, &est_defaut, cardinalityity, defaut)
+            crate_reduction_dabs(arcs, key_defaut, &est_defaut, cardinality, defaut)
         } else {
-            reduire(arcs, key_defaut, &est_defaut, cardinalityity)
+            reduire(arcs, key_defaut, &est_defaut, cardinality)
         };
         match reduit {
             Reduction::Collapse(cible) => Err(cible),

@@ -21,7 +21,7 @@ pub const ABSENT: u64 = 0;
 /// Presence arc key: present.
 pub const PRESENT: u64 = 1;
 /// Cardinality of a presence level: {absent, present}.
-pub const CARDINALITY_TMP_PRESENCE: u64 = 2;
+pub const CARDINALITY_PRESENCE: u64 = 2;
 /// Stride between the levels of a map: presence of key `i` at level `2i`,
 /// value at level `2i+1`.
 pub const PAS_LEVEL_MAP: u32 = 2;
@@ -171,13 +171,13 @@ impl KeyAlgebra for SchemaKeys {
         *key
     }
 
-    fn cardinalityity(&self, level: Level) -> u64 {
+    fn cardinality(&self, level: Level) -> u64 {
         match &self.schema {
             Schema::Atom(domain) => domain.size() as u64,
-            Schema::Set(_) => CARDINALITY_TMP_PRESENCE,
+            Schema::Set(_) => CARDINALITY_PRESENCE,
             Schema::Map(_, domain_values) => {
                 if level.0.is_multiple_of(PAS_LEVEL_MAP) {
-                    CARDINALITY_TMP_PRESENCE
+                    CARDINALITY_PRESENCE
                 } else {
                     domain_values.size() as u64
                 }
@@ -186,7 +186,7 @@ impl KeyAlgebra for SchemaKeys {
                 if level.0 < *longueur_max {
                     domain.size() as u64 + 1 // +1 for the end marker
                 } else {
-                    CARDINALITY_TMP_PRESENCE
+                    CARDINALITY_PRESENCE
                 }
             }
             Schema::Tag(liste, domain_values) => {
@@ -463,7 +463,7 @@ fn key_fin(domain: &Domain) -> u64 {
 }
 
 /// Compiles a sequence by **positions** (universe sweep, M2-1):
-/// each position `i` has a level of cardinalityity `|D|+1` (domain
+/// each position `i` has a level of cardinality `|D|+1` (domain
 /// values + end marker). The end marker leads to terminal true.
 fn compiler_seq<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,

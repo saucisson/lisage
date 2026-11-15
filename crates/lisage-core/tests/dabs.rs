@@ -20,8 +20,8 @@ const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 /// LCG increment for property tests.
 const INCREMENT_LCG: u64 = 1442695040888963407;
 
-/// Mock cardinalityity: 4 values per level.
-const CARDINALITY_TMP_MOCK: u64 = 4;
+/// Mock cardinality: 4 values per level.
+const CARDINALITY_MOCK: u64 = 4;
 /// Test level.
 const LEVEL_TEST: u32 = 1;
 /// Test anchor.
@@ -39,8 +39,8 @@ impl KeyAlgebra for MockKeys {
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
         *key
     }
-    fn cardinalityity(&self, _level: Level) -> u64 {
-        CARDINALITY_TMP_MOCK
+    fn cardinality(&self, _level: Level) -> u64 {
+        CARDINALITY_MOCK
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
         self.avec_defaut.then_some(0)
@@ -229,7 +229,7 @@ fn test_dtrans_forme_vide_litterale() {
         BTreeMap::new(),
         Some(0),
         &est_defaut,
-        CARDINALITY_TMP_MOCK,
+        CARDINALITY_MOCK,
         Some(NODE_DEFAUT),
     );
     assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
@@ -238,7 +238,7 @@ fn test_dtrans_forme_vide_litterale() {
         BTreeMap::new(),
         Some(0),
         &est_defaut,
-        CARDINALITY_TMP_MOCK,
+        CARDINALITY_MOCK,
         None,
     );
     assert_eq!(result, Reduction::Forme(BTreeMap::new()));
@@ -263,7 +263,7 @@ fn test_propriete_dabs_confluence() {
         let nb_arcs = next() % 6;
         let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
             .map(|_| {
-                let key = next() % CARDINALITY_TMP_MOCK;
+                let key = next() % CARDINALITY_MOCK;
                 let cible = NodeId((next() % 3) as u32);
                 (key, cible)
             })
@@ -275,7 +275,7 @@ fn test_propriete_dabs_confluence() {
             arcs.clone(),
             key_defaut,
             &est_defaut,
-            CARDINALITY_TMP_MOCK,
+            CARDINALITY_MOCK,
             defaut,
         );
         // Idempotence: a reduced form is a fixed point (a Collapse targets a
@@ -285,7 +285,7 @@ fn test_propriete_dabs_confluence() {
                 arcs_reduits.clone(),
                 key_defaut,
                 &est_defaut,
-                CARDINALITY_TMP_MOCK,
+                CARDINALITY_MOCK,
                 defaut,
             );
             assert_eq!(first.clone(), second, "idempotence of reduire_dabs");
@@ -323,7 +323,7 @@ fn test_propriete_dabs_confluence() {
             };
             let toutes_defaut = !arcs.is_empty() && arcs.values().all(|c| est_defaut(*c));
             let couvre = match key_defaut {
-                None => arcs_filtres.len() as u64 >= CARDINALITY_TMP_MOCK,
+                None => arcs_filtres.len() as u64 >= CARDINALITY_MOCK,
                 Some(key) => {
                     est_defaut(*cible)
                         || toutes_defaut

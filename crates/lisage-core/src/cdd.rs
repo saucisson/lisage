@@ -167,7 +167,7 @@ impl KeyAlgebra for CddKeys {
         Cdd::new(key.zones())
     }
 
-    fn cardinalityity(&self, _level: Level) -> u64 {
+    fn cardinality(&self, _level: Level) -> u64 {
         self.size_domain
     }
 

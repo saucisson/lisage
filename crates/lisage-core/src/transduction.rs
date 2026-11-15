@@ -69,7 +69,7 @@ pub trait Transduction: Send + Sync {
     /// (T-NODE) synthesis: aggregation of the children's attributes. Each arc
     /// carries the **level of the child** (`None` if the child is a terminal):
     /// needed by the A4 expansion-counting (the levels skipped between `ℓ`
-    /// and the child were collapsed, their cardinalityity enters the fold).
+    /// and the child were collapsed, their cardinality enters the fold).
     fn phi_aggr(
         &self,
         level: Level,

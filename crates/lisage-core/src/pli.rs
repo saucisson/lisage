@@ -30,7 +30,7 @@ use crate::schema::{Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
 /// Query semiring of a fold (spec § 5): `(S, ⊕, ×)` with zeros and units.
-/// `depuis_cardinalityity` translates `|Val(ℓ)|` into `S` (A4).
+/// `depuis_cardinality` translates `|Val(ℓ)|` into `S` (A4).
 pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
     /// Fingerprint of the semiring: enters the memo fingerprint.
     const FINGERPRINT: u64;
@@ -40,7 +40,7 @@ pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
     /// Neutral element of × (one).
     fn un() -> Self;
     /// Cardinality of a level, translated into the semiring (A4).
-    fn depuis_cardinalityity(cardinalityity: u64) -> Self;
+    fn depuis_cardinality(cardinality: u64) -> Self;
     /// ⊕ (aggregation of children).
     fn plus(&self, other: &Self) -> Self;
     /// × (weight of arcs by subtotals).
@@ -60,8 +60,8 @@ impl SemiAnneau for Naturel {
     fn un() -> Self {
         Naturel(1)
     }
-    fn depuis_cardinalityity(cardinalityity: u64) -> Self {
-        Naturel(cardinalityity)
+    fn depuis_cardinality(cardinality: u64) -> Self {
+        Naturel(cardinality)
     }
     fn plus(&self, other: &Self) -> Self {
         Naturel(self.0 + other.0)
@@ -84,8 +84,8 @@ impl SemiAnneau for BoolOu {
     fn un() -> Self {
         BoolOu(true)
     }
-    fn depuis_cardinalityity(cardinalityity: u64) -> Self {
-        BoolOu(cardinalityity > 0)
+    fn depuis_cardinality(cardinality: u64) -> Self {
+        BoolOu(cardinality > 0)
     }
     fn plus(&self, other: &Self) -> Self {
         BoolOu(self.0 || other.0)
@@ -105,7 +105,7 @@ pub struct Pli<S: SemiAnneau> {
 }
 
 impl<S: SemiAnneau> Pli<S> {
-    /// Fold over the given schema (the level cardinalityities come from the
+    /// Fold over the given schema (the level cardinalities come from the
     /// schema's key algebra, A4).
     pub fn new(schema: Schema) -> Self {
         let nombre_levels = schema.nombre_levels();
@@ -122,7 +122,7 @@ impl<S: SemiAnneau> Pli<S> {
     }
 
     /// (A4) multiplier of arc `v` from level `ℓ` to a child of level
-    /// `level_cible` (`None` = terminal): product of the cardinalityities of
+    /// `level_cible` (`None` = terminal): product of the cardinalities of
     /// the levels skipped **on the arc's path**. A skipped value level was
     /// collapsed with all its explicit values ⇒ factor `|Val(n)|`; a
     /// skipped presence level only collapses through its default arc
@@ -144,9 +144,7 @@ impl<S: SemiAnneau> Pli<S> {
                 // Skipped presence level: default-arc collapse only.
                 n += 2;
             } else {
-                produit = produit.fois(&S::depuis_cardinalityity(
-                    self.keys.cardinalityity(Level(n)),
-                ));
+                produit = produit.fois(&S::depuis_cardinality(self.keys.cardinality(Level(n))));
                 n += 1;
             }
         }
@@ -335,8 +333,8 @@ fn union_avec_other<P: Pool<Key = u64, Payload = bool>>(
             arcs.insert(defaut, cible);
         }
         None => {
-            let cardinalityity = keys.cardinalityity(level);
-            for v in 0..cardinalityity {
+            let cardinality = keys.cardinality(level);
+            for v in 0..cardinality {
                 let cible = match arcs.remove(&v) {
                     Some(cible) => union(pool, keys, anchor, cible, other)?,
                     None => other,

@@ -82,7 +82,7 @@ proptest! {
     /// Path A (truth): the explicit count equals the cardinality; the
     /// differential against B/C will be un-ignored when the DD paths exist.
     #[test]
-    fn test_voie_a_count_egale_cardinalityity(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
+    fn test_voie_a_count_egale_cardinality(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
         let ensemble = ensemble_aleatoire(maps);
         prop_assert_eq!(voie_a_count(&ensemble), count(&ensemble));
         prop_assert_eq!(voie_a_count(&ensemble), ensemble.len() as u64);
