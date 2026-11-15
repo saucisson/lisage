@@ -4,7 +4,7 @@
 
 use lisage_plan::oracle::{
     BOUND_INFERIEURE, BOUND_SUPERIEURE, ErrorOracle, Oracle, ParametresOracle, Rationnel,
-    VerdictGardeFou,
+    VerdictGuardrail,
 };
 
 /// M3-3: the rational is normalized (gcd) and arithmetic is exact.
@@ -79,7 +79,10 @@ fn test_guardrail_differentiel() {
     assert!(!Oracle::guardrail(100, 49).est_conforming());
     assert!(!Oracle::guardrail(100, 201).est_conforming());
     // exact ratio.
-    assert_eq!(VerdictGardeFou::new(100, 150).ratio(), Rationnel::new(3, 2));
+    assert_eq!(
+        VerdictGuardrail::new(100, 150).ratio(),
+        Rationnel::new(3, 2)
+    );
     assert!(BOUND_INFERIEURE.inferieur_ou_egal(&BOUND_SUPERIEURE));
     // predicted = 0 (null encoding cost or queries): conforming iff measure = 0.
     assert!(Oracle::guardrail(0, 0).est_conforming());
