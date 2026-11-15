@@ -36,10 +36,10 @@ const SATISFACTIONS_LCG_N4: u64 = 7;
 const SATISFACTIONS_LCG_N12: u64 = 2074;
 
 /// `left_i` fork derived from the `pc` word (golden thread § 3).
-fn fourchette(compteur_programme: &[u64], number: usize, indice: usize) -> u64 {
-    if compteur_programme[indice] == MANGE {
+fn fourchette(counter_programme: &[u64], number: usize, indice: usize) -> u64 {
+    if counter_programme[indice] == MANGE {
         TENUE
-    } else if compteur_programme[(indice + number - 1) % number] == MANGE {
+    } else if counter_programme[(indice + number - 1) % number] == MANGE {
         PRECEDENTE
     } else {
         0
@@ -84,13 +84,13 @@ fn etats_etendus(number: usize) -> Vec<Vec<u64>> {
 /// Temporary-file counter: a unique name per call (under
 /// `cargo test`, the tests of one binary run as threads of a
 /// single process — the pid alone is not enough).
-static COMPTEUR_FICHIERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static COUNTER_FICHIERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// Writes the shared extended-states file (same format as the
 /// Python orchestrator: first line `n <n>`, then one state per line) and
 /// returns its path.
 fn ecrire_fichier_etats(number: u64) -> PathBuf {
-    let numero = COMPTEUR_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let numero = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let chemin = std::env::temp_dir().join(format!(
         "confrontation-test-philosophes-{number}-{}-{numero}.txt",
         std::process::id()
@@ -179,7 +179,7 @@ fn test_philosophers_inputs_invalid() {
         "n 3\n0 0 0 0 0 7\n",
     ];
     for (numero, contenu) in cas.iter().enumerate() {
-        let uniq = COMPTEUR_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let uniq = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let chemin = std::env::temp_dir().join(format!(
             "confrontation-test-invalide-{numero}-{}-{uniq}.txt",
             std::process::id()

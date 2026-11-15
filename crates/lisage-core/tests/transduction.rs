@@ -67,11 +67,11 @@ impl Transduction for IdentiteProfondeur {
 }
 
 /// Transduction counting accepting paths (synthesized channel only).
-struct CompteChemins {
+struct CountChemins {
     appels: std::sync::Arc<AtomicU64>,
 }
 
-impl Transduction for CompteChemins {
+impl Transduction for CountChemins {
     type H = ();
     type S = u64;
     type Out = bool;
@@ -211,13 +211,13 @@ fn test_canal_synthetise_comptage() {
     let anchor = Anchor(0);
     let (_, b) = dag(&mut input, anchor);
     let appels = std::sync::Arc::new(AtomicU64::new(0));
-    let compte = CompteChemins {
+    let count = CountChemins {
         appels: appels.clone(),
     };
-    let mut runner = Transducteur::new(compte);
-    let (result, compte_chemins) = runner.run(&input, &mut output, anchor, b).unwrap();
+    let mut runner = Transducteur::new(count);
+    let (result, count_chemins) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(output.resolve(result).unwrap(), input.resolve(b).unwrap());
-    assert_eq!(compte_chemins, 2, "two paths lead to ⊤");
+    assert_eq!(count_chemins, 2, "two paths lead to ⊤");
     assert_eq!(
         appels.load(Ordering::SeqCst),
         2,

@@ -80,20 +80,20 @@ proptest! {
     /// distinct reduced forms have distinct handles.
     #[test]
     fn test_c1_canonicite_par_handle(paires_a in prop::collection::vec((0u8..3, 0u32..2), 0..5), paires_b in prop::collection::vec((0u8..3, 0u32..2), 0..5), level in 0u8..4) {
-        use lisage_algebra::reduction::{reduire, Reduction};
+        use lisage_algebra::reduction::{reduce, Reduction};
         let est_defaut = |node: NodeId| node == NodeId(0);
-        let reduite = |paires: Vec<(u8, u32)>| -> Reduction<u64> {
+        let reducede = |paires: Vec<(u8, u32)>| -> Reduction<u64> {
             let arcs: std::collections::BTreeMap<u64, NodeId> = paires
                 .into_iter()
                 .map(|(key, cible)| (u64::from(key), NodeId(cible)))
                 .collect();
-            reduire(arcs, Some(0), &est_defaut, 2)
+            reduce(arcs, Some(0), &est_defaut, 2)
         };
         prop_assume!(!paires_a.is_empty() && !paires_b.is_empty());
         let forme_a = forme_aleatoire(paires_a.clone(), level);
         let forme_b = forme_aleatoire(paires_b.clone(), level);
-        let reduite_a = reduite(paires_a);
-        let reduite_b = reduite(paires_b);
+        let reducede_a = reducede(paires_a);
+        let reducede_b = reducede(paires_b);
         let mut arena = nouvelle_arena();
         let anchor = Anchor(0);
         // arc targets must be real nodes: intern the false terminal
@@ -106,7 +106,7 @@ proptest! {
         let node_a = arena.intern(anchor, forme_a);
         let node_b = arena.intern(anchor, forme_b);
         // C1, uniqueness: same reduced form ⇒ same handle (shared node).
-        if reduite_a == reduite_b {
+        if reducede_a == reducede_b {
             prop_assert_eq!(node_a, node_b, "same reduced form ⇒ same handle (C1)");
         } else {
             prop_assert_ne!(node_a, node_b, "distinct reduced forms ⇒ distinct nodes (C1)");

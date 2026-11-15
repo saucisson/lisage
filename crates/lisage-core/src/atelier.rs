@@ -166,9 +166,9 @@ pub fn measure<P: Pool>(
     observer: Option<&dyn Observer>,
 ) -> Result<RapportAtelier, PoolError> {
     let rapport = RapportAtelier {
-        nodes_partages: compter_nodes(pool, root)?,
-        chemins: compter_chemins(pool, root)?,
-        size_depliee: compter_size_depliee(pool, root)?,
+        nodes_partages: count_nodes(pool, root)?,
+        chemins: count_chemins(pool, root)?,
+        size_depliee: count_size_depliee(pool, root)?,
     };
     if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
@@ -184,7 +184,7 @@ pub fn measure<P: Pool>(
 }
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
-pub fn compter_nodes<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
+pub fn count_nodes<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     let mut visite = BTreeSet::new();
     let mut pile = vec![root];
     while let Some(node) = pile.pop() {
@@ -200,8 +200,8 @@ pub fn compter_nodes<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> 
 
 /// Counts the root → terminal paths of the DAG (memoized per node, saturating).
 /// This is not the unfolded size: that one is the sum of path lengths,
-/// computed by [`compter_size_depliee`].
-pub fn compter_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
+/// computed by [`count_size_depliee`].
+pub fn count_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     fn chemins<P: Pool>(
         pool: &P,
         node: NodeId,
@@ -230,7 +230,7 @@ pub fn compter_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError
 /// Number of nodes in the unfolded tree (memoized per node, saturating): each
 /// arc duplicates the subtree of its target, what the absence of
 /// R-share would cost.
-pub fn compter_size_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
+pub fn count_size_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     fn size<P: Pool>(
         pool: &P,
         node: NodeId,

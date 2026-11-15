@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 
 use lisage_algebra::interface::NodeId;
-use lisage_algebra::reduction::{Reduction, reduire, reduire_inverse};
+use lisage_algebra::reduction::{Reduction, reduce, reduce_inverse};
 use proptest::prelude::*;
 
 /// Node 0 plays the role of the default diagram D_δ in the tests.
@@ -27,7 +27,7 @@ fn test_collapse_level_value_exemple_spec() {
     // val(a): 0 and 1 lead to the same sub-DD ⇒ R-collapse (spec § 2.3 example).
     let x = NodeId(5);
     let arcs = BTreeMap::from([(0, x), (1, x)]);
-    let result = reduire(arcs, None, &est_defaut, 2);
+    let result = reduce(arcs, None, &est_defaut, 2);
     assert_eq!(result, Reduction::Collapse(x));
 }
 
@@ -36,7 +36,7 @@ fn test_r_default_arc_absent_vers_defaut() {
     // presence: absent ↦ ⊥ (D_δ) is removed, present ↦ X stays.
     let x = NodeId(5);
     let arcs = BTreeMap::from([(0, NODE_DEFAUT), (1, x)]);
-    let result = reduire(arcs, Some(0), &est_defaut, 2);
+    let result = reduce(arcs, Some(0), &est_defaut, 2);
     assert_eq!(result, Reduction::Forme(BTreeMap::from([(1, x)])));
 }
 
@@ -45,7 +45,7 @@ fn test_pas_de_collapse_si_cible_non_defaut() {
     // {present ↦ X} with implicit default ⊥ and X ≠ ⊥: no collapse.
     let x = NodeId(5);
     let arcs = BTreeMap::from([(1, x)]);
-    let result = reduire(arcs, Some(0), &est_defaut, 2);
+    let result = reduce(arcs, Some(0), &est_defaut, 2);
     assert_eq!(result, Reduction::Forme(BTreeMap::from([(1, x)])));
 }
 
@@ -53,7 +53,7 @@ fn test_pas_de_collapse_si_cible_non_defaut() {
 fn test_collapse_si_tout_vaut_le_defaut() {
     // {absent ↦ ⊥, present ↦ ⊥} ⇒ collapse to ⊥.
     let arcs = BTreeMap::from([(0, NODE_DEFAUT), (1, NODE_DEFAUT)]);
-    let result = reduire(arcs, Some(0), &est_defaut, 2);
+    let result = reduce(arcs, Some(0), &est_defaut, 2);
     assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
 }
 
@@ -68,9 +68,9 @@ proptest! {
     ) {
         let arcs = vers_arcs(paires);
         let key = key_defaut.map(u64::from);
-        let first = reduire(arcs.clone(), key, &est_defaut, cardinality);
-        if let Reduction::Forme(arcs_reduits) = &first {
-            let seconde = reduire(arcs_reduits.clone(), key, &est_defaut, cardinality);
+        let first = reduce(arcs.clone(), key, &est_defaut, cardinality);
+        if let Reduction::Forme(arcs_reduceds) = &first {
+            let seconde = reduce(arcs_reduceds.clone(), key, &est_defaut, cardinality);
             prop_assert_eq!(seconde, first, "reduce∘reduce = reduce");
         }
     }
@@ -85,8 +85,8 @@ proptest! {
     ) {
         let arcs = vers_arcs(paires);
         let key = key_defaut.map(u64::from);
-        let direct = reduire(arcs.clone(), key, &est_defaut, cardinality);
-        let inverse = reduire_inverse(arcs, key, &est_defaut, cardinality);
+        let direct = reduce(arcs.clone(), key, &est_defaut, cardinality);
+        let inverse = reduce_inverse(arcs, key, &est_defaut, cardinality);
         prop_assert_eq!(direct, inverse, "the two reduction orders commute");
     }
 }

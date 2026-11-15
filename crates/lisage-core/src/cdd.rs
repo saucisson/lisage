@@ -116,7 +116,7 @@ impl CddKeys {
     /// enumerable regions** (spec Q9): on the continuous domain, the sweep
     /// does not compile and the free DDD realm is assumed — coverage is
     /// then declared by the explicit arcs of the diagram.
-    pub fn couverture(&self, regions: &[Cdd]) -> bool {
+    pub fn coverage(&self, regions: &[Cdd]) -> bool {
         // The empty union covers nothing; the dimension is that of the zones
         // of a non-empty union (a family of empty unions covers nothing).
         let Some(n) = regions
@@ -209,7 +209,7 @@ impl Controller for CddController {
 /// Evaluates a CDD on a domain point: at each node, follows the arc whose
 /// union contains the point. `Ok(None)` if no arc covers the point:
 /// the absent arc is δ(ℓ), the continuous "absent".
-pub fn evaluer<P: Pool<Key = Cdd, Payload = bool>>(
+pub fn evaluate<P: Pool<Key = Cdd, Payload = bool>>(
     pool: &P,
     root: NodeId,
     point: &[u64],
@@ -235,7 +235,7 @@ pub fn evaluer<P: Pool<Key = Cdd, Payload = bool>>(
 /// Counts the distinct nodes reachable from `root`, terminals
 /// included. Propagates the pool error: a non-interned `NodeId` is an
 /// error, not a silent leaf.
-pub fn compter_nodes<P: Pool<Key = Cdd, Payload = bool>>(
+pub fn count_nodes<P: Pool<Key = Cdd, Payload = bool>>(
     pool: &P,
     root: NodeId,
 ) -> Result<u64, PoolError> {

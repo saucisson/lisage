@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{BoolOu, Pli, compter, union};
+use lisage_core::pli::{BoolOu, Pli, count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::Transducteur;
 use lisage_lang::value::{Atom, Value};
@@ -66,7 +66,7 @@ fn test_count_level_collapsed_a4_exemple_spec() {
         panic!("presence node expected")
     };
     assert_eq!(arcs.len(), 1, "a single explicit path");
-    let total = compter(&input, &mut output, anchor, &schema, root).unwrap();
+    let total = count(&input, &mut output, anchor, &schema, root).unwrap();
     assert_eq!(total, 2, "A4: |Val(val(a))| × 1 = 2");
 }
 
@@ -79,7 +79,7 @@ fn test_count_ensemble_maps() {
     let anchor = Anchor(0);
     let ensemble = BTreeSet::from([map_de(&[(0, 1), (1, 0)]), map_de(&[(0, 0)])]);
     let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
-    let total = compter(&input, &mut output, anchor, &schema, root).unwrap();
+    let total = count(&input, &mut output, anchor, &schema, root).unwrap();
     assert_eq!(total, 2);
 }
 
@@ -95,7 +95,7 @@ fn test_count_ensemble_vide_et_plein() {
     let vide = BTreeSet::new();
     let root_vide = compiler_ensemble(&mut input, anchor, &schema, &vide);
     assert_eq!(
-        compter(&input, &mut output, anchor, &schema, root_vide).unwrap(),
+        count(&input, &mut output, anchor, &schema, root_vide).unwrap(),
         0
     );
 
@@ -103,7 +103,7 @@ fn test_count_ensemble_vide_et_plein() {
     let plein = BTreeSet::from([map_de(&[(0, 0)]), map_de(&[(0, 1)])]);
     let root_plein = compiler_ensemble(&mut input, anchor, &schema, &plein);
     assert_eq!(
-        compter(&input, &mut output, anchor, &schema, root_plein).unwrap(),
+        count(&input, &mut output, anchor, &schema, root_plein).unwrap(),
         2
     );
 }
@@ -155,12 +155,12 @@ fn test_union_merge_construction_bool() {
     let les_trois = union(&mut input, &keys, anchor, les_deux, vide).unwrap();
     let mut output = pool(&schema);
     assert_eq!(
-        compter(&input, &mut output, anchor, &schema, les_deux).unwrap(),
+        count(&input, &mut output, anchor, &schema, les_deux).unwrap(),
         2,
         "the union of two members counts 2"
     );
     assert_eq!(
-        compter(&input, &mut output, anchor, &schema, les_trois).unwrap(),
+        count(&input, &mut output, anchor, &schema, les_trois).unwrap(),
         3,
         "⊤ = empty map: a third member, no absorption"
     );

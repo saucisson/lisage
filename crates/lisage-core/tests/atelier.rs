@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::atelier::{
-    AtelierController, Reductions, compter_chemins, compter_nodes, compter_size_depliee, measure,
+    AtelierController, Reductions, count_chemins, count_nodes, count_size_depliee, measure,
 };
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd};
 use lisage_core::observer::NoOpObserver;
@@ -130,14 +130,14 @@ fn test_chemins_contre_nodes() {
             arcs: BTreeMap::from([(0, n1), (1, n1)]),
         },
     );
-    assert_eq!(compter_nodes(&pool, root).expect("interned node"), 4);
-    assert_eq!(compter_chemins(&pool, root).expect("interned node"), 4);
+    assert_eq!(count_nodes(&pool, root).expect("interned node"), 4);
+    assert_eq!(count_chemins(&pool, root).expect("interned node"), 4);
     // Unfolded size: root (1) + 2 × n1 (1 + ⊤ + ⊥ = 3) = 7.
-    assert_eq!(compter_size_depliee(&pool, root).expect("interned node"), 7);
+    assert_eq!(count_size_depliee(&pool, root).expect("interned node"), 7);
     // A non-interned NodeId is a propagated error.
-    assert!(compter_nodes(&pool, NodeId(u32::MAX)).is_err());
-    assert!(compter_chemins(&pool, NodeId(u32::MAX)).is_err());
-    assert!(compter_size_depliee(&pool, NodeId(u32::MAX)).is_err());
+    assert!(count_nodes(&pool, NodeId(u32::MAX)).is_err());
+    assert!(count_chemins(&pool, NodeId(u32::MAX)).is_err());
+    assert!(count_size_depliee(&pool, NodeId(u32::MAX)).is_err());
     assert!(measure(&pool, NodeId(u32::MAX), None).is_err());
 }
 

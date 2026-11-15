@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
-use lisage_core::pli::{compter, union};
+use lisage_core::pli::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
@@ -80,13 +80,13 @@ fn schema_anneau(n: u64, gaucher: bool) -> Schema {
 }
 
 /// `left_i` fork derived from the `pc` word (golden thread § 3).
-fn fourchette(compteur_programme: &[u64], n: usize, i: usize) -> u64 {
+fn fourchette(counter_programme: &[u64], n: usize, i: usize) -> u64 {
     const LIBRE: u64 = 0;
     const TENUE: u64 = 1;
     const PRECEDENTE: u64 = 2;
-    if compteur_programme[i] == MANGE {
+    if counter_programme[i] == MANGE {
         TENUE
-    } else if compteur_programme[(i + n - 1) % n] == MANGE {
+    } else if counter_programme[(i + n - 1) % n] == MANGE {
         PRECEDENTE
     } else {
         LIBRE
@@ -147,12 +147,12 @@ fn build_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
 }
 
 /// Counts |R_n| via the `(ℕ,+,×)` pli on the given schema.
-fn compter_r_n(pool_input: &PoolRef, schema: &Schema, root: NodeId) -> u64 {
+fn count_r_n(pool_input: &PoolRef, schema: &Schema, root: NodeId) -> u64 {
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    compter(pool_input, &mut output, ANCHOR_TEST, schema, root).unwrap()
+    count(pool_input, &mut output, ANCHOR_TEST, schema, root).unwrap()
 }
 
 /// M4-4: |R_n| via DD pli == enumeration == golden-thread values
@@ -167,11 +167,11 @@ fn test_bench_cardinaux_r_n() {
             Box::new(NoOpObserver),
         );
         let root = build_r_n(&mut pool, n, false);
-        let compte = compter_r_n(&pool, &schema, root);
+        let count = count_r_n(&pool, &schema, root);
         let reference = mots_atteignables(n as usize, false).len() as u64;
-        assert_eq!(compte, reference, "n={n}: DD pli == enumeration");
+        assert_eq!(count, reference, "n={n}: DD pli == enumeration");
         assert_eq!(
-            compte, expected,
+            count, expected,
             "n={n}: |R_{n}| = {expected} (golden thread)"
         );
     }
@@ -191,10 +191,10 @@ fn test_bench_gaucher_ratio_constant() {
         );
         let root = build_r_n(&mut pool, n, true);
         // |R'_n| via DD pli == reference enumeration == golden thread § 9.2.
-        let compte = compter_r_n(&pool, &schema, root);
+        let count = count_r_n(&pool, &schema, root);
         let reference = mots_atteignables(n as usize, true).len() as u64;
         assert_eq!(
-            compte, reference,
+            count, reference,
             "n={n}: DD pli == enumeration (left-handed)"
         );
         assert_eq!(
@@ -208,8 +208,8 @@ fn test_bench_gaucher_ratio_constant() {
             Box::new(NoOpObserver),
         );
         let root_reg = build_r_n(&mut pool_reg, n, false);
-        let compte_reg = compter_r_n(&pool_reg, &schema_reg, root_reg);
-        let ratio = compte as f64 / compte_reg as f64;
+        let count_reg = count_r_n(&pool_reg, &schema_reg, root_reg);
+        let ratio = count as f64 / count_reg as f64;
         ratios.push(ratio);
         assert!(
             (ratio - RATIO_GAUCHER).abs() < TOLERANCE_RATIO,
@@ -238,7 +238,7 @@ fn test_bench_sept_formes_o1_et_bord() {
             self.0.on_event(event);
         }
     }
-    let mut comptes_formes = Vec::new();
+    let mut counts_formes = Vec::new();
     let mut nodes_plats = Vec::new();
     let mut creations = 0u64;
     for &(n, _) in R_EXPECTEDS {
@@ -260,7 +260,7 @@ fn test_bench_sept_formes_o1_et_bord() {
             NB_CELLULES_LEGALES,
             "n={n}: exactly 5 legal cells (7 forms with ⊥/⊤)"
         );
-        comptes_formes.push(vus.len());
+        counts_formes.push(vus.len());
         // Flat prototype edge: live nodes of the pool (no GC here,
         // the live peak = live after construction).
         nodes_plats.push(pool.vivants());
@@ -269,8 +269,8 @@ fn test_bench_sept_formes_o1_et_bord() {
     }
     // O(1): the number of forms does not depend on n.
     assert!(
-        comptes_formes.windows(2).all(|w| w[0] == w[1]),
-        "forms constant in n: {comptes_formes:?}"
+        counts_formes.windows(2).all(|w| w[0] == w[1]),
+        "forms constant in n: {counts_formes:?}"
     );
     // The flat prototype edge is pinned exactly (explicit falsification)
     // and grows with n.

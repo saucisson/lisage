@@ -69,8 +69,8 @@ impl MiniBdd {
     }
 
     /// Number of nodes reachable from `root`, terminals included
-    /// (same convention as `lisage_core::bdd::compter_nodes`).
-    pub fn compter_nodes(&self, root: u32) -> u64 {
+    /// (same convention as `lisage_core::bdd::count_nodes`).
+    pub fn count_nodes(&self, root: u32) -> u64 {
         let mut visite = std::collections::BTreeSet::new();
         let mut pile = vec![root];
         while let Some(node) = pile.pop() {
@@ -87,7 +87,7 @@ impl MiniBdd {
     }
 
     /// Evaluates the BDD of index `root` on an assignment.
-    pub fn evaluer(&self, root: u32, affectation: u64) -> bool {
+    pub fn evaluate(&self, root: u32, affectation: u64) -> bool {
         let mut node = root;
         loop {
             let (variable, bas, haut) = self.nodes[node as usize];

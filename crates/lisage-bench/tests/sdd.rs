@@ -9,7 +9,7 @@ use lisage_algebra::interface::{Anchor, Form, Pool};
 use lisage_algebra::vtree::{ErreurVtree, Vtree};
 use lisage_bench::sdd::{ErreurSdd, installer_sdd, pool_pour_sdd, projeter};
 use lisage_core::arena::Arena;
-use lisage_core::pli::{compter, union};
+use lisage_core::pli::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
@@ -73,7 +73,7 @@ fn cardinality_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<V
         root = union(pool, &keys, anchor, root, membre).unwrap();
     }
     let mut output = pool_pour_sdd(&vtree_test(), ensemble);
-    compter(pool, &mut output, anchor, &schema, root).unwrap()
+    count(pool, &mut output, anchor, &schema, root).unwrap()
 }
 
 /// C6 falsification: global cardinality of the flat DD == cardinality of the

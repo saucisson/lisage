@@ -23,7 +23,7 @@ use crate::dbm::Dbm;
 /// Evaluates a DDD-difference on a domain point: at each node, follows the
 /// arc whose region contains the point. `Ok(None)` if no arc covers the
 /// point: the absent arc means δ(ℓ), the continuous "absent".
-pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
+pub fn evaluate<P: Pool<Key = Dbm, Payload = bool>>(
     pool: &P,
     root: NodeId,
     point: &[u64],
@@ -47,7 +47,7 @@ pub fn evaluer<P: Pool<Key = Dbm, Payload = bool>>(
 }
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
-pub fn compter_nodes<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
+pub fn count_nodes<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
     let mut visite = BTreeSet::new();
     let mut pile = vec![root];
     while let Some(node) = pile.pop() {

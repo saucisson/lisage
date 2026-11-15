@@ -48,15 +48,15 @@ impl MarqueEncodage for MarqueEnumeration {
 /// computed independently of `Conversion`.
 fn inversions<T: TypeOrder>(source: &Order<T>, cible: &Order<T>) -> usize {
     let sequence = cible.sequence();
-    let mut compte = 0;
+    let mut count = 0;
     for i in 0..sequence.len() {
         for j in i + 1..sequence.len() {
             if source.position(&sequence[i]) > source.position(&sequence[j]) {
-                compte += 1;
+                count += 1;
             }
         }
     }
-    compte
+    count
 }
 
 /// M3-2: a conversion between aligned orders is the identity (zero cost).

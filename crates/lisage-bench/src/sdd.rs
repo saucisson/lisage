@@ -15,7 +15,7 @@ use lisage_algebra::vtree::{ErreurVtree, Vtree};
 use lisage_core::arena::Arena;
 use lisage_core::error::CoreError;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{compter, union};
+use lisage_core::pli::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
@@ -102,8 +102,8 @@ pub fn installer_sdd(
 ) -> Result<LevelSdd, ErreurSdd> {
     vtree.valider()?;
     let domain = domain_ensemble(ensemble);
-    let mut compteur_anchors = 0u32;
-    installer_level(pool, vtree, ensemble, &domain, &mut compteur_anchors)
+    let mut counter_anchors = 0u32;
+    installer_level(pool, vtree, ensemble, &domain, &mut counter_anchors)
 }
 
 /// Installs one vtree level: projection of the set on the variables
@@ -113,21 +113,21 @@ fn installer_level(
     vtree: &Vtree,
     ensemble: &BTreeSet<Value>,
     domain: &Domain,
-    compteur_anchors: &mut u32,
+    counter_anchors: &mut u32,
 ) -> Result<LevelSdd, ErreurSdd> {
     let variables = vtree.order_plat();
     if variables.is_empty() {
         return Err(ErreurSdd::SansVariable);
     }
-    let anchor = Anchor(*compteur_anchors);
-    *compteur_anchors += 1;
+    let anchor = Anchor(*counter_anchors);
+    *counter_anchors += 1;
     let projection = projeter(ensemble, &variables);
     let schema = Schema::Map(variables, domain.clone());
     let root = compiler_projection(pool, &schema, &projection, anchor)?;
-    let cardinality = compter_level(pool, &schema, root, anchor)?;
+    let cardinality = count_level(pool, &schema, root, anchor)?;
     if let Vtree::Node { gauche, droite } = vtree {
-        installer_level(pool, gauche, &projection, domain, compteur_anchors)?;
-        installer_level(pool, droite, &projection, domain, compteur_anchors)?;
+        installer_level(pool, gauche, &projection, domain, counter_anchors)?;
+        installer_level(pool, droite, &projection, domain, counter_anchors)?;
     }
     Ok(LevelSdd {
         anchor,
@@ -197,7 +197,7 @@ fn compiler_projection(
 }
 
 /// Cardinality of a local DD via the `(ℕ,+,×)` pli.
-fn compter_level(
+fn count_level(
     pool: &Arena<ReferenceController>,
     schema: &Schema,
     root: NodeId,
@@ -207,5 +207,5 @@ fn compter_level(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    Ok(compter(pool, &mut output, anchor, schema, root)?)
+    Ok(count(pool, &mut output, anchor, schema, root)?)
 }

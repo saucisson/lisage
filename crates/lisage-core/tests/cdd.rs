@@ -9,7 +9,7 @@
 use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::cdd::{
-    Cdd, CddController, CddKeys, VIDE, compiler_union_horloges, compter_nodes, evaluer,
+    Cdd, CddController, CddKeys, VIDE, compiler_union_horloges, count_nodes, evaluate,
 };
 use lisage_core::dbm::Dbm;
 use lisage_core::observer::NoOpObserver;
@@ -103,18 +103,18 @@ fn test_intersection_distributive() {
 }
 
 #[test]
-fn test_couverture_boite_bounded() {
+fn test_coverage_boite_bounded() {
     let keys = CddKeys::new(SIZE_DOMAIN);
     let a = Dbm::new(2, &[(0, 1, 0)]);
     let b = Dbm::new(2, &[(1, 0, -2)]);
     let union = Cdd::new(&[a, b]);
     let complementaire = Cdd::new(&[Dbm::new(2, &[(1, 0, -1), (0, 1, 1)])]);
     // The partition {non-convex union, complement} covers the box [0, 4)².
-    assert!(keys.couverture(&[union.clone(), complementaire.clone()]));
+    assert!(keys.coverage(&[union.clone(), complementaire.clone()]));
     // The union alone does not cover; neither does the empty family; nor the empty union.
-    assert!(!keys.couverture(&[union]));
-    assert!(!keys.couverture(&[]));
-    assert!(!keys.couverture(&[VIDE]));
+    assert!(!keys.coverage(&[union]));
+    assert!(!keys.coverage(&[]));
+    assert!(!keys.coverage(&[VIDE]));
 }
 
 /// Test instance: the non-convex region compiled by explicit regions has the
@@ -125,14 +125,14 @@ fn test_union_horloges_differentiel_contre_enumeration() {
     let mut pool = pool();
     let root = compiler_union_horloges(&mut pool, ANCHOR);
     // Three nodes: true, false, the root — vs 16 points.
-    assert_eq!(compter_nodes(&pool, root).expect("interned node"), 3);
+    assert_eq!(count_nodes(&pool, root).expect("interned node"), 3);
     // A non-interned NodeId is a propagated error, not a silent leaf.
-    assert!(compter_nodes(&pool, NodeId(u32::MAX)).is_err());
+    assert!(count_nodes(&pool, NodeId(u32::MAX)).is_err());
     for x in 0..SIZE_DOMAIN {
         for y in 0..SIZE_DOMAIN {
             let point = [x, y];
             let expected = i128::from(x) - i128::from(y) <= 0 || i128::from(x) - i128::from(y) >= 2;
-            let lu = evaluer(&pool, root, &point).expect("interned node");
+            let lu = evaluate(&pool, root, &point).expect("interned node");
             assert_eq!(
                 lu.unwrap_or(false),
                 expected,
@@ -157,7 +157,7 @@ fn test_partage_pool_union() {
     assert_eq!(arcs.len(), 2);
     let keys = CddKeys::new(SIZE_DOMAIN);
     let regions: Vec<Cdd> = arcs.keys().cloned().collect();
-    assert!(keys.couverture(&regions), "the level-0 arcs cover the box");
+    assert!(keys.coverage(&regions), "the level-0 arcs cover the box");
 }
 
 /// Property (LCG): the intersection of unions is commutative, idempotent,

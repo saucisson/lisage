@@ -219,7 +219,7 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
 /// Cardinality counting of a diagram (denoted set): fold over `(ℕ, +, ×)`,
 /// exact on Bool construction (A5). Lifts the result from the synthesized
 /// channel.
-pub fn compter<PIn, POut>(
+pub fn count<PIn, POut>(
     pool_input: &PIn,
     pool_output: &mut POut,
     anchor: Anchor,

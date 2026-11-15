@@ -62,9 +62,9 @@ impl Transduction for Identite {
     }
 }
 
-struct CompteChemins;
+struct CountChemins;
 
-impl Transduction for CompteChemins {
+impl Transduction for CountChemins {
     type H = ();
     type S = u64;
     type Out = bool;
@@ -150,10 +150,10 @@ fn formes_egales(
 }
 
 /// Naive recursive count of accepting paths (independent oracle).
-fn compte_naif(pool: &PoolRef, node: NodeId) -> u64 {
+fn count_naif(pool: &PoolRef, node: NodeId) -> u64 {
     match pool.resolve(node).unwrap() {
         Form::Terminal(payload) => u64::from(*payload),
-        Form::Node { arcs, .. } => arcs.values().map(|&c| compte_naif(pool, c)).sum(),
+        Form::Node { arcs, .. } => arcs.values().map(|&c| count_naif(pool, c)).sum(),
     }
 }
 
@@ -203,9 +203,9 @@ proptest! {
         let mut output = new_pool();
         let anchor = Anchor(0);
         let root = dag_aleatoire(&mut input, anchor, paires);
-        let expected = compte_naif(&input, root);
-        let mut runner = Transducteur::new(CompteChemins);
-        let (result, compte) = runner.run(&input, &mut output, anchor, root).unwrap();
+        let expected = count_naif(&input, root);
+        let mut runner = Transducteur::new(CountChemins);
+        let (result, count) = runner.run(&input, &mut output, anchor, root).unwrap();
         prop_assert!(formes_egales(
             &input,
             root,
@@ -213,12 +213,12 @@ proptest! {
             result,
             &mut std::collections::HashMap::new()
         ));
-        prop_assert_eq!(compte, expected);
+        prop_assert_eq!(count, expected);
         // Sound memo: a second run changes nothing.
         let size = runner.size_memo();
         let (r2, c2) = runner.run(&input, &mut output, anchor, root).unwrap();
         prop_assert_eq!(r2, result);
-        prop_assert_eq!(c2, compte);
+        prop_assert_eq!(c2, count);
         prop_assert_eq!(runner.size_memo(), size);
         prop_assert!(size <= input.node_count());
     }

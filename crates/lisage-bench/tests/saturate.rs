@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::compter;
+use lisage_core::pli::count;
 use lisage_core::saturate::{ParametresSaturation, PolitiqueSaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::{ContextePhiOut, Transduction};
@@ -95,7 +95,7 @@ fn compiler_ensemble(
 /// Cardinality of a diagram (number of members of the denoted family).
 fn cardinality(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
     let mut output = new_pool(schema);
-    compter(pool, &mut output, Anchor(0), schema, node).unwrap()
+    count(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
 
 proptest! {

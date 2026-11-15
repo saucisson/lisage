@@ -10,7 +10,7 @@ use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 use lisage_algebra::reduction::{
-    Reduction, reduire, reduire_dabs as crate_reduction_dabs, reduire_sans_collapse,
+    Reduction, reduce, reduce_dabs as crate_reduction_dabs, reduce_sans_collapse,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -218,7 +218,7 @@ impl<C: Controller> Arena<C> {
     /// Reductions at handle creation (spec § 2.3, M1-2): R-collapse and
     /// R-default, the default diagram D_δ being designated by the controller.
     /// Returns either the collapse target or the reduced form to intern.
-    fn reduit(
+    fn reduced(
         &self,
         anchor: Anchor,
         level: Level,
@@ -243,8 +243,8 @@ impl<C: Controller> Arena<C> {
                 && matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(payload))
         };
         // M4-3: generalized default (D-abs/D-trans) if the controller enables it.
-        let reduit = if !self.controleur.collapse_active() {
-            reduire_sans_collapse(arcs, key_defaut, &est_defaut)
+        let reduced = if !self.controleur.collapse_active() {
+            reduce_sans_collapse(arcs, key_defaut, &est_defaut)
         } else if self.controleur.generalized_absorption() {
             // NodeId of D^default under this anchor, if already interned (used
             // for D-trans on empty form A = ∅).
@@ -255,13 +255,13 @@ impl<C: Controller> Arena<C> {
             });
             crate_reduction_dabs(arcs, key_defaut, &est_defaut, cardinality, defaut)
         } else {
-            reduire(arcs, key_defaut, &est_defaut, cardinality)
+            reduce(arcs, key_defaut, &est_defaut, cardinality)
         };
-        match reduit {
+        match reduced {
             Reduction::Collapse(cible) => Err(cible),
-            Reduction::Forme(arcs_reduits) => Ok(Form::Node {
+            Reduction::Forme(arcs_reduceds) => Ok(Form::Node {
                 level,
-                arcs: arcs_reduits,
+                arcs: arcs_reduceds,
             }),
         }
     }
@@ -278,7 +278,7 @@ impl<C: Controller> Pool for Arena<C> {
         let forme = match forme {
             Form::Node { level, arcs } => {
                 let size_avant = arcs.len();
-                match self.reduit(anchor, level, arcs) {
+                match self.reduced(anchor, level, arcs) {
                     Err(cible) => {
                         self.observer.on_event(&TraceEvent::ReductionApplied {
                             rule: ReductionRule::Collapse,
