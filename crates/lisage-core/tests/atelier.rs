@@ -501,7 +501,7 @@ fn test_anchor_fenetre_glisse() {
 #[test]
 fn test_glisse_pool_constant_lectures_differentes() {
     use lisage_core::atelier::{
-        AnchorFenetre, comparer_anchors_fenetre, construire_fenetre_anchore,
+        AnchorFenetre, comparer_anchors_fenetre, construire_fenetre_anchored,
     };
 
     const SIZE: u64 = 4;
@@ -536,7 +536,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
     // creates only one root per slide — never a copy of the window.
     let nodes_avant = pool.node_count();
     let (_, fenetre) =
-        construire_fenetre_anchore(&mut pool, ANCHOR, SIZE, &AnchorFenetre::new(0, 4));
+        construire_fenetre_anchored(&mut pool, ANCHOR, SIZE, &AnchorFenetre::new(0, 4));
     let anchor = AnchorFenetre::new(100, SIZE as i64);
     for delta in 0..50 {
         let glissee = anchor.glessee(delta);
@@ -544,7 +544,8 @@ fn test_glisse_pool_constant_lectures_differentes() {
             glissee.fenetre_absolue(),
             (100 + delta, 100 + delta + SIZE as i64)
         );
-        let (root, fenetre_glissee) = construire_fenetre_anchore(&mut pool, ANCHOR, SIZE, &glissee);
+        let (root, fenetre_glissee) =
+            construire_fenetre_anchored(&mut pool, ANCHOR, SIZE, &glissee);
         assert_eq!(fenetre_glissee, fenetre, "window form shared at each slide");
         assert_ne!(root, fenetre, "each base has its own root");
     }
