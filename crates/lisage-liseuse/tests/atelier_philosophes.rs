@@ -22,7 +22,7 @@ fn measure_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
     );
     let root = build_r_n(&mut pool, ANCHOR, n);
     let report = measure(&pool, root, None).expect("interned node");
-    (report.nodes_partages, report.chemins, report.size_depliee)
+    (report.nodes_partages, report.paths, report.size_depliee)
 }
 
 /// Golden thread: R₃ = 20 reachable states = 20 paths (one per state); the
@@ -31,8 +31,8 @@ fn measure_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
 /// is visible to the naked eye.
 #[test]
 fn test_r3_partage_contre_size_depliee() {
-    let (nodes, chemins, size_depliee) = measure_r_n(3, Reductions::TOUTES);
-    assert_eq!(chemins, 20, "one path per reachable state of R₃");
+    let (nodes, paths, size_depliee) = measure_r_n(3, Reductions::TOUTES);
+    assert_eq!(paths, 20, "one path per reachable state of R₃");
     assert_eq!(mots_atteignables(3).len() as u64, 20);
     assert_eq!(size_depliee, 126, "sum of the lengths of the 20 paths");
     assert_eq!(nodes, 33, "shared nodes of R₃ in flat encoding");
@@ -46,10 +46,10 @@ fn test_r3_partage_contre_size_depliee() {
 /// two metrics on the same construction.
 #[test]
 fn test_commutation_ne_reduced_jamais() {
-    let (nodes_toutes, chemins_toutes, size_toutes) = measure_r_n(3, Reductions::TOUTES);
-    let (nodes_aucune, chemins_aucune, size_aucune) = measure_r_n(3, Reductions::AUCUNE);
+    let (nodes_toutes, paths_toutes, size_toutes) = measure_r_n(3, Reductions::TOUTES);
+    let (nodes_aucune, paths_aucune, size_aucune) = measure_r_n(3, Reductions::AUCUNE);
     assert!(nodes_aucune >= nodes_toutes);
-    assert!(chemins_aucune >= chemins_toutes);
+    assert!(paths_aucune >= paths_toutes);
     assert!(size_aucune >= size_toutes);
     let (nodes_without_collapse, _, _) = measure_r_n(3, Reductions::without_collapse());
     assert!(nodes_without_collapse >= nodes_toutes);
@@ -65,8 +65,8 @@ fn test_enveloppe_transparente_quand_tout_actif() {
     let mut reference = pool_neuf(&schema);
     let root_ref = build_r_n(&mut reference, ANCHOR, 3);
     let report_ref = measure(&reference, root_ref, None).expect("interned node");
-    let (nodes, chemins, size) = measure_r_n(3, Reductions::TOUTES);
+    let (nodes, paths, size) = measure_r_n(3, Reductions::TOUTES);
     assert_eq!(report_ref.nodes_partages, nodes);
-    assert_eq!(report_ref.chemins, chemins);
+    assert_eq!(report_ref.paths, paths);
     assert_eq!(report_ref.size_depliee, size);
 }

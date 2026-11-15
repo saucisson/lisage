@@ -145,7 +145,7 @@ fn test_transduction_with_memory_ecrit() {
 
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     let mut runner =
-        Transducteur::with_politique(EcritMemory { lus: lus.clone() }, MemoryPolicy::PerLevel);
+        Transducteur::with_policy(EcritMemory { lus: lus.clone() }, MemoryPolicy::PerLevel);
     assert_eq!(runner.version_memory(), 0, "empty memory at start");
     let (result, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
@@ -175,7 +175,7 @@ fn test_transduction_with_memory_ecrit() {
 
 /// M2-3: the `NoMemory` policy rejects memory effects (TO-FIX review).
 #[test]
-fn test_politique_aucune_rejette_effet_memory() {
+fn test_policy_aucune_rejette_effet_memory() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
@@ -205,7 +205,7 @@ fn test_politique_aucune_rejette_effet_memory() {
 /// M2-3: the storage policy is declared by the controller (`NoMemory` by
 /// default in M1, `PerLevel` to allow the memory).
 #[test]
-fn test_politique_memory_du_controleur() {
+fn test_policy_memory_du_controleur() {
     let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     let controleur = ReferenceController::new(schema);
     assert_eq!(

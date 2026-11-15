@@ -46,7 +46,7 @@ const DECALAGE: u32 = 8;
 /// Height of the view title band.
 const HEIGHT_TITRE: u32 = 30;
 /// Space after a kingdom's track.
-const ESPACE_APRES_PISTE: u32 = 16;
+const SPACE_APRES_PISTE: u32 = 16;
 /// Vertical offset of the card title.
 const DECALAGE_TITRE_FICHE: u32 = 16;
 /// Vertical offset of the first field line.
@@ -293,7 +293,7 @@ fn layout(royaumes: &[RoyaumeVue], number_conversions: usize) -> (u32, Vec<Posit
             y_piste: height + DECALAGE + height_fiche() + DECALAGE,
             height_piste,
         });
-        height += DECALAGE + height_fiche() + DECALAGE + height_piste + ESPACE_APRES_PISTE;
+        height += DECALAGE + height_fiche() + DECALAGE + height_piste + SPACE_APRES_PISTE;
     }
     height += number_conversions as u32 * HEIGHT_LIGNE_CONVERSION + MARGE;
     (height, positions)

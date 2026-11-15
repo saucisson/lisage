@@ -25,7 +25,7 @@ use std::time::Instant;
 use lisage_algebra::interface::{Anchor, Form, Pool, PoolError};
 use lisage_core::arena::Arena;
 use lisage_core::atelier::{
-    AtelierController, Encodage, Reductions, build_window, count_chemins, count_nodes,
+    AtelierController, Encodage, Reductions, build_window, count_nodes, count_paths,
 };
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, count_nodes as count_nodes_bdd};
 use lisage_core::error::CoreError;
@@ -414,7 +414,7 @@ type EtatEtendu = Vec<u64>;
 /// of states in the file.
 fn workload_philosophes(
     number_philosophes: u64,
-    chemin: &str,
+    path: &str,
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
     if number_philosophes == 0 || number_philosophes > PHILOSOPHES_MAXIMAUX {
@@ -443,8 +443,8 @@ fn workload_philosophes(
     );
     let debut = Instant::now();
     let contenu =
-        std::fs::read_to_string(chemin).map_err(|error| ErrorConfrontation::InvalidInput {
-            detail: format!("states file {chemin} unreadable: {error}"),
+        std::fs::read_to_string(path).map_err(|error| ErrorConfrontation::InvalidInput {
+            detail: format!("states file {path} unreadable: {error}"),
         })?;
     let etats = lire_etats(number_philosophes, &contenu)?;
     let expected = etats.len() as u64;
@@ -580,7 +580,7 @@ fn workload_window(
     );
     let debut = Instant::now();
     let root = build_window(&mut pool, ANCHOR_MEASURE, encodage, size, nb_bases);
-    let verifie = count_chemins(&pool, root)?;
+    let verifie = count_paths(&pool, root)?;
     let nodes = count_nodes(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != expected {

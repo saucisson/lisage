@@ -12,30 +12,30 @@
 use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};
 
 /// Canonical empty interval: `bound_inf > bound_sup`, normalized to `(1, 0)`.
-pub const EMPTY: Intervalle = Intervalle {
+pub const EMPTY: Interval = Interval {
     bound_inf: 1,
     bound_sup: 0,
 };
 
 /// Region key: closed interval `[bound_inf, bound_sup]` of points of a
-/// bounded domain. Every construction goes through [`Intervalle::new`],
+/// bounded domain. Every construction goes through [`Interval::new`],
 /// which normalizes the empty interval to [`EMPTY`]: the derived equality is
 /// then set equality, and hash-consing respects C1 relative to the region
 /// algebra.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
-pub struct Intervalle {
+pub struct Interval {
     bound_inf: u64,
     bound_sup: u64,
 }
 
-impl Intervalle {
+impl Interval {
     /// Closed interval `[bound_inf, bound_sup]`; if `bound_inf > bound_sup`,
     /// the interval is empty and normalized to [`EMPTY`].
     pub fn new(bound_inf: u64, bound_sup: u64) -> Self {
         if bound_inf > bound_sup {
             EMPTY
         } else {
-            Intervalle {
+            Interval {
                 bound_inf,
                 bound_sup,
             }
@@ -44,7 +44,7 @@ impl Intervalle {
 
     /// Interval reduced to the point `v`.
     pub fn point(v: u64) -> Self {
-        Intervalle::new(v, v)
+        Interval::new(v, v)
     }
 
     /// Lower bound, included.
@@ -63,7 +63,7 @@ impl Intervalle {
     }
 
     /// Number of points of the interval (0 if empty); saturated at
-    /// `u64::MAX` for `Intervalle::new(0, u64::MAX)` (the public
+    /// `u64::MAX` for `Interval::new(0, u64::MAX)` (the public
     /// constructor accepts any pair of `u64`).
     pub fn size(&self) -> u64 {
         if self.est_empty() {
@@ -102,10 +102,10 @@ impl RegionKeys {
 }
 
 impl KeyAlgebra for RegionKeys {
-    type Key = Intervalle;
+    type Key = Interval;
 
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
-        Intervalle::new(key.bound_inf(), key.bound_sup())
+        Interval::new(key.bound_inf(), key.bound_sup())
     }
 
     fn cardinality(&self, level: Level) -> u64 {
@@ -132,7 +132,7 @@ impl RegionController {
 }
 
 impl Controller for RegionController {
-    type Key = Intervalle;
+    type Key = Interval;
     type Payload = bool;
     type Keys = RegionKeys;
 

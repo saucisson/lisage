@@ -95,7 +95,7 @@ proptest! {
             usize::try_from(source).unwrap(),
             usize::try_from(destination).unwrap(),
         );
-        let mut runner = Transducteur::with_politique(transfert, MemoryPolicy::PerLevel);
+        let mut runner = Transducteur::with_policy(transfert, MemoryPolicy::PerLevel);
         let (result, _) = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
         let obtenu = decompiler_map(&pool, &schema, result);

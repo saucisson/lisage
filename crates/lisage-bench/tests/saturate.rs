@@ -10,7 +10,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::count;
-use lisage_core::saturate::{ParametresSaturation, PolitiqueSaturation, saturer};
+use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::{Atom, Value};
@@ -107,7 +107,7 @@ proptest! {
         let keys = SchemaKeys::new(schema.clone());
         let anchor = Anchor(0);
         let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
-        let politique = PolitiqueSaturation::Statique(levels);
+        let policy = PolicySaturation::Statique(levels);
 
         let mut pool = new_pool(&schema);
         let node_initial = compiler_set(&mut pool, anchor, &schema, &initial);
@@ -116,7 +116,7 @@ proptest! {
 
         let mut params = ParametresSaturation {
             transduction: &etape,
-            politique: &politique,
+            policy: &policy,
             pool: &mut pool,
             keys: &keys,
             anchor,
@@ -138,7 +138,7 @@ proptest! {
         // with the same node.
         let mut params = ParametresSaturation {
             transduction: &etape,
-            politique: &politique,
+            policy: &policy,
             pool: &mut pool,
             keys: &keys,
             anchor,

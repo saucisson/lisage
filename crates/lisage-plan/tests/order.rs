@@ -191,8 +191,8 @@ fn test_alignement_comme_typage_composition_sous_same_marque() {
 
     let a = Aligne::<DomainAtomes, MarqueCanonique, u32>::new(2);
     let b = Aligne::<DomainAtomes, MarqueCanonique, u32>::new(3);
-    let somme = a.compose(&b, |x, y| x + y);
-    assert_eq!(*somme.value(), 5);
+    let sum = a.compose(&b, |x, y| x + y);
+    assert_eq!(*sum.value(), 5);
 
     // The inverse mark carries another order: compose requires the same
     // mark on both sides (positive typing test; the negative case is a

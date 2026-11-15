@@ -14,7 +14,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::pli::{count, union};
-use lisage_core::saturate::{BOUND_ITERATIONS, ParametresSaturation, PolitiqueSaturation, saturer};
+use lisage_core::saturate::{BOUND_ITERATIONS, ParametresSaturation, PolicySaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::{ContextePhiOut, Transduction};
 use lisage_lang::value::{Atom, Value};
@@ -147,10 +147,10 @@ fn test_saturate_termine_et_point_fixe() {
     let anchor = Anchor(0);
     let initial = compiler_set(&mut pool, anchor, &schema, &[0]);
 
-    let politique = PolitiqueSaturation::AutoDetectee;
+    let policy = PolicySaturation::AutoDetectee;
     let mut params = ParametresSaturation {
         transduction: &Identite,
-        politique: &politique,
+        policy: &policy,
         pool: &mut pool,
         keys: &keys,
         anchor,
@@ -166,20 +166,20 @@ fn test_saturate_termine_et_point_fixe() {
 /// M2-4: both policies reach the same fixpoint when `Statique` declares
 /// all levels of the schema.
 #[test]
-fn test_saturate_politiques_equivalentes() {
+fn test_saturate_policies_equivalentes() {
     let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
 
     let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
-    let politique_statique = PolitiqueSaturation::Statique(levels);
-    let politique_auto = PolitiqueSaturation::AutoDetectee;
+    let policy_statique = PolicySaturation::Statique(levels);
+    let policy_auto = PolicySaturation::AutoDetectee;
 
     let mut pool_s = new_pool(&schema);
     let initial_s = compiler_set(&mut pool_s, anchor, &schema, &[0]);
     let mut params = ParametresSaturation {
         transduction: &Identite,
-        politique: &politique_statique,
+        policy: &policy_statique,
         pool: &mut pool_s,
         keys: &keys,
         anchor,
@@ -193,7 +193,7 @@ fn test_saturate_politiques_equivalentes() {
     let initial_a = compiler_set(&mut pool_a, anchor, &schema, &[0]);
     let mut params = ParametresSaturation {
         transduction: &Identite,
-        politique: &politique_auto,
+        policy: &policy_auto,
         pool: &mut pool_a,
         keys: &keys,
         anchor,
@@ -212,7 +212,7 @@ fn test_saturate_politiques_equivalentes() {
 /// step that emits a singleton at the root (level 0), excluding level 0
 /// from the static list leaves the fixpoint unchanged, while `AutoDetectee`
 /// (all levels active) reaches it with the singleton added. This test fails
-/// if the `politique` parameter is ignored.
+/// if the `policy` parameter is ignored.
 #[test]
 fn test_saturate_statique_restreint_les_levels() {
     let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));
@@ -221,7 +221,7 @@ fn test_saturate_statique_restreint_les_levels() {
 
     // Static policy excluding the root level 0.
     let levels_without_root: Vec<Level> = (1..schema.number_levels()).map(Level).collect();
-    let politique_statique = PolitiqueSaturation::Statique(levels_without_root);
+    let policy_statique = PolicySaturation::Statique(levels_without_root);
     let mut pool_s = new_pool(&schema);
     let initial_s = compiler_set(&mut pool_s, anchor, &schema, &[0]);
     let singleton_s = compiler_set(&mut pool_s, anchor, &schema, &[2]);
@@ -230,7 +230,7 @@ fn test_saturate_statique_restreint_les_levels() {
     };
     let mut params = ParametresSaturation {
         transduction: &etape_s,
-        politique: &politique_statique,
+        policy: &policy_statique,
         pool: &mut pool_s,
         keys: &keys,
         anchor,
@@ -246,7 +246,7 @@ fn test_saturate_statique_restreint_les_levels() {
     assert_eq!(r_statique.iterations, 1);
 
     // AutoDetectee policy: all levels active, the singleton is reached.
-    let politique_auto = PolitiqueSaturation::AutoDetectee;
+    let policy_auto = PolicySaturation::AutoDetectee;
     let mut pool_a = new_pool(&schema);
     let initial_a = compiler_set(&mut pool_a, anchor, &schema, &[0]);
     let singleton_a = compiler_set(&mut pool_a, anchor, &schema, &[2]);
@@ -256,7 +256,7 @@ fn test_saturate_statique_restreint_les_levels() {
     let expected_a = union(&mut pool_a, &keys, anchor, initial_a, singleton_a).unwrap();
     let mut params = ParametresSaturation {
         transduction: &etape_a,
-        politique: &politique_auto,
+        policy: &policy_auto,
         pool: &mut pool_a,
         keys: &keys,
         anchor,
@@ -292,10 +292,10 @@ fn test_saturate_chaine_croissante_multi_iterations() {
     let etape = EmetSingleton {
         singleton: singleton_2,
     };
-    let politique = PolitiqueSaturation::AutoDetectee;
+    let policy = PolicySaturation::AutoDetectee;
     let mut params = ParametresSaturation {
         transduction: &etape,
-        politique: &politique,
+        policy: &policy,
         pool: &mut pool,
         keys: &keys,
         anchor,

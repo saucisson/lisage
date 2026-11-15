@@ -1,7 +1,7 @@
 //! A/B/C triptych on PNML models (M5-2, statements C3/C4): the same
 //! reachable marking space of a Petri net read three times —
 //! - **path A** = reference interpreter `lisage-lang`: explicit set
-//!   (`pnml::espace_atteignable`), the set-theoretic truth;
+//!   (`pnml::space_atteignable`), the set-theoretic truth;
 //! - **path B** = DD with fixed order: canonical order of the places, compiled
 //!   in `lisage-core` (union of the marking maps);
 //! - **path C** = DD with runtime order: permutation π of the place keys
@@ -89,7 +89,7 @@ pub struct MeasureVoie {
 /// Path A (reference): cardinality of the explicit reachable space.
 pub fn voie_a(network: &NetworkPetri) -> MeasureVoie {
     MeasureVoie {
-        cardinality: pnml::espace_atteignable(network).len() as u64,
+        cardinality: pnml::space_atteignable(network).len() as u64,
         nodes_live: 0,
     }
 }
@@ -166,12 +166,12 @@ fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, E
         return Err(ErrorTriptyque::WithoutPlace);
     }
     let schema = schema_petri(network, order_keys)?;
-    let espace = pnml::espace_atteignable(network);
+    let space = pnml::space_atteignable(network);
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let root = compiler_espace(&mut pool, &schema, &espace)?;
+    let root = compiler_space(&mut pool, &schema, &space)?;
     let nodes_live = pool.live();
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -205,7 +205,7 @@ fn schema_petri(network: &NetworkPetri, order_keys: &[Atom]) -> Result<Schema, E
 /// Maximum number of tokens observed on a place in the
 /// reachable space (bound of the value domain).
 fn jetons_max(network: &NetworkPetri) -> u64 {
-    pnml::espace_atteignable(network)
+    pnml::space_atteignable(network)
         .iter()
         .filter_map(pnml::marquage_depuis_value)
         .flat_map(|marquage| marquage.into_values())
@@ -216,14 +216,14 @@ fn jetons_max(network: &NetworkPetri) -> u64 {
 
 /// Compiles the reachable space into a DD: union of the marking maps
 /// compiled one by one against the schema.
-fn compiler_espace(
+fn compiler_space(
     pool: &mut Arena<ReferenceController>,
     schema: &Schema,
-    espace: &BTreeSet<Value>,
+    space: &BTreeSet<Value>,
 ) -> Result<NodeId, ErrorTriptyque> {
     let keys = SchemaKeys::new(schema.clone());
     let mut root = pool.intern(ANCHOR_BANC, Form::Terminal(false));
-    for value in espace {
+    for value in space {
         let membre = compiler(pool, ANCHOR_BANC, schema, value)?;
         root = union(pool, &keys, ANCHOR_BANC, root, membre)?;
     }

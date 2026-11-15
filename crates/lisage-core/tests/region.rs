@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::region::{EMPTY, Intervalle, RegionController, RegionKeys};
+use lisage_core::region::{EMPTY, Interval, RegionController, RegionKeys};
 
 type PoolRegion = Arena<RegionController>;
 
@@ -22,29 +22,29 @@ fn pool(domains: Vec<u64>) -> PoolRegion {
 }
 
 #[test]
-fn test_intervalle_empty_normalise() {
-    let empty = Intervalle::new(5, 3);
+fn test_interval_empty_normalise() {
+    let empty = Interval::new(5, 3);
     assert_eq!(empty, EMPTY);
     assert!(empty.est_empty());
     assert_eq!(empty.size(), 0);
     assert!(!empty.contains(3));
-    let point = Intervalle::point(4);
+    let point = Interval::point(4);
     assert!(!point.est_empty());
     assert_eq!(point.size(), 1);
     assert!(point.contains(4));
     assert!(!point.contains(5));
-    assert_eq!(Intervalle::new(2, 5).size(), 4);
+    assert_eq!(Interval::new(2, 5).size(), 4);
 }
 
 #[test]
 fn test_normal_form_canonique_et_idempotente() {
     let keys = RegionKeys::new(vec![8]);
     // Any writing of an empty interval has the same normal form.
-    assert_eq!(keys.normal_form(&Intervalle::new(7, 2)), EMPTY);
+    assert_eq!(keys.normal_form(&Interval::new(7, 2)), EMPTY);
     assert_eq!(keys.normal_form(&EMPTY), EMPTY);
     // Form normale idempotente, et stable sur les non-empty.
-    let intervalle = Intervalle::new(2, 5);
-    assert_eq!(keys.normal_form(&keys.normal_form(&intervalle)), intervalle);
+    let interval = Interval::new(2, 5);
+    assert_eq!(keys.normal_form(&keys.normal_form(&interval)), interval);
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn test_partage_pool_c1_relatif() {
     };
     let form_empty_b = Form::Node {
         level,
-        arcs: BTreeMap::from([(Intervalle::new(9, 2), terminal)]),
+        arcs: BTreeMap::from([(Interval::new(9, 2), terminal)]),
     };
     assert_eq!(
         pool.intern(ANCHOR, form_empty_a.clone()),
@@ -79,11 +79,11 @@ fn test_partage_pool_c1_relatif() {
     );
     let form_point_a = Form::Node {
         level,
-        arcs: BTreeMap::from([(Intervalle::point(3), terminal)]),
+        arcs: BTreeMap::from([(Interval::point(3), terminal)]),
     };
     let form_point_b = Form::Node {
         level,
-        arcs: BTreeMap::from([(Intervalle::new(3, 3), terminal)]),
+        arcs: BTreeMap::from([(Interval::new(3, 3), terminal)]),
     };
     assert_eq!(
         pool.intern(ANCHOR, form_point_a.clone()),
@@ -92,7 +92,7 @@ fn test_partage_pool_c1_relatif() {
     );
     let form_other = Form::Node {
         level,
-        arcs: BTreeMap::from([(Intervalle::point(4), terminal)]),
+        arcs: BTreeMap::from([(Interval::point(4), terminal)]),
     };
     assert_ne!(
         pool.intern(ANCHOR, form_point_a),
@@ -120,8 +120,8 @@ fn test_propriete_normalisation_lcg() {
         };
         let inf = next() % 16;
         let sup = next() % 16;
-        let intervalle = Intervalle::new(inf, sup);
-        let normalisee = keys.normal_form(&intervalle);
+        let interval = Interval::new(inf, sup);
+        let normalisee = keys.normal_form(&interval);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
         assert_eq!(normalisee.est_empty(), inf > sup);
         assert_eq!(normalisee.size(), if inf > sup { 0 } else { sup - inf + 1 });
@@ -138,7 +138,7 @@ fn test_propriete_normalisation_lcg() {
 /// (its complement) represents S; the point count of the DD's true arcs
 /// equals |S|. The `EMPTY` arc to the default is removed by R-default.
 #[test]
-fn test_differentiel_union_intervalles_contre_enumeration() {
+fn test_differentiel_union_intervals_contre_enumeration() {
     const SEED_LCG: u64 = 0x2545_F491_4F6C_DD1D;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
@@ -167,7 +167,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
                 fin += 1;
             }
             arcs.insert(
-                Intervalle::new(point, fin),
+                Interval::new(point, fin),
                 if dans_s { vrai_terminal } else { faux_terminal },
             );
             point = fin + 1;
@@ -193,7 +193,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
                 );
                 arcs.iter()
                     .filter(|(_, cible)| **cible == vrai_terminal)
-                    .map(|(intervalle, _)| intervalle.size())
+                    .map(|(interval, _)| interval.size())
                     .sum()
             }
         };

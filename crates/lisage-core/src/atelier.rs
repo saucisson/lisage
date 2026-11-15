@@ -150,7 +150,7 @@ pub struct ReportAtelier {
     /// Distinct reachable nodes (R-share active): the shared diagram.
     pub nodes_partages: u64,
     /// Root → terminal paths in the DAG.
-    pub chemins: u64,
+    pub paths: u64,
     /// Nodes of the unfolded tree (each arc duplicating the target subtree):
     /// the cost of the absence of hash-consing.
     pub size_depliee: u64,
@@ -167,7 +167,7 @@ pub fn measure<P: Pool>(
 ) -> Result<ReportAtelier, PoolError> {
     let report = ReportAtelier {
         nodes_partages: count_nodes(pool, root)?,
-        chemins: count_chemins(pool, root)?,
+        paths: count_paths(pool, root)?,
         size_depliee: count_size_depliee(pool, root)?,
     };
     if let Some(obs) = observer {
@@ -175,8 +175,8 @@ pub fn measure<P: Pool>(
             canal: CanalAttr::Synthesized,
             node: root,
             value: format!(
-                "nodes_partages={} chemins={} size_depliee={}",
-                report.nodes_partages, report.chemins, report.size_depliee
+                "nodes_partages={} paths={} size_depliee={}",
+                report.nodes_partages, report.paths, report.size_depliee
             ),
         });
     }
@@ -201,8 +201,8 @@ pub fn count_nodes<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
 /// Counts the root → terminal paths of the DAG (memoized per node, saturating).
 /// This is not the unfolded size: that one is the sum of path lengths,
 /// computed by [`count_size_depliee`].
-pub fn count_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
-    fn chemins<P: Pool>(
+pub fn count_paths<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
+    fn paths<P: Pool>(
         pool: &P,
         node: NodeId,
         memo: &mut HashMap<NodeId, u64>,
@@ -213,18 +213,18 @@ pub fn count_chemins<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> 
         let total = match pool.resolve(node)? {
             Form::Terminal(_) => 1,
             Form::Node { arcs, .. } => {
-                let mut somme = 0u64;
+                let mut sum = 0u64;
                 for cible in arcs.values() {
-                    somme = somme.saturating_add(chemins(pool, *cible, memo)?);
+                    sum = sum.saturating_add(paths(pool, *cible, memo)?);
                 }
-                somme
+                sum
             }
         };
         memo.insert(node, total);
         Ok(total)
     }
     let mut memo = HashMap::new();
-    chemins(pool, root, &mut memo)
+    paths(pool, root, &mut memo)
 }
 
 /// Number of nodes in the unfolded tree (memoized per node, saturating): each
@@ -242,11 +242,11 @@ pub fn count_size_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolEr
         let total = match pool.resolve(node)? {
             Form::Terminal(_) => 1,
             Form::Node { arcs, .. } => {
-                let mut somme = 1u64;
+                let mut sum = 1u64;
                 for cible in arcs.values() {
-                    somme = somme.saturating_add(size(pool, *cible, memo)?);
+                    sum = sum.saturating_add(size(pool, *cible, memo)?);
                 }
-                somme
+                sum
             }
         };
         memo.insert(node, total);

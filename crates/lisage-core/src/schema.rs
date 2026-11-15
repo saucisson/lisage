@@ -78,9 +78,9 @@ impl Schema {
         match self {
             Schema::Atom(_) => 1,
             Schema::Set(domain) => domain.size() as u32,
-            Schema::Map(liste_keys, _) => PAS_LEVEL_MAP * liste_keys.len() as u32,
+            Schema::Map(list_keys, _) => PAS_LEVEL_MAP * list_keys.len() as u32,
             Schema::Seq(_, longueur_max) => longueur_max + 1,
-            Schema::Tag(liste, _) => PAS_LEVEL_MAP * liste.len() as u32,
+            Schema::Tag(list, _) => PAS_LEVEL_MAP * list.len() as u32,
         }
     }
 
@@ -189,9 +189,9 @@ impl KeyAlgebra for SchemaKeys {
                     CARDINALITY_PRESENCE
                 }
             }
-            Schema::Tag(liste, domain_values) => {
+            Schema::Tag(list, domain_values) => {
                 if level.0.is_multiple_of(PAS_LEVEL_MAP) {
-                    liste.len() as u64
+                    list.len() as u64
                 } else {
                     domain_values.size() as u64
                 }
@@ -302,17 +302,17 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             }
             compiler_set(pool, anchor, domain, elements, 0)
         }
-        (Schema::Map(liste_keys, domain_values), Value::Map(map)) => {
-            valider_map(liste_keys, domain_values, map)?;
-            compiler_map(pool, anchor, liste_keys, map, 0)
+        (Schema::Map(list_keys, domain_values), Value::Map(map)) => {
+            valider_map(list_keys, domain_values, map)?;
+            compiler_map(pool, anchor, list_keys, map, 0)
         }
         (Schema::Seq(domain, longueur_max), Value::Seq(elements)) => {
             valider_seq(domain, *longueur_max, elements)?;
             compiler_seq(pool, anchor, domain, *longueur_max, elements)
         }
-        (Schema::Tag(liste, domain_values), Value::Tag(discriminant, payload)) => {
-            valider_tag(liste, domain_values, *discriminant, payload)?;
-            compiler_tag(pool, anchor, liste, domain_values, *discriminant, payload)
+        (Schema::Tag(list, domain_values), Value::Tag(discriminant, payload)) => {
+            valider_tag(list, domain_values, *discriminant, payload)?;
+            compiler_tag(pool, anchor, list, domain_values, *discriminant, payload)
         }
         (schema, value) => Err(SchemaError::TypeMismatch {
             expected: form_schema(schema),
@@ -324,7 +324,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
 /// Validates the keys and values of a map against the schema (typed errors,
 /// the faulty atom is the one reported).
 fn valider_map(
-    liste_keys: &[Atom],
+    list_keys: &[Atom],
     domain_values: &Domain,
     map: &BTreeMap<Value, Value>,
 ) -> Result<(), SchemaError> {
@@ -335,7 +335,7 @@ fn valider_map(
                 recu: form_value(key),
             });
         };
-        if !liste_keys.contains(atome_key) {
+        if !list_keys.contains(atome_key) {
             return Err(SchemaError::HorsDomain(*atome_key));
         }
         let Value::Atom(atome_value) = value else {
@@ -396,15 +396,15 @@ fn compiler_set<P: Pool<Key = u64, Payload = bool>>(
 fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    liste_keys: &[Atom],
+    list_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
     index: usize,
 ) -> Result<NodeId, SchemaError> {
-    if index == liste_keys.len() {
+    if index == list_keys.len() {
         return Ok(pool.intern(anchor, Form::Terminal(true)));
     }
-    let suite = compiler_map(pool, anchor, liste_keys, map, index + 1)?;
-    let key = Value::Atom(liste_keys[index]);
+    let suite = compiler_map(pool, anchor, list_keys, map, index + 1)?;
+    let key = Value::Atom(list_keys[index]);
     let arcs = match map.get(&key) {
         Some(Value::Atom(value)) => {
             let node_value = pool.intern(
@@ -514,12 +514,12 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
 
 /// Validates a tag against the schema (discriminant in the list, payload in the domain).
 fn valider_tag(
-    liste: &[Atom],
+    list: &[Atom],
     domain_values: &Domain,
     discriminant: Atom,
     payload: &Value,
 ) -> Result<(), SchemaError> {
-    if !liste.contains(&discriminant) {
+    if !list.contains(&discriminant) {
         return Err(SchemaError::HorsDomain(discriminant));
     }
     match payload {
@@ -537,7 +537,7 @@ fn valider_tag(
 fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    liste: &[Atom],
+    list: &[Atom],
     domain_values: &Domain,
     discriminant: Atom,
     payload: &Value,
@@ -556,7 +556,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
             arcs: BTreeMap::from([(atome_value.0, terminal)]),
         },
     );
-    let index = liste.iter().position(|a| *a == discriminant).unwrap();
+    let index = list.iter().position(|a| *a == discriminant).unwrap();
     let _ = domain_values;
     Ok(pool.intern(
         anchor,
@@ -618,9 +618,9 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             decompiler_set(pool, domain, node, &mut elements)?;
             Ok(Value::Set(elements))
         }
-        Schema::Map(liste_keys, _) => {
+        Schema::Map(list_keys, _) => {
             let mut map = BTreeMap::new();
-            decompiler_map(pool, liste_keys, node, &mut map)?;
+            decompiler_map(pool, list_keys, node, &mut map)?;
             Ok(Value::Map(map))
         }
         Schema::Seq(domain, longueur_max) => {
@@ -628,13 +628,13 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             decompiler_seq(pool, domain, *longueur_max, node, &mut elements)?;
             Ok(Value::Seq(elements))
         }
-        Schema::Tag(liste, domain_values) => decompiler_tag(pool, liste, domain_values, node),
+        Schema::Tag(list, domain_values) => decompiler_tag(pool, list, domain_values, node),
     }
 }
 
 fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    liste: &[Atom],
+    list: &[Atom],
     domain_values: &Domain,
     node: NodeId,
 ) -> Result<Value, SchemaError> {
@@ -656,7 +656,7 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
             node,
         });
     };
-    let discriminant = *liste
+    let discriminant = *list
         .get(index as usize)
         .ok_or(SchemaError::NodeInexpected {
             expected: "valid discriminant index",
@@ -787,7 +787,7 @@ fn decompiler_set<P: Pool<Key = u64, Payload = bool>>(
 
 fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
-    liste_keys: &[Atom],
+    list_keys: &[Atom],
     mut node: NodeId,
     map: &mut BTreeMap<Value, Value>,
 ) -> Result<(), SchemaError> {
@@ -808,7 +808,7 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                     });
                 }
                 let index = (level.0 / PAS_LEVEL_MAP) as usize;
-                if index >= liste_keys.len() {
+                if index >= list_keys.len() {
                     return Err(SchemaError::NodeInexpected {
                         expected: "presence level of a key",
                         node,
@@ -837,7 +837,7 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                             node: node_value,
                         });
                     };
-                    map.insert(Value::Atom(liste_keys[index]), Value::Atom(Atom(value)));
+                    map.insert(Value::Atom(list_keys[index]), Value::Atom(Atom(value)));
                     node = suite;
                 } else if let Some(&suite) = arcs.get(&ABSENT) {
                     node = suite;
