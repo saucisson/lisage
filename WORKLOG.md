@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 22: `rapport`/`erreur` renamed to `report`/`error` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `rapport(s)`→`report(s)`, `erreur(s)`→`error(s)` (all cases, compounds included), workspace-wide (23 files), per glossary.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
+- **Judgement calls**: none beyond the glossary mapping.
 ## 2026-11-14 - M6-6 part 21: `ensemble` renamed to `set` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
