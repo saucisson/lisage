@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 29: `cible` renamed to `target` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: rename `cible(s)`→`target(s)` (all cases, compounds included), workspace-wide (29 files), per glossary.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stem returns 0.
+- **Judgement calls**: none beyond the glossary mapping.
 ## 2026-11-14 - M6-6 part 28: `collecte`/`collecteur`/`collecter`/`variante`/`outil` renamed to `collect`/`collected`/`collector`/`variant`/`tool`, wire keys protected (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
