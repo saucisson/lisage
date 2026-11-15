@@ -4,13 +4,13 @@
 use std::collections::BTreeSet;
 
 use lisage_core::arena::Arena;
-use lisage_core::observer::CanalAttr;
+use lisage_core::observer::ChannelAttr;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_core::{Anchor, NodeId};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::publication::{
-    LEGENDE_CANAUX, Theme, rendre_legende_svg, rendre_pgf, rendre_svg_publication,
+    LEGENDE_CHANNELS, Theme, rendre_legende_svg, rendre_pgf, rendre_svg_publication,
 };
 
 type PoolRef = Arena<ReferenceController>;
@@ -48,21 +48,21 @@ fn test_svg_publication_theme_serif_et_titre() {
 /// The legend is auto-generated from the channel legend: one swatch and one
 /// label per channel, with the declared color.
 #[test]
-fn test_legende_auto_depuis_legende_des_canaux() {
+fn test_legende_auto_depuis_legende_des_channels() {
     let theme = Theme::publication();
     let legende = rendre_legende_svg(&theme, 10, 20);
-    assert_eq!(LEGENDE_CANAUX.len(), 3);
-    for (canal, label, couleur) in LEGENDE_CANAUX {
+    assert_eq!(LEGENDE_CHANNELS.len(), 3);
+    for (channel, label, couleur) in LEGENDE_CHANNELS {
         assert!(
             legende.contains(&format!("fill=\"{couleur}\"")),
-            "color of {canal:?}"
+            "color of {channel:?}"
         );
-        assert!(legende.contains(label), "label of {canal:?}");
+        assert!(legende.contains(label), "label of {channel:?}");
     }
     // The publication SVG with legend embeds the three channels.
     let (pool, root) = diagramme_test();
     let svg = rendre_svg_publication(&pool, root, "fig", &theme, true);
-    for (_canal, label, _couleur) in LEGENDE_CANAUX {
+    for (_channel, label, _couleur) in LEGENDE_CHANNELS {
         assert!(svg.contains(label));
     }
     // Without legend: no channel swatch.
@@ -104,16 +104,19 @@ fn test_pgf_autonome_with_nodes_et_arcs() {
     assert!(pgf_backslash.contains("a\\textbackslash{}b"));
 }
 
-/// The `CanalAttr` channel covered by the legend is the observer's one.
+/// The `ChannelAttr` channel covered by the legend is the observer's one.
 #[test]
-fn test_legende_couvre_les_trois_canaux() {
-    let canaux: Vec<CanalAttr> = LEGENDE_CANAUX.iter().map(|(canal, _, _)| *canal).collect();
+fn test_legende_couvre_les_trois_channels() {
+    let channels: Vec<ChannelAttr> = LEGENDE_CHANNELS
+        .iter()
+        .map(|(channel, _, _)| *channel)
+        .collect();
     assert_eq!(
-        canaux,
+        channels,
         vec![
-            CanalAttr::Inherited,
-            CanalAttr::Synthesized,
-            CanalAttr::Memory
+            ChannelAttr::Inherited,
+            ChannelAttr::Synthesized,
+            ChannelAttr::Memory
         ]
     );
 }

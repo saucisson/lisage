@@ -16,7 +16,7 @@ pub enum ReductionRule {
 
 /// Channel of an attribute (view 3 "step by step", colored channels — M2-6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum CanalAttr {
+pub enum ChannelAttr {
     /// **Inherited** attribute (downward, `φ_disp`) — rendered in blue.
     Inherited,
     /// **Synthesized** attribute (upward, `φ_aggr`) — rendered in orange.
@@ -41,7 +41,7 @@ pub enum TraceEvent {
     /// Attribute flowing on a channel (inherited/synthesized/memory), M2-6.
     Attr {
         /// Channel of the attribute.
-        canal: CanalAttr,
+        channel: ChannelAttr,
         /// Node concerned.
         node: NodeId,
         /// Value (`Debug` format), displayed as-is.

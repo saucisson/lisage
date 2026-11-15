@@ -29,7 +29,7 @@ use lisage_core::atelier::{
 };
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, count_nodes as count_nodes_bdd};
 use lisage_core::error::CoreError;
-use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
+use lisage_core::observer::{ChannelAttr, NoOpObserver, Observer, TraceEvent};
 use lisage_core::pli::{count as count_pli, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
@@ -380,7 +380,7 @@ fn workload_alea_lcg(
     }
     if let Some(observer) = observer {
         observer.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthesized,
+            channel: ChannelAttr::Synthesized,
             node: root,
             value: format!(
                 "workload={} nodes={} check={}",
@@ -469,7 +469,7 @@ fn workload_philosophes(
     }
     if let Some(observer) = observer {
         observer.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthesized,
+            channel: ChannelAttr::Synthesized,
             node: root,
             value: format!(
                 "workload={} nodes={} check={}",
@@ -591,7 +591,7 @@ fn workload_window(
     }
     if let Some(observer) = observer {
         observer.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthesized,
+            channel: ChannelAttr::Synthesized,
             node: root,
             value: format!(
                 "workload={} encoding={} nodes={} check={}",

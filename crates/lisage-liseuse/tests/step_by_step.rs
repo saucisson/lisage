@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use lisage_core::MemoryPolicy;
 use lisage_core::arena::Arena;
-use lisage_core::observer::{CanalAttr, Observer, TraceEvent};
+use lisage_core::observer::{ChannelAttr, Observer, TraceEvent};
 use lisage_core::pli::Pli;
 use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
@@ -16,7 +16,7 @@ use lisage_core::transduction::Transducteur;
 use lisage_core::{Anchor, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::step_by_step::{
-    DiffTrace, Scrubber, diff, legende_canaux, rendre_svg_step_by_step,
+    DiffTrace, Scrubber, diff, legende_channels, rendre_svg_step_by_step,
 };
 use lisage_liseuse::trace::{TRACE_VERSION, serialiser_evenement};
 
@@ -66,7 +66,7 @@ fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> N
 fn test_serialisation_v2_evenements_step_by_step() {
     assert_eq!(TRACE_VERSION, 2);
     let attr = serialiser_evenement(&TraceEvent::Attr {
-        canal: CanalAttr::Inherited,
+        channel: ChannelAttr::Inherited,
         node: NodeId(3),
         value: "Transfert(1)".to_string(),
     });
@@ -96,7 +96,7 @@ fn test_serialisation_v2_evenements_step_by_step() {
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Attr {
-            canal: CanalAttr::Memory,
+            channel: ChannelAttr::Memory,
             node: NodeId(1),
             value: "true".to_string(),
         }),
@@ -147,7 +147,7 @@ fn test_runner_emet_memo_et_attr() {
         evenements.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Inherited,
+                channel: ChannelAttr::Inherited,
                 ..
             }
         )),
@@ -157,7 +157,7 @@ fn test_runner_emet_memo_et_attr() {
         evenements.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthesized,
+                channel: ChannelAttr::Synthesized,
                 ..
             }
         )),
@@ -269,7 +269,7 @@ fn test_scrubber_replay_et_diff() {
             level: Some(lisage_core::Level(0)),
         },
         TraceEvent::Attr {
-            canal: CanalAttr::Inherited,
+            channel: ChannelAttr::Inherited,
             node: NodeId(1),
             value: "0".to_string(),
         },
@@ -327,7 +327,7 @@ fn test_scrubber_replay_et_diff() {
 /// M2-6: the step-by-step SVG rendering colors the channels, marks the ghosts
 /// as dashed, draws the timeline with the rounds, and is deterministic.
 #[test]
-fn test_rendu_svg_step_by_step_canaux_et_fantomes() {
+fn test_rendu_svg_step_by_step_channels_et_fantomes() {
     let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -373,7 +373,7 @@ fn test_rendu_svg_step_by_step_canaux_et_fantomes() {
     let diff_empty = DiffTrace::default();
     let svg = rendre_svg_step_by_step(&pool, root, &scrubber, &diff_empty);
     // Colored channels present (inherited blue, synthesized orange).
-    let legende = legende_canaux();
+    let legende = legende_channels();
     assert!(
         svg.contains(legende["inherited"]),
         "inherited channel colored"
@@ -430,7 +430,7 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
                 match next() % 5 {
                     0 => TraceEvent::NodeCreated { node, level: None },
                     1 => TraceEvent::Attr {
-                        canal: CanalAttr::Inherited,
+                        channel: ChannelAttr::Inherited,
                         node,
                         value: "x".to_string(),
                     },
