@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 26: `canal`/`canaux` renamed to `channel`/`channels`, wire key `canal` protected (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `canal`→`channel`, `canaux`→`channels` (all cases, compounds included, e.g. `CanalAttr`→`ChannelAttr`, `nom_canal`→`channel_name`), workspace-wide (15 files), per glossary. The JSONL v2 wire key `\"canal\"` is contract and was restored in `lisage-liseuse/src/trace.rs` and the two test pins in `lisage-liseuse/tests/step_by_step.rs`.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stem returns only the 3 protected wire literals.
+- **Judgement calls**: none beyond the glossary mapping.
 ## 2026-11-14 - M6-6 part 25: `enfant`/`attribut`/`vue`/`classe`/`voie`/`pas` renamed to `child`/`attribute`/`view`/`class`/`lane`/`step`, module files renamed (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
