@@ -35,7 +35,7 @@ pub fn evaluate<P: Pool<Key = Dbm, Payload = bool>>(
             Form::Node { arcs, .. } => {
                 match arcs
                     .iter()
-                    .find(|(region, _)| region.contient(point))
+                    .find(|(region, _)| region.contains(point))
                     .map(|(_, cible)| *cible)
                 {
                     Some(cible) => node = cible,

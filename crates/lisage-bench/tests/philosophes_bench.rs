@@ -263,7 +263,7 @@ fn test_bench_sept_formes_o1_et_bord() {
         counts_formes.push(vus.len());
         // Flat prototype edge: live nodes of the pool (no GC here,
         // the live peak = live after construction).
-        nodes_plats.push(pool.vivants());
+        nodes_plats.push(pool.live());
         creations += pool.metriques().creations;
         let _ = root;
     }

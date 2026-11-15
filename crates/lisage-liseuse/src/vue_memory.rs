@@ -78,9 +78,9 @@ pub struct VuePool {
     /// compactions, hit rate).
     pub metriques: MetriquesPool,
     /// Live nodes of the main plane.
-    pub vivants_principal: u64,
+    pub live_principal: u64,
     /// Live nodes of the shadow plane.
-    pub vivants_ombre: u64,
+    pub live_ombre: u64,
 }
 
 impl ClasseQuotient {
@@ -98,14 +98,14 @@ impl VuePool {
     pub fn depuis_metriques(
         nom: &str,
         metriques: MetriquesPool,
-        vivants_principal: u64,
-        vivants_ombre: u64,
+        live_principal: u64,
+        live_ombre: u64,
     ) -> Self {
         VuePool {
             nom: nom.to_string(),
             metriques,
-            vivants_principal,
-            vivants_ombre,
+            live_principal,
+            live_ombre,
         }
     }
 }
@@ -161,8 +161,8 @@ pub fn rendre_svg_vue_memory(
         svg.push_str(&format!(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{} : alive={}/{} dead={} gc={} compactions={} hit={}%</text>\n",
             pool.nom,
-            pool.vivants_principal,
-            pool.vivants_ombre,
+            pool.live_principal,
+            pool.live_ombre,
             metriques.morts,
             metriques.gc,
             metriques.compactions,

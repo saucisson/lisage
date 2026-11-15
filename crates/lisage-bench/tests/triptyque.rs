@@ -115,13 +115,13 @@ fn test_cardinality_identique_sur_les_trois_voies() {
 #[test]
 fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
     let network = network(PNML_CHOIX);
-    assert_eq!(voie_a(&network).nodes_vivants, 0);
-    assert!(voie_b(&network).unwrap().nodes_vivants > 0);
+    assert_eq!(voie_a(&network).nodes_live, 0);
+    assert!(voie_b(&network).unwrap().nodes_live > 0);
     assert!(
         voie_c(&network, &order_inverse(network.number_places()))
             .unwrap()
             .measure
-            .nodes_vivants
+            .nodes_live
             > 0
     );
 }

@@ -443,7 +443,7 @@ impl Order {
     }
 
     /// Didactic label `[v₀, v₁, …]` for narration.
-    pub fn etiquette(&self) -> String {
+    pub fn label(&self) -> String {
         let variables: Vec<String> = self.permutation.iter().map(u32::to_string).collect();
         format!("[{}]", variables.join(","))
     }
@@ -543,8 +543,8 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
             node: root_second,
             value: format!(
                 "order={}_vs_{} nodes={} contre {}",
-                order_first.etiquette(),
-                order_second.etiquette(),
+                order_first.label(),
+                order_second.label(),
                 first.nodes_partages,
                 second.nodes_partages
             ),
@@ -617,7 +617,7 @@ impl AnchorWindow {
     }
 
     /// Didactic label `{base: b, horizon: k}` for narration.
-    pub fn etiquette(&self) -> String {
+    pub fn label(&self) -> String {
         format!("{{base: {}, horizon: {}}}", self.base(), self.horizon())
     }
 }
@@ -694,8 +694,8 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
             node: root_apres,
             value: format!(
                 "anchor={}_vs_{} nodes={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
-                anchor_avant.etiquette(),
-                anchor_apres.etiquette(),
+                anchor_avant.label(),
+                anchor_apres.label(),
                 avant.nodes_partages,
                 apres.nodes_partages,
                 debut_avant,

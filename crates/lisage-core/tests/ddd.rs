@@ -134,8 +134,8 @@ fn test_propriete_intersection_lcg() {
         assert_eq!(meet, b.intersection(&a), "commutativity");
         assert_eq!(a.intersection(&a), a, "idempotence");
         let point = [next() % SIZE_DOMAIN, next() % SIZE_DOMAIN];
-        if meet.contient(&point) {
-            assert!(a.contient(&point) && b.contient(&point));
+        if meet.contains(&point) {
+            assert!(a.contains(&point) && b.contains(&point));
         }
     }
 }

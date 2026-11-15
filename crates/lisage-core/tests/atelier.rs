@@ -482,13 +482,13 @@ fn test_anchor_window_glisse() {
         0,
         "the base is the argument of the entry arc"
     );
-    assert_eq!(anchor.etiquette(), "{base: 0, horizon: 4}");
+    assert_eq!(anchor.label(), "{base: 0, horizon: 4}");
     let glissee = anchor.glessee(2);
     assert_eq!(glissee.base(), 2);
     assert_eq!(glissee.horizon(), 4, "the slide only affects the base");
     assert_eq!(glissee.window_absolue(), (2, 6));
     assert_eq!(glissee.key_input(), 2);
-    assert_eq!(glissee.etiquette(), "{base: 2, horizon: 4}");
+    assert_eq!(glissee.label(), "{base: 2, horizon: 4}");
     // The original anchor is unchanged (the slide produces a new anchor).
     assert_eq!(anchor.base(), 0);
 }

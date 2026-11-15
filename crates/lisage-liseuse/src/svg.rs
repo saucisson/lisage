@@ -83,7 +83,7 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
 pub(crate) struct Couleurs {
     pub(crate) encre: &'static str,
     pub(crate) arete: &'static str,
-    pub(crate) etiquette: &'static str,
+    pub(crate) label: &'static str,
     pub(crate) fond_node: &'static str,
     pub(crate) fond_terminal: &'static str,
 }
@@ -92,7 +92,7 @@ pub(crate) struct Couleurs {
 pub(crate) const COULEURS_DEBUG: Couleurs = Couleurs {
     encre: "#333",
     arete: "#555",
-    etiquette: "#777",
+    label: "#777",
     fond_node: "#fff",
     fond_terminal: "#eee",
 };
@@ -129,7 +129,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
                     "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" fill=\"{}\">{}</text>\n",
                     (depart.x + arrivee.x) / 2,
                     (depart.y + arrivee.y) / 2,
-                    couleurs.etiquette,
+                    couleurs.label,
                     echapper_xml(&key.to_string())
                 ));
                 pile.push(*cible);
@@ -194,6 +194,6 @@ pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) ->
 }
 
 /// Displayed level rule (for tests and the legend).
-pub fn etiquette_level(level: Level) -> String {
+pub fn label_level(level: Level) -> String {
     format!("ℓ{}", level.0)
 }

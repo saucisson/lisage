@@ -45,7 +45,7 @@ impl Domain {
     }
 
     /// Does the domain contain this atom?
-    pub fn contient(&self, atome: Atom) -> bool {
+    pub fn contains(&self, atome: Atom) -> bool {
         self.values.contains(&atome)
     }
 
@@ -275,7 +275,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
 ) -> Result<NodeId, SchemaError> {
     match (schema, value) {
         (Schema::Atom(domain), Value::Atom(atome)) => {
-            if !domain.contient(*atome) {
+            if !domain.contains(*atome) {
                 return Err(SchemaError::HorsDomain(*atome));
             }
             let terminal = pool.intern(anchor, Form::Terminal(true));
@@ -290,7 +290,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
         (Schema::Set(domain), Value::Set(elements)) => {
             for element in elements {
                 match element {
-                    Value::Atom(atome) if domain.contient(*atome) => {}
+                    Value::Atom(atome) if domain.contains(*atome) => {}
                     Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
                     other => {
                         return Err(SchemaError::TypeMismatch {
@@ -344,7 +344,7 @@ fn valider_map(
                 recu: forme_value(value),
             });
         };
-        if !domain_values.contient(*atome_value) {
+        if !domain_values.contains(*atome_value) {
             return Err(SchemaError::HorsDomain(*atome_value));
         }
     }
@@ -444,7 +444,7 @@ fn valider_seq(domain: &Domain, longueur_max: u32, elements: &[Value]) -> Result
     }
     for element in elements {
         match element {
-            Value::Atom(atome) if domain.contient(*atome) => {}
+            Value::Atom(atome) if domain.contains(*atome) => {}
             Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
             other => {
                 return Err(SchemaError::TypeMismatch {
@@ -523,7 +523,7 @@ fn valider_tag(
         return Err(SchemaError::HorsDomain(discriminant));
     }
     match payload {
-        Value::Atom(atome) if domain_values.contient(*atome) => Ok(()),
+        Value::Atom(atome) if domain_values.contains(*atome) => Ok(()),
         Value::Atom(atome) => Err(SchemaError::HorsDomain(*atome)),
         other => Err(SchemaError::TypeMismatch {
             expected: "atomic payload",
@@ -602,7 +602,7 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             for (key, cible) in arcs {
                 if matches!(pool.resolve(*cible), Ok(Form::Terminal(true))) {
                     let atome = Atom(*key);
-                    if domain.contient(atome) {
+                    if domain.contains(atome) {
                         return Ok(Value::Atom(atome));
                     }
                     return Err(SchemaError::HorsDomain(atome));
@@ -685,7 +685,7 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
         });
     };
     let atome = Atom(value);
-    if !domain_values.contient(atome) {
+    if !domain_values.contains(atome) {
         return Err(SchemaError::HorsDomain(atome));
     }
     Ok(Value::Tag(discriminant, Box::new(Value::Atom(atome))))
@@ -736,7 +736,7 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
                     continue;
                 }
                 let atome = Atom(arc);
-                if !domain.contient(atome) {
+                if !domain.contains(atome) {
                     return Err(SchemaError::HorsDomain(atome));
                 }
                 elements.push(Value::Atom(atome));

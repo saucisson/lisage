@@ -105,11 +105,11 @@ fn test_metriques_gc_et_compaction() {
     let total = pool.node_count() as u64;
     let stats = pool.gc(&[root]);
     assert!(stats.collectes > 0, "orphans are collected");
-    assert_eq!(stats.vivants + stats.collectes, total);
+    assert_eq!(stats.live + stats.collectes, total);
 
     let metriques = pool.metriques();
     assert_eq!(metriques.gc, 1, "a single GC performed");
-    assert_eq!(metriques.vivants, stats.vivants);
+    assert_eq!(metriques.live, stats.live);
     assert_eq!(metriques.morts, stats.collectes);
     assert_eq!(
         metriques.compactions,
@@ -121,5 +121,5 @@ fn test_metriques_gc_et_compaction() {
         "profiled compaction consistent with the threshold"
     );
     assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
-    assert_eq!(pool.vivants(), stats.vivants as usize);
+    assert_eq!(pool.live(), stats.live as usize);
 }

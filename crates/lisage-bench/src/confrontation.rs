@@ -91,7 +91,7 @@ impl Charge {
     }
 
     /// JSON protocol label.
-    pub fn etiquette(&self) -> &'static str {
+    pub fn label(&self) -> &'static str {
         match self {
             Charge::AleaLcg => "alea-lcg",
             Charge::Philosophes => "philosophes",
@@ -111,7 +111,7 @@ pub enum Variante {
 
 impl Variante {
     /// JSON protocol label.
-    pub fn etiquette(&self) -> &'static str {
+    pub fn label(&self) -> &'static str {
         match self {
             Variante::Bdd => "bdd",
             Variante::Mdd => "mdd",
@@ -120,7 +120,7 @@ impl Variante {
 }
 
 /// JSON label of a window encoding.
-fn etiquette_encodage(encodage: &Encodage) -> &'static str {
+fn label_encodage(encodage: &Encodage) -> &'static str {
     match encodage {
         Encodage::Absolu => "absolu",
         Encodage::Relatif => "relatif",
@@ -273,8 +273,8 @@ pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
     ligne.push_str(&format!(
         "\"outil\":\"{}\",\"variante\":\"{}\",\"charge\":\"{}\"",
         echapper_json(OUTIL),
-        measure.variante.etiquette(),
-        measure.charge.etiquette()
+        measure.variante.label(),
+        measure.charge.label()
     ));
     ligne.push_str(",\"parametres\":{");
     for (indice, (key, value)) in measure.parametres.iter().enumerate() {
@@ -289,10 +289,7 @@ pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
     }
     ligne.push('}');
     if let Some(encodage) = &measure.encodage {
-        ligne.push_str(&format!(
-            ",\"encodage\":\"{}\"",
-            etiquette_encodage(encodage)
-        ));
+        ligne.push_str(&format!(",\"encodage\":\"{}\"", label_encodage(encodage)));
     }
     ligne.push_str(&format!(
         ",\"temps_ms\":{:.3},\"rss_max_ko\":{},\"noeuds\":{},\"verifie\":{}",
@@ -352,7 +349,7 @@ fn charge_alea_lcg(
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if number_variables == 0 || number_variables > VARIABLES_MAXIMALES_ALEA {
         return Err(ErreurConfrontation::ParametresInvalides {
-            charge: Charge::AleaLcg.etiquette(),
+            charge: Charge::AleaLcg.label(),
             detail: format!("n must be in 1..={VARIABLES_MAXIMALES_ALEA}"),
         });
     }
@@ -387,7 +384,7 @@ fn charge_alea_lcg(
             node: root,
             value: format!(
                 "workload={} nodes={} check={}",
-                Charge::AleaLcg.etiquette(),
+                Charge::AleaLcg.label(),
                 nodes,
                 expected_satisfactions
             ),
@@ -422,7 +419,7 @@ fn charge_philosophes(
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if number_philosophes == 0 || number_philosophes > PHILOSOPHES_MAXIMAUX {
         return Err(ErreurConfrontation::ParametresInvalides {
-            charge: Charge::Philosophes.etiquette(),
+            charge: Charge::Philosophes.label(),
             detail: format!("n must be in 1..={PHILOSOPHES_MAXIMAUX}"),
         });
     }
@@ -476,7 +473,7 @@ fn charge_philosophes(
             node: root,
             value: format!(
                 "workload={} nodes={} check={}",
-                Charge::Philosophes.etiquette(),
+                Charge::Philosophes.label(),
                 nodes,
                 verifie
             ),
@@ -570,7 +567,7 @@ fn charge_window(
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if size == 0 || nb_bases == 0 {
         return Err(ErreurConfrontation::ParametresInvalides {
-            charge: Charge::Window.etiquette(),
+            charge: Charge::Window.label(),
             detail: "size and nb_bases must be ≥ 1".to_string(),
         });
     }
@@ -599,8 +596,8 @@ fn charge_window(
             node: root,
             value: format!(
                 "workload={} encoding={} nodes={} check={}",
-                Charge::Window.etiquette(),
-                etiquette_encodage(&encodage),
+                Charge::Window.label(),
+                label_encodage(&encodage),
                 nodes,
                 verifie
             ),
@@ -637,13 +634,13 @@ pub fn executer(
                 parametres
                     .first()
                     .ok_or_else(|| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::AleaLcg.etiquette(),
+                        charge: Charge::AleaLcg.label(),
                         detail: "expected: alea-lcg <n>".to_string(),
                     })?;
             let number_variables =
                 seul.parse::<u32>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::AleaLcg.etiquette(),
+                        charge: Charge::AleaLcg.label(),
                         detail: format!("unreadable n: {seul}"),
                     })?;
             charge_alea_lcg(number_variables, observer)
@@ -651,7 +648,7 @@ pub fn executer(
         Charge::Philosophes => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErreurConfrontation::ParametresInvalides {
-                    charge: Charge::Philosophes.etiquette(),
+                    charge: Charge::Philosophes.label(),
                     detail: "expected: philosophes <n> <path>".to_string(),
                 }
             })?;
@@ -659,7 +656,7 @@ pub fn executer(
                 first
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Philosophes.etiquette(),
+                        charge: Charge::Philosophes.label(),
                         detail: format!("unreadable n: {first}"),
                     })?;
             charge_philosophes(number_philosophes, second, observer)
@@ -667,7 +664,7 @@ pub fn executer(
         Charge::Window => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErreurConfrontation::ParametresInvalides {
-                    charge: Charge::Window.etiquette(),
+                    charge: Charge::Window.label(),
                     detail: "expected: window <size> <nb_bases> [absolu|relatif]".to_string(),
                 }
             })?;
@@ -675,14 +672,14 @@ pub fn executer(
                 first
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Window.etiquette(),
+                        charge: Charge::Window.label(),
                         detail: format!("unreadable size: {first}"),
                     })?;
             let nb_bases =
                 second
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Window.etiquette(),
+                        charge: Charge::Window.label(),
                         detail: format!("unreadable nb_bases: {second}"),
                     })?;
             let encodage = match parametres.get(2).map(String::as_str) {
@@ -690,7 +687,7 @@ pub fn executer(
                 Some("relatif") => Encodage::Relatif,
                 Some(other) => {
                     return Err(ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Window.etiquette(),
+                        charge: Charge::Window.label(),
                         detail: format!("unknown encoding: {other}"),
                     });
                 }

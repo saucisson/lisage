@@ -103,7 +103,7 @@ impl<C: Controller> Arena<C> {
     }
 
     /// Number of live nodes.
-    pub fn vivants(&self) -> usize {
+    pub fn live(&self) -> usize {
         self.nodes.iter().filter(|e| e.forme.is_some()).count()
     }
 
@@ -143,7 +143,7 @@ impl<C: Controller> Arena<C> {
         // Live nodes counted on actually-live entries (not derived from the
         // slot count, which includes tombstones from a previous GC without
         // compaction).
-        let vivants = self.nodes.iter().filter(|e| e.forme.is_some()).count() as u64;
+        let live = self.nodes.iter().filter(|e| e.forme.is_some()).count() as u64;
         let compaction = seuil_atteint(collectes, total);
         if compaction {
             self.remap = self.compacter();
@@ -151,18 +151,18 @@ impl<C: Controller> Arena<C> {
             self.remap.clear();
         }
         self.metriques.gc += 1;
-        self.metriques.vivants = vivants;
+        self.metriques.live = live;
         self.metriques.morts += collectes;
         if compaction {
             self.metriques.compactions += 1;
         }
         let stats = StatsGc {
-            vivants,
+            live,
             collectes,
             compaction,
         };
         self.observer.on_event(&TraceEvent::Gc {
-            vivants,
+            live,
             collectes,
             compaction,
         });

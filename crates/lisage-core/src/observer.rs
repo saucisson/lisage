@@ -60,7 +60,7 @@ pub enum TraceEvent {
     /// GC of the two-plane pool (M4-1): live, collected, profiled compaction.
     Gc {
         /// Live nodes after collection.
-        vivants: u64,
+        live: u64,
         /// Collected nodes.
         collectes: u64,
         /// Compaction performed (dead threshold reached).

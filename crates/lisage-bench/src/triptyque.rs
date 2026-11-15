@@ -83,14 +83,14 @@ pub struct MeasureVoie {
     /// Cardinality of the reachable space (number of distinct markings).
     pub cardinality: u64,
     /// Live nodes of the diagram (0 for path A, explicit set).
-    pub nodes_vivants: usize,
+    pub nodes_live: usize,
 }
 
 /// Path A (reference): cardinality of the explicit reachable space.
 pub fn voie_a(network: &NetworkPetri) -> MeasureVoie {
     MeasureVoie {
         cardinality: pnml::espace_atteignable(network).len() as u64,
-        nodes_vivants: 0,
+        nodes_live: 0,
     }
 }
 
@@ -172,7 +172,7 @@ fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, E
         Box::new(NoOpObserver),
     );
     let root = compiler_espace(&mut pool, &schema, &espace)?;
-    let nodes_vivants = pool.vivants();
+    let nodes_live = pool.live();
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
@@ -180,7 +180,7 @@ fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, E
     let cardinality = count(&pool, &mut output, ANCHOR_BANC, &schema, root)?;
     Ok(MeasureVoie {
         cardinality,
-        nodes_vivants,
+        nodes_live,
     })
 }
 

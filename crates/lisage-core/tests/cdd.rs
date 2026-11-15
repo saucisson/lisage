@@ -49,15 +49,15 @@ fn test_normalisation_union() {
 fn test_non_canonicite_assumee() {
     let grande = Dbm::new(2, &[(0, 1, 5)]);
     let incluse = Dbm::new(2, &[(0, 1, 0)]);
-    assert!(grande.contient(&[0, 0]) && incluse.contient(&[0, 0]));
+    assert!(grande.contains(&[0, 0]) && incluse.contains(&[0, 0]));
     let union_avec_redondance = Cdd::new(&[grande.clone(), incluse.clone()]);
     let union_seule = Cdd::new(std::slice::from_ref(&grande));
     // Semantically the same region (the included one is inside the big one)…
     for x in 0..SIZE_DOMAIN {
         for y in 0..SIZE_DOMAIN {
             assert_eq!(
-                union_avec_redondance.contient(&[x, y]),
-                union_seule.contient(&[x, y])
+                union_avec_redondance.contains(&[x, y]),
+                union_seule.contains(&[x, y])
             );
         }
     }
@@ -66,15 +66,15 @@ fn test_non_canonicite_assumee() {
 }
 
 #[test]
-fn test_contient_semantique() {
+fn test_contains_semantique() {
     let a = Dbm::new(2, &[(0, 1, 0)]); // x − y ≤ 0
     let b = Dbm::new(2, &[(1, 0, -2)]); // x − y ≥ 2
     let union = Cdd::new(&[a, b]);
-    assert!(union.contient(&[0, 0]));
-    assert!(union.contient(&[1, 3]));
-    assert!(union.contient(&[3, 1]));
-    assert!(!union.contient(&[2, 1])); // 0 < x − y < 2
-    assert!(!VIDE.contient(&[0, 0]));
+    assert!(union.contains(&[0, 0]));
+    assert!(union.contains(&[1, 3]));
+    assert!(union.contains(&[3, 1]));
+    assert!(!union.contains(&[2, 1])); // 0 < x − y < 2
+    assert!(!VIDE.contains(&[0, 0]));
 }
 
 #[test]
@@ -205,15 +205,15 @@ fn test_propriete_intersection_lcg() {
             for y in 0..SIZE_DOMAIN {
                 let point = [x, y];
                 assert_eq!(
-                    auto_meet.contient(&point),
-                    a.contient(&point),
+                    auto_meet.contains(&point),
+                    a.contains(&point),
                     "semantic idempotence at point {point:?}"
                 );
             }
         }
         let point = [next() % SIZE_DOMAIN, next() % SIZE_DOMAIN];
-        if meet.contient(&point) {
-            assert!(a.contient(&point) && b.contient(&point));
+        if meet.contains(&point) {
+            assert!(a.contains(&point) && b.contains(&point));
         }
     }
 }

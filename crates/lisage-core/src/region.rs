@@ -76,7 +76,7 @@ impl Intervalle {
     }
 
     /// Does the point `v` belong to the interval?
-    pub fn contient(&self, v: u64) -> bool {
+    pub fn contains(&self, v: u64) -> bool {
         !self.est_vide() && self.bound_inf <= v && v <= self.bound_sup
     }
 }

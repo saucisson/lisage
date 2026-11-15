@@ -37,7 +37,7 @@ pub struct MetriquesPool {
     /// Nodes shared (hash-consing hit, R-share).
     pub partages: u64,
     /// Live nodes after the last GC.
-    pub vivants: u64,
+    pub live: u64,
     /// Nodes collected in total.
     pub morts: u64,
     /// Number of GCs executed.
@@ -61,7 +61,7 @@ impl MetriquesPool {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StatsGc {
     /// Live nodes (reached from the roots).
-    pub vivants: u64,
+    pub live: u64,
     /// Collected nodes (tombstones set).
     pub collectes: u64,
     /// Compaction performed (dead threshold reached).

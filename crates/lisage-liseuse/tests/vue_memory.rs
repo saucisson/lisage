@@ -50,13 +50,13 @@ fn test_vue_pool_depuis_metriques_gc() {
     let _orphelin = ensemble(&mut pool, ANCHOR_TEST, &schema, &[2]);
     let stats_gc = pool.gc(&[root]);
     let metriques = pool.metriques();
-    let vue = VuePool::depuis_metriques("reference", metriques, stats_gc.vivants, 0);
+    let vue = VuePool::depuis_metriques("reference", metriques, stats_gc.live, 0);
     assert_eq!(vue.nom, "reference");
     assert_eq!(vue.metriques.gc, 1);
-    assert_eq!(vue.metriques.vivants, stats_gc.vivants);
+    assert_eq!(vue.metriques.live, stats_gc.live);
     assert_eq!(vue.metriques.morts, stats_gc.collectes);
-    assert_eq!(vue.vivants_principal, stats_gc.vivants);
-    assert_eq!(vue.vivants_ombre, 0);
+    assert_eq!(vue.live_principal, stats_gc.live);
+    assert_eq!(vue.live_ombre, 0);
 }
 
 /// M4-5: quotient classes (forms × anchors) — C1 in action: the same
@@ -112,7 +112,7 @@ fn test_rendre_svg_vue_memory() {
     let root = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0, 1]);
     let _orphelin = ensemble(&mut pool, ANCHOR_TEST, &schema, &[2]);
     let stats_gc = pool.gc(&[root]);
-    let vue_pool = VuePool::depuis_metriques("reference", pool.metriques(), stats_gc.vivants, 0);
+    let vue_pool = VuePool::depuis_metriques("reference", pool.metriques(), stats_gc.live, 0);
     let classes = vec![
         ClasseQuotient {
             forme: "{0,1}".to_string(),
@@ -163,7 +163,7 @@ fn test_rendre_svg_vue_memory() {
         &[VuePool::depuis_metriques(
             "reference",
             pool.metriques(),
-            stats_gc.vivants,
+            stats_gc.live,
             0,
         )],
         &classes,

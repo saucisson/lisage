@@ -87,12 +87,12 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
         TraceEvent::MemoHit { node } => ("MemoHit", format!("\"noeud\":{}", node.0)),
         TraceEvent::MemoMiss { node } => ("MemoMiss", format!("\"noeud\":{}", node.0)),
         TraceEvent::Gc {
-            vivants,
+            live,
             collectes,
             compaction,
         } => (
             "Gc",
-            format!("\"vivants\":{vivants},\"collectes\":{collectes},\"compaction\":{compaction}"),
+            format!("\"vivants\":{live},\"collectes\":{collectes},\"compaction\":{compaction}"),
         ),
         TraceEvent::Round { numero } => ("Round", format!("\"numero\":{numero}")),
     };
