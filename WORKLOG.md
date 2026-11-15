@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 31 (final): articles `un`/`une`/`deux`/`la`/`et` renamed to `one`/`two`/`level_a`/`_and_`, remaining French prose comments translated (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6) — final identifier batch.
+- **Done**: renames `un`→`one` (incl. `Pli::un()`), `une`→`one` (incl. `EffetMemory::one()`), `deux`→`two`, pattern bindings `la`/`lb`→`level_a`/`level_b`, `_et_`→`_and_` in test names (32 occurrences), workspace-wide (31 files). The last French prose comments translated to English (lib.rs crate doc, confrontation bin usage, bdd.rs/region.rs/schema.rs/cdd.rs comments). Accent grep over crates/**/*.rs now returns 0.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
+- **Judgement calls**: `la`/`lb` level bindings mapped to `level_a`/`level_b`.
 ## 2026-11-14 - M6-6 part 30: `nom`/`piste`/`fiche`/`royaume`/`contenu`/`taux`/`predit`/`ancien`/`lire`/`ecrire`/`boite`/`atelier`/`fantome`/`dossier`/`cellule` renamed to `name`/`track`/`card`/`kingdom`/`content`/`rate`/`predicted`/`old`/`read`/`write`/`box`/`workshop`/`ghost`/`directory`/`cell` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
