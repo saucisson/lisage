@@ -3,7 +3,7 @@
 //! with runtime order (valid π adopted, invalid π rejected), typed errors.
 
 use lisage_bench::pnml::{NetworkPetri, PnmlDocument};
-use lisage_bench::triptyque::{ErreurTriptyque, voie_a, voie_b, voie_c};
+use lisage_bench::triptyque::{ErrorTriptyque, voie_a, voie_b, voie_c};
 use lisage_lang::value::Atom;
 use lisage_plan::order::StrategieAval;
 
@@ -164,10 +164,10 @@ fn test_voie_c_order_runtime_adopte() {
 #[test]
 fn test_without_place_rejete() {
     let network = network(PNML_WITHOUT_PLACE);
-    assert_eq!(voie_b(&network).unwrap_err(), ErreurTriptyque::WithoutPlace);
+    assert_eq!(voie_b(&network).unwrap_err(), ErrorTriptyque::WithoutPlace);
     assert_eq!(
         voie_c(&network, &[]).unwrap_err(),
-        ErreurTriptyque::WithoutPlace
+        ErrorTriptyque::WithoutPlace
     );
 }
 

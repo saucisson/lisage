@@ -3,7 +3,7 @@
 //! and typed contract extended to encodings via `Royaume<T, O, E, V>`.
 
 use lisage_lang::Atom;
-use lisage_plan::conversion::{Conversion, Encodage, ErreurConversion, MarqueEncodage, Royaume};
+use lisage_plan::conversion::{Conversion, Encodage, ErrorConversion, MarqueEncodage, Royaume};
 use lisage_plan::order::{DomainAtomes, MarqueOrder, Order, TypeOrder};
 
 /// Mark carrying the canonical order over an atom domain.
@@ -101,7 +101,7 @@ fn test_conversion_orders_inconvertibles() {
     let order_b = Order::canonique(&domain_b);
     assert_eq!(
         Conversion::new(&order_a, &order_b),
-        Err(ErreurConversion::OrdersInconvertibles)
+        Err(ErrorConversion::OrdersInconvertibles)
     );
 }
 
@@ -139,7 +139,7 @@ fn test_royaume_reordonner_contrat_type() {
         royaume
             .reordonner::<MarqueInverse>(&domain, &mauvaise)
             .err(),
-        Some(ErreurConversion::RoyaumeIncompatible)
+        Some(ErrorConversion::RoyaumeIncompatible)
     );
 }
 

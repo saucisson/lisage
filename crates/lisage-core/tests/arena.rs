@@ -109,7 +109,7 @@ fn test_handles_unicite() {
 }
 
 #[test]
-fn test_resolve_erreur_typee() {
+fn test_resolve_error_typee() {
     let (arena, _trace) = arena_with_trace();
     let result = arena.resolve(NodeId(99));
     assert_eq!(result, Err(lisage_core::PoolError::UnknownNode(NodeId(99))));

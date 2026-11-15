@@ -34,7 +34,7 @@ pub trait MarqueEncodage: Sized + Send + Sync {
 
 /// Typed conversion error (cause preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurConversion {
+pub enum ErrorConversion {
     /// The two orders do not have the same canonical key set:
     /// no conversion possible between those types.
     OrdersInconvertibles,
@@ -43,13 +43,13 @@ pub enum ErreurConversion {
     RoyaumeIncompatible,
 }
 
-impl std::fmt::Display for ErreurConversion {
+impl std::fmt::Display for ErrorConversion {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurConversion::OrdersInconvertibles => {
+            ErrorConversion::OrdersInconvertibles => {
                 write!(formatter, "inconvertible orders (different canonical keys)")
             }
-            ErreurConversion::RoyaumeIncompatible => {
+            ErrorConversion::RoyaumeIncompatible => {
                 write!(
                     formatter,
                     "conversion incompatible with source/target realms"
@@ -59,7 +59,7 @@ impl std::fmt::Display for ErreurConversion {
     }
 }
 
-impl std::error::Error for ErreurConversion {}
+impl std::error::Error for ErrorConversion {}
 
 /// Conversion between two orders of the same type `T`: **reorder =
 /// convert**. Compiled into a transduction — sequence of adjacent level
@@ -78,9 +78,9 @@ pub struct Conversion<T: TypeOrder> {
 impl<T: TypeOrder> Conversion<T> {
     /// Conversion from `source` to `cible`: both orders must have the same
     /// canonical key set (same instantiated type).
-    pub fn new(source: &Order<T>, cible: &Order<T>) -> Result<Self, ErreurConversion> {
+    pub fn new(source: &Order<T>, cible: &Order<T>) -> Result<Self, ErrorConversion> {
         if source.canoniques() != cible.canoniques() {
-            return Err(ErreurConversion::OrdersInconvertibles);
+            return Err(ErrorConversion::OrdersInconvertibles);
         }
         // Bubble sort of the target sequence toward the source order,
         // recording each adjacent transposition: the number of
@@ -183,11 +183,11 @@ impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V: Clone> Royaume<T, O,
         &self,
         descripteur: &T,
         conversion: &Conversion<T>,
-    ) -> Result<Royaume<T, O2, E, V>, ErreurConversion> {
+    ) -> Result<Royaume<T, O2, E, V>, ErrorConversion> {
         if conversion.source() != &O::order(descripteur)
             || conversion.cible() != &O2::order(descripteur)
         {
-            return Err(ErreurConversion::RoyaumeIncompatible);
+            return Err(ErrorConversion::RoyaumeIncompatible);
         }
         Ok(Royaume::new(self.value.clone()))
     }

@@ -6,8 +6,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_algebra::interface::{Anchor, Form, Pool};
-use lisage_algebra::vtree::{ErreurVtree, Vtree};
-use lisage_bench::sdd::{ErreurSdd, installer_sdd, pool_pour_sdd, projeter};
+use lisage_algebra::vtree::{ErrorVtree, Vtree};
+use lisage_bench::sdd::{ErrorSdd, installer_sdd, pool_pour_sdd, projeter};
 use lisage_core::arena::Arena;
 use lisage_core::pli::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
@@ -178,6 +178,6 @@ fn test_vtree_invalide_rejete() {
     let mut pool = pool_neuf();
     assert_eq!(
         installer_sdd(&mut pool, &vtree, &BTreeSet::new()).unwrap_err(),
-        ErreurSdd::Vtree(ErreurVtree::VariableEnDouble(Atom(0)))
+        ErrorSdd::Vtree(ErrorVtree::VariableEnDouble(Atom(0)))
     );
 }

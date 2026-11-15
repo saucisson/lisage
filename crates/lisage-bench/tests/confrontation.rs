@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use lisage_bench::confrontation::{
-    Charge, ErreurConfrontation, MeasureConfrontation, OUTIL, Variante, executer, serialiser_ligne,
+    Charge, ErrorConfrontation, MeasureConfrontation, OUTIL, Variante, executer, serialiser_ligne,
 };
 use lisage_core::atelier::Encodage;
 
@@ -127,11 +127,11 @@ fn test_alea_lcg_satisfactions_epinglees() {
 #[test]
 fn test_alea_lcg_bounds_refusees() {
     for n in [0, 25] {
-        let erreur =
+        let error =
             executer(&Charge::AleaLcg, &[n.to_string()], None).expect_err("bounds rejected");
         assert!(matches!(
-            erreur,
-            ErreurConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
+            error,
+            ErrorConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
         ));
     }
 }
@@ -159,10 +159,10 @@ fn test_philosophes_fil_rouge_epingle() {
 fn test_philosophes_bound_refusee() {
     let chemin = ecrire_fichier_etats(3);
     let parametres = vec!["33".to_string(), chemin.display().to_string()];
-    let erreur = executer(&Charge::Philosophes, &parametres, None).expect_err("bound rejected");
+    let error = executer(&Charge::Philosophes, &parametres, None).expect_err("bound rejected");
     assert!(matches!(
-        erreur,
-        ErreurConfrontation::ParametresInvalides { charge, .. } if charge == "philosophes"
+        error,
+        ErrorConfrontation::ParametresInvalides { charge, .. } if charge == "philosophes"
     ));
 }
 
@@ -186,11 +186,11 @@ fn test_philosophers_inputs_invalid() {
         ));
         std::fs::write(&chemin, contenu).expect("invalid file written");
         let parametres = vec!["3".to_string(), chemin.display().to_string()];
-        let erreur = executer(&Charge::Philosophes, &parametres, None);
-        assert!(erreur.is_err(), "invalid input rejected: {contenu:?}");
+        let error = executer(&Charge::Philosophes, &parametres, None);
+        assert!(error.is_err(), "invalid input rejected: {contenu:?}");
         assert!(
-            matches!(erreur, Err(ErreurConfrontation::InvalidInput { .. })),
-            "typed error InvalidInput, not swallowed: {erreur:?}"
+            matches!(error, Err(ErrorConfrontation::InvalidInput { .. })),
+            "typed error InvalidInput, not swallowed: {error:?}"
         );
     }
 }
@@ -222,10 +222,10 @@ fn test_window_encodages_epingles() {
 fn test_charges_inconnues_refusees() {
     assert_eq!(Charge::depuis_nom("inexistante"), None);
     assert_eq!(Charge::depuis_nom("alea-lcg"), Some(Charge::AleaLcg));
-    let erreur = executer(&Charge::AleaLcg, &[], None).expect_err("missing parameters");
+    let error = executer(&Charge::AleaLcg, &[], None).expect_err("missing parameters");
     assert!(matches!(
-        erreur,
-        ErreurConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
+        error,
+        ErrorConfrontation::ParametresInvalides { charge, .. } if charge == "alea-lcg"
     ));
 }
 

@@ -48,9 +48,9 @@ fn test_collapse_commute() {
         },
     );
     assert_eq!(root_with, faux, "R-collapse: the node reduces to ⊥");
-    let rapport = measure(&with, root_with, None).expect("interned node");
-    assert_eq!(rapport.nodes_partages, 1);
-    assert_eq!(rapport.chemins, 1);
+    let report = measure(&with, root_with, None).expect("interned node");
+    assert_eq!(report.nodes_partages, 1);
+    assert_eq!(report.chemins, 1);
 
     let mut without = pool_bdd(Reductions::without_collapse());
     let faux = without.intern(ANCHOR, Form::Terminal(false));
@@ -62,9 +62,9 @@ fn test_collapse_commute() {
         },
     );
     assert_ne!(root_without, faux, "without R-collapse: the node is kept");
-    let rapport = measure(&without, root_without, None).expect("interned node");
-    assert_eq!(rapport.nodes_partages, 2, "node + terminal ⊥");
-    assert_eq!(rapport.chemins, 2, "two paths to ⊥");
+    let report = measure(&without, root_without, None).expect("interned node");
+    assert_eq!(report.nodes_partages, 2, "node + terminal ⊥");
+    assert_eq!(report.chemins, 2, "two paths to ⊥");
 }
 
 /// Commuted R-default: the explicit δ(ℓ) arc toward D_δ is absorbed or not.
@@ -85,9 +85,9 @@ fn test_defaut_commute() {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 1, "R-default: the EMPTY arc to ⊥ is absorbed");
-    let rapport = measure(&with, root_with, None).expect("interned node");
-    assert_eq!(rapport.nodes_partages, 2, "node + ⊤");
-    assert_eq!(rapport.chemins, 1);
+    let report = measure(&with, root_with, None).expect("interned node");
+    assert_eq!(report.nodes_partages, 2, "node + ⊤");
+    assert_eq!(report.chemins, 1);
 
     let mut without = pool_region(Reductions::without_defaut());
     let vrai = without.intern(ANCHOR, Form::Terminal(true));
@@ -103,9 +103,9 @@ fn test_defaut_commute() {
         panic!("the root is a node");
     };
     assert_eq!(arcs.len(), 2, "without R-default: the EMPTY arc is kept");
-    let rapport = measure(&without, root_without, None).expect("interned node");
-    assert_eq!(rapport.nodes_partages, 3, "node + ⊤ + ⊥");
-    assert_eq!(rapport.chemins, 2);
+    let report = measure(&without, root_without, None).expect("interned node");
+    assert_eq!(report.nodes_partages, 3, "node + ⊤ + ⊥");
+    assert_eq!(report.chemins, 2);
 }
 
 /// Metrics on a diamond: 4 shared nodes (root, n1, ⊤, ⊥) and 4 paths — each
@@ -189,15 +189,15 @@ fn test_propriete_commutation_lcg() {
         let root_with = arbre(&mut with, 3, amorce);
         let mut without = pool_bdd(Reductions::AUCUNE);
         let root_without = arbre(&mut without, 3, amorce);
-        let rapport_with = measure(&with, root_with, None).expect("interned node");
-        let rapport_without = measure(&without, root_without, None).expect("interned node");
-        assert!(rapport_with.chemins >= 1, "at least one path");
+        let report_with = measure(&with, root_with, None).expect("interned node");
+        let report_without = measure(&without, root_without, None).expect("interned node");
+        assert!(report_with.chemins >= 1, "at least one path");
         assert!(
-            rapport_without.nodes_partages >= rapport_with.nodes_partages,
+            report_without.nodes_partages >= report_with.nodes_partages,
             "without reduction: nodes ≥ (same form)"
         );
         assert!(
-            rapport_without.chemins >= rapport_with.chemins,
+            report_without.chemins >= report_with.chemins,
             "without reduction: paths ≥ (same form)"
         );
     }
@@ -241,8 +241,8 @@ fn test_narration_measure() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = measure(&pool, root, Some(&collecteur)).expect("interned node");
-    assert_eq!(rapport.nodes_partages, 4);
+    let report = measure(&pool, root, Some(&collecteur)).expect("interned node");
+    assert_eq!(report.nodes_partages, 4);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
@@ -269,30 +269,30 @@ fn test_window_absolu_croit_relatif_constant() {
     // 10 bases: absolute = root + 10 windows + ⊤ = 12 nodes; relative = 3.
     // (R-collapse commuted: an all-true window would otherwise collapse.)
     let mut pool = pool_bdd(Reductions::without_collapse());
-    let rapport =
+    let report =
         comparer_encodages_window(&mut pool, ANCHOR, SIZE, 10, None).expect("interned nodes");
-    assert_eq!(rapport.absolu.nodes_partages, 12);
-    assert_eq!(rapport.relatif.nodes_partages, 3);
+    assert_eq!(report.absolu.nodes_partages, 12);
+    assert_eq!(report.relatif.nodes_partages, 3);
     // Same logical object: same paths (10 bases × 4 keys) and same unfolded
     // size (root + 10 × (window + ⊤)).
-    assert_eq!(rapport.absolu.chemins, 40);
-    assert_eq!(rapport.relatif.chemins, 40);
-    assert_eq!(rapport.absolu.size_depliee, 51);
-    assert_eq!(rapport.relatif.size_depliee, 51);
+    assert_eq!(report.absolu.chemins, 40);
+    assert_eq!(report.relatif.chemins, 40);
+    assert_eq!(report.absolu.size_depliee, 51);
+    assert_eq!(report.relatif.size_depliee, 51);
 
     // 100 bases: the relative encoding stays at 3 nodes (constant), the absolute one grows to 102.
     let mut pool = pool_bdd(Reductions::without_collapse());
-    let rapport =
+    let report =
         comparer_encodages_window(&mut pool, ANCHOR, SIZE, 100, None).expect("interned nodes");
     assert_eq!(
-        rapport.relatif.nodes_partages, 3,
+        report.relatif.nodes_partages, 3,
         "the relative encoding is O(1)"
     );
     assert_eq!(
-        rapport.absolu.nodes_partages, 102,
+        report.absolu.nodes_partages, 102,
         "the absolute encoding grows with the bases"
     );
-    assert_eq!(rapport.relatif.chemins, 400);
+    assert_eq!(report.relatif.chemins, 400);
 }
 
 /// Narration (ADR-0100): the encoding comparison emits an `Attr`/`Synthesized`
@@ -318,9 +318,9 @@ fn test_narration_comparaison_encodages() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = comparer_encodages_window(&mut pool, ANCHOR, 4, 10, Some(&collecteur))
+    let report = comparer_encodages_window(&mut pool, ANCHOR, 4, 10, Some(&collecteur))
         .expect("interned nodes");
-    assert_eq!(rapport.relatif.nodes_partages, 3);
+    assert_eq!(report.relatif.nodes_partages, 3);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
@@ -358,7 +358,7 @@ fn test_order_change_nodes_pas_chemins() {
 
     let table = table_ou_deux_paires();
     let mut pool = pool_bdd(Reductions::without_collapse());
-    let rapport = comparer_orders(
+    let report = comparer_orders(
         &mut pool,
         ANCHOR,
         &table,
@@ -367,13 +367,13 @@ fn test_order_change_nodes_pas_chemins() {
         None,
     )
     .expect("interned nodes");
-    assert_eq!(rapport.first.nodes_partages, 10, "natural order");
-    assert_eq!(rapport.second.nodes_partages, 12, "interleaved order");
+    assert_eq!(report.first.nodes_partages, 10, "natural order");
+    assert_eq!(report.second.nodes_partages, 12, "interleaved order");
     // Same logical object: 2^4 = 16 paths and unfolded tree 2^5-1 = 31.
-    assert_eq!(rapport.first.chemins, 16);
-    assert_eq!(rapport.second.chemins, 16);
-    assert_eq!(rapport.first.size_depliee, 31);
-    assert_eq!(rapport.second.size_depliee, 31);
+    assert_eq!(report.first.chemins, 16);
+    assert_eq!(report.second.chemins, 16);
+    assert_eq!(report.first.size_depliee, 31);
+    assert_eq!(report.second.size_depliee, 31);
 }
 
 /// The workshop's natural order is exactly the reference `compiler_bdd`
@@ -403,7 +403,7 @@ fn test_order_intercale_croissance_six_variables() {
         })
         .collect();
     let mut pool = pool_bdd(Reductions::without_collapse());
-    let rapport = comparer_orders(
+    let report = comparer_orders(
         &mut pool,
         ANCHOR,
         &table,
@@ -412,10 +412,10 @@ fn test_order_intercale_croissance_six_variables() {
         None,
     )
     .expect("interned nodes");
-    assert_eq!(rapport.first.nodes_partages, 15, "natural order");
-    assert_eq!(rapport.second.nodes_partages, 25, "interleaved order");
-    assert_eq!(rapport.first.chemins, 64);
-    assert_eq!(rapport.second.chemins, 64);
+    assert_eq!(report.first.nodes_partages, 15, "natural order");
+    assert_eq!(report.second.nodes_partages, 25, "interleaved order");
+    assert_eq!(report.first.chemins, 64);
+    assert_eq!(report.second.chemins, 64);
 }
 
 /// Narration (ADR-0100): the order comparison emits an `Attr`/`Synthesized`
@@ -442,7 +442,7 @@ fn test_narration_comparaison_orders() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = comparer_orders(
+    let report = comparer_orders(
         &mut pool,
         ANCHOR,
         &table,
@@ -451,7 +451,7 @@ fn test_narration_comparaison_orders() {
         Some(&collecteur),
     )
     .expect("interned nodes");
-    assert_eq!(rapport.first.nodes_partages, 10);
+    assert_eq!(report.first.nodes_partages, 10);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
@@ -505,7 +505,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
     const SIZE: u64 = 4;
     // (R-collapse commuted: an all-true window would otherwise collapse.)
     let mut pool = pool_bdd(Reductions::without_collapse());
-    let rapport = comparer_anchors_window(
+    let report = comparer_anchors_window(
         &mut pool,
         ANCHOR,
         SIZE,
@@ -514,20 +514,17 @@ fn test_glisse_pool_constant_lectures_differentes() {
         None,
     )
     .expect("interned nodes");
-    assert!(
-        rapport.same_forme,
-        "both anchors reach the same window form"
-    );
-    assert_eq!(rapport.avant, rapport.apres, "same metrics on both sides");
-    assert_eq!(rapport.avant.nodes_partages, 3, "root + window + ⊤");
-    assert_eq!(rapport.avant.chemins, 4, "one path per window key");
-    assert_eq!(rapport.avant.size_depliee, 6);
+    assert!(report.same_forme, "both anchors reach the same window form");
+    assert_eq!(report.avant, report.apres, "same metrics on both sides");
+    assert_eq!(report.avant.nodes_partages, 3, "root + window + ⊤");
+    assert_eq!(report.avant.chemins, 4, "one path per window key");
+    assert_eq!(report.avant.size_depliee, 6);
     assert_eq!(
-        rapport.nodes_pool, 4,
+        report.nodes_pool, 4,
         "⊤ + shared window + one root per anchor"
     );
-    assert_eq!(rapport.lecture_avant, (0, 4));
-    assert_eq!(rapport.lecture_apres, (7, 11));
+    assert_eq!(report.lecture_avant, (0, 4));
+    assert_eq!(report.lecture_apres, (7, 11));
 
     // 50 slides (bases 100..150, all new): at each step the base enters via
     // the entry arc, the window form reached is always the same and the pool
@@ -611,7 +608,7 @@ fn test_narration_comparaison_anchors() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = comparer_anchors_window(
+    let report = comparer_anchors_window(
         &mut pool,
         ANCHOR,
         4,
@@ -620,7 +617,7 @@ fn test_narration_comparaison_anchors() {
         Some(&collecteur),
     )
     .expect("interned nodes");
-    assert_eq!(rapport.avant.nodes_partages, 3);
+    assert_eq!(report.avant.nodes_partages, 3);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(

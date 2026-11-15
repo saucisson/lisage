@@ -109,14 +109,14 @@ fn test_boucle_espace_stable() {
 }
 
 #[test]
-fn test_erreur_xml_mal_forme() {
+fn test_error_xml_mal_forme() {
     let result =
         NetworkPetri::depuis_pnml(&PnmlDocument("<pnml><net><place id=\"p0\">".to_string()));
     assert!(matches!(result, Err(PnmlError::XmlMalForme { .. })));
 }
 
 #[test]
-fn test_erreur_attribut_manquant() {
+fn test_error_attribut_manquant() {
     let result = NetworkPetri::depuis_pnml(&PnmlDocument(
         "<pnml><net><place/></net></pnml>".to_string(),
     ));
@@ -130,14 +130,14 @@ fn test_erreur_attribut_manquant() {
 }
 
 #[test]
-fn test_erreur_arc_vers_inconnu() {
+fn test_error_arc_vers_inconnu() {
     let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t9\"/></net></pnml>";
     let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(result, Err(PnmlError::ArcVersInconnu { .. })));
 }
 
 #[test]
-fn test_erreur_arc_mal_oriente() {
+fn test_error_arc_mal_oriente() {
     // Two linked transitions: badly oriented arc, rejected at parsing.
     let document = "<pnml><net><transition id=\"t1\"/><transition id=\"t2\"/><arc source=\"t1\" target=\"t2\"/></net></pnml>";
     let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
@@ -145,14 +145,14 @@ fn test_erreur_arc_mal_oriente() {
 }
 
 #[test]
-fn test_erreur_poids_non_supporte() {
+fn test_error_poids_non_supporte() {
     let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t1\" weight=\"2\"/></net></pnml>";
     let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(result, Err(PnmlError::PoidsNonSupporte { .. })));
 }
 
 #[test]
-fn test_erreur_element_inexpected() {
+fn test_error_element_inexpected() {
     // Root other than <pnml>.
     let result = NetworkPetri::depuis_pnml(&PnmlDocument("<foo/>".to_string()));
     assert!(matches!(
@@ -174,7 +174,7 @@ fn test_erreur_element_inexpected() {
 }
 
 #[test]
-fn test_erreur_number_invalide() {
+fn test_error_number_invalide() {
     let document = "<pnml><net><place id=\"p0\"><initialMarking><text>abc</text></initialMarking></place></net></pnml>";
     let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(

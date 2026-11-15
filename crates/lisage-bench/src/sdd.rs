@@ -11,7 +11,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
-use lisage_algebra::vtree::{ErreurVtree, Vtree};
+use lisage_algebra::vtree::{ErrorVtree, Vtree};
 use lisage_core::arena::Arena;
 use lisage_core::error::CoreError;
 use lisage_core::observer::NoOpObserver;
@@ -21,9 +21,9 @@ use lisage_lang::value::{Atom, Value};
 
 /// Typed error of the SDD installation (causes preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurSdd {
+pub enum ErrorSdd {
     /// Invalid vtree (duplicated variable).
-    Vtree(ErreurVtree),
+    Vtree(ErrorVtree),
     /// Vtree with no variable at all.
     WithoutVariable,
     /// Error compiling a projection against its schema.
@@ -32,43 +32,43 @@ pub enum ErreurSdd {
     Core(CoreError),
 }
 
-impl std::fmt::Display for ErreurSdd {
+impl std::fmt::Display for ErrorSdd {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurSdd::Vtree(erreur) => write!(formatter, "invalid vtree: {erreur}"),
-            ErreurSdd::WithoutVariable => write!(formatter, "the vtree has no variable"),
-            ErreurSdd::Schema(erreur) => write!(formatter, "schema error: {erreur}"),
-            ErreurSdd::Core(erreur) => write!(formatter, "core error: {erreur}"),
+            ErrorSdd::Vtree(error) => write!(formatter, "invalid vtree: {error}"),
+            ErrorSdd::WithoutVariable => write!(formatter, "the vtree has no variable"),
+            ErrorSdd::Schema(error) => write!(formatter, "schema error: {error}"),
+            ErrorSdd::Core(error) => write!(formatter, "core error: {error}"),
         }
     }
 }
 
-impl std::error::Error for ErreurSdd {
+impl std::error::Error for ErrorSdd {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            ErreurSdd::Vtree(erreur) => Some(erreur),
-            ErreurSdd::Schema(erreur) => Some(erreur),
-            ErreurSdd::Core(erreur) => Some(erreur),
-            ErreurSdd::WithoutVariable => None,
+            ErrorSdd::Vtree(error) => Some(error),
+            ErrorSdd::Schema(error) => Some(error),
+            ErrorSdd::Core(error) => Some(error),
+            ErrorSdd::WithoutVariable => None,
         }
     }
 }
 
-impl From<ErreurVtree> for ErreurSdd {
-    fn from(erreur: ErreurVtree) -> Self {
-        ErreurSdd::Vtree(erreur)
+impl From<ErrorVtree> for ErrorSdd {
+    fn from(error: ErrorVtree) -> Self {
+        ErrorSdd::Vtree(error)
     }
 }
 
-impl From<SchemaError> for ErreurSdd {
-    fn from(erreur: SchemaError) -> Self {
-        ErreurSdd::Schema(erreur)
+impl From<SchemaError> for ErrorSdd {
+    fn from(error: SchemaError) -> Self {
+        ErrorSdd::Schema(error)
     }
 }
 
-impl From<CoreError> for ErreurSdd {
-    fn from(erreur: CoreError) -> Self {
-        ErreurSdd::Core(erreur)
+impl From<CoreError> for ErrorSdd {
+    fn from(error: CoreError) -> Self {
+        ErrorSdd::Core(error)
     }
 }
 
@@ -99,7 +99,7 @@ pub fn installer_sdd(
     pool: &mut Arena<ReferenceController>,
     vtree: &Vtree,
     set: &BTreeSet<Value>,
-) -> Result<LevelSdd, ErreurSdd> {
+) -> Result<LevelSdd, ErrorSdd> {
     vtree.valider()?;
     let domain = domain_set(set);
     let mut counter_anchors = 0u32;
@@ -114,10 +114,10 @@ fn installer_level(
     set: &BTreeSet<Value>,
     domain: &Domain,
     counter_anchors: &mut u32,
-) -> Result<LevelSdd, ErreurSdd> {
+) -> Result<LevelSdd, ErrorSdd> {
     let variables = vtree.order_plat();
     if variables.is_empty() {
-        return Err(ErreurSdd::WithoutVariable);
+        return Err(ErrorSdd::WithoutVariable);
     }
     let anchor = Anchor(*counter_anchors);
     *counter_anchors += 1;
@@ -185,7 +185,7 @@ fn compiler_projection(
     schema: &Schema,
     projection: &BTreeSet<Value>,
     anchor: Anchor,
-) -> Result<NodeId, ErreurSdd> {
+) -> Result<NodeId, ErrorSdd> {
     let keys = SchemaKeys::new(schema.clone());
     let mut root = pool.intern(anchor, Form::Terminal(false));
     for value in projection {
@@ -201,7 +201,7 @@ fn count_level(
     schema: &Schema,
     root: NodeId,
     anchor: Anchor,
-) -> Result<u64, ErreurSdd> {
+) -> Result<u64, ErrorSdd> {
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),

@@ -12,23 +12,23 @@ use lisage_lang::value::Atom;
 
 /// Typed error of vtree construction.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurVtree {
+pub enum ErrorVtree {
     /// The same variable appears in two distinct leaves: a vtree
     /// is a decomposition, each variable appears only once.
     VariableEnDouble(Atom),
 }
 
-impl std::fmt::Display for ErreurVtree {
+impl std::fmt::Display for ErrorVtree {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurVtree::VariableEnDouble(atome) => {
+            ErrorVtree::VariableEnDouble(atome) => {
                 write!(formatter, "variable {atome:?} duplicated in the vtree")
             }
         }
     }
 }
 
-impl std::error::Error for ErreurVtree {}
+impl std::error::Error for ErrorVtree {}
 
 /// Vtree: binary tree whose leaves carry the variables.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -85,18 +85,18 @@ impl Vtree {
     }
 
     /// Validates the vtree: each variable appears only once.
-    pub fn valider(&self) -> Result<(), ErreurVtree> {
+    pub fn valider(&self) -> Result<(), ErrorVtree> {
         let mut vues = Vec::new();
         self.collecter_doublons(&mut vues)?;
         Ok(())
     }
 
     /// Collects the first variable seen twice, if any.
-    fn collecter_doublons(&self, vues: &mut Vec<Atom>) -> Result<(), ErreurVtree> {
+    fn collecter_doublons(&self, vues: &mut Vec<Atom>) -> Result<(), ErrorVtree> {
         match self {
             Vtree::Feuille(variable) => {
                 if vues.contains(variable) {
-                    return Err(ErreurVtree::VariableEnDouble(*variable));
+                    return Err(ErrorVtree::VariableEnDouble(*variable));
                 }
                 vues.push(*variable);
                 Ok(())
