@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 25: `enfant`/`attribut`/`vue`/`classe`/`voie`/`pas` renamed to `child`/`attribute`/`view`/`class`/`lane`/`step`, module files renamed (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `enfant(s)`→`child(ren)`, `attribut(s)`→`attribute(s)`, `vue(s)`→`view(s)`, `classe`→`class`, `voie(s)`→`lane(s)`, `pas`→`step` (all cases, compounds included), workspace-wide (28 files), per glossary. Module files git-mv'd: `vue_memory.rs`/`vue_order.rs`→`view_memory.rs`/`view_order.rs`, `pas_a_pas.rs`→`step_by_step.rs` (src + tests). Collision guards: `attribute`/`attribution`/`classes` protected with negative lookaheads; `pas_a_pas`→`step_by_step` before the word-boundary `pas`→`step` so `pass`/`passes`/`passage` are untouched.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
+- **Judgement calls**: `voie` mapped to `lane` per glossary.
 ## 2026-11-14 - M6-6 part 24: `politique`/`groupe`/`somme`/`chemin`/`liste`/`intervalle`/`espace` renamed to `policy`/`group`/`sum`/`path`/`list`/`interval`/`space` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
