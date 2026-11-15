@@ -31,10 +31,10 @@
 //! Fragment 4 (composite anchor parameter, backlog § 9, sliding-window
 //! thread):
 //!
-//! - [`AncreFenetre`]: the composite anchor `{base, horizon}` of the
+//! - [`AnchorFenetre`]: the composite anchor `{base, horizon}` of the
 //!   SWP protocol — two named offsets, the slide is the movement of the base,
 //!   carried by the incoming arc;
-//! - [`construire_fenetre_ancree`] / [`comparer_ancres_fenetre`]: the
+//! - [`construire_fenetre_anchore`] / [`comparer_anchors_fenetre`]: the
 //!   window read under two anchors — each anchor has its own root, the
 //!   relative shape of the window is shared (`meme_forme`), only the
 //!   absolute readings differ: "the anchor moves, the pool never does".
@@ -44,7 +44,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Level, MemoryPolicy, NodeId, Pool, PoolError,
 };
-use lisage_algebra::relatif::{AncreComposee, CycleGroup, Fragment};
+use lisage_algebra::relatif::{AnchorComposee, CycleGroup, Fragment};
 
 use crate::observer::{CanalAttr, Observer, TraceEvent};
 
@@ -572,15 +572,15 @@ pub fn fragment_horizon() -> Fragment {
 /// `{base, horizon}`. The **slide** is the movement of the base; the anchor
 /// stays in the handle (C1 unchanged), the pool stays blind.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct AncreFenetre {
-    inner: AncreComposee,
+pub struct AnchorFenetre {
+    inner: AnchorComposee,
 }
 
-impl AncreFenetre {
+impl AnchorFenetre {
     /// Anchor `{base, horizon}`: the two named offsets of the SWP protocol.
     pub fn new(base: i64, horizon: i64) -> Self {
-        AncreFenetre {
-            inner: AncreComposee::new()
+        AnchorFenetre {
+            inner: AnchorComposee::new()
                 .avec(fragment_base(), base)
                 .avec(fragment_horizon(), horizon),
         }
@@ -598,7 +598,7 @@ impl AncreFenetre {
 
     /// New anchor, base shifted by `delta`: the slide of the window.
     pub fn glessee(&self, delta: i64) -> Self {
-        AncreFenetre {
+        AnchorFenetre {
             inner: self.inner.decalee(&fragment_base(), delta),
         }
     }
@@ -622,23 +622,23 @@ impl AncreFenetre {
     }
 }
 
-/// Builds the sliding window read under the composite `ancre`: the base of
+/// Builds the sliding window read under the composite `anchor`: the base of
 /// the anchor is the argument of the incoming arc (key `key_input`), the
 /// shape of the window stays relative (keys `0..size-1`, min section = 0)
 /// and shared. Returns `(root, window)`: the root specific to this base,
 /// the window shape reached by its incoming arc.
-pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
+pub fn construire_fenetre_anchore<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
-    ancre: &AncreFenetre,
+    window_anchor: &AnchorFenetre,
 ) -> (NodeId, NodeId) {
     let fenetre = interner_fenetre_relative(pool, anchor, size);
     let root = pool.intern(
         anchor,
         Form::Node {
             level: Level(LEVEL_ROOT),
-            arcs: BTreeMap::from([(ancre.key_input(), fenetre)]),
+            arcs: BTreeMap::from([(window_anchor.key_input(), fenetre)]),
         },
     );
     (root, fenetre)
@@ -646,7 +646,7 @@ pub fn construire_fenetre_ancree<P: Pool<Key = u64, Payload = bool>>(
 
 /// Didactic comparison of two composite anchors on the same window.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct RapportComparaisonAncres {
+pub struct RapportComparaisonAnchors {
     /// Metrics of the window read under the first anchor.
     pub avant: RapportAtelier,
     /// Metrics of the window read under the second anchor.
@@ -670,32 +670,32 @@ pub struct RapportComparaisonAncres {
 /// absolute readings differ. This is the slide of the SWP protocol:
 /// "the anchor moves, the pool never does": moving the base does not
 /// duplicate the window shape. `observer`: ADR-0100 narration.
-pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
+pub fn comparer_anchors_fenetre<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
-    ancre_avant: &AncreFenetre,
-    ancre_apres: &AncreFenetre,
+    anchor_avant: &AnchorFenetre,
+    anchor_apres: &AnchorFenetre,
     observer: Option<&dyn Observer>,
-) -> Result<RapportComparaisonAncres, PoolError> {
+) -> Result<RapportComparaisonAnchors, PoolError> {
     // Each anchor enters the pool through its incoming arc (its base); the
     // window shape reached on both sides must be the same node.
-    let (root_avant, fenetre_avant) = construire_fenetre_ancree(pool, anchor, size, ancre_avant);
-    let (root_apres, fenetre_apres) = construire_fenetre_ancree(pool, anchor, size, ancre_apres);
+    let (root_avant, fenetre_avant) = construire_fenetre_anchore(pool, anchor, size, anchor_avant);
+    let (root_apres, fenetre_apres) = construire_fenetre_anchore(pool, anchor, size, anchor_apres);
     let nodes_pool = pool.node_count() as u64;
     let meme_forme = fenetre_avant == fenetre_apres;
     let avant = measure(pool, root_avant, observer)?;
     let apres = measure(pool, root_apres, observer)?;
     if let Some(obs) = observer {
-        let (debut_avant, fin_avant) = ancre_avant.fenetre_absolue();
-        let (debut_apres, fin_apres) = ancre_apres.fenetre_absolue();
+        let (debut_avant, fin_avant) = anchor_avant.fenetre_absolue();
+        let (debut_apres, fin_apres) = anchor_apres.fenetre_absolue();
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root_apres,
             value: format!(
-                "ancre={}_vs_{} nodes={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
-                ancre_avant.etiquette(),
-                ancre_apres.etiquette(),
+                "anchor={}_vs_{} nodes={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
+                anchor_avant.etiquette(),
+                anchor_apres.etiquette(),
                 avant.nodes_partages,
                 apres.nodes_partages,
                 debut_avant,
@@ -706,12 +706,12 @@ pub fn comparer_ancres_fenetre<P: Pool<Key = u64, Payload = bool>>(
             ),
         });
     }
-    Ok(RapportComparaisonAncres {
+    Ok(RapportComparaisonAnchors {
         avant,
         apres,
         meme_forme,
         nodes_pool,
-        lecture_avant: ancre_avant.fenetre_absolue(),
-        lecture_apres: ancre_apres.fenetre_absolue(),
+        lecture_avant: anchor_avant.fenetre_absolue(),
+        lecture_apres: anchor_apres.fenetre_absolue(),
     })
 }

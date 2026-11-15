@@ -212,7 +212,7 @@ fn test_events_reduction_applied() {
     let (mut arena, trace) = arena_avec_trace();
     let anchor = Anchor(0);
     let defaut = arena.terminal(anchor, false); // D_δ = NodeId(0)
-    let autre = arena.terminal(anchor, true);
+    let other = arena.terminal(anchor, true);
     let level = Level(3);
     // R-collapse: all arcs lead to D_δ and δ is explicit ⇒ Collapse(D_δ).
     let cible = arena.intern(
@@ -228,7 +228,7 @@ fn test_events_reduction_applied() {
         anchor,
         Form::Node {
             level,
-            arcs: BTreeMap::from([(0, defaut), (1, autre)]),
+            arcs: BTreeMap::from([(0, defaut), (1, other)]),
         },
     );
     assert_ne!(node, defaut);

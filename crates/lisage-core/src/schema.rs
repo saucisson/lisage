@@ -292,10 +292,10 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                 match element {
                     Value::Atom(atome) if domain.contient(*atome) => {}
                     Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
-                    autre => {
+                    other => {
                         return Err(SchemaError::TypeMismatch {
                             expected: "set of atoms",
-                            recu: forme_value(autre),
+                            recu: forme_value(other),
                         });
                     }
                 }
@@ -416,10 +416,10 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
             );
             BTreeMap::from([(PRESENT, node_value)])
         }
-        Some(autre) => {
+        Some(other) => {
             return Err(SchemaError::TypeMismatch {
                 expected: "atomic value",
-                recu: forme_value(autre),
+                recu: forme_value(other),
             });
         }
         None => BTreeMap::from([(ABSENT, suite)]),
@@ -446,10 +446,10 @@ fn valider_seq(domain: &Domain, longueur_max: u32, elements: &[Value]) -> Result
         match element {
             Value::Atom(atome) if domain.contient(*atome) => {}
             Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
-            autre => {
+            other => {
                 return Err(SchemaError::TypeMismatch {
                     expected: "atomic element",
-                    recu: forme_value(autre),
+                    recu: forme_value(other),
                 });
             }
         }
@@ -525,9 +525,9 @@ fn valider_tag(
     match payload {
         Value::Atom(atome) if domain_values.contient(*atome) => Ok(()),
         Value::Atom(atome) => Err(SchemaError::HorsDomain(*atome)),
-        autre => Err(SchemaError::TypeMismatch {
+        other => Err(SchemaError::TypeMismatch {
             expected: "atomic payload",
-            recu: forme_value(autre),
+            recu: forme_value(other),
         }),
     }
 }

@@ -33,7 +33,7 @@ fn test_pi_valide_adopte() {
 /// Another vtree shape induces another canonical order: (x2, (x0, x1))
 /// gives flat order [2, 0, 1], and π = [0, 1, 2] violates constraint 2 < 0.
 #[test]
-fn test_autre_vtree_autre_ordre() {
+fn test_other_vtree_other_ordre() {
     let vtree = Vtree::node(
         Vtree::feuille(Atom(2)),
         Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
@@ -83,27 +83,27 @@ fn test_vtree_variable_en_double_rejete() {
 
 /// Generates a random vtree over `nombre_variables` variables, by
 /// deterministic LCG (same constants as the other property tests).
-fn vtree_aleatoire(graine: &mut u64, nombre_variables: u64) -> Vtree {
+fn vtree_aleatoire(seed: &mut u64, nombre_variables: u64) -> Vtree {
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    fn construire(graine: &mut u64, variables: &[Atom]) -> Vtree {
+    fn construire(seed: &mut u64, variables: &[Atom]) -> Vtree {
         if variables.len() == 1 {
             return Vtree::feuille(variables[0]);
         }
-        let point_coupe = (next(graine) % (variables.len() as u64 - 1)) as usize + 1;
+        let point_coupe = (next(seed) % (variables.len() as u64 - 1)) as usize + 1;
         Vtree::node(
-            construire(graine, &variables[..point_coupe]),
-            construire(graine, &variables[point_coupe..]),
+            construire(seed, &variables[..point_coupe]),
+            construire(seed, &variables[point_coupe..]),
         )
     }
-    fn next(graine: &mut u64) -> u64 {
-        *graine = graine
+    fn next(seed: &mut u64) -> u64 {
+        *seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        *graine
+        *seed
     }
     let variables: Vec<Atom> = (0..nombre_variables).map(Atom).collect();
-    construire(graine, &variables)
+    construire(seed, &variables)
 }
 
 /// Structurally checks (by direct tree traversal, independent of
@@ -128,16 +128,16 @@ fn verifier_gauche_avant_droite(vtree: &Vtree, sequence: &[Atom]) {
 /// node, verified by direct tree traversal.
 #[test]
 fn test_propriete_ordre_canonique_satisfait_contraintes() {
-    const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+    const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const NOMBRE_CAS: u64 = 50;
     const BORNE_VARIABLES: u64 = 8;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     for _ in 0..NOMBRE_CAS {
-        graine = graine
+        seed = seed
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
-        let nombre_variables = 2 + graine % (BORNE_VARIABLES - 1);
-        let vtree = vtree_aleatoire(&mut graine, nombre_variables);
+        let nombre_variables = 2 + seed % (BORNE_VARIABLES - 1);
+        let vtree = vtree_aleatoire(&mut seed, nombre_variables);
         assert!(vtree.valider().is_ok());
         let ordre = Order::canonique(&vtree);
         let sequence = ordre.sequence();

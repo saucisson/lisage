@@ -12,9 +12,9 @@ use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::vue_memory::{ClasseQuotient, ComparaisonVue, VuePool, rendre_svg_vue_memory};
 
 /// Test anchor.
-const ANCRE_TEST: Anchor = Anchor(0);
+const ANCHOR_TEST: Anchor = Anchor(0);
 /// Second anchor (C1: same form, other anchor = other handle).
-const ANCRE_TEST_2: Anchor = Anchor(1);
+const ANCHOR_TEST_2: Anchor = Anchor(1);
 
 type PoolRef = Arena<ReferenceController>;
 
@@ -45,9 +45,9 @@ fn ensemble(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64])
 fn test_vue_pool_depuis_metriques_gc() {
     let schema = schema_ensemble();
     let mut pool = pool_neuf(&schema);
-    let root = ensemble(&mut pool, ANCRE_TEST, &schema, &[0, 1]);
+    let root = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0, 1]);
     // Orphan collected by the GC.
-    let _orphelin = ensemble(&mut pool, ANCRE_TEST, &schema, &[2]);
+    let _orphelin = ensemble(&mut pool, ANCHOR_TEST, &schema, &[2]);
     let stats_gc = pool.gc(&[root]);
     let metriques = pool.metriques();
     let vue = VuePool::depuis_metriques("reference", metriques, stats_gc.vivants, 0);
@@ -62,39 +62,39 @@ fn test_vue_pool_depuis_metriques_gc() {
 /// M4-5: quotient classes (forms × anchors) — C1 in action: the same
 /// form interned under two different anchors forms two distinct classes.
 #[test]
-fn test_classes_quotient_formes_par_ancres() {
+fn test_classes_quotient_formes_par_anchors() {
     let schema = schema_ensemble();
     let mut pool = pool_neuf(&schema);
-    let handle_ancre_0 = ensemble(&mut pool, ANCRE_TEST, &schema, &[0]);
-    let handle_ancre_1 = ensemble(&mut pool, ANCRE_TEST_2, &schema, &[0]);
+    let handle_anchor_0 = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0]);
+    let handle_anchor_1 = ensemble(&mut pool, ANCHOR_TEST_2, &schema, &[0]);
     assert_ne!(
-        handle_ancre_0, handle_ancre_1,
+        handle_anchor_0, handle_anchor_1,
         "C1: same form, different anchors = distinct handles"
     );
     // Two classes (form {0}, anchor 0) and (form {0}, anchor 1).
     let classes = [
         ClasseQuotient {
             forme: "{0}".to_string(),
-            ancre: "anchor 0".to_string(),
+            anchor: "anchor 0".to_string(),
             multiplicite: 1,
         },
         ClasseQuotient {
             forme: "{0}".to_string(),
-            ancre: "anchor 1".to_string(),
+            anchor: "anchor 1".to_string(),
             multiplicite: 1,
         },
     ];
     // The two classes are distinct (C1): forms × anchors.
     assert_ne!(classes[0], classes[1]);
     // Multiplicity badge: a handle shared 3 times under the same anchor.
-    let partage = ensemble(&mut pool, ANCRE_TEST, &schema, &[0]);
+    let partage = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0]);
     assert_eq!(
-        partage, handle_ancre_0,
+        partage, handle_anchor_0,
         "R-share: same handle under the same anchor"
     );
     let classe = ClasseQuotient {
         forme: "{0}".to_string(),
-        ancre: "anchor 0".to_string(),
+        anchor: "anchor 0".to_string(),
         multiplicite: 3,
     };
     let badge = classe.badge();
@@ -109,19 +109,19 @@ fn test_classes_quotient_formes_par_ancres() {
 fn test_rendre_svg_vue_memory() {
     let schema = schema_ensemble();
     let mut pool = pool_neuf(&schema);
-    let root = ensemble(&mut pool, ANCRE_TEST, &schema, &[0, 1]);
-    let _orphelin = ensemble(&mut pool, ANCRE_TEST, &schema, &[2]);
+    let root = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0, 1]);
+    let _orphelin = ensemble(&mut pool, ANCHOR_TEST, &schema, &[2]);
     let stats_gc = pool.gc(&[root]);
     let vue_pool = VuePool::depuis_metriques("reference", pool.metriques(), stats_gc.vivants, 0);
     let classes = vec![
         ClasseQuotient {
             forme: "{0,1}".to_string(),
-            ancre: "anchor 0".to_string(),
+            anchor: "anchor 0".to_string(),
             multiplicite: 1,
         },
         ClasseQuotient {
             forme: "{2}".to_string(),
-            ancre: "anchor 0".to_string(),
+            anchor: "anchor 0".to_string(),
             multiplicite: 6,
         },
     ];
@@ -201,9 +201,9 @@ fn test_comparaison_naif_dd_lisage() {
     // Shadow plane: a node interned in the shadow plane is counted apart.
     let schema = schema_ensemble();
     let mut pool = pool_neuf(&schema);
-    let root = ensemble(&mut pool, ANCRE_TEST, &schema, &[0]);
+    let root = ensemble(&mut pool, ANCHOR_TEST, &schema, &[0]);
     let ombre = pool.intern_plan(
-        ANCRE_TEST,
+        ANCHOR_TEST,
         Form::Node {
             level: lisage_core::Level(1),
             arcs: Default::default(),

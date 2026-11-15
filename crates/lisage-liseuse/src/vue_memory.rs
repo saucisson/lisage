@@ -64,7 +64,7 @@ pub struct ClasseQuotient {
     /// Form label.
     pub forme: String,
     /// Anchor label.
-    pub ancre: String,
+    pub anchor: String,
     /// Number of replicas in the class.
     pub multiplicite: u64,
 }
@@ -87,7 +87,7 @@ impl ClasseQuotient {
     /// Multiplicity badge of the class (handle = « form @ anchor »).
     pub fn badge(&self) -> BadgeMultiplicite {
         BadgeMultiplicite {
-            handle: format!("{} @ {}", self.forme, self.ancre),
+            handle: format!("{} @ {}", self.forme, self.anchor),
             multiplicite: self.multiplicite,
         }
     }
@@ -178,7 +178,7 @@ pub fn rendre_svg_vue_memory(
         y += HAUTEUR_LIGNE_CLASSE;
         svg.push_str(&format!(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{} @ {}</text>\n",
-            classe.forme, classe.ancre
+            classe.forme, classe.anchor
         ));
         let badge = classe.badge();
         if badge.multiplicite > 1 {

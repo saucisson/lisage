@@ -257,8 +257,8 @@ fn test_seq_canonicite() {
     let r1 = compiler(&mut pool, anchor, &schema, &seq).unwrap();
     let r2 = compiler(&mut pool, anchor, &schema, &seq).unwrap();
     assert_eq!(r1, r2);
-    let autre = Value::Seq(vec![atome(1), atome(0)]);
-    let r3 = compiler(&mut pool, anchor, &schema, &autre).unwrap();
+    let other = Value::Seq(vec![atome(1), atome(0)]);
+    let r3 = compiler(&mut pool, anchor, &schema, &other).unwrap();
     assert_ne!(r1, r3);
 }
 

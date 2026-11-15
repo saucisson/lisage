@@ -35,7 +35,7 @@ use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, Sche
 use lisage_lang::value::{Atom, Value};
 
 /// Measurement anchor (a single anchor per measurement, harness convention).
-const ANCRE_MEASURE: Anchor = Anchor(0);
+const ANCHOR_MEASURE: Anchor = Anchor(0);
 /// `think`.
 const PENSE: u64 = 0;
 /// `hungry` (intermediate value of the pc domain).
@@ -49,7 +49,7 @@ const VARIABLES_BDD_FENETRE: u32 = 2;
 const PAS_CLE_INTERCALAGE: u64 = 2;
 /// Seed of the deterministic truth-table LCG (same LCG as the M1-8 baseline:
 /// `benches/micro.rs` and `cudd_local.rs`).
-pub const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+pub const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
 /// LCG multiplier (Knuth).
 pub const MULTIPLICATEUR_LCG: u64 = 6_364_136_223_846_793_005;
 /// LCG increment.
@@ -331,7 +331,7 @@ fn rss_max_ko() -> Result<u64, ErreurConfrontation> {
 /// Generates the deterministic LCG truth table over `n` variables (high bit
 /// of the state, same LCG as the M1-8 baseline).
 fn table_lcg(nombre_variables: u32) -> Vec<bool> {
-    let mut etat = GRAINE_LCG;
+    let mut etat = SEED_LCG;
     (0..(1usize << nombre_variables))
         .map(|_| {
             etat = etat
@@ -361,7 +361,7 @@ fn charge_alea_lcg(
     let debut = Instant::now();
     let table = table_lcg(nombre_variables);
     let expected_satisfactions = table.iter().filter(|value| **value).count() as u64;
-    let root = compiler_bdd(&mut pool, ANCRE_MEASURE, &keys, &table);
+    let root = compiler_bdd(&mut pool, ANCHOR_MEASURE, &keys, &table);
     let nodes = compter_nodes_bdd(&pool, root);
     let duree = debut.elapsed();
     // C6 falsification: the arena and the independent mini-BDD witness must
@@ -451,17 +451,17 @@ fn charge_philosophes(
         })?;
     let etats = lire_etats(nombre_philosophes, &contenu)?;
     let expected = etats.len() as u64;
-    let mut root = pool.intern(ANCRE_MEASURE, Form::Terminal(false));
+    let mut root = pool.intern(ANCHOR_MEASURE, Form::Terminal(false));
     for etat in &etats {
         let map: BTreeMap<Value, Value> = etat
             .iter()
             .enumerate()
             .map(|(indice, value)| (Value::Atom(Atom(indice as u64)), Value::Atom(Atom(*value))))
             .collect();
-        let membre = compiler(&mut pool, ANCRE_MEASURE, &schema, &Value::Map(map))?;
-        root = union(&mut pool, &keys, ANCRE_MEASURE, root, membre)?;
+        let membre = compiler(&mut pool, ANCHOR_MEASURE, &schema, &Value::Map(map))?;
+        root = union(&mut pool, &keys, ANCHOR_MEASURE, root, membre)?;
     }
-    let verifie = compter_pli(&pool, &mut output, ANCRE_MEASURE, &schema, root)?;
+    let verifie = compter_pli(&pool, &mut output, ANCHOR_MEASURE, &schema, root)?;
     let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != expected {
@@ -583,7 +583,7 @@ fn charge_fenetre(
         Box::new(NoOpObserver),
     );
     let debut = Instant::now();
-    let root = construire_fenetre(&mut pool, ANCRE_MEASURE, encodage, size, nb_bases);
+    let root = construire_fenetre(&mut pool, ANCHOR_MEASURE, encodage, size, nb_bases);
     let verifie = compter_chemins(&pool, root)?;
     let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
@@ -688,10 +688,10 @@ pub fn executer(
             let encodage = match parametres.get(2).map(String::as_str) {
                 None | Some("absolu") => Encodage::Absolu,
                 Some("relatif") => Encodage::Relatif,
-                Some(autre) => {
+                Some(other) => {
                     return Err(ErreurConfrontation::ParametresInvalides {
                         charge: Charge::Fenetre.etiquette(),
-                        detail: format!("unknown encoding: {autre}"),
+                        detail: format!("unknown encoding: {other}"),
                     });
                 }
             };

@@ -13,7 +13,7 @@ use lisage_lang::value::{Atom, Value};
 /// Size of the atom domain of the test schema.
 const SIZE_DOMAIN: u64 = 4;
 /// Test anchor.
-const ANCRE_TEST: Anchor = Anchor(0);
+const ANCHOR_TEST: Anchor = Anchor(0);
 /// Atoms of the first compiled set (cache hit afterwards).
 const ENSEMBLE_PARTAGE: [u64; 2] = [0, 1];
 /// Atoms of the root set of the GC scenario.
@@ -62,14 +62,14 @@ fn compiler_ensemble(
 fn test_metriques_cache_hash_consing() {
     let schema = schema_test();
     let mut pool = new_pool(&schema);
-    let premier = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_PARTAGE);
+    let premier = compiler_ensemble(&mut pool, ANCHOR_TEST, &schema, &ENSEMBLE_PARTAGE);
     let metriques = pool.metriques();
     let creations_apres_premier = metriques.creations;
     assert!(creations_apres_premier > 0, "creations counted");
     assert_eq!(metriques.partages, 0, "no share yet");
 
     // Recompile the same set: R-share, no new node created.
-    let partage = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_PARTAGE);
+    let partage = compiler_ensemble(&mut pool, ANCHOR_TEST, &schema, &ENSEMBLE_PARTAGE);
     assert_eq!(partage, premier, "same form = same handle");
     let metriques = pool.metriques();
     assert_eq!(
@@ -92,12 +92,12 @@ fn test_metriques_cache_hash_consing() {
 fn test_metriques_gc_et_compaction() {
     let schema = schema_test();
     let mut pool = new_pool(&schema);
-    let root = compiler_ensemble(&mut pool, ANCRE_TEST, &schema, &ENSEMBLE_ROOT);
+    let root = compiler_ensemble(&mut pool, ANCHOR_TEST, &schema, &ENSEMBLE_ROOT);
     // Orphans: many forms not reachable from the root.
     for i in 0..NB_ORPHELINS {
         compiler_ensemble(
             &mut pool,
-            ANCRE_TEST,
+            ANCHOR_TEST,
             &schema,
             &[i % SIZE_DOMAIN, ATOME_FIXE_ORPHELIN],
         );

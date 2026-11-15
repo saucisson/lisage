@@ -160,14 +160,14 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
             if poids_b == 0 {
                 Ok(a)
             } else {
-                merge_avec_autre(pool, keys, anchor, level, arcs, b)
+                merge_avec_other(pool, keys, anchor, level, arcs, b)
             }
         }
         (Form::Terminal(poids_a), Form::Node { level, arcs }) => {
             if poids_a == 0 {
                 Ok(b)
             } else {
-                merge_avec_autre(pool, keys, anchor, level, arcs, a)
+                merge_avec_other(pool, keys, anchor, level, arcs, a)
             }
         }
         (
@@ -201,31 +201,31 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
                     },
                 ))
             } else if level_a < level_b {
-                merge_avec_autre(pool, keys, anchor, level_a, arcs_a, b)
+                merge_avec_other(pool, keys, anchor, level_a, arcs_a, b)
             } else {
-                merge_avec_autre(pool, keys, anchor, level_b, arcs_b, a)
+                merge_avec_other(pool, keys, anchor, level_b, arcs_b, a)
             }
         }
     }
 }
 
-/// Merge of a node of level `level` with another diagram `autre` (terminal
-/// of weight > 0, or a deeper node): the path of `autre` goes through the
+/// Merge of a node of level `level` with another diagram `other` (terminal
+/// of weight > 0, or a deeper node): the path of `other` goes through the
 /// default arc `δ(level)` if the level has one, otherwise through all the
 /// values of the level.
-fn merge_avec_autre<P: Pool<Key = u64, Payload = u64>>(
+fn merge_avec_other<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     keys: &SchemaKeys,
     anchor: Anchor,
     level: Level,
     mut arcs: BTreeMap<u64, NodeId>,
-    autre: NodeId,
+    other: NodeId,
 ) -> Result<NodeId, CoreError> {
     match keys.default(level) {
         Some(defaut) => {
             let cible = match arcs.remove(&defaut) {
-                Some(cible) => merge_add(pool, keys, anchor, cible, autre)?,
-                None => autre,
+                Some(cible) => merge_add(pool, keys, anchor, cible, other)?,
+                None => other,
             };
             arcs.insert(defaut, cible);
         }
@@ -233,8 +233,8 @@ fn merge_avec_autre<P: Pool<Key = u64, Payload = u64>>(
             let cardinalite = keys.cardinality(level);
             for v in 0..cardinalite {
                 let cible = match arcs.remove(&v) {
-                    Some(cible) => merge_add(pool, keys, anchor, cible, autre)?,
-                    None => autre,
+                    Some(cible) => merge_add(pool, keys, anchor, cible, other)?,
+                    None => other,
                 };
                 arcs.insert(v, cible);
             }

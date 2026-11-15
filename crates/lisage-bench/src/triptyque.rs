@@ -26,7 +26,7 @@ use lisage_plan::ordre::{KeyMap, KeysMap, Order, Phase, StrategieAval};
 use crate::pnml::{self, NetworkPetri};
 
 /// Anchor of the measurement bench.
-const ANCRE_BANC: Anchor = Anchor(0);
+const ANCHOR_BANC: Anchor = Anchor(0);
 
 /// Typed error of the triptych (causes preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -177,7 +177,7 @@ fn voie_dd(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, E
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let cardinal = compter(&pool, &mut output, ANCRE_BANC, &schema, root)?;
+    let cardinal = compter(&pool, &mut output, ANCHOR_BANC, &schema, root)?;
     Ok(MeasureVoie {
         cardinal,
         nodes_vivants,
@@ -222,10 +222,10 @@ fn compiler_espace(
     espace: &BTreeSet<Value>,
 ) -> Result<NodeId, ErreurTriptyque> {
     let keys = SchemaKeys::new(schema.clone());
-    let mut root = pool.intern(ANCRE_BANC, Form::Terminal(false));
+    let mut root = pool.intern(ANCHOR_BANC, Form::Terminal(false));
     for value in espace {
-        let membre = compiler(pool, ANCRE_BANC, schema, value)?;
-        root = union(pool, &keys, ANCRE_BANC, root, membre)?;
+        let membre = compiler(pool, ANCHOR_BANC, schema, value)?;
+        root = union(pool, &keys, ANCHOR_BANC, root, membre)?;
     }
     Ok(root)
 }

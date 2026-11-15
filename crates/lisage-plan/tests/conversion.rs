@@ -149,16 +149,16 @@ fn test_royaume_reordonner_contrat_type() {
 /// the source.
 #[test]
 fn test_propriete_cout_egal_inversions_et_transpositions_exactes() {
-    const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+    const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
 
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     let mut next = move || {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        graine >> 33
+        seed >> 33
     };
 
     for _cas in 0..50 {

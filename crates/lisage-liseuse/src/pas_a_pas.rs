@@ -134,11 +134,11 @@ impl Scrubber {
         etat
     }
 
-    /// Differential between the current position and position `autre`.
-    pub fn diff_vers(&self, autre: usize) -> DiffTrace {
-        let mut autre_scrubber = Scrubber::new(self.evenements.clone());
-        autre_scrubber.aller_a(autre);
-        diff(&self.etat(), &autre_scrubber.etat())
+    /// Differential between the current position and position `other`.
+    pub fn diff_vers(&self, other: usize) -> DiffTrace {
+        let mut other_scrubber = Scrubber::new(self.evenements.clone());
+        other_scrubber.aller_a(other);
+        diff(&self.etat(), &other_scrubber.etat())
     }
 }
 

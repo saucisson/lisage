@@ -14,7 +14,7 @@ use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compi
 use lisage_lang::value::{Atom, Value};
 
 /// Test anchor.
-const ANCRE: Anchor = Anchor(0);
+const ANCHOR: Anchor = Anchor(0);
 
 type PoolAdd = Arena<AddController>;
 type PoolBool = Arena<ReferenceController>;
@@ -49,22 +49,22 @@ fn pool_bool() -> PoolBool {
 
 /// Compiles a weighted singleton (given weight) into the ADD pool.
 fn singleton_add(pool: &mut PoolAdd, map: &Value, poids: u64) -> NodeId {
-    compiler_pondere(pool, ANCRE, &schema_test(), map, poids).unwrap()
+    compiler_pondere(pool, ANCHOR, &schema_test(), map, poids).unwrap()
 }
 
 /// Compiles a Bool singleton into the reference pool.
 fn singleton_bool(pool: &mut PoolBool, map: &Value) -> NodeId {
-    compiler(pool, ANCRE, &schema_test(), map).unwrap()
+    compiler(pool, ANCHOR, &schema_test(), map).unwrap()
 }
 
 /// Builds the set of maps in the ADD pool by non-idempotent merge of the
 /// weight-1 singletons.
 fn construire_add(pool: &mut PoolAdd, ensemble: &BTreeSet<Value>) -> NodeId {
     let keys = SchemaKeys::new(schema_test());
-    let mut root = pool.intern(ANCRE, Form::Terminal(0));
+    let mut root = pool.intern(ANCHOR, Form::Terminal(0));
     for map in ensemble {
         let membre = singleton_add(pool, map, 1);
-        root = merge_add(pool, &keys, ANCRE, root, membre).unwrap();
+        root = merge_add(pool, &keys, ANCHOR, root, membre).unwrap();
     }
     root
 }
@@ -72,10 +72,10 @@ fn construire_add(pool: &mut PoolAdd, ensemble: &BTreeSet<Value>) -> NodeId {
 /// Builds the set of maps in the Bool pool by idempotent union.
 fn construire_bool(pool: &mut PoolBool, ensemble: &BTreeSet<Value>) -> NodeId {
     let keys = SchemaKeys::new(schema_test());
-    let mut root = pool.intern(ANCRE, Form::Terminal(false));
+    let mut root = pool.intern(ANCHOR, Form::Terminal(false));
     for map in ensemble {
         let membre = singleton_bool(pool, map);
-        root = union(pool, &keys, ANCRE, root, membre).unwrap();
+        root = union(pool, &keys, ANCHOR, root, membre).unwrap();
     }
     root
 }
@@ -83,7 +83,7 @@ fn construire_bool(pool: &mut PoolBool, ensemble: &BTreeSet<Value>) -> NodeId {
 /// Counts the cardinal in the Bool pool (fold `(ℕ,+,×)`).
 fn cardinal_bool(pool: &PoolBool, root: NodeId) -> u64 {
     let mut output = pool_bool();
-    compter(pool, &mut output, ANCRE, &schema_test(), root).unwrap()
+    compter(pool, &mut output, ANCHOR, &schema_test(), root).unwrap()
 }
 
 /// The unique table is indexed by the weights: terminals of different
@@ -92,12 +92,12 @@ fn cardinal_bool(pool: &PoolBool, root: NodeId) -> u64 {
 #[test]
 fn test_table_indexee_par_les_poids() {
     let mut pool = pool_add();
-    let poids_un = pool.intern(ANCRE, Form::Terminal(1));
-    let poids_deux = pool.intern(ANCRE, Form::Terminal(2));
+    let poids_un = pool.intern(ANCHOR, Form::Terminal(1));
+    let poids_deux = pool.intern(ANCHOR, Form::Terminal(2));
     assert_ne!(poids_un, poids_deux);
     let keys = SchemaKeys::new(schema_test());
-    let fusion = merge_add(&mut pool, &keys, ANCRE, poids_un, poids_deux).unwrap();
-    let poids_trois = pool.intern(ANCRE, Form::Terminal(3));
+    let fusion = merge_add(&mut pool, &keys, ANCHOR, poids_un, poids_deux).unwrap();
+    let poids_trois = pool.intern(ANCHOR, Form::Terminal(3));
     assert_eq!(fusion, poids_trois);
 }
 
@@ -109,7 +109,7 @@ fn test_merge_non_idempotent() {
     let mut pool = pool_add();
     let a = singleton_add(&mut pool, &map, 1);
     let keys = SchemaKeys::new(schema_test());
-    let double = merge_add(&mut pool, &keys, ANCRE, a, a).unwrap();
+    let double = merge_add(&mut pool, &keys, ANCHOR, a, a).unwrap();
     assert_ne!(double, a);
     assert_eq!(somme_poids(&pool, &schema_test(), a).unwrap(), 1);
     assert_eq!(somme_poids(&pool, &schema_test(), double).unwrap(), 2);
@@ -150,14 +150,14 @@ fn test_garde_fou_compatibilite_doublon() {
     .collect();
     let mut pool_a = pool_add();
     let keys = SchemaKeys::new(schema_test());
-    let mut root = pool_a.intern(ANCRE, Form::Terminal(0));
+    let mut root = pool_a.intern(ANCHOR, Form::Terminal(0));
     for membre in &ensemble {
         let singleton = singleton_add(&mut pool_a, membre, 1);
-        root = merge_add(&mut pool_a, &keys, ANCRE, root, singleton).unwrap();
+        root = merge_add(&mut pool_a, &keys, ANCHOR, root, singleton).unwrap();
     }
     // The duplicate is counted twice: 4, not 3.
     let doublon = singleton_add(&mut pool_a, &map, 1);
-    root = merge_add(&mut pool_a, &keys, ANCRE, root, doublon).unwrap();
+    root = merge_add(&mut pool_a, &keys, ANCHOR, root, doublon).unwrap();
     assert_eq!(somme_poids(&pool_a, &schema_test(), root).unwrap(), 4);
     let mut pool_b = pool_bool();
     let root_bool = construire_bool(&mut pool_b, &ensemble);
@@ -169,26 +169,26 @@ fn test_garde_fou_compatibilite_doublon() {
 /// Bool construction == set size.
 #[test]
 fn test_propriete_somme_poids_egale_cardinal_lcg() {
-    const GRAINE_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
+    const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
     const NOMBRE_CAS: u64 = 30;
-    let mut graine = GRAINE_LCG;
+    let mut seed = SEED_LCG;
     for _ in 0..NOMBRE_CAS {
-        graine = graine
+        seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        let nombre_maps = (graine % 5) as usize;
+        let nombre_maps = (seed % 5) as usize;
         let mut ensemble = BTreeSet::new();
         for _ in 0..nombre_maps {
-            graine = graine
+            seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
-            let x0 = graine % 2;
-            graine = graine
+            let x0 = seed % 2;
+            seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);
-            let x1 = graine % 2;
+            let x1 = seed % 2;
             ensemble.insert(map_de(&[(0, x0), (1, x1)]));
         }
         let mut pool_a = pool_add();
