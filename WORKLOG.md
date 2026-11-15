@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 20: `avec`/`vide`/`sans` renamed to `with`/`empty`/`without` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `avec`→`with`, `vide`→`empty`, `sans`→`without` (all cases, compounds included), workspace-wide (39 files), per glossary. `provided` protected with a negative lookahead (`vide(?!d)`) so no `proemptyed` artifact.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0 (excluding `provided`).
+- **Judgement calls**: none beyond the glossary mapping.
 ## 2026-11-14 - M6-6 part 19: `vivants`/`contient`/`etiquette` renamed to `live`/`contains`/`label`, wire key `vivants` protected (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
