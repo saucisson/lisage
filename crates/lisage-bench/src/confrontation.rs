@@ -66,7 +66,7 @@ const MILLIS_PAR_SECONDE: f64 = 1_000.0;
 
 /// Tool measured by this runner (fixed: the binary only measures lisage; the
 /// external witnesses have their own binary with their own name).
-pub const OUTIL: &str = "lisage";
+pub const TOOL: &str = "lisage";
 
 /// Workload of the confrontation (closed set, ADR-0006).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -102,19 +102,19 @@ impl Workload {
 
 /// Measured diagram variant (closed set).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Variante {
+pub enum Variant {
     /// Boolean BDD.
     Bdd,
     /// MDD (finite-domain schema).
     Mdd,
 }
 
-impl Variante {
+impl Variant {
     /// JSON protocol label.
     pub fn label(&self) -> &'static str {
         match self {
-            Variante::Bdd => "bdd",
-            Variante::Mdd => "mdd",
+            Variant::Bdd => "bdd",
+            Variant::Mdd => "mdd",
         }
     }
 }
@@ -131,7 +131,7 @@ fn label_encodage(encodage: &Encodage) -> &'static str {
 #[derive(Clone, PartialEq, Debug)]
 pub struct MeasureConfrontation {
     /// Measured diagram variant.
-    pub variante: Variante,
+    pub variant: Variant,
     /// Workload run.
     pub workload: Workload,
     /// Workload parameters, in a stable order (serialized as an object).
@@ -264,7 +264,7 @@ fn echapper_json(chaine: &str) -> String {
 }
 
 /// Serializes a measurement as one JSON line (without the trailing `\n`). The
-/// key order is fixed and pinned by test: `outil`, `variante`, `charge`,
+/// key order is fixed and pinned by test: `tool`, `variant`, `charge`,
 /// `parametres`, `encodage` (window only), `temps_ms`, `rss_max_ko`,
 /// `nodes`, `verifie`.
 pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
@@ -272,8 +272,8 @@ pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
     ligne.push('{');
     ligne.push_str(&format!(
         "\"outil\":\"{}\",\"variante\":\"{}\",\"charge\":\"{}\"",
-        echapper_json(OUTIL),
-        measure.variante.label(),
+        echapper_json(TOOL),
+        measure.variant.label(),
         measure.workload.label()
     ));
     ligne.push_str(",\"parametres\":{");
@@ -391,7 +391,7 @@ fn workload_alea_lcg(
         });
     }
     Ok(MeasureConfrontation {
-        variante: Variante::Bdd,
+        variant: Variant::Bdd,
         workload: Workload::AleaLcg,
         parametres: vec![("n".to_string(), number_variables.to_string())],
         encodage: None,
@@ -480,7 +480,7 @@ fn workload_philosophers(
         });
     }
     Ok(MeasureConfrontation {
-        variante: Variante::Mdd,
+        variant: Variant::Mdd,
         workload: Workload::Philosophers,
         parametres: vec![("n".to_string(), number_philosophers.to_string())],
         encodage: None,
@@ -603,7 +603,7 @@ fn workload_window(
         });
     }
     Ok(MeasureConfrontation {
-        variante: Variante::Mdd,
+        variant: Variant::Mdd,
         workload: Workload::Window,
         parametres: vec![
             ("taille".to_string(), size.to_string()),

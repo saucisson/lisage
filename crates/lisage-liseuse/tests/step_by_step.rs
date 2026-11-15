@@ -24,11 +24,11 @@ type PoolRef = Arena<ReferenceController>;
 
 /// Observer that collects the typed events in memory.
 #[derive(Clone, Default)]
-struct Collecteur {
+struct Collector {
     evenements: Arc<Mutex<Vec<TraceEvent>>>,
 }
 
-impl Collecteur {
+impl Collector {
     fn new() -> Self {
         Self::default()
     }
@@ -37,7 +37,7 @@ impl Collecteur {
     }
 }
 
-impl Observer for Collecteur {
+impl Observer for Collector {
     fn on_event(&self, event: &TraceEvent) {
         self.evenements
             .lock()
@@ -89,7 +89,7 @@ fn test_serialisation_v2_evenements_step_by_step() {
     assert_eq!(
         serialiser_evenement(&TraceEvent::Gc {
             live: 12,
-            collectes: 5,
+            collected: 5,
             compaction: true,
         }),
         "{\"v\":2,\"type\":\"Gc\",\"vivants\":12,\"collectes\":5,\"compaction\":true}"
@@ -116,11 +116,11 @@ fn test_runner_emet_memo_et_attr() {
     let anchor = Anchor(0);
     let root = set(&mut pool, anchor, &schema, &[0, 1]);
 
-    let collecteur = Collecteur::new();
+    let collector = Collector::new();
     let mut runner = Transducteur::with_observer(
         Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
         MemoryPolicy::NoMemory,
-        Arc::new(collecteur.clone()),
+        Arc::new(collector.clone()),
     );
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -130,7 +130,7 @@ fn test_runner_emet_memo_et_attr() {
     // Re-run to trigger MemoHit.
     let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
 
-    let evenements = collecteur.prendre();
+    let evenements = collector.prendre();
     assert!(
         evenements
             .iter()
@@ -231,7 +231,7 @@ fn test_saturate_emet_rounds() {
     let anchor = Anchor(0);
     let initial = set(&mut pool, anchor, &schema, &[0]);
 
-    let collecteur = Collecteur::new();
+    let collector = Collector::new();
     let levels: Vec<lisage_core::Level> = (0..schema.number_levels())
         .map(lisage_core::Level)
         .collect();
@@ -244,10 +244,10 @@ fn test_saturate_emet_rounds() {
         anchor,
         initial,
         number_levels: schema.number_levels(),
-        observer: Some(Arc::new(collecteur.clone())),
+        observer: Some(Arc::new(collector.clone())),
     };
     let result = saturer(&mut params).unwrap();
-    let rounds: Vec<u32> = collecteur
+    let rounds: Vec<u32> = collector
         .prendre()
         .iter()
         .filter_map(|e| match e {
@@ -336,18 +336,18 @@ fn test_rendu_svg_step_by_step_channels_et_fantomes() {
     let anchor = Anchor(0);
     let root = set(&mut pool, anchor, &schema, &[0, 1]);
 
-    let collecteur = Collecteur::new();
+    let collector = Collector::new();
     let mut runner = Transducteur::with_observer(
         Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
         MemoryPolicy::NoMemory,
-        Arc::new(collecteur.clone()),
+        Arc::new(collector.clone()),
     );
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
-    let mut evenements = collecteur.prendre();
+    let mut evenements = collector.prendre();
     evenements.insert(0, TraceEvent::Round { numero: 1 });
     // The runner does not observe the pool: we add the NodeCreated of the
     // input diagram so that the state has nodes.

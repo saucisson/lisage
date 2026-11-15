@@ -62,8 +62,8 @@ impl MetriquesPool {
 pub struct StatsGc {
     /// Live nodes (reached from the roots).
     pub live: u64,
-    /// Collected nodes (tombstones set).
-    pub collectes: u64,
+    /// Collectd nodes (tombstones set).
+    pub collected: u64,
     /// Compaction performed (dead threshold reached).
     pub compaction: bool,
 }

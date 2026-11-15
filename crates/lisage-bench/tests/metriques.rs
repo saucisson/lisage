@@ -99,16 +99,16 @@ fn test_metriques_gc_et_compaction() {
     }
     let total = pool.node_count() as u64;
     let stats = pool.gc(&[root]);
-    assert!(stats.collectes > 0, "orphans are collected");
-    assert_eq!(stats.live + stats.collectes, total);
+    assert!(stats.collected > 0, "orphans are collected");
+    assert_eq!(stats.live + stats.collected, total);
 
     let metriques = pool.metriques();
     assert_eq!(metriques.gc, 1, "a single GC performed");
     assert_eq!(metriques.live, stats.live);
-    assert_eq!(metriques.dead, stats.collectes);
+    assert_eq!(metriques.dead, stats.collected);
     assert_eq!(
         metriques.compactions,
-        if threshold_atteint(stats.collectes, total) {
+        if threshold_atteint(stats.collected, total) {
             1
         } else {
             0

@@ -127,11 +127,11 @@ impl<C: Controller> Arena<C> {
             }
         }
         let total = self.nodes.len() as u64;
-        let mut collectes = 0u64;
+        let mut collected = 0u64;
         for (index, input) in self.nodes.iter_mut().enumerate() {
             if input.form.is_some() && !atteints.contains(&NodeId(index as u32)) {
                 input.form = None;
-                collectes += 1;
+                collected += 1;
             }
         }
         // Removal of tombstones from the unique table and the shadow index.
@@ -144,7 +144,7 @@ impl<C: Controller> Arena<C> {
         // slot count, which includes tombstones from a previous GC without
         // compaction).
         let live = self.nodes.iter().filter(|e| e.form.is_some()).count() as u64;
-        let compaction = threshold_atteint(collectes, total);
+        let compaction = threshold_atteint(collected, total);
         if compaction {
             self.remap = self.compacter();
         } else {
@@ -152,18 +152,18 @@ impl<C: Controller> Arena<C> {
         }
         self.metriques.gc += 1;
         self.metriques.live = live;
-        self.metriques.dead += collectes;
+        self.metriques.dead += collected;
         if compaction {
             self.metriques.compactions += 1;
         }
         let stats = StatsGc {
             live,
-            collectes,
+            collected,
             compaction,
         };
         self.observer.on_event(&TraceEvent::Gc {
             live,
-            collectes,
+            collected,
             compaction,
         });
         stats
