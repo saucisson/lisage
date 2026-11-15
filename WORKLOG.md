@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 17: `fenetre`/`construire`/`borne` renamed to `window`/`build`/`bound` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `fenetre`→`window`, `construire`→`build`, `borne`→`bound` (all cases, compounds included), workspace-wide (27 files), per glossary. `bornee`→`bounded` handled first so no `boundee` artifact; `construction` is already English and untouched.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
+- **Judgement calls**: `borne_sup`/`borne_inf` become `bound_sup`/`bound_inf` (mechanical; sup/inf are separate stems).
 ## 2026-11-14 - M6-6 part 16: `nombre` renamed to `number` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
