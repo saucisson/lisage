@@ -386,10 +386,10 @@ fn test_gc_deux_fois_live_exacts() {
     assert!(pool.node_count() > pool.live(), "tombstones kept");
     // Second GC: the living must not count the tombstones of the
     // first GC — live + collectes == live entries before the GC.
-    let vivantes_avant = pool.live() as u64;
+    let live_before = pool.live() as u64;
     let stats = pool.gc(&[root, courant]);
     assert_eq!(stats.live, pool.live() as u64);
-    assert_eq!(stats.live + stats.collectes, vivantes_avant);
+    assert_eq!(stats.live + stats.collectes, live_before);
     let metriques = pool.metriques();
     assert_eq!(metriques.live, stats.live);
     assert_eq!(metriques.gc, 2);

@@ -50,8 +50,8 @@ One entry per commit or pull request:
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames `vivants`→`live`, `contient`→`contains`, `etiquette`→`label` (all cases, compounds included), workspace-wide (31 files), per glossary. The JSONL v2 wire key `\"vivants\"` is contract and was restored after the blanket pass in `lisage-liseuse/src/trace.rs` (format string now `\"vivants\":{live}`) and the test pin in `lisage-liseuse/tests/pas_a_pas.rs`.
-- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns only the two protected wire literals.
-- **Judgement calls**: `etiquette` mapped to `label` (no git-tag usage found in crates/).
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns only the two protected wire literals (`vivantes_avant`→`live_before` fixed after review).
+- **Judgement calls**: `etiquette` mapped to `label` (no git-tag usage found in crates/); feminine `vivante(s)` also mapped to `live`.
 ## 2026-11-14 - M6-6 part 18: `compter`/`compte`/`reduire`/`couverture`/`evaluer` renamed to `count`/`reduce`/`coverage`/`evaluate` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
