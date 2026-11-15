@@ -3,7 +3,7 @@
 //! of type `T`, with the type's order constraints embedded and
 //! checked at construction. **Alignment as typing**: two operands
 //! compose only under a common order, imposed by the type parameter
-//! [`MarqueOrdre`] (and checked by value via [`Order::alignement`]).
+//! [`MarqueOrder`] (and checked by value via [`Order::alignement`]).
 //!
 //! This is the junction point between transduction computation (T-EXPAND
 //! consults the order: the reinserted level takes its declared place) and
@@ -17,7 +17,7 @@ use lisage_lang::Atom;
 
 /// Orderable type: canonical keys of the type + order constraints
 /// (`before`/`after` pairs required in any valid permutation).
-pub trait TypeOrdre {
+pub trait TypeOrder {
     /// Ordered key of a level of the type.
     type Key: Clone + Ord + Hash + Debug;
 
@@ -35,7 +35,7 @@ pub trait TypeOrdre {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DomainAtomes(pub Vec<Atom>);
 
-impl TypeOrdre for DomainAtomes {
+impl TypeOrder for DomainAtomes {
     type Key = Atom;
 
     fn keys_canoniques(&self) -> Vec<Atom> {
@@ -79,7 +79,7 @@ impl KeysMap {
     }
 }
 
-impl TypeOrdre for KeysMap {
+impl TypeOrder for KeysMap {
     type Key = KeyMap;
 
     fn keys_canoniques(&self) -> Vec<KeyMap> {
@@ -118,7 +118,7 @@ impl TypeOrdre for KeysMap {
 
 /// Typed error of order construction or alignment (cause preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurOrdre<Key> {
+pub enum ErreurOrder<Key> {
     /// π is not a permutation of the canonical keys (missing key, duplicate,
     /// or foreign to the type).
     PasUnePermutation,
@@ -130,36 +130,36 @@ pub enum ErreurOrdre<Key> {
         apres: Key,
     },
     /// Two orders of the same type are not aligned (different π).
-    OrdresNonAlignes,
+    OrdersNonAlignes,
 }
 
-impl<Key: Debug> std::fmt::Display for ErreurOrdre<Key> {
+impl<Key: Debug> std::fmt::Display for ErreurOrder<Key> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurOrdre::PasUnePermutation => {
+            ErreurOrder::PasUnePermutation => {
                 write!(formatter, "π is not a permutation of the canonical keys")
             }
-            ErreurOrdre::ContrainteViolee { avant, apres } => {
+            ErreurOrder::ContrainteViolee { avant, apres } => {
                 write!(
                     formatter,
                     "constraint violated: {avant:?} must precede {apres:?}"
                 )
             }
-            ErreurOrdre::OrdresNonAlignes => {
+            ErreurOrder::OrdersNonAlignes => {
                 write!(formatter, "orders not aligned (different π)")
             }
         }
     }
 }
 
-impl<Key: Debug> std::error::Error for ErreurOrdre<Key> {}
+impl<Key: Debug> std::error::Error for ErreurOrder<Key> {}
 
 /// Strategy adopted by [`Order::avec_aval_runtime`] (M5-1, C3): the runtime
 /// order was accepted, or we fell back to the canonical order.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StrategieAval {
     /// Valid runtime π: order adopted as-is.
-    OrdreRuntime,
+    OrderRuntime,
     /// Invalid runtime π: fallback to the canonical order (degraded).
     RepliCanonique,
 }
@@ -168,7 +168,7 @@ pub enum StrategieAval {
 /// (M3-1, C3): the permutation π of the canonical keys, the type's
 /// constraints being embedded and checked at construction.
 #[derive(Debug)]
-pub struct Order<T: TypeOrdre> {
+pub struct Order<T: TypeOrder> {
     /// Canonical keys of the type (π = identity on this sequence).
     canoniques: Vec<T::Key>,
     /// π: ordered sequence of keys (permutation of the canonicals).
@@ -180,7 +180,7 @@ pub struct Order<T: TypeOrdre> {
 
 // Manual implementations: derives would add bounds on `T` itself,
 // whereas only the keys `T::Key` participate in comparisons.
-impl<T: TypeOrdre> Clone for Order<T> {
+impl<T: TypeOrder> Clone for Order<T> {
     fn clone(&self) -> Self {
         Order {
             canoniques: self.canoniques.clone(),
@@ -191,7 +191,7 @@ impl<T: TypeOrdre> Clone for Order<T> {
     }
 }
 
-impl<T: TypeOrdre> PartialEq for Order<T> {
+impl<T: TypeOrder> PartialEq for Order<T> {
     fn eq(&self, other: &Self) -> bool {
         self.canoniques == other.canoniques
             && self.sequence == other.sequence
@@ -199,9 +199,9 @@ impl<T: TypeOrdre> PartialEq for Order<T> {
     }
 }
 
-impl<T: TypeOrdre> Eq for Order<T> {}
+impl<T: TypeOrder> Eq for Order<T> {}
 
-impl<T: TypeOrdre> Order<T> {
+impl<T: TypeOrder> Order<T> {
     /// Canonical order of the type (π = identity).
     pub fn canonique(descripteur: &T) -> Self {
         let canoniques = descripteur.keys_canoniques();
@@ -216,34 +216,34 @@ impl<T: TypeOrdre> Order<T> {
     /// Order given by permutation π, checked: π must be a
     /// permutation of the canonical keys and satisfy the type's constraints.
     /// type.
-    pub fn new(descripteur: &T, pi: Vec<T::Key>) -> Result<Self, ErreurOrdre<T::Key>> {
+    pub fn new(descripteur: &T, pi: Vec<T::Key>) -> Result<Self, ErreurOrder<T::Key>> {
         let canoniques = descripteur.keys_canoniques();
         let mut pi_triee = pi.clone();
         pi_triee.sort();
         let mut canoniques_triees = canoniques.clone();
         canoniques_triees.sort();
         if pi_triee != canoniques_triees {
-            return Err(ErreurOrdre::PasUnePermutation);
+            return Err(ErreurOrder::PasUnePermutation);
         }
-        let ordre = Order {
+        let order = Order {
             canoniques,
             sequence: pi,
             contraintes: descripteur.contraintes(),
             marqueur: PhantomData,
         };
-        for (avant, apres) in &ordre.contraintes {
-            let satisfait = match (ordre.position(avant), ordre.position(apres)) {
+        for (avant, apres) in &order.contraintes {
+            let satisfait = match (order.position(avant), order.position(apres)) {
                 (Some(position_avant), Some(position_apres)) => position_avant < position_apres,
                 _ => false,
             };
             if !satisfait {
-                return Err(ErreurOrdre::ContrainteViolee {
+                return Err(ErreurOrder::ContrainteViolee {
                     avant: <T::Key as Clone>::clone(avant),
                     apres: <T::Key as Clone>::clone(apres),
                 });
             }
         }
-        Ok(ordre)
+        Ok(order)
     }
 
     /// Order with **runtime downstream** (M5-1, C3): try to adopt the
@@ -253,7 +253,7 @@ impl<T: TypeOrdre> Order<T> {
     /// via the returned strategy.
     pub fn avec_aval_runtime(descripteur: &T, pi_runtime: Vec<T::Key>) -> (Self, StrategieAval) {
         match Order::new(descripteur, pi_runtime) {
-            Ok(ordre) => (ordre, StrategieAval::OrdreRuntime),
+            Ok(order) => (order, StrategieAval::OrderRuntime),
             Err(_cause) => (Order::canonique(descripteur), StrategieAval::RepliCanonique),
         }
     }
@@ -303,11 +303,11 @@ impl<T: TypeOrdre> Order<T> {
 
     /// Alignment checked between two orders of the same type, typed error
     /// otherwise (C3: two operands compose only under a common order).
-    pub fn alignement(&self, other: &Self) -> Result<(), ErreurOrdre<T::Key>> {
+    pub fn alignement(&self, other: &Self) -> Result<(), ErreurOrder<T::Key>> {
         if self.alignes(other) {
             Ok(())
         } else {
-            Err(ErreurOrdre::OrdresNonAlignes)
+            Err(ErreurOrder::OrdersNonAlignes)
         }
     }
 }
@@ -315,20 +315,20 @@ impl<T: TypeOrdre> Order<T> {
 /// Order mark: zero-sized type carrying the [`Order<T>`] of a type `T`.
 /// Alignment becomes a typing fact: two operands compose only under the
 /// same mark `O` (C3).
-pub trait MarqueOrdre<T: TypeOrdre>: Sized + Send + Sync {
+pub trait MarqueOrder<T: TypeOrder>: Sized + Send + Sync {
     /// The order (first-class value) associated with the mark.
-    fn ordre(descripteur: &T) -> Order<T>;
+    fn order(descripteur: &T) -> Order<T>;
 }
 
 /// Operand aligned on the order `O` of type `T`. Composition
 /// ([`Aligne::compose`]) requires the same `O` parameter on both sides:
 /// operands under different orders do not compile.
-pub struct Aligne<T: TypeOrdre, O: MarqueOrdre<T>, V> {
+pub struct Aligne<T: TypeOrder, O: MarqueOrder<T>, V> {
     value: V,
     marqueur: PhantomData<fn() -> (T, O)>,
 }
 
-impl<T: TypeOrdre, O: MarqueOrdre<T>, V> Aligne<T, O, V> {
+impl<T: TypeOrder, O: MarqueOrder<T>, V> Aligne<T, O, V> {
     /// New operand, aligned on mark `O`.
     pub fn new(value: V) -> Self {
         Aligne {

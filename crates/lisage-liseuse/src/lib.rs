@@ -6,4 +6,4 @@ pub mod publication;
 pub mod svg;
 pub mod trace;
 pub mod vue_memory;
-pub mod vue_ordre;
+pub mod vue_order;

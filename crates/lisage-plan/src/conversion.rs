@@ -10,7 +10,7 @@
 
 use std::marker::PhantomData;
 
-use crate::ordre::{MarqueOrdre, Order, TypeOrdre};
+use crate::order::{MarqueOrder, Order, TypeOrder};
 
 /// Encoding of a type (controller realm, M3-2): compilation of the
 /// semantic decomposition into physical levels.
@@ -26,7 +26,7 @@ pub enum Encodage {
 
 /// Encoding mark: zero-sized type carrying an [`Encodage`]. The typed
 /// contract of realms goes through this mark, like the order through
-/// [`MarqueOrdre`].
+/// [`MarqueOrder`].
 pub trait MarqueEncodage: Sized + Send + Sync {
     /// The encoding associated with the mark.
     fn encodage() -> Encodage;
@@ -37,7 +37,7 @@ pub trait MarqueEncodage: Sized + Send + Sync {
 pub enum ErreurConversion {
     /// The two orders do not have the same canonical key set:
     /// no conversion possible between those types.
-    OrdresInconvertibles,
+    OrdersInconvertibles,
     /// The conversion does not start from the source realm's order or
     /// does not arrive at the target realm's order.
     RoyaumeIncompatible,
@@ -46,7 +46,7 @@ pub enum ErreurConversion {
 impl std::fmt::Display for ErreurConversion {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurConversion::OrdresInconvertibles => {
+            ErreurConversion::OrdersInconvertibles => {
                 write!(formatter, "inconvertible orders (different canonical keys)")
             }
             ErreurConversion::RoyaumeIncompatible => {
@@ -67,7 +67,7 @@ impl std::error::Error for ErreurConversion {}
 /// between the two π (Kendall tau distance), computed from the orders
 /// alone, before any execution.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Conversion<T: TypeOrdre> {
+pub struct Conversion<T: TypeOrder> {
     source: Order<T>,
     cible: Order<T>,
     /// Adjacent transpositions (positions in the sequence) composing
@@ -75,12 +75,12 @@ pub struct Conversion<T: TypeOrdre> {
     transpositions: Vec<(usize, usize)>,
 }
 
-impl<T: TypeOrdre> Conversion<T> {
+impl<T: TypeOrder> Conversion<T> {
     /// Conversion from `source` to `cible`: both orders must have the same
     /// canonical key set (same instantiated type).
     pub fn new(source: &Order<T>, cible: &Order<T>) -> Result<Self, ErreurConversion> {
         if source.canoniques() != cible.canoniques() {
-            return Err(ErreurConversion::OrdresInconvertibles);
+            return Err(ErreurConversion::OrdersInconvertibles);
         }
         // Bubble sort of the target sequence toward the source order,
         // recording each adjacent transposition: the number of
@@ -143,12 +143,12 @@ type MarqueurRoyaume<T, O, E> = PhantomData<fn() -> (T, O, E)>;
 /// encoding mark `E`) — extension of the typed contract from orders to
 /// encodings (M3-2, C3). A value exists only in a realm;
 /// leaving the realm = explicit conversion.
-pub struct Royaume<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> {
+pub struct Royaume<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> {
     value: V,
     marqueur: MarqueurRoyaume<T, O, E>,
 }
 
-impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> {
+impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> {
     /// New value in the realm `(T, O, E)`.
     pub fn new(value: V) -> Self {
         Royaume {
@@ -163,8 +163,8 @@ impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> 
     }
 
     /// Order of the realm, from its mark.
-    pub fn ordre(descripteur: &T) -> Order<T> {
-        O::ordre(descripteur)
+    pub fn order(descripteur: &T) -> Order<T> {
+        O::order(descripteur)
     }
 
     /// Encoding of the realm, from its mark.
@@ -173,19 +173,19 @@ impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> 
     }
 }
 
-impl<T: TypeOrdre, O: MarqueOrdre<T>, E: MarqueEncodage, V: Clone> Royaume<T, O, E, V> {
+impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V: Clone> Royaume<T, O, E, V> {
     /// **Reorder = convert**: change the realm's order mark via an explicit
     /// conversion at predictable cost (`conversion.cout()`).
     /// Typed contract checked by value: the conversion must start from the
     /// source realm's order (`O`) and arrive at the target realm's order
     /// (`O2`).
-    pub fn reordonner<O2: MarqueOrdre<T>>(
+    pub fn reordonner<O2: MarqueOrder<T>>(
         &self,
         descripteur: &T,
         conversion: &Conversion<T>,
     ) -> Result<Royaume<T, O2, E, V>, ErreurConversion> {
-        if conversion.source() != &O::ordre(descripteur)
-            || conversion.cible() != &O2::ordre(descripteur)
+        if conversion.source() != &O::order(descripteur)
+            || conversion.cible() != &O2::order(descripteur)
         {
             return Err(ErreurConversion::RoyaumeIncompatible);
         }

@@ -4,13 +4,13 @@
 
 use lisage_lang::Atom;
 use lisage_plan::conversion::{Conversion, Encodage, ErreurConversion, MarqueEncodage, Royaume};
-use lisage_plan::ordre::{DomainAtomes, MarqueOrdre, Order, TypeOrdre};
+use lisage_plan::order::{DomainAtomes, MarqueOrder, Order, TypeOrder};
 
 /// Mark carrying the canonical order over an atom domain.
 struct MarqueCanonique;
 
-impl MarqueOrdre<DomainAtomes> for MarqueCanonique {
-    fn ordre(descripteur: &DomainAtomes) -> Order<DomainAtomes> {
+impl MarqueOrder<DomainAtomes> for MarqueCanonique {
+    fn order(descripteur: &DomainAtomes) -> Order<DomainAtomes> {
         Order::canonique(descripteur)
     }
 }
@@ -18,8 +18,8 @@ impl MarqueOrdre<DomainAtomes> for MarqueCanonique {
 /// Mark carrying the reversed order over an atom domain.
 struct MarqueInverse;
 
-impl MarqueOrdre<DomainAtomes> for MarqueInverse {
-    fn ordre(descripteur: &DomainAtomes) -> Order<DomainAtomes> {
+impl MarqueOrder<DomainAtomes> for MarqueInverse {
+    fn order(descripteur: &DomainAtomes) -> Order<DomainAtomes> {
         let mut pi = descripteur.keys_canoniques();
         pi.reverse();
         Order::new(descripteur, pi).expect("the reversed order is a valid permutation")
@@ -46,7 +46,7 @@ impl MarqueEncodage for MarqueEnumeration {
 
 /// Number of inversions between two sequences (Kendall tau distance),
 /// computed independently of `Conversion`.
-fn inversions<T: TypeOrdre>(source: &Order<T>, cible: &Order<T>) -> usize {
+fn inversions<T: TypeOrder>(source: &Order<T>, cible: &Order<T>) -> usize {
     let sequence = cible.sequence();
     let mut compte = 0;
     for i in 0..sequence.len() {
@@ -63,8 +63,8 @@ fn inversions<T: TypeOrdre>(source: &Order<T>, cible: &Order<T>) -> usize {
 #[test]
 fn test_conversion_identite_cout_nul() {
     let domain = DomainAtomes(vec![Atom(0), Atom(1), Atom(2)]);
-    let ordre = Order::canonique(&domain);
-    let conversion = Conversion::new(&ordre, &ordre.clone()).unwrap();
+    let order = Order::canonique(&domain);
+    let conversion = Conversion::new(&order, &order.clone()).unwrap();
     assert!(conversion.est_identite());
     assert_eq!(conversion.cout(), 0);
     assert!(conversion.transpositions().is_empty());
@@ -94,14 +94,14 @@ fn test_conversion_transpositions_adjacentes() {
 
 /// M3-2: two orders of different domains are inconvertible.
 #[test]
-fn test_conversion_ordres_inconvertibles() {
+fn test_conversion_orders_inconvertibles() {
     let domain_a = DomainAtomes(vec![Atom(0), Atom(1)]);
     let domain_b = DomainAtomes(vec![Atom(0), Atom(1), Atom(2)]);
-    let ordre_a = Order::canonique(&domain_a);
-    let ordre_b = Order::canonique(&domain_b);
+    let order_a = Order::canonique(&domain_a);
+    let order_b = Order::canonique(&domain_b);
     assert_eq!(
-        Conversion::new(&ordre_a, &ordre_b),
-        Err(ErreurConversion::OrdresInconvertibles)
+        Conversion::new(&order_a, &order_b),
+        Err(ErreurConversion::OrdersInconvertibles)
     );
 }
 
@@ -111,8 +111,8 @@ fn test_conversion_ordres_inconvertibles() {
 #[test]
 fn test_royaume_reordonner_contrat_type() {
     let domain = DomainAtomes(vec![Atom(0), Atom(1), Atom(2)]);
-    let source = MarqueCanonique::ordre(&domain);
-    let cible = MarqueInverse::ordre(&domain);
+    let source = MarqueCanonique::order(&domain);
+    let cible = MarqueInverse::order(&domain);
     let conversion = Conversion::new(&source, &cible).unwrap();
 
     let royaume = Royaume::<DomainAtomes, MarqueCanonique, MarqueBalayage, u32>::new(7);

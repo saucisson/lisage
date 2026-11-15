@@ -88,7 +88,7 @@ pub struct LevelSdd {
 /// (all the vtree variables, domain of the complete set) — the
 /// R-default reductions at interning are driven by this schema.
 pub fn pool_pour_sdd(vtree: &Vtree, ensemble: &BTreeSet<Value>) -> Arena<ReferenceController> {
-    let schema = Schema::Map(vtree.ordre_plat(), domain_ensemble(ensemble));
+    let schema = Schema::Map(vtree.order_plat(), domain_ensemble(ensemble));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
@@ -115,7 +115,7 @@ fn installer_level(
     domain: &Domain,
     compteur_anchors: &mut u32,
 ) -> Result<LevelSdd, ErreurSdd> {
-    let variables = vtree.ordre_plat();
+    let variables = vtree.order_plat();
     if variables.is_empty() {
         return Err(ErreurSdd::SansVariable);
     }

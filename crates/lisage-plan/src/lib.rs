@@ -2,5 +2,5 @@
 
 pub mod conversion;
 pub mod oracle;
-pub mod ordre;
+pub mod order;
 pub mod vtree;

@@ -5,7 +5,7 @@
 //! subtree) and a local anchor per node (controller tour as instance pattern).
 //!
 //! The vtree lives in `lisage-algebra` (interface layer) to be visible
-//! from `lisage-plan` (which makes it a [`TypeOrdre`]) as from `lisage-core`
+//! from `lisage-plan` (which makes it a [`TypeOrder`]) as from `lisage-core`
 //! and `lisage-bench` (which derive schemas and anchors from it).
 
 use lisage_lang::value::Atom;
@@ -60,20 +60,20 @@ impl Vtree {
 
     /// Variables of the vtree in the induced flat order: left subtree
     /// before right subtree, recursively.
-    pub fn ordre_plat(&self) -> Vec<Atom> {
+    pub fn order_plat(&self) -> Vec<Atom> {
         match self {
             Vtree::Feuille(variable) => vec![*variable],
             Vtree::Node { gauche, droite } => {
-                let mut ordre = gauche.ordre_plat();
-                ordre.extend(droite.ordre_plat());
-                ordre
+                let mut order = gauche.order_plat();
+                order.extend(droite.order_plat());
+                order
             }
         }
     }
 
     /// Number of variables (size of the tree).
     pub fn nombre_variables(&self) -> usize {
-        self.ordre_plat().len()
+        self.order_plat().len()
     }
 
     /// Depth of the tree (leaf = 1).
@@ -110,7 +110,7 @@ impl Vtree {
 
     /// Order constraints of the vtree: for each internal node, every
     /// left variable precedes every right variable.
-    pub fn contraintes_ordre(&self) -> Vec<(Atom, Atom)> {
+    pub fn contraintes_order(&self) -> Vec<(Atom, Atom)> {
         let mut contraintes = Vec::new();
         self.collecter_contraintes(&mut contraintes);
         contraintes
@@ -119,8 +119,8 @@ impl Vtree {
     /// Accumulates the (left × right) constraints of each internal node.
     fn collecter_contraintes(&self, contraintes: &mut Vec<(Atom, Atom)>) {
         if let Vtree::Node { gauche, droite } = self {
-            for variable_gauche in gauche.ordre_plat() {
-                for variable_droite in droite.ordre_plat() {
+            for variable_gauche in gauche.order_plat() {
+                for variable_droite in droite.order_plat() {
                     contraintes.push((variable_gauche, variable_droite));
                 }
             }
