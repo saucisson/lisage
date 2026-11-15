@@ -57,14 +57,14 @@ impl MetriquesPool {
     }
 }
 
-/// GC statistics: live, collected, compaction performd.
+/// GC statistics: live, collected, compaction performed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StatsGc {
     /// Live nodes (reached from the roots).
     pub live: u64,
     /// Collected nodes (tombstones set).
     pub collectes: u64,
-    /// Compaction performd (dead threshold reached).
+    /// Compaction performed (dead threshold reached).
     pub compaction: bool,
 }
 
