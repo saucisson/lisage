@@ -34,7 +34,7 @@ fn diagramme_test() -> (PoolRef, NodeId) {
 
 /// The publication SVG is standalone, in the serif theme, with the escaped title.
 #[test]
-fn test_svg_publication_theme_serif_et_titre() {
+fn test_svg_publication_theme_serif_and_titre() {
     let (pool, root) = diagramme_test();
     let theme = Theme::publication();
     let svg = rendre_svg_publication(&pool, root, "figure <A> & B", &theme, false);
@@ -82,7 +82,7 @@ fn test_svg_publication_deterministe() {
 
 /// The PGF is a standalone TikZ document: diagram nodes and arcs, title.
 #[test]
-fn test_pgf_autonomous_with_nodes_et_arcs() {
+fn test_pgf_autonomous_with_nodes_and_arcs() {
     let (pool, root) = diagramme_test();
     let pgf = rendre_pgf(&pool, root, "figure A");
     assert!(pgf.contains("\\documentclass[tikz,border=5pt]{standalone}"));

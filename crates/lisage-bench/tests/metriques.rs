@@ -84,7 +84,7 @@ fn test_metriques_cache_hash_consing() {
 /// way consistent with the profiled threshold, on a scenario where a root
 /// shares sub-nodes with orphans.
 #[test]
-fn test_metriques_gc_et_compaction() {
+fn test_metriques_gc_and_compaction() {
     let schema = schema_test();
     let mut pool = new_pool(&schema);
     let root = compiler_set(&mut pool, ANCHOR_TEST, &schema, &SET_ROOT);

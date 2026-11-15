@@ -140,7 +140,7 @@ fn cardinality(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
 /// M2-4, T2: `saturer` terminates and reaches a fixpoint — with an identity
 /// step, the fixpoint is immediate (1 iteration) and `X ⊕ id(X) = X`.
 #[test]
-fn test_saturate_termine_et_point_fixe() {
+fn test_saturate_termine_and_point_fixe() {
     let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = new_pool(&schema);

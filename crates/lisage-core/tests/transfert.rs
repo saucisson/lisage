@@ -117,7 +117,7 @@ fn test_transfert_without_unite() {
 /// entry per touched node — O(w) overhead per node), and the transition width
 /// is bounded.
 #[test]
-fn test_transfert_memory_et_width() {
+fn test_transfert_memory_and_width() {
     let schema = schema_map();
     let anchor = Anchor(0);
     let mut pool = new_pool(&schema);

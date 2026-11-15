@@ -62,7 +62,7 @@ fn schema_atome() -> BoxedStrategy<(Schema, Value)> {
 }
 
 /// Two valid values for the same schema.
-fn schema_et_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
+fn schema_and_deux_values() -> BoxedStrategy<(Schema, Value, Value)> {
     prop_oneof![
         (
             1u8..5,
@@ -127,7 +127,7 @@ proptest! {
     /// Canonicity (C1): two distinct values compile to distinct
     /// nodes; the same value compiled twice gives the same node.
     #[test]
-    fn test_canonicite_compilation((schema, value_a, value_b) in schema_et_deux_values()) {
+    fn test_canonicite_compilation((schema, value_a, value_b) in schema_and_deux_values()) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = Anchor(0);
         let root_a1 = compiler(&mut pool, anchor, &schema, &value_a).unwrap();

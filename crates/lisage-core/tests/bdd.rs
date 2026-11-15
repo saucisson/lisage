@@ -1,4 +1,4 @@
-//! Tests de la configuration BDD classique (M1-8, C6) : compilation par
+//! Tests of the classic BDD configuration (M1-8, C6): compilation by
 //! truth table, node counting, evaluation.
 
 use lisage_algebra::interface::Anchor;
@@ -37,13 +37,13 @@ fn test_bdd_constantes_un_seul_terminal() {
 }
 
 #[test]
-fn test_bdd_xor2_count_et_evalue() {
+fn test_bdd_xor2_count_and_evalue() {
     let mut pool = pool(2);
     let anchor = Anchor(0);
     let keys = BddKeys::new(2);
     let table = table_xor2();
     let root = compiler_bdd(&mut pool, anchor, &keys, &table);
-    // XOR(x0, x1) : root x0 + deux nœuds x1 distincts + ⊥/⊤ = 5 nœuds.
+    // XOR(x0, x1) : root x0 + two distinct x1 nodes + ⊥/⊤ = 5 nodes.
     assert_eq!(count_nodes(&pool, root), 5);
     for a in 0..4u64 {
         assert_eq!(
@@ -59,7 +59,7 @@ fn test_bdd_projection_collapse() {
     let mut pool = pool(2);
     let anchor = Anchor(0);
     let keys = BddKeys::new(2);
-    // Projection sur x0 : les deux branches de la root x1 potentielles
+    // Projection onto x0: the two potential x1 branches of the root
     // are constant, R-collapse reduces them — root x0 → (⊥, ⊤), 3 nodes.
     let table = (0..4u64).map(|a| a & 1 == 1).collect::<Vec<bool>>();
     let root = compiler_bdd(&mut pool, anchor, &keys, &table);

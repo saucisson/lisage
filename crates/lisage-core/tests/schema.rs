@@ -78,7 +78,7 @@ fn test_set_absents_collapses() {
 
 /// The empty map compiles to ⊤; an absent key skips its presence level.
 #[test]
-fn test_map_empty_et_key_absente() {
+fn test_map_empty_and_key_absente() {
     let schema = Schema::Map(vec![Atom(0), Atom(1)], domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
@@ -145,7 +145,7 @@ fn test_schema_atome() {
 /// The empty set compiles to the accepting terminal ⊤ (empty path), and the
 /// full set to the complete chain of presences.
 #[test]
-fn test_set_empty_et_plein() {
+fn test_set_empty_and_plein() {
     let schema = Schema::Set(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
@@ -224,7 +224,7 @@ fn test_canonicite_compilation() {
     assert_ne!(root_a1, root_b);
 }
 
-/// M2-1 : Seq — compilation par positions et round-trip.
+/// M2-1 : Seq — compilation by positions and round-trip.
 #[test]
 fn test_seq_compilation_round_trip() {
     let schema = Schema::Seq(domain(&[0, 1, 2]), 3);

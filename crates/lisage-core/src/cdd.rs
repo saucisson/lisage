@@ -1,4 +1,4 @@
-//! **CDD** (*Clock Decision Diagrams*) test instance (UPPAAL school, Larsen et
+//! **CDD** (*Clock Decision Diagrams*) test instance (UPPAAL school, Larsen and
 //! al.; backlog § 9 of the roadmap, open question 9 of the spec,
 //! vein #83 after the intervals, DBM fragments and the
 //! DDD-difference test instance): the **non-convex unions of DBM zones** as

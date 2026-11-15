@@ -155,7 +155,7 @@ impl TransfertNonLocal {
             }
         }
         let effet = if decremente {
-            EffetMemory::une(node_input, level, true)
+            EffetMemory::one(node_input, level, true)
         } else {
             EffetMemory::new()
         };

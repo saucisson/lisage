@@ -108,7 +108,7 @@ fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
 
 /// M4-1: main/shadow planes and the shadow-plane index (level → forms).
 #[test]
-fn test_plans_et_index_ombre() {
+fn test_plans_and_index_ombre() {
     let mut pool = arena();
     let (root, orphan) = petit_diagramme(&mut pool);
     // By default, everything is in the main plane.
@@ -212,7 +212,7 @@ fn test_compaction_profilee() {
 /// M4-1: cache metrics — hash-consing creations/shares, hit rate, GC
 /// counters — and the `Gc` event emitted to the observer.
 #[test]
-fn test_metriques_cache_et_evenement_gc() {
+fn test_metriques_cache_and_evenement_gc() {
     let observer = Arc::new(RecordingObserver::default());
     struct Pont(Arc<RecordingObserver>);
     impl Observer for Pont {
@@ -286,7 +286,7 @@ fn test_intern_plan_hit_cache_replanifie() {
 /// hit rate and the GC — bound `dead × 4 == total` included, `rate_hit`
 /// bounded, `live + collected == total` over random scenarios.
 #[test]
-fn test_propriete_threshold_rate_hit_et_invariant_gc() {
+fn test_propriete_threshold_rate_hit_and_invariant_gc() {
     let mut seed = SEED_LCG;
     let mut next = move || {
         seed = seed

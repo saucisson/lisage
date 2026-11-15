@@ -148,7 +148,7 @@ fn test_kingdom_reordonner_contrat_type() {
 /// inversion count, and the transpositions applied to the target give back
 /// the source.
 #[test]
-fn test_propriete_cout_egal_inversions_et_transpositions_exactes() {
+fn test_propriete_cout_egal_inversions_and_transpositions_exactes() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
