@@ -59,7 +59,7 @@ proptest! {
     /// C1 differential: DD lookup (path B) == interpreter lookup (path A)
     /// on a random map with keys {0,1} and values {0,1}.
     #[test]
-    fn test_c1_differentiel_lookup_voie_a_vs_dd(
+    fn test_c1_differentiel_lookup_lane_a_vs_dd(
         paires in prop::collection::vec((0u64..2, 0u64..2), 0..5),
         key in 0u64..2,
     ) {
@@ -106,7 +106,7 @@ proptest! {
     /// re-explicits it (T-EXPAND + graft). The DD path must still equal
     /// path A.
     #[test]
-    fn test_c1_differentiel_lookup_collapsed_voie_a_vs_dd(
+    fn test_c1_differentiel_lookup_collapsed_lane_a_vs_dd(
         paires in prop::collection::vec((0u64..2, 0u64..1), 0..5),
         key in 0u64..2,
     ) {

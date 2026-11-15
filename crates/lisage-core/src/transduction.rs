@@ -232,7 +232,7 @@ impl<T: Transduction> Transducteur<T> {
         let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
             Form::Node { level, arcs } => {
-                let mut enfants = BTreeMap::new();
+                let mut children = BTreeMap::new();
                 let mut s_arcs = BTreeMap::new();
                 for (arc, cible) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
@@ -248,7 +248,7 @@ impl<T: Transduction> Transducteur<T> {
                         Ok(Form::Terminal(_)) => None,
                         Err(error) => return Err(error.into()),
                     };
-                    enfants.insert(arc, (cible_result, s_arc.clone()));
+                    children.insert(arc, (cible_result, s_arc.clone()));
                     s_arcs.insert(arc, (level_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
@@ -261,7 +261,7 @@ impl<T: Transduction> Transducteur<T> {
                     anchor,
                     level,
                     h: &h,
-                    arcs: enfants,
+                    arcs: children,
                     memory: &self.memory,
                     node_input: node,
                 };
@@ -310,7 +310,7 @@ impl<T: Transduction> Transducteur<T> {
         let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
             Form::Node { level, arcs } => {
-                let mut enfants = BTreeMap::new();
+                let mut children = BTreeMap::new();
                 let mut s_arcs = BTreeMap::new();
                 for (arc, cible) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
@@ -326,7 +326,7 @@ impl<T: Transduction> Transducteur<T> {
                         Ok(Form::Terminal(_)) => None,
                         Err(error) => return Err(error.into()),
                     };
-                    enfants.insert(arc, (cible_result, s_arc.clone()));
+                    children.insert(arc, (cible_result, s_arc.clone()));
                     s_arcs.insert(arc, (level_cible, s_arc));
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
@@ -339,7 +339,7 @@ impl<T: Transduction> Transducteur<T> {
                     anchor,
                     level,
                     h: &h,
-                    arcs: enfants,
+                    arcs: children,
                     memory: &self.memory,
                     node_input: node,
                 };

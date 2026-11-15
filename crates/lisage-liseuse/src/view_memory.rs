@@ -15,7 +15,7 @@ const MARGE_GAUCHE: u32 = 16;
 /// Height of a pool line in pixels.
 const HEIGHT_LIGNE_POOL: u32 = 18;
 /// Height of a quotient class line in pixels.
-const HEIGHT_LIGNE_CLASSE: u32 = 18;
+const HEIGHT_LIGNE_CLASS: u32 = 18;
 /// Height of a comparison bar in pixels.
 const HEIGHT_BARRE: u32 = 22;
 /// Maximum width of a comparison bar in pixels.
@@ -60,7 +60,7 @@ pub struct BadgeMultiplicite {
 /// Quotient class: a form under an anchor, with its multiplicity
 /// (forms × anchors — C1: same form under two anchors = two classes).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ClasseQuotient {
+pub struct ClassQuotient {
     /// Form label.
     pub form: String,
     /// Anchor label.
@@ -71,7 +71,7 @@ pub struct ClasseQuotient {
 
 /// Memory view of a pool: GC metrics and live nodes per plane.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct VuePool {
+pub struct ViewPool {
     /// Pool name (controller).
     pub nom: String,
     /// Pool metrics (creations, shares, live, dead, GC,
@@ -83,7 +83,7 @@ pub struct VuePool {
     pub live_ombre: u64,
 }
 
-impl ClasseQuotient {
+impl ClassQuotient {
     /// Multiplicity badge of the class (handle = « form @ anchor »).
     pub fn badge(&self) -> BadgeMultiplicite {
         BadgeMultiplicite {
@@ -93,7 +93,7 @@ impl ClasseQuotient {
     }
 }
 
-impl VuePool {
+impl ViewPool {
     /// View of a pool from its metrics and the live nodes per plane.
     pub fn depuis_metriques(
         nom: &str,
@@ -101,7 +101,7 @@ impl VuePool {
         live_principal: u64,
         live_ombre: u64,
     ) -> Self {
-        VuePool {
+        ViewPool {
             nom: nom.to_string(),
             metriques,
             live_principal,
@@ -112,7 +112,7 @@ impl VuePool {
 
 /// Naive/DD/Lisage comparison: live nodes per representation mode.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ComparaisonVue {
+pub struct ComparaisonView {
     /// Live nodes in naive enumeration (full explicitation).
     pub naif: u64,
     /// Live nodes in flat DD.
@@ -134,13 +134,13 @@ fn width_barre(count: u64, max: u64) -> u32 {
 /// Static SVG rendering of the memory and quotient view: pools panel
 /// (GC metrics + live nodes per plane), quotient classes panel
 /// (forms × anchors with ×k badges), naive/DD/Lisage comparison bars.
-pub fn rendre_svg_vue_memory(
-    pools: &[VuePool],
-    classes: &[ClasseQuotient],
-    comparaison: &ComparaisonVue,
+pub fn rendre_svg_view_memory(
+    pools: &[ViewPool],
+    classes: &[ClassQuotient],
+    comparaison: &ComparaisonView,
 ) -> String {
     let height_pools = pools.len() as u32 * HEIGHT_LIGNE_POOL + DECALAGE_PANNEAU;
-    let height_classes = classes.len() as u32 * HEIGHT_LIGNE_CLASSE + DECALAGE_PANNEAU;
+    let height_classes = classes.len() as u32 * HEIGHT_LIGNE_CLASS + DECALAGE_PANNEAU;
     let height_comparaison = 3 * HEIGHT_BARRE + DECALAGE_PANNEAU;
     let height = HEIGHT_TITRE + height_pools + height_classes + height_comparaison + MARGE_BAS;
     let width = MARGE_GAUCHE * 2 + WIDTH_BARRE_MAX + WIDTH_PANNEAU;
@@ -174,13 +174,13 @@ pub fn rendre_svg_vue_memory(
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">quotient classes (forms × anchors)</text>\n"
     ));
-    for classe in classes {
-        y += HEIGHT_LIGNE_CLASSE;
+    for class in classes {
+        y += HEIGHT_LIGNE_CLASS;
         svg.push_str(&format!(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{} @ {}</text>\n",
-            classe.form, classe.anchor
+            class.form, class.anchor
         ));
-        let badge = classe.badge();
+        let badge = class.badge();
         if badge.multiplicite > 1 {
             svg.push_str(&format!(
                 "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\" fill=\"{COULEUR_BADGE}\">×{}</text>\n",

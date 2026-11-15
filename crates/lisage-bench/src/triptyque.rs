@@ -79,7 +79,7 @@ impl From<CoreError> for ErrorTriptyque {
 
 /// Measurement of one path of the triptych.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct MeasureVoie {
+pub struct MeasureLane {
     /// Cardinality of the reachable space (number of distinct markings).
     pub cardinality: u64,
     /// Live nodes of the diagram (0 for path A, explicit set).
@@ -87,8 +87,8 @@ pub struct MeasureVoie {
 }
 
 /// Path A (reference): cardinality of the explicit reachable space.
-pub fn voie_a(network: &NetworkPetri) -> MeasureVoie {
-    MeasureVoie {
+pub fn lane_a(network: &NetworkPetri) -> MeasureLane {
+    MeasureLane {
         cardinality: pnml::space_atteignable(network).len() as u64,
         nodes_live: 0,
     }
@@ -96,20 +96,20 @@ pub fn voie_a(network: &NetworkPetri) -> MeasureVoie {
 
 /// Path B: DD of the reachable space with **fixed order** (canonical
 /// order of the places, key = place index).
-pub fn voie_b(network: &NetworkPetri) -> Result<MeasureVoie, ErrorTriptyque> {
+pub fn lane_b(network: &NetworkPetri) -> Result<MeasureLane, ErrorTriptyque> {
     let order_canonique: Vec<Atom> = (0..network.number_places())
         .map(|index| Atom(index as u64))
         .collect();
-    voie_dd(network, &order_canonique)
+    lane_dd(network, &order_canonique)
 }
 
 /// Result of path C: the measurement of the DD built with the adopted order,
 /// and the planner's downstream strategy (runtime order adopted, or canonical
 /// fallback).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ResultVoieC {
+pub struct ResultLaneC {
     /// Measurement of the DD with the order adopted by the planner.
-    pub measure: MeasureVoie,
+    pub measure: MeasureLane,
     /// Downstream strategy: `OrderRuntime` if π was valid, `RepliCanonique`
     /// otherwise (canonical order adopted instead).
     pub strategie: StrategieAval,
@@ -119,10 +119,10 @@ pub struct ResultVoieC {
 /// place keys submitted to the `lisage-plan` planner (`Order::with_aval_runtime`
 /// on the `KeysMap` descriptor); the adopted order (runtime or canonical) is
 /// used to build the schema.
-pub fn voie_c(
+pub fn lane_c(
     network: &NetworkPetri,
     order_runtime: &[Atom],
-) -> Result<ResultVoieC, ErrorTriptyque> {
+) -> Result<ResultLaneC, ErrorTriptyque> {
     if network.number_places() == 0 {
         return Err(ErrorTriptyque::WithoutPlace);
     }
@@ -155,13 +155,13 @@ pub fn voie_c(
             Phase::Value => None,
         })
         .collect();
-    let measure = voie_dd(network, &order_adopte)?;
-    Ok(ResultVoieC { measure, strategie })
+    let measure = lane_dd(network, &order_adopte)?;
+    Ok(ResultLaneC { measure, strategie })
 }
 
 /// Builds the DD of the reachable space in the given key order,
 /// then measures (cardinality via pli, live nodes after construction).
-fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, ErrorTriptyque> {
+fn lane_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureLane, ErrorTriptyque> {
     if network.number_places() == 0 {
         return Err(ErrorTriptyque::WithoutPlace);
     }
@@ -178,7 +178,7 @@ fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, E
         Box::new(NoOpObserver),
     );
     let cardinality = count(&pool, &mut output, ANCHOR_BANC, &schema, root)?;
-    Ok(MeasureVoie {
+    Ok(MeasureLane {
         cardinality,
         nodes_live,
     })

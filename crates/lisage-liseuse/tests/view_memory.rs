@@ -9,7 +9,9 @@ use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_core::{Anchor, Form, NodeId};
 use lisage_lang::value::{Atom, Value};
-use lisage_liseuse::vue_memory::{ClasseQuotient, ComparaisonVue, VuePool, rendre_svg_vue_memory};
+use lisage_liseuse::view_memory::{
+    ClassQuotient, ComparaisonView, ViewPool, rendre_svg_view_memory,
+};
 
 /// Test anchor.
 const ANCHOR_TEST: Anchor = Anchor(0);
@@ -42,7 +44,7 @@ fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> N
 /// M4-5: the pool view reflects the GC metrics (live, dead, gc,
 /// compactions) and the live nodes per plane after a GC.
 #[test]
-fn test_vue_pool_depuis_metriques_gc() {
+fn test_view_pool_depuis_metriques_gc() {
     let schema = schema_set();
     let mut pool = pool_neuf(&schema);
     let root = set(&mut pool, ANCHOR_TEST, &schema, &[0, 1]);
@@ -50,13 +52,13 @@ fn test_vue_pool_depuis_metriques_gc() {
     let _orphelin = set(&mut pool, ANCHOR_TEST, &schema, &[2]);
     let stats_gc = pool.gc(&[root]);
     let metriques = pool.metriques();
-    let vue = VuePool::depuis_metriques("reference", metriques, stats_gc.live, 0);
-    assert_eq!(vue.nom, "reference");
-    assert_eq!(vue.metriques.gc, 1);
-    assert_eq!(vue.metriques.live, stats_gc.live);
-    assert_eq!(vue.metriques.morts, stats_gc.collectes);
-    assert_eq!(vue.live_principal, stats_gc.live);
-    assert_eq!(vue.live_ombre, 0);
+    let view = ViewPool::depuis_metriques("reference", metriques, stats_gc.live, 0);
+    assert_eq!(view.nom, "reference");
+    assert_eq!(view.metriques.gc, 1);
+    assert_eq!(view.metriques.live, stats_gc.live);
+    assert_eq!(view.metriques.morts, stats_gc.collectes);
+    assert_eq!(view.live_principal, stats_gc.live);
+    assert_eq!(view.live_ombre, 0);
 }
 
 /// M4-5: quotient classes (forms × anchors) — C1 in action: the same
@@ -73,12 +75,12 @@ fn test_classes_quotient_forms_par_anchors() {
     );
     // Two classes (form {0}, anchor 0) and (form {0}, anchor 1).
     let classes = [
-        ClasseQuotient {
+        ClassQuotient {
             form: "{0}".to_string(),
             anchor: "anchor 0".to_string(),
             multiplicite: 1,
         },
-        ClasseQuotient {
+        ClassQuotient {
             form: "{0}".to_string(),
             anchor: "anchor 1".to_string(),
             multiplicite: 1,
@@ -92,13 +94,13 @@ fn test_classes_quotient_forms_par_anchors() {
         partage, handle_anchor_0,
         "R-share: same handle under the same anchor"
     );
-    let classe = ClasseQuotient {
+    let class = ClassQuotient {
         form: "{0}".to_string(),
         anchor: "anchor 0".to_string(),
         multiplicite: 3,
     };
-    let badge = classe.badge();
-    assert_eq!(badge.multiplicite, classe.multiplicite);
+    let badge = class.badge();
+    assert_eq!(badge.multiplicite, class.multiplicite);
     assert_eq!(badge.handle, "{0} @ anchor 0");
 }
 
@@ -106,31 +108,31 @@ fn test_classes_quotient_forms_par_anchors() {
 /// ×k badge, comparison bars with proportional width (real parsed coordinate,
 /// not a byte offset), determinism.
 #[test]
-fn test_rendre_svg_vue_memory() {
+fn test_rendre_svg_view_memory() {
     let schema = schema_set();
     let mut pool = pool_neuf(&schema);
     let root = set(&mut pool, ANCHOR_TEST, &schema, &[0, 1]);
     let _orphelin = set(&mut pool, ANCHOR_TEST, &schema, &[2]);
     let stats_gc = pool.gc(&[root]);
-    let vue_pool = VuePool::depuis_metriques("reference", pool.metriques(), stats_gc.live, 0);
+    let view_pool = ViewPool::depuis_metriques("reference", pool.metriques(), stats_gc.live, 0);
     let classes = vec![
-        ClasseQuotient {
+        ClassQuotient {
             form: "{0,1}".to_string(),
             anchor: "anchor 0".to_string(),
             multiplicite: 1,
         },
-        ClasseQuotient {
+        ClassQuotient {
             form: "{2}".to_string(),
             anchor: "anchor 0".to_string(),
             multiplicite: 6,
         },
     ];
-    let comparaison = ComparaisonVue {
+    let comparaison = ComparaisonView {
         naif: 152,
         dd: 15,
         lisage: 7,
     };
-    let svg = rendre_svg_vue_memory(&[vue_pool], &classes, &comparaison);
+    let svg = rendre_svg_view_memory(&[view_pool], &classes, &comparaison);
     // Panels and contents.
     assert!(svg.contains("memory and quotient view"));
     assert!(svg.contains("pools (main / shadow plane, GC)"));
@@ -159,8 +161,8 @@ fn test_rendre_svg_vue_memory() {
     let expected = 7 * 400 / 152;
     assert_eq!(width_lisage, expected, "proportional Lisage bar");
     // Determinism.
-    let svg2 = rendre_svg_vue_memory(
-        &[VuePool::depuis_metriques(
+    let svg2 = rendre_svg_view_memory(
+        &[ViewPool::depuis_metriques(
             "reference",
             pool.metriques(),
             stats_gc.live,
@@ -176,12 +178,12 @@ fn test_rendre_svg_vue_memory() {
 /// count (shared forms), the naive bar is the widest.
 #[test]
 fn test_comparaison_naif_dd_lisage() {
-    let comparaison = ComparaisonVue {
+    let comparaison = ComparaisonView {
         naif: 536_754_176,
         dd: 15,
         lisage: 7,
     };
-    let svg = rendre_svg_vue_memory(&[], &[], &comparaison);
+    let svg = rendre_svg_view_memory(&[], &[], &comparaison);
     assert!(svg.contains("536754176"));
     assert!(svg.contains("Lisage"));
     // The naive bar reaches the max width (it is the max).

@@ -17,8 +17,8 @@ const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 /// LCG increment.
 const INCREMENT_LCG: u64 = 1442695040888963407;
 
-fn bench_voie_a(c: &mut Criterion) {
-    c.bench_function("voie_a_factice", |b| b.iter(|| lisage_bench::voie_a(41)));
+fn bench_lane_a(c: &mut Criterion) {
+    c.bench_function("lane_a_factice", |b| b.iter(|| lisage_bench::lane_a(41)));
 }
 
 /// M1-8 baseline (C6): deterministic truth table (LCG) over
@@ -55,5 +55,5 @@ fn bench_bdd_classique(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_voie_a, bench_bdd_classique);
+criterion_group!(benches, bench_lane_a, bench_bdd_classique);
 criterion_main!(benches);

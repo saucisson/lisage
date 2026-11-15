@@ -206,17 +206,17 @@ impl Transduction for Lookup {
         // re-explicit the value level and graft `Some(v)` onto each
         // continuation, for each value `v` of the domain.
         if *h == Mode::Cherche && level == self.level_presence() {
-            let enfant_present = arcs.get(&PRESENT).map(|(n, _)| *n);
-            if let Some(enfant) = enfant_present {
-                let enfant_est_level_value = matches!(
-                    pool.resolve(enfant),
+            let child_present = arcs.get(&PRESENT).map(|(n, _)| *n);
+            if let Some(child) = child_present {
+                let child_est_level_value = matches!(
+                    pool.resolve(child),
                     Ok(Form::Node { level: l, .. }) if *l == self.level_value()
                 );
-                if !enfant_est_level_value {
+                if !child_est_level_value {
                     let mut greffon = BTreeMap::new();
                     for v in &self.domain_values.values {
                         let mut memo = BTreeMap::new();
-                        let branche = Self::greffer(pool, anchor, enfant, Some(v.0), &mut memo);
+                        let branche = Self::greffer(pool, anchor, child, Some(v.0), &mut memo);
                         greffon.insert(v.0, branche);
                     }
                     let node_value = pool.intern(

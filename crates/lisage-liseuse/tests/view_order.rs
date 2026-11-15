@@ -2,17 +2,17 @@
 //! (eight fields), order as a linear track or a tree (vtree), kingdoms side by
 //! side, arrowed conversions with cost — deterministic static SVG rendering.
 
-use lisage_liseuse::vue_order::{
-    ConversionVue, FicheControleur, NodeVtree, PisteOrder, RoyaumeVue, rendre_svg_vue_order,
+use lisage_liseuse::view_order::{
+    ConversionView, FicheControleur, NodeVtree, PisteOrder, RoyaumeView, rendre_svg_view_order,
 };
 
 /// Extracts a numeric attribute from an SVG element (ex. `y="42"` → 42).
-fn extraire_attribut(element: &str, attribut: &str) -> u32 {
+fn extraire_attribute(element: &str, attribute: &str) -> u32 {
     // Leading space: avoids matching the end of `font-family="..."`.
-    let position_attribut = element
-        .find(&format!(" {attribut}=\""))
-        .unwrap_or_else(|| panic!("attribute {attribut} present"));
-    let apres = &element[position_attribut + attribut.len() + 3..];
+    let position_attribute = element
+        .find(&format!(" {attribute}=\""))
+        .unwrap_or_else(|| panic!("attribute {attribute} present"));
+    let apres = &element[position_attribute + attribute.len() + 3..];
     let fin = apres.find('"').expect("end of the attribute");
     apres[..fin].parse().expect("integer attribute")
 }
@@ -22,7 +22,7 @@ fn y_texte(svg: &str, marqueur: &str) -> u32 {
     let position = svg.find(marqueur).expect("marker present");
     let avant = &svg[..position];
     let y_pos = avant.rfind(" y=\"").expect("attribute y before the marker");
-    extraire_attribut(&avant[y_pos..], "y")
+    extraire_attribute(&avant[y_pos..], "y")
 }
 
 /// `x` coordinate of the text element carrying `marqueur`.
@@ -30,7 +30,7 @@ fn x_texte(svg: &str, marqueur: &str) -> u32 {
     let position = svg.find(marqueur).expect("marker present");
     let avant = &svg[..position];
     let x_pos = avant.rfind(" x=\"").expect("attribute x before the marker");
-    extraire_attribut(&avant[x_pos..], "x")
+    extraire_attribute(&avant[x_pos..], "x")
 }
 
 /// `y1` of the conversion arrow (dashed line).
@@ -39,7 +39,7 @@ fn y1_fleche_conversion(svg: &str) -> u32 {
         .find("stroke-dasharray=\"6 3\"")
         .expect("conversion arrow");
     let debut = svg[..pos].rfind("<line").expect("line element");
-    extraire_attribut(&svg[debut..pos], "y1")
+    extraire_attribute(&svg[debut..pos], "y1")
 }
 
 /// Controller card of the reference instance (eight fields filled).
@@ -68,9 +68,9 @@ fn fiche_bdd() -> FicheControleur {
 /// linear track of the levels in sweep order, and the kingdoms side by
 /// side with the arrowed conversion and its cost.
 #[test]
-fn test_vue_order_fiche_piste_lineaire_royaumes_et_conversion() {
+fn test_view_order_fiche_piste_lineaire_royaumes_et_conversion() {
     let royaumes = vec![
-        RoyaumeVue {
+        RoyaumeView {
             nom: "reference".to_string(),
             fiche: fiche_reference(),
             piste: PisteOrder::Lineaire(vec![
@@ -80,18 +80,18 @@ fn test_vue_order_fiche_piste_lineaire_royaumes_et_conversion() {
                 "<a>".to_string(),
             ]),
         },
-        RoyaumeVue {
+        RoyaumeView {
             nom: "temoin-bdd".to_string(),
             fiche: fiche_bdd(),
             piste: PisteOrder::Lineaire(vec!["x0".to_string(), "x1".to_string()]),
         },
     ];
-    let conversions = vec![ConversionVue {
+    let conversions = vec![ConversionView {
         source: "reference".to_string(),
         cible: "temoin-bdd".to_string(),
         cout: 3,
     }];
-    let svg = rendre_svg_vue_order(&royaumes, &conversions);
+    let svg = rendre_svg_view_order(&royaumes, &conversions);
 
     // Controller card: the eight fields.
     for champ in [
@@ -124,35 +124,35 @@ fn test_vue_order_fiche_piste_lineaire_royaumes_et_conversion() {
 
 /// M3-4: a structured order renders as a tree (vtree), no special case.
 #[test]
-fn test_vue_order_piste_arbre_vtree() {
+fn test_view_order_piste_arbre_vtree() {
     let arbre = NodeVtree {
         libelle: "record".to_string(),
-        enfants: vec![
+        children: vec![
             NodeVtree {
                 libelle: "machine".to_string(),
-                enfants: vec![
+                children: vec![
                     NodeVtree {
                         libelle: "cell".to_string(),
-                        enfants: vec![],
+                        children: vec![],
                     },
                     NodeVtree {
                         libelle: "state".to_string(),
-                        enfants: vec![],
+                        children: vec![],
                     },
                 ],
             },
             NodeVtree {
                 libelle: "conveyor".to_string(),
-                enfants: vec![],
+                children: vec![],
             },
         ],
     };
-    let royaumes = vec![RoyaumeVue {
+    let royaumes = vec![RoyaumeView {
         nom: "sdD".to_string(),
         fiche: fiche_reference(),
         piste: PisteOrder::Arbre(arbre),
     }];
-    let svg = rendre_svg_vue_order(&royaumes, &[]);
+    let svg = rendre_svg_view_order(&royaumes, &[]);
     for libelle in ["record", "machine", "cell", "state", "conveyor"] {
         assert!(
             svg.contains(&format!(">{libelle}<")),
@@ -168,20 +168,20 @@ fn test_vue_order_piste_arbre_vtree() {
 /// M3-4: the rendering is deterministic and a conversion to an
 /// unknown kingdom is ignored (no arrow).
 #[test]
-fn test_vue_order_deterministe_et_conversion_inconnue_ignoree() {
-    let royaumes = vec![RoyaumeVue {
+fn test_view_order_deterministe_et_conversion_inconnue_ignoree() {
+    let royaumes = vec![RoyaumeView {
         nom: "r".to_string(),
         fiche: fiche_reference(),
         piste: PisteOrder::Lineaire(vec!["n0".to_string()]),
     }];
-    let conversions = vec![ConversionVue {
+    let conversions = vec![ConversionView {
         source: "r".to_string(),
         cible: "inconnu".to_string(),
         cout: 1,
     }];
-    let svg = rendre_svg_vue_order(&royaumes, &conversions);
+    let svg = rendre_svg_view_order(&royaumes, &conversions);
     assert!(!svg.contains("convert r → inconnu"));
-    let svg2 = rendre_svg_vue_order(&royaumes, &conversions);
+    let svg2 = rendre_svg_view_order(&royaumes, &conversions);
     assert_eq!(svg, svg2, "deterministic rendering");
 }
 
@@ -192,38 +192,38 @@ fn test_vue_order_deterministe_et_conversion_inconnue_ignoree() {
 fn test_conversion_anchored_dans_piste_arbre() {
     let arbre = NodeVtree {
         libelle: "record".to_string(),
-        enfants: vec![
+        children: vec![
             NodeVtree {
                 libelle: "gauche".to_string(),
-                enfants: vec![NodeVtree {
+                children: vec![NodeVtree {
                     libelle: "feuille".to_string(),
-                    enfants: vec![],
+                    children: vec![],
                 }],
             },
             NodeVtree {
                 libelle: "droite".to_string(),
-                enfants: vec![],
+                children: vec![],
             },
         ],
     };
     let royaumes = vec![
-        RoyaumeVue {
+        RoyaumeView {
             nom: "arbre".to_string(),
             fiche: fiche_reference(),
             piste: PisteOrder::Arbre(arbre),
         },
-        RoyaumeVue {
+        RoyaumeView {
             nom: "lineaire".to_string(),
             fiche: fiche_bdd(),
             piste: PisteOrder::Lineaire(vec!["x0".to_string()]),
         },
     ];
-    let conversions = vec![ConversionVue {
+    let conversions = vec![ConversionView {
         source: "arbre".to_string(),
         cible: "lineaire".to_string(),
         cout: 7,
     }];
-    let svg = rendre_svg_vue_order(&royaumes, &conversions);
+    let svg = rendre_svg_view_order(&royaumes, &conversions);
     assert!(svg.contains("convert arbre → lineaire (cost 7)"));
     // The arrow starts from the middle of the tree track (3 levels of 44 px,
     // i.e. y_track + 66): parsed y1, strictly under the root and its first

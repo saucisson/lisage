@@ -8,16 +8,16 @@ pub mod temoin_bdd;
 pub mod triptyque;
 
 /// Path A: naive reference interpreter (source of truth).
-pub fn voie_a(x: u32) -> u32 {
+pub fn lane_a(x: u32) -> u32 {
     x + 1
 }
 
 /// Path B: fixed-order DD (placeholder simulation).
-pub fn voie_b(x: u32) -> u32 {
+pub fn lane_b(x: u32) -> u32 {
     x + 1
 }
 
 /// Path C: Lisage + planner (placeholder simulation).
-pub fn voie_c(x: u32) -> u32 {
+pub fn lane_c(x: u32) -> u32 {
     x + 1
 }

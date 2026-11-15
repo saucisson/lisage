@@ -4,13 +4,13 @@
 //! and the arrowed conversions with their cost.
 //!
 //! The reader does not depend on `lisage-plan` (dependency boundary):
-//! it renders a **neutral description** ([`RoyaumeVue`], [`ConversionVue`])
+//! it renders a **neutral description** ([`RoyaumeView`], [`ConversionView`])
 //! produced by the planner; it never interprets the labels.
 
 use crate::svg::echapper_xml;
 
 /// Width of the view in pixels.
-const WIDTH_VUE: u32 = 960;
+const WIDTH_VIEW: u32 = 960;
 /// Outer margin in pixels.
 const MARGE: u32 = 20;
 /// Height of a controller-card line in pixels.
@@ -112,7 +112,7 @@ pub struct NodeVtree {
     /// Node label (fragment of the decomposition).
     pub libelle: String,
     /// Children (subtrees).
-    pub enfants: Vec<NodeVtree>,
+    pub children: Vec<NodeVtree>,
 }
 
 /// Order track `O`: linear (levels in sweep order) or
@@ -127,7 +127,7 @@ pub enum PisteOrder {
 
 /// Controller kingdom: a card + an order track.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct RoyaumeVue {
+pub struct RoyaumeView {
     /// Kingdom name (controller).
     pub nom: String,
     /// Controller card (eight fields).
@@ -139,7 +139,7 @@ pub struct RoyaumeVue {
 /// Arrowed conversion between two kingdoms, with its cost (event
 /// `Convert`: source controller, target, cost).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ConversionVue {
+pub struct ConversionView {
     /// Source kingdom name.
     pub source: String,
     /// Target kingdom name.
@@ -150,8 +150,8 @@ pub struct ConversionVue {
 
 /// Height in pixels of a tree (vtree).
 fn height_arbre(node: &NodeVtree) -> u32 {
-    let height_enfants = node.enfants.iter().map(height_arbre).max().unwrap_or(0);
-    HEIGHT_LEVEL_ARBRE + height_enfants
+    let height_children = node.children.iter().map(height_arbre).max().unwrap_or(0);
+    HEIGHT_LEVEL_ARBRE + height_children
 }
 
 /// Height in pixels of a track.
@@ -202,10 +202,10 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, width
 fn rendre_piste_lineaire(svg: &mut String, levels: &[String], x: u32, y: u32, width: u32) {
     let y_boite = y + DECALAGE;
     let number = levels.len().max(1) as u32;
-    let pas = width / number;
+    let step = width / number;
     for (index, libelle) in levels.iter().enumerate() {
-        let boite_x = x + index as u32 * pas + DECALAGE_BOITE;
-        let boite_width = pas.saturating_sub(DECALAGE).min(WIDTH_BOITE);
+        let boite_x = x + index as u32 * step + DECALAGE_BOITE;
+        let boite_width = step.saturating_sub(DECALAGE).min(WIDTH_BOITE);
         svg.push_str(&format!(
             "<rect x=\"{boite_x}\" y=\"{y_boite}\" width=\"{boite_width}\" height=\"{HEIGHT_BOITE}\" fill=\"{FOND_BOITE}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\"/>\n"
         ));
@@ -220,7 +220,7 @@ fn rendre_piste_lineaire(svg: &mut String, levels: &[String], x: u32, y: u32, wi
                 "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{COULEUR_PISTE}\" stroke-width=\"{EPAISSEUR_TRAIT}\" marker-end=\"url(#fleche)\"/>\n",
                 boite_x + boite_width,
                 y_boite + MILIEU_BOITE,
-                x + (index as u32 + 1) * pas + DECALAGE_BOITE,
+                x + (index as u32 + 1) * step + DECALAGE_BOITE,
                 y_boite + MILIEU_BOITE
             ));
         }
@@ -240,21 +240,21 @@ fn rendre_arbre(svg: &mut String, node: &NodeVtree, x: u32, y: u32, width: u32) 
         y + BASELINE_BOITE,
         echapper_xml(&node.libelle)
     ));
-    if node.enfants.is_empty() {
+    if node.children.is_empty() {
         return HEIGHT_LEVEL_ARBRE;
     }
-    let number = node.enfants.len() as u32;
-    let pas = width / number;
-    let y_enfants = y + HEIGHT_LEVEL_ARBRE;
+    let number = node.children.len() as u32;
+    let step = width / number;
+    let y_children = y + HEIGHT_LEVEL_ARBRE;
     let mut height_max = 0;
-    for (index, enfant) in node.enfants.iter().enumerate() {
-        let enfant_x = x + index as u32 * pas;
-        let enfant_centre = enfant_x + pas / 2;
+    for (index, child) in node.children.iter().enumerate() {
+        let child_x = x + index as u32 * step;
+        let child_centre = child_x + step / 2;
         svg.push_str(&format!(
-            "<line x1=\"{centre_x}\" y1=\"{}\" x2=\"{enfant_centre}\" y2=\"{y_enfants}\" stroke=\"{COULEUR_PISTE}\"/>\n",
+            "<line x1=\"{centre_x}\" y1=\"{}\" x2=\"{child_centre}\" y2=\"{y_children}\" stroke=\"{COULEUR_PISTE}\"/>\n",
             y + HEIGHT_BOITE
         ));
-        let height = rendre_arbre(svg, enfant, enfant_x, y_enfants, pas);
+        let height = rendre_arbre(svg, child, child_x, y_children, step);
         height_max = height_max.max(height);
     }
     HEIGHT_LEVEL_ARBRE + height_max
@@ -282,7 +282,7 @@ struct PositionRoyaume {
 
 /// Computes the full layout: total SVG height + position of each
 /// kingdom (name, card, track).
-fn layout(royaumes: &[RoyaumeVue], number_conversions: usize) -> (u32, Vec<PositionRoyaume>) {
+fn layout(royaumes: &[RoyaumeView], number_conversions: usize) -> (u32, Vec<PositionRoyaume>) {
     let mut height = MARGE + HEIGHT_TITRE;
     let mut positions = Vec::new();
     for royaume in royaumes {
@@ -303,11 +303,11 @@ fn layout(royaumes: &[RoyaumeVue], number_conversions: usize) -> (u32, Vec<Posit
 /// controller card then its order track; the arrowed conversions with their
 /// cost link the tracks of the source/target kingdoms (anchored at the middle
 /// of the track, whatever its height).
-pub fn rendre_svg_vue_order(royaumes: &[RoyaumeVue], conversions: &[ConversionVue]) -> String {
-    let width = WIDTH_VUE - 2 * MARGE;
+pub fn rendre_svg_view_order(royaumes: &[RoyaumeView], conversions: &[ConversionView]) -> String {
+    let width = WIDTH_VIEW - 2 * MARGE;
     let (height, positions) = layout(royaumes, conversions.len());
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{WIDTH_VUE}\" height=\"{height}\" viewBox=\"0 0 {WIDTH_VUE} {height}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARQUEUR_SIZE}\" markerHeight=\"{MARQUEUR_SIZE}\" refX=\"{MARQUEUR_SIZE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_SIZE},{MARQUEUR_REF_Y} L0,{MARQUEUR_SIZE} z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARQUEUR_SIZE}\" markerHeight=\"{MARQUEUR_SIZE}\" refX=\"{MARQUEUR_SIZE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_SIZE},{MARQUEUR_REF_Y} L0,{MARQUEUR_SIZE} z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{WIDTH_VIEW}\" height=\"{height}\" viewBox=\"0 0 {WIDTH_VIEW} {height}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARQUEUR_SIZE}\" markerHeight=\"{MARQUEUR_SIZE}\" refX=\"{MARQUEUR_SIZE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_SIZE},{MARQUEUR_REF_Y} L0,{MARQUEUR_SIZE} z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARQUEUR_SIZE}\" markerHeight=\"{MARQUEUR_SIZE}\" refX=\"{MARQUEUR_SIZE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_SIZE},{MARQUEUR_REF_Y} L0,{MARQUEUR_SIZE} z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
     );
     svg.push_str(&format!(
         "<text x=\"{MARGE}\" y=\"{DECALAGE_TITRE_FICHE}\" font-family=\"serif\" font-size=\"{SIZE_TITRE}\" fill=\"{COULEUR_TEXTE}\">order view — {} kingdom(s), {} conversion(s)</text>\n",
@@ -335,12 +335,12 @@ pub fn rendre_svg_vue_order(royaumes: &[RoyaumeVue], conversions: &[ConversionVu
         let y2 = positions[index_cible].y_piste + positions[index_cible].height_piste / 2;
         svg.push_str(&format!(
             "<line x1=\"{}\" y1=\"{y1}\" x2=\"{}\" y2=\"{y2}\" stroke=\"{COULEUR_CONVERSION}\" stroke-width=\"{EPAISSEUR_TRAIT}\" stroke-dasharray=\"{DASH_CONVERSION}\" marker-end=\"url(#fleche-conversion)\"/>\n",
-            WIDTH_VUE - MARGE - DECALAGE_FLECHE,
-            WIDTH_VUE - MARGE
+            WIDTH_VIEW - MARGE - DECALAGE_FLECHE,
+            WIDTH_VIEW - MARGE
         ));
         svg.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"{SIZE_PISTE}\" text-anchor=\"end\" fill=\"{COULEUR_CONVERSION}\">convert {} → {} (cost {})</text>\n",
-            WIDTH_VUE - MARGE - DECALAGE_LABEL,
+            WIDTH_VIEW - MARGE - DECALAGE_LABEL,
             (y1 + y2) / 2 + DECALAGE_LABEL_Y,
             echapper_xml(&conversion.source),
             echapper_xml(&conversion.cible),
@@ -360,7 +360,7 @@ mod tests {
     #[test]
     fn test_layout_coherent() {
         let royaumes = vec![
-            RoyaumeVue {
+            RoyaumeView {
                 nom: "a".to_string(),
                 fiche: FicheControleur {
                     delta: String::new(),
@@ -374,7 +374,7 @@ mod tests {
                 },
                 piste: PisteOrder::Lineaire(vec!["x".to_string()]),
             },
-            RoyaumeVue {
+            RoyaumeView {
                 nom: "b".to_string(),
                 fiche: FicheControleur {
                     delta: String::new(),
@@ -388,9 +388,9 @@ mod tests {
                 },
                 piste: PisteOrder::Arbre(NodeVtree {
                     libelle: "r".to_string(),
-                    enfants: vec![NodeVtree {
+                    children: vec![NodeVtree {
                         libelle: "e".to_string(),
-                        enfants: vec![],
+                        children: vec![],
                     }],
                 }),
             },

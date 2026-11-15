@@ -58,7 +58,7 @@ proptest! {
     /// sets produce collapsed levels: the A4 path is
     /// covered by the PBT.
     #[test]
-    fn test_c1_differentiel_count_voie_a_vs_dd(
+    fn test_c1_differentiel_count_lane_a_vs_dd(
         maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)
     ) {
         let schema = Schema::Map(
