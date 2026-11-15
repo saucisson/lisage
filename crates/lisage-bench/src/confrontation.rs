@@ -6,7 +6,7 @@
 //! `confrontation` binary serializes it as one JSON line on stdout; the
 //! orchestrator `python -m scripts bench-confrontation` runs the repetitions
 //! (a fresh process per measurement: the peak RSS of the whole process does
-//! not diempty into in-process repetitions) and aggregates.
+//! not divide into in-process repetitions) and aggregates.
 //!
 //! The same workloads are implemented at each witness (CUDD/Sylvan for
 //! Boolean, libDDD for the Paris-school DDDs, Meddly for MDDs)

@@ -42,7 +42,7 @@ fn test_normal_form_canonique_et_idempotente() {
     // Any writing of an empty interval has the same normal form.
     assert_eq!(keys.normal_form(&Intervalle::new(7, 2)), EMPTY);
     assert_eq!(keys.normal_form(&EMPTY), EMPTY);
-    // Forme normale idempotente, et stable sur les non-emptys.
+    // Forme normale idempotente, et stable sur les non-empty.
     let intervalle = Intervalle::new(2, 5);
     assert_eq!(keys.normal_form(&keys.normal_form(&intervalle)), intervalle);
 }
