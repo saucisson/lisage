@@ -20,7 +20,7 @@ use lisage_lang::value::Atom;
 use crate::schema::{Domain, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
 
-/// Base of the fingerprint namspace of the `lookup` family (key = base + value).
+/// Base of the fingerprint namespace of the `lookup` family (key = base + value).
 const FINGERPRINT_BASE_LOOKUP: u64 = 3000;
 
 /// Inherited mode of `lookup` (spec § 6.3).
