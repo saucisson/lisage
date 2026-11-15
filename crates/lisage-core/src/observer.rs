@@ -73,7 +73,7 @@ pub enum TraceEvent {
     },
 }
 
-/// Trace observer, no-op by default (Liseuse proemptys its own). `Send`/`Sync`
+/// Trace observer, no-op by default (Liseuse provides its own). `Send`/`Sync`
 /// bounds frozen (M1-0).
 pub trait Observer: Send + Sync {
     /// Reception of a trace event.
