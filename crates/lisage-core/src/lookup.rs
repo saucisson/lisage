@@ -126,8 +126,8 @@ impl Lookup {
         if let Some(&n) = memo.get(&node) {
             return n;
         }
-        let forme = pool.resolve(node).unwrap().clone();
-        let result = match forme {
+        let form = pool.resolve(node).unwrap().clone();
+        let result = match form {
             Form::Terminal(_) => pool.intern(anchor, Form::Terminal(payload)),
             Form::Node { level, arcs } => {
                 let arcs = arcs

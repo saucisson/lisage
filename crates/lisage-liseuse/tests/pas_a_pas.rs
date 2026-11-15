@@ -349,9 +349,9 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     evenements.insert(0, TraceEvent::Round { numero: 1 });
     // The runner does not observe the pool: we add the NodeCreated of the
     // input diagram so that the state has nodes.
-    let mut pile = vec![root];
+    let mut stack = vec![root];
     let mut deja_vu = BTreeSet::new();
-    while let Some(n) = pile.pop() {
+    while let Some(n) = stack.pop() {
         if !deja_vu.insert(n) {
             continue;
         }
@@ -361,7 +361,7 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
         });
         if let Ok(lisage_core::Form::Node { arcs, .. }) = pool.resolve(n) {
             for cible in arcs.values() {
-                pile.push(*cible);
+                stack.push(*cible);
             }
         }
     }

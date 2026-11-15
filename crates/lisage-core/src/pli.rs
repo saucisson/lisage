@@ -251,8 +251,8 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
     if a == b {
         return Ok(a);
     }
-    let (forme_a, forme_b) = (pool.resolve(a)?.clone(), pool.resolve(b)?.clone());
-    match (forme_a, forme_b) {
+    let (form_a, form_b) = (pool.resolve(a)?.clone(), pool.resolve(b)?.clone());
+    match (form_a, form_b) {
         (Form::Terminal(pa), Form::Terminal(pb)) => {
             Ok(pool.intern(anchor, Form::Terminal(pa || pb)))
         }

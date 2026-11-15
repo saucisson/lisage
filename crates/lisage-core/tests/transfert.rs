@@ -12,7 +12,7 @@ use lisage_core::pli::{count, union};
 use lisage_core::saturate::{ParametresSaturation, PolitiqueSaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler, decompiler};
 use lisage_core::transduction::Transducteur;
-use lisage_core::transfert::{LARGEUR_TRANSFERT, TransfertNonLocal};
+use lisage_core::transfert::{TransfertNonLocal, WIDTH_TRANSFERT};
 use lisage_lang::value::{Atom, Value};
 
 type PoolRef = Arena<ReferenceController>;
@@ -117,14 +117,14 @@ fn test_transfert_without_unite() {
 /// entry per touched node — O(w) overhead per node), and the transition width
 /// is bounded.
 #[test]
-fn test_transfert_memory_et_largeur() {
+fn test_transfert_memory_et_width() {
     let schema = schema_map();
     let anchor = Anchor(0);
     let mut pool = new_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    assert_eq!(transfert.largeur(), LARGEUR_TRANSFERT);
+    assert_eq!(transfert.width(), WIDTH_TRANSFERT);
     let mut runner = Transducteur::with_politique(transfert, MemoryPolicy::PerLevel);
     let _ = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 

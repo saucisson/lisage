@@ -8,15 +8,15 @@ use std::collections::BTreeMap;
 use lisage_core::{Form, Level, NodeId, Pool};
 
 /// Node width in pixels.
-pub(crate) const LARGEUR_NODE: u32 = 56;
+pub(crate) const WIDTH_NODE: u32 = 56;
 /// Level height in pixels.
-pub(crate) const HAUTEUR_LEVEL: u32 = 90;
+pub(crate) const HEIGHT_LEVEL: u32 = 90;
 /// Top margin (title) in pixels.
 pub(crate) const MARGE_HAUT: u32 = 40;
 /// Left margin in pixels.
 pub(crate) const MARGE_GAUCHE: u32 = 40;
 /// Half node width.
-pub(crate) const DEMI_LARGEUR: u32 = LARGEUR_NODE / 2;
+pub(crate) const DEMI_WIDTH: u32 = WIDTH_NODE / 2;
 
 /// Minimal XML escaping.
 pub(crate) fn echapper_xml(texte: &str) -> String {
@@ -42,9 +42,9 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
 ) -> (BTreeMap<NodeId, Placement>, u32) {
     let mut levels: BTreeMap<u32, Vec<NodeId>> = BTreeMap::new();
     let mut visites: Vec<NodeId> = Vec::new();
-    let mut pile = vec![root];
+    let mut stack = vec![root];
     let mut deja_vu = std::collections::BTreeSet::new();
-    while let Some(node) = pile.pop() {
+    while let Some(node) = stack.pop() {
         if !deja_vu.insert(node) {
             continue;
         }
@@ -53,25 +53,25 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
             levels.entry(level.0).or_default().push(node);
             // Push in reverse order to visit the arcs in increasing order.
             for cible in arcs.values().rev() {
-                pile.push(*cible);
+                stack.push(*cible);
             }
         }
     }
     let number_levels = levels.len() as u32;
     let mut placement = BTreeMap::new();
     for (index_level, (_level, nodes)) in levels.iter().enumerate() {
-        let y = MARGE_HAUT + index_level as u32 * HAUTEUR_LEVEL + HAUTEUR_LEVEL / 2;
+        let y = MARGE_HAUT + index_level as u32 * HEIGHT_LEVEL + HEIGHT_LEVEL / 2;
         for (index, node) in nodes.iter().enumerate() {
-            let x = MARGE_GAUCHE + index as u32 * (LARGEUR_NODE + 24) + DEMI_LARGEUR;
+            let x = MARGE_GAUCHE + index as u32 * (WIDTH_NODE + 24) + DEMI_WIDTH;
             placement.insert(*node, Placement { x, y });
         }
     }
     // Terminals: bottom line.
-    let y_terminal = MARGE_HAUT + number_levels * HAUTEUR_LEVEL + HAUTEUR_LEVEL / 2;
+    let y_terminal = MARGE_HAUT + number_levels * HEIGHT_LEVEL + HEIGHT_LEVEL / 2;
     let mut index_terminal = 0u32;
     for node in &visites {
         if !placement.contains_key(node) {
-            let x = MARGE_GAUCHE + index_terminal * (LARGEUR_NODE + 24) + DEMI_LARGEUR;
+            let x = MARGE_GAUCHE + index_terminal * (WIDTH_NODE + 24) + DEMI_WIDTH;
             placement.insert(*node, Placement { x, y: y_terminal });
             index_terminal += 1;
         }
@@ -107,9 +107,9 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
 ) -> String {
     let mut svg = String::new();
     // Arcs first (under the nodes).
-    let mut pile = vec![root];
+    let mut stack = vec![root];
     let mut deja_vu = std::collections::BTreeSet::new();
-    while let Some(node) = pile.pop() {
+    while let Some(node) = stack.pop() {
         if !deja_vu.insert(node) {
             continue;
         }
@@ -132,7 +132,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
                     couleurs.label,
                     echapper_xml(&key.to_string())
                 ));
-                pile.push(*cible);
+                stack.push(*cible);
             }
         }
     }
@@ -141,8 +141,8 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
         match pool.resolve(*node) {
             Ok(Form::Terminal(payload)) => {
                 svg.push_str(&format!(
-                    "<rect x=\"{}\" y=\"{}\" width=\"{LARGEUR_NODE}\" height=\"28\" fill=\"{}\" stroke=\"{}\"/>\n",
-                    position.x - DEMI_LARGEUR,
+                    "<rect x=\"{}\" y=\"{}\" width=\"{WIDTH_NODE}\" height=\"28\" fill=\"{}\" stroke=\"{}\"/>\n",
+                    position.x - DEMI_WIDTH,
                     position.y - 14,
                     couleurs.fond_terminal,
                     couleurs.encre
@@ -156,8 +156,8 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
             }
             Ok(Form::Node { level, .. }) => {
                 svg.push_str(&format!(
-                    "<rect x=\"{}\" y=\"{}\" width=\"{LARGEUR_NODE}\" height=\"28\" fill=\"{}\" stroke=\"{}\"/>\n",
-                    position.x - DEMI_LARGEUR,
+                    "<rect x=\"{}\" y=\"{}\" width=\"{WIDTH_NODE}\" height=\"28\" fill=\"{}\" stroke=\"{}\"/>\n",
+                    position.x - DEMI_WIDTH,
                     position.y - 14,
                     couleurs.fond_node,
                     couleurs.encre
@@ -179,11 +179,10 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
 /// Renders the sub-diagram reachable from `root` as static SVG.
 pub fn rendre_svg<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> String {
     let (placement, number_levels) = placer(pool, root);
-    let largeur =
-        MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
-    let hauteur = MARGE_HAUT + (number_levels + 1) * HAUTEUR_LEVEL + 20;
+    let width = MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_WIDTH;
+    let height = MARGE_HAUT + (number_levels + 1) * HEIGHT_LEVEL + 20;
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\">\n"
     );
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"14\">diagram (levels = keys)</text>\n"

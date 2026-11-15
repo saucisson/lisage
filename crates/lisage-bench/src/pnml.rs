@@ -77,8 +77,8 @@ pub enum NodeId {
 /// Typed error of the PNML parser.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PnmlError {
-    /// Malformed XML (unclosed tag, attribute without value, etc.).
-    XmlMalForme { position: usize, detail: String },
+    /// Malformd XML (unclosed tag, attribute without value, etc.).
+    XmlMalForm { position: usize, detail: String },
     /// Unexpected PNML element at this point.
     ElementInexpected {
         expected: &'static str,
@@ -106,8 +106,8 @@ pub enum PnmlError {
 impl std::fmt::Display for PnmlError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PnmlError::XmlMalForme { position, detail } => {
-                write!(formatter, "malformed XML at position {position}: {detail}")
+            PnmlError::XmlMalForm { position, detail } => {
+                write!(formatter, "malformd XML at position {position}: {detail}")
             }
             PnmlError::ElementInexpected { expected, trouve } => {
                 write!(formatter, "expected element {expected}, found <{trouve}>")
@@ -161,7 +161,7 @@ fn parser_xml(document: &str) -> Result<XmlNode, PnmlError> {
     let root = parser_element(&octets, &mut position)?;
     sauter_espaces(&octets, &mut position);
     if position != octets.len() {
-        return Err(PnmlError::XmlMalForme {
+        return Err(PnmlError::XmlMalForm {
             position,
             detail: "content after the root element".to_string(),
         });
@@ -185,7 +185,7 @@ fn lire_nom(octets: &[char], position: &mut usize) -> Result<String, PnmlError> 
         *position += 1;
     }
     if *position == debut {
-        return Err(PnmlError::XmlMalForme {
+        return Err(PnmlError::XmlMalForm {
             position: *position,
             detail: "name expected".to_string(),
         });
@@ -196,13 +196,13 @@ fn lire_nom(octets: &[char], position: &mut usize) -> Result<String, PnmlError> 
 /// Reads a string between single or double quotes.
 fn lire_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlError> {
     let Some(&delimiteur) = octets.get(*position) else {
-        return Err(PnmlError::XmlMalForme {
+        return Err(PnmlError::XmlMalForm {
             position: *position,
             detail: "quoted string expected".to_string(),
         });
     };
     if delimiteur != '"' && delimiteur != '\'' {
-        return Err(PnmlError::XmlMalForme {
+        return Err(PnmlError::XmlMalForm {
             position: *position,
             detail: "quoted string expected".to_string(),
         });
@@ -213,7 +213,7 @@ fn lire_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlErro
         *position += 1;
     }
     if *position >= octets.len() {
-        return Err(PnmlError::XmlMalForme {
+        return Err(PnmlError::XmlMalForm {
             position: *position,
             detail: "unterminated string".to_string(),
         });
@@ -229,7 +229,7 @@ fn attendre(octets: &[char], position: &mut usize, expected: char) -> Result<(),
             *position += 1;
             Ok(())
         }
-        _ => Err(PnmlError::XmlMalForme {
+        _ => Err(PnmlError::XmlMalForm {
             position: *position,
             detail: format!("'{expected}' expected"),
         }),
@@ -259,7 +259,7 @@ fn lire_balise_ouvrante(
     loop {
         sauter_espaces(octets, position);
         let Some(&c) = octets.get(*position) else {
-            return Err(PnmlError::XmlMalForme {
+            return Err(PnmlError::XmlMalForm {
                 position: *position,
                 detail: format!("unclosed tag <{nom}>"),
             });
@@ -304,7 +304,7 @@ fn lire_balise_fermante(octets: &[char], position: &mut usize, nom: &str) -> Res
     *position += 2; // '</'
     let nom_fermeture = lire_nom(octets, position)?;
     if nom_fermeture != nom {
-        return Err(PnmlError::XmlMalForme {
+        return Err(PnmlError::XmlMalForm {
             position: *position,
             detail: format!("closing </{nom_fermeture}> for <{nom}>"),
         });
@@ -316,7 +316,7 @@ fn lire_balise_fermante(octets: &[char], position: &mut usize, nom: &str) -> Res
 fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNode, PnmlError> {
     sauter_espaces(octets, position);
     if octets.get(*position) != Some(&'<') {
-        return Err(PnmlError::XmlMalForme {
+        return Err(PnmlError::XmlMalForm {
             position: *position,
             detail: "element expected".to_string(),
         });
@@ -352,7 +352,7 @@ fn parser_enfants(
     loop {
         sauter_espaces(octets, position);
         let Some(&c) = octets.get(*position) else {
-            return Err(PnmlError::XmlMalForme {
+            return Err(PnmlError::XmlMalForm {
                 position: *position,
                 detail: format!("end of document inside <{nom}>"),
             });

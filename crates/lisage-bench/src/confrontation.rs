@@ -70,7 +70,7 @@ pub const OUTIL: &str = "lisage";
 
 /// Workload of the confrontation (closed set, ADR-0006).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Charge {
+pub enum Workload {
     /// Deterministic LCG truth table, BDD by Shannon expansion.
     AleaLcg,
     /// R_n of the red thread, union of maps over the interleaved schema.
@@ -79,13 +79,13 @@ pub enum Charge {
     Window,
 }
 
-impl Charge {
+impl Workload {
     /// Parses the workload name (binary edge); `None` if unknown.
-    pub fn depuis_nom(nom: &str) -> Option<Charge> {
+    pub fn depuis_nom(nom: &str) -> Option<Workload> {
         match nom {
-            "alea-lcg" => Some(Charge::AleaLcg),
-            "philosophes" => Some(Charge::Philosophes),
-            "window" => Some(Charge::Window),
+            "alea-lcg" => Some(Workload::AleaLcg),
+            "philosophes" => Some(Workload::Philosophes),
+            "window" => Some(Workload::Window),
             _ => None,
         }
     }
@@ -93,9 +93,9 @@ impl Charge {
     /// JSON protocol label.
     pub fn label(&self) -> &'static str {
         match self {
-            Charge::AleaLcg => "alea-lcg",
-            Charge::Philosophes => "philosophes",
-            Charge::Window => "window",
+            Workload::AleaLcg => "alea-lcg",
+            Workload::Philosophes => "philosophes",
+            Workload::Window => "window",
         }
     }
 }
@@ -133,7 +133,7 @@ pub struct MeasureConfrontation {
     /// Measured diagram variant.
     pub variante: Variante,
     /// Workload run.
-    pub charge: Charge,
+    pub workload: Workload,
     /// Workload parameters, in a stable order (serialized as an object).
     pub parametres: Vec<(String, String)>,
     /// Encoding of the `window` workload only.
@@ -157,7 +157,7 @@ pub enum ErrorConfrontation {
     /// Invalid parameters for the workload (number, type, bounds).
     ParametresInvalides {
         /// The workload concerned.
-        charge: &'static str,
+        workload: &'static str,
         /// The detail of the invalidity.
         detail: String,
     },
@@ -190,8 +190,8 @@ pub enum ErrorConfrontation {
 impl std::fmt::Display for ErrorConfrontation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrorConfrontation::ParametresInvalides { charge, detail } => {
-                write!(formatter, "invalid parameters for {charge}: {detail}")
+            ErrorConfrontation::ParametresInvalides { workload, detail } => {
+                write!(formatter, "invalid parameters for {workload}: {detail}")
             }
             ErrorConfrontation::InvalidInput { detail } => {
                 write!(formatter, "invalid input: {detail}")
@@ -264,7 +264,7 @@ fn echapper_json(chaine: &str) -> String {
 }
 
 /// Serializes a measurement as one JSON line (without the trailing `\n`). The
-/// key order is fixed and pinned by test: `outil`, `variante`, `charge`,
+/// key order is fixed and pinned by test: `outil`, `variante`, `workload`,
 /// `parametres`, `encodage` (window only), `temps_ms`, `rss_max_ko`,
 /// `nodes`, `verifie`.
 pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
@@ -274,7 +274,7 @@ pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
         "\"outil\":\"{}\",\"variante\":\"{}\",\"charge\":\"{}\"",
         echapper_json(OUTIL),
         measure.variante.label(),
-        measure.charge.label()
+        measure.workload.label()
     ));
     ligne.push_str(",\"parametres\":{");
     for (indice, (key, value)) in measure.parametres.iter().enumerate() {
@@ -343,13 +343,13 @@ fn table_lcg(number_variables: u32) -> Vec<bool> {
 /// truth table, built by Shannon expansion. The internal C6 falsification
 /// is run: the arena's node count must equal the independent mini-BDD
 /// witness's, and the evaluation must follow the table.
-fn charge_alea_lcg(
+fn workload_alea_lcg(
     number_variables: u32,
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
     if number_variables == 0 || number_variables > VARIABLES_MAXIMALES_ALEA {
         return Err(ErrorConfrontation::ParametresInvalides {
-            charge: Charge::AleaLcg.label(),
+            workload: Workload::AleaLcg.label(),
             detail: format!("n must be in 1..={VARIABLES_MAXIMALES_ALEA}"),
         });
     }
@@ -384,7 +384,7 @@ fn charge_alea_lcg(
             node: root,
             value: format!(
                 "workload={} nodes={} check={}",
-                Charge::AleaLcg.label(),
+                Workload::AleaLcg.label(),
                 nodes,
                 expected_satisfactions
             ),
@@ -392,7 +392,7 @@ fn charge_alea_lcg(
     }
     Ok(MeasureConfrontation {
         variante: Variante::Bdd,
-        charge: Charge::AleaLcg,
+        workload: Workload::AleaLcg,
         parametres: vec![("n".to_string(), number_variables.to_string())],
         encodage: None,
         temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
@@ -412,14 +412,14 @@ type EtatEtendu = Vec<u64>;
 /// spaces). Construction: union of the maps compiled over the
 /// interleaved schema; the cardinality via the `(ℕ,+,×)` pli must be the number
 /// of states in the file.
-fn charge_philosophes(
+fn workload_philosophes(
     number_philosophes: u64,
     chemin: &str,
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
     if number_philosophes == 0 || number_philosophes > PHILOSOPHES_MAXIMAUX {
         return Err(ErrorConfrontation::ParametresInvalides {
-            charge: Charge::Philosophes.label(),
+            workload: Workload::Philosophes.label(),
             detail: format!("n must be in 1..={PHILOSOPHES_MAXIMAUX}"),
         });
     }
@@ -473,7 +473,7 @@ fn charge_philosophes(
             node: root,
             value: format!(
                 "workload={} nodes={} check={}",
-                Charge::Philosophes.label(),
+                Workload::Philosophes.label(),
                 nodes,
                 verifie
             ),
@@ -481,7 +481,7 @@ fn charge_philosophes(
     }
     Ok(MeasureConfrontation {
         variante: Variante::Mdd,
-        charge: Charge::Philosophes,
+        workload: Workload::Philosophes,
         parametres: vec![("n".to_string(), number_philosophes.to_string())],
         encodage: None,
         temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
@@ -558,7 +558,7 @@ fn lire_etats(
 /// window), whatever the encoding — only the number of shared nodes
 /// differs (absolute: one node per base; relative: a single form, O(1) in
 /// `nb_bases`).
-fn charge_window(
+fn workload_window(
     size: u64,
     nb_bases: u64,
     encodage: Encodage,
@@ -566,7 +566,7 @@ fn charge_window(
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
     if size == 0 || nb_bases == 0 {
         return Err(ErrorConfrontation::ParametresInvalides {
-            charge: Charge::Window.label(),
+            workload: Workload::Window.label(),
             detail: "size and nb_bases must be ≥ 1".to_string(),
         });
     }
@@ -595,7 +595,7 @@ fn charge_window(
             node: root,
             value: format!(
                 "workload={} encoding={} nodes={} check={}",
-                Charge::Window.label(),
+                Workload::Window.label(),
                 label_encodage(&encodage),
                 nodes,
                 verifie
@@ -604,7 +604,7 @@ fn charge_window(
     }
     Ok(MeasureConfrontation {
         variante: Variante::Mdd,
-        charge: Charge::Window,
+        workload: Workload::Window,
         parametres: vec![
             ("taille".to_string(), size.to_string()),
             ("nb_bases".to_string(), nb_bases.to_string()),
@@ -623,31 +623,31 @@ fn charge_window(
 /// `observer`: narration channel (ADR-0100) — an
 /// `Attr`/`Synthesized` event carries the workload summary.
 pub fn executer(
-    charge: &Charge,
+    workload: &Workload,
     parametres: &[String],
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
-    match charge {
-        Charge::AleaLcg => {
+    match workload {
+        Workload::AleaLcg => {
             let seul =
                 parametres
                     .first()
                     .ok_or_else(|| ErrorConfrontation::ParametresInvalides {
-                        charge: Charge::AleaLcg.label(),
+                        workload: Workload::AleaLcg.label(),
                         detail: "expected: alea-lcg <n>".to_string(),
                     })?;
             let number_variables =
                 seul.parse::<u32>()
                     .map_err(|_| ErrorConfrontation::ParametresInvalides {
-                        charge: Charge::AleaLcg.label(),
+                        workload: Workload::AleaLcg.label(),
                         detail: format!("unreadable n: {seul}"),
                     })?;
-            charge_alea_lcg(number_variables, observer)
+            workload_alea_lcg(number_variables, observer)
         }
-        Charge::Philosophes => {
+        Workload::Philosophes => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErrorConfrontation::ParametresInvalides {
-                    charge: Charge::Philosophes.label(),
+                    workload: Workload::Philosophes.label(),
                     detail: "expected: philosophes <n> <path>".to_string(),
                 }
             })?;
@@ -655,15 +655,15 @@ pub fn executer(
                 first
                     .parse::<u64>()
                     .map_err(|_| ErrorConfrontation::ParametresInvalides {
-                        charge: Charge::Philosophes.label(),
+                        workload: Workload::Philosophes.label(),
                         detail: format!("unreadable n: {first}"),
                     })?;
-            charge_philosophes(number_philosophes, second, observer)
+            workload_philosophes(number_philosophes, second, observer)
         }
-        Charge::Window => {
+        Workload::Window => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErrorConfrontation::ParametresInvalides {
-                    charge: Charge::Window.label(),
+                    workload: Workload::Window.label(),
                     detail: "expected: window <size> <nb_bases> [absolu|relatif]".to_string(),
                 }
             })?;
@@ -671,14 +671,14 @@ pub fn executer(
                 first
                     .parse::<u64>()
                     .map_err(|_| ErrorConfrontation::ParametresInvalides {
-                        charge: Charge::Window.label(),
+                        workload: Workload::Window.label(),
                         detail: format!("unreadable size: {first}"),
                     })?;
             let nb_bases =
                 second
                     .parse::<u64>()
                     .map_err(|_| ErrorConfrontation::ParametresInvalides {
-                        charge: Charge::Window.label(),
+                        workload: Workload::Window.label(),
                         detail: format!("unreadable nb_bases: {second}"),
                     })?;
             let encodage = match parametres.get(2).map(String::as_str) {
@@ -686,12 +686,12 @@ pub fn executer(
                 Some("relatif") => Encodage::Relatif,
                 Some(other) => {
                     return Err(ErrorConfrontation::ParametresInvalides {
-                        charge: Charge::Window.label(),
+                        workload: Workload::Window.label(),
                         detail: format!("unknown encoding: {other}"),
                     });
                 }
             };
-            charge_window(size, nb_bases, encodage, observer)
+            workload_window(size, nb_bases, encodage, observer)
         }
     }
 }

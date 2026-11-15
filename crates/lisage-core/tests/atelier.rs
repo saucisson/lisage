@@ -495,7 +495,7 @@ fn test_anchor_window_glisse() {
 
 /// The window read under two composite anchors: each anchor has its root
 /// (the entry arc carries its base), but both reach the same window form
-/// (`same_forme`) — same nodes, same paths, different absolute readings:
+/// (`same_form`) — same nodes, same paths, different absolute readings:
 /// "the anchor moves, the pool never does". Over 50 slides, only the root is
 /// created at each step, never the form.
 #[test]
@@ -514,7 +514,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
         None,
     )
     .expect("interned nodes");
-    assert!(report.same_forme, "both anchors reach the same window form");
+    assert!(report.same_form, "both anchors reach the same window form");
     assert_eq!(report.avant, report.apres, "same metrics on both sides");
     assert_eq!(report.avant.nodes_partages, 3, "root + window + ⊤");
     assert_eq!(report.avant.chemins, 4, "one path per window key");

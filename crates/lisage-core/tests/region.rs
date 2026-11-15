@@ -42,7 +42,7 @@ fn test_normal_form_canonique_et_idempotente() {
     // Any writing of an empty interval has the same normal form.
     assert_eq!(keys.normal_form(&Intervalle::new(7, 2)), EMPTY);
     assert_eq!(keys.normal_form(&EMPTY), EMPTY);
-    // Forme normale idempotente, et stable sur les non-empty.
+    // Form normale idempotente, et stable sur les non-empty.
     let intervalle = Intervalle::new(2, 5);
     assert_eq!(keys.normal_form(&keys.normal_form(&intervalle)), intervalle);
 }
@@ -64,39 +64,39 @@ fn test_partage_pool_c1_relatif() {
     let mut pool = pool(vec![8]);
     let terminal = pool.intern(ANCHOR, Form::Terminal(true));
     let level = Level(0);
-    let forme_empty_a = Form::Node {
+    let form_empty_a = Form::Node {
         level,
         arcs: BTreeMap::from([(EMPTY, terminal)]),
     };
-    let forme_empty_b = Form::Node {
+    let form_empty_b = Form::Node {
         level,
         arcs: BTreeMap::from([(Intervalle::new(9, 2), terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCHOR, forme_empty_a.clone()),
-        pool.intern(ANCHOR, forme_empty_b),
+        pool.intern(ANCHOR, form_empty_a.clone()),
+        pool.intern(ANCHOR, form_empty_b),
         "empty interval under two writings = same node"
     );
-    let forme_point_a = Form::Node {
+    let form_point_a = Form::Node {
         level,
         arcs: BTreeMap::from([(Intervalle::point(3), terminal)]),
     };
-    let forme_point_b = Form::Node {
+    let form_point_b = Form::Node {
         level,
         arcs: BTreeMap::from([(Intervalle::new(3, 3), terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCHOR, forme_point_a.clone()),
-        pool.intern(ANCHOR, forme_point_b),
+        pool.intern(ANCHOR, form_point_a.clone()),
+        pool.intern(ANCHOR, form_point_b),
         "point written two ways = same node"
     );
-    let forme_other = Form::Node {
+    let form_other = Form::Node {
         level,
         arcs: BTreeMap::from([(Intervalle::point(4), terminal)]),
     };
     assert_ne!(
-        pool.intern(ANCHOR, forme_point_a),
-        pool.intern(ANCHOR, forme_other),
+        pool.intern(ANCHOR, form_point_a),
+        pool.intern(ANCHOR, form_other),
         "distinct regions = distinct nodes"
     );
 }

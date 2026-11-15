@@ -240,13 +240,13 @@ pub fn count_nodes<P: Pool<Key = Cdd, Payload = bool>>(
     root: NodeId,
 ) -> Result<u64, PoolError> {
     let mut visite = BTreeSet::new();
-    let mut pile = vec![root];
-    while let Some(node) = pile.pop() {
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
         if !visite.insert(node) {
             continue;
         }
         if let Form::Node { arcs, .. } = pool.resolve(node)? {
-            pile.extend(arcs.values().copied());
+            stack.extend(arcs.values().copied());
         }
     }
     Ok(visite.len() as u64)

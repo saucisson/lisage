@@ -151,8 +151,8 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
     a: NodeId,
     b: NodeId,
 ) -> Result<NodeId, CoreError> {
-    let (forme_a, forme_b) = (pool.resolve(a)?.clone(), pool.resolve(b)?.clone());
-    match (forme_a, forme_b) {
+    let (form_a, form_b) = (pool.resolve(a)?.clone(), pool.resolve(b)?.clone());
+    match (form_a, form_b) {
         (Form::Terminal(poids_a), Form::Terminal(poids_b)) => {
             Ok(pool.intern(anchor, Form::Terminal(poids_a + poids_b)))
         }
@@ -268,8 +268,8 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
     if let Some(total) = memo.get(&node) {
         return Ok(*total);
     }
-    let forme = pool.resolve(node)?.clone();
-    let total = match forme {
+    let form = pool.resolve(node)?.clone();
+    let total = match form {
         Form::Terminal(poids) => poids,
         Form::Node { level, arcs } => {
             let mut total = 0u64;

@@ -37,7 +37,7 @@ fn test_r_default_arc_absent_vers_defaut() {
     let x = NodeId(5);
     let arcs = BTreeMap::from([(0, NODE_DEFAUT), (1, x)]);
     let result = reduce(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(result, Reduction::Forme(BTreeMap::from([(1, x)])));
+    assert_eq!(result, Reduction::Form(BTreeMap::from([(1, x)])));
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_pas_de_collapse_si_cible_non_defaut() {
     let x = NodeId(5);
     let arcs = BTreeMap::from([(1, x)]);
     let result = reduce(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(result, Reduction::Forme(BTreeMap::from([(1, x)])));
+    assert_eq!(result, Reduction::Form(BTreeMap::from([(1, x)])));
 }
 
 #[test]
@@ -69,7 +69,7 @@ proptest! {
         let arcs = vers_arcs(paires);
         let key = key_defaut.map(u64::from);
         let first = reduce(arcs.clone(), key, &est_defaut, cardinality);
-        if let Reduction::Forme(arcs_reduceds) = &first {
+        if let Reduction::Form(arcs_reduceds) = &first {
             let seconde = reduce(arcs_reduceds.clone(), key, &est_defaut, cardinality);
             prop_assert_eq!(seconde, first, "reduce∘reduce = reduce");
         }

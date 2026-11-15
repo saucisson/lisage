@@ -79,7 +79,7 @@ impl<C: Controller> Arena<C> {
     pub fn plan_de(&self, node: NodeId) -> Option<Plan> {
         self.nodes
             .get(node.0 as usize)?
-            .forme
+            .form
             .as_ref()
             .map(|_| self.nodes[node.0 as usize].plan)
     }
@@ -104,7 +104,7 @@ impl<C: Controller> Arena<C> {
 
     /// Number of live nodes.
     pub fn live(&self) -> usize {
-        self.nodes.iter().filter(|e| e.forme.is_some()).count()
+        self.nodes.iter().filter(|e| e.form.is_some()).count()
     }
 
     /// Mark-and-sweep GC from the given roots: unreachable nodes become
@@ -113,37 +113,37 @@ impl<C: Controller> Arena<C> {
     /// remapping table.
     pub fn gc(&mut self, roots: &[NodeId]) -> StatsGc {
         let mut atteints = BTreeSet::new();
-        let mut pile: Vec<NodeId> = roots.to_vec();
-        while let Some(node) = pile.pop() {
+        let mut stack: Vec<NodeId> = roots.to_vec();
+        while let Some(node) = stack.pop() {
             if !atteints.insert(node) {
                 continue;
             }
             if let Some(NodeEntry {
-                forme: Some(Form::Node { arcs, .. }),
+                form: Some(Form::Node { arcs, .. }),
                 ..
             }) = self.nodes.get(node.0 as usize)
             {
-                pile.extend(arcs.values().copied());
+                stack.extend(arcs.values().copied());
             }
         }
         let total = self.nodes.len() as u64;
         let mut collectes = 0u64;
         for (index, input) in self.nodes.iter_mut().enumerate() {
-            if input.forme.is_some() && !atteints.contains(&NodeId(index as u32)) {
-                input.forme = None;
+            if input.form.is_some() && !atteints.contains(&NodeId(index as u32)) {
+                input.form = None;
                 collectes += 1;
             }
         }
         // Removal of tombstones from the unique table and the shadow index.
         self.unique
-            .retain(|_, node| self.nodes[node.0 as usize].forme.is_some());
+            .retain(|_, node| self.nodes[node.0 as usize].form.is_some());
         for set in self.index_levels.values_mut() {
-            set.retain(|node| self.nodes[node.0 as usize].forme.is_some());
+            set.retain(|node| self.nodes[node.0 as usize].form.is_some());
         }
         // Live nodes counted on actually-live entries (not derived from the
         // slot count, which includes tombstones from a previous GC without
         // compaction).
-        let live = self.nodes.iter().filter(|e| e.forme.is_some()).count() as u64;
+        let live = self.nodes.iter().filter(|e| e.form.is_some()).count() as u64;
         let compaction = seuil_atteint(collectes, total);
         if compaction {
             self.remap = self.compacter();
@@ -178,7 +178,7 @@ impl<C: Controller> Arena<C> {
         let mut remap: Vec<Option<NodeId>> = Vec::with_capacity(self.nodes.len());
         let mut new_nodes: Vec<NodeEntry<C::Key, C::Payload>> = Vec::new();
         for input in self.nodes.drain(..) {
-            if input.forme.is_some() {
+            if input.form.is_some() {
                 remap.push(Some(NodeId(new_nodes.len() as u32)));
                 new_nodes.push(input);
             } else {
@@ -202,7 +202,7 @@ impl<C: Controller> Arena<C> {
 
     /// Normalized form of a node: keys go through the normal form of the
     /// controller's key algebra (otherwise hash-consing would violate C1).
-    fn forme_normalisee(&self, form: Form<C::Key, C::Payload>) -> Form<C::Key, C::Payload> {
+    fn form_normalisee(&self, form: Form<C::Key, C::Payload>) -> Form<C::Key, C::Payload> {
         match form {
             Form::Terminal(payload) => Form::Terminal(payload),
             Form::Node { level, arcs } => Form::Node {
@@ -259,7 +259,7 @@ impl<C: Controller> Arena<C> {
         };
         match reduced {
             Reduction::Collapse(cible) => Err(cible),
-            Reduction::Forme(arcs_reduceds) => Ok(Form::Node {
+            Reduction::Form(arcs_reduceds) => Ok(Form::Node {
                 level,
                 arcs: arcs_reduceds,
             }),
@@ -274,8 +274,8 @@ impl<C: Controller> Pool for Arena<C> {
     const CONTROLLER: ControllerId = C::FINGERPRINT;
 
     fn intern(&mut self, anchor: Anchor, form: Form<Self::Key, Self::Payload>) -> NodeId {
-        let forme = self.forme_normalisee(form);
-        let forme = match forme {
+        let form = self.form_normalisee(form);
+        let form = match form {
             Form::Node { level, arcs } => {
                 let size_avant = arcs.len();
                 match self.reduced(anchor, level, arcs) {
@@ -300,7 +300,7 @@ impl<C: Controller> Pool for Arena<C> {
             }
             terminal => terminal,
         };
-        let key = (Self::CONTROLLER, anchor, forme.clone());
+        let key = (Self::CONTROLLER, anchor, form.clone());
         if let Some(node) = self.unique.get(&key) {
             self.metriques.partages += 1;
             self.observer
@@ -308,13 +308,13 @@ impl<C: Controller> Pool for Arena<C> {
             return *node;
         }
         let node = NodeId(self.nodes.len() as u32);
-        let level = match &forme {
+        let level = match &form {
             Form::Terminal(_) => None,
             Form::Node { level, .. } => Some(*level),
         };
         self.nodes.push(NodeEntry {
             plan: Plan::Principal,
-            forme: Some(forme),
+            form: Some(form),
         });
         if let Some(level) = level {
             self.index_levels.entry(level).or_default().insert(node);
@@ -328,7 +328,7 @@ impl<C: Controller> Pool for Arena<C> {
 
     fn resolve(&self, node: NodeId) -> Result<&Form<Self::Key, Self::Payload>, PoolError> {
         match self.nodes.get(node.0 as usize) {
-            Some(input) => input.forme.as_ref().ok_or(PoolError::UnknownNode(node)),
+            Some(input) => input.form.as_ref().ok_or(PoolError::UnknownNode(node)),
             None => Err(PoolError::UnknownNode(node)),
         }
     }

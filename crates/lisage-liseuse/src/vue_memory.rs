@@ -13,13 +13,13 @@ const SIZE_CORPS: u32 = 11;
 /// Left margin in pixels.
 const MARGE_GAUCHE: u32 = 16;
 /// Height of a pool line in pixels.
-const HAUTEUR_LIGNE_POOL: u32 = 18;
+const HEIGHT_LIGNE_POOL: u32 = 18;
 /// Height of a quotient class line in pixels.
-const HAUTEUR_LIGNE_CLASSE: u32 = 18;
+const HEIGHT_LIGNE_CLASSE: u32 = 18;
 /// Height of a comparison bar in pixels.
-const HAUTEUR_BARRE: u32 = 22;
+const HEIGHT_BARRE: u32 = 22;
 /// Maximum width of a comparison bar in pixels.
-const LARGEUR_BARRE_MAX: u32 = 400;
+const WIDTH_BARRE_MAX: u32 = 400;
 /// Color of the naive/DD bars.
 const COULEUR_BARRE_NEUTRE: &str = "#999";
 /// Color of the Lisage bar (highlighted).
@@ -29,17 +29,17 @@ const COULEUR_BADGE: &str = "#c60";
 /// Vertical offset between panels in pixels.
 const DECALAGE_PANNEAU: u32 = 24;
 /// Height reserved for the title in pixels.
-const HAUTEUR_TITRE: u32 = 40;
+const HEIGHT_TITRE: u32 = 40;
 /// Bottom margin in pixels.
 const MARGE_BAS: u32 = 20;
 /// Width of the comparison panel beyond the max bar, in pixels.
-const LARGEUR_PANNEAU: u32 = 120;
+const WIDTH_PANNEAU: u32 = 120;
 /// Vertical position of the first panel in pixels.
 const Y_FIRST_PANNEAU: u32 = 44;
 /// Horizontal offset of the ×k badge in a class line, in pixels.
 const DECALAGE_BADGE: u32 = 220;
 /// Inner height of a comparison bar in pixels.
-const HAUTEUR_BARRE_INTERIEURE: u32 = 14;
+const HEIGHT_BARRE_INTERIEURE: u32 = 14;
 /// Horizontal offset of the bars after the label, in pixels.
 const DECALAGE_BARRE: u32 = 60;
 /// Vertical offset of the bar rectangle under the text line, in pixels.
@@ -62,7 +62,7 @@ pub struct BadgeMultiplicite {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ClasseQuotient {
     /// Form label.
-    pub forme: String,
+    pub form: String,
     /// Anchor label.
     pub anchor: String,
     /// Number of replicas in the class.
@@ -87,7 +87,7 @@ impl ClasseQuotient {
     /// Multiplicity badge of the class (handle = « form @ anchor »).
     pub fn badge(&self) -> BadgeMultiplicite {
         BadgeMultiplicite {
-            handle: format!("{} @ {}", self.forme, self.anchor),
+            handle: format!("{} @ {}", self.form, self.anchor),
             multiplicite: self.multiplicite,
         }
     }
@@ -122,12 +122,12 @@ pub struct ComparaisonVue {
 }
 
 /// Width of a comparison bar, proportional to the count (max =
-/// `LARGEUR_BARRE_MAX`).
-fn largeur_barre(count: u64, max: u64) -> u32 {
+/// `WIDTH_BARRE_MAX`).
+fn width_barre(count: u64, max: u64) -> u32 {
     if max == 0 {
         0
     } else {
-        (count as u128 * LARGEUR_BARRE_MAX as u128 / max as u128) as u32
+        (count as u128 * WIDTH_BARRE_MAX as u128 / max as u128) as u32
     }
 }
 
@@ -139,13 +139,13 @@ pub fn rendre_svg_vue_memory(
     classes: &[ClasseQuotient],
     comparaison: &ComparaisonVue,
 ) -> String {
-    let hauteur_pools = pools.len() as u32 * HAUTEUR_LIGNE_POOL + DECALAGE_PANNEAU;
-    let hauteur_classes = classes.len() as u32 * HAUTEUR_LIGNE_CLASSE + DECALAGE_PANNEAU;
-    let hauteur_comparaison = 3 * HAUTEUR_BARRE + DECALAGE_PANNEAU;
-    let hauteur = HAUTEUR_TITRE + hauteur_pools + hauteur_classes + hauteur_comparaison + MARGE_BAS;
-    let largeur = MARGE_GAUCHE * 2 + LARGEUR_BARRE_MAX + LARGEUR_PANNEAU;
+    let height_pools = pools.len() as u32 * HEIGHT_LIGNE_POOL + DECALAGE_PANNEAU;
+    let height_classes = classes.len() as u32 * HEIGHT_LIGNE_CLASSE + DECALAGE_PANNEAU;
+    let height_comparaison = 3 * HEIGHT_BARRE + DECALAGE_PANNEAU;
+    let height = HEIGHT_TITRE + height_pools + height_classes + height_comparaison + MARGE_BAS;
+    let width = MARGE_GAUCHE * 2 + WIDTH_BARRE_MAX + WIDTH_PANNEAU;
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\">\n"
     );
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"{SIZE_TITRE}\">memory and quotient view</text>\n"
@@ -156,7 +156,7 @@ pub fn rendre_svg_vue_memory(
         "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">pools (main / shadow plane, GC)</text>\n"
     ));
     for pool in pools {
-        y += HAUTEUR_LIGNE_POOL;
+        y += HEIGHT_LIGNE_POOL;
         let metriques = &pool.metriques;
         svg.push_str(&format!(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{} : alive={}/{} dead={} gc={} compactions={} hit={}%</text>\n",
@@ -175,10 +175,10 @@ pub fn rendre_svg_vue_memory(
         "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">quotient classes (forms × anchors)</text>\n"
     ));
     for classe in classes {
-        y += HAUTEUR_LIGNE_CLASSE;
+        y += HEIGHT_LIGNE_CLASSE;
         svg.push_str(&format!(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{} @ {}</text>\n",
-            classe.forme, classe.anchor
+            classe.form, classe.anchor
         ));
         let badge = classe.badge();
         if badge.multiplicite > 1 {
@@ -200,19 +200,19 @@ pub fn rendre_svg_vue_memory(
         ("DD", comparaison.dd, COULEUR_BARRE_NEUTRE),
         ("Lisage", comparaison.lisage, COULEUR_BARRE_LISAGE),
     ] {
-        y += HAUTEUR_BARRE;
-        let largeur = largeur_barre(count, max);
+        y += HEIGHT_BARRE;
+        let width = width_barre(count, max);
         svg.push_str(&format!(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{libelle}</text>\n"
         ));
         svg.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"{largeur}\" height=\"{HAUTEUR_BARRE_INTERIEURE}\" fill=\"{couleur}\"/>\n",
+            "<rect x=\"{}\" y=\"{}\" width=\"{width}\" height=\"{HEIGHT_BARRE_INTERIEURE}\" fill=\"{couleur}\"/>\n",
             MARGE_GAUCHE + DECALAGE_BARRE,
             y - DECALAGE_TEXTE_BARRE
         ));
         svg.push_str(&format!(
             "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{count}</text>\n",
-            MARGE_GAUCHE + DECALAGE_BARRE + largeur + DECALAGE_VALUE
+            MARGE_GAUCHE + DECALAGE_BARRE + width + DECALAGE_VALUE
         ));
     }
     svg.push_str("</svg>\n");

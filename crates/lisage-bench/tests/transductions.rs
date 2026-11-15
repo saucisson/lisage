@@ -112,7 +112,7 @@ impl Transduction for CountChemins {
 
 /// Structural equality of two forms in two distinct pools (the NodeIds
 /// are specific to each pool).
-fn formes_egales(
+fn forms_egales(
     pool_a: &PoolRef,
     node_a: NodeId,
     pool_b: &PoolRef,
@@ -140,7 +140,7 @@ fn formes_egales(
             la == lb
                 && aa.len() == ab.len()
                 && aa.iter().zip(ab.iter()).all(|((va, na), (vb, nb))| {
-                    va == vb && formes_egales(pool_a, *na, pool_b, *nb, visites)
+                    va == vb && forms_egales(pool_a, *na, pool_b, *nb, visites)
                 })
         }
         _ => false,
@@ -187,7 +187,7 @@ proptest! {
         let root = dag_aleatoire(&mut input, anchor, paires);
         let mut runner = Transducteur::new(Identite);
         let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
-        prop_assert!(formes_egales(
+        prop_assert!(forms_egales(
             &input,
             root,
             &output,
@@ -206,7 +206,7 @@ proptest! {
         let expected = count_naif(&input, root);
         let mut runner = Transducteur::new(CountChemins);
         let (result, count) = runner.run(&input, &mut output, anchor, root).unwrap();
-        prop_assert!(formes_egales(
+        prop_assert!(forms_egales(
             &input,
             root,
             &output,

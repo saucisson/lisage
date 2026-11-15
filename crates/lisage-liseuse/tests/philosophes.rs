@@ -115,7 +115,7 @@ fn test_exists_sur_r_n() {
 /// reference enumeration compiles to a reachable node, and the
 /// only (pc, left) combinations appearing in R_n are the 5 legal ones.
 #[test]
-fn test_sept_formes_contre_r_n() {
+fn test_sept_forms_contre_r_n() {
     use lisage_core::{Form, Pool};
 
     let legales = cellules_legales();
@@ -129,8 +129,8 @@ fn test_sept_formes_contre_r_n() {
         // Nodes reachable from the root + terminals seen.
         let mut atteignables = std::collections::BTreeSet::new();
         let mut terminaux_vus = std::collections::BTreeSet::new();
-        let mut pile = vec![root];
-        while let Some(node) = pile.pop() {
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
             if !atteignables.insert(node) {
                 continue;
             }
@@ -138,7 +138,7 @@ fn test_sept_formes_contre_r_n() {
                 Form::Terminal(payload) => {
                     terminaux_vus.insert(*payload);
                 }
-                Form::Node { arcs, .. } => pile.extend(arcs.values().copied()),
+                Form::Node { arcs, .. } => stack.extend(arcs.values().copied()),
             }
         }
         // ⊤ is reachable (R_n is non-empty); ⊥ is not (every path

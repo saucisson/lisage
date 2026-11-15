@@ -7,7 +7,7 @@ use lisage_core::observer::CanalAttr;
 use lisage_core::{NodeId, Pool};
 
 use crate::svg::{
-    Couleurs, DEMI_LARGEUR, HAUTEUR_LEVEL, MARGE_GAUCHE, MARGE_HAUT, dessiner_corps, echapper_xml,
+    Couleurs, DEMI_WIDTH, HEIGHT_LEVEL, MARGE_GAUCHE, MARGE_HAUT, dessiner_corps, echapper_xml,
     placer,
 };
 
@@ -76,9 +76,9 @@ pub const LEGENDE_CANAUX: &[(CanalAttr, &str, &str)] = &[
 ];
 
 /// Height reserved for the legend in pixels (one line per channel).
-const HAUTEUR_LEGENDE: u32 = 18;
+const HEIGHT_LEGENDE: u32 = 18;
 /// Width of the legend column in pixels.
-const LARGEUR_LEGENDE: u32 = 220;
+const WIDTH_LEGENDE: u32 = 220;
 /// Size of a channel color swatch in pixels.
 const SIZE_PAVE_LEGENDE: u32 = 12;
 /// Horizontal offset between the swatch and its label in pixels.
@@ -97,7 +97,7 @@ const MARGE_BAS: u32 = 20;
 pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
     let mut svg = String::new();
     for (index, (_canal, label, couleur)) in LEGENDE_CANAUX.iter().enumerate() {
-        let ligne_y = y + index as u32 * HAUTEUR_LEGENDE;
+        let ligne_y = y + index as u32 * HEIGHT_LEGENDE;
         svg.push_str(&format!(
             "<rect x=\"{x}\" y=\"{}\" width=\"{SIZE_PAVE_LEGENDE}\" height=\"{SIZE_PAVE_LEGENDE}\" fill=\"{couleur}\"/>\n",
             ligne_y - DECALAGE_PAVE_LEGENDE
@@ -126,18 +126,18 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     with_legende: bool,
 ) -> String {
     let (placement, number_levels) = placer(pool, root);
-    let largeur_diagramme =
-        MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
-    let largeur_legende = if with_legende { LARGEUR_LEGENDE } else { 0 };
-    let largeur = largeur_diagramme + largeur_legende;
-    let hauteur_legende = LEGENDE_CANAUX.len() as u32 * HAUTEUR_LEGENDE;
-    let hauteur = (MARGE_HAUT + (number_levels + 1) * HAUTEUR_LEVEL + MARGE_BAS)
-        .max(hauteur_legende + MARGE_HAUT);
+    let width_diagramme =
+        MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_WIDTH;
+    let width_legende = if with_legende { WIDTH_LEGENDE } else { 0 };
+    let width = width_diagramme + width_legende;
+    let height_legende = LEGENDE_CANAUX.len() as u32 * HEIGHT_LEGENDE;
+    let height = (MARGE_HAUT + (number_levels + 1) * HEIGHT_LEVEL + MARGE_BAS)
+        .max(height_legende + MARGE_HAUT);
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{largeur}\" height=\"{hauteur}\" viewBox=\"0 0 {largeur} {hauteur}\">\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\">\n"
     );
     svg.push_str(&format!(
-        "<rect x=\"0\" y=\"0\" width=\"{largeur}\" height=\"{hauteur}\" fill=\"{}\"/>\n",
+        "<rect x=\"0\" y=\"0\" width=\"{width}\" height=\"{height}\" fill=\"{}\"/>\n",
         theme.fond
     ));
     svg.push_str(&format!(
@@ -151,7 +151,7 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     if with_legende {
         svg.push_str(&rendre_legende_svg(
             theme,
-            largeur_diagramme + MARGE_LEGENDE,
+            width_diagramme + MARGE_LEGENDE,
             MARGE_HAUT + DECALAGE_PAVE_LEGENDE,
         ));
     }
@@ -202,9 +202,9 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
         }
     }
     // Arcs.
-    let mut pile = vec![root];
+    let mut stack = vec![root];
     let mut deja_vu = std::collections::BTreeSet::new();
-    while let Some(node) = pile.pop() {
+    while let Some(node) = stack.pop() {
         if !deja_vu.insert(node) {
             continue;
         }
@@ -216,7 +216,7 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
                     cible.0,
                     echapper_pgf(&key.to_string())
                 ));
-                pile.push(*cible);
+                stack.push(*cible);
             }
         }
     }

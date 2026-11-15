@@ -181,7 +181,7 @@ fn test_filtre_level_hors_schema_error_typee() {
     let terminal_vrai = input.intern(anchor, Form::Terminal(true));
     // Level 4 outside the schema (2 keys ⇒ levels 0..3); distinct arcs to
     // avoid any collapse at interning.
-    let malforme = input.intern(
+    let malform = input.intern(
         anchor,
         Form::Node {
             level: Level(4),
@@ -194,7 +194,7 @@ fn test_filtre_level_hors_schema_error_typee() {
         &mut output,
         anchor,
         &schema,
-        malforme,
+        malform,
         Box::new(|_: &KeyPresentes| true),
     );
     assert_eq!(result.unwrap_err(), CoreError::LevelHorsSchema(Level(4)));

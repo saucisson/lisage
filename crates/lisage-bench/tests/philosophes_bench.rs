@@ -230,7 +230,7 @@ fn test_bench_gaucher_ratio_constant() {
 /// of live nodes that grows with n (the edge, 4n − 4). Live peak and
 /// firings read via the observer.
 #[test]
-fn test_bench_sept_formes_o1_et_bord() {
+fn test_bench_sept_forms_o1_et_bord() {
     let observer = Arc::new(RecordingObserver::default());
     struct Pont(Arc<RecordingObserver>);
     impl Observer for Pont {
@@ -238,7 +238,7 @@ fn test_bench_sept_formes_o1_et_bord() {
             self.0.on_event(event);
         }
     }
-    let mut counts_formes = Vec::new();
+    let mut counts_forms = Vec::new();
     let mut nodes_plats = Vec::new();
     let mut creations = 0u64;
     for &(n, _) in R_EXPECTEDS {
@@ -260,7 +260,7 @@ fn test_bench_sept_formes_o1_et_bord() {
             NB_CELLULES_LEGALES,
             "n={n}: exactly 5 legal cells (7 forms with ⊥/⊤)"
         );
-        counts_formes.push(vus.len());
+        counts_forms.push(vus.len());
         // Flat prototype edge: live nodes of the pool (no GC here,
         // the live peak = live after construction).
         nodes_plats.push(pool.live());
@@ -269,8 +269,8 @@ fn test_bench_sept_formes_o1_et_bord() {
     }
     // O(1): the number of forms does not depend on n.
     assert!(
-        counts_formes.windows(2).all(|w| w[0] == w[1]),
-        "forms constant in n: {counts_formes:?}"
+        counts_forms.windows(2).all(|w| w[0] == w[1]),
+        "forms constant in n: {counts_forms:?}"
     );
     // The flat prototype edge is pinned exactly (explicit falsification)
     // and grows with n.
