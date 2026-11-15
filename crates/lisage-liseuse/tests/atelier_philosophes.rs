@@ -49,7 +49,7 @@ fn test_r3_partage_contre_size_depliee() {
 /// Cutting R-collapse / R-default can only increase (or leave equal) the
 /// two metrics on the same construction.
 #[test]
-fn test_commutation_ne_reduit_jamais() {
+fn test_commutation_ne_reduced_jamais() {
     let (nodes_toutes, chemins_toutes, size_toutes) = measure_r_n(3, Reductions::TOUTES);
     let (nodes_aucune, chemins_aucune, size_aucune) = measure_r_n(3, Reductions::AUCUNE);
     assert!(nodes_aucune >= nodes_toutes);

@@ -35,7 +35,7 @@ pub fn collapse_arcs<Key: Ord>(arcs: &BTreeMap<Key, NodeId>) -> Option<NodeId> {
 /// - `est_defaut`: predicate "this node is the default diagram D_δ"
 ///   designated by the controller (the implicit default arc denotes D_δ);
 /// - `cardinality`: |Val(ℓ)|, required when the level has no default.
-pub fn reduire<Key: Ord + Clone>(
+pub fn reduce<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
@@ -70,7 +70,7 @@ pub fn reduire<Key: Ord + Clone>(
 /// R-default **alone** (without R-collapse): the explicit arc δ(ℓ) leading
 /// to D_δ is removed, the form is never collapsed. Used to toggle
 /// R-collapse independently (didactic workshop, backlog § 9).
-pub fn reduire_sans_collapse<Key: Ord + Clone>(
+pub fn reduce_sans_collapse<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
@@ -86,7 +86,7 @@ pub fn reduire_sans_collapse<Key: Ord + Clone>(
 
 /// Reverse order (R-default first, then R-collapse) — the confluence PBT
 /// checks that both orders give the same result.
-pub fn reduire_inverse<Key: Ord + Clone>(
+pub fn reduce_inverse<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
@@ -109,7 +109,7 @@ pub fn reduire_inverse<Key: Ord + Clone>(
         };
     }
     if let Some(cible) = collapse_arcs(&arcs) {
-        // Same coverage as `reduire` (confluence): with a default, collapse
+        // Same coverage as `reduce` (confluence): with a default, collapse
         // only holds if only the δ arc is explicit or if the target is D_δ;
         // without a default, all values must be explicit.
         let couvre = match &key_defaut {
@@ -139,7 +139,7 @@ pub fn reduire_inverse<Key: Ord + Clone>(
 /// Canonicity remains relative to the contract (controller, order, anchor):
 /// `≡ D^default` is tested by `est_defaut` (the pool being canonical, same
 /// form = same node).
-pub fn reduire_dabs<Key: Ord + Clone>(
+pub fn reduce_dabs<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
@@ -165,7 +165,7 @@ pub fn reduire_dabs<Key: Ord + Clone>(
         };
     }
     // R-collapse / (D-trans) "all targets ≡ D", same coverage rule as
-    // `reduire` (confluence): with a default, collapse only holds if the
+    // `reduce` (confluence): with a default, collapse only holds if the
     // target is D^default or if only the δ arc is explicit; without a
     // default, all values must be explicit.
     if let Some(cible) = collapse_arcs(&arcs) {

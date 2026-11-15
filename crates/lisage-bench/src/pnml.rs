@@ -670,7 +670,7 @@ pub fn marquage_depuis_value(value: &Value) -> Option<Marquage> {
     match value {
         Value::Map(map) => map
             .iter()
-            .map(|(key, compte)| match (key, compte) {
+            .map(|(key, count)| match (key, count) {
                 (Value::Atom(c), Value::Atom(n)) => Some((*c, *n)),
                 _ => None,
             })
@@ -758,7 +758,7 @@ pub fn pas_semantique(network: &NetworkPetri, ensemble: &BTreeSet<Value>) -> BTr
                 let next = tirer(network, &transition.identifiant, &marquage);
                 let map: BTreeMap<Value, Value> = next
                     .into_iter()
-                    .map(|(key, compte)| (Value::Atom(key), Value::Atom(compte)))
+                    .map(|(key, count)| (Value::Atom(key), Value::Atom(count)))
                     .collect();
                 successeurs.insert(Value::Map(map));
             }

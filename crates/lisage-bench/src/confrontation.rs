@@ -25,12 +25,12 @@ use std::time::Instant;
 use lisage_algebra::interface::{Anchor, Form, Pool, PoolError};
 use lisage_core::arena::Arena;
 use lisage_core::atelier::{
-    AtelierController, Encodage, Reductions, build_window, compter_chemins, compter_nodes,
+    AtelierController, Encodage, Reductions, build_window, count_chemins, count_nodes,
 };
-use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_nodes as compter_nodes_bdd};
+use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, count_nodes as count_nodes_bdd};
 use lisage_core::error::CoreError;
 use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
-use lisage_core::pli::{compter as compter_pli, union};
+use lisage_core::pli::{count as count_pli, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
@@ -362,23 +362,23 @@ fn charge_alea_lcg(
     let table = table_lcg(number_variables);
     let expected_satisfactions = table.iter().filter(|value| **value).count() as u64;
     let root = compiler_bdd(&mut pool, ANCHOR_MEASURE, &keys, &table);
-    let nodes = compter_nodes_bdd(&pool, root);
+    let nodes = count_nodes_bdd(&pool, root);
     let duree = debut.elapsed();
     // C6 falsification: the arena and the independent mini-BDD witness must
     // count the same number of nodes on the same table.
     let mut temoin = crate::temoin_bdd::MiniBdd::new();
     let root_temoin = temoin.compiler_table(number_variables, &table);
-    let nodes_temoin = temoin.compter_nodes(root_temoin);
+    let nodes_temoin = temoin.count_nodes(root_temoin);
     if nodes != nodes_temoin {
         return Err(ErreurConfrontation::VerifieEchoue {
             expected: nodes_temoin,
             obtenu: nodes,
         });
     }
-    if temoin.evaluer(root_temoin, 0) != table[0] {
+    if temoin.evaluate(root_temoin, 0) != table[0] {
         return Err(ErreurConfrontation::VerifieEchoue {
             expected: table[0] as u64,
-            obtenu: temoin.evaluer(root_temoin, 0) as u64,
+            obtenu: temoin.evaluate(root_temoin, 0) as u64,
         });
     }
     if let Some(observer) = observer {
@@ -461,8 +461,8 @@ fn charge_philosophes(
         let membre = compiler(&mut pool, ANCHOR_MEASURE, &schema, &Value::Map(map))?;
         root = union(&mut pool, &keys, ANCHOR_MEASURE, root, membre)?;
     }
-    let verifie = compter_pli(&pool, &mut output, ANCHOR_MEASURE, &schema, root)?;
-    let nodes = compter_nodes(&pool, root)?;
+    let verifie = count_pli(&pool, &mut output, ANCHOR_MEASURE, &schema, root)?;
+    let nodes = count_nodes(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != expected {
         return Err(ErreurConfrontation::VerifieEchoue {
@@ -584,8 +584,8 @@ fn charge_window(
     );
     let debut = Instant::now();
     let root = build_window(&mut pool, ANCHOR_MEASURE, encodage, size, nb_bases);
-    let verifie = compter_chemins(&pool, root)?;
-    let nodes = compter_nodes(&pool, root)?;
+    let verifie = count_chemins(&pool, root)?;
+    let nodes = count_nodes(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != expected {
         return Err(ErreurConfrontation::VerifieEchoue {

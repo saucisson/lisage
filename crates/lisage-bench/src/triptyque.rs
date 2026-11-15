@@ -18,7 +18,7 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::error::CoreError;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{compter, union};
+use lisage_core::pli::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 use lisage_plan::order::{KeyMap, KeysMap, Order, Phase, StrategieAval};
@@ -177,7 +177,7 @@ fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, E
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let cardinality = compter(&pool, &mut output, ANCHOR_BANC, &schema, root)?;
+    let cardinality = count(&pool, &mut output, ANCHOR_BANC, &schema, root)?;
     Ok(MeasureVoie {
         cardinality,
         nodes_vivants,

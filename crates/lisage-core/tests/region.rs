@@ -181,7 +181,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
                 arcs,
             },
         );
-        let compte_dd: u64 = match pool.resolve(root).expect("interned node") {
+        let count_dd: u64 = match pool.resolve(root).expect("interned node") {
             Form::Terminal(value) => {
                 // R-collapse: S empty or full, the node reduces to the terminal.
                 if *value { SIZE_DOMAIN } else { 0 }
@@ -198,7 +198,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
             }
         };
         assert_eq!(
-            compte_dd,
+            count_dd,
             ensemble.len() as u64,
             "DD count == naive cardinality of S"
         );

@@ -9,7 +9,7 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::add::{AddController, compiler_pondere, merge_add, somme_poids};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{compter, union};
+use lisage_core::pli::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
@@ -83,7 +83,7 @@ fn build_bool(pool: &mut PoolBool, ensemble: &BTreeSet<Value>) -> NodeId {
 /// Counts the cardinality in the Bool pool (fold `(ℕ,+,×)`).
 fn cardinality_bool(pool: &PoolBool, root: NodeId) -> u64 {
     let mut output = pool_bool();
-    compter(pool, &mut output, ANCHOR, &schema_test(), root).unwrap()
+    count(pool, &mut output, ANCHOR, &schema_test(), root).unwrap()
 }
 
 /// The unique table is indexed by the weights: terminals of different

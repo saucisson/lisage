@@ -123,11 +123,11 @@ pub struct ComparaisonVue {
 
 /// Width of a comparison bar, proportional to the count (max =
 /// `LARGEUR_BARRE_MAX`).
-fn largeur_barre(compte: u64, max: u64) -> u32 {
+fn largeur_barre(count: u64, max: u64) -> u32 {
     if max == 0 {
         0
     } else {
-        (compte as u128 * LARGEUR_BARRE_MAX as u128 / max as u128) as u32
+        (count as u128 * LARGEUR_BARRE_MAX as u128 / max as u128) as u32
     }
 }
 
@@ -195,13 +195,13 @@ pub fn rendre_svg_vue_memory(
         "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">comparison naive / DD / Lisage (live nodes)</text>\n"
     ));
     let max = comparaison.naif.max(comparaison.dd).max(comparaison.lisage);
-    for (libelle, compte, couleur) in [
+    for (libelle, count, couleur) in [
         ("naive", comparaison.naif, COULEUR_BARRE_NEUTRE),
         ("DD", comparaison.dd, COULEUR_BARRE_NEUTRE),
         ("Lisage", comparaison.lisage, COULEUR_BARRE_LISAGE),
     ] {
         y += HAUTEUR_BARRE;
-        let largeur = largeur_barre(compte, max);
+        let largeur = largeur_barre(count, max);
         svg.push_str(&format!(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{libelle}</text>\n"
         ));
@@ -211,7 +211,7 @@ pub fn rendre_svg_vue_memory(
             y - DECALAGE_TEXTE_BARRE
         ));
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{compte}</text>\n",
+            "<text x=\"{}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{count}</text>\n",
             MARGE_GAUCHE + DECALAGE_BARRE + largeur + DECALAGE_VALUE
         ));
     }

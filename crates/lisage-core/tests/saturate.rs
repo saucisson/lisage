@@ -5,7 +5,7 @@
 //!
 //! The diagrams denote families of sets (ZDD style): the fixpoint of
 //! `X ⊕ τ(X)` with a step emitting the singleton `{a}` is the family
-//! `{X, {a}}` — so we compare nodes (and cardinalities via `compter`),
+//! `{X, {a}}` — so we compare nodes (and cardinalities via `count`),
 //! not decompiled values.
 
 use std::collections::BTreeMap;
@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{compter, union};
+use lisage_core::pli::{count, union};
 use lisage_core::saturate::{BOUND_ITERATIONS, ParametresSaturation, PolitiqueSaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::{ContextePhiOut, Transduction};
@@ -139,7 +139,7 @@ fn compiler_ensemble(
 /// Cardinality of a diagram (number of members of the denoted family).
 fn cardinality(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
     let mut output = new_pool(schema);
-    compter(pool, &mut output, Anchor(0), schema, node).unwrap()
+    count(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
 
 /// M2-4, T2: `saturer` terminates and reaches a fixpoint — with an identity

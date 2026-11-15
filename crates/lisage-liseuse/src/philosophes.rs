@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{compter, union};
+use lisage_core::pli::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::{Anchor, Form, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
@@ -111,7 +111,7 @@ pub fn build_r_n<P: Pool<Key = u64, Payload = bool>>(
 }
 
 /// Counts |R_n| by fold `(ℕ,+,×)` (DD path).
-pub fn compter_r_n(
+pub fn count_r_n(
     pool_input: &Arena<ReferenceController>,
     pool_output: &mut Arena<ReferenceController>,
     anchor: Anchor,
@@ -119,7 +119,7 @@ pub fn compter_r_n(
     root: NodeId,
 ) -> u64 {
     let schema = schema_anneau(n);
-    compter(pool_input, pool_output, anchor, &schema, root).expect("internal count")
+    count(pool_input, pool_output, anchor, &schema, root).expect("internal count")
 }
 
 /// The 5 legal cells (forms of the minimal automaton of the language of

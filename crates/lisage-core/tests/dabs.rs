@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
 };
-use lisage_algebra::reduction::{Reduction, reduire_dabs};
+use lisage_algebra::reduction::{Reduction, reduce_dabs};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 
@@ -160,7 +160,7 @@ fn test_dtrans_forme_vide_collapse() {
 /// toward its target; two explicit arcs toward the same target outside
 /// coverage do not collapse (presence, confluence § 2.3).
 #[test]
-fn test_dtrans_couverture() {
+fn test_dtrans_coverage() {
     let mut pool = arena_dabs();
     let vrai = pool.intern(ANCHOR_TEST, Form::Terminal(true));
     // Only the explicit δ = 0 arc, target ⊤: covers (absents = D^def ≠ ⊤,
@@ -225,7 +225,7 @@ fn test_sans_key_defaut_pas_dabs() {
 #[test]
 fn test_dtrans_forme_vide_litterale() {
     let est_defaut = |node: NodeId| node == NODE_DEFAUT;
-    let result = reduire_dabs(
+    let result = reduce_dabs(
         BTreeMap::new(),
         Some(0),
         &est_defaut,
@@ -234,7 +234,7 @@ fn test_dtrans_forme_vide_litterale() {
     );
     assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
     // Without a designated D^def: the empty form remains an empty form.
-    let result = reduire_dabs(
+    let result = reduce_dabs(
         BTreeMap::new(),
         Some(0),
         &est_defaut,
@@ -245,7 +245,7 @@ fn test_dtrans_forme_vide_litterale() {
 }
 
 /// M4-3 (property tier, LCG): confluence of the generalized default —
-/// `reduire_dabs ∘ reduire_dabs = reduire_dabs` (idempotence), no resulting
+/// `reduce_dabs ∘ reduce_dabs = reduce_dabs` (idempotence), no resulting
 /// form keeps an arc toward D^def (when δ exists), and a collapse can only
 /// target D^def or a covered target.
 #[test]
@@ -271,7 +271,7 @@ fn test_propriete_dabs_confluence() {
         let key_defaut = if next() % 2 == 0 { Some(0) } else { None };
 
         let defaut = key_defaut.map(|_| NODE_DEFAUT);
-        let first = reduire_dabs(
+        let first = reduce_dabs(
             arcs.clone(),
             key_defaut,
             &est_defaut,
@@ -280,15 +280,15 @@ fn test_propriete_dabs_confluence() {
         );
         // Idempotence: a reduced form is a fixed point (a Collapse targets a
         // node, not an arc form — nothing to re-reduce).
-        if let Reduction::Forme(arcs_reduits) = &first {
-            let second = reduire_dabs(
-                arcs_reduits.clone(),
+        if let Reduction::Forme(arcs_reduceds) = &first {
+            let second = reduce_dabs(
+                arcs_reduceds.clone(),
                 key_defaut,
                 &est_defaut,
                 CARDINALITY_MOCK,
                 defaut,
             );
-            assert_eq!(first.clone(), second, "idempotence of reduire_dabs");
+            assert_eq!(first.clone(), second, "idempotence of reduce_dabs");
         }
 
         // D-abs: when δ(ℓ) exists, no arc toward D^def remains.
@@ -309,10 +309,10 @@ fn test_propriete_dabs_confluence() {
             panic!("collapse on empty form without a default key");
         }
         // D-trans / R-collapse: a collapse only happens if the coverage is
-        // satisfied (same rules as `reduire`) or if A = ∅ after absorption
+        // satisfied (same rules as `reduce`) or if A = ∅ after absorption
         // (then the target is D^def).
         if let Reduction::Collapse(cible) = &first {
-            // Same arcs after D-abs as in `reduire_dabs`.
+            // Same arcs after D-abs as in `reduce_dabs`.
             let arcs_filtres: BTreeMap<u64, NodeId> = match key_defaut {
                 Some(_) => arcs
                     .iter()

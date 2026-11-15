@@ -244,7 +244,7 @@ impl DbmKeys {
         aire_doublee.max(0)
     }
 
-    pub fn couverture(&self, regions: &[Dbm]) -> bool {
+    pub fn coverage(&self, regions: &[Dbm]) -> bool {
         // The empty region covers nothing; the dimension is that of the
         // non-empty regions (a family of empty regions covers nothing).
         let Some(n) = regions

@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, MemoryPolicy};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{compter, union};
+use lisage_core::pli::{count, union};
 use lisage_core::saturate::{ParametresSaturation, PolitiqueSaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler, decompiler};
 use lisage_core::transduction::Transducteur;
@@ -74,7 +74,7 @@ fn decompiler_map(
 /// Cardinality of a diagram (number of members of the denoted family).
 fn cardinality(pool: &PoolRef, schema: &Schema, node: lisage_algebra::interface::NodeId) -> u64 {
     let mut output = new_pool(schema);
-    compter(pool, &mut output, Anchor(0), schema, node).unwrap()
+    count(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
 
 /// M2-5, T3: the non-local transfer `a -= 1; b += 1` between two non-adjacent

@@ -5,9 +5,9 @@
 
 use lisage_core::Anchor;
 use lisage_core::operations::{KeyPresentes, existe, filtrer};
-use lisage_core::pli::compter;
+use lisage_core::pli::count;
 use lisage_liseuse::philosophes::{
-    build_mangeurs, build_r_n, cellules_legales, compter_r_n, mots_atteignables, pool_neuf,
+    build_mangeurs, build_r_n, cellules_legales, count_r_n, mots_atteignables, pool_neuf,
     schema_anneau, schema_mangeurs,
 };
 use lisage_liseuse::svg::rendre_svg;
@@ -24,11 +24,11 @@ fn test_c8_cardinaux_r3_r4_r5() {
         let mut output = pool_neuf(&schema);
         let anchor = Anchor(0);
         let root = build_r_n(&mut input, anchor, n);
-        let compte = compter_r_n(&input, &mut output, anchor, n, root);
+        let count = count_r_n(&input, &mut output, anchor, n, root);
         let reference = mots_atteignables(n as usize).len() as u64;
-        assert_eq!(compte, reference, "n={n} : DD fold == enumeration");
+        assert_eq!(count, reference, "n={n} : DD fold == enumeration");
         assert_eq!(
-            compte, expected,
+            count, expected,
             "n={n} : |R_{n}| = {expected} (golden thread)"
         );
     }
@@ -54,7 +54,7 @@ fn test_filter_cellule_zero_mange() {
         )
         .unwrap();
         let mut output2 = pool_neuf(&schema);
-        let compte = compter(&output, &mut output2, anchor, &schema, filtre).unwrap();
+        let count = count(&output, &mut output2, anchor, &schema, filtre).unwrap();
         // Reference: independent sets of C_n containing 0 (the
         // eaters projection is many-to-one: we count the eaters).
         let reference = mots_atteignables(n as usize)
@@ -68,7 +68,7 @@ fn test_filter_cellule_zero_mange() {
             .into_iter()
             .filter(|mangeurs| mangeurs.contains(&0))
             .count() as u64;
-        assert_eq!(compte, reference, "n={n} : filter « cell 0 eats »");
+        assert_eq!(count, reference, "n={n} : filter « cell 0 eats »");
     }
 }
 
@@ -183,7 +183,7 @@ fn reference_circulaire(n: usize) -> u64 {
             dp_lineaire(n, first)
                 .into_iter()
                 .filter(move |(last, _)| !(first == 2 && *last == 2))
-                .map(|(_, compte)| compte)
+                .map(|(_, count)| count)
                 .collect::<Vec<_>>()
         })
         .sum()

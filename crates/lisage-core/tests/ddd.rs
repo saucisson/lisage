@@ -8,7 +8,7 @@
 use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::dbm::{Dbm, DbmController, DbmKeys, INCOHERENT};
-use lisage_core::ddd::{compiler_bande, compter_nodes, evaluer};
+use lisage_core::ddd::{compiler_bande, count_nodes, evaluate};
 use lisage_core::observer::NoOpObserver;
 
 type PoolDbm = Arena<DbmController>;
@@ -43,19 +43,19 @@ fn test_intersection_meet_canonique() {
 }
 
 #[test]
-fn test_couverture_boite_bounded() {
+fn test_coverage_boite_bounded() {
     let keys = DbmKeys::new(SIZE_DOMAIN);
     let dessous = Dbm::new(2, &[(0, 1, 0)]);
     let dessus = Dbm::new(2, &[(1, 0, -1)]);
     // The partition {x ≤ y, x > y} covers the box [0, 4)².
-    assert!(keys.couverture(&[dessous.clone(), dessus.clone()]));
+    assert!(keys.coverage(&[dessous.clone(), dessus.clone()]));
     // A single half does not cover; neither does the empty family; neither does the empty region.
-    assert!(!keys.couverture(&[dessous]));
-    assert!(!keys.couverture(&[]));
-    assert!(!keys.couverture(&[INCOHERENT]));
+    assert!(!keys.coverage(&[dessous]));
+    assert!(!keys.coverage(&[]));
+    assert!(!keys.coverage(&[INCOHERENT]));
     // The band alone does not cover the box.
     let bande = Dbm::new(2, &[(0, 1, 1), (1, 0, 2)]);
-    assert!(!keys.couverture(&[bande]));
+    assert!(!keys.coverage(&[bande]));
 }
 
 /// Instance-test: the band compiled by explicit regions has the expected
@@ -66,12 +66,12 @@ fn test_bande_differentiel_contre_enumeration() {
     let mut pool = pool();
     let root = compiler_bande(&mut pool, ANCHOR);
     // Four nodes: true, false, level 1, the root — against 16 points.
-    assert_eq!(compter_nodes(&pool, root), 4);
+    assert_eq!(count_nodes(&pool, root), 4);
     for x in 0..SIZE_DOMAIN {
         for y in 0..SIZE_DOMAIN {
             let point = [x, y];
             let expected = i128::from(x) - i128::from(y) <= 1 && i128::from(y) - i128::from(x) <= 2;
-            let lu = evaluer(&pool, root, &point).expect("interned node");
+            let lu = evaluate(&pool, root, &point).expect("interned node");
             assert_eq!(
                 lu.unwrap_or(false),
                 expected,
@@ -96,7 +96,7 @@ fn test_partage_pool_bande() {
     assert_eq!(arcs.len(), 2);
     let keys = DbmKeys::new(SIZE_DOMAIN);
     let regions: Vec<Dbm> = arcs.keys().cloned().collect();
-    assert!(keys.couverture(&regions), "the level-0 arcs cover the box");
+    assert!(keys.coverage(&regions), "the level-0 arcs cover the box");
 }
 
 /// Property (LCG): the intersection is commutative, idempotent, and every

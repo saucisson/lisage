@@ -127,7 +127,7 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
 }
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
-pub fn compter_nodes<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
+pub fn count_nodes<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
     let mut visite = BTreeSet::new();
     let mut pile = vec![root];
     while let Some(node) = pile.pop() {
@@ -142,7 +142,7 @@ pub fn compter_nodes<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId)
 }
 
 /// Evaluates the BDD on an assignment (bit ℓ = variable ℓ).
-pub fn evaluer<P: Pool<Key = u64, Payload = bool>>(
+pub fn evaluate<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     root: NodeId,
     affectation: u64,

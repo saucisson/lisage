@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::dbm::{Dbm, DbmController, DbmKeys, INCOHERENT};
-use lisage_core::ddd::{compiler_bande, evaluer};
+use lisage_core::ddd::{compiler_bande, evaluate};
 use lisage_core::integrale::integrale_dbm_constante;
 use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
 
@@ -145,7 +145,7 @@ fn test_differentiel_cardinality_contre_measure() {
     let cardinality: u64 = (0..SIZE_DOMAIN)
         .flat_map(|x| (0..SIZE_DOMAIN).map(move |y| [x, y]))
         .filter(|point| {
-            evaluer(&pool, root, point)
+            evaluate(&pool, root, point)
                 .expect("interned node")
                 .unwrap_or(false)
         })
