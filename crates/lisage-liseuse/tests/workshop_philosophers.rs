@@ -6,9 +6,9 @@
 
 use lisage_core::Anchor;
 use lisage_core::arena::Arena;
-use lisage_core::atelier::{AtelierController, Reductions, measure};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::ReferenceController;
+use lisage_core::workshop::{Reductions, WorkshopController, measure};
 
 use lisage_liseuse::philosophers::{build_r_n, mots_atteignables, pool_neuf, schema_anneau};
 
@@ -16,8 +16,8 @@ const ANCHOR: Anchor = Anchor(0);
 
 fn measure_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
     let schema = schema_anneau(n);
-    let mut pool: Arena<AtelierController<ReferenceController>> = Arena::new(
-        AtelierController::new(ReferenceController::new(schema.clone()), reductions),
+    let mut pool: Arena<WorkshopController<ReferenceController>> = Arena::new(
+        WorkshopController::new(ReferenceController::new(schema.clone()), reductions),
         Box::new(NoOpObserver),
     );
     let root = build_r_n(&mut pool, ANCHOR, n);

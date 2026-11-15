@@ -6,7 +6,7 @@
 //! First fragment (backend, no web front):
 //!
 //! - [`Reductions`]: R-collapse / R-default switches;
-//! - [`AtelierController`]: wrapping controller that toggles them (the pool
+//! - [`WorkshopController`]: wrapping controller that toggles them (the pool
 //!   reads the `collapse_active` / `default_active` hooks at interning time);
 //! - [`measure`]: three didactic metrics — the **shared nodes**
 //!   (R-share active, count of reachable handles), the **paths**
@@ -86,15 +86,15 @@ impl Reductions {
 
 /// Wrapping controller that toggles R-collapse and R-default according to
 /// [`Reductions`]; everything else is delegated to the inner controller.
-pub struct AtelierController<C: Controller> {
+pub struct WorkshopController<C: Controller> {
     inner: C,
     reductions: Reductions,
 }
 
-impl<C: Controller> AtelierController<C> {
+impl<C: Controller> WorkshopController<C> {
     /// Wraps `inner` with the `reductions` switches.
     pub fn new(inner: C, reductions: Reductions) -> Self {
-        AtelierController { inner, reductions }
+        WorkshopController { inner, reductions }
     }
 
     /// The active switches.
@@ -103,7 +103,7 @@ impl<C: Controller> AtelierController<C> {
     }
 }
 
-impl<C: Controller> Controller for AtelierController<C> {
+impl<C: Controller> Controller for WorkshopController<C> {
     type Key = C::Key;
     type Payload = C::Payload;
     type Keys = C::Keys;
@@ -146,7 +146,7 @@ impl<C: Controller> Controller for AtelierController<C> {
 
 /// Didactic measurement report of a diagram.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ReportAtelier {
+pub struct ReportWorkshop {
     /// Distinct reachable nodes (R-share active): the shared diagram.
     pub nodes_partages: u64,
     /// Root → terminal paths in the DAG.
@@ -164,8 +164,8 @@ pub fn measure<P: Pool>(
     pool: &P,
     root: NodeId,
     observer: Option<&dyn Observer>,
-) -> Result<ReportAtelier, PoolError> {
-    let report = ReportAtelier {
+) -> Result<ReportWorkshop, PoolError> {
+    let report = ReportWorkshop {
         nodes_partages: count_nodes(pool, root)?,
         paths: count_paths(pool, root)?,
         size_depliee: count_size_depliee(pool, root)?,
@@ -277,9 +277,9 @@ pub enum Encodage {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ReportComparaison {
     /// Metrics of the absolute encoding.
-    pub absolu: ReportAtelier,
+    pub absolu: ReportWorkshop,
     /// Metrics of the relative encoding.
-    pub relatif: ReportAtelier,
+    pub relatif: ReportWorkshop,
 }
 
 /// Builds the **sliding window** in absolute encoding: for each base
@@ -511,9 +511,9 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ReportComparaisonOrders {
     /// Metrics under the first ordering.
-    pub first: ReportAtelier,
+    pub first: ReportWorkshop,
     /// Metrics under the second ordering.
-    pub second: ReportAtelier,
+    pub second: ReportWorkshop,
 }
 
 /// Compiles the same truth table under two orderings and measures: same
@@ -648,9 +648,9 @@ pub fn build_window_anchored<P: Pool<Key = u64, Payload = bool>>(
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ReportComparaisonAnchors {
     /// Metrics of the window read under the first anchor.
-    pub avant: ReportAtelier,
+    pub avant: ReportWorkshop,
     /// Metrics of the window read under the second anchor.
-    pub apres: ReportAtelier,
+    pub apres: ReportWorkshop,
     /// True if both readings reach the same window shape
     /// (`NodeId`): moving the base does not duplicate the shape.
     pub same_form: bool,

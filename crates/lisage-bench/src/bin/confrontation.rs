@@ -17,13 +17,13 @@ const USAGE_WORKLOADS: &str =
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let Some((nom_workload, parametres)) = arguments.split_first() else {
+    let Some((name_workload, parametres)) = arguments.split_first() else {
         eprintln!("usage: confrontation <workload> [parameters…]");
         eprintln!("{USAGE_WORKLOADS}");
         return ExitCode::from(CODE_USAGE);
     };
-    let Some(workload) = Workload::depuis_nom(nom_workload) else {
-        eprintln!("unknown workload: {nom_workload}");
+    let Some(workload) = Workload::depuis_name(name_workload) else {
+        eprintln!("unknown workload: {name_workload}");
         eprintln!("{USAGE_WORKLOADS}");
         return ExitCode::from(CODE_USAGE);
     };

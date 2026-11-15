@@ -41,8 +41,8 @@ fn test_parametres_densite_validee() {
 fn test_prediction_size_et_cout_total() {
     let params = ParametresOracle::new(10, Rationnel::new(1, 2), 3, 4).unwrap();
     let prediction = Oracle::predire(&params);
-    assert_eq!(prediction.size_predite, 6, "1 + 10·(1/2) nodes");
-    assert_eq!(prediction.cout_total_predit, 6 * 3 * 4);
+    assert_eq!(prediction.size_predictede, 6, "1 + 10·(1/2) nodes");
+    assert_eq!(prediction.cout_total_predicted, 6 * 3 * 4);
 
     // Null density: only the terminal. Full density: the whole chain.
     let nul = Oracle::predire(
@@ -54,7 +54,7 @@ fn test_prediction_size_et_cout_total() {
         )
         .unwrap(),
     );
-    assert_eq!(nul.size_predite, 1);
+    assert_eq!(nul.size_predictede, 1);
     let plein = Oracle::predire(
         &ParametresOracle::new(
             params.size_domain(),
@@ -64,7 +64,7 @@ fn test_prediction_size_et_cout_total() {
         )
         .unwrap(),
     );
-    assert_eq!(plein.size_predite, 11);
+    assert_eq!(plein.size_predictede, 11);
 }
 
 /// M3-3: the differential guardrail compares prediction and measurement
@@ -124,7 +124,7 @@ fn test_propriete_prediction_monotone_et_guardrail() {
             )
             .unwrap(),
         );
-        assert!(prediction.size_predite <= plus_dense.size_predite);
+        assert!(prediction.size_predictede <= plus_dense.size_predictede);
         // Monotonic in downstream queries.
         let plus_de_requetes = Oracle::predire(
             &ParametresOracle::new(
@@ -135,11 +135,14 @@ fn test_propriete_prediction_monotone_et_guardrail() {
             )
             .unwrap(),
         );
-        assert!(prediction.cout_total_predit <= plus_de_requetes.cout_total_predit);
+        assert!(prediction.cout_total_predicted <= plus_de_requetes.cout_total_predicted);
         // Guardrail conforming when measure = prediction.
         assert!(
-            Oracle::guardrail(prediction.cout_total_predit, prediction.cout_total_predit)
-                .est_conforming()
+            Oracle::guardrail(
+                prediction.cout_total_predicted,
+                prediction.cout_total_predicted
+            )
+            .est_conforming()
         );
     }
 }

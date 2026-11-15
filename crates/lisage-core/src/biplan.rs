@@ -23,10 +23,10 @@ pub enum Plan {
 /// Profiled compaction threshold: compact when the tombstone proportion
 /// reaches 1/4 of the slots (dead × 4 ≥ total).
 pub const THRESHOLD_COMPACTION_NUM: u64 = 1;
-/// Denominator of the compaction threshold.
+/// Denameinator of the compaction threshold.
 pub const THRESHOLD_COMPACTION_DEN: u64 = 4;
 
-/// Percentage base for `taux_hit` (returned in percent, integer).
+/// Percentage base for `rate_hit` (returned in percent, integer).
 pub const BASE_POURCENTAGE: u64 = 100;
 
 /// Pool metrics: hash-consing cache and GC counters.
@@ -48,7 +48,7 @@ pub struct MetriquesPool {
 
 impl MetriquesPool {
     /// Cache hit rate = shares / (creations + shares); 0 if empty.
-    pub fn taux_hit(&self) -> u64 {
+    pub fn rate_hit(&self) -> u64 {
         let total = self.creations + self.partages;
         self.partages
             .checked_mul(BASE_POURCENTAGE)

@@ -24,19 +24,19 @@ fn pool() -> PoolRef {
 fn test_memory_level_stockage_et_version() {
     let mut memory: MemoryLevel<u64> = MemoryLevel::new();
     assert_eq!(memory.version(), 0);
-    assert_eq!(memory.lire(NodeId(0), Level(0)), None);
+    assert_eq!(memory.read(NodeId(0), Level(0)), None);
 
-    let ancien = memory.ecrire(NodeId(0), Level(0), 42);
-    assert_eq!(ancien, None);
+    let old = memory.write(NodeId(0), Level(0), 42);
+    assert_eq!(old, None);
     assert_eq!(memory.version(), 1, "each write increments the version");
-    assert_eq!(memory.lire(NodeId(0), Level(0)), Some(&42));
+    assert_eq!(memory.read(NodeId(0), Level(0)), Some(&42));
 
-    let ancien = memory.ecrire(NodeId(0), Level(0), 43);
-    assert_eq!(ancien, Some(42), "the write returns the old value");
+    let old = memory.write(NodeId(0), Level(0), 43);
+    assert_eq!(old, Some(42), "the write returns the old value");
     assert_eq!(memory.version(), 2);
-    assert_eq!(memory.lire(NodeId(0), Level(0)), Some(&43));
+    assert_eq!(memory.read(NodeId(0), Level(0)), Some(&43));
     assert_eq!(
-        memory.lire(NodeId(1), Level(0)),
+        memory.read(NodeId(1), Level(0)),
         None,
         "keyed by (node, level)"
     );
@@ -50,7 +50,7 @@ fn test_effet_memory_appliquer() {
     let effet = EffetMemory::une(NodeId(3), Level(1), 7);
     effet.apply(&mut memory);
     assert_eq!(memory.version(), 1);
-    assert_eq!(memory.lire(NodeId(3), Level(1)), Some(&7));
+    assert_eq!(memory.read(NodeId(3), Level(1)), Some(&7));
 
     let effet_empty: EffetMemory<u64> = EffetMemory::new();
     effet_empty.apply(&mut memory);
@@ -91,7 +91,7 @@ impl Transduction for EcritMemory {
         // Read the memory: if a value was already stored at this (node, level),
         // it is visible here and counted (test: φ_out observes the state stored
         // by a previous visit of the same node).
-        if let Some(v) = ctx.memory.lire(ctx.node_input, ctx.level) {
+        if let Some(v) = ctx.memory.read(ctx.node_input, ctx.level) {
             self.lus.fetch_add(*v, std::sync::atomic::Ordering::SeqCst);
         }
         // Write h into the memory at (input_node, level).

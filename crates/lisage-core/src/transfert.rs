@@ -1,6 +1,6 @@
 //! Non-local events (M2-5, spec § 7, statement T3): compiling a transition of
 //! width `w` into a transduction with **level memory**, with
-//! a polynomial overhead in `w`.
+//! a polynameial overhead in `w`.
 //!
 //! Reference example (spec § 7): the transfer `t : m(a) -= 1; m(b) += 1`
 //! on a `Map` — the transition touches the levels of the two keys `a` and
@@ -116,9 +116,9 @@ impl TransfertNonLocal {
         s: (),
     ) {
         match remap.remove(&key) {
-            Some((ancien, _)) => {
-                let merge = union(pool, keys, anchor, ancien, n)
-                    .expect("union of sub-arcs of the same pool");
+            Some((old, _)) => {
+                let merge =
+                    union(pool, keys, anchor, old, n).expect("union of sub-arcs of the same pool");
                 remap.insert(key, (merge, s));
             }
             None => {
@@ -141,7 +141,7 @@ impl TransfertNonLocal {
         arcs: BTreeMap<u64, (NodeId, ())>,
     ) -> (BTreeMap<u64, (NodeId, ())>, EffetMemory<bool>) {
         // Already produced by this node at this visit? (idempotence M).
-        if memory.lire(node_input, level) == Some(&true) {
+        if memory.read(node_input, level) == Some(&true) {
             return (arcs, EffetMemory::new());
         }
         let mut remap = BTreeMap::new();
@@ -188,8 +188,8 @@ impl TransfertNonLocal {
             );
             // Collision with an existing PRESENT arc (family): union.
             match arcs.remove(&PRESENT) {
-                Some((ancien, _)) => {
-                    let merge = union(pool, &self.keys, anchor, ancien, node_value)
+                Some((old, _)) => {
+                    let merge = union(pool, &self.keys, anchor, old, node_value)
                         .expect("union of sub-arcs of the same pool");
                     arcs.insert(PRESENT, (merge, ()));
                 }

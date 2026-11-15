@@ -83,7 +83,7 @@ pub fn mots_atteignables(n: usize) -> Vec<Vec<u64>> {
 
 /// Builds R_n in the pool: union of the compiled maps, one per
 /// reachable state. Generic over the pool: the didactic workshop wraps the
-/// controller (`AtelierController`) to switch the reductions.
+/// controller (`WorkshopController`) to switch the reductions.
 pub fn build_r_n<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
@@ -128,7 +128,7 @@ pub fn count_r_n(
 /// (eat,me); p = 1 allows (think,prev), (hungry,prev). With the 2
 /// terminals ⊥/⊤, these are the **7 forms** of the golden thread (automaton level;
 /// the « 7 DD nodes » version is the relative encoding, milestone M4).
-pub fn cellules_legales() -> [(u64, u64); 5] {
+pub fn cells_legales() -> [(u64, u64); 5] {
     [
         (PENSE, LIBRE),
         (AFFAME, LIBRE),

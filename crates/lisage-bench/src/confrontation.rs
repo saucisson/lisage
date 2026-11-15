@@ -24,14 +24,14 @@ use std::time::Instant;
 
 use lisage_algebra::interface::{Anchor, Form, Pool, PoolError};
 use lisage_core::arena::Arena;
-use lisage_core::atelier::{
-    AtelierController, Encodage, Reductions, build_window, count_nodes, count_paths,
-};
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, count_nodes as count_nodes_bdd};
 use lisage_core::error::CoreError;
 use lisage_core::observer::{ChannelAttr, NoOpObserver, Observer, TraceEvent};
 use lisage_core::pli::{count as count_pli, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
+use lisage_core::workshop::{
+    Encodage, Reductions, WorkshopController, build_window, count_nodes, count_paths,
+};
 use lisage_lang::value::{Atom, Value};
 
 /// Measurement anchor (a single anchor per measurement, harness convention).
@@ -81,8 +81,8 @@ pub enum Workload {
 
 impl Workload {
     /// Parses the workload name (binary edge); `None` if unknown.
-    pub fn depuis_nom(nom: &str) -> Option<Workload> {
-        match nom {
+    pub fn depuis_name(name: &str) -> Option<Workload> {
+        match name {
             "alea-lcg" => Some(Workload::AleaLcg),
             "philosophers" => Some(Workload::Philosophers),
             "window" => Some(Workload::Window),
@@ -174,7 +174,7 @@ pub enum ErrorConfrontation {
         /// The obtained value.
         obtenu: u64,
     },
-    /// Core error (pool, pli, atelier), cause preserved.
+    /// Core error (pool, pli, workshop), cause preserved.
     Interne {
         /// The core error.
         source: CoreError,
@@ -442,11 +442,11 @@ fn workload_philosophers(
         Box::new(NoOpObserver),
     );
     let debut = Instant::now();
-    let contenu =
+    let content =
         std::fs::read_to_string(path).map_err(|error| ErrorConfrontation::InvalidInput {
             detail: format!("states file {path} unreadable: {error}"),
         })?;
-    let etats = lire_etats(number_philosophers, &contenu)?;
+    let etats = read_etats(number_philosophers, &content)?;
     let expected = etats.len() as u64;
     let mut root = pool.intern(ANCHOR_MEASURE, Form::Terminal(false));
     for etat in &etats {
@@ -493,12 +493,12 @@ fn workload_philosophers(
 
 /// Reads and validates the extended-states file: first line `n <n>`, then
 /// `2n` values per line in `{0, 1, 2}`.
-fn lire_etats(
+fn read_etats(
     number_philosophers: u64,
-    contenu: &str,
+    content: &str,
 ) -> Result<Vec<EtatEtendu>, ErrorConfrontation> {
     let number_values = PAS_CLE_INTERCALAGE as usize * number_philosophers as usize;
-    let mut lignes = contenu.lines();
+    let mut lignes = content.lines();
     let first = lignes
         .next()
         .ok_or_else(|| ErrorConfrontation::InvalidInput {
@@ -572,7 +572,7 @@ fn workload_window(
     }
     let expected = size.saturating_mul(nb_bases);
     let mut pool = Arena::new(
-        AtelierController::new(
+        WorkshopController::new(
             BddController::new(VARIABLES_BDD_WINDOW),
             Reductions::without_collapse(),
         ),

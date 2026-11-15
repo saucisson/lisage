@@ -38,7 +38,7 @@ const RATIO_GAUCHER: f64 = 1.2887;
 /// Tolerance on the ratio (constancy and value) — explicit falsification.
 const TOLERANCE_RATIO: f64 = 0.01;
 /// Number of legal cells of the minimal automaton (5 + 2 terminals = 7 forms).
-const NB_CELLULES_LEGALES: usize = 5;
+const NB_CELLS_LEGALES: usize = 5;
 /// Step of the interleaving keys: key `2i` = `pc_i`, key `2i+1` = `left_i`.
 const PAS_CLE_INTERCALAGE: u64 = 2;
 /// Offset of the `left_i` key after the `pc_i` key in the interleaving.
@@ -257,7 +257,7 @@ fn test_bench_sept_forms_o1_et_bord() {
         }
         assert_eq!(
             vus.len(),
-            NB_CELLULES_LEGALES,
+            NB_CELLS_LEGALES,
             "n={n}: exactly 5 legal cells (7 forms with ⊥/⊤)"
         );
         counts_forms.push(vus.len());

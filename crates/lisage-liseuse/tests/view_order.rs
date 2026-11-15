@@ -3,7 +3,7 @@
 //! side, arrowed conversions with cost — deterministic static SVG rendering.
 
 use lisage_liseuse::view_order::{
-    ConversionView, FicheControleur, NodeVtree, PisteOrder, RoyaumeView, rendre_svg_view_order,
+    CardControleur, ConversionView, KingdomView, NodeVtree, TrackOrder, rendre_svg_view_order,
 };
 
 /// Extracts a numeric attribute from an SVG element (ex. `y="42"` → 42).
@@ -43,8 +43,8 @@ fn y1_fleche_conversion(svg: &str) -> u32 {
 }
 
 /// Controller card of the reference instance (eight fields filled).
-fn fiche_reference() -> FicheControleur {
-    FicheControleur {
+fn card_reference() -> CardControleur {
+    CardControleur {
         delta: "presence {absent, present}".to_string(),
         sigma: "Set(Atom(D))".to_string(),
         decomposition_order: "universe sweep, canonical O".to_string(),
@@ -57,10 +57,10 @@ fn fiche_reference() -> FicheControleur {
 }
 
 /// Card of the classic BDD witness.
-fn fiche_bdd() -> FicheControleur {
-    FicheControleur {
+fn card_bdd() -> CardControleur {
+    CardControleur {
         encodage: "classic BDD".to_string(),
-        ..fiche_reference()
+        ..card_reference()
     }
 }
 
@@ -68,22 +68,22 @@ fn fiche_bdd() -> FicheControleur {
 /// linear track of the levels in sweep order, and the kingdoms side by
 /// side with the arrowed conversion and its cost.
 #[test]
-fn test_view_order_fiche_piste_lineaire_royaumes_et_conversion() {
-    let royaumes = vec![
-        RoyaumeView {
-            nom: "reference".to_string(),
-            fiche: fiche_reference(),
-            piste: PisteOrder::Lineaire(vec![
+fn test_view_order_card_track_lineaire_kingdoms_et_conversion() {
+    let kingdoms = vec![
+        KingdomView {
+            name: "reference".to_string(),
+            card: card_reference(),
+            track: TrackOrder::Lineaire(vec![
                 "a".to_string(),
                 "b".to_string(),
                 "c".to_string(),
                 "<a>".to_string(),
             ]),
         },
-        RoyaumeView {
-            nom: "temoin-bdd".to_string(),
-            fiche: fiche_bdd(),
-            piste: PisteOrder::Lineaire(vec!["x0".to_string(), "x1".to_string()]),
+        KingdomView {
+            name: "temoin-bdd".to_string(),
+            card: card_bdd(),
+            track: TrackOrder::Lineaire(vec!["x0".to_string(), "x1".to_string()]),
         },
     ];
     let conversions = vec![ConversionView {
@@ -91,7 +91,7 @@ fn test_view_order_fiche_piste_lineaire_royaumes_et_conversion() {
         target: "temoin-bdd".to_string(),
         cout: 3,
     }];
-    let svg = rendre_svg_view_order(&royaumes, &conversions);
+    let svg = rendre_svg_view_order(&kingdoms, &conversions);
 
     // Controller card: the eight fields.
     for champ in [
@@ -124,7 +124,7 @@ fn test_view_order_fiche_piste_lineaire_royaumes_et_conversion() {
 
 /// M3-4: a structured order renders as a tree (vtree), no special case.
 #[test]
-fn test_view_order_piste_arbre_vtree() {
+fn test_view_order_track_arbre_vtree() {
     let arbre = NodeVtree {
         libelle: "record".to_string(),
         children: vec![
@@ -147,12 +147,12 @@ fn test_view_order_piste_arbre_vtree() {
             },
         ],
     };
-    let royaumes = vec![RoyaumeView {
-        nom: "sdD".to_string(),
-        fiche: fiche_reference(),
-        piste: PisteOrder::Arbre(arbre),
+    let kingdoms = vec![KingdomView {
+        name: "sdD".to_string(),
+        card: card_reference(),
+        track: TrackOrder::Arbre(arbre),
     }];
-    let svg = rendre_svg_view_order(&royaumes, &[]);
+    let svg = rendre_svg_view_order(&kingdoms, &[]);
     for libelle in ["record", "machine", "cell", "state", "conveyor"] {
         assert!(
             svg.contains(&format!(">{libelle}<")),
@@ -161,27 +161,27 @@ fn test_view_order_piste_arbre_vtree() {
     }
     // The parent is above its children (parsed y, not offsets).
     let y_record = y_texte(&svg, ">record<");
-    let y_cellule = y_texte(&svg, ">cell<");
-    assert!(y_record < y_cellule, "parent above the child");
+    let y_cell = y_texte(&svg, ">cell<");
+    assert!(y_record < y_cell, "parent above the child");
 }
 
 /// M3-4: the rendering is deterministic and a conversion to an
 /// unknown kingdom is ignored (no arrow).
 #[test]
 fn test_view_order_deterministe_et_conversion_inconnue_ignoree() {
-    let royaumes = vec![RoyaumeView {
-        nom: "r".to_string(),
-        fiche: fiche_reference(),
-        piste: PisteOrder::Lineaire(vec!["n0".to_string()]),
+    let kingdoms = vec![KingdomView {
+        name: "r".to_string(),
+        card: card_reference(),
+        track: TrackOrder::Lineaire(vec!["n0".to_string()]),
     }];
     let conversions = vec![ConversionView {
         source: "r".to_string(),
         target: "inconnu".to_string(),
         cout: 1,
     }];
-    let svg = rendre_svg_view_order(&royaumes, &conversions);
+    let svg = rendre_svg_view_order(&kingdoms, &conversions);
     assert!(!svg.contains("convert r → inconnu"));
-    let svg2 = rendre_svg_view_order(&royaumes, &conversions);
+    let svg2 = rendre_svg_view_order(&kingdoms, &conversions);
     assert_eq!(svg, svg2, "deterministic rendering");
 }
 
@@ -189,7 +189,7 @@ fn test_view_order_deterministe_et_conversion_inconnue_ignoree() {
 /// its height** — including a tree track (vtree), not only a
 /// linear track.
 #[test]
-fn test_conversion_anchored_dans_piste_arbre() {
+fn test_conversion_anchored_dans_track_arbre() {
     let arbre = NodeVtree {
         libelle: "record".to_string(),
         children: vec![
@@ -206,16 +206,16 @@ fn test_conversion_anchored_dans_piste_arbre() {
             },
         ],
     };
-    let royaumes = vec![
-        RoyaumeView {
-            nom: "arbre".to_string(),
-            fiche: fiche_reference(),
-            piste: PisteOrder::Arbre(arbre),
+    let kingdoms = vec![
+        KingdomView {
+            name: "arbre".to_string(),
+            card: card_reference(),
+            track: TrackOrder::Arbre(arbre),
         },
-        RoyaumeView {
-            nom: "lineaire".to_string(),
-            fiche: fiche_bdd(),
-            piste: PisteOrder::Lineaire(vec!["x0".to_string()]),
+        KingdomView {
+            name: "lineaire".to_string(),
+            card: card_bdd(),
+            track: TrackOrder::Lineaire(vec!["x0".to_string()]),
         },
     ];
     let conversions = vec![ConversionView {
@@ -223,7 +223,7 @@ fn test_conversion_anchored_dans_piste_arbre() {
         target: "lineaire".to_string(),
         cout: 7,
     }];
-    let svg = rendre_svg_view_order(&royaumes, &conversions);
+    let svg = rendre_svg_view_order(&kingdoms, &conversions);
     assert!(svg.contains("convert arbre → lineaire (cost 7)"));
     // The arrow starts from the middle of the tree track (3 levels of 44 px,
     // i.e. y_track + 66): parsed y1, strictly under the root and its first

@@ -4,7 +4,7 @@
 //! (sequence of adjacent level transpositions) at **predictable
 //! cost** (number of inversions, Kendall tau distance, computed
 //! from the orders alone). The **typed contract extends from orders to
-//! encodings**: a value exists only in a [`Royaume`] typed by
+//! encodings**: a value exists only in a [`Kingdom`] typed by
 //! (type `T`, order mark `O`, encoding mark `E`), and leaving the
 //! realm goes through an explicit conversion.
 
@@ -40,7 +40,7 @@ pub enum ErrorConversion {
     OrdersInconvertibles,
     /// The conversion does not start from the source realm's order or
     /// does not arrive at the target realm's order.
-    RoyaumeIncompatible,
+    KingdomIncompatible,
 }
 
 impl std::fmt::Display for ErrorConversion {
@@ -49,7 +49,7 @@ impl std::fmt::Display for ErrorConversion {
             ErrorConversion::OrdersInconvertibles => {
                 write!(formatter, "inconvertible orders (different canonical keys)")
             }
-            ErrorConversion::RoyaumeIncompatible => {
+            ErrorConversion::KingdomIncompatible => {
                 write!(
                     formatter,
                     "conversion incompatible with source/target realms"
@@ -136,22 +136,22 @@ impl<T: TypeOrder> Conversion<T> {
     }
 }
 
-/// Variance marker of `Royaume`: no bound on `T`, `O`, `E`.
-type MarkerRoyaume<T, O, E> = PhantomData<fn() -> (T, O, E)>;
+/// Variance marker of `Kingdom`: no bound on `T`, `O`, `E`.
+type MarkerKingdom<T, O, E> = PhantomData<fn() -> (T, O, E)>;
 
 /// Controller realm: typed contract (type `T`, order mark `O`,
 /// encoding mark `E`) — extension of the typed contract from orders to
 /// encodings (M3-2, C3). A value exists only in a realm;
 /// leaving the realm = explicit conversion.
-pub struct Royaume<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> {
+pub struct Kingdom<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> {
     value: V,
-    marker: MarkerRoyaume<T, O, E>,
+    marker: MarkerKingdom<T, O, E>,
 }
 
-impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> {
+impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> Kingdom<T, O, E, V> {
     /// New value in the realm `(T, O, E)`.
     pub fn new(value: V) -> Self {
-        Royaume {
+        Kingdom {
             value,
             marker: PhantomData,
         }
@@ -173,7 +173,7 @@ impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> 
     }
 }
 
-impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V: Clone> Royaume<T, O, E, V> {
+impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V: Clone> Kingdom<T, O, E, V> {
     /// **Reorder = convert**: change the realm's order mark via an explicit
     /// conversion at predictable cost (`conversion.cout()`).
     /// Typed contract checked by value: the conversion must start from the
@@ -183,12 +183,12 @@ impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V: Clone> Royaume<T, O,
         &self,
         descripteur: &T,
         conversion: &Conversion<T>,
-    ) -> Result<Royaume<T, O2, E, V>, ErrorConversion> {
+    ) -> Result<Kingdom<T, O2, E, V>, ErrorConversion> {
         if conversion.source() != &O::order(descripteur)
             || conversion.target() != &O2::order(descripteur)
         {
-            return Err(ErrorConversion::RoyaumeIncompatible);
+            return Err(ErrorConversion::KingdomIncompatible);
         }
-        Ok(Royaume::new(self.value.clone()))
+        Ok(Kingdom::new(self.value.clone()))
     }
 }

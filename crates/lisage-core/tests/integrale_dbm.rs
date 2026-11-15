@@ -33,7 +33,7 @@ fn keys() -> DbmKeys {
 }
 
 /// Full region of the box: no off-diagonal constraint.
-fn boite() -> Dbm {
+fn full_box() -> Dbm {
     Dbm::new(2, &[])
 }
 
@@ -67,7 +67,7 @@ impl Observer for Collector {
 fn test_measure_zone_analytique() {
     let keys = keys();
     // Full box: area N², doubled 2N² = 32.
-    assert_eq!(keys.measure_zone(&boite()), 32);
+    assert_eq!(keys.measure_zone(&full_box()), 32);
     // Empty zone → 0.
     assert_eq!(keys.measure_zone(&INCOHERENT), 0);
     // Band −2 ≤ x−y ≤ 1: 16 − (4−1)²/2 − (4−2)²/2 = 16 − 4.5 − 2 = 9.5 → 19.
@@ -91,10 +91,10 @@ fn test_integrale_bande_aire_analytique() {
     let mut pool = pool();
     let root = compiler_bande(&mut pool, ANCHOR);
     let measure =
-        integrale_dbm_constante(&pool, root, &boite(), &keys(), None).expect("interned node");
+        integrale_dbm_constante(&pool, root, &full_box(), &keys(), None).expect("interned node");
     assert_eq!(measure, 19, "integral = doubled area of the band ∩ box");
     // A non-interned NodeId is a propagated error, not a silent value.
-    assert!(integrale_dbm_constante(&pool, NodeId(u32::MAX), &boite(), &keys(), None).is_err());
+    assert!(integrale_dbm_constante(&pool, NodeId(u32::MAX), &full_box(), &keys(), None).is_err());
 }
 
 /// The integral restricted to a sub-region only counts the part of the
@@ -123,12 +123,12 @@ fn test_integrale_terminaux_dbm() {
     let vrai = pool.intern(ANCHOR, Form::Terminal(true));
     let faux = pool.intern(ANCHOR, Form::Terminal(false));
     assert_eq!(
-        integrale_dbm_constante(&pool, vrai, &boite(), &keys(), None).expect("interned node"),
+        integrale_dbm_constante(&pool, vrai, &full_box(), &keys(), None).expect("interned node"),
         32,
         "⊤ returns the doubled area of the full box"
     );
     assert_eq!(
-        integrale_dbm_constante(&pool, faux, &boite(), &keys(), None).expect("interned node"),
+        integrale_dbm_constante(&pool, faux, &full_box(), &keys(), None).expect("interned node"),
         0,
         "⊥ returns 0"
     );
@@ -152,7 +152,7 @@ fn test_differentiel_cardinality_contre_measure() {
         .count() as u64;
     assert_eq!(cardinality, 12, "integer points of the band in [0,4)²");
     let measure =
-        integrale_dbm_constante(&pool, root, &boite(), &keys(), None).expect("interned node");
+        integrale_dbm_constante(&pool, root, &full_box(), &keys(), None).expect("interned node");
     assert_eq!(measure, 19);
     assert!(
         measure <= 2 * i128::from(cardinality),
@@ -167,7 +167,7 @@ fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
     let root = compiler_bande(&mut pool, ANCHOR);
     let collector = Collector::new();
-    let measure = integrale_dbm_constante(&pool, root, &boite(), &keys(), Some(&collector))
+    let measure = integrale_dbm_constante(&pool, root, &full_box(), &keys(), Some(&collector))
         .expect("interned node");
     assert_eq!(measure, 19);
     let events = collector.events();

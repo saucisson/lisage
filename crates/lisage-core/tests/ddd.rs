@@ -43,7 +43,7 @@ fn test_intersection_meet_canonique() {
 }
 
 #[test]
-fn test_coverage_boite_bounded() {
+fn test_coverage_box_bounded() {
     let keys = DbmKeys::new(SIZE_DOMAIN);
     let dessous = Dbm::new(2, &[(0, 1, 0)]);
     let dessus = Dbm::new(2, &[(1, 0, -1)]);
