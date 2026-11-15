@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 23: `forme`/`pile`/`largeur`/`charge`/`hauteur` renamed to `form`/`stack`/`width`/`workload`/`height`, wire key `charge` protected (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `forme`→`form`, `pile`→`stack`, `largeur`→`width`, `charge`→`workload`, `hauteur`→`height` (all cases, compounds included), workspace-wide (44 files), per glossary. Collision guards: `conforme`→`conforming` first (so `est_conforme` is not corrupted), `pile` renamed with a negative lookbehind `(?<!m)` so `compiler`/`compiled`/`decompiler` are untouched, and the bench JSON wire key `\"charge\"` restored in `lisage-bench/src/confrontation.rs` and its test pins.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns only English words containing them (compiler, performed) and the protected wire key.
+- **Judgement calls**: `charge` mapped to `workload` per the glossary bench entry.
 ## 2026-11-14 - M6-6 part 22: `rapport`/`erreur` renamed to `report`/`error` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
