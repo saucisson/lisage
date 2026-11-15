@@ -70,7 +70,7 @@ pub fn reduce<Key: Ord + Clone>(
 /// R-default **alone** (without R-collapse): the explicit arc δ(ℓ) leading
 /// to D_δ is removed, the form is never collapsed. Used to toggle
 /// R-collapse independently (didactic workshop, backlog § 9).
-pub fn reduce_sans_collapse<Key: Ord + Clone>(
+pub fn reduce_without_collapse<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,

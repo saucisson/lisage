@@ -34,7 +34,7 @@ impl AnchorComposee {
     }
 
     /// Builds an anchor with the given offset for a fragment.
-    pub fn avec(mut self, fragment: Fragment, decalage: i64) -> Self {
+    pub fn with(mut self, fragment: Fragment, decalage: i64) -> Self {
         self.decalages.insert(fragment, decalage);
         self
     }

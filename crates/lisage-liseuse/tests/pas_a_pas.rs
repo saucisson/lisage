@@ -115,7 +115,7 @@ fn test_runner_emet_memo_et_attr() {
     let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
 
     let collecteur = Collecteur::new();
-    let mut runner = Transducteur::avec_observer(
+    let mut runner = Transducteur::with_observer(
         Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
         MemoryPolicy::NoMemory,
         Arc::new(collecteur.clone()),
@@ -335,7 +335,7 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     let root = ensemble(&mut pool, anchor, &schema, &[0, 1]);
 
     let collecteur = Collecteur::new();
-    let mut runner = Transducteur::avec_observer(
+    let mut runner = Transducteur::with_observer(
         Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
         MemoryPolicy::NoMemory,
         Arc::new(collecteur.clone()),
@@ -368,8 +368,8 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
 
     let mut scrubber = Scrubber::new(evenements);
     scrubber.aller_a(scrubber.longueur());
-    let diff_vide = DiffTrace::default();
-    let svg = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_vide);
+    let diff_empty = DiffTrace::default();
+    let svg = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_empty);
     // Colored channels present (inherited blue, synthesized orange).
     let legende = legende_canaux();
     assert!(
@@ -398,7 +398,7 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     );
 
     // Determinism.
-    let svg2 = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_vide);
+    let svg2 = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_empty);
     assert_eq!(svg, svg2, "deterministic rendering");
 }
 

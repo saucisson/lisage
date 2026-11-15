@@ -225,8 +225,8 @@ fn test_saturate_statique_restreint_les_levels() {
     let anchor = Anchor(0);
 
     // Static policy excluding the root level 0.
-    let levels_sans_root: Vec<Level> = (1..schema.number_levels()).map(Level).collect();
-    let politique_statique = PolitiqueSaturation::Statique(levels_sans_root);
+    let levels_without_root: Vec<Level> = (1..schema.number_levels()).map(Level).collect();
+    let politique_statique = PolitiqueSaturation::Statique(levels_without_root);
     let mut pool_s = new_pool(&schema);
     let initial_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[0]);
     let singleton_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[2]);

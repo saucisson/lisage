@@ -54,7 +54,7 @@ impl Observer for RecordingObserver {
     }
 }
 
-fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserver>) {
+fn arena_with_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserver>) {
     let observer = std::sync::Arc::new(RecordingObserver::default());
     let copie = observer.clone();
     struct Pont(std::sync::Arc<RecordingObserver>);
@@ -71,7 +71,7 @@ fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserve
 
 #[test]
 fn test_r_share_table_unique() {
-    let (mut arena, _trace) = arena_avec_trace();
+    let (mut arena, _trace) = arena_with_trace();
     let anchor = Anchor(0);
     let first = arena.intern(anchor, Form::Terminal(true));
     let second = arena.intern(anchor, Form::Terminal(true));
@@ -81,7 +81,7 @@ fn test_r_share_table_unique() {
 
 #[test]
 fn test_formes_distinctes_nodes_distincts() {
-    let (mut arena, _trace) = arena_avec_trace();
+    let (mut arena, _trace) = arena_with_trace();
     let anchor = Anchor(0);
     let vrai_ = arena.intern(anchor, Form::Terminal(true));
     let faux = arena.intern(anchor, Form::Terminal(false));
@@ -91,7 +91,7 @@ fn test_formes_distinctes_nodes_distincts() {
 
 #[test]
 fn test_handles_unicite() {
-    let (mut arena, _trace) = arena_avec_trace();
+    let (mut arena, _trace) = arena_with_trace();
     let anchor = Anchor(3);
     let terminal = arena.terminal(anchor, true);
     let node = arena.intern(
@@ -110,7 +110,7 @@ fn test_handles_unicite() {
 
 #[test]
 fn test_resolve_erreur_typee() {
-    let (arena, _trace) = arena_avec_trace();
+    let (arena, _trace) = arena_with_trace();
     let result = arena.resolve(NodeId(99));
     assert_eq!(result, Err(lisage_core::PoolError::UnknownNode(NodeId(99))));
 }
@@ -182,7 +182,7 @@ fn test_normalisation_keys_avant_hachage() {
 
 #[test]
 fn test_events_trace_narration() {
-    let (mut arena, trace) = arena_avec_trace();
+    let (mut arena, trace) = arena_with_trace();
     let anchor = Anchor(0);
     let node = arena.intern(anchor, Form::Terminal(true));
     arena.intern(anchor, Form::Terminal(true));
@@ -209,7 +209,7 @@ fn test_events_trace_narration() {
 
 #[test]
 fn test_events_reduction_applied() {
-    let (mut arena, trace) = arena_avec_trace();
+    let (mut arena, trace) = arena_with_trace();
     let anchor = Anchor(0);
     let defaut = arena.terminal(anchor, false); // D_δ = NodeId(0)
     let other = arena.terminal(anchor, true);

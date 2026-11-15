@@ -12,14 +12,14 @@
 use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};
 
 /// Canonical empty interval: `bound_inf > bound_sup`, normalized to `(1, 0)`.
-pub const VIDE: Intervalle = Intervalle {
+pub const EMPTY: Intervalle = Intervalle {
     bound_inf: 1,
     bound_sup: 0,
 };
 
 /// Region key: closed interval `[bound_inf, bound_sup]` of points of a
 /// bounded domain. Every construction goes through [`Intervalle::new`],
-/// which normalizes the empty interval to [`VIDE`]: the derived equality is
+/// which normalizes the empty interval to [`EMPTY`]: the derived equality is
 /// then set equality, and hash-consing respects C1 relative to the region
 /// algebra.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
@@ -30,10 +30,10 @@ pub struct Intervalle {
 
 impl Intervalle {
     /// Closed interval `[bound_inf, bound_sup]`; if `bound_inf > bound_sup`,
-    /// the interval is empty and normalized to [`VIDE`].
+    /// the interval is empty and normalized to [`EMPTY`].
     pub fn new(bound_inf: u64, bound_sup: u64) -> Self {
         if bound_inf > bound_sup {
-            VIDE
+            EMPTY
         } else {
             Intervalle {
                 bound_inf,
@@ -58,7 +58,7 @@ impl Intervalle {
     }
 
     /// Is the interval empty?
-    pub fn est_vide(&self) -> bool {
+    pub fn est_empty(&self) -> bool {
         self.bound_inf > self.bound_sup
     }
 
@@ -66,7 +66,7 @@ impl Intervalle {
     /// `u64::MAX` for `Intervalle::new(0, u64::MAX)` (the public
     /// constructor accepts any pair of `u64`).
     pub fn size(&self) -> u64 {
-        if self.est_vide() {
+        if self.est_empty() {
             0
         } else {
             self.bound_sup
@@ -77,7 +77,7 @@ impl Intervalle {
 
     /// Does the point `v` belong to the interval?
     pub fn contains(&self, v: u64) -> bool {
-        !self.est_vide() && self.bound_inf <= v && v <= self.bound_sup
+        !self.est_empty() && self.bound_inf <= v && v <= self.bound_sup
     }
 }
 
@@ -113,7 +113,7 @@ impl KeyAlgebra for RegionKeys {
     }
 
     fn default(&self, _level: Level) -> Option<Self::Key> {
-        Some(VIDE)
+        Some(EMPTY)
     }
 }
 

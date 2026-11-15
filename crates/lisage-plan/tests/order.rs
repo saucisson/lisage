@@ -274,7 +274,7 @@ fn test_aval_runtime_order_valide_adopte() {
         phase: Phase::Value,
     };
     let pi_runtime = vec![presence_1, value_1, presence_0, value_0];
-    let (order, strategie) = Order::avec_aval_runtime(&keys, pi_runtime.clone());
+    let (order, strategie) = Order::with_aval_runtime(&keys, pi_runtime.clone());
     assert_eq!(strategie, StrategieAval::OrderRuntime);
     assert_eq!(order.sequence(), pi_runtime.as_slice());
 }
@@ -301,7 +301,7 @@ fn test_aval_runtime_contrainte_violee_repli_canonique() {
         phase: Phase::Value,
     };
     let pi_invalide = vec![value_0, presence_0, presence_1, value_1];
-    let (order, strategie) = Order::avec_aval_runtime(&keys, pi_invalide);
+    let (order, strategie) = Order::with_aval_runtime(&keys, pi_invalide);
     assert_eq!(strategie, StrategieAval::RepliCanonique);
     let canonique = Order::canonique(&keys);
     assert_eq!(order.sequence(), canonique.sequence());
@@ -313,7 +313,7 @@ fn test_aval_runtime_pas_une_permutation_repli_canonique() {
     // Runtime π with a duplicate / missing key: canonical fallback too.
     let domain = DomainAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let pi_invalide = vec![Atom(0), Atom(0), Atom(2)];
-    let (order, strategie) = Order::avec_aval_runtime(&domain, pi_invalide);
+    let (order, strategie) = Order::with_aval_runtime(&domain, pi_invalide);
     assert_eq!(strategie, StrategieAval::RepliCanonique);
     assert_eq!(order.sequence(), Order::canonique(&domain).sequence());
 }

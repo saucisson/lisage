@@ -12,7 +12,7 @@ use lisage_core::atelier::{
 };
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
+use lisage_core::region::{EMPTY, Intervalle, RegionController, RegionKeys};
 
 type PoolBdd = Arena<AtelierController<BddController>>;
 type PoolRegion = Arena<AtelierController<RegionController>>;
@@ -38,31 +38,31 @@ fn pool_region(reductions: Reductions) -> PoolRegion {
 #[test]
 fn test_collapse_commute() {
     // 1-variable BDD: {0 → ⊥, 1 → ⊥}.
-    let mut avec = pool_bdd(Reductions::TOUTES);
-    let faux = avec.intern(ANCHOR, Form::Terminal(false));
-    let root_avec = avec.intern(
+    let mut with = pool_bdd(Reductions::TOUTES);
+    let faux = with.intern(ANCHOR, Form::Terminal(false));
+    let root_with = with.intern(
         ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, faux), (1, faux)]),
         },
     );
-    assert_eq!(root_avec, faux, "R-collapse: the node reduces to ⊥");
-    let rapport = measure(&avec, root_avec, None).expect("interned node");
+    assert_eq!(root_with, faux, "R-collapse: the node reduces to ⊥");
+    let rapport = measure(&with, root_with, None).expect("interned node");
     assert_eq!(rapport.nodes_partages, 1);
     assert_eq!(rapport.chemins, 1);
 
-    let mut sans = pool_bdd(Reductions::sans_collapse());
-    let faux = sans.intern(ANCHOR, Form::Terminal(false));
-    let root_sans = sans.intern(
+    let mut without = pool_bdd(Reductions::without_collapse());
+    let faux = without.intern(ANCHOR, Form::Terminal(false));
+    let root_without = without.intern(
         ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: BTreeMap::from([(0, faux), (1, faux)]),
         },
     );
-    assert_ne!(root_sans, faux, "without R-collapse: the node is kept");
-    let rapport = measure(&sans, root_sans, None).expect("interned node");
+    assert_ne!(root_without, faux, "without R-collapse: the node is kept");
+    let rapport = measure(&without, root_without, None).expect("interned node");
     assert_eq!(rapport.nodes_partages, 2, "node + terminal ⊥");
     assert_eq!(rapport.chemins, 2, "two paths to ⊥");
 }
@@ -70,40 +70,40 @@ fn test_collapse_commute() {
 /// Commuted R-default: the explicit δ(ℓ) arc toward D_δ is absorbed or not.
 #[test]
 fn test_defaut_commute() {
-    // Region over domain [0, 3): {point 0 → ⊤, VIDE → ⊥}.
-    let mut avec = pool_region(Reductions::TOUTES);
-    let vrai = avec.intern(ANCHOR, Form::Terminal(true));
-    let faux = avec.intern(ANCHOR, Form::Terminal(false));
-    let root_avec = avec.intern(
+    // Region over domain [0, 3): {point 0 → ⊤, EMPTY → ⊥}.
+    let mut with = pool_region(Reductions::TOUTES);
+    let vrai = with.intern(ANCHOR, Form::Terminal(true));
+    let faux = with.intern(ANCHOR, Form::Terminal(false));
+    let root_with = with.intern(
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(Intervalle::point(0), vrai), (VIDE, faux)]),
+            arcs: BTreeMap::from([(Intervalle::point(0), vrai), (EMPTY, faux)]),
         },
     );
-    let Form::Node { arcs, .. } = avec.resolve(root_avec).expect("interned node") else {
+    let Form::Node { arcs, .. } = with.resolve(root_with).expect("interned node") else {
         panic!("the root is a node");
     };
-    assert_eq!(arcs.len(), 1, "R-default: the VIDE arc to ⊥ is absorbed");
-    let rapport = measure(&avec, root_avec, None).expect("interned node");
+    assert_eq!(arcs.len(), 1, "R-default: the EMPTY arc to ⊥ is absorbed");
+    let rapport = measure(&with, root_with, None).expect("interned node");
     assert_eq!(rapport.nodes_partages, 2, "node + ⊤");
     assert_eq!(rapport.chemins, 1);
 
-    let mut sans = pool_region(Reductions::sans_defaut());
-    let vrai = sans.intern(ANCHOR, Form::Terminal(true));
-    let faux = sans.intern(ANCHOR, Form::Terminal(false));
-    let root_sans = sans.intern(
+    let mut without = pool_region(Reductions::without_defaut());
+    let vrai = without.intern(ANCHOR, Form::Terminal(true));
+    let faux = without.intern(ANCHOR, Form::Terminal(false));
+    let root_without = without.intern(
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(Intervalle::point(0), vrai), (VIDE, faux)]),
+            arcs: BTreeMap::from([(Intervalle::point(0), vrai), (EMPTY, faux)]),
         },
     );
-    let Form::Node { arcs, .. } = sans.resolve(root_sans).expect("interned node") else {
+    let Form::Node { arcs, .. } = without.resolve(root_without).expect("interned node") else {
         panic!("the root is a node");
     };
-    assert_eq!(arcs.len(), 2, "without R-default: the VIDE arc is kept");
-    let rapport = measure(&sans, root_sans, None).expect("interned node");
+    assert_eq!(arcs.len(), 2, "without R-default: the EMPTY arc is kept");
+    let rapport = measure(&without, root_without, None).expect("interned node");
     assert_eq!(rapport.nodes_partages, 3, "node + ⊤ + ⊥");
     assert_eq!(rapport.chemins, 2);
 }
@@ -113,7 +113,7 @@ fn test_defaut_commute() {
 /// sub-paths are shared.
 #[test]
 fn test_chemins_contre_nodes() {
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let vrai = pool.intern(ANCHOR, Form::Terminal(true));
     let faux = pool.intern(ANCHOR, Form::Terminal(false));
     let n1 = pool.intern(
@@ -185,19 +185,19 @@ fn test_propriete_commutation_lcg() {
     }
     for _ in 0..NUMBER_CAS {
         let amorce = next();
-        let mut avec = pool_bdd(Reductions::TOUTES);
-        let root_avec = arbre(&mut avec, 3, amorce);
-        let mut sans = pool_bdd(Reductions::AUCUNE);
-        let root_sans = arbre(&mut sans, 3, amorce);
-        let rapport_avec = measure(&avec, root_avec, None).expect("interned node");
-        let rapport_sans = measure(&sans, root_sans, None).expect("interned node");
-        assert!(rapport_avec.chemins >= 1, "at least one path");
+        let mut with = pool_bdd(Reductions::TOUTES);
+        let root_with = arbre(&mut with, 3, amorce);
+        let mut without = pool_bdd(Reductions::AUCUNE);
+        let root_without = arbre(&mut without, 3, amorce);
+        let rapport_with = measure(&with, root_with, None).expect("interned node");
+        let rapport_without = measure(&without, root_without, None).expect("interned node");
+        assert!(rapport_with.chemins >= 1, "at least one path");
         assert!(
-            rapport_sans.nodes_partages >= rapport_avec.nodes_partages,
+            rapport_without.nodes_partages >= rapport_with.nodes_partages,
             "without reduction: nodes ≥ (same form)"
         );
         assert!(
-            rapport_sans.chemins >= rapport_avec.chemins,
+            rapport_without.chemins >= rapport_with.chemins,
             "without reduction: paths ≥ (same form)"
         );
     }
@@ -221,7 +221,7 @@ fn test_narration_measure() {
         }
     }
 
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let vrai = pool.intern(ANCHOR, Form::Terminal(true));
     let faux = pool.intern(ANCHOR, Form::Terminal(false));
     let n1 = pool.intern(
@@ -268,7 +268,7 @@ fn test_window_absolu_croit_relatif_constant() {
     const SIZE: u64 = 4;
     // 10 bases: absolute = root + 10 windows + ⊤ = 12 nodes; relative = 3.
     // (R-collapse commuted: an all-true window would otherwise collapse.)
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let rapport =
         comparer_encodages_window(&mut pool, ANCHOR, SIZE, 10, None).expect("interned nodes");
     assert_eq!(rapport.absolu.nodes_partages, 12);
@@ -281,7 +281,7 @@ fn test_window_absolu_croit_relatif_constant() {
     assert_eq!(rapport.relatif.size_depliee, 51);
 
     // 100 bases: the relative encoding stays at 3 nodes (constant), the absolute one grows to 102.
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let rapport =
         comparer_encodages_window(&mut pool, ANCHOR, SIZE, 100, None).expect("interned nodes");
     assert_eq!(
@@ -314,7 +314,7 @@ fn test_narration_comparaison_encodages() {
         }
     }
 
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
@@ -357,7 +357,7 @@ fn test_order_change_nodes_pas_chemins() {
     use lisage_core::atelier::{Order, comparer_orders};
 
     let table = table_ou_deux_paires();
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let rapport = comparer_orders(
         &mut pool,
         ANCHOR,
@@ -402,7 +402,7 @@ fn test_order_intercale_croissance_six_variables() {
             (bit(0) && bit(1)) || (bit(2) && bit(3)) || (bit(4) && bit(5))
         })
         .collect();
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let rapport = comparer_orders(
         &mut pool,
         ANCHOR,
@@ -438,7 +438,7 @@ fn test_narration_comparaison_orders() {
     }
 
     let table = table_ou_deux_paires();
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
@@ -504,7 +504,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
 
     const SIZE: u64 = 4;
     // (R-collapse commuted: an all-true window would otherwise collapse.)
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let rapport = comparer_anchors_window(
         &mut pool,
         ANCHOR,
@@ -607,7 +607,7 @@ fn test_narration_comparaison_anchors() {
         }
     }
 
-    let mut pool = pool_bdd(Reductions::sans_collapse());
+    let mut pool = pool_bdd(Reductions::without_collapse());
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };

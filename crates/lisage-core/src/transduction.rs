@@ -111,12 +111,12 @@ impl<T: Transduction> Transducteur<T> {
     /// New runner for the given transduction, empty memory (version 0),
     /// policy `NoMemory` (M1: no level memory), no observer.
     pub fn new(transduction: T) -> Self {
-        Self::avec_politique(transduction, MemoryPolicy::NoMemory)
+        Self::with_politique(transduction, MemoryPolicy::NoMemory)
     }
 
     /// Runner with a level-memory storage policy
     /// declared by the controller (M2-3, T3).
-    pub fn avec_politique(transduction: T, politique: MemoryPolicy) -> Self {
+    pub fn with_politique(transduction: T, politique: MemoryPolicy) -> Self {
         Transducteur {
             transduction,
             memo: HashMap::new(),
@@ -128,7 +128,7 @@ impl<T: Transduction> Transducteur<T> {
 
     /// Runner with trace observer (M2-6): emits `MemoHit`/`MemoMiss`
     /// and the `Attr` of the three channels during execution.
-    pub fn avec_observer(
+    pub fn with_observer(
         transduction: T,
         politique: MemoryPolicy,
         observer: Arc<dyn Observer>,
@@ -185,7 +185,7 @@ impl<T: Transduction> Transducteur<T> {
         POut: Pool<Key = u64, Payload = T::Out>,
     {
         let h = self.transduction.h0();
-        self.run_avec(pool_input, pool_output, anchor, node, h)
+        self.run_with(pool_input, pool_output, anchor, node, h)
     }
 
     /// Single-pool variant: reads and writes in the same pool (payload `Out`
@@ -202,10 +202,10 @@ impl<T: Transduction> Transducteur<T> {
         T: Transduction<Out = bool>,
     {
         let h = self.transduction.h0();
-        self.run_avec_same_pool(pool, anchor, node, h)
+        self.run_with_same_pool(pool, anchor, node, h)
     }
 
-    fn run_avec<PIn, POut>(
+    fn run_with<PIn, POut>(
         &mut self,
         pool_input: &PIn,
         pool_output: &mut POut,
@@ -242,7 +242,7 @@ impl<T: Transduction> Transducteur<T> {
                         value: format!("{h_arc:?}"),
                     });
                     let (cible_result, s_arc) =
-                        self.run_avec(pool_input, pool_output, anchor, cible, h_arc)?;
+                        self.run_with(pool_input, pool_output, anchor, cible, h_arc)?;
                     let level_cible = match pool_input.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
@@ -284,7 +284,7 @@ impl<T: Transduction> Transducteur<T> {
         Ok((result, s))
     }
 
-    fn run_avec_same_pool<P>(
+    fn run_with_same_pool<P>(
         &mut self,
         pool: &mut P,
         anchor: Anchor,
@@ -320,7 +320,7 @@ impl<T: Transduction> Transducteur<T> {
                         value: format!("{h_arc:?}"),
                     });
                     let (cible_result, s_arc) =
-                        self.run_avec_same_pool(pool, anchor, cible, h_arc)?;
+                        self.run_with_same_pool(pool, anchor, cible, h_arc)?;
                     let level_cible = match pool.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,

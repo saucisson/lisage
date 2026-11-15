@@ -55,10 +55,10 @@ fn test_commutation_ne_reduced_jamais() {
     assert!(nodes_aucune >= nodes_toutes);
     assert!(chemins_aucune >= chemins_toutes);
     assert!(size_aucune >= size_toutes);
-    let (nodes_sans_collapse, _, _) = measure_r_n(3, Reductions::sans_collapse());
-    assert!(nodes_sans_collapse >= nodes_toutes);
-    let (nodes_sans_defaut, _, _) = measure_r_n(3, Reductions::sans_defaut());
-    assert!(nodes_sans_defaut >= nodes_toutes);
+    let (nodes_without_collapse, _, _) = measure_r_n(3, Reductions::without_collapse());
+    assert!(nodes_without_collapse >= nodes_toutes);
+    let (nodes_without_defaut, _, _) = measure_r_n(3, Reductions::without_defaut());
+    assert!(nodes_without_defaut >= nodes_toutes);
 }
 
 /// The reference pool (without the workshop wrapper) gives the same diagram as

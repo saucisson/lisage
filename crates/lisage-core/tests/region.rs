@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
+use lisage_core::region::{EMPTY, Intervalle, RegionController, RegionKeys};
 
 type PoolRegion = Arena<RegionController>;
 
@@ -22,14 +22,14 @@ fn pool(domains: Vec<u64>) -> PoolRegion {
 }
 
 #[test]
-fn test_intervalle_vide_normalise() {
-    let vide = Intervalle::new(5, 3);
-    assert_eq!(vide, VIDE);
-    assert!(vide.est_vide());
-    assert_eq!(vide.size(), 0);
-    assert!(!vide.contains(3));
+fn test_intervalle_empty_normalise() {
+    let empty = Intervalle::new(5, 3);
+    assert_eq!(empty, EMPTY);
+    assert!(empty.est_empty());
+    assert_eq!(empty.size(), 0);
+    assert!(!empty.contains(3));
     let point = Intervalle::point(4);
-    assert!(!point.est_vide());
+    assert!(!point.est_empty());
     assert_eq!(point.size(), 1);
     assert!(point.contains(4));
     assert!(!point.contains(5));
@@ -40,9 +40,9 @@ fn test_intervalle_vide_normalise() {
 fn test_normal_form_canonique_et_idempotente() {
     let keys = RegionKeys::new(vec![8]);
     // Any writing of an empty interval has the same normal form.
-    assert_eq!(keys.normal_form(&Intervalle::new(7, 2)), VIDE);
-    assert_eq!(keys.normal_form(&VIDE), VIDE);
-    // Forme normale idempotente, et stable sur les non-vides.
+    assert_eq!(keys.normal_form(&Intervalle::new(7, 2)), EMPTY);
+    assert_eq!(keys.normal_form(&EMPTY), EMPTY);
+    // Forme normale idempotente, et stable sur les non-emptys.
     let intervalle = Intervalle::new(2, 5);
     assert_eq!(keys.normal_form(&keys.normal_form(&intervalle)), intervalle);
 }
@@ -53,8 +53,8 @@ fn test_cardinality_et_defaut_par_level() {
     assert_eq!(keys.cardinality(Level(0)), 8);
     assert_eq!(keys.cardinality(Level(1)), 3);
     // δ(ℓ) = the empty interval, the continuous "absent".
-    assert_eq!(keys.default(Level(0)), Some(VIDE));
-    assert_eq!(keys.default(Level(1)), Some(VIDE));
+    assert_eq!(keys.default(Level(0)), Some(EMPTY));
+    assert_eq!(keys.default(Level(1)), Some(EMPTY));
 }
 
 /// Relative C1: two writings of the same region share the same node in the
@@ -64,17 +64,17 @@ fn test_partage_pool_c1_relatif() {
     let mut pool = pool(vec![8]);
     let terminal = pool.intern(ANCHOR, Form::Terminal(true));
     let level = Level(0);
-    let forme_vide_a = Form::Node {
+    let forme_empty_a = Form::Node {
         level,
-        arcs: BTreeMap::from([(VIDE, terminal)]),
+        arcs: BTreeMap::from([(EMPTY, terminal)]),
     };
-    let forme_vide_b = Form::Node {
+    let forme_empty_b = Form::Node {
         level,
         arcs: BTreeMap::from([(Intervalle::new(9, 2), terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCHOR, forme_vide_a.clone()),
-        pool.intern(ANCHOR, forme_vide_b),
+        pool.intern(ANCHOR, forme_empty_a.clone()),
+        pool.intern(ANCHOR, forme_empty_b),
         "empty interval under two writings = same node"
     );
     let forme_point_a = Form::Node {
@@ -101,7 +101,7 @@ fn test_partage_pool_c1_relatif() {
     );
 }
 
-/// Property (LCG): the normal form is idempotent, and size/est_vide/
+/// Property (LCG): the normal form is idempotent, and size/est_empty/
 /// contains are consistent with the normalized representation.
 #[test]
 fn test_propriete_normalisation_lcg() {
@@ -123,12 +123,12 @@ fn test_propriete_normalisation_lcg() {
         let intervalle = Intervalle::new(inf, sup);
         let normalisee = keys.normal_form(&intervalle);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
-        assert_eq!(normalisee.est_vide(), inf > sup);
+        assert_eq!(normalisee.est_empty(), inf > sup);
         assert_eq!(normalisee.size(), if inf > sup { 0 } else { sup - inf + 1 });
         let point = next() % 16;
         assert_eq!(
             normalisee.contains(point),
-            !normalisee.est_vide() && inf <= point && point <= sup
+            !normalisee.est_empty() && inf <= point && point <= sup
         );
     }
 }
@@ -136,7 +136,7 @@ fn test_propriete_normalisation_lcg() {
 /// Differential against naive enumeration: a level-0 node whose arcs are
 /// disjoint intervals to `terminal(true)` (the set S) or `terminal(false)`
 /// (its complement) represents S; the point count of the DD's true arcs
-/// equals |S|. The `VIDE` arc to the default is removed by R-default.
+/// equals |S|. The `EMPTY` arc to the default is removed by R-default.
 #[test]
 fn test_differentiel_union_intervalles_contre_enumeration() {
     const SEED_LCG: u64 = 0x2545_F491_4F6C_DD1D;
@@ -173,7 +173,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
             point = fin + 1;
         }
         // The absent arc leads to the default D_δ = terminal(false): R-default.
-        arcs.insert(VIDE, faux_terminal);
+        arcs.insert(EMPTY, faux_terminal);
         let root = pool.intern(
             ANCHOR,
             Form::Node {
@@ -188,7 +188,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
             }
             Form::Node { arcs, .. } => {
                 assert!(
-                    !arcs.contains_key(&VIDE),
+                    !arcs.contains_key(&EMPTY),
                     "R-default removes the arc to the default"
                 );
                 arcs.iter()

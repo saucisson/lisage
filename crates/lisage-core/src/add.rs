@@ -160,14 +160,14 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
             if poids_b == 0 {
                 Ok(a)
             } else {
-                merge_avec_other(pool, keys, anchor, level, arcs, b)
+                merge_with_other(pool, keys, anchor, level, arcs, b)
             }
         }
         (Form::Terminal(poids_a), Form::Node { level, arcs }) => {
             if poids_a == 0 {
                 Ok(b)
             } else {
-                merge_avec_other(pool, keys, anchor, level, arcs, a)
+                merge_with_other(pool, keys, anchor, level, arcs, a)
             }
         }
         (
@@ -201,9 +201,9 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
                     },
                 ))
             } else if level_a < level_b {
-                merge_avec_other(pool, keys, anchor, level_a, arcs_a, b)
+                merge_with_other(pool, keys, anchor, level_a, arcs_a, b)
             } else {
-                merge_avec_other(pool, keys, anchor, level_b, arcs_b, a)
+                merge_with_other(pool, keys, anchor, level_b, arcs_b, a)
             }
         }
     }
@@ -213,7 +213,7 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
 /// of weight > 0, or a deeper node): the path of `other` goes through the
 /// default arc `δ(level)` if the level has one, otherwise through all the
 /// values of the level.
-fn merge_avec_other<P: Pool<Key = u64, Payload = u64>>(
+fn merge_with_other<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     keys: &SchemaKeys,
     anchor: Anchor,

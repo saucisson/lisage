@@ -250,21 +250,21 @@ fn test_serialisation_ligne_epinglee() {
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\"encodage\":\"relatif\",\
 \"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
     assert_eq!(serialiser_ligne(&measure), expected);
-    let sans_encodage = MeasureConfrontation {
+    let without_encodage = MeasureConfrontation {
         encodage: None,
         ..measure
     };
-    let expected_sans = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"window\",\
+    let expected_without = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"window\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\
 \"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
-    assert_eq!(serialiser_ligne(&sans_encodage), expected_sans);
+    assert_eq!(serialiser_ligne(&without_encodage), expected_without);
 }
 
 /// The harness's extended-state generation (same algorithm as
 /// the Python orchestrator) covers the golden-thread pins: |R_n| for
 /// n = 3..7, each state with 2n values in {0,1,2}.
 #[test]
-fn test_etats_etendus_coherents_avec_fil_rouge() {
+fn test_etats_etendus_coherents_with_fil_rouge() {
     for &(number, expected) in R_EXPECTEDS {
         let etats = etats_etendus(number as usize);
         assert_eq!(etats.len() as u64, expected, "n={number}: pinned |R_n|");

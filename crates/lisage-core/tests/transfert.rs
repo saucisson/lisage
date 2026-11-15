@@ -87,7 +87,7 @@ fn test_transfert_a_vers_b_non_adjacent() {
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 0), (2, 1)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
+    let mut runner = Transducteur::with_politique(transfert, MemoryPolicy::PerLevel);
     let (result, _) = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
     let expected = BTreeMap::from([(0, 1), (1, 1), (2, 1)]);
@@ -100,14 +100,14 @@ fn test_transfert_a_vers_b_non_adjacent() {
 
 /// M2-5: without a unit to transfer (m(a) = 0), the map is unchanged.
 #[test]
-fn test_transfert_sans_unite() {
+fn test_transfert_without_unite() {
     let schema = schema_map();
     let anchor = Anchor(0);
     let mut pool = new_pool(&schema);
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
+    let mut runner = Transducteur::with_politique(transfert, MemoryPolicy::PerLevel);
     let (result, _) = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
     assert_eq!(result, initial, "m(a) = 0: no transfer");
@@ -125,7 +125,7 @@ fn test_transfert_memory_et_largeur() {
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
     assert_eq!(transfert.largeur(), LARGEUR_TRANSFERT);
-    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
+    let mut runner = Transducteur::with_politique(transfert, MemoryPolicy::PerLevel);
     let _ = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
     // The decrement was produced: one memory entry, version bumped (L1).
@@ -145,7 +145,7 @@ fn test_transfert_destination_hors_domain() {
     let initial = compiler_map(&mut pool, anchor, &schema, &[(0, 2), (1, 3)]);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
+    let mut runner = Transducteur::with_politique(transfert, MemoryPolicy::PerLevel);
     let (result, _) = runner.run_same_pool(&mut pool, anchor, initial).unwrap();
 
     let expected = BTreeMap::from([(0, 1), (1, 3)]);
@@ -213,7 +213,7 @@ fn test_transfert_collision_source_union() {
     assert_eq!(cardinality(&pool, &schema, famille), 2);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
+    let mut runner = Transducteur::with_politique(transfert, MemoryPolicy::PerLevel);
     let (result, _) = runner.run_same_pool(&mut pool, anchor, famille).unwrap();
     assert_eq!(
         cardinality(&pool, &schema, result),
@@ -237,7 +237,7 @@ fn test_transfert_collision_destination_union() {
     assert_eq!(cardinality(&pool, &schema, famille), 2);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
+    let mut runner = Transducteur::with_politique(transfert, MemoryPolicy::PerLevel);
     let (result, _) = runner.run_same_pool(&mut pool, anchor, famille).unwrap();
     assert_eq!(
         cardinality(&pool, &schema, result),
@@ -262,7 +262,7 @@ fn test_transfert_destination_absente_dans_famille() {
     assert_eq!(cardinality(&pool, &schema, famille), 2);
 
     let transfert = TransfertNonLocal::new(&schema, 0, 1);
-    let mut runner = Transducteur::avec_politique(transfert, MemoryPolicy::PerLevel);
+    let mut runner = Transducteur::with_politique(transfert, MemoryPolicy::PerLevel);
     let (result, _) = runner.run_same_pool(&mut pool, anchor, famille).unwrap();
 
     let expected = compiler_map(&mut pool, anchor, &schema, &[(0, 0), (1, 1), (2, 2)]);

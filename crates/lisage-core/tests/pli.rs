@@ -86,16 +86,16 @@ fn test_count_ensemble_maps() {
 /// Empty set: the fold is zero. Full set (all maps): the count is the
 /// product of the cardinalities (every level collapsed).
 #[test]
-fn test_count_ensemble_vide_et_plein() {
+fn test_count_ensemble_empty_et_plein() {
     let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
 
-    let vide = BTreeSet::new();
-    let root_vide = compiler_ensemble(&mut input, anchor, &schema, &vide);
+    let empty = BTreeSet::new();
+    let root_empty = compiler_ensemble(&mut input, anchor, &schema, &empty);
     assert_eq!(
-        count(&input, &mut output, anchor, &schema, root_vide).unwrap(),
+        count(&input, &mut output, anchor, &schema, root_empty).unwrap(),
         0
     );
 
@@ -110,20 +110,20 @@ fn test_count_ensemble_vide_et_plein() {
 
 /// Fold over `(Bool, ∨, ∧)`: "the set is non-empty" (∃-summary).
 #[test]
-fn test_pli_boolou_non_vide() {
+fn test_pli_boolou_non_empty() {
     let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
     let anchor = Anchor(0);
 
     let mut runner = Transducteur::new(Pli::<BoolOu>::new(schema.clone()));
-    let vide = BTreeSet::new();
-    let root_vide = compiler_ensemble(&mut input, anchor, &schema, &vide);
-    let (_, s_vide) = runner.run(&input, &mut output, anchor, root_vide).unwrap();
-    assert_eq!(s_vide, BoolOu(false), "empty set ⇒ false");
+    let empty = BTreeSet::new();
+    let root_empty = compiler_ensemble(&mut input, anchor, &schema, &empty);
+    let (_, s_empty) = runner.run(&input, &mut output, anchor, root_empty).unwrap();
+    assert_eq!(s_empty, BoolOu(false), "empty set ⇒ false");
 
-    let non_vide = BTreeSet::from([map_de(&[(0, 1)])]);
-    let root = compiler_ensemble(&mut input, anchor, &schema, &non_vide);
+    let non_empty = BTreeSet::from([map_de(&[(0, 1)])]);
+    let root = compiler_ensemble(&mut input, anchor, &schema, &non_empty);
     let (_, s) = runner.run(&input, &mut output, anchor, root).unwrap();
     assert_eq!(s, BoolOu(true), "non-empty set ⇒ true");
 }
@@ -139,7 +139,7 @@ fn test_union_merge_construction_bool() {
     let m0 = compiler(&mut input, anchor, &schema, &map_de(&[(0, 0)])).unwrap();
     let m1 = compiler(&mut input, anchor, &schema, &map_de(&[(0, 1)])).unwrap();
     let faux = input.intern(anchor, Form::Terminal(false));
-    let vide = compiler(&mut input, anchor, &schema, &map_de(&[])).unwrap();
+    let empty = compiler(&mut input, anchor, &schema, &map_de(&[])).unwrap();
 
     assert_eq!(
         union(&mut input, &keys, anchor, m0, m0).unwrap(),
@@ -152,7 +152,7 @@ fn test_union_merge_construction_bool() {
         "⊥ neutral"
     );
     let les_deux = union(&mut input, &keys, anchor, m0, m1).unwrap();
-    let les_trois = union(&mut input, &keys, anchor, les_deux, vide).unwrap();
+    let les_trois = union(&mut input, &keys, anchor, les_deux, empty).unwrap();
     let mut output = pool(&schema);
     assert_eq!(
         count(&input, &mut output, anchor, &schema, les_deux).unwrap(),

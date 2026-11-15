@@ -117,18 +117,18 @@ pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
 
 /// Renders the sub-diagram reachable from `root` as a **standalone
 /// publication SVG**: white background, serif title, diagram in the given
-/// theme, and auto-generated channel legend if `avec_legende`.
+/// theme, and auto-generated channel legend if `with_legende`.
 pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     root: NodeId,
     titre: &str,
     theme: &Theme,
-    avec_legende: bool,
+    with_legende: bool,
 ) -> String {
     let (placement, number_levels) = placer(pool, root);
     let largeur_diagramme =
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_LARGEUR;
-    let largeur_legende = if avec_legende { LARGEUR_LEGENDE } else { 0 };
+    let largeur_legende = if with_legende { LARGEUR_LEGENDE } else { 0 };
     let largeur = largeur_diagramme + largeur_legende;
     let hauteur_legende = LEGENDE_CANAUX.len() as u32 * HAUTEUR_LEGENDE;
     let hauteur = (MARGE_HAUT + (number_levels + 1) * HAUTEUR_LEVEL + MARGE_BAS)
@@ -148,7 +148,7 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
         echapper_xml(titre)
     ));
     svg.push_str(&dessiner_corps(pool, root, &placement, &theme.couleurs()));
-    if avec_legende {
+    if with_legende {
         svg.push_str(&rendre_legende_svg(
             theme,
             largeur_diagramme + MARGE_LEGENDE,

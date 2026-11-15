@@ -259,7 +259,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
         (Form::Node { level, arcs }, Form::Terminal(pb)) => {
             if pb {
                 let vrai = pool.intern(anchor, Form::Terminal(true));
-                union_avec_other(pool, keys, anchor, level, arcs, vrai)
+                union_with_other(pool, keys, anchor, level, arcs, vrai)
             } else {
                 Ok(a)
             }
@@ -267,7 +267,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
         (Form::Terminal(pa), Form::Node { level, arcs }) => {
             if pa {
                 let vrai = pool.intern(anchor, Form::Terminal(true));
-                union_avec_other(pool, keys, anchor, level, arcs, vrai)
+                union_with_other(pool, keys, anchor, level, arcs, vrai)
             } else {
                 Ok(b)
             }
@@ -304,9 +304,9 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
                 ))
             } else if level_a < level_b {
                 // Node b is the continuation of a's default arc.
-                union_avec_other(pool, keys, anchor, level_a, arcs_a, b)
+                union_with_other(pool, keys, anchor, level_a, arcs_a, b)
             } else {
-                union_avec_other(pool, keys, anchor, level_b, arcs_b, a)
+                union_with_other(pool, keys, anchor, level_b, arcs_b, a)
             }
         }
     }
@@ -316,7 +316,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
 /// `⊤`, or a deeper node): the path of `other` goes through the default arc
 /// `δ(level)` if the level has one (absent arcs mean δ); otherwise (value
 /// level) it goes through **all** values of the level, explicit or not.
-fn union_avec_other<P: Pool<Key = u64, Payload = bool>>(
+fn union_with_other<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     keys: &SchemaKeys,
     anchor: Anchor,

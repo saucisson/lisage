@@ -6,7 +6,7 @@
 //! `confrontation` binary serializes it as one JSON line on stdout; the
 //! orchestrator `python -m scripts bench-confrontation` runs the repetitions
 //! (a fresh process per measurement: the peak RSS of the whole process does
-//! not divide into in-process repetitions) and aggregates.
+//! not diempty into in-process repetitions) and aggregates.
 //!
 //! The same workloads are implemented at each witness (CUDD/Sylvan for
 //! Boolean, libDDD for the Paris-school DDDs, Meddly for MDDs)
@@ -575,7 +575,7 @@ fn charge_window(
     let mut pool = Arena::new(
         AtelierController::new(
             BddController::new(VARIABLES_BDD_WINDOW),
-            Reductions::sans_collapse(),
+            Reductions::without_collapse(),
         ),
         Box::new(NoOpObserver),
     );

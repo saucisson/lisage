@@ -52,8 +52,8 @@ fn test_effet_memory_appliquer() {
     assert_eq!(memory.version(), 1);
     assert_eq!(memory.lire(NodeId(3), Level(1)), Some(&7));
 
-    let effet_vide: EffetMemory<u64> = EffetMemory::new();
-    effet_vide.apply(&mut memory);
+    let effet_empty: EffetMemory<u64> = EffetMemory::new();
+    effet_empty.apply(&mut memory);
     assert_eq!(memory.version(), 1, "empty effect: no bump");
 }
 
@@ -122,7 +122,7 @@ impl Transduction for EcritMemory {
 /// M2-3: a memory transduction really writes into the level memory via the
 /// effect produced by φ_out, and the version is bumped (L1).
 #[test]
-fn test_transduction_avec_memory_ecrit() {
+fn test_transduction_with_memory_ecrit() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
@@ -145,7 +145,7 @@ fn test_transduction_avec_memory_ecrit() {
 
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     let mut runner =
-        Transducteur::avec_politique(EcritMemory { lus: lus.clone() }, MemoryPolicy::PerLevel);
+        Transducteur::with_politique(EcritMemory { lus: lus.clone() }, MemoryPolicy::PerLevel);
     assert_eq!(runner.version_memory(), 0, "empty memory at start");
     let (result, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(

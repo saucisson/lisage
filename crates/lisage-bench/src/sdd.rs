@@ -25,7 +25,7 @@ pub enum ErreurSdd {
     /// Invalid vtree (duplicated variable).
     Vtree(ErreurVtree),
     /// Vtree with no variable at all.
-    SansVariable,
+    WithoutVariable,
     /// Error compiling a projection against its schema.
     Schema(SchemaError),
     /// Core error (union, pli) during the construction.
@@ -36,7 +36,7 @@ impl std::fmt::Display for ErreurSdd {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ErreurSdd::Vtree(erreur) => write!(formatter, "invalid vtree: {erreur}"),
-            ErreurSdd::SansVariable => write!(formatter, "the vtree has no variable"),
+            ErreurSdd::WithoutVariable => write!(formatter, "the vtree has no variable"),
             ErreurSdd::Schema(erreur) => write!(formatter, "schema error: {erreur}"),
             ErreurSdd::Core(erreur) => write!(formatter, "core error: {erreur}"),
         }
@@ -49,7 +49,7 @@ impl std::error::Error for ErreurSdd {
             ErreurSdd::Vtree(erreur) => Some(erreur),
             ErreurSdd::Schema(erreur) => Some(erreur),
             ErreurSdd::Core(erreur) => Some(erreur),
-            ErreurSdd::SansVariable => None,
+            ErreurSdd::WithoutVariable => None,
         }
     }
 }
@@ -117,7 +117,7 @@ fn installer_level(
 ) -> Result<LevelSdd, ErreurSdd> {
     let variables = vtree.order_plat();
     if variables.is_empty() {
-        return Err(ErreurSdd::SansVariable);
+        return Err(ErreurSdd::WithoutVariable);
     }
     let anchor = Anchor(*counter_anchors);
     *counter_anchors += 1;

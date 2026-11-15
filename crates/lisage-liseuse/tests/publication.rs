@@ -66,8 +66,8 @@ fn test_legende_auto_depuis_legende_des_canaux() {
         assert!(svg.contains(label));
     }
     // Without legend: no channel swatch.
-    let svg_sans = rendre_svg_publication(&pool, root, "fig", &theme, false);
-    assert!(!svg_sans.contains("inherited (φ_disp)"));
+    let svg_without = rendre_svg_publication(&pool, root, "fig", &theme, false);
+    assert!(!svg_without.contains("inherited (φ_disp)"));
 }
 
 /// The publication rendering is deterministic (two identical calls).
@@ -82,7 +82,7 @@ fn test_svg_publication_deterministe() {
 
 /// The PGF is a standalone TikZ document: diagram nodes and arcs, title.
 #[test]
-fn test_pgf_autonome_avec_nodes_et_arcs() {
+fn test_pgf_autonome_with_nodes_et_arcs() {
     let (pool, root) = diagramme_test();
     let pgf = rendre_pgf(&pool, root, "figure A");
     assert!(pgf.contains("\\documentclass[tikz,border=5pt]{standalone}"));

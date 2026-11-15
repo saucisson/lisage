@@ -217,12 +217,12 @@ where
         // (T3, M2-5) — PerLevel policy. The memory lives for one pass:
         // the runner (and its memory) is recreated at each iteration.
         let mut runner = match &params.observer {
-            Some(observer) => Transducteur::avec_observer(
+            Some(observer) => Transducteur::with_observer(
                 etape,
                 lisage_algebra::interface::MemoryPolicy::PerLevel,
                 Arc::clone(observer),
             ),
-            None => Transducteur::avec_politique(
+            None => Transducteur::with_politique(
                 etape,
                 lisage_algebra::interface::MemoryPolicy::PerLevel,
             ),
