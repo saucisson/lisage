@@ -182,24 +182,24 @@ impl Oracle {
 
     /// Differential guardrail (C4): compares the prediction to the actual
     /// measurement. Conforming if the measurement fits in [predicted/2, 2 × predicted].
-    pub fn guardrail(predit: u64, measure: u64) -> VerdictGardeFou {
-        VerdictGardeFou::new(predit, measure)
+    pub fn guardrail(predit: u64, measure: u64) -> VerdictGuardrail {
+        VerdictGuardrail::new(predit, measure)
     }
 }
 
 /// Verdict of the differential guardrail: prediction against measurement.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct VerdictGardeFou {
+pub struct VerdictGuardrail {
     /// Cost predicted by the model.
     pub predit: u64,
     /// Cost actually measured.
     pub measure: u64,
 }
 
-impl VerdictGardeFou {
+impl VerdictGuardrail {
     /// Verdict between a prediction and a measurement.
     pub fn new(predit: u64, measure: u64) -> Self {
-        VerdictGardeFou { predit, measure }
+        VerdictGuardrail { predit, measure }
     }
 
     /// Ratio measure/predicted in exact arithmetic. By convention of
