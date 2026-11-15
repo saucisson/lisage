@@ -94,7 +94,7 @@ fn test_existe_predicat_exemple_spec() {
 /// `filter(p)`: guard, the output diagram is the filtered set (canonical:
 /// same set ⇒ same node, C1).
 #[test]
-fn test_filtre_garde() {
+fn test_filtre_guard() {
     let schema = schema_map();
     let mut input = pool(&schema);
     let mut output = pool(&schema);

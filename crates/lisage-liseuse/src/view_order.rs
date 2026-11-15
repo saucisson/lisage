@@ -66,8 +66,8 @@ const DECALAGE_LABEL: u32 = 48;
 /// Vertical offset of the conversion label below the arrow's middle.
 const DECALAGE_LABEL_Y: u32 = 4;
 /// Arrow-marker geometry (size, refX, refY).
-const MARQUEUR_SIZE: u32 = 8;
-const MARQUEUR_REF_Y: u32 = 4;
+const MARKER_SIZE: u32 = 8;
+const MARKER_REF_Y: u32 = 4;
 /// Number of controller-card fields (C = eight fields).
 const NUMBER_CHAMPS_FICHE: u32 = 8;
 /// Height of a level box in pixels.
@@ -307,7 +307,7 @@ pub fn rendre_svg_view_order(royaumes: &[RoyaumeView], conversions: &[Conversion
     let width = WIDTH_VIEW - 2 * MARGE;
     let (height, positions) = layout(royaumes, conversions.len());
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{WIDTH_VIEW}\" height=\"{height}\" viewBox=\"0 0 {WIDTH_VIEW} {height}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARQUEUR_SIZE}\" markerHeight=\"{MARQUEUR_SIZE}\" refX=\"{MARQUEUR_SIZE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_SIZE},{MARQUEUR_REF_Y} L0,{MARQUEUR_SIZE} z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARQUEUR_SIZE}\" markerHeight=\"{MARQUEUR_SIZE}\" refX=\"{MARQUEUR_SIZE}\" refY=\"{MARQUEUR_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARQUEUR_SIZE},{MARQUEUR_REF_Y} L0,{MARQUEUR_SIZE} z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{WIDTH_VIEW}\" height=\"{height}\" viewBox=\"0 0 {WIDTH_VIEW} {height}\">\n<defs><marker id=\"fleche\" markerWidth=\"{MARKER_SIZE}\" markerHeight=\"{MARKER_SIZE}\" refX=\"{MARKER_SIZE}\" refY=\"{MARKER_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARKER_SIZE},{MARKER_REF_Y} L0,{MARKER_SIZE} z\" fill=\"{COULEUR_PISTE}\"/></marker><marker id=\"fleche-conversion\" markerWidth=\"{MARKER_SIZE}\" markerHeight=\"{MARKER_SIZE}\" refX=\"{MARKER_SIZE}\" refY=\"{MARKER_REF_Y}\" orient=\"auto\"><path d=\"M0,0 L{MARKER_SIZE},{MARKER_REF_Y} L0,{MARKER_SIZE} z\" fill=\"{COULEUR_CONVERSION}\"/></marker></defs>\n"
     );
     svg.push_str(&format!(
         "<text x=\"{MARGE}\" y=\"{DECALAGE_TITRE_FICHE}\" font-family=\"serif\" font-size=\"{SIZE_TITRE}\" fill=\"{COULEUR_TEXTE}\">order view — {} kingdom(s), {} conversion(s)</text>\n",

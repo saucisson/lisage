@@ -117,9 +117,9 @@ impl TransfertNonLocal {
     ) {
         match remap.remove(&key) {
             Some((ancien, _)) => {
-                let fusion = union(pool, keys, anchor, ancien, n)
+                let merge = union(pool, keys, anchor, ancien, n)
                     .expect("union of sub-arcs of the same pool");
-                remap.insert(key, (fusion, s));
+                remap.insert(key, (merge, s));
             }
             None => {
                 remap.insert(key, (n, s));
@@ -189,9 +189,9 @@ impl TransfertNonLocal {
             // Collision with an existing PRESENT arc (family): union.
             match arcs.remove(&PRESENT) {
                 Some((ancien, _)) => {
-                    let fusion = union(pool, &self.keys, anchor, ancien, node_value)
+                    let merge = union(pool, &self.keys, anchor, ancien, node_value)
                         .expect("union of sub-arcs of the same pool");
-                    arcs.insert(PRESENT, (fusion, ()));
+                    arcs.insert(PRESENT, (merge, ()));
                 }
                 None => {
                     arcs.insert(PRESENT, (node_value, ()));

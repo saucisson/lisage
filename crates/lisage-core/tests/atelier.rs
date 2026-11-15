@@ -159,7 +159,7 @@ fn test_propriete_commutation_lcg() {
     };
     // Builds a random binary tree of depth ≤ 3 in the pool, with its own LCG
     // re-seeded at `amorce` (same form guaranteed).
-    fn arbre(pool: &mut PoolBdd, profondeur: u32, amorce: u64) -> NodeId {
+    fn arbre(pool: &mut PoolBdd, depth: u32, amorce: u64) -> NodeId {
         let mut seed = amorce;
         fn next(seed: &mut u64) -> u64 {
             *seed = seed
@@ -167,21 +167,21 @@ fn test_propriete_commutation_lcg() {
                 .wrapping_add(INCREMENT_LCG);
             *seed
         }
-        fn construit(pool: &mut PoolBdd, profondeur: u32, seed: &mut u64) -> NodeId {
-            if profondeur == 0 || !next(seed).is_multiple_of(3) {
+        fn construit(pool: &mut PoolBdd, depth: u32, seed: &mut u64) -> NodeId {
+            if depth == 0 || !next(seed).is_multiple_of(3) {
                 return pool.intern(ANCHOR, Form::Terminal(next(seed) % 2 == 1));
             }
-            let gauche = construit(pool, profondeur - 1, seed);
-            let droite = construit(pool, profondeur - 1, seed);
+            let gauche = construit(pool, depth - 1, seed);
+            let droite = construit(pool, depth - 1, seed);
             pool.intern(
                 ANCHOR,
                 Form::Node {
-                    level: Level(profondeur),
+                    level: Level(depth),
                     arcs: BTreeMap::from([(0, gauche), (1, droite)]),
                 },
             )
         }
-        construit(pool, profondeur, &mut seed)
+        construit(pool, depth, &mut seed)
     }
     for _ in 0..NUMBER_CAS {
         let amorce = next();

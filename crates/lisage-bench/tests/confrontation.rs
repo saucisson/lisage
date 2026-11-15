@@ -92,7 +92,7 @@ static COUNTER_FICHIERS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 fn ecrire_fichier_etats(number: u64) -> PathBuf {
     let numero = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let path = std::env::temp_dir().join(format!(
-        "confrontation-test-philosophes-{number}-{}-{numero}.txt",
+        "confrontation-test-philosophers-{number}-{}-{numero}.txt",
         std::process::id()
     ));
     let etats = etats_etendus(number as usize);
@@ -136,14 +136,14 @@ fn test_alea_lcg_bounds_refusees() {
     }
 }
 
-/// `philosophes` workload: |R_n| pinned over n = 3..7, nodes of R_3 pinned
+/// `philosophers` workload: |R_n| pinned over n = 3..7, nodes of R_3 pinned
 /// (33), cardinality via pli == number of states in the file.
 #[test]
-fn test_philosophes_fil_rouge_epingle() {
+fn test_philosophers_fil_rouge_epingle() {
     for &(number, expected) in R_EXPECTEDS {
         let path = ecrire_fichier_etats(number);
         let parametres = vec![number.to_string(), path.display().to_string()];
-        let measure = executer(&Workload::Philosophes, &parametres, None).expect("workload run");
+        let measure = executer(&Workload::Philosophers, &parametres, None).expect("workload run");
         assert_eq!(measure.verifie, expected, "n={number}: pinned |R_n|");
         assert_eq!(measure.variante, Variante::Mdd);
         if number == 3 {
@@ -153,20 +153,20 @@ fn test_philosophes_fil_rouge_epingle() {
     }
 }
 
-/// `philosophes` workload: upper bound on n (anti-overflow guard
+/// `philosophers` workload: upper bound on n (anti-overflow guard
 /// of the interleaved schema) — typed error, no panic.
 #[test]
-fn test_philosophes_bound_refusee() {
+fn test_philosophers_bound_refusee() {
     let path = ecrire_fichier_etats(3);
     let parametres = vec!["33".to_string(), path.display().to_string()];
-    let error = executer(&Workload::Philosophes, &parametres, None).expect_err("bound rejected");
+    let error = executer(&Workload::Philosophers, &parametres, None).expect_err("bound rejected");
     assert!(matches!(
         error,
-        ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "philosophes"
+        ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "philosophers"
     ));
 }
 
-/// `philosophes` workload: invalid file (empty, non-conforming first line,
+/// `philosophers` workload: invalid file (empty, non-conforming first line,
 /// inconsistent state length, out-of-domain value) → typed error,
 /// never swallowed.
 #[test]
@@ -186,7 +186,7 @@ fn test_philosophers_inputs_invalid() {
         ));
         std::fs::write(&path, contenu).expect("invalid file written");
         let parametres = vec!["3".to_string(), path.display().to_string()];
-        let error = executer(&Workload::Philosophes, &parametres, None);
+        let error = executer(&Workload::Philosophers, &parametres, None);
         assert!(error.is_err(), "invalid input rejected: {contenu:?}");
         assert!(
             matches!(error, Err(ErrorConfrontation::InvalidInput { .. })),
@@ -306,16 +306,16 @@ fn test_narration_workload_epinglee() {
         "workload=alea-lcg nodes={} check={}",
         measure.nodes, SATISFACTIONS_LCG_N4
     );
-    // The three workloads emit their summary: philosophes and
+    // The three workloads emit their summary: philosophers and
     // window are pinned here too (a regression that would lose them
     // would fail this test).
     let path = ecrire_fichier_etats(3);
     let measure_philo = executer(
-        &Workload::Philosophes,
+        &Workload::Philosophers,
         &["3".to_string(), path.display().to_string()],
         Some(&collecteur),
     )
-    .expect("philosophes workload run");
+    .expect("philosophers workload run");
     let measure_window = executer(
         &Workload::Window,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
@@ -325,7 +325,7 @@ fn test_narration_workload_epinglee() {
     let expected_list = [
         expected,
         format!(
-            "workload=philosophes nodes={} check={}",
+            "workload=philosophers nodes={} check={}",
             measure_philo.nodes, measure_philo.verifie
         ),
         format!(

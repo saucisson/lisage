@@ -72,7 +72,7 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
     anchor: Anchor,
     schema: &Schema,
     value: &Value,
-    poids: u64,
+    weight: u64,
 ) -> Result<NodeId, SchemaError> {
     let Schema::Map(list_keys, domain) = schema else {
         return Err(SchemaError::TypeMismatch {
@@ -100,7 +100,9 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
             return Err(SchemaError::HorsDomain(*atome_value));
         }
     }
-    Ok(compiler_map_pondere(pool, anchor, list_keys, map, 0, poids))
+    Ok(compiler_map_pondere(
+        pool, anchor, list_keys, map, 0, weight,
+    ))
 }
 
 /// Recursive compilation of a map into a weighted presence/value chain.
@@ -110,12 +112,12 @@ fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
     list_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
     index: usize,
-    poids: u64,
+    weight: u64,
 ) -> NodeId {
     if index == list_keys.len() {
-        return pool.intern(anchor, Form::Terminal(poids));
+        return pool.intern(anchor, Form::Terminal(weight));
     }
-    let suite = compiler_map_pondere(pool, anchor, list_keys, map, index + 1, poids);
+    let suite = compiler_map_pondere(pool, anchor, list_keys, map, index + 1, weight);
     let key = Value::Atom(list_keys[index]);
     let arcs = match map.get(&key) {
         Some(Value::Atom(value)) => {
@@ -151,18 +153,18 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
 ) -> Result<NodeId, CoreError> {
     let (form_a, form_b) = (pool.resolve(a)?.clone(), pool.resolve(b)?.clone());
     match (form_a, form_b) {
-        (Form::Terminal(poids_a), Form::Terminal(poids_b)) => {
-            Ok(pool.intern(anchor, Form::Terminal(poids_a + poids_b)))
+        (Form::Terminal(weight_a), Form::Terminal(weight_b)) => {
+            Ok(pool.intern(anchor, Form::Terminal(weight_a + weight_b)))
         }
-        (Form::Node { level, arcs }, Form::Terminal(poids_b)) => {
-            if poids_b == 0 {
+        (Form::Node { level, arcs }, Form::Terminal(weight_b)) => {
+            if weight_b == 0 {
                 Ok(a)
             } else {
                 merge_with_other(pool, keys, anchor, level, arcs, b)
             }
         }
-        (Form::Terminal(poids_a), Form::Node { level, arcs }) => {
-            if poids_a == 0 {
+        (Form::Terminal(weight_a), Form::Node { level, arcs }) => {
+            if weight_a == 0 {
                 Ok(b)
             } else {
                 merge_with_other(pool, keys, anchor, level, arcs, a)
@@ -183,8 +185,8 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
                 for (arc, cible_b) in arcs_b {
                     match arcs.remove(&arc) {
                         Some(cible_a) => {
-                            let fusion = merge_add(pool, keys, anchor, cible_a, cible_b)?;
-                            arcs.insert(arc, fusion);
+                            let merge = merge_add(pool, keys, anchor, cible_a, cible_b)?;
+                            arcs.insert(arc, merge);
                         }
                         None => {
                             arcs.insert(arc, cible_b);
@@ -244,7 +246,7 @@ fn merge_with_other<P: Pool<Key = u64, Payload = u64>>(
 /// Weighted fold: sum of the terminal weights over all accepting paths
 /// (A4 counting expansion like `Pli`). Exact **only** on a lifted ADD
 /// construction — this is the compatibility guard (Q8).
-pub fn sum_poids<P: Pool<Key = u64, Payload = u64>>(
+pub fn sum_weight<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
     schema: &Schema,
     node: NodeId,
@@ -268,7 +270,7 @@ fn sum<P: Pool<Key = u64, Payload = u64>>(
     }
     let form = pool.resolve(node)?.clone();
     let total = match form {
-        Form::Terminal(poids) => poids,
+        Form::Terminal(weight) => weight,
         Form::Node { level, arcs } => {
             let mut total = 0u64;
             for (arc, cible) in &arcs {

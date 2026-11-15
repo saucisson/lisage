@@ -278,8 +278,8 @@ impl Transduction for Filtre {
         h: &KeyPresentes,
     ) -> (NodeId, ()) {
         // Guard: the member is rejected (ε(false)) if the predicate fails.
-        let garde = payload && (self.predicat)(h);
-        (pool.intern(anchor, Form::Terminal(garde)), ())
+        let guard = payload && (self.predicat)(h);
+        (pool.intern(anchor, Form::Terminal(guard)), ())
     }
 }
 

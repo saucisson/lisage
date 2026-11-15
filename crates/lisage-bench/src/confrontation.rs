@@ -57,10 +57,10 @@ pub const INCREMENT_LCG: u64 = 1_442_695_040_888_963_407;
 /// Maximum number of variables accepted by the `alea-lcg` workload (guard:
 /// the truth table is `2^n` entries in memory).
 const VARIABLES_MAXIMALES_ALEA: u32 = 24;
-/// Maximum number of philosophers accepted by the `philosophes` workload
+/// Maximum number of philosophers accepted by the `philosophers` workload
 /// (guard: the interleaved schema has `2n` keys, R_n grows fast — the bench
 /// measures n ≤ 7).
-const PHILOSOPHES_MAXIMAUX: u64 = 32;
+const PHILOSOPHERS_MAXIMAUX: u64 = 32;
 /// Seconds → milliseconds conversion of the measured block.
 const MILLIS_PAR_SECONDE: f64 = 1_000.0;
 
@@ -74,7 +74,7 @@ pub enum Workload {
     /// Deterministic LCG truth table, BDD by Shannon expansion.
     AleaLcg,
     /// R_n of the red thread, union of maps over the interleaved schema.
-    Philosophes,
+    Philosophers,
     /// Sliding window, absolute or relative encoding.
     Window,
 }
@@ -84,7 +84,7 @@ impl Workload {
     pub fn depuis_nom(nom: &str) -> Option<Workload> {
         match nom {
             "alea-lcg" => Some(Workload::AleaLcg),
-            "philosophes" => Some(Workload::Philosophes),
+            "philosophers" => Some(Workload::Philosophers),
             "window" => Some(Workload::Window),
             _ => None,
         }
@@ -94,7 +94,7 @@ impl Workload {
     pub fn label(&self) -> &'static str {
         match self {
             Workload::AleaLcg => "alea-lcg",
-            Workload::Philosophes => "philosophes",
+            Workload::Philosophers => "philosophers",
             Workload::Window => "window",
         }
     }
@@ -303,20 +303,20 @@ pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
 /// Linux only, documented in the protocol: local runs and the witnesses'
 /// containers are Linux.
 fn rss_max_ko() -> Result<u64, ErrorConfrontation> {
-    const MARQUEUR: &str = "VmHWM:";
+    const MARKER: &str = "VmHWM:";
     let status = std::fs::read_to_string("/proc/self/status").map_err(|error| {
         ErrorConfrontation::InvalidInput {
             detail: format!("/proc/self/status unreadable: {error}"),
         }
     })?;
     for ligne in status.lines() {
-        if let Some(values) = ligne.strip_prefix(MARQUEUR) {
+        if let Some(values) = ligne.strip_prefix(MARKER) {
             return values
                 .split_whitespace()
                 .next()
                 .and_then(|value| value.parse::<u64>().ok())
                 .ok_or_else(|| ErrorConfrontation::InvalidInput {
-                    detail: format!("unexpected {MARQUEUR} line: {ligne}"),
+                    detail: format!("unexpected {MARKER} line: {ligne}"),
                 });
         }
     }
@@ -406,28 +406,28 @@ fn workload_alea_lcg(
 /// derived (free/held/previous), interleaved `pc_0 left_0 pc_1 …`.
 type EtatEtendu = Vec<u64>;
 
-/// `philosophes` workload: R_n of the golden thread (docs/golden-thread-example-n-philosophers-end-to-end) read from
+/// `philosophers` workload: R_n of the golden thread (docs/golden-thread-example-n-philosophers-end-to-end) read from
 /// the extended-states file shared by all tools (first line
 /// `n <n>`, then one extended state per line, values separated by
 /// spaces). Construction: union of the maps compiled over the
 /// interleaved schema; the cardinality via the `(ℕ,+,×)` pli must be the number
 /// of states in the file.
-fn workload_philosophes(
-    number_philosophes: u64,
+fn workload_philosophers(
+    number_philosophers: u64,
     path: &str,
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
-    if number_philosophes == 0 || number_philosophes > PHILOSOPHES_MAXIMAUX {
+    if number_philosophers == 0 || number_philosophers > PHILOSOPHERS_MAXIMAUX {
         return Err(ErrorConfrontation::ParametresInvalides {
-            workload: Workload::Philosophes.label(),
-            detail: format!("n must be in 1..={PHILOSOPHES_MAXIMAUX}"),
+            workload: Workload::Philosophers.label(),
+            detail: format!("n must be in 1..={PHILOSOPHERS_MAXIMAUX}"),
         });
     }
     // Init outside the measured block (schema, keys, arenas) — like the
     // manager init at the witnesses. Measured block: input reading +
     // construction + counting.
     let schema = Schema::Map(
-        (0..PAS_CLE_INTERCALAGE * number_philosophes)
+        (0..PAS_CLE_INTERCALAGE * number_philosophers)
             .map(Atom)
             .collect(),
         Domain::new(vec![Atom(PENSE), Atom(AFFAME), Atom(MANGE)]),
@@ -446,7 +446,7 @@ fn workload_philosophes(
         std::fs::read_to_string(path).map_err(|error| ErrorConfrontation::InvalidInput {
             detail: format!("states file {path} unreadable: {error}"),
         })?;
-    let etats = lire_etats(number_philosophes, &contenu)?;
+    let etats = lire_etats(number_philosophers, &contenu)?;
     let expected = etats.len() as u64;
     let mut root = pool.intern(ANCHOR_MEASURE, Form::Terminal(false));
     for etat in &etats {
@@ -473,7 +473,7 @@ fn workload_philosophes(
             node: root,
             value: format!(
                 "workload={} nodes={} check={}",
-                Workload::Philosophes.label(),
+                Workload::Philosophers.label(),
                 nodes,
                 verifie
             ),
@@ -481,8 +481,8 @@ fn workload_philosophes(
     }
     Ok(MeasureConfrontation {
         variante: Variante::Mdd,
-        workload: Workload::Philosophes,
-        parametres: vec![("n".to_string(), number_philosophes.to_string())],
+        workload: Workload::Philosophers,
+        parametres: vec![("n".to_string(), number_philosophers.to_string())],
         encodage: None,
         temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
         rss_max_ko: rss_max_ko()?,
@@ -494,10 +494,10 @@ fn workload_philosophes(
 /// Reads and validates the extended-states file: first line `n <n>`, then
 /// `2n` values per line in `{0, 1, 2}`.
 fn lire_etats(
-    number_philosophes: u64,
+    number_philosophers: u64,
     contenu: &str,
 ) -> Result<Vec<EtatEtendu>, ErrorConfrontation> {
-    let number_values = PAS_CLE_INTERCALAGE as usize * number_philosophes as usize;
+    let number_values = PAS_CLE_INTERCALAGE as usize * number_philosophers as usize;
     let mut lignes = contenu.lines();
     let first = lignes
         .next()
@@ -515,9 +515,9 @@ fn lire_etats(
         .map_err(|_| ErrorConfrontation::InvalidInput {
             detail: format!("unreadable n: {}", champs_first[1]),
         })?;
-    if n_declare != number_philosophes {
+    if n_declare != number_philosophers {
         return Err(ErrorConfrontation::InvalidInput {
-            detail: format!("declared n {n_declare} ≠ requested n {number_philosophes}"),
+            detail: format!("declared n {n_declare} ≠ requested n {number_philosophers}"),
         });
     }
     let mut etats = Vec::new();
@@ -618,7 +618,7 @@ fn workload_window(
 }
 
 /// Runs a workload once and returns the measurement. Parameters:
-/// `alea-lcg <n>`, `philosophes <n> <path>`,
+/// `alea-lcg <n>`, `philosophers <n> <path>`,
 /// `window <size> <nb_bases> [absolu|relatif]` (absolu by default).
 /// `observer`: narration channel (ADR-0100) — an
 /// `Attr`/`Synthesized` event carries the workload summary.
@@ -644,21 +644,21 @@ pub fn executer(
                     })?;
             workload_alea_lcg(number_variables, observer)
         }
-        Workload::Philosophes => {
+        Workload::Philosophers => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErrorConfrontation::ParametresInvalides {
-                    workload: Workload::Philosophes.label(),
-                    detail: "expected: philosophes <n> <path>".to_string(),
+                    workload: Workload::Philosophers.label(),
+                    detail: "expected: philosophers <n> <path>".to_string(),
                 }
             })?;
-            let number_philosophes =
+            let number_philosophers =
                 first
                     .parse::<u64>()
                     .map_err(|_| ErrorConfrontation::ParametresInvalides {
-                        workload: Workload::Philosophes.label(),
+                        workload: Workload::Philosophers.label(),
                         detail: format!("unreadable n: {first}"),
                     })?;
-            workload_philosophes(number_philosophes, second, observer)
+            workload_philosophers(number_philosophers, second, observer)
         }
         Workload::Window => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {

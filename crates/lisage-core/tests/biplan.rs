@@ -9,7 +9,9 @@ use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 use lisage_core::arena::Arena;
-use lisage_core::biplan::{Plan, SEUIL_COMPACTION_DEN, SEUIL_COMPACTION_NUM, seuil_atteint};
+use lisage_core::biplan::{
+    Plan, THRESHOLD_COMPACTION_DEN, THRESHOLD_COMPACTION_NUM, threshold_atteint,
+};
 use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
 
 /// Test anchor (arbitrary but named value).
@@ -17,11 +19,11 @@ const ANCHOR_TEST: Anchor = Anchor(0);
 /// Level of the root node of the small diagram.
 const LEVEL_ROOT: u32 = 1;
 /// Level of the orphan node of the small diagram.
-const LEVEL_ORPHELIN: u32 = 2;
+const LEVEL_ORPHAN: u32 = 2;
 /// Number of orphans added to exceed the compaction threshold.
-const NB_ORPHELINS: u64 = 20;
+const NB_ORPHANS: u64 = 20;
 /// Base level of the orphans of the profiled compaction.
-const LEVEL_BASE_ORPHELINS: u32 = 10;
+const LEVEL_BASE_ORPHANS: u32 = 10;
 /// Level of the node interned in the shadow plane.
 const LEVEL_OMBRE: u32 = 3;
 /// Level absent from the index (empty-set test).
@@ -94,21 +96,21 @@ fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
             arcs: BTreeMap::from([(0, faux), (1, vrai)]),
         },
     );
-    let orphelin = pool.intern(
+    let orphan = pool.intern(
         ANCHOR_TEST,
         Form::Node {
-            level: Level(LEVEL_ORPHELIN),
+            level: Level(LEVEL_ORPHAN),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
-    (root, orphelin)
+    (root, orphan)
 }
 
 /// M4-1: main/shadow planes and the shadow-plane index (level → forms).
 #[test]
 fn test_plans_et_index_ombre() {
     let mut pool = arena();
-    let (root, orphelin) = petit_diagramme(&mut pool);
+    let (root, orphan) = petit_diagramme(&mut pool);
     // By default, everything is in the main plane.
     assert_eq!(pool.plan_de(root), Some(Plan::Principal));
     // A node interned in the shadow plane stays there.
@@ -121,7 +123,7 @@ fn test_plans_et_index_ombre() {
         Plan::Ombre,
     );
     assert_eq!(pool.plan_de(ombre), Some(Plan::Ombre));
-    assert_eq!(pool.plan_de(orphelin), Some(Plan::Principal));
+    assert_eq!(pool.plan_de(orphan), Some(Plan::Principal));
     // Shadow-plane index: level 1 contains the root.
     assert!(pool.index_level(Level(LEVEL_ROOT)).contains(&root));
     assert!(pool.index_level(Level(LEVEL_OMBRE)).contains(&ombre));
@@ -134,7 +136,7 @@ fn test_plans_et_index_ombre() {
 #[test]
 fn test_gc_mark_sweep() {
     let mut pool = arena();
-    let (root, orphelin) = petit_diagramme(&mut pool);
+    let (root, orphan) = petit_diagramme(&mut pool);
     let avant = pool.node_count();
     let stats = pool.gc(&[root]);
     // R-default removed the default arc: reachable = root + true.
@@ -143,22 +145,22 @@ fn test_gc_mark_sweep() {
     // Compaction depends on the profiled threshold applied to observed dead.
     assert_eq!(
         stats.compaction,
-        seuil_atteint(stats.collectes, avant as u64)
+        threshold_atteint(stats.collectes, avant as u64)
     );
     assert_eq!(pool.live(), 2);
     assert_eq!(
-        pool.resolve(orphelin),
-        Err(PoolError::UnknownNode(orphelin)),
+        pool.resolve(orphan),
+        Err(PoolError::UnknownNode(orphan)),
         "collected node = tombstone"
     );
-    assert!(!pool.index_level(Level(LEVEL_ORPHELIN)).contains(&orphelin));
+    assert!(!pool.index_level(Level(LEVEL_ORPHAN)).contains(&orphan));
     // Re-interning the orphan's form creates a new node (cache miss).
     let vrai = pool.terminal(ANCHOR_TEST, true);
     let faux = pool.terminal(ANCHOR_TEST, false);
     let recree = pool.intern(
         ANCHOR_TEST,
         Form::Node {
-            level: Level(LEVEL_ORPHELIN),
+            level: Level(LEVEL_ORPHAN),
             arcs: BTreeMap::from([(0, vrai), (1, faux)]),
         },
     );
@@ -173,21 +175,21 @@ fn test_gc_mark_sweep() {
 #[test]
 fn test_compaction_profilee() {
     let mut pool = arena();
-    let (root, _orphelin) = petit_diagramme(&mut pool);
-    // Many orphans to exceed the SEUIL_COMPACTION threshold.
-    let mut orphelins = Vec::new();
-    for i in 0..NB_ORPHELINS {
-        orphelins.push(pool.intern(
+    let (root, _orphan) = petit_diagramme(&mut pool);
+    // Many orphans to exceed the THRESHOLD_COMPACTION threshold.
+    let mut orphans = Vec::new();
+    for i in 0..NB_ORPHANS {
+        orphans.push(pool.intern(
             ANCHOR_TEST,
             Form::Node {
-                level: Level(LEVEL_BASE_ORPHELINS + i as u32),
+                level: Level(LEVEL_BASE_ORPHANS + i as u32),
                 arcs: BTreeMap::from([(1, root)]),
             },
         ));
     }
     let total = pool.node_count() as u64;
     assert!(
-        seuil_atteint(NB_ORPHELINS, total),
+        threshold_atteint(NB_ORPHANS, total),
         "compaction threshold reached"
     );
     let stats = pool.gc(&[root]);
@@ -202,9 +204,9 @@ fn test_compaction_profilee() {
     assert!(pool.resolve(new).is_ok());
     assert!(pool.index_level(Level(LEVEL_ROOT)).contains(&new));
     // Threshold not reached with few dead.
-    assert!(!seuil_atteint(1, 100));
-    assert_eq!(SEUIL_COMPACTION_NUM, 1);
-    assert_eq!(SEUIL_COMPACTION_DEN, 4);
+    assert!(!threshold_atteint(1, 100));
+    assert_eq!(THRESHOLD_COMPACTION_NUM, 1);
+    assert_eq!(THRESHOLD_COMPACTION_DEN, 4);
 }
 
 /// M4-1: cache metrics — hash-consing creations/shares, hit rate, GC
@@ -222,7 +224,7 @@ fn test_metriques_cache_et_evenement_gc() {
         MockController { keys: MockKeys },
         Box::new(Pont(observer.clone())),
     );
-    let (root, orphelin) = petit_diagramme(&mut pool);
+    let (root, orphan) = petit_diagramme(&mut pool);
     // Re-intern the exact form of the root: hit (R-share, same handle).
     let Form::Node { level, arcs } = pool.resolve(root).unwrap().clone() else {
         panic!("the root is a node");
@@ -245,7 +247,7 @@ fn test_metriques_cache_et_evenement_gc() {
     let metriques = pool.metriques();
     assert_eq!(metriques.gc, 1);
     assert_eq!(metriques.live, stats.live);
-    assert_eq!(metriques.morts, stats.collectes);
+    assert_eq!(metriques.dead, stats.collectes);
     assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     // Gc event emitted.
     let events = observer.events.lock().unwrap();
@@ -260,7 +262,7 @@ fn test_metriques_cache_et_evenement_gc() {
         )),
         "Gc event emitted"
     );
-    let _ = orphelin;
+    let _ = orphan;
 }
 
 /// M4-1: `intern_plan` on a hash-consing hit re-plans the shared node
@@ -269,7 +271,7 @@ fn test_metriques_cache_et_evenement_gc() {
 #[test]
 fn test_intern_plan_hit_cache_replanifie() {
     let mut pool = arena();
-    let (root, _orphelin) = petit_diagramme(&mut pool);
+    let (root, _orphan) = petit_diagramme(&mut pool);
     assert_eq!(pool.plan_de(root), Some(Plan::Principal));
     let Form::Node { level, arcs } = pool.resolve(root).unwrap().clone() else {
         panic!("the root is a node");
@@ -284,7 +286,7 @@ fn test_intern_plan_hit_cache_replanifie() {
 /// hit rate and the GC — bound `dead × 4 == total` included, `taux_hit`
 /// bounded, `live + collectes == total` over random scenarios.
 #[test]
-fn test_propriete_seuil_taux_hit_et_invariant_gc() {
+fn test_propriete_threshold_taux_hit_et_invariant_gc() {
     let mut seed = SEED_LCG;
     let mut next = move || {
         seed = seed
@@ -297,20 +299,23 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
     // and one dead less does not reach it (for total > 0).
     for _ in 0..1000 {
         let total = 1 + next() % 1000;
-        let morts = next() % (total + 1);
+        let dead = next() % (total + 1);
         assert_eq!(
-            seuil_atteint(morts, total),
-            morts * SEUIL_COMPACTION_DEN >= total * SEUIL_COMPACTION_NUM
+            threshold_atteint(dead, total),
+            dead * THRESHOLD_COMPACTION_DEN >= total * THRESHOLD_COMPACTION_NUM
         );
-        assert!(!seuil_atteint(0, 0), "zero total: no compaction");
+        assert!(!threshold_atteint(0, 0), "zero total: no compaction");
     }
     // Exact bound: the smallest `dead` reaching the threshold is
     // `ceil(total × NUM / DEN)`; one dead less does not reach it.
     for total in 1..=64u64 {
-        let seuil = (total * SEUIL_COMPACTION_NUM).div_ceil(SEUIL_COMPACTION_DEN);
-        assert!(seuil_atteint(seuil, total), "bound reached: total={total}");
+        let threshold = (total * THRESHOLD_COMPACTION_NUM).div_ceil(THRESHOLD_COMPACTION_DEN);
         assert!(
-            !seuil_atteint(seuil - 1, total),
+            threshold_atteint(threshold, total),
+            "bound reached: total={total}"
+        );
+        assert!(
+            !threshold_atteint(threshold - 1, total),
             "one dead below the bound: total={total}"
         );
     }
@@ -337,13 +342,13 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
     // reflect the last GC.
     for _ in 0..100 {
         let mut pool = arena();
-        let (root, _orphelin) = petit_diagramme(&mut pool);
-        let nb_orphelins = next() % 30;
-        for i in 0..nb_orphelins {
+        let (root, _orphan) = petit_diagramme(&mut pool);
+        let nb_orphans = next() % 30;
+        for i in 0..nb_orphans {
             pool.intern(
                 ANCHOR_TEST,
                 Form::Node {
-                    level: Level(LEVEL_BASE_ORPHELINS + i as u32),
+                    level: Level(LEVEL_BASE_ORPHANS + i as u32),
                     arcs: BTreeMap::from([(1, root)]),
                 },
             );
@@ -354,7 +359,7 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
         assert_eq!(stats.live, pool.live() as u64);
         let metriques = pool.metriques();
         assert_eq!(metriques.live, stats.live);
-        assert_eq!(metriques.morts, stats.collectes);
+        assert_eq!(metriques.dead, stats.collectes);
         assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     }
 }
@@ -365,16 +370,16 @@ fn test_propriete_seuil_taux_hit_et_invariant_gc() {
 #[test]
 fn test_gc_deux_fois_live_exacts() {
     let mut pool = arena();
-    let (root, _orphelin) = petit_diagramme(&mut pool);
+    let (root, _orphan) = petit_diagramme(&mut pool);
     // Chain of nodes all reachable from the root: the first GC only
     // collects the orphan and the false terminal (2 dead out of a large
     // total), the threshold is not reached, the tombstones remain.
     let mut courant = root;
-    for i in 0..NB_ORPHELINS {
+    for i in 0..NB_ORPHANS {
         courant = pool.intern(
             ANCHOR_TEST,
             Form::Node {
-                level: Level(LEVEL_BASE_ORPHELINS + i as u32 + 100),
+                level: Level(LEVEL_BASE_ORPHANS + i as u32 + 100),
                 arcs: BTreeMap::from([(1, courant)]),
             },
         );

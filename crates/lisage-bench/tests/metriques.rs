@@ -5,7 +5,7 @@
 
 use lisage_algebra::interface::{Anchor, NodeId, Pool};
 use lisage_core::arena::Arena;
-use lisage_core::biplan::seuil_atteint;
+use lisage_core::biplan::threshold_atteint;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_lang::value::{Atom, Value};
@@ -19,9 +19,9 @@ const SET_PARTAGE: [u64; 2] = [0, 1];
 /// Atoms of the root set of the GC scenario.
 const SET_ROOT: [u64; 3] = [0, 1, 2];
 /// Number of orphan sets in the GC scenario.
-const NB_ORPHELINS: u64 = 8;
+const NB_ORPHANS: u64 = 8;
 /// Last atom of the domain, present in each orphan.
-const ATOME_FIXE_ORPHELIN: u64 = 3;
+const ATOME_FIXE_ORPHAN: u64 = 3;
 
 type PoolRef = Arena<ReferenceController>;
 
@@ -89,12 +89,12 @@ fn test_metriques_gc_et_compaction() {
     let mut pool = new_pool(&schema);
     let root = compiler_set(&mut pool, ANCHOR_TEST, &schema, &SET_ROOT);
     // Orphans: many forms not reachable from the root.
-    for i in 0..NB_ORPHELINS {
+    for i in 0..NB_ORPHANS {
         compiler_set(
             &mut pool,
             ANCHOR_TEST,
             &schema,
-            &[i % SIZE_DOMAIN, ATOME_FIXE_ORPHELIN],
+            &[i % SIZE_DOMAIN, ATOME_FIXE_ORPHAN],
         );
     }
     let total = pool.node_count() as u64;
@@ -105,10 +105,10 @@ fn test_metriques_gc_et_compaction() {
     let metriques = pool.metriques();
     assert_eq!(metriques.gc, 1, "a single GC performed");
     assert_eq!(metriques.live, stats.live);
-    assert_eq!(metriques.morts, stats.collectes);
+    assert_eq!(metriques.dead, stats.collectes);
     assert_eq!(
         metriques.compactions,
-        if seuil_atteint(stats.collectes, total) {
+        if threshold_atteint(stats.collectes, total) {
             1
         } else {
             0
