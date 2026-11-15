@@ -285,7 +285,7 @@ fn test_etats_etendus_coherents_with_fil_rouge() {
 fn test_narration_workload_epinglee() {
     use std::sync::{Arc, Mutex};
 
-    use lisage_core::observer::{CanalAttr, Observer, TraceEvent};
+    use lisage_core::observer::{ChannelAttr, Observer, TraceEvent};
 
     #[derive(Clone)]
     struct Collecteur {
@@ -339,7 +339,7 @@ fn test_narration_workload_epinglee() {
             events.iter().any(|e| matches!(
                 e,
                 TraceEvent::Attr {
-                    canal: CanalAttr::Synthesized,
+                    channel: ChannelAttr::Synthesized,
                     value,
                     ..
                 } if value == expected

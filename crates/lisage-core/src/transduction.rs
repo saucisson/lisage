@@ -18,7 +18,7 @@ use lisage_algebra::interface::{Anchor, Form, Level, MemoryPolicy, NodeId, Pool}
 
 use crate::error::CoreError;
 use crate::memory::{EffetMemory, MemoryLevel};
-use crate::observer::{CanalAttr, Observer, TraceEvent};
+use crate::observer::{ChannelAttr, Observer, TraceEvent};
 
 /// Memo key: (operation fingerprint, node, inherited attribute,
 /// level-memory version) — lemma L1.
@@ -237,7 +237,7 @@ impl<T: Transduction> Transducteur<T> {
                 for (arc, cible) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
                     self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Inherited,
+                        channel: ChannelAttr::Inherited,
                         node,
                         value: format!("{h_arc:?}"),
                     });
@@ -253,7 +253,7 @@ impl<T: Transduction> Transducteur<T> {
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {
-                    canal: CanalAttr::Synthesized,
+                    channel: ChannelAttr::Synthesized,
                     node,
                     value: format!("{s:?}"),
                 });
@@ -271,7 +271,7 @@ impl<T: Transduction> Transducteur<T> {
                 }
                 if !effet.ecritures.is_empty() {
                     self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Memory,
+                        channel: ChannelAttr::Memory,
                         node,
                         value: format!("{:?}", effet.ecritures),
                     });
@@ -315,7 +315,7 @@ impl<T: Transduction> Transducteur<T> {
                 for (arc, cible) in arcs {
                     let h_arc = self.transduction.phi_disp(level, &h, arc);
                     self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Inherited,
+                        channel: ChannelAttr::Inherited,
                         node,
                         value: format!("{h_arc:?}"),
                     });
@@ -331,7 +331,7 @@ impl<T: Transduction> Transducteur<T> {
                 }
                 let s = self.transduction.phi_aggr(level, &h, &s_arcs);
                 self.notifier(TraceEvent::Attr {
-                    canal: CanalAttr::Synthesized,
+                    channel: ChannelAttr::Synthesized,
                     node,
                     value: format!("{s:?}"),
                 });
@@ -349,7 +349,7 @@ impl<T: Transduction> Transducteur<T> {
                 }
                 if !effet.ecritures.is_empty() {
                     self.notifier(TraceEvent::Attr {
-                        canal: CanalAttr::Memory,
+                        channel: ChannelAttr::Memory,
                         node,
                         value: format!("{:?}", effet.ecritures),
                     });

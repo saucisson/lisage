@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use lisage_algebra::interface::{Anchor, Form, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::integrale::{compiler_union, integrale_constante, intersection, measure_interval};
-use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
+use lisage_core::observer::{ChannelAttr, NoOpObserver, Observer, TraceEvent};
 use lisage_core::region::{EMPTY, Interval, RegionController, RegionKeys};
 
 type PoolRegion = Arena<RegionController>;
@@ -155,7 +155,7 @@ fn test_narration_evenements_attr_synthesized() {
             matches!(
                 e,
                 TraceEvent::Attr {
-                    canal: CanalAttr::Synthesized,
+                    channel: ChannelAttr::Synthesized,
                     ..
                 }
             )

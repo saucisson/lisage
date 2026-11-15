@@ -46,7 +46,7 @@ use lisage_algebra::interface::{
 };
 use lisage_algebra::relatif::{AnchorComposee, CycleGroup, Fragment};
 
-use crate::observer::{CanalAttr, Observer, TraceEvent};
+use crate::observer::{ChannelAttr, Observer, TraceEvent};
 
 /// Controller-side reduction switches (R-share excluded: measured).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -172,7 +172,7 @@ pub fn measure<P: Pool>(
     };
     if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthesized,
+            channel: ChannelAttr::Synthesized,
             node: root,
             value: format!(
                 "nodes_partages={} paths={} size_depliee={}",
@@ -382,7 +382,7 @@ pub fn comparer_encodages_window<P: Pool<Key = u64, Payload = bool>>(
     let relatif = measure(pool, root_relative, observer)?;
     if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthesized,
+            channel: ChannelAttr::Synthesized,
             node: root_relative,
             value: format!(
                 "encodage=relatif_vs_absolu nodes={} contre {}",
@@ -539,7 +539,7 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
     let second = measure(pool, root_second, observer)?;
     if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthesized,
+            channel: ChannelAttr::Synthesized,
             node: root_second,
             value: format!(
                 "order={}_vs_{} nodes={} contre {}",
@@ -690,7 +690,7 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
         let (debut_avant, fin_avant) = anchor_avant.window_absolue();
         let (debut_apres, fin_apres) = anchor_apres.window_absolue();
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthesized,
+            channel: ChannelAttr::Synthesized,
             node: root_apres,
             value: format!(
                 "anchor={}_vs_{} nodes={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",

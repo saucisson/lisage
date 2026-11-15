@@ -14,7 +14,7 @@ use lisage_core::arena::Arena;
 use lisage_core::dbm::{Dbm, DbmController, DbmKeys, INCOHERENT};
 use lisage_core::ddd::{compiler_bande, evaluate};
 use lisage_core::integrale::integrale_dbm_constante;
-use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
+use lisage_core::observer::{ChannelAttr, NoOpObserver, Observer, TraceEvent};
 
 type PoolDbm = Arena<DbmController>;
 
@@ -177,7 +177,7 @@ fn test_narration_evenements_attr_synthesized() {
             matches!(
                 e,
                 TraceEvent::Attr {
-                    canal: CanalAttr::Synthesized,
+                    channel: ChannelAttr::Synthesized,
                     ..
                 }
             )

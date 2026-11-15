@@ -209,7 +209,7 @@ fn test_propriete_commutation_lcg() {
 fn test_narration_measure() {
     use std::sync::{Arc, Mutex};
 
-    use lisage_core::observer::{CanalAttr, TraceEvent};
+    use lisage_core::observer::{ChannelAttr, TraceEvent};
 
     #[derive(Clone)]
     struct Collecteur {
@@ -248,7 +248,7 @@ fn test_narration_measure() {
         events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthesized,
+                channel: ChannelAttr::Synthesized,
                 value,
                 ..
             } if value == "nodes_partages=4 paths=4 size_depliee=7"
@@ -302,7 +302,7 @@ fn test_narration_comparaison_encodages() {
     use std::sync::{Arc, Mutex};
 
     use lisage_core::atelier::comparer_encodages_window;
-    use lisage_core::observer::{CanalAttr, TraceEvent};
+    use lisage_core::observer::{ChannelAttr, TraceEvent};
 
     #[derive(Clone)]
     struct Collecteur {
@@ -326,7 +326,7 @@ fn test_narration_comparaison_encodages() {
         events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthesized,
+                channel: ChannelAttr::Synthesized,
                 value,
                 ..
             } if value == "encodage=relatif_vs_absolu nodes=3 contre 12"
@@ -425,7 +425,7 @@ fn test_narration_comparaison_orders() {
     use std::sync::{Arc, Mutex};
 
     use lisage_core::atelier::{Order, comparer_orders};
-    use lisage_core::observer::{CanalAttr, TraceEvent};
+    use lisage_core::observer::{ChannelAttr, TraceEvent};
 
     #[derive(Clone)]
     struct Collecteur {
@@ -457,7 +457,7 @@ fn test_narration_comparaison_orders() {
         events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthesized,
+                channel: ChannelAttr::Synthesized,
                 value,
                 ..
             } if value == "order=[0,1,2,3]_vs_[0,2,1,3] nodes=10 contre 12"
@@ -592,7 +592,7 @@ fn test_narration_comparaison_anchors() {
     use std::sync::{Arc, Mutex};
 
     use lisage_core::atelier::{AnchorWindow, comparer_anchors_window};
-    use lisage_core::observer::{CanalAttr, TraceEvent};
+    use lisage_core::observer::{ChannelAttr, TraceEvent};
 
     #[derive(Clone)]
     struct Collecteur {
@@ -623,7 +623,7 @@ fn test_narration_comparaison_anchors() {
         events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
-                canal: CanalAttr::Synthesized,
+                channel: ChannelAttr::Synthesized,
                 value,
                 ..
             } if value == "anchor={base: 0, horizon: 4}_vs_{base: 2, horizon: 4} nodes=3 contre 3 lecture=[0..4) contre [2..6) pool=4"

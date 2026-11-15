@@ -10,7 +10,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lisage_core::observer::{CanalAttr, TraceEvent};
+use lisage_core::observer::{ChannelAttr, TraceEvent};
 use lisage_core::{Form, NodeId, Pool};
 
 use crate::svg::{
@@ -53,7 +53,7 @@ pub struct EtatTrace {
     /// Nodes seen (created or shared) up to the position.
     pub nodes: BTreeSet<NodeId>,
     /// Attributes seen `(channel, node, value)`, in emission order.
-    pub attributes: Vec<(CanalAttr, NodeId, String)>,
+    pub attributes: Vec<(ChannelAttr, NodeId, String)>,
     /// Number of `MemoHit` up to the position.
     pub memo_hits: usize,
     /// Number of `MemoMiss` up to the position.
@@ -119,8 +119,12 @@ impl Scrubber {
                 TraceEvent::NodeCreated { node, .. } | TraceEvent::NodeShared { node } => {
                     etat.nodes.insert(*node);
                 }
-                TraceEvent::Attr { canal, node, value } => {
-                    etat.attributes.push((*canal, *node, value.clone()));
+                TraceEvent::Attr {
+                    channel,
+                    node,
+                    value,
+                } => {
+                    etat.attributes.push((*channel, *node, value.clone()));
                 }
                 TraceEvent::MemoHit { .. } => etat.memo_hits += 1,
                 TraceEvent::MemoMiss { .. } => etat.memo_misses += 1,
@@ -142,11 +146,11 @@ impl Scrubber {
 }
 
 /// Color of an attribute channel.
-fn couleur_canal(canal: CanalAttr) -> &'static str {
-    match canal {
-        CanalAttr::Inherited => COULEUR_HERITE,
-        CanalAttr::Synthesized => COULEUR_SYNTHETISE,
-        CanalAttr::Memory => COULEUR_MEMORY,
+fn couleur_channel(channel: ChannelAttr) -> &'static str {
+    match channel {
+        ChannelAttr::Inherited => COULEUR_HERITE,
+        ChannelAttr::Synthesized => COULEUR_SYNTHETISE,
+        ChannelAttr::Memory => COULEUR_MEMORY,
     }
 }
 
@@ -154,9 +158,9 @@ fn couleur_canal(canal: CanalAttr) -> &'static str {
 /// on this node (memory > synthesized > inherited > default).
 fn couleur_node(etat: &EtatTrace, node: NodeId) -> &'static str {
     let mut couleur = COULEUR_DEFAUT;
-    for (canal, n, _) in &etat.attributes {
+    for (channel, n, _) in &etat.attributes {
         if *n == node {
-            couleur = couleur_canal(*canal);
+            couleur = couleur_channel(*channel);
         }
     }
     couleur
@@ -168,7 +172,7 @@ fn tiret_frise(evenement: &TraceEvent) -> (u32, &'static str) {
         TraceEvent::Round { .. } => (HEIGHT_FRISE - 16, COULEUR_MEMORY),
         TraceEvent::MemoHit { .. } => (10, COULEUR_MEMO_HIT),
         TraceEvent::MemoMiss { .. } => (10, COULEUR_MEMO_MISS),
-        TraceEvent::Attr { canal, .. } => (10, couleur_canal(*canal)),
+        TraceEvent::Attr { channel, .. } => (10, couleur_channel(*channel)),
         _ => (6, COULEUR_AUTRE),
     }
 }
@@ -355,7 +359,7 @@ pub fn rendre_svg_step_by_step<P: Pool<Key = u64, Payload = bool>>(
 }
 
 /// Legend of the channels (colors) for the step-by-step rendering.
-pub fn legende_canaux() -> BTreeMap<&'static str, &'static str> {
+pub fn legende_channels() -> BTreeMap<&'static str, &'static str> {
     BTreeMap::from([
         ("inherited", COULEUR_HERITE),
         ("synthesized", COULEUR_SYNTHETISE),

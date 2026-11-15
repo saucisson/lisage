@@ -187,7 +187,7 @@ fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
 /// Inherited channel: the identity transduction rebuilds the same forms; the
 /// returned depth equals the DAG's height.
 #[test]
-fn test_canal_herite_identite_et_profondeur() {
+fn test_channel_herite_identite_et_profondeur() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
@@ -205,7 +205,7 @@ fn test_canal_herite_identite_et_profondeur() {
 /// Synthesized channel: φ_aggr sums the children's weights; the count is the
 /// number of accepting paths (2 in the DAG: 0·0 and 1).
 #[test]
-fn test_canal_synthetise_comptage() {
+fn test_channel_synthetise_comptage() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);

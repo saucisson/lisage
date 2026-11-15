@@ -28,7 +28,7 @@ use std::collections::{BTreeMap, HashMap};
 use lisage_algebra::interface::{Form, NodeId, Pool, PoolError};
 
 use crate::dbm::{Dbm, DbmKeys};
-use crate::observer::{CanalAttr, Observer, TraceEvent};
+use crate::observer::{ChannelAttr, Observer, TraceEvent};
 use crate::region::Interval;
 
 /// Lebesgue measure of an interval in the continuous interpretation:
@@ -80,7 +80,7 @@ fn integrale<P: Pool<Key = Interval, Payload = bool>>(
     if let Some(total) = memo.get(&(node, *region)) {
         if let Some(obs) = observer {
             obs.on_event(&TraceEvent::Attr {
-                canal: CanalAttr::Synthesized,
+                channel: ChannelAttr::Synthesized,
                 node,
                 value: format!("measure_memo={total}"),
             });
@@ -105,7 +105,7 @@ fn integrale<P: Pool<Key = Interval, Payload = bool>>(
     };
     if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthesized,
+            channel: ChannelAttr::Synthesized,
             node,
             value: format!("measure={total}"),
         });
@@ -143,7 +143,7 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
     if let Some(total) = memo.get(&(node, region.clone())) {
         if let Some(obs) = observer {
             obs.on_event(&TraceEvent::Attr {
-                canal: CanalAttr::Synthesized,
+                channel: ChannelAttr::Synthesized,
                 node,
                 value: format!("measure_memo={total}"),
             });
@@ -168,7 +168,7 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
     };
     if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
-            canal: CanalAttr::Synthesized,
+            channel: ChannelAttr::Synthesized,
             node,
             value: format!("measure={total}"),
         });

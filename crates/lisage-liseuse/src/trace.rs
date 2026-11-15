@@ -7,7 +7,7 @@
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
-use lisage_core::observer::{CanalAttr, Observer, ReductionRule, TraceEvent};
+use lisage_core::observer::{ChannelAttr, Observer, ReductionRule, TraceEvent};
 
 /// Trace schema version (`{"v":2, ...}`): v2 adds the
 /// `Attr`/`MemoHit`/`MemoMiss`/`Round` events of the step-by-step view (M2-6).
@@ -41,11 +41,11 @@ fn nom_regle(regle: ReductionRule) -> &'static str {
 }
 
 /// JSON name of an attribute channel (M2-6).
-fn nom_canal(canal: CanalAttr) -> &'static str {
-    match canal {
-        CanalAttr::Inherited => "herite",
-        CanalAttr::Synthesized => "synthetise",
-        CanalAttr::Memory => "memoire",
+fn nom_channel(channel: ChannelAttr) -> &'static str {
+    match channel {
+        ChannelAttr::Inherited => "herite",
+        ChannelAttr::Synthesized => "synthetise",
+        ChannelAttr::Memory => "memoire",
     }
 }
 
@@ -75,11 +75,15 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                 handle.controller.0, handle.anchor.0, handle.node.0, nodes
             ),
         ),
-        TraceEvent::Attr { canal, node, value } => (
+        TraceEvent::Attr {
+            channel,
+            node,
+            value,
+        } => (
             "Attr",
             format!(
                 "\"canal\":\"{}\",\"noeud\":{},\"valeur\":\"{}\"",
-                nom_canal(*canal),
+                nom_channel(*channel),
                 node.0,
                 echapper_json(value)
             ),

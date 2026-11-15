@@ -1,9 +1,9 @@
 //! Publication mode (M5-5): export of figures ready for article
 //! layout — standalone SVG or PGF/TikZ, serif theme, **legend
-//! auto-generated from the channel legend** (`CanalAttr`): the same
+//! auto-generated from the channel legend** (`ChannelAttr`): the same
 //! file used for debugging is used for publication (liseuse doc § 5).
 
-use lisage_core::observer::CanalAttr;
+use lisage_core::observer::ChannelAttr;
 use lisage_core::{NodeId, Pool};
 
 use crate::svg::{
@@ -12,7 +12,7 @@ use crate::svg::{
 };
 
 /// Publication theme: serif, dark ink on white background, channel colors
-/// aligned with the `CanalAttr` legend (inherited = blue, synthesized =
+/// aligned with the `ChannelAttr` legend (inherited = blue, synthesized =
 /// orange, memory = purple).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Theme {
@@ -69,10 +69,10 @@ impl Theme {
 
 /// Channel legend: single source of truth (channel, label, color),
 /// rendered as-is in the auto-generated legend.
-pub const LEGENDE_CANAUX: &[(CanalAttr, &str, &str)] = &[
-    (CanalAttr::Inherited, "inherited (φ_disp)", "#1f6feb"),
-    (CanalAttr::Synthesized, "synthesized (φ_aggr)", "#d29922"),
-    (CanalAttr::Memory, "level memory", "#8250df"),
+pub const LEGENDE_CHANNELS: &[(ChannelAttr, &str, &str)] = &[
+    (ChannelAttr::Inherited, "inherited (φ_disp)", "#1f6feb"),
+    (ChannelAttr::Synthesized, "synthesized (φ_aggr)", "#d29922"),
+    (ChannelAttr::Memory, "level memory", "#8250df"),
 ];
 
 /// Height reserved for the legend in pixels (one line per channel).
@@ -93,10 +93,10 @@ const BASELINE_TITRE: u32 = 26;
 const MARGE_BAS: u32 = 20;
 
 /// Renders the channel legend as an SVG fragment (one colored swatch + one label
-/// per channel, auto-generated from [`LEGENDE_CANAUX`]).
+/// per channel, auto-generated from [`LEGENDE_CHANNELS`]).
 pub fn rendre_legende_svg(theme: &Theme, x: u32, y: u32) -> String {
     let mut svg = String::new();
-    for (index, (_canal, label, couleur)) in LEGENDE_CANAUX.iter().enumerate() {
+    for (index, (_channel, label, couleur)) in LEGENDE_CHANNELS.iter().enumerate() {
         let ligne_y = y + index as u32 * HEIGHT_LEGENDE;
         svg.push_str(&format!(
             "<rect x=\"{x}\" y=\"{}\" width=\"{SIZE_PAVE_LEGENDE}\" height=\"{SIZE_PAVE_LEGENDE}\" fill=\"{couleur}\"/>\n",
@@ -130,7 +130,7 @@ pub fn rendre_svg_publication<P: Pool<Key = u64, Payload = bool>>(
         MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_WIDTH;
     let width_legende = if with_legende { WIDTH_LEGENDE } else { 0 };
     let width = width_diagramme + width_legende;
-    let height_legende = LEGENDE_CANAUX.len() as u32 * HEIGHT_LEGENDE;
+    let height_legende = LEGENDE_CHANNELS.len() as u32 * HEIGHT_LEGENDE;
     let height = (MARGE_HAUT + (number_levels + 1) * HEIGHT_LEVEL + MARGE_BAS)
         .max(height_legende + MARGE_HAUT);
     let mut svg = format!(
