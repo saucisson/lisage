@@ -74,10 +74,10 @@ fn test_metriques_cache_hash_consing() {
     assert!(metriques.partages > 0, "shares counted");
 
     // Hit rate as a percentage: shares * 100 / (creations + shares).
-    let taux = metriques.taux_hit();
+    let rate = metriques.rate_hit();
     let expected = metriques.partages * 100 / (metriques.creations + metriques.partages);
-    assert_eq!(taux, expected);
-    assert!(taux > 0 && taux < 100, "hit rate: {taux}");
+    assert_eq!(rate, expected);
+    assert!(rate > 0 && rate < 100, "hit rate: {rate}");
 }
 
 /// M4-1: the GC feeds the metrics (live, dead, gc, compactions) in a

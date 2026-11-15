@@ -8,7 +8,6 @@
 
 pub mod add;
 pub mod arena;
-pub mod atelier;
 pub mod bdd;
 pub mod biplan;
 pub mod cdd;
@@ -26,6 +25,7 @@ pub mod saturate;
 pub mod schema;
 pub mod transduction;
 pub mod transfert;
+pub mod workshop;
 
 pub use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, MemoryPolicy, NodeId, Pool,

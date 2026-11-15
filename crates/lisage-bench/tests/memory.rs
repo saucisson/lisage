@@ -20,14 +20,14 @@ proptest! {
         let mut expected: std::collections::HashMap<(NodeId, Level), u64> =
             std::collections::HashMap::new();
         for (i, (node, level, value)) in ecritures.iter().enumerate() {
-            let ancien = memory.ecrire(NodeId(*node), Level(*level), *value);
+            let old = memory.write(NodeId(*node), Level(*level), *value);
             prop_assert_eq!(memory.version(), (i + 1) as u64, "version == number of writes");
-            prop_assert_eq!(ancien, expected.insert((NodeId(*node), Level(*level)), *value));
+            prop_assert_eq!(old, expected.insert((NodeId(*node), Level(*level)), *value));
         }
         prop_assert_eq!(memory.size(), expected.len());
         // Read-after-write: each key reads the last written value.
         for ((node, level), value) in &expected {
-            prop_assert_eq!(memory.lire(*node, *level), Some(value));
+            prop_assert_eq!(memory.read(*node, *level), Some(value));
         }
     }
 }

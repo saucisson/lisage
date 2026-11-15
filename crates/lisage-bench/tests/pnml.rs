@@ -48,14 +48,14 @@ fn test_parse_modele_joue() {
     assert_eq!(network.number_transitions(), 2);
     assert_eq!(network.arcs.len(), 4);
     assert_eq!(network.places[0].identifiant, PlaceId("p0".to_string()));
-    assert_eq!(network.places[0].nom.as_deref(), Some("source"));
+    assert_eq!(network.places[0].name.as_deref(), Some("source"));
     assert_eq!(network.places[0].marquage_initial, 1);
     assert_eq!(network.places[1].marquage_initial, 0);
     assert_eq!(
         network.transitions[0].identifiant,
         TransitionId("t1".to_string())
     );
-    assert_eq!(network.transitions[0].nom.as_deref(), Some("aller_a"));
+    assert_eq!(network.transitions[0].name.as_deref(), Some("aller_a"));
 }
 
 #[test]

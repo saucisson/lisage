@@ -41,13 +41,13 @@ impl<V: Clone + Eq + Hash + Debug> MemoryLevel<V> {
     }
 
     /// Read: value stored at `(node, level)`, if present.
-    pub fn lire(&self, node: NodeId, level: Level) -> Option<&V> {
+    pub fn read(&self, node: NodeId, level: Level) -> Option<&V> {
         self.inputs.get(&(node, level))
     }
 
     /// Write: stores `value` at `(node, level)` and increments the version
     /// (L1). Returns the old value if it existed.
-    pub fn ecrire(&mut self, node: NodeId, level: Level, value: V) -> Option<V> {
+    pub fn write(&mut self, node: NodeId, level: Level, value: V) -> Option<V> {
         self.version += 1;
         self.inputs.insert((node, level), value)
     }
@@ -90,7 +90,7 @@ impl<V: Clone + Eq + Hash + Debug> EffetMemory<V> {
     /// Applies the effect to the memory (increments the version per write).
     pub fn apply(&self, memory: &mut MemoryLevel<V>) {
         for (node, level, value) in &self.ecritures {
-            memory.ecrire(*node, *level, value.clone());
+            memory.write(*node, *level, value.clone());
         }
     }
 }

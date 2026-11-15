@@ -73,7 +73,7 @@ pub struct ClassQuotient {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ViewPool {
     /// Pool name (controller).
-    pub nom: String,
+    pub name: String,
     /// Pool metrics (creations, shares, live, dead, GC,
     /// compactions, hit rate).
     pub metriques: MetriquesPool,
@@ -96,13 +96,13 @@ impl ClassQuotient {
 impl ViewPool {
     /// View of a pool from its metrics and the live nodes per plane.
     pub fn depuis_metriques(
-        nom: &str,
+        name: &str,
         metriques: MetriquesPool,
         live_principal: u64,
         live_ombre: u64,
     ) -> Self {
         ViewPool {
-            nom: nom.to_string(),
+            name: name.to_string(),
             metriques,
             live_principal,
             live_ombre,
@@ -160,13 +160,13 @@ pub fn rendre_svg_view_memory(
         let metriques = &pool.metriques;
         svg.push_str(&format!(
             "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">{} : alive={}/{} dead={} gc={} compactions={} hit={}%</text>\n",
-            pool.nom,
+            pool.name,
             pool.live_principal,
             pool.live_ombre,
             metriques.dead,
             metriques.gc,
             metriques.compactions,
-            metriques.taux_hit()
+            metriques.rate_hit()
         ));
     }
     // Quotient classes panel.

@@ -1,9 +1,9 @@
 //! M3-2 tests (claim C3): reorder = convert — `Conversion<T>`
 //! compiled into adjacent transpositions at predictable cost (inversions),
-//! and typed contract extended to encodings via `Royaume<T, O, E, V>`.
+//! and typed contract extended to encodings via `Kingdom<T, O, E, V>`.
 
 use lisage_lang::Atom;
-use lisage_plan::conversion::{Conversion, Encodage, ErrorConversion, MarqueEncodage, Royaume};
+use lisage_plan::conversion::{Conversion, Encodage, ErrorConversion, Kingdom, MarqueEncodage};
 use lisage_plan::order::{DomainAtomes, MarqueOrder, Order, TypeOrder};
 
 /// Mark carrying the canonical order over an atom domain.
@@ -109,25 +109,25 @@ fn test_conversion_orders_inconvertibles() {
 /// and its encoding, and `reordonner` requires a conversion compatible with
 /// the source and target marks.
 #[test]
-fn test_royaume_reordonner_contrat_type() {
+fn test_kingdom_reordonner_contrat_type() {
     let domain = DomainAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let source = MarqueCanonique::order(&domain);
     let target = MarqueInverse::order(&domain);
     let conversion = Conversion::new(&source, &target).unwrap();
 
-    let royaume = Royaume::<DomainAtomes, MarqueCanonique, MarqueBalayage, u32>::new(7);
-    assert_eq!(*royaume.value(), 7);
+    let kingdom = Kingdom::<DomainAtomes, MarqueCanonique, MarqueBalayage, u32>::new(7);
+    assert_eq!(*kingdom.value(), 7);
     assert_eq!(
-        Royaume::<DomainAtomes, MarqueCanonique, MarqueBalayage, u32>::encodage(),
+        Kingdom::<DomainAtomes, MarqueCanonique, MarqueBalayage, u32>::encodage(),
         Encodage::BalayageUnivers
     );
     assert_eq!(
-        Royaume::<DomainAtomes, MarqueCanonique, MarqueEnumeration, u32>::encodage(),
+        Kingdom::<DomainAtomes, MarqueCanonique, MarqueEnumeration, u32>::encodage(),
         Encodage::Enumeration
     );
 
     // Compatible conversion: the value moves into the target realm.
-    let converti = royaume
+    let converti = kingdom
         .reordonner::<MarqueInverse>(&domain, &conversion)
         .unwrap();
     assert_eq!(*converti.value(), 7);
@@ -136,10 +136,10 @@ fn test_royaume_reordonner_contrat_type() {
     // Incompatible conversion (wrong source): typed error.
     let mauvaise = Conversion::new(&target, &source).unwrap();
     assert_eq!(
-        royaume
+        kingdom
             .reordonner::<MarqueInverse>(&domain, &mauvaise)
             .err(),
-        Some(ErrorConversion::RoyaumeIncompatible)
+        Some(ErrorConversion::KingdomIncompatible)
     );
 }
 

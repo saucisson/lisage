@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use lisage_bench::confrontation::{
     ErrorConfrontation, MeasureConfrontation, TOOL, Variant, Workload, executer, serialiser_ligne,
 };
-use lisage_core::atelier::Encodage;
+use lisage_core::workshop::Encodage;
 
 /// `think`.
 const PENSE: u64 = 0;
@@ -89,20 +89,20 @@ static COUNTER_FICHIERS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 /// Writes the shared extended-states file (same format as the
 /// Python orchestrator: first line `n <n>`, then one state per line) and
 /// returns its path.
-fn ecrire_fichier_etats(number: u64) -> PathBuf {
+fn write_fichier_etats(number: u64) -> PathBuf {
     let numero = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let path = std::env::temp_dir().join(format!(
         "confrontation-test-philosophers-{number}-{}-{numero}.txt",
         std::process::id()
     ));
     let etats = etats_etendus(number as usize);
-    let mut contenu = format!("n {number}\n");
+    let mut content = format!("n {number}\n");
     for etat in etats {
         let ligne: Vec<String> = etat.iter().map(|value| value.to_string()).collect();
-        contenu.push_str(&ligne.join(" "));
-        contenu.push('\n');
+        content.push_str(&ligne.join(" "));
+        content.push('\n');
     }
-    std::fs::write(&path, contenu).expect("temporary states file written");
+    std::fs::write(&path, content).expect("temporary states file written");
     path
 }
 
@@ -141,7 +141,7 @@ fn test_alea_lcg_bounds_refusees() {
 #[test]
 fn test_philosophers_fil_rouge_epingle() {
     for &(number, expected) in R_EXPECTEDS {
-        let path = ecrire_fichier_etats(number);
+        let path = write_fichier_etats(number);
         let parametres = vec![number.to_string(), path.display().to_string()];
         let measure = executer(&Workload::Philosophers, &parametres, None).expect("workload run");
         assert_eq!(measure.verifie, expected, "n={number}: pinned |R_n|");
@@ -157,7 +157,7 @@ fn test_philosophers_fil_rouge_epingle() {
 /// of the interleaved schema) — typed error, no panic.
 #[test]
 fn test_philosophers_bound_refusee() {
-    let path = ecrire_fichier_etats(3);
+    let path = write_fichier_etats(3);
     let parametres = vec!["33".to_string(), path.display().to_string()];
     let error = executer(&Workload::Philosophers, &parametres, None).expect_err("bound rejected");
     assert!(matches!(
@@ -178,16 +178,16 @@ fn test_philosophers_inputs_invalid() {
         "n 2\n0 0 0 0 0 0\n",
         "n 3\n0 0 0 0 0 7\n",
     ];
-    for (numero, contenu) in cas.iter().enumerate() {
+    for (numero, content) in cas.iter().enumerate() {
         let uniq = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
             "confrontation-test-invalide-{numero}-{}-{uniq}.txt",
             std::process::id()
         ));
-        std::fs::write(&path, contenu).expect("invalid file written");
+        std::fs::write(&path, content).expect("invalid file written");
         let parametres = vec!["3".to_string(), path.display().to_string()];
         let error = executer(&Workload::Philosophers, &parametres, None);
-        assert!(error.is_err(), "invalid input rejected: {contenu:?}");
+        assert!(error.is_err(), "invalid input rejected: {content:?}");
         assert!(
             matches!(error, Err(ErrorConfrontation::InvalidInput { .. })),
             "typed error InvalidInput, not swallowed: {error:?}"
@@ -224,8 +224,8 @@ fn test_window_encodages_epingles() {
 /// missing parameters: typed errors.
 #[test]
 fn test_workloads_inconnues_refusees() {
-    assert_eq!(Workload::depuis_nom("inexistante"), None);
-    assert_eq!(Workload::depuis_nom("alea-lcg"), Some(Workload::AleaLcg));
+    assert_eq!(Workload::depuis_name("inexistante"), None);
+    assert_eq!(Workload::depuis_name("alea-lcg"), Some(Workload::AleaLcg));
     let error = executer(&Workload::AleaLcg, &[], None).expect_err("missing parameters");
     assert!(matches!(
         error,
@@ -309,7 +309,7 @@ fn test_narration_workload_epinglee() {
     // The three workloads emit their summary: philosophers and
     // window are pinned here too (a regression that would lose them
     // would fail this test).
-    let path = ecrire_fichier_etats(3);
+    let path = write_fichier_etats(3);
     let measure_philo = executer(
         &Workload::Philosophers,
         &["3".to_string(), path.display().to_string()],

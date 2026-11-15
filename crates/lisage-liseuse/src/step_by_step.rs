@@ -24,7 +24,7 @@ const COULEUR_SYNTHETISE: &str = "#e67e22";
 /// Color of the level memory (purple).
 const COULEUR_MEMORY: &str = "#8e44ad";
 /// Color of ghosts (gray watermark).
-const COULEUR_FANTOME: &str = "#bbb";
+const COULEUR_GHOST: &str = "#bbb";
 /// Default color of nodes without attribute (M2-6).
 const COULEUR_DEFAUT: &str = "#333";
 /// Color of a `MemoHit` on the timeline (green).
@@ -62,21 +62,21 @@ pub struct EtatTrace {
     pub rounds: u32,
 }
 
-/// Before/after differential between two trace states: `fantomes` =
+/// Before/after differential between two trace states: `ghosts` =
 /// nodes present before but not after (rendered as watermark).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DiffTrace {
     /// Nodes present after but not before.
     pub ajoutes: BTreeSet<NodeId>,
     /// Nodes present before but not after (ghosts).
-    pub fantomes: BTreeSet<NodeId>,
+    pub ghosts: BTreeSet<NodeId>,
 }
 
 /// Differential between two states: additions and ghosts.
 pub fn diff(avant: &EtatTrace, apres: &EtatTrace) -> DiffTrace {
     DiffTrace {
         ajoutes: apres.nodes.difference(&avant.nodes).copied().collect(),
-        fantomes: avant.nodes.difference(&apres.nodes).copied().collect(),
+        ghosts: avant.nodes.difference(&apres.nodes).copied().collect(),
     }
 }
 
@@ -264,16 +264,16 @@ fn rendre_node<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     node: NodeId,
     position: &Placement,
-    fantome: bool,
+    ghost: bool,
     etat: &EtatTrace,
     y_decalage: u32,
 ) {
-    let couleur = if fantome {
-        COULEUR_FANTOME
+    let couleur = if ghost {
+        COULEUR_GHOST
     } else {
         couleur_node(etat, node)
     };
-    let style = if fantome {
+    let style = if ghost {
         format!("stroke=\"{couleur}\" stroke-dasharray=\"4 3\"")
     } else {
         format!("stroke=\"{couleur}\" stroke-width=\"2\"")
@@ -327,7 +327,7 @@ fn rendre_nodes<P: Pool<Key = u64, Payload = bool>>(
             pool,
             *node,
             position,
-            diff.fantomes.contains(node),
+            diff.ghosts.contains(node),
             etat,
             y_decalage,
         );
@@ -364,6 +364,6 @@ pub fn legende_channels() -> BTreeMap<&'static str, &'static str> {
         ("inherited", COULEUR_HERITE),
         ("synthesized", COULEUR_SYNTHETISE),
         ("memory", COULEUR_MEMORY),
-        ("ghost", COULEUR_FANTOME),
+        ("ghost", COULEUR_GHOST),
     ])
 }

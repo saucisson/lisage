@@ -134,8 +134,8 @@ fn test_anchor_composee_fragments() {
     assert_eq!(composee.decalage(&machine), 8);
     assert_eq!(composee.decalage(&convoyeur), -2);
     // Canonical order: lexicographic by name.
-    let noms: Vec<&str> = anchor.fragments().map(|(f, _)| f.0.as_str()).collect();
-    assert_eq!(noms, ["convoyeur", "machine"]);
+    let names: Vec<&str> = anchor.fragments().map(|(f, _)| f.0.as_str()).collect();
+    assert_eq!(names, ["convoyeur", "machine"]);
     assert!(AnchorComposee::new().est_nulle());
 }
 

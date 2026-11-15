@@ -7,7 +7,7 @@ use lisage_core::Anchor;
 use lisage_core::operations::{KeyPresentes, existe, filtrer};
 use lisage_core::pli::count;
 use lisage_liseuse::philosophers::{
-    build_mangeurs, build_r_n, cellules_legales, count_r_n, mots_atteignables, pool_neuf,
+    build_mangeurs, build_r_n, cells_legales, count_r_n, mots_atteignables, pool_neuf,
     schema_anneau, schema_mangeurs,
 };
 use lisage_liseuse::svg::rendre_svg;
@@ -37,7 +37,7 @@ fn test_c8_cardinaux_r3_r4_r5() {
 /// `filter` on the « eaters » projection of R_n: states where cell 0
 /// eats (key 0 present); DD count == reference.
 #[test]
-fn test_filter_cellule_zero_mange() {
+fn test_filter_cell_zero_mange() {
     for &(n, _) in R_EXPECTEDS {
         let schema = schema_mangeurs(n);
         let mut input = pool_neuf(&schema);
@@ -118,7 +118,7 @@ fn test_exists_sur_r_n() {
 fn test_sept_forms_contre_r_n() {
     use lisage_core::{Form, Pool};
 
-    let legales = cellules_legales();
+    let legales = cells_legales();
     assert_eq!(legales.len(), 5, "5 internal forms");
     for &(n, _) in R_EXPECTEDS {
         let schema = schema_anneau(n);
@@ -165,10 +165,10 @@ fn test_sept_forms_contre_r_n() {
                 ));
             }
         }
-        for cellule in legales {
+        for cell in legales {
             assert!(
-                vus.contains(&cellule),
-                "n={n} : the legal cell {cellule:?} appears"
+                vus.contains(&cell),
+                "n={n} : the legal cell {cell:?} appears"
             );
         }
         assert_eq!(vus.len(), 5, "n={n} : exactly 5 legal cells in R_n");
@@ -197,8 +197,8 @@ fn dp_lineaire(n: usize, first: usize) -> Vec<(usize, u64)> {
     dp[first] = 1;
     for _ in 1..n {
         let mut next = [0u64; 3];
-        for (v, cellule_next) in next.iter_mut().enumerate() {
-            *cellule_next = dp
+        for (v, cell_next) in next.iter_mut().enumerate() {
+            *cell_next = dp
                 .iter()
                 .enumerate()
                 .filter(|(u, _)| !(v == 2 && *u == 2))
@@ -243,9 +243,9 @@ fn test_figure_svg_r5_exportee() {
     assert!(svg.starts_with("<svg ") && svg.contains("ℓ0"));
     assert_eq!(svg, rendre_svg(&input, root), "deterministic rendering");
 
-    let dossier = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
-    std::fs::create_dir_all(dossier).expect("creation of bench-results");
-    let path = format!("{dossier}/philosophers-n5.svg");
+    let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
+    std::fs::create_dir_all(directory).expect("creation of bench-results");
+    let path = format!("{directory}/philosophers-n5.svg");
     // The committed figure must be up to date: a diverging rendering fails here.
     let commitee = std::fs::read_to_string(&path).expect("reading the committed figure");
     assert_eq!(

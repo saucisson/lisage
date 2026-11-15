@@ -147,7 +147,7 @@ impl std::error::Error for PnmlError {}
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum XmlNode {
     Element {
-        nom: String,
+        name: String,
         attributes: BTreeMap<String, String>,
         children: Vec<XmlNode>,
     },
@@ -176,7 +176,7 @@ fn sauter_spaces(octets: &[char], position: &mut usize) {
 }
 
 /// Reads an XML name (alphanumeric + `_ - : .`).
-fn lire_nom(octets: &[char], position: &mut usize) -> Result<String, PnmlError> {
+fn read_name(octets: &[char], position: &mut usize) -> Result<String, PnmlError> {
     let debut = *position;
     while *position < octets.len()
         && (octets[*position].is_alphanumeric()
@@ -194,7 +194,7 @@ fn lire_nom(octets: &[char], position: &mut usize) -> Result<String, PnmlError> 
 }
 
 /// Reads a string between single or double quotes.
-fn lire_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlError> {
+fn read_chaine(octets: &[char], position: &mut usize) -> Result<String, PnmlError> {
     let Some(&delimiteur) = octets.get(*position) else {
         return Err(PnmlError::XmlMalformed {
             position: *position,
@@ -247,39 +247,39 @@ fn sauter_jusqu_a(octets: &[char], position: &mut usize, target: char) {
     }
 }
 
-/// Reads the opening tag `<nom attr="v" …>` or `<nom …/>`.
-/// Returns `(nom, attributes, est_auto_fermante)`.
-fn lire_balise_ouvrante(
+/// Reads the opening tag `<name attr="v" …>` or `<name …/>`.
+/// Returns `(name, attributes, est_auto_fermante)`.
+fn read_balise_ouvrante(
     octets: &[char],
     position: &mut usize,
 ) -> Result<(String, BTreeMap<String, String>, bool), PnmlError> {
     *position += 1; // '<'
-    let nom = lire_nom(octets, position)?;
+    let name = read_name(octets, position)?;
     let mut attributes = BTreeMap::new();
     loop {
         sauter_spaces(octets, position);
         let Some(&c) = octets.get(*position) else {
             return Err(PnmlError::XmlMalformed {
                 position: *position,
-                detail: format!("unclosed tag <{nom}>"),
+                detail: format!("unclosed tag <{name}>"),
             });
         };
         match c {
             '/' => {
                 *position += 1;
                 attendre(octets, position, '>')?;
-                return Ok((nom, attributes, true));
+                return Ok((name, attributes, true));
             }
             '>' => {
                 *position += 1;
-                return Ok((nom, attributes, false));
+                return Ok((name, attributes, false));
             }
             _ => {
-                let key = lire_nom(octets, position)?;
+                let key = read_name(octets, position)?;
                 sauter_spaces(octets, position);
                 attendre(octets, position, '=')?;
                 sauter_spaces(octets, position);
-                let value = lire_chaine(octets, position)?;
+                let value = read_chaine(octets, position)?;
                 attributes.insert(key, value);
             }
         }
@@ -287,7 +287,7 @@ fn lire_balise_ouvrante(
 }
 
 /// Reads a text chunk up to the next '<'.
-fn lire_texte(octets: &[char], position: &mut usize) -> String {
+fn read_texte(octets: &[char], position: &mut usize) -> String {
     let debut = *position;
     while *position < octets.len() && octets[*position] != '<' {
         *position += 1;
@@ -299,14 +299,18 @@ fn lire_texte(octets: &[char], position: &mut usize) -> String {
         .to_string()
 }
 
-/// Reads the closing tag `</nom>` and checks the match.
-fn lire_balise_fermante(octets: &[char], position: &mut usize, nom: &str) -> Result<(), PnmlError> {
+/// Reads the closing tag `</name>` and checks the match.
+fn read_balise_fermante(
+    octets: &[char],
+    position: &mut usize,
+    name: &str,
+) -> Result<(), PnmlError> {
     *position += 2; // '</'
-    let nom_fermeture = lire_nom(octets, position)?;
-    if nom_fermeture != nom {
+    let name_fermeture = read_name(octets, position)?;
+    if name_fermeture != name {
         return Err(PnmlError::XmlMalformed {
             position: *position,
-            detail: format!("closing </{nom_fermeture}> for <{nom}>"),
+            detail: format!("closing </{name_fermeture}> for <{name}>"),
         });
     }
     attendre(octets, position, '>')
@@ -326,17 +330,17 @@ fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNode, Pnml
         sauter_jusqu_a(octets, position, '>');
         return parser_element(octets, position);
     }
-    let (nom, attributes, auto_fermante) = lire_balise_ouvrante(octets, position)?;
+    let (name, attributes, auto_fermante) = read_balise_ouvrante(octets, position)?;
     if auto_fermante {
         return Ok(XmlNode::Element {
-            nom,
+            name,
             attributes,
             children: Vec::new(),
         });
     }
-    let children = parser_children(octets, position, &nom)?;
+    let children = parser_children(octets, position, &name)?;
     Ok(XmlNode::Element {
-        nom,
+        name,
         attributes,
         children,
     })
@@ -346,7 +350,7 @@ fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNode, Pnml
 fn parser_children(
     octets: &[char],
     position: &mut usize,
-    nom: &str,
+    name: &str,
 ) -> Result<Vec<XmlNode>, PnmlError> {
     let mut children = Vec::new();
     loop {
@@ -354,17 +358,17 @@ fn parser_children(
         let Some(&c) = octets.get(*position) else {
             return Err(PnmlError::XmlMalformed {
                 position: *position,
-                detail: format!("end of document inside <{nom}>"),
+                detail: format!("end of document inside <{name}>"),
             });
         };
         if c == '<' {
             if octets.get(*position + 1) == Some(&'/') {
-                lire_balise_fermante(octets, position, nom)?;
+                read_balise_fermante(octets, position, name)?;
                 return Ok(children);
             }
             children.push(parser_element(octets, position)?);
         } else {
-            let texte = lire_texte(octets, position);
+            let texte = read_texte(octets, position);
             if !texte.is_empty() {
                 children.push(XmlNode::Texte(texte));
             }
@@ -380,7 +384,7 @@ fn parser_children(
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Place {
     pub identifiant: PlaceId,
-    pub nom: Option<String>,
+    pub name: Option<String>,
     pub marquage_initial: u64,
 }
 
@@ -388,7 +392,7 @@ pub struct Place {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Transition {
     pub identifiant: TransitionId,
-    pub nom: Option<String>,
+    pub name: Option<String>,
 }
 
 /// Oriented arc place↔transition (weight 1).
@@ -414,22 +418,22 @@ impl NetworkPetri {
     /// Parses a complete PNML document.
     pub fn depuis_pnml(document: &PnmlDocument) -> Result<NetworkPetri, PnmlError> {
         let root = parser_xml(&document.0)?;
-        let XmlNode::Element { nom, children, .. } = &root else {
+        let XmlNode::Element { name, children, .. } = &root else {
             return Err(PnmlError::ElementInexpected {
                 expected: ELEMENT_PNML,
                 trouve: "text".to_string(),
             });
         };
-        if nom != ELEMENT_PNML {
+        if name != ELEMENT_PNML {
             return Err(PnmlError::ElementInexpected {
                 expected: ELEMENT_PNML,
-                trouve: nom.clone(),
+                trouve: name.clone(),
             });
         }
         let net = children
             .iter()
             .find_map(|child| match child {
-                XmlNode::Element { nom, children, .. } if nom == ELEMENT_NET => Some(children),
+                XmlNode::Element { name, children, .. } if name == ELEMENT_NET => Some(children),
                 _ => None,
             })
             .ok_or_else(|| PnmlError::ElementInexpected {
@@ -441,14 +445,14 @@ impl NetworkPetri {
         let mut arcs_bruts = Vec::new();
         for child in net {
             let XmlNode::Element {
-                nom,
+                name,
                 attributes,
                 children,
             } = child
             else {
                 continue;
             };
-            match nom.as_str() {
+            match name.as_str() {
                 ELEMENT_PLACE => places.push(parser_place(attributes, children)?),
                 ELEMENT_TRANSITION => transitions.push(parser_transition(attributes, children)?),
                 ELEMENT_ARC => arcs_bruts.push(parser_arc(attributes)?),
@@ -547,26 +551,26 @@ fn resoudre_node(
 fn attribute_obligatoire(
     attributes: &BTreeMap<String, String>,
     element: &'static str,
-    nom: &'static str,
+    name: &'static str,
 ) -> Result<String, PnmlError> {
     attributes
-        .get(nom)
+        .get(name)
         .cloned()
         .ok_or(PnmlError::AttributeManquant {
             element,
-            attribute: nom,
+            attribute: name,
         })
 }
 
 /// Text of a `<name><text>…</text></name>` or
 /// `<initialMarking><text>…</text></initialMarking>` element: the text is
 /// either a direct child, or inside a `<text>` sub-element.
-fn lire_texte_child(children: &[XmlNode], element: &str) -> Option<String> {
+fn read_texte_child(children: &[XmlNode], element: &str) -> Option<String> {
     for child in children {
-        let XmlNode::Element { nom, children, .. } = child else {
+        let XmlNode::Element { name, children, .. } = child else {
             continue;
         };
-        if nom != element {
+        if name != element {
             continue;
         }
         return children.iter().find_map(texte_direct_ou_dans_text);
@@ -577,7 +581,7 @@ fn lire_texte_child(children: &[XmlNode], element: &str) -> Option<String> {
 fn texte_direct_ou_dans_text(node: &XmlNode) -> Option<String> {
     match node {
         XmlNode::Texte(texte) => Some(texte.clone()),
-        XmlNode::Element { nom, children, .. } if nom == ELEMENT_TEXT => {
+        XmlNode::Element { name, children, .. } if name == ELEMENT_TEXT => {
             children.iter().find_map(|e| match e {
                 XmlNode::Texte(texte) => Some(texte.clone()),
                 _ => None,
@@ -587,8 +591,8 @@ fn texte_direct_ou_dans_text(node: &XmlNode) -> Option<String> {
     }
 }
 
-fn lire_nom_optionnel(children: &[XmlNode]) -> Option<String> {
-    lire_texte_child(children, ELEMENT_NAME)
+fn read_name_optionnel(children: &[XmlNode]) -> Option<String> {
+    read_texte_child(children, ELEMENT_NAME)
 }
 
 fn parser_place(
@@ -600,8 +604,8 @@ fn parser_place(
         ELEMENT_PLACE,
         ATTRIBUTE_ID,
     )?);
-    let nom = lire_nom_optionnel(children);
-    let marquage_initial = match lire_texte_child(children, ELEMENT_MARQUAGE) {
+    let name = read_name_optionnel(children);
+    let marquage_initial = match read_texte_child(children, ELEMENT_MARQUAGE) {
         Some(texte) => texte
             .parse::<u64>()
             .map_err(|_| PnmlError::NumberInvalide {
@@ -612,7 +616,7 @@ fn parser_place(
     };
     Ok(Place {
         identifiant,
-        nom,
+        name,
         marquage_initial,
     })
 }
@@ -626,8 +630,8 @@ fn parser_transition(
         ELEMENT_TRANSITION,
         ATTRIBUTE_ID,
     )?);
-    let nom = lire_nom_optionnel(children);
-    Ok(Transition { identifiant, nom })
+    let name = read_name_optionnel(children);
+    Ok(Transition { identifiant, name })
 }
 
 fn parser_arc(attributes: &BTreeMap<String, String>) -> Result<ArcBrut, PnmlError> {

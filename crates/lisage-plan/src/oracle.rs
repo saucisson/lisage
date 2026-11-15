@@ -19,7 +19,7 @@ fn pgcd(mut a: u64, mut b: u64) -> u64 {
     a.max(1)
 }
 
-/// Exact rational, normalized (strictly positive denominator):
+/// Exact rational, normalized (strictly positive denameinator):
 /// exact arithmetic by default (roadmap § 10, M5-4 decision). Private
 /// fields: only [`Rationnel::new`] constructs, the `den > 0` invariant
 /// cannot be bypassed by a literal.
@@ -52,7 +52,7 @@ impl Rationnel {
         self.num
     }
 
-    /// Denominator (> 0).
+    /// Denameinator (> 0).
     pub fn den(&self) -> u64 {
         self.den
     }
@@ -152,10 +152,10 @@ impl ParametresOracle {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Prediction {
     /// Predicted diagram size (nodes, terminal included).
-    pub size_predite: u64,
+    pub size_predictede: u64,
     /// Predicted total cost (encoding units): size × encoding cost ×
     /// downstream queries.
-    pub cout_total_predit: u64,
+    pub cout_total_predicted: u64,
 }
 
 /// Analytical profitability oracle (M3-3): the predictive model and its
@@ -170,20 +170,20 @@ impl Oracle {
         let presents = (parametres.size_domain as u128)
             * (parametres.densite_expectede.num as u128)
             / (parametres.densite_expectede.den as u128);
-        let size_predite = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
-        let cout_total_predit = size_predite
+        let size_predictede = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
+        let cout_total_predicted = size_predictede
             .saturating_mul(parametres.cout_encodage)
             .saturating_mul(parametres.requetes_aval);
         Prediction {
-            size_predite,
-            cout_total_predit,
+            size_predictede,
+            cout_total_predicted,
         }
     }
 
     /// Differential guardrail (C4): compares the prediction to the actual
     /// measurement. Conforming if the measurement fits in [predicted/2, 2 × predicted].
-    pub fn guardrail(predit: u64, measure: u64) -> VerdictGuardrail {
-        VerdictGuardrail::new(predit, measure)
+    pub fn guardrail(predicted: u64, measure: u64) -> VerdictGuardrail {
+        VerdictGuardrail::new(predicted, measure)
     }
 }
 
@@ -191,15 +191,15 @@ impl Oracle {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct VerdictGuardrail {
     /// Cost predicted by the model.
-    pub predit: u64,
+    pub predicted: u64,
     /// Cost actually measured.
     pub measure: u64,
 }
 
 impl VerdictGuardrail {
     /// Verdict between a prediction and a measurement.
-    pub fn new(predit: u64, measure: u64) -> Self {
-        VerdictGuardrail { predit, measure }
+    pub fn new(predicted: u64, measure: u64) -> Self {
+        VerdictGuardrail { predicted, measure }
     }
 
     /// Ratio measure/predicted in exact arithmetic. By convention of
@@ -207,7 +207,7 @@ impl VerdictGuardrail {
     /// saturated value); `est_conforming` does not go through `ratio` and
     /// handles `predicted == 0` directly.
     pub fn ratio(&self) -> Rationnel {
-        Rationnel::new(self.measure, self.predit)
+        Rationnel::new(self.measure, self.predicted)
     }
 
     /// Conforming if the measurement fits in [BOUND_INFERIEURE × predicted,
@@ -216,11 +216,12 @@ impl VerdictGuardrail {
     /// (conforming iff `measurement == 0`). Out of bounds, the model is
     /// falsified (C4).
     pub fn est_conforming(&self) -> bool {
-        let predit = self.predit as u128;
+        let predicted = self.predicted as u128;
         let measure = self.measure as u128;
         // BOUND_INFERIEURE <= measure/predicted <=> min.num·predicted <= measure·min.den
         // measure/predicted <= BOUND_SUPERIEURE <=> measure·max.den <= max.num·predicted
-        (BOUND_INFERIEURE.num as u128) * predit <= measure * (BOUND_INFERIEURE.den as u128)
-            && measure * (BOUND_SUPERIEURE.den as u128) <= (BOUND_SUPERIEURE.num as u128) * predit
+        (BOUND_INFERIEURE.num as u128) * predicted <= measure * (BOUND_INFERIEURE.den as u128)
+            && measure * (BOUND_SUPERIEURE.den as u128)
+                <= (BOUND_SUPERIEURE.num as u128) * predicted
     }
 }

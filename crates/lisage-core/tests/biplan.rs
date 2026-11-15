@@ -242,7 +242,7 @@ fn test_metriques_cache_et_evenement_gc() {
         "partages counted: {}",
         metriques.partages
     );
-    assert!(pool.metriques().taux_hit() > 0);
+    assert!(pool.metriques().rate_hit() > 0);
     let stats = pool.gc(&[root]);
     let metriques = pool.metriques();
     assert_eq!(metriques.gc, 1);
@@ -283,10 +283,10 @@ fn test_intern_plan_hit_cache_replanifie() {
 }
 
 /// M4-1 (property tier, LCG): invariants of the compaction threshold, the
-/// hit rate and the GC — bound `dead × 4 == total` included, `taux_hit`
+/// hit rate and the GC — bound `dead × 4 == total` included, `rate_hit`
 /// bounded, `live + collected == total` over random scenarios.
 #[test]
-fn test_propriete_threshold_taux_hit_et_invariant_gc() {
+fn test_propriete_threshold_rate_hit_et_invariant_gc() {
     let mut seed = SEED_LCG;
     let mut next = move || {
         seed = seed
@@ -329,13 +329,13 @@ fn test_propriete_threshold_taux_hit_et_invariant_gc() {
             partages,
             ..Default::default()
         };
-        let taux = metriques.taux_hit();
-        assert!(taux <= 100);
+        let rate = metriques.rate_hit();
+        assert!(rate <= 100);
         let expected = partages
             .checked_mul(lisage_core::biplan::BASE_POURCENTAGE)
             .and_then(|p| p.checked_div(creations + partages))
             .unwrap_or(0);
-        assert_eq!(taux, expected);
+        assert_eq!(rate, expected);
     }
 
     // GC invariant: live + collected == total, and the metrics

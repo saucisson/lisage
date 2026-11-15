@@ -82,7 +82,7 @@ fn test_svg_publication_deterministe() {
 
 /// The PGF is a standalone TikZ document: diagram nodes and arcs, title.
 #[test]
-fn test_pgf_autonome_with_nodes_et_arcs() {
+fn test_pgf_autonamee_with_nodes_et_arcs() {
     let (pool, root) = diagramme_test();
     let pgf = rendre_pgf(&pool, root, "figure A");
     assert!(pgf.contains("\\documentclass[tikz,border=5pt]{standalone}"));

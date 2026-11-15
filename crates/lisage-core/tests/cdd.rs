@@ -103,7 +103,7 @@ fn test_intersection_distributive() {
 }
 
 #[test]
-fn test_coverage_boite_bounded() {
+fn test_coverage_box_bounded() {
     let keys = CddKeys::new(SIZE_DOMAIN);
     let a = Dbm::new(2, &[(0, 1, 0)]);
     let b = Dbm::new(2, &[(1, 0, -2)]);

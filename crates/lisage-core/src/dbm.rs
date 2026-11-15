@@ -14,7 +14,7 @@
 //! bounds cannot overflow. The 2D Lebesgue measure (area of the
 //! zone ∩ box, [`DbmKeys::measure_zone`]) and the fold integral over DBM
 //! keys (`crate::integrale::integrale_dbm_constante`) complete this fragment
-//! on the measure side; the semiring with polynomial densities remains
+//! on the measure side; the semiring with polynameial densities remains
 //! outside the fragment.
 
 use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};
@@ -54,7 +54,7 @@ impl Dbm {
             );
             let bound = i128::from(c);
             matrice[i][j] = Some(match matrice[i][j] {
-                Some(ancienne) => ancienne.min(bound),
+                Some(old) => old.min(bound),
                 None => bound,
             });
         }
@@ -80,7 +80,7 @@ impl Dbm {
                     if let (Some(a), Some(b)) = (matrice[i][k], matrice[k][j]) {
                         let sum = a + b;
                         matrice[i][j] = Some(match matrice[i][j] {
-                            Some(ancienne) => ancienne.min(sum),
+                            Some(old) => old.min(sum),
                             None => sum,
                         });
                     }

@@ -306,7 +306,7 @@ fn test_scrubber_replay_et_diff() {
     // at position 3, no addition.
     let diff = scrubber.diff_vers(3);
     assert!(diff.ajoutes.is_empty());
-    assert_eq!(diff.fantomes, BTreeSet::from([NodeId(2)]));
+    assert_eq!(diff.ghosts, BTreeSet::from([NodeId(2)]));
     // Inverse diff: node 2 is a ghost.
     let mut retour = Scrubber::new(vec![
         TraceEvent::NodeCreated {
@@ -321,13 +321,13 @@ fn test_scrubber_replay_et_diff() {
     retour.aller_a(2);
     let diff_inv = retour.diff_vers(1);
     assert!(diff_inv.ajoutes.is_empty());
-    assert_eq!(diff_inv.fantomes, BTreeSet::from([NodeId(2)]));
+    assert_eq!(diff_inv.ghosts, BTreeSet::from([NodeId(2)]));
 }
 
 /// M2-6: the step-by-step SVG rendering colors the channels, marks the ghosts
 /// as dashed, draws the timeline with the rounds, and is deterministic.
 #[test]
-fn test_rendu_svg_step_by_step_channels_et_fantomes() {
+fn test_rendu_svg_step_by_step_channels_et_ghosts() {
     let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -388,14 +388,14 @@ fn test_rendu_svg_step_by_step_channels_et_fantomes() {
 
     // Ghost: diff with an empty state at the start → all the nodes are ghosts
     // not in the diff (additions), let's test the reverse: diff towards 0.
-    let diff_fantomes = scrubber.diff_vers(0);
+    let diff_ghosts = scrubber.diff_vers(0);
     assert!(
-        !diff_fantomes.fantomes.is_empty(),
+        !diff_ghosts.ghosts.is_empty(),
         "present nodes = ghosts when going back to 0"
     );
-    let svg_fantomes = rendre_svg_step_by_step(&pool, root, &scrubber, &diff_fantomes);
+    let svg_ghosts = rendre_svg_step_by_step(&pool, root, &scrubber, &diff_ghosts);
     assert!(
-        svg_fantomes.contains("stroke-dasharray=\"4 3\""),
+        svg_ghosts.contains("stroke-dasharray=\"4 3\""),
         "ghosts dashed"
     );
 
@@ -407,7 +407,7 @@ fn test_rendu_svg_step_by_step_channels_et_fantomes() {
 /// Scrubber property (deterministic LCG generator, no proptest):
 /// the replay is monotone by prefix (the state at k is included in the state at
 /// k+1 for nodes and counters) and the diff is antisymmetric
-/// (`diff(a→b).ajoutes == diff(b→a).fantomes` and vice versa).
+/// (`diff(a→b).ajoutes == diff(b→a).ghosts` and vice versa).
 #[test]
 fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -458,8 +458,8 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
             // Antisymmetry of the diff between positions k-1 and k.
             let diff_avant = diff(&precedent, &etat);
             let diff_arriere = diff(&etat, &precedent);
-            assert_eq!(diff_avant.ajoutes, diff_arriere.fantomes);
-            assert_eq!(diff_avant.fantomes, diff_arriere.ajoutes);
+            assert_eq!(diff_avant.ajoutes, diff_arriere.ghosts);
+            assert_eq!(diff_avant.ghosts, diff_arriere.ajoutes);
             precedent = etat;
         }
     }

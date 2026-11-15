@@ -1,5 +1,5 @@
 //! Tests for the reduction dashboard (didactic workshop, backlog § 9):
-//! commutation of R-collapse and R-default via `AtelierController`, and
+//! commutation of R-collapse and R-default via `WorkshopController`, and
 //! didactic metrics — shared nodes (R-share) vs paths (size of the unfolded
 //! DAG). Pool errors are propagated, never swallowed.
 
@@ -7,28 +7,28 @@ use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
-use lisage_core::atelier::{
-    AtelierController, Reductions, count_nodes, count_paths, count_size_depliee, measure,
-};
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::region::{EMPTY, Interval, RegionController, RegionKeys};
+use lisage_core::workshop::{
+    Reductions, WorkshopController, count_nodes, count_paths, count_size_depliee, measure,
+};
 
-type PoolBdd = Arena<AtelierController<BddController>>;
-type PoolRegion = Arena<AtelierController<RegionController>>;
+type PoolBdd = Arena<WorkshopController<BddController>>;
+type PoolRegion = Arena<WorkshopController<RegionController>>;
 
 const ANCHOR: Anchor = Anchor(0);
 
 fn pool_bdd(reductions: Reductions) -> PoolBdd {
     Arena::new(
-        AtelierController::new(BddController::new(2), reductions),
+        WorkshopController::new(BddController::new(2), reductions),
         Box::new(NoOpObserver),
     )
 }
 
 fn pool_region(reductions: Reductions) -> PoolRegion {
     Arena::new(
-        AtelierController::new(RegionController::new(RegionKeys::new(vec![3])), reductions),
+        WorkshopController::new(RegionController::new(RegionKeys::new(vec![3])), reductions),
         Box::new(NoOpObserver),
     )
 }
@@ -263,7 +263,7 @@ fn test_narration_measure() {
 /// the window's "4 vs infinity", measured.
 #[test]
 fn test_window_absolu_croit_relatif_constant() {
-    use lisage_core::atelier::comparer_encodages_window;
+    use lisage_core::workshop::comparer_encodages_window;
 
     const SIZE: u64 = 4;
     // 10 bases: absolute = root + 10 windows + ⊤ = 12 nodes; relative = 3.
@@ -301,8 +301,8 @@ fn test_window_absolu_croit_relatif_constant() {
 fn test_narration_comparaison_encodages() {
     use std::sync::{Arc, Mutex};
 
-    use lisage_core::atelier::comparer_encodages_window;
     use lisage_core::observer::{ChannelAttr, TraceEvent};
+    use lisage_core::workshop::comparer_encodages_window;
 
     #[derive(Clone)]
     struct Collector {
@@ -354,7 +354,7 @@ fn table_ou_deux_paires() -> Vec<bool> {
 /// Natural order [0,1,2,3]: 10 nodes; interleaved [0,2,1,3]: 12 nodes.
 #[test]
 fn test_order_change_nodes_pas_paths() {
-    use lisage_core::atelier::{Order, comparer_orders};
+    use lisage_core::workshop::{Order, comparer_orders};
 
     let table = table_ou_deux_paires();
     let mut pool = pool_bdd(Reductions::without_collapse());
@@ -380,13 +380,13 @@ fn test_order_change_nodes_pas_paths() {
 /// (same interned forms, same `NodeId` in the same pool).
 #[test]
 fn test_order_naturel_equivaut_a_compiler_bdd() {
-    use lisage_core::atelier::{Order, compiler_bdd_order};
+    use lisage_core::workshop::{Order, compiler_bdd_order};
 
     let table = table_ou_deux_paires();
     let mut pool = pool_bdd(Reductions::TOUTES);
-    let via_atelier = compiler_bdd_order(&mut pool, ANCHOR, &Order::naturel(4), &table);
+    let via_workshop = compiler_bdd_order(&mut pool, ANCHOR, &Order::naturel(4), &table);
     let via_bdd = compiler_bdd(&mut pool, ANCHOR, &BddKeys::new(4), &table);
-    assert_eq!(via_atelier, via_bdd);
+    assert_eq!(via_workshop, via_bdd);
 }
 
 /// Didactic growth: over 6 variables, f = (x₀∧x₁)∨(x₂∧x₃)∨(x₄∧x₅), the
@@ -394,7 +394,7 @@ fn test_order_naturel_equivaut_a_compiler_bdd() {
 /// [0,2,4,1,3,5] separates them (25 nodes) — same 64 paths on both sides.
 #[test]
 fn test_order_intercale_croissance_six_variables() {
-    use lisage_core::atelier::{Order, comparer_orders};
+    use lisage_core::workshop::{Order, comparer_orders};
 
     let table: Vec<bool> = (0..64)
         .map(|a| {
@@ -424,8 +424,8 @@ fn test_order_intercale_croissance_six_variables() {
 fn test_narration_comparaison_orders() {
     use std::sync::{Arc, Mutex};
 
-    use lisage_core::atelier::{Order, comparer_orders};
     use lisage_core::observer::{ChannelAttr, TraceEvent};
+    use lisage_core::workshop::{Order, comparer_orders};
 
     #[derive(Clone)]
     struct Collector {
@@ -471,7 +471,7 @@ fn test_narration_comparaison_orders() {
 /// not move and the absolute reading of the window advances.
 #[test]
 fn test_anchor_window_glisse() {
-    use lisage_core::atelier::AnchorWindow;
+    use lisage_core::workshop::AnchorWindow;
 
     let anchor = AnchorWindow::new(0, 4);
     assert_eq!(anchor.base(), 0);
@@ -500,7 +500,7 @@ fn test_anchor_window_glisse() {
 /// created at each step, never the form.
 #[test]
 fn test_glisse_pool_constant_lectures_differentes() {
-    use lisage_core::atelier::{AnchorWindow, build_window_anchored, comparer_anchors_window};
+    use lisage_core::workshop::{AnchorWindow, build_window_anchored, comparer_anchors_window};
 
     const SIZE: u64 = 4;
     // (R-collapse commuted: an all-true window would otherwise collapse.)
@@ -553,7 +553,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
 /// sliding by `a + b` — and the horizon is invariant (30 cases).
 #[test]
 fn test_propriete_glisse_composition_lcg() {
-    use lisage_core::atelier::AnchorWindow;
+    use lisage_core::workshop::AnchorWindow;
 
     const SEED_LCG: u64 = 0x5EED_2026_1112_4E11;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
@@ -591,8 +591,8 @@ fn test_propriete_glisse_composition_lcg() {
 fn test_narration_comparaison_anchors() {
     use std::sync::{Arc, Mutex};
 
-    use lisage_core::atelier::{AnchorWindow, comparer_anchors_window};
     use lisage_core::observer::{ChannelAttr, TraceEvent};
+    use lisage_core::workshop::{AnchorWindow, comparer_anchors_window};
 
     #[derive(Clone)]
     struct Collector {

@@ -32,7 +32,7 @@ fn echapper_json(chaine: &str) -> String {
 }
 
 /// JSON name of a reduction rule.
-fn nom_regle(regle: ReductionRule) -> &'static str {
+fn name_regle(regle: ReductionRule) -> &'static str {
     match regle {
         ReductionRule::Share => "R-share",
         ReductionRule::Collapse => "R-collapse",
@@ -41,7 +41,7 @@ fn nom_regle(regle: ReductionRule) -> &'static str {
 }
 
 /// JSON name of an attribute channel (M2-6).
-fn nom_channel(channel: ChannelAttr) -> &'static str {
+fn name_channel(channel: ChannelAttr) -> &'static str {
     match channel {
         ChannelAttr::Inherited => "herite",
         ChannelAttr::Synthesized => "synthetise",
@@ -64,7 +64,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             "Reduction",
             format!(
                 "\"rule\":\"{}\",\"level\":{}",
-                echapper_json(nom_regle(*rule)),
+                echapper_json(name_regle(*rule)),
                 level.0
             ),
         ),
@@ -83,7 +83,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             "Attr",
             format!(
                 "\"canal\":\"{}\",\"noeud\":{},\"valeur\":\"{}\"",
-                nom_channel(*channel),
+                name_channel(*channel),
                 node.0,
                 echapper_json(value)
             ),
@@ -124,7 +124,7 @@ impl JsonlObserver {
     }
 
     /// Writes the full trace (one line per event) to `output`.
-    pub fn ecrire<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
+    pub fn write<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
         for ligne in self.lignes() {
             writeln!(output, "{ligne}")?;
         }
