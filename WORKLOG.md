@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 15: `ordre` renamed to `order`, module files renamed (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: rename `ordre`→`order` (all cases, compounds included), workspace-wide (16 files), per glossary; module files git-mv'd: `lisage-plan/src/ordre.rs`→`order.rs`, `lisage-plan/tests/ordre.rs`→`order.rs`, `lisage-liseuse/src/vue_ordre.rs`→`vue_order.rs`, `lisage-liseuse/tests/vue_ordre.rs`→`vue_order.rs`; `mod` declarations updated by the same pass.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stem returns 0.
+- **Judgement calls**: none beyond the glossary mapping.
 ## 2026-11-14 - M6-6 part 14: `cardinal`/`cardinalite`/`premier`/`dernier`/`meme` renamed to `cardinality`/`first`/`last`/`same` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
