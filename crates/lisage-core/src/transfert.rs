@@ -1,6 +1,6 @@
 //! Non-local events (M2-5, spec § 7, statement T3): compiling a transition of
 //! width `w` into a transduction with **level memory**, with
-//! a polynameial overhead in `w`.
+//! a polynomial overhead in `w`.
 //!
 //! Reference example (spec § 7): the transfer `t : m(a) -= 1; m(b) += 1`
 //! on a `Map` — the transition touches the levels of the two keys `a` and

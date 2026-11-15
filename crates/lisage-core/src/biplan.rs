@@ -23,7 +23,7 @@ pub enum Plan {
 /// Profiled compaction threshold: compact when the tombstone proportion
 /// reaches 1/4 of the slots (dead × 4 ≥ total).
 pub const THRESHOLD_COMPACTION_NUM: u64 = 1;
-/// Denameinator of the compaction threshold.
+/// Denominator of the compaction threshold.
 pub const THRESHOLD_COMPACTION_DEN: u64 = 4;
 
 /// Percentage base for `rate_hit` (returned in percent, integer).

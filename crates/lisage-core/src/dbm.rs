@@ -14,7 +14,7 @@
 //! bounds cannot overflow. The 2D Lebesgue measure (area of the
 //! zone ∩ box, [`DbmKeys::measure_zone`]) and the fold integral over DBM
 //! keys (`crate::integrale::integrale_dbm_constante`) complete this fragment
-//! on the measure side; the semiring with polynameial densities remains
+//! on the measure side; the semiring with polynomial densities remains
 //! outside the fragment.
 
 use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};

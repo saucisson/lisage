@@ -19,7 +19,7 @@ fn pgcd(mut a: u64, mut b: u64) -> u64 {
     a.max(1)
 }
 
-/// Exact rational, normalized (strictly positive denameinator):
+/// Exact rational, normalized (strictly positive denominator):
 /// exact arithmetic by default (roadmap § 10, M5-4 decision). Private
 /// fields: only [`Rationnel::new`] constructs, the `den > 0` invariant
 /// cannot be bypassed by a literal.
@@ -52,7 +52,7 @@ impl Rationnel {
         self.num
     }
 
-    /// Denameinator (> 0).
+    /// Denominator (> 0).
     pub fn den(&self) -> u64 {
         self.den
     }
@@ -152,7 +152,7 @@ impl ParametresOracle {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Prediction {
     /// Predicted diagram size (nodes, terminal included).
-    pub size_predictede: u64,
+    pub size_predicted: u64,
     /// Predicted total cost (encoding units): size × encoding cost ×
     /// downstream queries.
     pub cout_total_predicted: u64,
@@ -170,12 +170,12 @@ impl Oracle {
         let presents = (parametres.size_domain as u128)
             * (parametres.densite_expectede.num as u128)
             / (parametres.densite_expectede.den as u128);
-        let size_predictede = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
-        let cout_total_predicted = size_predictede
+        let size_predicted = (presents.min(u64::MAX as u128) as u64).saturating_add(1);
+        let cout_total_predicted = size_predicted
             .saturating_mul(parametres.cout_encodage)
             .saturating_mul(parametres.requetes_aval);
         Prediction {
-            size_predictede,
+            size_predicted,
             cout_total_predicted,
         }
     }
