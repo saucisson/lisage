@@ -5,7 +5,7 @@
 //!
 //! The real differential tests against paths B/C are written **red**
 //! before the core implementation (M1-1..M1-6): they are `#[ignore]` as long
-//! as the targeted path is a placeholder, and one-ignored in the issue that
+//! as the targeted path is a placeholder, and un-ignored in the issue that
 //! delivers it.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -80,7 +80,7 @@ fn test_c1_differentiel_count_lane_a_vs_c() {
 
 proptest! {
     /// Path A (truth): the explicit count equals the cardinality; the
-    /// differential against B/C will be one-ignored when the DD paths exist.
+    /// differential against B/C will be un-ignored when the DD paths exist.
     #[test]
     fn test_lane_a_count_egale_cardinality(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
         let set = set_aleatoire(maps);

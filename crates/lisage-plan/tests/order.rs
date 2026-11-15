@@ -59,7 +59,7 @@ fn test_nouvel_order_permutation_valide() {
 
 /// M3-1: π that is not a permutation is rejected (typed error).
 #[test]
-fn test_nouvel_order_rejete_si_pas_une_permutation() {
+fn test_nouvel_order_rejete_si_not_one_permutation() {
     let domain = DomainAtomes(vec![Atom(0), Atom(1)]);
     // Missing key.
     assert_eq!(
@@ -309,7 +309,7 @@ fn test_aval_runtime_contrainte_violee_repli_canonique() {
 }
 
 #[test]
-fn test_aval_runtime_pas_une_permutation_repli_canonique() {
+fn test_aval_runtime_not_one_permutation_repli_canonique() {
     // Runtime π with a duplicate / missing key: canonical fallback too.
     let domain = DomainAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let pi_invalide = vec![Atom(0), Atom(0), Atom(2)];

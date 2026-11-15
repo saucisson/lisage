@@ -23,7 +23,7 @@ fn table_xor2() -> Vec<bool> {
 }
 
 #[test]
-fn test_bdd_constantes_un_seul_terminal() {
+fn test_bdd_constantes_one_single_terminal() {
     let mut pool = pool(3);
     let anchor = Anchor(0);
     let keys = BddKeys::new(3);

@@ -337,7 +337,7 @@ fn test_narration_comparaison_encodages() {
 
 /// Truth table of f = (x₀ ∧ x₁) ∨ (x₂ ∧ x₃) over 4 variables:
 /// `table[a]` = bit₀(a) ∧ bit₁(a) ∨ bit₂(a) ∧ bit₃(a).
-fn table_ou_deux_paires() -> Vec<bool> {
+fn table_ou_two_paires() -> Vec<bool> {
     (0..16)
         .map(|a| {
             let bit = |v: u32| (a >> v) & 1 == 1;
@@ -356,7 +356,7 @@ fn table_ou_deux_paires() -> Vec<bool> {
 fn test_order_change_nodes_pas_paths() {
     use lisage_core::workshop::{Order, comparer_orders};
 
-    let table = table_ou_deux_paires();
+    let table = table_ou_two_paires();
     let mut pool = pool_bdd(Reductions::without_collapse());
     let report = comparer_orders(
         &mut pool,
@@ -382,7 +382,7 @@ fn test_order_change_nodes_pas_paths() {
 fn test_order_naturel_equivaut_a_compiler_bdd() {
     use lisage_core::workshop::{Order, compiler_bdd_order};
 
-    let table = table_ou_deux_paires();
+    let table = table_ou_two_paires();
     let mut pool = pool_bdd(Reductions::TOUTES);
     let via_workshop = compiler_bdd_order(&mut pool, ANCHOR, &Order::naturel(4), &table);
     let via_bdd = compiler_bdd(&mut pool, ANCHOR, &BddKeys::new(4), &table);
@@ -437,7 +437,7 @@ fn test_narration_comparaison_orders() {
         }
     }
 
-    let table = table_ou_deux_paires();
+    let table = table_ou_two_paires();
     let mut pool = pool_bdd(Reductions::without_collapse());
     let collector = Collector {
         evenements: Arc::new(Mutex::new(Vec::new())),
