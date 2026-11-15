@@ -262,15 +262,15 @@ fn test_narration_measure() {
 /// creates one node per base while the relative one shares a single form —
 /// the window's "4 vs infinity", measured.
 #[test]
-fn test_fenetre_absolu_croit_relatif_constant() {
-    use lisage_core::atelier::comparer_encodages_fenetre;
+fn test_window_absolu_croit_relatif_constant() {
+    use lisage_core::atelier::comparer_encodages_window;
 
     const SIZE: u64 = 4;
     // 10 bases: absolute = root + 10 windows + ⊤ = 12 nodes; relative = 3.
     // (R-collapse commuted: an all-true window would otherwise collapse.)
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport =
-        comparer_encodages_fenetre(&mut pool, ANCHOR, SIZE, 10, None).expect("interned nodes");
+        comparer_encodages_window(&mut pool, ANCHOR, SIZE, 10, None).expect("interned nodes");
     assert_eq!(rapport.absolu.nodes_partages, 12);
     assert_eq!(rapport.relatif.nodes_partages, 3);
     // Same logical object: same paths (10 bases × 4 keys) and same unfolded
@@ -283,7 +283,7 @@ fn test_fenetre_absolu_croit_relatif_constant() {
     // 100 bases: the relative encoding stays at 3 nodes (constant), the absolute one grows to 102.
     let mut pool = pool_bdd(Reductions::sans_collapse());
     let rapport =
-        comparer_encodages_fenetre(&mut pool, ANCHOR, SIZE, 100, None).expect("interned nodes");
+        comparer_encodages_window(&mut pool, ANCHOR, SIZE, 100, None).expect("interned nodes");
     assert_eq!(
         rapport.relatif.nodes_partages, 3,
         "the relative encoding is O(1)"
@@ -301,7 +301,7 @@ fn test_fenetre_absolu_croit_relatif_constant() {
 fn test_narration_comparaison_encodages() {
     use std::sync::{Arc, Mutex};
 
-    use lisage_core::atelier::comparer_encodages_fenetre;
+    use lisage_core::atelier::comparer_encodages_window;
     use lisage_core::observer::{CanalAttr, TraceEvent};
 
     #[derive(Clone)]
@@ -318,7 +318,7 @@ fn test_narration_comparaison_encodages() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = comparer_encodages_fenetre(&mut pool, ANCHOR, 4, 10, Some(&collecteur))
+    let rapport = comparer_encodages_window(&mut pool, ANCHOR, 4, 10, Some(&collecteur))
         .expect("interned nodes");
     assert_eq!(rapport.relatif.nodes_partages, 3);
     let events = collecteur.evenements.lock().expect("mutex").clone();
@@ -470,13 +470,13 @@ fn test_narration_comparaison_orders() {
 /// movement of the base within the anchor `{base, horizon}`; the horizon does
 /// not move and the absolute reading of the window advances.
 #[test]
-fn test_anchor_fenetre_glisse() {
-    use lisage_core::atelier::AnchorFenetre;
+fn test_anchor_window_glisse() {
+    use lisage_core::atelier::AnchorWindow;
 
-    let anchor = AnchorFenetre::new(0, 4);
+    let anchor = AnchorWindow::new(0, 4);
     assert_eq!(anchor.base(), 0);
     assert_eq!(anchor.horizon(), 4);
-    assert_eq!(anchor.fenetre_absolue(), (0, 4));
+    assert_eq!(anchor.window_absolue(), (0, 4));
     assert_eq!(
         anchor.key_input(),
         0,
@@ -486,7 +486,7 @@ fn test_anchor_fenetre_glisse() {
     let glissee = anchor.glessee(2);
     assert_eq!(glissee.base(), 2);
     assert_eq!(glissee.horizon(), 4, "the slide only affects the base");
-    assert_eq!(glissee.fenetre_absolue(), (2, 6));
+    assert_eq!(glissee.window_absolue(), (2, 6));
     assert_eq!(glissee.key_input(), 2);
     assert_eq!(glissee.etiquette(), "{base: 2, horizon: 4}");
     // The original anchor is unchanged (the slide produces a new anchor).
@@ -500,19 +500,17 @@ fn test_anchor_fenetre_glisse() {
 /// created at each step, never the form.
 #[test]
 fn test_glisse_pool_constant_lectures_differentes() {
-    use lisage_core::atelier::{
-        AnchorFenetre, comparer_anchors_fenetre, construire_fenetre_anchored,
-    };
+    use lisage_core::atelier::{AnchorWindow, build_window_anchored, comparer_anchors_window};
 
     const SIZE: u64 = 4;
     // (R-collapse commuted: an all-true window would otherwise collapse.)
     let mut pool = pool_bdd(Reductions::sans_collapse());
-    let rapport = comparer_anchors_fenetre(
+    let rapport = comparer_anchors_window(
         &mut pool,
         ANCHOR,
         SIZE,
-        &AnchorFenetre::new(0, 4),
-        &AnchorFenetre::new(7, 4),
+        &AnchorWindow::new(0, 4),
+        &AnchorWindow::new(7, 4),
         None,
     )
     .expect("interned nodes");
@@ -535,19 +533,17 @@ fn test_glisse_pool_constant_lectures_differentes() {
     // the entry arc, the window form reached is always the same and the pool
     // creates only one root per slide — never a copy of the window.
     let nodes_avant = pool.node_count();
-    let (_, fenetre) =
-        construire_fenetre_anchored(&mut pool, ANCHOR, SIZE, &AnchorFenetre::new(0, 4));
-    let anchor = AnchorFenetre::new(100, SIZE as i64);
+    let (_, window) = build_window_anchored(&mut pool, ANCHOR, SIZE, &AnchorWindow::new(0, 4));
+    let anchor = AnchorWindow::new(100, SIZE as i64);
     for delta in 0..50 {
         let glissee = anchor.glessee(delta);
         assert_eq!(
-            glissee.fenetre_absolue(),
+            glissee.window_absolue(),
             (100 + delta, 100 + delta + SIZE as i64)
         );
-        let (root, fenetre_glissee) =
-            construire_fenetre_anchored(&mut pool, ANCHOR, SIZE, &glissee);
-        assert_eq!(fenetre_glissee, fenetre, "window form shared at each slide");
-        assert_ne!(root, fenetre, "each base has its own root");
+        let (root, window_glissee) = build_window_anchored(&mut pool, ANCHOR, SIZE, &glissee);
+        assert_eq!(window_glissee, window, "window form shared at each slide");
+        assert_ne!(root, window, "each base has its own root");
     }
     assert_eq!(
         pool.node_count(),
@@ -560,7 +556,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
 /// sliding by `a + b` — and the horizon is invariant (30 cases).
 #[test]
 fn test_propriete_glisse_composition_lcg() {
-    use lisage_core::atelier::AnchorFenetre;
+    use lisage_core::atelier::AnchorWindow;
 
     const SEED_LCG: u64 = 0x5EED_2026_1112_4E11;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
@@ -577,7 +573,7 @@ fn test_propriete_glisse_composition_lcg() {
         let a = next() as i64 % 1000;
         let b = next() as i64 % 1000;
         let horizon = next() as i64 % 16 + 1;
-        let anchor = AnchorFenetre::new(0, horizon);
+        let anchor = AnchorWindow::new(0, horizon);
         assert_eq!(
             anchor.glessee(a).glessee(b),
             anchor.glessee(a + b),
@@ -598,7 +594,7 @@ fn test_propriete_glisse_composition_lcg() {
 fn test_narration_comparaison_anchors() {
     use std::sync::{Arc, Mutex};
 
-    use lisage_core::atelier::{AnchorFenetre, comparer_anchors_fenetre};
+    use lisage_core::atelier::{AnchorWindow, comparer_anchors_window};
     use lisage_core::observer::{CanalAttr, TraceEvent};
 
     #[derive(Clone)]
@@ -615,12 +611,12 @@ fn test_narration_comparaison_anchors() {
     let collecteur = Collecteur {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let rapport = comparer_anchors_fenetre(
+    let rapport = comparer_anchors_window(
         &mut pool,
         ANCHOR,
         4,
-        &AnchorFenetre::new(0, 4),
-        &AnchorFenetre::new(2, 4),
+        &AnchorWindow::new(0, 4),
+        &AnchorWindow::new(2, 4),
         Some(&collecteur),
     )
     .expect("interned nodes");

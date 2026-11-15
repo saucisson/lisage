@@ -128,7 +128,7 @@ impl<S: SemiAnneau> Pli<S> {
     /// skipped presence level only collapses through its default arc
     /// (factor 1) and its value level `n+1` is off the path.
     fn multiplicateur(&self, level: Level, arc: u64, level_cible: Option<Level>) -> S {
-        let borne = match level_cible {
+        let bound = match level_cible {
             Some(level) => level.0,
             None => self.number_levels,
         };
@@ -139,7 +139,7 @@ impl<S: SemiAnneau> Pli<S> {
             _ => level.0 + 1,
         };
         let mut produit = S::un();
-        while n < borne {
+        while n < bound {
             if self.keys.default(Level(n)).is_some() {
                 // Skipped presence level: default-arc collapse only.
                 n += 2;

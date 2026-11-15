@@ -122,7 +122,7 @@ fn mots_atteignables(n: usize, gaucher: bool) -> Vec<Vec<u64>> {
 }
 
 /// Builds R_n (or R'_n) in the pool: union of the compiled maps.
-fn construire_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
+fn build_r_n(pool: &mut PoolRef, n: u64, gaucher: bool) -> NodeId {
     let schema = schema_anneau(n, gaucher);
     let keys = SchemaKeys::new(schema.clone());
     let mut root = pool.intern(ANCHOR_TEST, Form::Terminal(false));
@@ -166,7 +166,7 @@ fn test_bench_cardinaux_r_n() {
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let root = construire_r_n(&mut pool, n, false);
+        let root = build_r_n(&mut pool, n, false);
         let compte = compter_r_n(&pool, &schema, root);
         let reference = mots_atteignables(n as usize, false).len() as u64;
         assert_eq!(compte, reference, "n={n}: DD pli == enumeration");
@@ -189,7 +189,7 @@ fn test_bench_gaucher_ratio_constant() {
             ReferenceController::new(schema.clone()),
             Box::new(NoOpObserver),
         );
-        let root = construire_r_n(&mut pool, n, true);
+        let root = build_r_n(&mut pool, n, true);
         // |R'_n| via DD pli == reference enumeration == golden thread § 9.2.
         let compte = compter_r_n(&pool, &schema, root);
         let reference = mots_atteignables(n as usize, true).len() as u64;
@@ -207,7 +207,7 @@ fn test_bench_gaucher_ratio_constant() {
             ReferenceController::new(schema_reg.clone()),
             Box::new(NoOpObserver),
         );
-        let root_reg = construire_r_n(&mut pool_reg, n, false);
+        let root_reg = build_r_n(&mut pool_reg, n, false);
         let compte_reg = compter_r_n(&pool_reg, &schema_reg, root_reg);
         let ratio = compte as f64 / compte_reg as f64;
         ratios.push(ratio);
@@ -247,7 +247,7 @@ fn test_bench_sept_formes_o1_et_bord() {
             ReferenceController::new(schema.clone()),
             Box::new(Pont(observer.clone())),
         );
-        let root = construire_r_n(&mut pool, n, false);
+        let root = build_r_n(&mut pool, n, false);
         // Distinct (pc, left) signatures appearing in R_n.
         let mut vus: std::collections::BTreeSet<(u64, u64)> = std::collections::BTreeSet::new();
         for mot in mots_atteignables(n as usize, false) {

@@ -3,7 +3,7 @@
 //! and differential guardrail (conforming in [predicted/2, 2 × predicted]).
 
 use lisage_plan::oracle::{
-    BORNE_INFERIEURE, BORNE_SUPERIEURE, ErreurOracle, Oracle, ParametresOracle, Rationnel,
+    BOUND_INFERIEURE, BOUND_SUPERIEURE, ErreurOracle, Oracle, ParametresOracle, Rationnel,
     VerdictGardeFou,
 };
 
@@ -28,11 +28,11 @@ fn test_parametres_densite_validee() {
     assert!(ParametresOracle::new(10, Rationnel::entier(1), 3, 4).is_ok());
     assert_eq!(
         ParametresOracle::new(10, Rationnel::new(2, 1), 3, 4).err(),
-        Some(ErreurOracle::DensiteHorsBornes)
+        Some(ErreurOracle::DensiteHorsBounds)
     );
     assert_eq!(
         ParametresOracle::new(10, Rationnel::new(3, 2), 3, 4).err(),
-        Some(ErreurOracle::DensiteHorsBornes)
+        Some(ErreurOracle::DensiteHorsBounds)
     );
 }
 
@@ -80,7 +80,7 @@ fn test_garde_fou_differentiel() {
     assert!(!Oracle::garde_fou(100, 201).est_conforme());
     // exact ratio.
     assert_eq!(VerdictGardeFou::new(100, 150).ratio(), Rationnel::new(3, 2));
-    assert!(BORNE_INFERIEURE.inferieur_ou_egal(&BORNE_SUPERIEURE));
+    assert!(BOUND_INFERIEURE.inferieur_ou_egal(&BOUND_SUPERIEURE));
     // predicted = 0 (null encoding cost or queries): conforming iff measure = 0.
     assert!(Oracle::garde_fou(0, 0).est_conforme());
     assert!(!Oracle::garde_fou(0, 1).est_conforme());

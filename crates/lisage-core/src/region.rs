@@ -11,33 +11,33 @@
 
 use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};
 
-/// Canonical empty interval: `borne_inf > borne_sup`, normalized to `(1, 0)`.
+/// Canonical empty interval: `bound_inf > bound_sup`, normalized to `(1, 0)`.
 pub const VIDE: Intervalle = Intervalle {
-    borne_inf: 1,
-    borne_sup: 0,
+    bound_inf: 1,
+    bound_sup: 0,
 };
 
-/// Region key: closed interval `[borne_inf, borne_sup]` of points of a
+/// Region key: closed interval `[bound_inf, bound_sup]` of points of a
 /// bounded domain. Every construction goes through [`Intervalle::new`],
 /// which normalizes the empty interval to [`VIDE`]: the derived equality is
 /// then set equality, and hash-consing respects C1 relative to the region
 /// algebra.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Intervalle {
-    borne_inf: u64,
-    borne_sup: u64,
+    bound_inf: u64,
+    bound_sup: u64,
 }
 
 impl Intervalle {
-    /// Closed interval `[borne_inf, borne_sup]`; if `borne_inf > borne_sup`,
+    /// Closed interval `[bound_inf, bound_sup]`; if `bound_inf > bound_sup`,
     /// the interval is empty and normalized to [`VIDE`].
-    pub fn new(borne_inf: u64, borne_sup: u64) -> Self {
-        if borne_inf > borne_sup {
+    pub fn new(bound_inf: u64, bound_sup: u64) -> Self {
+        if bound_inf > bound_sup {
             VIDE
         } else {
             Intervalle {
-                borne_inf,
-                borne_sup,
+                bound_inf,
+                bound_sup,
             }
         }
     }
@@ -48,18 +48,18 @@ impl Intervalle {
     }
 
     /// Lower bound, included.
-    pub fn borne_inf(&self) -> u64 {
-        self.borne_inf
+    pub fn bound_inf(&self) -> u64 {
+        self.bound_inf
     }
 
     /// Upper bound, included.
-    pub fn borne_sup(&self) -> u64 {
-        self.borne_sup
+    pub fn bound_sup(&self) -> u64 {
+        self.bound_sup
     }
 
     /// Is the interval empty?
     pub fn est_vide(&self) -> bool {
-        self.borne_inf > self.borne_sup
+        self.bound_inf > self.bound_sup
     }
 
     /// Number of points of the interval (0 if empty); saturated at
@@ -69,15 +69,15 @@ impl Intervalle {
         if self.est_vide() {
             0
         } else {
-            self.borne_sup
-                .saturating_sub(self.borne_inf)
+            self.bound_sup
+                .saturating_sub(self.bound_inf)
                 .saturating_add(1)
         }
     }
 
     /// Does the point `v` belong to the interval?
     pub fn contient(&self, v: u64) -> bool {
-        !self.est_vide() && self.borne_inf <= v && v <= self.borne_sup
+        !self.est_vide() && self.bound_inf <= v && v <= self.bound_sup
     }
 }
 
@@ -105,7 +105,7 @@ impl KeyAlgebra for RegionKeys {
     type Key = Intervalle;
 
     fn normal_form(&self, key: &Self::Key) -> Self::Key {
-        Intervalle::new(key.borne_inf(), key.borne_sup())
+        Intervalle::new(key.bound_inf(), key.bound_sup())
     }
 
     fn cardinality(&self, level: Level) -> u64 {

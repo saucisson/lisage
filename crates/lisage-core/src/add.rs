@@ -299,7 +299,7 @@ fn multiplicateur(
     arc: u64,
     level_cible: Option<Level>,
 ) -> u64 {
-    let borne = match level_cible {
+    let bound = match level_cible {
         Some(level) => level.0,
         None => number_levels,
     };
@@ -308,7 +308,7 @@ fn multiplicateur(
         _ => level.0 + 1,
     };
     let mut produit = 1u64;
-    while n < borne {
+    while n < bound {
         if keys.default(Level(n)).is_some() {
             n += PAS_LEVEL_MAP;
         } else {

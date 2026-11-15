@@ -24,11 +24,11 @@ const R_EXPECTEDS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152), (6, 416), (7, 1
 /// Shared nodes of R_3 (didactic workshop, fragment 1: 33 nodes).
 const NODES_R3: u64 = 33;
 /// Paths of the test window: 10 bases × 4 positions.
-const CHEMINS_FENETRE: u64 = 40;
+const CHEMINS_WINDOW: u64 = 40;
 /// Nodes of the absolute window (didactic workshop, fragment 2).
-const NODES_FENETRE_ABSOLUE: u64 = 12;
+const NODES_WINDOW_ABSOLUE: u64 = 12;
 /// Nodes of the relative window: a single shared form, O(1).
-const NODES_FENETRE_RELATIVE: u64 = 3;
+const NODES_WINDOW_RELATIVE: u64 = 3;
 /// Satisfactions of the LCG table for n = 4 (pinned, deterministic).
 const SATISFACTIONS_LCG_N4: u64 = 7;
 /// Satisfactions of the LCG table for n = 12 (pinned, deterministic —
@@ -125,7 +125,7 @@ fn test_alea_lcg_satisfactions_epinglees() {
 
 /// `alea-lcg` workload: rejected bounds (zero and too large), typed error.
 #[test]
-fn test_alea_lcg_bornes_refusees() {
+fn test_alea_lcg_bounds_refusees() {
     for n in [0, 25] {
         let erreur =
             executer(&Charge::AleaLcg, &[n.to_string()], None).expect_err("bounds rejected");
@@ -156,7 +156,7 @@ fn test_philosophes_fil_rouge_epingle() {
 /// `philosophes` workload: upper bound on n (anti-overflow guard
 /// of the interleaved schema) — typed error, no panic.
 #[test]
-fn test_philosophes_borne_refusee() {
+fn test_philosophes_bound_refusee() {
     let chemin = ecrire_fichier_etats(3);
     let parametres = vec!["33".to_string(), chemin.display().to_string()];
     let erreur = executer(&Charge::Philosophes, &parametres, None).expect_err("bound rejected");
@@ -195,23 +195,23 @@ fn test_philosophers_inputs_invalid() {
     }
 }
 
-/// `fenetre` workload: same paths in both encodings (40 = 10×4),
+/// `window` workload: same paths in both encodings (40 = 10×4),
 /// nodes 12 (absolute) vs 3 (relative) — the relative sharing is
 /// visible to the naked eye (didactic workshop, fragment 2).
 #[test]
-fn test_fenetre_encodages_epingles() {
+fn test_window_encodages_epingles() {
     let absolu =
-        executer(&Charge::Fenetre, &["4".to_string(), "10".to_string()], None).expect("absolute");
+        executer(&Charge::Window, &["4".to_string(), "10".to_string()], None).expect("absolute");
     let relatif = executer(
-        &Charge::Fenetre,
+        &Charge::Window,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
         None,
     )
     .expect("relative");
-    assert_eq!(absolu.verifie, CHEMINS_FENETRE);
-    assert_eq!(relatif.verifie, CHEMINS_FENETRE);
-    assert_eq!(absolu.nodes, NODES_FENETRE_ABSOLUE);
-    assert_eq!(relatif.nodes, NODES_FENETRE_RELATIVE);
+    assert_eq!(absolu.verifie, CHEMINS_WINDOW);
+    assert_eq!(relatif.verifie, CHEMINS_WINDOW);
+    assert_eq!(absolu.nodes, NODES_WINDOW_ABSOLUE);
+    assert_eq!(relatif.nodes, NODES_WINDOW_RELATIVE);
     assert_eq!(absolu.encodage, Some(Encodage::Absolu));
     assert_eq!(relatif.encodage, Some(Encodage::Relatif));
 }
@@ -235,7 +235,7 @@ fn test_charges_inconnues_refusees() {
 fn test_serialisation_ligne_epinglee() {
     let measure = MeasureConfrontation {
         variante: Variante::Mdd,
-        charge: Charge::Fenetre,
+        charge: Charge::Window,
         parametres: vec![
             ("taille".to_string(), "4".to_string()),
             ("nb_bases".to_string(), "10".to_string()),
@@ -246,7 +246,7 @@ fn test_serialisation_ligne_epinglee() {
         nodes: 3,
         verifie: 40,
     };
-    let expected = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
+    let expected = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"window\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\"encodage\":\"relatif\",\
 \"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
     assert_eq!(serialiser_ligne(&measure), expected);
@@ -254,7 +254,7 @@ fn test_serialisation_ligne_epinglee() {
         encodage: None,
         ..measure
     };
-    let expected_sans = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"fenetre\",\
+    let expected_sans = "{\"outil\":\"lisage\",\"variante\":\"mdd\",\"charge\":\"window\",\
 \"parametres\":{\"taille\":\"4\",\"nb_bases\":\"10\"},\
 \"temps_ms\":1.250,\"rss_max_ko\":4096,\"noeuds\":3,\"verifie\":40}";
     assert_eq!(serialiser_ligne(&sans_encodage), expected_sans);
@@ -303,7 +303,7 @@ fn test_narration_charge_epinglee() {
         measure.nodes, SATISFACTIONS_LCG_N4
     );
     // The three workloads emit their summary: philosophes and
-    // fenetre are pinned here too (a regression that would lose them
+    // window are pinned here too (a regression that would lose them
     // would fail this test).
     let chemin = ecrire_fichier_etats(3);
     let measure_philo = executer(
@@ -312,12 +312,12 @@ fn test_narration_charge_epinglee() {
         Some(&collecteur),
     )
     .expect("philosophes workload run");
-    let measure_fenetre = executer(
-        &Charge::Fenetre,
+    let measure_window = executer(
+        &Charge::Window,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
         Some(&collecteur),
     )
-    .expect("fenetre workload run");
+    .expect("window workload run");
     let expected_list = [
         expected,
         format!(
@@ -325,8 +325,8 @@ fn test_narration_charge_epinglee() {
             measure_philo.nodes, measure_philo.verifie
         ),
         format!(
-            "workload=fenetre encoding=relatif nodes={} check={}",
-            measure_fenetre.nodes, measure_fenetre.verifie
+            "workload=window encoding=relatif nodes={} check={}",
+            measure_window.nodes, measure_window.verifie
         ),
     ];
     let events = collecteur.evenements.lock().expect("mutex").clone();

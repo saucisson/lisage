@@ -36,7 +36,7 @@ fn ensemble(
 #[test]
 fn test_trace_jsonl_versionnee_et_deterministe() {
     let schema = schema_ensemble();
-    let construire = |observer: &JsonlObserver| {
+    let build = |observer: &JsonlObserver| {
         let mut pool = Arena::new(
             ReferenceController::new(schema.clone()),
             Box::new(observer.clone()),
@@ -45,8 +45,8 @@ fn test_trace_jsonl_versionnee_et_deterministe() {
     };
     let observer_a = JsonlObserver::new();
     let observer_b = JsonlObserver::new();
-    let root_a = construire(&observer_a);
-    let root_b = construire(&observer_b);
+    let root_a = build(&observer_a);
+    let root_b = build(&observer_b);
     assert_eq!(root_a, root_b, "C1: same construction ⇒ same root");
     assert_eq!(
         observer_a.lignes(),

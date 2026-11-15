@@ -13,7 +13,7 @@ const CODE_USAGE: u8 = 2;
 
 /// Workload usage line, written as-is on stderr.
 const USAGE_CHARGES: &str =
-    "workloads: alea-lcg <n> | philosophes <n> <path> | fenetre <size> <nb_bases> [absolu|relatif]";
+    "workloads: alea-lcg <n> | philosophes <n> <path> | window <size> <nb_bases> [absolu|relatif]";
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();

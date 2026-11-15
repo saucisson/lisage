@@ -52,10 +52,10 @@ impl Dbm {
                 i < n && j < n,
                 "constraint outside domain (internal invariant)"
             );
-            let borne = i128::from(c);
+            let bound = i128::from(c);
             matrice[i][j] = Some(match matrice[i][j] {
-                Some(ancienne) => ancienne.min(borne),
-                None => borne,
+                Some(ancienne) => ancienne.min(bound),
+                None => bound,
             });
         }
         Self::fermer(n, matrice)

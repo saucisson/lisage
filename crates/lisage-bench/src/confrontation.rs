@@ -25,7 +25,7 @@ use std::time::Instant;
 use lisage_algebra::interface::{Anchor, Form, Pool, PoolError};
 use lisage_core::arena::Arena;
 use lisage_core::atelier::{
-    AtelierController, Encodage, Reductions, compter_chemins, compter_nodes, construire_fenetre,
+    AtelierController, Encodage, Reductions, build_window, compter_chemins, compter_nodes,
 };
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, compter_nodes as compter_nodes_bdd};
 use lisage_core::error::CoreError;
@@ -42,9 +42,9 @@ const PENSE: u64 = 0;
 const AFFAME: u64 = 1;
 /// `eat` (value interdite sur deux voisins circulairement).
 const MANGE: u64 = 2;
-/// Number of BDD variables of the `fenetre` workload controller (the
+/// Number of BDD variables of the `window` workload controller (the
 /// sliding window is read over 2 levels: root + window).
-const VARIABLES_BDD_FENETRE: u32 = 2;
+const VARIABLES_BDD_WINDOW: u32 = 2;
 /// Step of the interleaving keys: key `2i` = `pc_i`, key `2i+1` = `left_i`.
 const PAS_CLE_INTERCALAGE: u64 = 2;
 /// Seed of the deterministic truth-table LCG (same LCG as the M1-8 baseline:
@@ -76,7 +76,7 @@ pub enum Charge {
     /// R_n of the red thread, union of maps over the interleaved schema.
     Philosophes,
     /// Sliding window, absolute or relative encoding.
-    Fenetre,
+    Window,
 }
 
 impl Charge {
@@ -85,7 +85,7 @@ impl Charge {
         match nom {
             "alea-lcg" => Some(Charge::AleaLcg),
             "philosophes" => Some(Charge::Philosophes),
-            "fenetre" => Some(Charge::Fenetre),
+            "window" => Some(Charge::Window),
             _ => None,
         }
     }
@@ -95,7 +95,7 @@ impl Charge {
         match self {
             Charge::AleaLcg => "alea-lcg",
             Charge::Philosophes => "philosophes",
-            Charge::Fenetre => "fenetre",
+            Charge::Window => "window",
         }
     }
 }
@@ -136,7 +136,7 @@ pub struct MeasureConfrontation {
     pub charge: Charge,
     /// Workload parameters, in a stable order (serialized as an object).
     pub parametres: Vec<(String, String)>,
-    /// Encoding of the `fenetre` workload only.
+    /// Encoding of the `window` workload only.
     pub encodage: Option<Encodage>,
     /// Time of the measured block, in milliseconds.
     pub temps_ms: f64,
@@ -556,13 +556,13 @@ fn lire_etats(
     Ok(etats)
 }
 
-/// `fenetre` workload: the sliding window of golden thread n° 2 in the
+/// `window` workload: the sliding window of golden thread n° 2 in the
 /// requested encoding. Check: the root → terminal paths must be
 /// `size × nb_bases` (one window per base, `size` positions per
 /// window), whatever the encoding — only the number of shared nodes
 /// differs (absolute: one node per base; relative: a single form, O(1) in
 /// `nb_bases`).
-fn charge_fenetre(
+fn charge_window(
     size: u64,
     nb_bases: u64,
     encodage: Encodage,
@@ -570,20 +570,20 @@ fn charge_fenetre(
 ) -> Result<MeasureConfrontation, ErreurConfrontation> {
     if size == 0 || nb_bases == 0 {
         return Err(ErreurConfrontation::ParametresInvalides {
-            charge: Charge::Fenetre.etiquette(),
+            charge: Charge::Window.etiquette(),
             detail: "size and nb_bases must be ≥ 1".to_string(),
         });
     }
     let expected = size.saturating_mul(nb_bases);
     let mut pool = Arena::new(
         AtelierController::new(
-            BddController::new(VARIABLES_BDD_FENETRE),
+            BddController::new(VARIABLES_BDD_WINDOW),
             Reductions::sans_collapse(),
         ),
         Box::new(NoOpObserver),
     );
     let debut = Instant::now();
-    let root = construire_fenetre(&mut pool, ANCHOR_MEASURE, encodage, size, nb_bases);
+    let root = build_window(&mut pool, ANCHOR_MEASURE, encodage, size, nb_bases);
     let verifie = compter_chemins(&pool, root)?;
     let nodes = compter_nodes(&pool, root)?;
     let duree = debut.elapsed();
@@ -599,7 +599,7 @@ fn charge_fenetre(
             node: root,
             value: format!(
                 "workload={} encoding={} nodes={} check={}",
-                Charge::Fenetre.etiquette(),
+                Charge::Window.etiquette(),
                 etiquette_encodage(&encodage),
                 nodes,
                 verifie
@@ -608,7 +608,7 @@ fn charge_fenetre(
     }
     Ok(MeasureConfrontation {
         variante: Variante::Mdd,
-        charge: Charge::Fenetre,
+        charge: Charge::Window,
         parametres: vec![
             ("taille".to_string(), size.to_string()),
             ("nb_bases".to_string(), nb_bases.to_string()),
@@ -623,7 +623,7 @@ fn charge_fenetre(
 
 /// Runs a workload once and returns the measurement. Parameters:
 /// `alea-lcg <n>`, `philosophes <n> <path>`,
-/// `fenetre <size> <nb_bases> [absolu|relatif]` (absolu by default).
+/// `window <size> <nb_bases> [absolu|relatif]` (absolu by default).
 /// `observer`: narration channel (ADR-0100) — an
 /// `Attr`/`Synthesized` event carries the workload summary.
 pub fn executer(
@@ -664,25 +664,25 @@ pub fn executer(
                     })?;
             charge_philosophes(number_philosophes, second, observer)
         }
-        Charge::Fenetre => {
+        Charge::Window => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErreurConfrontation::ParametresInvalides {
-                    charge: Charge::Fenetre.etiquette(),
-                    detail: "expected: fenetre <size> <nb_bases> [absolu|relatif]".to_string(),
+                    charge: Charge::Window.etiquette(),
+                    detail: "expected: window <size> <nb_bases> [absolu|relatif]".to_string(),
                 }
             })?;
             let size =
                 first
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Fenetre.etiquette(),
+                        charge: Charge::Window.etiquette(),
                         detail: format!("unreadable size: {first}"),
                     })?;
             let nb_bases =
                 second
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Fenetre.etiquette(),
+                        charge: Charge::Window.etiquette(),
                         detail: format!("unreadable nb_bases: {second}"),
                     })?;
             let encodage = match parametres.get(2).map(String::as_str) {
@@ -690,12 +690,12 @@ pub fn executer(
                 Some("relatif") => Encodage::Relatif,
                 Some(other) => {
                     return Err(ErreurConfrontation::ParametresInvalides {
-                        charge: Charge::Fenetre.etiquette(),
+                        charge: Charge::Window.etiquette(),
                         detail: format!("unknown encoding: {other}"),
                     });
                 }
             };
-            charge_fenetre(size, nb_bases, encodage, observer)
+            charge_window(size, nb_bases, encodage, observer)
         }
     }
 }

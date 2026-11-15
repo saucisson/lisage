@@ -71,21 +71,21 @@ impl Rationnel {
 }
 
 /// Lower conformance bound of the guardrail: measure ≥ predicted / 2.
-pub const BORNE_INFERIEURE: Rationnel = Rationnel { num: 1, den: 2 };
+pub const BOUND_INFERIEURE: Rationnel = Rationnel { num: 1, den: 2 };
 /// Upper conformance bound of the guardrail: measure ≤ 2 × predicted.
-pub const BORNE_SUPERIEURE: Rationnel = Rationnel { num: 2, den: 1 };
+pub const BOUND_SUPERIEURE: Rationnel = Rationnel { num: 2, den: 1 };
 
 /// Typed error of oracle parameter construction.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ErreurOracle {
     /// Expected density outside [0, 1].
-    DensiteHorsBornes,
+    DensiteHorsBounds,
 }
 
 impl std::fmt::Display for ErreurOracle {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurOracle::DensiteHorsBornes => {
+            ErreurOracle::DensiteHorsBounds => {
                 write!(formatter, "expected density outside [0, 1]")
             }
         }
@@ -117,7 +117,7 @@ impl ParametresOracle {
         let un = Rationnel::entier(1);
         if !(zero.inferieur_ou_egal(&densite_expectede) && densite_expectede.inferieur_ou_egal(&un))
         {
-            return Err(ErreurOracle::DensiteHorsBornes);
+            return Err(ErreurOracle::DensiteHorsBounds);
         }
         Ok(ParametresOracle {
             size_domain,
@@ -210,17 +210,17 @@ impl VerdictGardeFou {
         Rationnel::new(self.measure, self.predit)
     }
 
-    /// Conforming if the measurement fits in [BORNE_INFERIEURE × predicted,
-    /// BORNE_SUPERIEURE × predicted] — exact comparison without division
+    /// Conforming if the measurement fits in [BOUND_INFERIEURE × predicted,
+    /// BOUND_SUPERIEURE × predicted] — exact comparison without division
     /// (cross products in u128), hence correct also for `predicted == 0`
     /// (conforming iff `measurement == 0`). Out of bounds, the model is
     /// falsified (C4).
     pub fn est_conforme(&self) -> bool {
         let predit = self.predit as u128;
         let measure = self.measure as u128;
-        // BORNE_INFERIEURE <= measure/predicted <=> min.num·predicted <= measure·min.den
-        // measure/predicted <= BORNE_SUPERIEURE <=> measure·max.den <= max.num·predicted
-        (BORNE_INFERIEURE.num as u128) * predit <= measure * (BORNE_INFERIEURE.den as u128)
-            && measure * (BORNE_SUPERIEURE.den as u128) <= (BORNE_SUPERIEURE.num as u128) * predit
+        // BOUND_INFERIEURE <= measure/predicted <=> min.num·predicted <= measure·min.den
+        // measure/predicted <= BOUND_SUPERIEURE <=> measure·max.den <= max.num·predicted
+        (BOUND_INFERIEURE.num as u128) * predit <= measure * (BOUND_INFERIEURE.den as u128)
+            && measure * (BOUND_SUPERIEURE.den as u128) <= (BOUND_SUPERIEURE.num as u128) * predit
     }
 }

@@ -31,10 +31,10 @@
 //! Fragment 4 (composite anchor parameter, backlog § 9, sliding-window
 //! thread):
 //!
-//! - [`AnchorFenetre`]: the composite anchor `{base, horizon}` of the
+//! - [`AnchorWindow`]: the composite anchor `{base, horizon}` of the
 //!   SWP protocol — two named offsets, the slide is the movement of the base,
 //!   carried by the incoming arc;
-//! - [`construire_fenetre_anchored`] / [`comparer_anchors_fenetre`]: the
+//! - [`build_window_anchored`] / [`comparer_anchors_window`]: the
 //!   window read under two anchors — each anchor has its own root, the
 //!   relative shape of the window is shared (`same_forme`), only the
 //!   absolute readings differ: "the anchor moves, the pool never does".
@@ -259,7 +259,7 @@ pub fn compter_size_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, Pool
 /// Level of the sliding-window root.
 const LEVEL_ROOT: u32 = 0;
 /// Level of the window node of the sliding window.
-const LEVEL_FENETRE: u32 = 1;
+const LEVEL_WINDOW: u32 = 1;
 
 /// **Encoding parameter** (didactic workshop, backlog § 9: "playing with the
 /// controller parameters — ordering, absolute/relative encoding, realm,
@@ -286,7 +286,7 @@ pub struct RapportComparaison {
 /// `b ∈ [0, nb_bases)`, its own window `{b..b+size-1}` (one node per
 /// base), all linked to the root. The number of nodes grows with
 /// `nb_bases` — this is the "infinity of the window" of the flat prototype.
-pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
+pub fn build_window_absolue<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
@@ -295,14 +295,14 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let mut arcs = BTreeMap::new();
     for base in 0..nb_bases {
-        let fenetre = pool.intern(
+        let window = pool.intern(
             anchor,
             Form::Node {
-                level: Level(LEVEL_FENETRE),
+                level: Level(LEVEL_WINDOW),
                 arcs: (0..size).map(|k| (base + k, vrai)).collect(),
             },
         );
-        arcs.insert(base, fenetre);
+        arcs.insert(base, window);
     }
     pool.intern(
         anchor,
@@ -315,7 +315,7 @@ pub fn construire_fenetre_absolue<P: Pool<Key = u64, Payload = bool>>(
 
 /// Interns the relative shape of the window (keys `0..size-1`, min
 /// section = 0), shared by all bases.
-fn interner_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
+fn interner_window_relative<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
@@ -324,7 +324,7 @@ fn interner_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
     pool.intern(
         anchor,
         Form::Node {
-            level: Level(LEVEL_FENETRE),
+            level: Level(LEVEL_WINDOW),
             arcs: (0..size).map(|k| (k, vrai)).collect(),
         },
     )
@@ -334,14 +334,14 @@ fn interner_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
 /// min section = 0): a single shape `{0..size-1}` shared by all the
 /// bases (the position argument lives on the incoming arc). The number of
 /// nodes is constant — this is the "4 against infinity" of the window.
-pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
+pub fn build_window_relative<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
     nb_bases: u64,
 ) -> NodeId {
-    let fenetre = interner_fenetre_relative(pool, anchor, size);
-    let arcs = (0..nb_bases).map(|base| (base, fenetre)).collect();
+    let window = interner_window_relative(pool, anchor, size);
+    let arcs = (0..nb_bases).map(|base| (base, window)).collect();
     pool.intern(
         anchor,
         Form::Node {
@@ -353,7 +353,7 @@ pub fn construire_fenetre_relative<P: Pool<Key = u64, Payload = bool>>(
 
 /// Builds the sliding window in the requested `encodage`: single entry
 /// point of the encoding parameter.
-pub fn construire_fenetre<P: Pool<Key = u64, Payload = bool>>(
+pub fn build_window<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     encodage: Encodage,
@@ -361,23 +361,23 @@ pub fn construire_fenetre<P: Pool<Key = u64, Payload = bool>>(
     nb_bases: u64,
 ) -> NodeId {
     match encodage {
-        Encodage::Absolu => construire_fenetre_absolue(pool, anchor, size, nb_bases),
-        Encodage::Relatif => construire_fenetre_relative(pool, anchor, size, nb_bases),
+        Encodage::Absolu => build_window_absolue(pool, anchor, size, nb_bases),
+        Encodage::Relatif => build_window_relative(pool, anchor, size, nb_bases),
     }
 }
 
 /// Compares the two encodings of the sliding window over `nb_bases` bases:
 /// same paths (same logical object), different shared nodes — the
 /// relative sharing is visible to the naked eye. `observer`: ADR-0100 narration.
-pub fn comparer_encodages_fenetre<P: Pool<Key = u64, Payload = bool>>(
+pub fn comparer_encodages_window<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
     nb_bases: u64,
     observer: Option<&dyn Observer>,
 ) -> Result<RapportComparaison, PoolError> {
-    let root_absolue = construire_fenetre(pool, anchor, Encodage::Absolu, size, nb_bases);
-    let root_relative = construire_fenetre(pool, anchor, Encodage::Relatif, size, nb_bases);
+    let root_absolue = build_window(pool, anchor, Encodage::Absolu, size, nb_bases);
+    let root_relative = build_window(pool, anchor, Encodage::Relatif, size, nb_bases);
     let absolu = measure(pool, root_absolue, observer)?;
     let relatif = measure(pool, root_relative, observer)?;
     if let Some(obs) = observer {
@@ -572,14 +572,14 @@ pub fn fragment_horizon() -> Fragment {
 /// `{base, horizon}`. The **slide** is the movement of the base; the anchor
 /// stays in the handle (C1 unchanged), the pool stays blind.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct AnchorFenetre {
+pub struct AnchorWindow {
     inner: AnchorComposee,
 }
 
-impl AnchorFenetre {
+impl AnchorWindow {
     /// Anchor `{base, horizon}`: the two named offsets of the SWP protocol.
     pub fn new(base: i64, horizon: i64) -> Self {
-        AnchorFenetre {
+        AnchorWindow {
             inner: AnchorComposee::new()
                 .avec(fragment_base(), base)
                 .avec(fragment_horizon(), horizon),
@@ -598,13 +598,13 @@ impl AnchorFenetre {
 
     /// New anchor, base shifted by `delta`: the slide of the window.
     pub fn glessee(&self, delta: i64) -> Self {
-        AnchorFenetre {
+        AnchorWindow {
             inner: self.inner.decalee(&fragment_base(), delta),
         }
     }
 
     /// Absolute reading of the window: the interval `[base, base + horizon)`.
-    pub fn fenetre_absolue(&self) -> (i64, i64) {
+    pub fn window_absolue(&self) -> (i64, i64) {
         let base = self.base();
         (base, base + self.horizon())
     }
@@ -627,21 +627,21 @@ impl AnchorFenetre {
 /// shape of the window stays relative (keys `0..size-1`, min section = 0)
 /// and shared. Returns `(root, window)`: the root specific to this base,
 /// the window shape reached by its incoming arc.
-pub fn construire_fenetre_anchored<P: Pool<Key = u64, Payload = bool>>(
+pub fn build_window_anchored<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
-    window_anchor: &AnchorFenetre,
+    window_anchor: &AnchorWindow,
 ) -> (NodeId, NodeId) {
-    let fenetre = interner_fenetre_relative(pool, anchor, size);
+    let window = interner_window_relative(pool, anchor, size);
     let root = pool.intern(
         anchor,
         Form::Node {
             level: Level(LEVEL_ROOT),
-            arcs: BTreeMap::from([(window_anchor.key_input(), fenetre)]),
+            arcs: BTreeMap::from([(window_anchor.key_input(), window)]),
         },
     );
-    (root, fenetre)
+    (root, window)
 }
 
 /// Didactic comparison of two composite anchors on the same window.
@@ -670,25 +670,25 @@ pub struct RapportComparaisonAnchors {
 /// absolute readings differ. This is the slide of the SWP protocol:
 /// "the anchor moves, the pool never does": moving the base does not
 /// duplicate the window shape. `observer`: ADR-0100 narration.
-pub fn comparer_anchors_fenetre<P: Pool<Key = u64, Payload = bool>>(
+pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
-    anchor_avant: &AnchorFenetre,
-    anchor_apres: &AnchorFenetre,
+    anchor_avant: &AnchorWindow,
+    anchor_apres: &AnchorWindow,
     observer: Option<&dyn Observer>,
 ) -> Result<RapportComparaisonAnchors, PoolError> {
     // Each anchor enters the pool through its incoming arc (its base); the
     // window shape reached on both sides must be the same node.
-    let (root_avant, fenetre_avant) = construire_fenetre_anchored(pool, anchor, size, anchor_avant);
-    let (root_apres, fenetre_apres) = construire_fenetre_anchored(pool, anchor, size, anchor_apres);
+    let (root_avant, window_avant) = build_window_anchored(pool, anchor, size, anchor_avant);
+    let (root_apres, window_apres) = build_window_anchored(pool, anchor, size, anchor_apres);
     let nodes_pool = pool.node_count() as u64;
-    let same_forme = fenetre_avant == fenetre_apres;
+    let same_forme = window_avant == window_apres;
     let avant = measure(pool, root_avant, observer)?;
     let apres = measure(pool, root_apres, observer)?;
     if let Some(obs) = observer {
-        let (debut_avant, fin_avant) = anchor_avant.fenetre_absolue();
-        let (debut_apres, fin_apres) = anchor_apres.fenetre_absolue();
+        let (debut_avant, fin_avant) = anchor_avant.window_absolue();
+        let (debut_apres, fin_apres) = anchor_apres.window_absolue();
         obs.on_event(&TraceEvent::Attr {
             canal: CanalAttr::Synthesized,
             node: root_apres,
@@ -711,7 +711,7 @@ pub fn comparer_anchors_fenetre<P: Pool<Key = u64, Payload = bool>>(
         apres,
         same_forme,
         nodes_pool,
-        lecture_avant: anchor_avant.fenetre_absolue(),
-        lecture_apres: anchor_apres.fenetre_absolue(),
+        lecture_avant: anchor_avant.window_absolue(),
+        lecture_apres: anchor_apres.window_absolue(),
     })
 }

@@ -84,7 +84,7 @@ pub fn mots_atteignables(n: usize) -> Vec<Vec<u64>> {
 /// Builds R_n in the pool: union of the compiled maps, one per
 /// reachable state. Generic over the pool: the didactic workshop wraps the
 /// controller (`AtelierController`) to switch the reductions.
-pub fn construire_r_n<P: Pool<Key = u64, Payload = bool>>(
+pub fn build_r_n<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     n: u64,
@@ -147,11 +147,7 @@ pub fn schema_mangeurs(n: u64) -> Schema {
 
 /// Builds the set of eaters of R_n (key `i` present iff `pc_i =
 /// eat`): projection of R_n usable by `filter`/`exists`.
-pub fn construire_mangeurs(
-    pool: &mut Arena<ReferenceController>,
-    anchor: Anchor,
-    n: u64,
-) -> NodeId {
+pub fn build_mangeurs(pool: &mut Arena<ReferenceController>, anchor: Anchor, n: u64) -> NodeId {
     let schema = schema_mangeurs(n);
     let keys = SchemaKeys::new(schema.clone());
     let mut root = pool.intern(anchor, Form::Terminal(false));
