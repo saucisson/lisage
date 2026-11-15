@@ -7,7 +7,7 @@
 //! destroys multiplicity at write time. The query semiring is the `S`
 //! parameter of [`Pli`]: a fold is exact iff its reading factors through
 //! what the construction preserved; on a Bool construction, only the
-//! cardinal is exact (spec § 5.1).
+//! cardinality is exact (spec § 5.1).
 //!
 //! **Fold** [`Pli<S>`]: `H` trivial, the terminal produces the base
 //! (`weight(⊤) = 1`, `weight(⊥) = 0`), `φ_aggr` the semiring structure.
@@ -30,7 +30,7 @@ use crate::schema::{Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
 /// Query semiring of a fold (spec § 5): `(S, ⊕, ×)` with zeros and units.
-/// `depuis_cardinalite` translates `|Val(ℓ)|` into `S` (A4).
+/// `depuis_cardinality` translates `|Val(ℓ)|` into `S` (A4).
 pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
     /// Fingerprint of the semiring: enters the memo fingerprint.
     const FINGERPRINT: u64;
@@ -40,14 +40,14 @@ pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
     /// Neutral element of × (one).
     fn un() -> Self;
     /// Cardinality of a level, translated into the semiring (A4).
-    fn depuis_cardinalite(cardinalite: u64) -> Self;
+    fn depuis_cardinality(cardinality: u64) -> Self;
     /// ⊕ (aggregation of children).
     fn plus(&self, other: &Self) -> Self;
     /// × (weight of arcs by subtotals).
     fn fois(&self, other: &Self) -> Self;
 }
 
-/// `(ℕ, +, ×)`: the semiring of cardinal counting (spec § 5).
+/// `(ℕ, +, ×)`: the semiring of cardinality counting (spec § 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Naturel(pub u64);
 
@@ -60,8 +60,8 @@ impl SemiAnneau for Naturel {
     fn un() -> Self {
         Naturel(1)
     }
-    fn depuis_cardinalite(cardinalite: u64) -> Self {
-        Naturel(cardinalite)
+    fn depuis_cardinality(cardinality: u64) -> Self {
+        Naturel(cardinality)
     }
     fn plus(&self, other: &Self) -> Self {
         Naturel(self.0 + other.0)
@@ -84,8 +84,8 @@ impl SemiAnneau for BoolOu {
     fn un() -> Self {
         BoolOu(true)
     }
-    fn depuis_cardinalite(cardinalite: u64) -> Self {
-        BoolOu(cardinalite > 0)
+    fn depuis_cardinality(cardinality: u64) -> Self {
+        BoolOu(cardinality > 0)
     }
     fn plus(&self, other: &Self) -> Self {
         BoolOu(self.0 || other.0)
@@ -144,7 +144,7 @@ impl<S: SemiAnneau> Pli<S> {
                 // Skipped presence level: default-arc collapse only.
                 n += 2;
             } else {
-                produit = produit.fois(&S::depuis_cardinalite(self.keys.cardinality(Level(n))));
+                produit = produit.fois(&S::depuis_cardinality(self.keys.cardinality(Level(n))));
                 n += 1;
             }
         }
@@ -216,7 +216,7 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
     }
 }
 
-/// Cardinal counting of a diagram (denoted set): fold over `(ℕ, +, ×)`,
+/// Cardinality counting of a diagram (denoted set): fold over `(ℕ, +, ×)`,
 /// exact on Bool construction (A5). Lifts the result from the synthesized
 /// channel.
 pub fn compter<PIn, POut>(
@@ -237,7 +237,7 @@ where
 
 /// Union of two `bool`-payload diagrams (construction merge, A5): the
 /// idempotent union — **hash-consing is this Bool choice**: multiplicity is
-/// destroyed at write time, only the cardinal is exact. ZDD style: the
+/// destroyed at write time, only the cardinality is exact. ZDD style: the
 /// terminal `⊤` is the member "all levels by default" (carried by arc
 /// `δ(ℓ)`), and a node of level greater than `ℓ` is the continuation of the
 /// default arc of level `ℓ`.
@@ -333,8 +333,8 @@ fn union_avec_other<P: Pool<Key = u64, Payload = bool>>(
             arcs.insert(defaut, cible);
         }
         None => {
-            let cardinalite = keys.cardinality(level);
-            for v in 0..cardinalite {
+            let cardinality = keys.cardinality(level);
+            for v in 0..cardinality {
                 let cible = match arcs.remove(&v) {
                     Some(cible) => union(pool, keys, anchor, cible, other)?,
                     None => other,

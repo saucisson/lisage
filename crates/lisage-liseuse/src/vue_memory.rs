@@ -35,7 +35,7 @@ const MARGE_BAS: u32 = 20;
 /// Width of the comparison panel beyond the max bar, in pixels.
 const LARGEUR_PANNEAU: u32 = 120;
 /// Vertical position of the first panel in pixels.
-const Y_PREMIER_PANNEAU: u32 = 44;
+const Y_FIRST_PANNEAU: u32 = 44;
 /// Horizontal offset of the ×k badge in a class line, in pixels.
 const DECALAGE_BADGE: u32 = 220;
 /// Inner height of a comparison bar in pixels.
@@ -151,7 +151,7 @@ pub fn rendre_svg_vue_memory(
         "<text x=\"{MARGE_GAUCHE}\" y=\"24\" font-family=\"serif\" font-size=\"{SIZE_TITRE}\">memory and quotient view</text>\n"
     ));
     // Pools panel.
-    let mut y = Y_PREMIER_PANNEAU;
+    let mut y = Y_FIRST_PANNEAU;
     svg.push_str(&format!(
         "<text x=\"{MARGE_GAUCHE}\" y=\"{y}\" font-family=\"serif\" font-size=\"{SIZE_CORPS}\">pools (main / shadow plane, GC)</text>\n"
     ));

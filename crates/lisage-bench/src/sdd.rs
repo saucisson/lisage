@@ -80,8 +80,8 @@ pub struct LevelSdd {
     pub anchor: Anchor,
     /// Root of the local DD (set projected on the variables of the subtree).
     pub root: NodeId,
-    /// Cardinal of the local DD (pli `(ℕ,+,×)`).
-    pub cardinal: u64,
+    /// Cardinality of the local DD (pli `(ℕ,+,×)`).
+    pub cardinality: u64,
 }
 
 /// Pool for an SDD installation: the controller carries the **root** schema
@@ -124,7 +124,7 @@ fn installer_level(
     let projection = projeter(ensemble, &variables);
     let schema = Schema::Map(variables, domain.clone());
     let root = compiler_projection(pool, &schema, &projection, anchor)?;
-    let cardinal = compter_level(pool, &schema, root, anchor)?;
+    let cardinality = compter_level(pool, &schema, root, anchor)?;
     if let Vtree::Node { gauche, droite } = vtree {
         installer_level(pool, gauche, &projection, domain, compteur_anchors)?;
         installer_level(pool, droite, &projection, domain, compteur_anchors)?;
@@ -132,7 +132,7 @@ fn installer_level(
     Ok(LevelSdd {
         anchor,
         root,
-        cardinal,
+        cardinality,
     })
 }
 
@@ -196,7 +196,7 @@ fn compiler_projection(
     Ok(root)
 }
 
-/// Cardinal of a local DD via the `(ℕ,+,×)` pli.
+/// Cardinality of a local DD via the `(ℕ,+,×)` pli.
 fn compter_level(
     pool: &Arena<ReferenceController>,
     schema: &Schema,

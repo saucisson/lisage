@@ -9,7 +9,7 @@
 //! `integral(node, region) = Σ_{arcs I → child} integral(child, region ∩ I)`,
 //! the terminal `⊤` returning the measure of the current region, `⊥`
 //! returning 0. On a single-level diagram, this is the sum of the lengths
-//! of the intervals leading to `⊤` — the differential against the cardinal
+//! of the intervals leading to `⊤` — the differential against the cardinality
 //! fold (sum of sizes) shows the count → measure passage.
 //!
 //! **DBM** variant (spec Q9 (ii), "polyhedral regions"): on DBM

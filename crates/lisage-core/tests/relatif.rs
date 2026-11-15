@@ -24,7 +24,7 @@ const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 const INCREMENT_LCG: u64 = 1442695040888963407;
 
 /// Declared mock cardinality: large enough to never collapse.
-const CARDINALITE_MOCK: u64 = 1_000_000;
+const CARDINALITY_MOCK: u64 = 1_000_000;
 /// Size of the sliding window of the test model.
 const SIZE_FENETRE: u64 = 4;
 /// Number of slides of the sliding window of the test model.
@@ -46,7 +46,7 @@ impl KeyAlgebra for MockKeys {
         *key
     }
     fn cardinality(&self, _level: Level) -> u64 {
-        CARDINALITE_MOCK
+        CARDINALITY_MOCK
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
         None
@@ -169,14 +169,14 @@ fn test_fenetre_glissante_pool_constant() {
             assert_eq!(arc.read_key(&groupe, &k), (base + k as i64) as u64);
         }
         // Re-intern the same relative form: hit, no node created.
-        let meme = pool.intern(
+        let same = pool.intern(
             anchor,
             Form::Node {
                 level: Level(1),
                 arcs: (0..SIZE_FENETRE).map(|k| (k, vrai)).collect(),
             },
         );
-        assert_eq!(meme, fenetre, "shared relative form");
+        assert_eq!(same, fenetre, "shared relative form");
     }
     assert_eq!(
         pool.node_count(),

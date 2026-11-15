@@ -146,7 +146,7 @@ pub struct MeasureConfrontation {
     /// documented per tool in the protocol).
     pub nodes: u64,
     /// Cross-check value: identical across all tools for the
-    /// same workload (counted cardinal, satisfactions). Any divergence
+    /// same workload (counted cardinality, satisfactions). Any divergence
     /// between tools invalidates the measurement.
     pub verifie: u64,
 }
@@ -413,7 +413,7 @@ type EtatEtendu = Vec<u64>;
 /// the extended-states file shared by all tools (first line
 /// `n <n>`, then one extended state per line, values separated by
 /// spaces). Construction: union of the maps compiled over the
-/// interleaved schema; the cardinal via the `(ℕ,+,×)` pli must be the number
+/// interleaved schema; the cardinality via the `(ℕ,+,×)` pli must be the number
 /// of states in the file.
 fn charge_philosophes(
     nombre_philosophes: u64,
@@ -502,22 +502,22 @@ fn lire_etats(
 ) -> Result<Vec<EtatEtendu>, ErreurConfrontation> {
     let nombre_values = PAS_CLE_INTERCALAGE as usize * nombre_philosophes as usize;
     let mut lignes = contenu.lines();
-    let premiere = lignes
+    let first = lignes
         .next()
         .ok_or_else(|| ErreurConfrontation::InvalidInput {
             detail: "empty states file".to_string(),
         })?;
-    let champs_premiere: Vec<&str> = premiere.split_whitespace().collect();
-    if champs_premiere.len() != 2 || champs_premiere[0] != "n" {
+    let champs_first: Vec<&str> = first.split_whitespace().collect();
+    if champs_first.len() != 2 || champs_first[0] != "n" {
         return Err(ErreurConfrontation::InvalidInput {
-            detail: format!("expected first line \"n <n>\", got: {premiere}"),
+            detail: format!("expected first line \"n <n>\", got: {first}"),
         });
     }
     let n_declare: u64 =
-        champs_premiere[1]
+        champs_first[1]
             .parse()
             .map_err(|_| ErreurConfrontation::InvalidInput {
-                detail: format!("unreadable n: {}", champs_premiere[1]),
+                detail: format!("unreadable n: {}", champs_first[1]),
             })?;
     if n_declare != nombre_philosophes {
         return Err(ErreurConfrontation::InvalidInput {
@@ -649,34 +649,34 @@ pub fn executer(
             charge_alea_lcg(nombre_variables, observer)
         }
         Charge::Philosophes => {
-            let (premier, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
+            let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErreurConfrontation::ParametresInvalides {
                     charge: Charge::Philosophes.etiquette(),
                     detail: "expected: philosophes <n> <path>".to_string(),
                 }
             })?;
             let nombre_philosophes =
-                premier
+                first
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
                         charge: Charge::Philosophes.etiquette(),
-                        detail: format!("unreadable n: {premier}"),
+                        detail: format!("unreadable n: {first}"),
                     })?;
             charge_philosophes(nombre_philosophes, second, observer)
         }
         Charge::Fenetre => {
-            let (premier, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
+            let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
                 ErreurConfrontation::ParametresInvalides {
                     charge: Charge::Fenetre.etiquette(),
                     detail: "expected: fenetre <size> <nb_bases> [absolu|relatif]".to_string(),
                 }
             })?;
             let size =
-                premier
+                first
                     .parse::<u64>()
                     .map_err(|_| ErreurConfrontation::ParametresInvalides {
                         charge: Charge::Fenetre.etiquette(),
-                        detail: format!("unreadable size: {premier}"),
+                        detail: format!("unreadable size: {first}"),
                     })?;
             let nb_bases =
                 second

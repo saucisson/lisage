@@ -48,7 +48,7 @@ fn test_normal_form_canonique_et_idempotente() {
 }
 
 #[test]
-fn test_cardinalite_et_defaut_par_level() {
+fn test_cardinality_et_defaut_par_level() {
     let keys = RegionKeys::new(vec![8, 3]);
     assert_eq!(keys.cardinality(Level(0)), 8);
     assert_eq!(keys.cardinality(Level(1)), 3);
@@ -200,7 +200,7 @@ fn test_differentiel_union_intervalles_contre_enumeration() {
         assert_eq!(
             compte_dd,
             ensemble.len() as u64,
-            "DD count == naive cardinal of S"
+            "DD count == naive cardinality of S"
         );
     }
 }

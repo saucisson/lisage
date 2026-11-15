@@ -184,7 +184,7 @@ fn test_alignement_en_value() {
 /// order mark `O` (same type parameter on both sides;
 /// different marks would not compile).
 #[test]
-fn test_alignement_comme_typage_composition_sous_meme_marque() {
+fn test_alignement_comme_typage_composition_sous_same_marque() {
     let domain = DomainAtomes(vec![Atom(0), Atom(1)]);
     let ordre = MarqueCanonique::ordre(&domain);
     assert_eq!(ordre.size(), 2);

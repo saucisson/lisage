@@ -4,7 +4,7 @@
 //! weight, so two terminals of different weights are distinct handles), ⊕
 //! pointwise like ADD. Compatibility guard (A5): a weighted fold is exact
 //! only on this lifted construction; on a Bool construction (idempotent
-//! `union`), only the cardinal is exact — multiplicity is destroyed at
+//! `union`), only the cardinality is exact — multiplicity is destroyed at
 //! write time.
 
 use std::collections::{BTreeMap, HashMap};
@@ -230,8 +230,8 @@ fn merge_avec_other<P: Pool<Key = u64, Payload = u64>>(
             arcs.insert(defaut, cible);
         }
         None => {
-            let cardinalite = keys.cardinality(level);
-            for v in 0..cardinalite {
+            let cardinality = keys.cardinality(level);
+            for v in 0..cardinality {
                 let cible = match arcs.remove(&v) {
                     Some(cible) => merge_add(pool, keys, anchor, cible, other)?,
                     None => other,

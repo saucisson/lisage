@@ -36,7 +36,7 @@
 //!   carried by the incoming arc;
 //! - [`construire_fenetre_anchored`] / [`comparer_anchors_fenetre`]: the
 //!   window read under two anchors — each anchor has its own root, the
-//!   relative shape of the window is shared (`meme_forme`), only the
+//!   relative shape of the window is shared (`same_forme`), only the
 //!   absolute readings differ: "the anchor moves, the pool never does".
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -511,7 +511,7 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct RapportComparaisonOrdres {
     /// Metrics under the first ordering.
-    pub premier: RapportAtelier,
+    pub first: RapportAtelier,
     /// Metrics under the second ordering.
     pub second: RapportAtelier,
 }
@@ -524,18 +524,18 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     table: &[bool],
-    ordre_premier: &Ordre,
+    ordre_first: &Ordre,
     ordre_second: &Ordre,
     observer: Option<&dyn Observer>,
 ) -> Result<RapportComparaisonOrdres, PoolError> {
     assert_eq!(
-        ordre_premier.nombre_variables(),
+        ordre_first.nombre_variables(),
         ordre_second.nombre_variables(),
         "both orderings cover the same number of variables (internal invariant)"
     );
-    let root_premier = compiler_bdd_ordre(pool, anchor, ordre_premier, table);
+    let root_first = compiler_bdd_ordre(pool, anchor, ordre_first, table);
     let root_second = compiler_bdd_ordre(pool, anchor, ordre_second, table);
-    let premier = measure(pool, root_premier, observer)?;
+    let first = measure(pool, root_first, observer)?;
     let second = measure(pool, root_second, observer)?;
     if let Some(obs) = observer {
         obs.on_event(&TraceEvent::Attr {
@@ -543,14 +543,14 @@ pub fn comparer_ordres<P: Pool<Key = u64, Payload = bool>>(
             node: root_second,
             value: format!(
                 "ordre={}_vs_{} nodes={} contre {}",
-                ordre_premier.etiquette(),
+                ordre_first.etiquette(),
                 ordre_second.etiquette(),
-                premier.nodes_partages,
+                first.nodes_partages,
                 second.nodes_partages
             ),
         });
     }
-    Ok(RapportComparaisonOrdres { premier, second })
+    Ok(RapportComparaisonOrdres { first, second })
 }
 
 /// Fragment named "base" of the composite anchor of the sliding window
@@ -653,7 +653,7 @@ pub struct RapportComparaisonAnchors {
     pub apres: RapportAtelier,
     /// True if both readings reach the same window shape
     /// (`NodeId`): moving the base does not duplicate the shape.
-    pub meme_forme: bool,
+    pub same_forme: bool,
     /// Node count of the pool after both readings (one root per
     /// anchor, a single window shape).
     pub nodes_pool: u64,
@@ -666,7 +666,7 @@ pub struct RapportComparaisonAnchors {
 /// Compares the sliding window read under two composite anchors: each
 /// anchor builds its own root (the incoming arc carries its base), but the
 /// relative shape of the window (keys `0..size-1`, min section = 0) is
-/// shared — `meme_forme` true, same nodes, same paths — only the
+/// shared — `same_forme` true, same nodes, same paths — only the
 /// absolute readings differ. This is the slide of the SWP protocol:
 /// "the anchor moves, the pool never does": moving the base does not
 /// duplicate the window shape. `observer`: ADR-0100 narration.
@@ -683,7 +683,7 @@ pub fn comparer_anchors_fenetre<P: Pool<Key = u64, Payload = bool>>(
     let (root_avant, fenetre_avant) = construire_fenetre_anchored(pool, anchor, size, anchor_avant);
     let (root_apres, fenetre_apres) = construire_fenetre_anchored(pool, anchor, size, anchor_apres);
     let nodes_pool = pool.node_count() as u64;
-    let meme_forme = fenetre_avant == fenetre_apres;
+    let same_forme = fenetre_avant == fenetre_apres;
     let avant = measure(pool, root_avant, observer)?;
     let apres = measure(pool, root_apres, observer)?;
     if let Some(obs) = observer {
@@ -709,7 +709,7 @@ pub fn comparer_anchors_fenetre<P: Pool<Key = u64, Payload = bool>>(
     Ok(RapportComparaisonAnchors {
         avant,
         apres,
-        meme_forme,
+        same_forme,
         nodes_pool,
         lecture_avant: anchor_avant.fenetre_absolue(),
         lecture_apres: anchor_apres.fenetre_absolue(),

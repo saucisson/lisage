@@ -9,7 +9,7 @@
 //!   (`Order::avec_aval_runtime`) — adopted as-is if valid, otherwise
 //!   canonical fallback signalled by the returned strategy.
 //!
-//! The C3/C4 falsification holds here: identical cardinal on the three
+//! The C3/C4 falsification holds here: identical cardinality on the three
 //! paths, whatever the downstream strategy adopted by the planner.
 
 use std::collections::BTreeSet;
@@ -80,16 +80,16 @@ impl From<CoreError> for ErreurTriptyque {
 /// Measurement of one path of the triptych.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct MeasureVoie {
-    /// Cardinal of the reachable space (number of distinct markings).
-    pub cardinal: u64,
+    /// Cardinality of the reachable space (number of distinct markings).
+    pub cardinality: u64,
     /// Live nodes of the diagram (0 for path A, explicit set).
     pub nodes_vivants: usize,
 }
 
-/// Path A (reference): cardinal of the explicit reachable space.
+/// Path A (reference): cardinality of the explicit reachable space.
 pub fn voie_a(network: &NetworkPetri) -> MeasureVoie {
     MeasureVoie {
-        cardinal: pnml::espace_atteignable(network).len() as u64,
+        cardinality: pnml::espace_atteignable(network).len() as u64,
         nodes_vivants: 0,
     }
 }
@@ -160,7 +160,7 @@ pub fn voie_c(
 }
 
 /// Builds the DD of the reachable space in the given key order,
-/// then measures (cardinal via pli, live nodes after construction).
+/// then measures (cardinality via pli, live nodes after construction).
 fn voie_dd(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, ErreurTriptyque> {
     if network.nombre_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
@@ -177,9 +177,9 @@ fn voie_dd(network: &NetworkPetri, ordre_keys: &[Atom]) -> Result<MeasureVoie, E
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let cardinal = compter(&pool, &mut output, ANCHOR_BANC, &schema, root)?;
+    let cardinality = compter(&pool, &mut output, ANCHOR_BANC, &schema, root)?;
     Ok(MeasureVoie {
-        cardinal,
+        cardinality,
         nodes_vivants,
     })
 }

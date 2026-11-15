@@ -1,7 +1,7 @@
 //! ADD/MTBDD tests (M5-4, C7, open question n° 8): non-idempotent merge,
 //! unique table indexed by weights, weighted fold exact on the lifted
 //! construction, and compatibility guard (on a Bool construction, only the
-//! cardinal is exact — multiplicity is destroyed at write time).
+//! cardinality is exact — multiplicity is destroyed at write time).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -80,8 +80,8 @@ fn construire_bool(pool: &mut PoolBool, ensemble: &BTreeSet<Value>) -> NodeId {
     root
 }
 
-/// Counts the cardinal in the Bool pool (fold `(ℕ,+,×)`).
-fn cardinal_bool(pool: &PoolBool, root: NodeId) -> u64 {
+/// Counts the cardinality in the Bool pool (fold `(ℕ,+,×)`).
+fn cardinality_bool(pool: &PoolBool, root: NodeId) -> u64 {
     let mut output = pool_bool();
     compter(pool, &mut output, ANCHOR, &schema_test(), root).unwrap()
 }
@@ -116,9 +116,9 @@ fn test_merge_non_idempotent() {
 }
 
 /// Weighted fold exact on the lifted construction: sum of weights == set
-/// cardinal, equal to the fold count on the Bool construction.
+/// cardinality, equal to the fold count on the Bool construction.
 #[test]
-fn test_somme_poids_egale_cardinal() {
+fn test_somme_poids_egale_cardinality() {
     let ensemble: BTreeSet<Value> = [
         map_de(&[(0, 0), (1, 0)]),
         map_de(&[(0, 0), (1, 1)]),
@@ -131,12 +131,12 @@ fn test_somme_poids_egale_cardinal() {
     assert_eq!(somme_poids(&pool_a, &schema_test(), root_add).unwrap(), 3);
     let mut pool_b = pool_bool();
     let root_bool = construire_bool(&mut pool_b, &ensemble);
-    assert_eq!(cardinal_bool(&pool_b, root_bool), 3);
+    assert_eq!(cardinality_bool(&pool_b, root_bool), 3);
 }
 
 /// Compatibility guard (Q8): with a duplicate, the lifted construction
 /// counts the multiplicity (weighted sum = 4) while the Bool construction
-/// destroys it (cardinal = 3) — a weighted fold is exact only on the lifted
+/// destroys it (cardinality = 3) — a weighted fold is exact only on the lifted
 /// construction.
 #[test]
 fn test_garde_fou_compatibilite_doublon() {
@@ -161,14 +161,14 @@ fn test_garde_fou_compatibilite_doublon() {
     assert_eq!(somme_poids(&pool_a, &schema_test(), root).unwrap(), 4);
     let mut pool_b = pool_bool();
     let root_bool = construire_bool(&mut pool_b, &ensemble);
-    assert_eq!(cardinal_bool(&pool_b, root_bool), 3);
+    assert_eq!(cardinality_bool(&pool_b, root_bool), 3);
 }
 
 /// Property (LCG-generated cases): for any set of maps over 2 keys with
-/// domain {0,1}, weighted sum on the ADD construction == cardinal on the
+/// domain {0,1}, weighted sum on the ADD construction == cardinality on the
 /// Bool construction == set size.
 #[test]
-fn test_propriete_somme_poids_egale_cardinal_lcg() {
+fn test_propriete_somme_poids_egale_cardinality_lcg() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
@@ -199,6 +199,6 @@ fn test_propriete_somme_poids_egale_cardinal_lcg() {
             somme_poids(&pool_a, &schema_test(), root_add).unwrap(),
             ensemble.len() as u64
         );
-        assert_eq!(cardinal_bool(&pool_b, root_bool), ensemble.len() as u64);
+        assert_eq!(cardinality_bool(&pool_b, root_bool), ensemble.len() as u64);
     }
 }

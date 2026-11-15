@@ -62,18 +62,18 @@ fn compiler_ensemble(
 fn test_metriques_cache_hash_consing() {
     let schema = schema_test();
     let mut pool = new_pool(&schema);
-    let premier = compiler_ensemble(&mut pool, ANCHOR_TEST, &schema, &ENSEMBLE_PARTAGE);
+    let first = compiler_ensemble(&mut pool, ANCHOR_TEST, &schema, &ENSEMBLE_PARTAGE);
     let metriques = pool.metriques();
-    let creations_apres_premier = metriques.creations;
-    assert!(creations_apres_premier > 0, "creations counted");
+    let creations_apres_first = metriques.creations;
+    assert!(creations_apres_first > 0, "creations counted");
     assert_eq!(metriques.partages, 0, "no share yet");
 
     // Recompile the same set: R-share, no new node created.
     let partage = compiler_ensemble(&mut pool, ANCHOR_TEST, &schema, &ENSEMBLE_PARTAGE);
-    assert_eq!(partage, premier, "same form = same handle");
+    assert_eq!(partage, first, "same form = same handle");
     let metriques = pool.metriques();
     assert_eq!(
-        metriques.creations, creations_apres_premier,
+        metriques.creations, creations_apres_first,
         "hit: no creation"
     );
     assert!(metriques.partages > 0, "shares counted");

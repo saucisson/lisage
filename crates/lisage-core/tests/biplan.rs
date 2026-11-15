@@ -196,7 +196,7 @@ fn test_compaction_profilee() {
     assert_eq!(pool.node_count(), 2, "tombstones compacted");
     // Compaction invalidates old NodeIds: the live root is remapped to a new
     // id, resolvable and indexed at level 1.
-    let remap = pool.dernier_remap();
+    let remap = pool.last_remap();
     let new = remap[root.0 as usize].expect("live root remapped");
     assert_ne!(new, root);
     assert!(pool.resolve(new).is_ok());
@@ -228,7 +228,7 @@ fn test_metriques_cache_et_evenement_gc() {
         panic!("the root is a node");
     };
     let partage = pool.intern(ANCHOR_TEST, Form::Node { level, arcs });
-    assert_eq!(partage, root, "R-partage: meme handle");
+    assert_eq!(partage, root, "R-partage: same handle");
     let metriques = pool.metriques();
     assert!(
         metriques.creations >= 4,
@@ -275,8 +275,8 @@ fn test_intern_plan_hit_cache_replanifie() {
         panic!("the root is a node");
     };
     // Cache hit with shadow plan: same handle, plan moved.
-    let meme = pool.intern_plan(ANCHOR_TEST, Form::Node { level, arcs }, Plan::Ombre);
-    assert_eq!(meme, root, "R-partage: meme handle");
+    let same = pool.intern_plan(ANCHOR_TEST, Form::Node { level, arcs }, Plan::Ombre);
+    assert_eq!(same, root, "R-partage: same handle");
     assert_eq!(pool.plan_de(root), Some(Plan::Ombre));
 }
 
@@ -381,8 +381,8 @@ fn test_gc_deux_fois_vivants_exacts() {
     }
     // Roots = root + chain end: the whole chain is reachable,
     // only the orphan and the false terminal are collected.
-    let premier = pool.gc(&[root, courant]);
-    assert!(!premier.compaction, "few dead: no compaction");
+    let first = pool.gc(&[root, courant]);
+    assert!(!first.compaction, "few dead: no compaction");
     assert!(pool.node_count() > pool.vivants(), "tombstones kept");
     // Second GC: the living must not count the tombstones of the
     // first GC — vivants + collectes == live entries before the GC.
