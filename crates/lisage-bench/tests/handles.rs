@@ -53,7 +53,7 @@ fn form_aleatoire(paires: Vec<(u8, u32)>, level: u8) -> Form<u64, bool> {
         level: Level(u32::from(level)),
         arcs: paires
             .into_iter()
-            .map(|(key, cible)| (u64::from(key), NodeId(cible)))
+            .map(|(key, target)| (u64::from(key), NodeId(target)))
             .collect::<BTreeMap<u64, NodeId>>(),
     }
 }
@@ -85,7 +85,7 @@ proptest! {
         let reducede = |paires: Vec<(u8, u32)>| -> Reduction<u64> {
             let arcs: std::collections::BTreeMap<u64, NodeId> = paires
                 .into_iter()
-                .map(|(key, cible)| (u64::from(key), NodeId(cible)))
+                .map(|(key, target)| (u64::from(key), NodeId(target)))
                 .collect();
             reduce(arcs, Some(0), &est_defaut, 2)
         };

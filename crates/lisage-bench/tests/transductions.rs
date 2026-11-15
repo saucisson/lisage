@@ -163,13 +163,13 @@ fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> 
     let vrai = pool.intern(anchor, Form::Terminal(true));
     let faux = pool.intern(anchor, Form::Terminal(false));
     let mut nodes = vec![vrai, faux];
-    for (level, cible) in paires {
-        let cible = nodes[usize::try_from(cible).unwrap() % nodes.len()];
+    for (level, target) in paires {
+        let target = nodes[usize::try_from(target).unwrap() % nodes.len()];
         let node = pool.intern(
             anchor,
             Form::Node {
                 level: Level(u32::from(level % 4)),
-                arcs: BTreeMap::from([(u64::from(level % 2), cible)]),
+                arcs: BTreeMap::from([(u64::from(level % 2), target)]),
             },
         );
         nodes.push(node);

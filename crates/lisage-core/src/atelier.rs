@@ -214,8 +214,8 @@ pub fn count_paths<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
             Form::Terminal(_) => 1,
             Form::Node { arcs, .. } => {
                 let mut sum = 0u64;
-                for cible in arcs.values() {
-                    sum = sum.saturating_add(paths(pool, *cible, memo)?);
+                for target in arcs.values() {
+                    sum = sum.saturating_add(paths(pool, *target, memo)?);
                 }
                 sum
             }
@@ -243,8 +243,8 @@ pub fn count_size_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolEr
             Form::Terminal(_) => 1,
             Form::Node { arcs, .. } => {
                 let mut sum = 1u64;
-                for cible in arcs.values() {
-                    sum = sum.saturating_add(size(pool, *cible, memo)?);
+                for target in arcs.values() {
+                    sum = sum.saturating_add(size(pool, *target, memo)?);
                 }
                 sum
             }

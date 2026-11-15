@@ -18,7 +18,7 @@ fn est_defaut(node: NodeId) -> bool {
 fn vers_arcs(paires: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
     paires
         .into_iter()
-        .map(|(key, cible)| (u64::from(key), NodeId(cible)))
+        .map(|(key, target)| (u64::from(key), NodeId(target)))
         .collect()
 }
 
@@ -41,7 +41,7 @@ fn test_r_default_arc_absent_vers_defaut() {
 }
 
 #[test]
-fn test_pas_de_collapse_si_cible_non_defaut() {
+fn test_pas_de_collapse_si_target_non_defaut() {
     // {present ↦ X} with implicit default ⊥ and X ≠ ⊥: no collapse.
     let x = NodeId(5);
     let arcs = BTreeMap::from([(1, x)]);

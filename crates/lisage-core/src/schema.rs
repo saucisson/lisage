@@ -599,8 +599,8 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
                     node,
                 });
             }
-            for (key, cible) in arcs {
-                if matches!(pool.resolve(*cible), Ok(Form::Terminal(true))) {
+            for (key, target) in arcs {
+                if matches!(pool.resolve(*target), Ok(Form::Terminal(true))) {
                     let atome = Atom(*key);
                     if domain.contains(atome) {
                         return Ok(Value::Atom(atome));

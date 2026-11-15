@@ -215,14 +215,14 @@ fn test_events_reduction_applied() {
     let other = arena.terminal(anchor, true);
     let level = Level(3);
     // R-collapse: all arcs lead to D_δ and δ is explicit ⇒ Collapse(D_δ).
-    let cible = arena.intern(
+    let target = arena.intern(
         anchor,
         Form::Node {
             level,
             arcs: BTreeMap::from([(0, defaut), (1, defaut)]),
         },
     );
-    assert_eq!(cible, defaut);
+    assert_eq!(target, defaut);
     // R-default: the δ(ℓ) arc leads to D_δ, it is removed, the form is kept.
     let node = arena.intern(
         anchor,

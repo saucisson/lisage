@@ -46,8 +46,8 @@ impl MarqueEncodage for MarqueEnumeration {
 
 /// Number of inversions between two sequences (Kendall tau distance),
 /// computed independently of `Conversion`.
-fn inversions<T: TypeOrder>(source: &Order<T>, cible: &Order<T>) -> usize {
-    let sequence = cible.sequence();
+fn inversions<T: TypeOrder>(source: &Order<T>, target: &Order<T>) -> usize {
+    let sequence = target.sequence();
     let mut count = 0;
     for i in 0..sequence.len() {
         for j in i + 1..sequence.len() {
@@ -76,8 +76,8 @@ fn test_conversion_identite_cout_nul() {
 fn test_conversion_transpositions_adjacentes() {
     let domain = DomainAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let source = Order::canonique(&domain);
-    let cible = Order::new(&domain, vec![Atom(2), Atom(1), Atom(0)]).unwrap();
-    let conversion = Conversion::new(&source, &cible).unwrap();
+    let target = Order::new(&domain, vec![Atom(2), Atom(1), Atom(0)]).unwrap();
+    let conversion = Conversion::new(&source, &target).unwrap();
     // Total inversion of 3 elements: 3 inversions, 3 transpositions.
     assert_eq!(conversion.cout(), 3);
     assert_eq!(conversion.transpositions().len(), 3);
@@ -85,7 +85,7 @@ fn test_conversion_transpositions_adjacentes() {
         assert_eq!(*j, i + 1, "adjacent transposition");
     }
     // Applying the transpositions to the target gives back the source.
-    let mut sequence = cible.sequence().to_vec();
+    let mut sequence = target.sequence().to_vec();
     for (i, j) in conversion.transpositions() {
         sequence.swap(*i, *j);
     }
@@ -112,8 +112,8 @@ fn test_conversion_orders_inconvertibles() {
 fn test_royaume_reordonner_contrat_type() {
     let domain = DomainAtomes(vec![Atom(0), Atom(1), Atom(2)]);
     let source = MarqueCanonique::order(&domain);
-    let cible = MarqueInverse::order(&domain);
-    let conversion = Conversion::new(&source, &cible).unwrap();
+    let target = MarqueInverse::order(&domain);
+    let conversion = Conversion::new(&source, &target).unwrap();
 
     let royaume = Royaume::<DomainAtomes, MarqueCanonique, MarqueBalayage, u32>::new(7);
     assert_eq!(*royaume.value(), 7);
@@ -134,7 +134,7 @@ fn test_royaume_reordonner_contrat_type() {
     assert_eq!(conversion.cout(), 3, "predictable cost exposed");
 
     // Incompatible conversion (wrong source): typed error.
-    let mauvaise = Conversion::new(&cible, &source).unwrap();
+    let mauvaise = Conversion::new(&target, &source).unwrap();
     assert_eq!(
         royaume
             .reordonner::<MarqueInverse>(&domain, &mauvaise)
@@ -171,19 +171,19 @@ fn test_propriete_cout_egal_inversions_et_transpositions_exactes() {
             let j = (next() as usize) % (i + 1);
             pi.swap(i, j);
         }
-        let cible = Order::new(&domain, pi).unwrap();
+        let target = Order::new(&domain, pi).unwrap();
 
-        let conversion = Conversion::new(&source, &cible).unwrap();
+        let conversion = Conversion::new(&source, &target).unwrap();
         assert_eq!(
             conversion.cout(),
-            inversions(&source, &cible),
+            inversions(&source, &target),
             "cost = inversions (Kendall tau)"
         );
-        let mut sequence = cible.sequence().to_vec();
+        let mut sequence = target.sequence().to_vec();
         for (i, j) in conversion.transpositions() {
             sequence.swap(*i, *j);
         }
         assert_eq!(sequence, source.sequence(), "exact transpositions");
-        assert_eq!(conversion.est_identite(), source == cible);
+        assert_eq!(conversion.est_identite(), source == target);
     }
 }

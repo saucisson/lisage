@@ -209,7 +209,7 @@ impl<C: Controller> Arena<C> {
                 level,
                 arcs: arcs
                     .into_iter()
-                    .map(|(key, cible)| (self.controleur.keys().normal_form(&key), cible))
+                    .map(|(key, target)| (self.controleur.keys().normal_form(&key), target))
                     .collect(),
             },
         }
@@ -258,7 +258,7 @@ impl<C: Controller> Arena<C> {
             reduce(arcs, key_defaut, &est_defaut, cardinality)
         };
         match reduced {
-            Reduction::Collapse(cible) => Err(cible),
+            Reduction::Collapse(target) => Err(target),
             Reduction::Form(arcs_reduceds) => Ok(Form::Node {
                 level,
                 arcs: arcs_reduceds,
@@ -279,12 +279,12 @@ impl<C: Controller> Pool for Arena<C> {
             Form::Node { level, arcs } => {
                 let size_avant = arcs.len();
                 match self.reduced(anchor, level, arcs) {
-                    Err(cible) => {
+                    Err(target) => {
                         self.observer.on_event(&TraceEvent::ReductionApplied {
                             rule: ReductionRule::Collapse,
                             level,
                         });
-                        return cible;
+                        return target;
                     }
                     Ok(Form::Node { arcs, .. }) => {
                         if arcs.len() < size_avant {

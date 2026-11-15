@@ -92,12 +92,12 @@ fn integrale<P: Pool<Key = Interval, Payload = bool>>(
         Form::Terminal(false) => 0,
         Form::Node { arcs, .. } => {
             let mut sum = 0u64;
-            for (interval, cible) in &arcs {
+            for (interval, target) in &arcs {
                 let sous_region = intersection(region, interval);
                 if sous_region.est_empty() {
                     continue;
                 }
-                let contribution = integrale(pool, *cible, &sous_region, observer, memo)?;
+                let contribution = integrale(pool, *target, &sous_region, observer, memo)?;
                 sum = sum.saturating_add(contribution);
             }
             sum
@@ -155,12 +155,13 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
         Form::Terminal(false) => 0,
         Form::Node { arcs, .. } => {
             let mut sum = 0i128;
-            for (zone, cible) in &arcs {
+            for (zone, target) in &arcs {
                 let sous_region = region.intersection(zone);
                 if sous_region.est_empty() {
                     continue;
                 }
-                let contribution = integrale_dbm(pool, *cible, &sous_region, keys, observer, memo)?;
+                let contribution =
+                    integrale_dbm(pool, *target, &sous_region, keys, observer, memo)?;
                 sum += contribution;
             }
             sum

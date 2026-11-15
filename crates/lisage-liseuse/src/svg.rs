@@ -52,8 +52,8 @@ pub(crate) fn placer<P: Pool<Key = u64, Payload = bool>>(
         if let Ok(Form::Node { level, arcs }) = pool.resolve(node) {
             levels.entry(level.0).or_default().push(node);
             // Push in reverse order to visit the arcs in increasing order.
-            for cible in arcs.values().rev() {
-                stack.push(*cible);
+            for target in arcs.values().rev() {
+                stack.push(*target);
             }
         }
     }
@@ -115,8 +115,8 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
         }
         if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
             let depart = &placement[&node];
-            for (key, cible) in arcs {
-                let arrivee = &placement[cible];
+            for (key, target) in arcs {
+                let arrivee = &placement[target];
                 svg.push_str(&format!(
                     "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\"/>\n",
                     depart.x,
@@ -132,7 +132,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
                     couleurs.label,
                     echapper_xml(&key.to_string())
                 ));
-                stack.push(*cible);
+                stack.push(*target);
             }
         }
     }

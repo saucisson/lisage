@@ -188,17 +188,17 @@ fn test_differentiel_appartenance_contre_enumeration() {
     for x0 in 0..SIZE_DOMAIN {
         for x1 in 0..SIZE_DOMAIN {
             let point = [x0, x1];
-            let cible_naive = if x0 <= x1 {
+            let target_naive = if x0 <= x1 {
                 vrai_terminal
             } else {
                 faux_terminal
             };
-            let cible_dd = arcs
+            let target_dd = arcs
                 .iter()
                 .find(|(region, _)| region.contains(&point))
-                .map(|(_, cible)| *cible)
+                .map(|(_, target)| *target)
                 .expect("the partition covers the box");
-            assert_eq!(cible_dd, cible_naive, "point {point:?}");
+            assert_eq!(target_dd, target_naive, "point {point:?}");
         }
     }
 }

@@ -182,14 +182,14 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
         ) => {
             if level_a == level_b {
                 let mut arcs = arcs_a;
-                for (arc, cible_b) in arcs_b {
+                for (arc, target_b) in arcs_b {
                     match arcs.remove(&arc) {
-                        Some(cible_a) => {
-                            let merge = merge_add(pool, keys, anchor, cible_a, cible_b)?;
+                        Some(target_a) => {
+                            let merge = merge_add(pool, keys, anchor, target_a, target_b)?;
                             arcs.insert(arc, merge);
                         }
                         None => {
-                            arcs.insert(arc, cible_b);
+                            arcs.insert(arc, target_b);
                         }
                     }
                 }
@@ -223,20 +223,20 @@ fn merge_with_other<P: Pool<Key = u64, Payload = u64>>(
 ) -> Result<NodeId, CoreError> {
     match keys.default(level) {
         Some(defaut) => {
-            let cible = match arcs.remove(&defaut) {
-                Some(cible) => merge_add(pool, keys, anchor, cible, other)?,
+            let target = match arcs.remove(&defaut) {
+                Some(target) => merge_add(pool, keys, anchor, target, other)?,
                 None => other,
             };
-            arcs.insert(defaut, cible);
+            arcs.insert(defaut, target);
         }
         None => {
             let cardinality = keys.cardinality(level);
             for v in 0..cardinality {
-                let cible = match arcs.remove(&v) {
-                    Some(cible) => merge_add(pool, keys, anchor, cible, other)?,
+                let target = match arcs.remove(&v) {
+                    Some(target) => merge_add(pool, keys, anchor, target, other)?,
                     None => other,
                 };
-                arcs.insert(v, cible);
+                arcs.insert(v, target);
             }
         }
     }
@@ -273,13 +273,13 @@ fn sum<P: Pool<Key = u64, Payload = u64>>(
         Form::Terminal(weight) => weight,
         Form::Node { level, arcs } => {
             let mut total = 0u64;
-            for (arc, cible) in &arcs {
-                let level_cible = match pool.resolve(*cible)?.clone() {
+            for (arc, target) in &arcs {
+                let level_target = match pool.resolve(*target)?.clone() {
                     Form::Node { level, .. } => Some(level),
                     Form::Terminal(_) => None,
                 };
-                let multiplicateur = multiplicateur(keys, number_levels, level, *arc, level_cible);
-                total += multiplicateur * sum(pool, keys, number_levels, *cible, memo)?;
+                let multiplicateur = multiplicateur(keys, number_levels, level, *arc, level_target);
+                total += multiplicateur * sum(pool, keys, number_levels, *target, memo)?;
             }
             // Implicit default arc: D_δ = terminal(0), of zero weight.
             total
@@ -290,16 +290,16 @@ fn sum<P: Pool<Key = u64, Payload = u64>>(
 }
 
 /// (A4) multiplier of arc `arc` from level `level` to a child of level
-/// `level_cible` (`None` = terminal): product of the cardinalities of the
+/// `level_target` (`None` = terminal): product of the cardinalities of the
 /// value levels skipped on the path (mirror of `Pli::multiplicateur`).
 fn multiplicateur(
     keys: &SchemaKeys,
     number_levels: u32,
     level: Level,
     arc: u64,
-    level_cible: Option<Level>,
+    level_target: Option<Level>,
 ) -> u64 {
-    let bound = match level_cible {
+    let bound = match level_target {
         Some(level) => level.0,
         None => number_levels,
     };

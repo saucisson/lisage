@@ -88,7 +88,7 @@ fn test_view_order_fiche_piste_lineaire_royaumes_et_conversion() {
     ];
     let conversions = vec![ConversionView {
         source: "reference".to_string(),
-        cible: "temoin-bdd".to_string(),
+        target: "temoin-bdd".to_string(),
         cout: 3,
     }];
     let svg = rendre_svg_view_order(&royaumes, &conversions);
@@ -176,7 +176,7 @@ fn test_view_order_deterministe_et_conversion_inconnue_ignoree() {
     }];
     let conversions = vec![ConversionView {
         source: "r".to_string(),
-        cible: "inconnu".to_string(),
+        target: "inconnu".to_string(),
         cout: 1,
     }];
     let svg = rendre_svg_view_order(&royaumes, &conversions);
@@ -220,7 +220,7 @@ fn test_conversion_anchored_dans_piste_arbre() {
     ];
     let conversions = vec![ConversionView {
         source: "arbre".to_string(),
-        cible: "lineaire".to_string(),
+        target: "lineaire".to_string(),
         cout: 7,
     }];
     let svg = rendre_svg_view_order(&royaumes, &conversions);

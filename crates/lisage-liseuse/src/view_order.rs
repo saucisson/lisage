@@ -143,7 +143,7 @@ pub struct ConversionView {
     /// Source kingdom name.
     pub source: String,
     /// Target kingdom name.
-    pub cible: String,
+    pub target: String,
     /// Measured/predicted cost of the conversion.
     pub cout: u64,
 }
@@ -328,11 +328,11 @@ pub fn rendre_svg_view_order(royaumes: &[RoyaumeView], conversions: &[Conversion
         let Some(index_source) = royaumes.iter().position(|r| r.nom == conversion.source) else {
             continue;
         };
-        let Some(index_cible) = royaumes.iter().position(|r| r.nom == conversion.cible) else {
+        let Some(index_target) = royaumes.iter().position(|r| r.nom == conversion.target) else {
             continue;
         };
         let y1 = positions[index_source].y_piste + positions[index_source].height_piste / 2;
-        let y2 = positions[index_cible].y_piste + positions[index_cible].height_piste / 2;
+        let y2 = positions[index_target].y_piste + positions[index_target].height_piste / 2;
         svg.push_str(&format!(
             "<line x1=\"{}\" y1=\"{y1}\" x2=\"{}\" y2=\"{y2}\" stroke=\"{COULEUR_CONVERSION}\" stroke-width=\"{EPAISSEUR_TRAIT}\" stroke-dasharray=\"{DASH_CONVERSION}\" marker-end=\"url(#fleche-conversion)\"/>\n",
             WIDTH_VIEW - MARGE - DECALAGE_FLECHE,
@@ -343,7 +343,7 @@ pub fn rendre_svg_view_order(royaumes: &[RoyaumeView], conversions: &[Conversion
             WIDTH_VIEW - MARGE - DECALAGE_LABEL,
             (y1 + y2) / 2 + DECALAGE_LABEL_Y,
             echapper_xml(&conversion.source),
-            echapper_xml(&conversion.cible),
+            echapper_xml(&conversion.target),
             conversion.cout
         ));
     }
