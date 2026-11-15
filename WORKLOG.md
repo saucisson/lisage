@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 28: `collecte`/`collecteur`/`collecter`/`variante`/`outil` renamed to `collect`/`collected`/`collector`/`variant`/`tool`, wire keys protected (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `collecteur`→`collector`, `collecter`→`collect`, `collectes`→`collected`, `collecte`→`collect`, `variante(s)`→`variant(s)`, `outil(s)`→`tool(s)` (all cases, compounds included), workspace-wide (14 files), per glossary. Wire keys `\"collectes\"`, `\"variante\"`, `\"outil\"` restored after the blanket pass (trace.rs, step_by_step.rs, confrontation.rs + test pins). A rule-ordering artifact (`collected`→`collectd` via the later `collecte` rule) was repaired.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns only the protected wire literals.
+- **Judgement calls**: `collectes` (GC collected count) mapped to `collected`.
 ## 2026-11-14 - M6-6 part 27: `poids`/`profondeur`/`morts`/`orphelin`/`marqueur`/`seuil`/`fusion`/`garde`/`philosophes` renamed to `weight`/`depth`/`dead`/`orphan`/`marker`/`threshold`/`merge`/`guardrail`/`philosophers` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
