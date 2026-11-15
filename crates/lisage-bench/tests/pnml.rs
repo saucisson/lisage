@@ -112,7 +112,7 @@ fn test_boucle_espace_stable() {
 fn test_error_xml_mal_form() {
     let result =
         NetworkPetri::depuis_pnml(&PnmlDocument("<pnml><net><place id=\"p0\">".to_string()));
-    assert!(matches!(result, Err(PnmlError::XmlMalForm { .. })));
+    assert!(matches!(result, Err(PnmlError::XmlMalformed { .. })));
 }
 
 #[test]
