@@ -2,9 +2,9 @@
 //! order = flat traversal, left-before-right constraints checked
 //! at `Order` construction, valid π adopted, violating π rejected.
 
-use lisage_algebra::vtree::{ErreurVtree, Vtree};
+use lisage_algebra::vtree::{ErrorVtree, Vtree};
 use lisage_lang::Atom;
-use lisage_plan::order::{ErreurOrder, Order};
+use lisage_plan::order::{ErrorOrder, Order};
 
 /// Test vtree: (x0, x1) on the left, (x2, x3) on the right.
 fn vtree_test() -> Vtree {
@@ -43,7 +43,7 @@ fn test_other_vtree_other_order() {
     let result = Order::new(&vtree, vec![Atom(0), Atom(1), Atom(2)]);
     assert_eq!(
         result.unwrap_err(),
-        ErreurOrder::ContrainteViolee {
+        ErrorOrder::ContrainteViolee {
             avant: Atom(2),
             apres: Atom(0),
         }
@@ -57,7 +57,7 @@ fn test_pi_violant_vtree_rejete() {
     let result = Order::new(&vtree_test(), vec![Atom(2), Atom(0), Atom(1), Atom(3)]);
     assert_eq!(
         result.unwrap_err(),
-        ErreurOrder::ContrainteViolee {
+        ErrorOrder::ContrainteViolee {
             avant: Atom(0),
             apres: Atom(2),
         }
@@ -68,7 +68,7 @@ fn test_pi_violant_vtree_rejete() {
 #[test]
 fn test_pi_pas_une_permutation_rejete() {
     let result = Order::new(&vtree_test(), vec![Atom(0), Atom(1), Atom(2), Atom(9)]);
-    assert_eq!(result.unwrap_err(), ErreurOrder::PasUnePermutation);
+    assert_eq!(result.unwrap_err(), ErrorOrder::PasUnePermutation);
 }
 
 /// Invalid vtree: duplicate variable, typed error.
@@ -77,7 +77,7 @@ fn test_vtree_variable_en_double_rejete() {
     let vtree = Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(0)));
     assert_eq!(
         vtree.valider().unwrap_err(),
-        ErreurVtree::VariableEnDouble(Atom(0))
+        ErrorVtree::VariableEnDouble(Atom(0))
     );
 }
 

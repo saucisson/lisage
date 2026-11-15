@@ -21,12 +21,8 @@ fn measure_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
         Box::new(NoOpObserver),
     );
     let root = build_r_n(&mut pool, ANCHOR, n);
-    let rapport = measure(&pool, root, None).expect("interned node");
-    (
-        rapport.nodes_partages,
-        rapport.chemins,
-        rapport.size_depliee,
-    )
+    let report = measure(&pool, root, None).expect("interned node");
+    (report.nodes_partages, report.chemins, report.size_depliee)
 }
 
 /// Golden thread: R₃ = 20 reachable states = 20 paths (one per state); the
@@ -68,9 +64,9 @@ fn test_enveloppe_transparente_quand_tout_actif() {
     let schema = schema_anneau(3);
     let mut reference = pool_neuf(&schema);
     let root_ref = build_r_n(&mut reference, ANCHOR, 3);
-    let rapport_ref = measure(&reference, root_ref, None).expect("interned node");
+    let report_ref = measure(&reference, root_ref, None).expect("interned node");
     let (nodes, chemins, size) = measure_r_n(3, Reductions::TOUTES);
-    assert_eq!(rapport_ref.nodes_partages, nodes);
-    assert_eq!(rapport_ref.chemins, chemins);
-    assert_eq!(rapport_ref.size_depliee, size);
+    assert_eq!(report_ref.nodes_partages, nodes);
+    assert_eq!(report_ref.chemins, chemins);
+    assert_eq!(report_ref.size_depliee, size);
 }

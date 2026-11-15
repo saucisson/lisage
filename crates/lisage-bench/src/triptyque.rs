@@ -30,7 +30,7 @@ const ANCHOR_BANC: Anchor = Anchor(0);
 
 /// Typed error of the triptych (causes preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurTriptyque {
+pub enum ErrorTriptyque {
     /// The net has no place: no marking schema.
     WithoutPlace,
     /// π is not a permutation of the place keys (key missing, duplicated,
@@ -42,38 +42,38 @@ pub enum ErreurTriptyque {
     Core(CoreError),
 }
 
-impl std::fmt::Display for ErreurTriptyque {
+impl std::fmt::Display for ErrorTriptyque {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurTriptyque::WithoutPlace => write!(formatter, "the net has no place"),
-            ErreurTriptyque::OrderInvalide => {
+            ErrorTriptyque::WithoutPlace => write!(formatter, "the net has no place"),
+            ErrorTriptyque::OrderInvalide => {
                 write!(formatter, "π is not a permutation of the place keys")
             }
-            ErreurTriptyque::Schema(erreur) => write!(formatter, "schema error: {erreur}"),
-            ErreurTriptyque::Core(erreur) => write!(formatter, "core error: {erreur}"),
+            ErrorTriptyque::Schema(error) => write!(formatter, "schema error: {error}"),
+            ErrorTriptyque::Core(error) => write!(formatter, "core error: {error}"),
         }
     }
 }
 
-impl std::error::Error for ErreurTriptyque {
+impl std::error::Error for ErrorTriptyque {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            ErreurTriptyque::Schema(erreur) => Some(erreur),
-            ErreurTriptyque::Core(erreur) => Some(erreur),
+            ErrorTriptyque::Schema(error) => Some(error),
+            ErrorTriptyque::Core(error) => Some(error),
             _ => None,
         }
     }
 }
 
-impl From<SchemaError> for ErreurTriptyque {
-    fn from(erreur: SchemaError) -> Self {
-        ErreurTriptyque::Schema(erreur)
+impl From<SchemaError> for ErrorTriptyque {
+    fn from(error: SchemaError) -> Self {
+        ErrorTriptyque::Schema(error)
     }
 }
 
-impl From<CoreError> for ErreurTriptyque {
-    fn from(erreur: CoreError) -> Self {
-        ErreurTriptyque::Core(erreur)
+impl From<CoreError> for ErrorTriptyque {
+    fn from(error: CoreError) -> Self {
+        ErrorTriptyque::Core(error)
     }
 }
 
@@ -96,7 +96,7 @@ pub fn voie_a(network: &NetworkPetri) -> MeasureVoie {
 
 /// Path B: DD of the reachable space with **fixed order** (canonical
 /// order of the places, key = place index).
-pub fn voie_b(network: &NetworkPetri) -> Result<MeasureVoie, ErreurTriptyque> {
+pub fn voie_b(network: &NetworkPetri) -> Result<MeasureVoie, ErrorTriptyque> {
     let order_canonique: Vec<Atom> = (0..network.number_places())
         .map(|index| Atom(index as u64))
         .collect();
@@ -122,9 +122,9 @@ pub struct ResultVoieC {
 pub fn voie_c(
     network: &NetworkPetri,
     order_runtime: &[Atom],
-) -> Result<ResultVoieC, ErreurTriptyque> {
+) -> Result<ResultVoieC, ErrorTriptyque> {
     if network.number_places() == 0 {
-        return Err(ErreurTriptyque::WithoutPlace);
+        return Err(ErrorTriptyque::WithoutPlace);
     }
     let keys: Vec<Atom> = (0..network.number_places())
         .map(|index| Atom(index as u64))
@@ -161,9 +161,9 @@ pub fn voie_c(
 
 /// Builds the DD of the reachable space in the given key order,
 /// then measures (cardinality via pli, live nodes after construction).
-fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, ErreurTriptyque> {
+fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, ErrorTriptyque> {
     if network.number_places() == 0 {
-        return Err(ErreurTriptyque::WithoutPlace);
+        return Err(ErrorTriptyque::WithoutPlace);
     }
     let schema = schema_petri(network, order_keys)?;
     let espace = pnml::espace_atteignable(network);
@@ -187,7 +187,7 @@ fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, E
 /// `Map(K, V)` schema of a net marking: keys = places in
 /// the given order (π), value domain = `0..=max_jetons` bounded by
 /// the reachable space. π must be a permutation of the place indexes.
-fn schema_petri(network: &NetworkPetri, order_keys: &[Atom]) -> Result<Schema, ErreurTriptyque> {
+fn schema_petri(network: &NetworkPetri, order_keys: &[Atom]) -> Result<Schema, ErrorTriptyque> {
     let mut expected_f: Vec<Atom> = (0..network.number_places())
         .map(|index| Atom(index as u64))
         .collect();
@@ -195,7 +195,7 @@ fn schema_petri(network: &NetworkPetri, order_keys: &[Atom]) -> Result<Schema, E
     expected_f.sort();
     recues.sort();
     if recues != expected_f {
-        return Err(ErreurTriptyque::OrderInvalide);
+        return Err(ErrorTriptyque::OrderInvalide);
     }
     let max_jetons = jetons_max(network);
     let domain = Domain::new((0..=max_jetons).map(Atom).collect());
@@ -220,7 +220,7 @@ fn compiler_espace(
     pool: &mut Arena<ReferenceController>,
     schema: &Schema,
     espace: &BTreeSet<Value>,
-) -> Result<NodeId, ErreurTriptyque> {
+) -> Result<NodeId, ErrorTriptyque> {
     let keys = SchemaKeys::new(schema.clone());
     let mut root = pool.intern(ANCHOR_BANC, Form::Terminal(false));
     for value in espace {

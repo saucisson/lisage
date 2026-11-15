@@ -108,21 +108,21 @@ fn test_map_empty_et_key_absente() {
 
 /// Typed errors: incompatible type, atom out of domain.
 #[test]
-fn test_erreurs_typees() {
+fn test_errors_typees() {
     let schema = Schema::Set(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
-    let erreur = compiler(&mut pool, anchor, &schema, &atome(0)).unwrap_err();
+    let error = compiler(&mut pool, anchor, &schema, &atome(0)).unwrap_err();
     assert_eq!(
-        erreur,
+        error,
         SchemaError::TypeMismatch {
             expected: "set",
             recu: "atom"
         }
     );
     let hors = Value::Set(BTreeSet::from([atome(9)]));
-    let erreur = compiler(&mut pool, anchor, &schema, &hors).unwrap_err();
-    assert_eq!(erreur, SchemaError::HorsDomain(Atom(9)));
+    let error = compiler(&mut pool, anchor, &schema, &hors).unwrap_err();
+    assert_eq!(error, SchemaError::HorsDomain(Atom(9)));
 }
 
 /// Schema Atom(D): a single level, Val = D.
@@ -174,16 +174,16 @@ fn test_set_empty_et_plein() {
 /// Map validation distinguishes an out-of-domain key from an out-of-domain
 /// value (the error carries the offending atom).
 #[test]
-fn test_erreur_value_hors_domain_map() {
+fn test_error_value_hors_domain_map() {
     let schema = Schema::Map(vec![Atom(0)], domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
     let map = Value::Map(BTreeMap::from([(atome(0), atome(9))]));
-    let erreur = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
-    assert_eq!(erreur, SchemaError::HorsDomain(Atom(9)));
+    let error = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
+    assert_eq!(error, SchemaError::HorsDomain(Atom(9)));
     let map = Value::Map(BTreeMap::from([(atome(7), atome(0))]));
-    let erreur = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
-    assert_eq!(erreur, SchemaError::HorsDomain(Atom(7)));
+    let error = compiler(&mut pool, anchor, &schema, &map).unwrap_err();
+    assert_eq!(error, SchemaError::HorsDomain(Atom(7)));
 }
 
 /// Round-trip: decompile(compile(v)) = v.
@@ -262,7 +262,7 @@ fn test_seq_canonicite() {
     assert_ne!(r1, r3);
 }
 
-/// M2-1 : Seq — erreur si longueur > max.
+/// M2-1 : Seq — error si longueur > max.
 #[test]
 fn test_seq_trop_longue() {
     let schema = Schema::Seq(domain(&[0, 1]), 2);
@@ -272,7 +272,7 @@ fn test_seq_trop_longue() {
     assert!(compiler(&mut pool, anchor, &schema, &seq).is_err());
 }
 
-/// M2-1 : Seq — erreur si atome hors domain.
+/// M2-1 : Seq — error si atome hors domain.
 #[test]
 fn test_seq_hors_domain() {
     let schema = Schema::Seq(domain(&[0, 1]), 2);

@@ -146,7 +146,7 @@ impl<C: Controller> Controller for AtelierController<C> {
 
 /// Didactic measurement report of a diagram.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct RapportAtelier {
+pub struct ReportAtelier {
     /// Distinct reachable nodes (R-share active): the shared diagram.
     pub nodes_partages: u64,
     /// Root → terminal paths in the DAG.
@@ -164,8 +164,8 @@ pub fn measure<P: Pool>(
     pool: &P,
     root: NodeId,
     observer: Option<&dyn Observer>,
-) -> Result<RapportAtelier, PoolError> {
-    let rapport = RapportAtelier {
+) -> Result<ReportAtelier, PoolError> {
+    let report = ReportAtelier {
         nodes_partages: count_nodes(pool, root)?,
         chemins: count_chemins(pool, root)?,
         size_depliee: count_size_depliee(pool, root)?,
@@ -176,11 +176,11 @@ pub fn measure<P: Pool>(
             node: root,
             value: format!(
                 "nodes_partages={} chemins={} size_depliee={}",
-                rapport.nodes_partages, rapport.chemins, rapport.size_depliee
+                report.nodes_partages, report.chemins, report.size_depliee
             ),
         });
     }
-    Ok(rapport)
+    Ok(report)
 }
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
@@ -275,11 +275,11 @@ pub enum Encodage {
 
 /// Didactic comparison of the two encodings on the same logical object.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct RapportComparaison {
+pub struct ReportComparaison {
     /// Metrics of the absolute encoding.
-    pub absolu: RapportAtelier,
+    pub absolu: ReportAtelier,
     /// Metrics of the relative encoding.
-    pub relatif: RapportAtelier,
+    pub relatif: ReportAtelier,
 }
 
 /// Builds the **sliding window** in absolute encoding: for each base
@@ -375,7 +375,7 @@ pub fn comparer_encodages_window<P: Pool<Key = u64, Payload = bool>>(
     size: u64,
     nb_bases: u64,
     observer: Option<&dyn Observer>,
-) -> Result<RapportComparaison, PoolError> {
+) -> Result<ReportComparaison, PoolError> {
     let root_absolue = build_window(pool, anchor, Encodage::Absolu, size, nb_bases);
     let root_relative = build_window(pool, anchor, Encodage::Relatif, size, nb_bases);
     let absolu = measure(pool, root_absolue, observer)?;
@@ -390,7 +390,7 @@ pub fn comparer_encodages_window<P: Pool<Key = u64, Payload = bool>>(
             ),
         });
     }
-    Ok(RapportComparaison { absolu, relatif })
+    Ok(ReportComparaison { absolu, relatif })
 }
 
 /// **Ordering parameter** (didactic workshop, backlog § 9: "playing with the
@@ -509,11 +509,11 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
 
 /// Didactic comparison of two orderings on the same boolean function.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct RapportComparaisonOrders {
+pub struct ReportComparaisonOrders {
     /// Metrics under the first ordering.
-    pub first: RapportAtelier,
+    pub first: ReportAtelier,
     /// Metrics under the second ordering.
-    pub second: RapportAtelier,
+    pub second: ReportAtelier,
 }
 
 /// Compiles the same truth table under two orderings and measures: same
@@ -527,7 +527,7 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
     order_first: &Order,
     order_second: &Order,
     observer: Option<&dyn Observer>,
-) -> Result<RapportComparaisonOrders, PoolError> {
+) -> Result<ReportComparaisonOrders, PoolError> {
     assert_eq!(
         order_first.number_variables(),
         order_second.number_variables(),
@@ -550,7 +550,7 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
             ),
         });
     }
-    Ok(RapportComparaisonOrders { first, second })
+    Ok(ReportComparaisonOrders { first, second })
 }
 
 /// Fragment named "base" of the composite anchor of the sliding window
@@ -646,11 +646,11 @@ pub fn build_window_anchored<P: Pool<Key = u64, Payload = bool>>(
 
 /// Didactic comparison of two composite anchors on the same window.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct RapportComparaisonAnchors {
+pub struct ReportComparaisonAnchors {
     /// Metrics of the window read under the first anchor.
-    pub avant: RapportAtelier,
+    pub avant: ReportAtelier,
     /// Metrics of the window read under the second anchor.
-    pub apres: RapportAtelier,
+    pub apres: ReportAtelier,
     /// True if both readings reach the same window shape
     /// (`NodeId`): moving the base does not duplicate the shape.
     pub same_forme: bool,
@@ -677,7 +677,7 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
     anchor_avant: &AnchorWindow,
     anchor_apres: &AnchorWindow,
     observer: Option<&dyn Observer>,
-) -> Result<RapportComparaisonAnchors, PoolError> {
+) -> Result<ReportComparaisonAnchors, PoolError> {
     // Each anchor enters the pool through its incoming arc (its base); the
     // window shape reached on both sides must be the same node.
     let (root_avant, window_avant) = build_window_anchored(pool, anchor, size, anchor_avant);
@@ -706,7 +706,7 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
             ),
         });
     }
-    Ok(RapportComparaisonAnchors {
+    Ok(ReportComparaisonAnchors {
         avant,
         apres,
         same_forme,

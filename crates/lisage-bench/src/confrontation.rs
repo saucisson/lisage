@@ -153,7 +153,7 @@ pub struct MeasureConfrontation {
 
 /// Typed error of the confrontation harness.
 #[derive(Clone, PartialEq, Debug)]
-pub enum ErreurConfrontation {
+pub enum ErrorConfrontation {
     /// Invalid parameters for the workload (number, type, bounds).
     ParametresInvalides {
         /// The workload concerned.
@@ -187,58 +187,58 @@ pub enum ErreurConfrontation {
     },
 }
 
-impl std::fmt::Display for ErreurConfrontation {
+impl std::fmt::Display for ErrorConfrontation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurConfrontation::ParametresInvalides { charge, detail } => {
+            ErrorConfrontation::ParametresInvalides { charge, detail } => {
                 write!(formatter, "invalid parameters for {charge}: {detail}")
             }
-            ErreurConfrontation::InvalidInput { detail } => {
+            ErrorConfrontation::InvalidInput { detail } => {
                 write!(formatter, "invalid input: {detail}")
             }
-            ErreurConfrontation::VerifieEchoue { expected, obtenu } => {
+            ErrorConfrontation::VerifieEchoue { expected, obtenu } => {
                 write!(
                     formatter,
                     "cross-check failed: expected {expected}, got {obtenu}"
                 )
             }
-            ErreurConfrontation::Interne { source } => {
+            ErrorConfrontation::Interne { source } => {
                 write!(formatter, "core error: {source}")
             }
-            ErreurConfrontation::Schema { source } => {
+            ErrorConfrontation::Schema { source } => {
                 write!(formatter, "schema error: {source}")
             }
         }
     }
 }
 
-impl std::error::Error for ErreurConfrontation {
+impl std::error::Error for ErrorConfrontation {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            ErreurConfrontation::Interne { source } => Some(source),
-            ErreurConfrontation::Schema { source } => Some(source),
+            ErrorConfrontation::Interne { source } => Some(source),
+            ErrorConfrontation::Schema { source } => Some(source),
             _ => None,
         }
     }
 }
 
-impl From<CoreError> for ErreurConfrontation {
+impl From<CoreError> for ErrorConfrontation {
     fn from(source: CoreError) -> Self {
-        ErreurConfrontation::Interne { source }
+        ErrorConfrontation::Interne { source }
     }
 }
 
-impl From<PoolError> for ErreurConfrontation {
+impl From<PoolError> for ErrorConfrontation {
     fn from(source: PoolError) -> Self {
-        ErreurConfrontation::Interne {
+        ErrorConfrontation::Interne {
             source: CoreError::Pool(source),
         }
     }
 }
 
-impl From<SchemaError> for ErreurConfrontation {
+impl From<SchemaError> for ErrorConfrontation {
     fn from(source: SchemaError) -> Self {
-        ErreurConfrontation::Schema { source }
+        ErrorConfrontation::Schema { source }
     }
 }
 
@@ -302,11 +302,11 @@ pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
 /// Peak process RSS in kibibytes (`VmHWM` of `/proc/self/status`).
 /// Linux only, documented in the protocol: local runs and the witnesses'
 /// containers are Linux.
-fn rss_max_ko() -> Result<u64, ErreurConfrontation> {
+fn rss_max_ko() -> Result<u64, ErrorConfrontation> {
     const MARQUEUR: &str = "VmHWM:";
-    let status = std::fs::read_to_string("/proc/self/status").map_err(|erreur| {
-        ErreurConfrontation::InvalidInput {
-            detail: format!("/proc/self/status unreadable: {erreur}"),
+    let status = std::fs::read_to_string("/proc/self/status").map_err(|error| {
+        ErrorConfrontation::InvalidInput {
+            detail: format!("/proc/self/status unreadable: {error}"),
         }
     })?;
     for ligne in status.lines() {
@@ -315,12 +315,12 @@ fn rss_max_ko() -> Result<u64, ErreurConfrontation> {
                 .split_whitespace()
                 .next()
                 .and_then(|value| value.parse::<u64>().ok())
-                .ok_or_else(|| ErreurConfrontation::InvalidInput {
+                .ok_or_else(|| ErrorConfrontation::InvalidInput {
                     detail: format!("unexpected {MARQUEUR} line: {ligne}"),
                 });
         }
     }
-    Err(ErreurConfrontation::InvalidInput {
+    Err(ErrorConfrontation::InvalidInput {
         detail: "VmHWM absent from /proc/self/status (non-Linux platform)".to_string(),
     })
 }
@@ -346,9 +346,9 @@ fn table_lcg(number_variables: u32) -> Vec<bool> {
 fn charge_alea_lcg(
     number_variables: u32,
     observer: Option<&dyn Observer>,
-) -> Result<MeasureConfrontation, ErreurConfrontation> {
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
     if number_variables == 0 || number_variables > VARIABLES_MAXIMALES_ALEA {
-        return Err(ErreurConfrontation::ParametresInvalides {
+        return Err(ErrorConfrontation::ParametresInvalides {
             charge: Charge::AleaLcg.label(),
             detail: format!("n must be in 1..={VARIABLES_MAXIMALES_ALEA}"),
         });
@@ -367,13 +367,13 @@ fn charge_alea_lcg(
     let root_temoin = temoin.compiler_table(number_variables, &table);
     let nodes_temoin = temoin.count_nodes(root_temoin);
     if nodes != nodes_temoin {
-        return Err(ErreurConfrontation::VerifieEchoue {
+        return Err(ErrorConfrontation::VerifieEchoue {
             expected: nodes_temoin,
             obtenu: nodes,
         });
     }
     if temoin.evaluate(root_temoin, 0) != table[0] {
-        return Err(ErreurConfrontation::VerifieEchoue {
+        return Err(ErrorConfrontation::VerifieEchoue {
             expected: table[0] as u64,
             obtenu: temoin.evaluate(root_temoin, 0) as u64,
         });
@@ -416,9 +416,9 @@ fn charge_philosophes(
     number_philosophes: u64,
     chemin: &str,
     observer: Option<&dyn Observer>,
-) -> Result<MeasureConfrontation, ErreurConfrontation> {
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
     if number_philosophes == 0 || number_philosophes > PHILOSOPHES_MAXIMAUX {
-        return Err(ErreurConfrontation::ParametresInvalides {
+        return Err(ErrorConfrontation::ParametresInvalides {
             charge: Charge::Philosophes.label(),
             detail: format!("n must be in 1..={PHILOSOPHES_MAXIMAUX}"),
         });
@@ -443,8 +443,8 @@ fn charge_philosophes(
     );
     let debut = Instant::now();
     let contenu =
-        std::fs::read_to_string(chemin).map_err(|erreur| ErreurConfrontation::InvalidInput {
-            detail: format!("states file {chemin} unreadable: {erreur}"),
+        std::fs::read_to_string(chemin).map_err(|error| ErrorConfrontation::InvalidInput {
+            detail: format!("states file {chemin} unreadable: {error}"),
         })?;
     let etats = lire_etats(number_philosophes, &contenu)?;
     let expected = etats.len() as u64;
@@ -462,7 +462,7 @@ fn charge_philosophes(
     let nodes = count_nodes(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != expected {
-        return Err(ErreurConfrontation::VerifieEchoue {
+        return Err(ErrorConfrontation::VerifieEchoue {
             expected,
             obtenu: verifie,
         });
@@ -496,28 +496,27 @@ fn charge_philosophes(
 fn lire_etats(
     number_philosophes: u64,
     contenu: &str,
-) -> Result<Vec<EtatEtendu>, ErreurConfrontation> {
+) -> Result<Vec<EtatEtendu>, ErrorConfrontation> {
     let number_values = PAS_CLE_INTERCALAGE as usize * number_philosophes as usize;
     let mut lignes = contenu.lines();
     let first = lignes
         .next()
-        .ok_or_else(|| ErreurConfrontation::InvalidInput {
+        .ok_or_else(|| ErrorConfrontation::InvalidInput {
             detail: "empty states file".to_string(),
         })?;
     let champs_first: Vec<&str> = first.split_whitespace().collect();
     if champs_first.len() != 2 || champs_first[0] != "n" {
-        return Err(ErreurConfrontation::InvalidInput {
+        return Err(ErrorConfrontation::InvalidInput {
             detail: format!("expected first line \"n <n>\", got: {first}"),
         });
     }
-    let n_declare: u64 =
-        champs_first[1]
-            .parse()
-            .map_err(|_| ErreurConfrontation::InvalidInput {
-                detail: format!("unreadable n: {}", champs_first[1]),
-            })?;
+    let n_declare: u64 = champs_first[1]
+        .parse()
+        .map_err(|_| ErrorConfrontation::InvalidInput {
+            detail: format!("unreadable n: {}", champs_first[1]),
+        })?;
     if n_declare != number_philosophes {
-        return Err(ErreurConfrontation::InvalidInput {
+        return Err(ErrorConfrontation::InvalidInput {
             detail: format!("declared n {n_declare} ≠ requested n {number_philosophes}"),
         });
     }
@@ -530,11 +529,11 @@ fn lire_etats(
             .split_whitespace()
             .map(|value| value.parse::<u64>())
             .collect();
-        let etat = etat.map_err(|_| ErreurConfrontation::InvalidInput {
+        let etat = etat.map_err(|_| ErrorConfrontation::InvalidInput {
             detail: format!("line {}: unreadable value", numero + 2),
         })?;
         if etat.len() != number_values {
-            return Err(ErreurConfrontation::InvalidInput {
+            return Err(ErrorConfrontation::InvalidInput {
                 detail: format!(
                     "line {}: {} values, {} expected",
                     numero + 2,
@@ -544,7 +543,7 @@ fn lire_etats(
             });
         }
         if etat.iter().any(|value| *value > MANGE) {
-            return Err(ErreurConfrontation::InvalidInput {
+            return Err(ErrorConfrontation::InvalidInput {
                 detail: format!("line {}: value outside the domain {{0,1,2}}", numero + 2),
             });
         }
@@ -564,9 +563,9 @@ fn charge_window(
     nb_bases: u64,
     encodage: Encodage,
     observer: Option<&dyn Observer>,
-) -> Result<MeasureConfrontation, ErreurConfrontation> {
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
     if size == 0 || nb_bases == 0 {
-        return Err(ErreurConfrontation::ParametresInvalides {
+        return Err(ErrorConfrontation::ParametresInvalides {
             charge: Charge::Window.label(),
             detail: "size and nb_bases must be ≥ 1".to_string(),
         });
@@ -585,7 +584,7 @@ fn charge_window(
     let nodes = count_nodes(&pool, root)?;
     let duree = debut.elapsed();
     if verifie != expected {
-        return Err(ErreurConfrontation::VerifieEchoue {
+        return Err(ErrorConfrontation::VerifieEchoue {
             expected,
             obtenu: verifie,
         });
@@ -627,19 +626,19 @@ pub fn executer(
     charge: &Charge,
     parametres: &[String],
     observer: Option<&dyn Observer>,
-) -> Result<MeasureConfrontation, ErreurConfrontation> {
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
     match charge {
         Charge::AleaLcg => {
             let seul =
                 parametres
                     .first()
-                    .ok_or_else(|| ErreurConfrontation::ParametresInvalides {
+                    .ok_or_else(|| ErrorConfrontation::ParametresInvalides {
                         charge: Charge::AleaLcg.label(),
                         detail: "expected: alea-lcg <n>".to_string(),
                     })?;
             let number_variables =
                 seul.parse::<u32>()
-                    .map_err(|_| ErreurConfrontation::ParametresInvalides {
+                    .map_err(|_| ErrorConfrontation::ParametresInvalides {
                         charge: Charge::AleaLcg.label(),
                         detail: format!("unreadable n: {seul}"),
                     })?;
@@ -647,7 +646,7 @@ pub fn executer(
         }
         Charge::Philosophes => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
-                ErreurConfrontation::ParametresInvalides {
+                ErrorConfrontation::ParametresInvalides {
                     charge: Charge::Philosophes.label(),
                     detail: "expected: philosophes <n> <path>".to_string(),
                 }
@@ -655,7 +654,7 @@ pub fn executer(
             let number_philosophes =
                 first
                     .parse::<u64>()
-                    .map_err(|_| ErreurConfrontation::ParametresInvalides {
+                    .map_err(|_| ErrorConfrontation::ParametresInvalides {
                         charge: Charge::Philosophes.label(),
                         detail: format!("unreadable n: {first}"),
                     })?;
@@ -663,7 +662,7 @@ pub fn executer(
         }
         Charge::Window => {
             let (first, second) = parametres.first().zip(parametres.get(1)).ok_or_else(|| {
-                ErreurConfrontation::ParametresInvalides {
+                ErrorConfrontation::ParametresInvalides {
                     charge: Charge::Window.label(),
                     detail: "expected: window <size> <nb_bases> [absolu|relatif]".to_string(),
                 }
@@ -671,14 +670,14 @@ pub fn executer(
             let size =
                 first
                     .parse::<u64>()
-                    .map_err(|_| ErreurConfrontation::ParametresInvalides {
+                    .map_err(|_| ErrorConfrontation::ParametresInvalides {
                         charge: Charge::Window.label(),
                         detail: format!("unreadable size: {first}"),
                     })?;
             let nb_bases =
                 second
                     .parse::<u64>()
-                    .map_err(|_| ErreurConfrontation::ParametresInvalides {
+                    .map_err(|_| ErrorConfrontation::ParametresInvalides {
                         charge: Charge::Window.label(),
                         detail: format!("unreadable nb_bases: {second}"),
                     })?;
@@ -686,7 +685,7 @@ pub fn executer(
                 None | Some("absolu") => Encodage::Absolu,
                 Some("relatif") => Encodage::Relatif,
                 Some(other) => {
-                    return Err(ErreurConfrontation::ParametresInvalides {
+                    return Err(ErrorConfrontation::ParametresInvalides {
                         charge: Charge::Window.label(),
                         detail: format!("unknown encoding: {other}"),
                     });

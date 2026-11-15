@@ -4,7 +4,7 @@
 
 use lisage_lang::Atom;
 use lisage_plan::order::{
-    Aligne, DomainAtomes, ErreurOrder, KeyMap, KeysMap, MarqueOrder, Order, Phase, StrategieAval,
+    Aligne, DomainAtomes, ErrorOrder, KeyMap, KeysMap, MarqueOrder, Order, Phase, StrategieAval,
     TypeOrder,
 };
 
@@ -64,17 +64,17 @@ fn test_nouvel_order_rejete_si_pas_une_permutation() {
     // Missing key.
     assert_eq!(
         Order::new(&domain, vec![Atom(0)]),
-        Err(ErreurOrder::PasUnePermutation)
+        Err(ErrorOrder::PasUnePermutation)
     );
     // Duplicate key.
     assert_eq!(
         Order::new(&domain, vec![Atom(0), Atom(0)]),
-        Err(ErreurOrder::PasUnePermutation)
+        Err(ErrorOrder::PasUnePermutation)
     );
     // Key foreign to the type.
     assert_eq!(
         Order::new(&domain, vec![Atom(0), Atom(7)]),
-        Err(ErreurOrder::PasUnePermutation)
+        Err(ErrorOrder::PasUnePermutation)
     );
 }
 
@@ -120,7 +120,7 @@ fn test_contraintes_map_presence_avant_value() {
     ];
     assert_eq!(
         Order::new(&keys, violee),
-        Err(ErreurOrder::ContrainteViolee {
+        Err(ErrorOrder::ContrainteViolee {
             avant: KeyMap {
                 key: Atom(1),
                 phase: Phase::Presence
@@ -176,7 +176,7 @@ fn test_alignement_en_value() {
     assert!(order_a.alignement(&order_a.clone()).is_ok());
     assert_eq!(
         order_a.alignement(&order_b),
-        Err(ErreurOrder::OrdersNonAlignes)
+        Err(ErrorOrder::OrdersNonAlignes)
     );
 }
 

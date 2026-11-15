@@ -3,7 +3,7 @@
 //! and differential guardrail (conforming in [predicted/2, 2 × predicted]).
 
 use lisage_plan::oracle::{
-    BOUND_INFERIEURE, BOUND_SUPERIEURE, ErreurOracle, Oracle, ParametresOracle, Rationnel,
+    BOUND_INFERIEURE, BOUND_SUPERIEURE, ErrorOracle, Oracle, ParametresOracle, Rationnel,
     VerdictGardeFou,
 };
 
@@ -28,11 +28,11 @@ fn test_parametres_densite_validee() {
     assert!(ParametresOracle::new(10, Rationnel::entier(1), 3, 4).is_ok());
     assert_eq!(
         ParametresOracle::new(10, Rationnel::new(2, 1), 3, 4).err(),
-        Some(ErreurOracle::DensiteHorsBounds)
+        Some(ErrorOracle::DensiteHorsBounds)
     );
     assert_eq!(
         ParametresOracle::new(10, Rationnel::new(3, 2), 3, 4).err(),
-        Some(ErreurOracle::DensiteHorsBounds)
+        Some(ErrorOracle::DensiteHorsBounds)
     );
 }
 

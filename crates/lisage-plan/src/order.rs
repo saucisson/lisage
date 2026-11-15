@@ -118,7 +118,7 @@ impl TypeOrder for KeysMap {
 
 /// Typed error of order construction or alignment (cause preserved).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurOrder<Key> {
+pub enum ErrorOrder<Key> {
     /// π is not a permutation of the canonical keys (missing key, duplicate,
     /// or foreign to the type).
     PasUnePermutation,
@@ -133,26 +133,26 @@ pub enum ErreurOrder<Key> {
     OrdersNonAlignes,
 }
 
-impl<Key: Debug> std::fmt::Display for ErreurOrder<Key> {
+impl<Key: Debug> std::fmt::Display for ErrorOrder<Key> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurOrder::PasUnePermutation => {
+            ErrorOrder::PasUnePermutation => {
                 write!(formatter, "π is not a permutation of the canonical keys")
             }
-            ErreurOrder::ContrainteViolee { avant, apres } => {
+            ErrorOrder::ContrainteViolee { avant, apres } => {
                 write!(
                     formatter,
                     "constraint violated: {avant:?} must precede {apres:?}"
                 )
             }
-            ErreurOrder::OrdersNonAlignes => {
+            ErrorOrder::OrdersNonAlignes => {
                 write!(formatter, "orders not aligned (different π)")
             }
         }
     }
 }
 
-impl<Key: Debug> std::error::Error for ErreurOrder<Key> {}
+impl<Key: Debug> std::error::Error for ErrorOrder<Key> {}
 
 /// Strategy adopted by [`Order::with_aval_runtime`] (M5-1, C3): the runtime
 /// order was accepted, or we fell back to the canonical order.
@@ -216,14 +216,14 @@ impl<T: TypeOrder> Order<T> {
     /// Order given by permutation π, checked: π must be a
     /// permutation of the canonical keys and satisfy the type's constraints.
     /// type.
-    pub fn new(descripteur: &T, pi: Vec<T::Key>) -> Result<Self, ErreurOrder<T::Key>> {
+    pub fn new(descripteur: &T, pi: Vec<T::Key>) -> Result<Self, ErrorOrder<T::Key>> {
         let canoniques = descripteur.keys_canoniques();
         let mut pi_triee = pi.clone();
         pi_triee.sort();
         let mut canoniques_triees = canoniques.clone();
         canoniques_triees.sort();
         if pi_triee != canoniques_triees {
-            return Err(ErreurOrder::PasUnePermutation);
+            return Err(ErrorOrder::PasUnePermutation);
         }
         let order = Order {
             canoniques,
@@ -237,7 +237,7 @@ impl<T: TypeOrder> Order<T> {
                 _ => false,
             };
             if !satisfait {
-                return Err(ErreurOrder::ContrainteViolee {
+                return Err(ErrorOrder::ContrainteViolee {
                     avant: <T::Key as Clone>::clone(avant),
                     apres: <T::Key as Clone>::clone(apres),
                 });
@@ -303,11 +303,11 @@ impl<T: TypeOrder> Order<T> {
 
     /// Alignment checked between two orders of the same type, typed error
     /// otherwise (C3: two operands compose only under a common order).
-    pub fn alignement(&self, other: &Self) -> Result<(), ErreurOrder<T::Key>> {
+    pub fn alignement(&self, other: &Self) -> Result<(), ErrorOrder<T::Key>> {
         if self.alignes(other) {
             Ok(())
         } else {
-            Err(ErreurOrder::OrdersNonAlignes)
+            Err(ErrorOrder::OrdersNonAlignes)
         }
     }
 }

@@ -32,8 +32,8 @@ fn main() -> ExitCode {
             println!("{}", serialiser_ligne(&measure));
             ExitCode::SUCCESS
         }
-        Err(erreur) => {
-            eprintln!("confrontation: {erreur}");
+        Err(error) => {
+            eprintln!("confrontation: {error}");
             ExitCode::FAILURE
         }
     }

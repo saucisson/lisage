@@ -246,7 +246,7 @@ impl<T: Transduction> Transducteur<T> {
                     let level_cible = match pool_input.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
-                        Err(erreur) => return Err(erreur.into()),
+                        Err(error) => return Err(error.into()),
                     };
                     enfants.insert(arc, (cible_result, s_arc.clone()));
                     s_arcs.insert(arc, (level_cible, s_arc));
@@ -324,7 +324,7 @@ impl<T: Transduction> Transducteur<T> {
                     let level_cible = match pool.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,
-                        Err(erreur) => return Err(erreur.into()),
+                        Err(error) => return Err(error.into()),
                     };
                     enfants.insert(arc, (cible_result, s_arc.clone()));
                     s_arcs.insert(arc, (level_cible, s_arc));

@@ -77,22 +77,22 @@ pub const BOUND_SUPERIEURE: Rationnel = Rationnel { num: 2, den: 1 };
 
 /// Typed error of oracle parameter construction.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ErreurOracle {
+pub enum ErrorOracle {
     /// Expected density outside [0, 1].
     DensiteHorsBounds,
 }
 
-impl std::fmt::Display for ErreurOracle {
+impl std::fmt::Display for ErrorOracle {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurOracle::DensiteHorsBounds => {
+            ErrorOracle::DensiteHorsBounds => {
                 write!(formatter, "expected density outside [0, 1]")
             }
         }
     }
 }
 
-impl std::error::Error for ErreurOracle {}
+impl std::error::Error for ErrorOracle {}
 
 /// Input parameters of the predictive model (M3-3). Private fields: only
 /// [`ParametresOracle::new`] constructs, the density is validated in
@@ -112,12 +112,12 @@ impl ParametresOracle {
         densite_expectede: Rationnel,
         cout_encodage: u64,
         requetes_aval: u64,
-    ) -> Result<Self, ErreurOracle> {
+    ) -> Result<Self, ErrorOracle> {
         let zero = Rationnel::new(0, 1);
         let un = Rationnel::entier(1);
         if !(zero.inferieur_ou_egal(&densite_expectede) && densite_expectede.inferieur_ou_egal(&un))
         {
-            return Err(ErreurOracle::DensiteHorsBounds);
+            return Err(ErrorOracle::DensiteHorsBounds);
         }
         Ok(ParametresOracle {
             size_domain,

@@ -145,7 +145,7 @@ fn test_image_reetiquetage_atomes() {
 /// `exists` on a non-Map schema: typed error `SchemaInexpected`, no panic at
 /// the public boundary.
 #[test]
-fn test_existe_schema_non_map_erreur_typee() {
+fn test_existe_schema_non_map_error_typee() {
     let schema = Schema::Atom(Domain::new(vec![Atom(0)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);
@@ -172,7 +172,7 @@ fn test_existe_schema_non_map_erreur_typee() {
 /// `filter` on a node whose level exceeds the schema: typed error
 /// `LevelHorsSchema` (instead of an out-of-bounds index).
 #[test]
-fn test_filtre_level_hors_schema_erreur_typee() {
+fn test_filtre_level_hors_schema_error_typee() {
     let schema = schema_map();
     let mut input = pool(&schema);
     let mut output = pool(&schema);
