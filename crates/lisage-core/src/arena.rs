@@ -98,7 +98,7 @@ impl<C: Controller> Arena<C> {
 
     /// Remapping table of the last compaction: `remap[old] = new` (`None` if
     /// the old node was a tombstone). Empty if the last GC did not compact.
-    pub fn dernier_remap(&self) -> &[Option<NodeId>] {
+    pub fn last_remap(&self) -> &[Option<NodeId>] {
         &self.remap
     }
 
@@ -232,7 +232,7 @@ impl<C: Controller> Arena<C> {
         } else {
             None
         };
-        let cardinalite = self.controleur.keys().cardinality(level);
+        let cardinality = self.controleur.keys().cardinality(level);
         let payload_defaut = if default_active {
             self.controleur.default_payload(level)
         } else {
@@ -253,9 +253,9 @@ impl<C: Controller> Arena<C> {
                     .get(&(Self::CONTROLLER, anchor, Form::Terminal(p.clone())))
                     .copied()
             });
-            crate_reduction_dabs(arcs, key_defaut, &est_defaut, cardinalite, defaut)
+            crate_reduction_dabs(arcs, key_defaut, &est_defaut, cardinality, defaut)
         } else {
-            reduire(arcs, key_defaut, &est_defaut, cardinalite)
+            reduire(arcs, key_defaut, &est_defaut, cardinality)
         };
         match reduit {
             Reduction::Collapse(cible) => Err(cible),

@@ -34,12 +34,12 @@ pub fn collapse_arcs<Key: Ord>(arcs: &BTreeMap<Key, NodeId>) -> Option<NodeId> {
 /// - `key_defaut`: δ(ℓ) if the level has a default arc;
 /// - `est_defaut`: predicate "this node is the default diagram D_δ"
 ///   designated by the controller (the implicit default arc denotes D_δ);
-/// - `cardinalite`: |Val(ℓ)|, required when the level has no default.
+/// - `cardinality`: |Val(ℓ)|, required when the level has no default.
 pub fn reduire<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
-    cardinalite: u64,
+    cardinality: u64,
 ) -> Reduction<Key> {
     // R-collapse on the complete set: the implicit default arc denotes D_δ.
     if let Some(cible) = collapse_arcs(&arcs) {
@@ -50,7 +50,7 @@ pub fn reduire<Key: Ord + Clone>(
         // paths (presence) and do not collapse.
         // Without a default, all values must be explicit.
         let couvre = match &key_defaut {
-            None => arcs.len() as u64 >= cardinalite,
+            None => arcs.len() as u64 >= cardinality,
             Some(key) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(key)),
         };
         if couvre {
@@ -90,7 +90,7 @@ pub fn reduire_inverse<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
-    cardinalite: u64,
+    cardinality: u64,
 ) -> Reduction<Key> {
     let mut arcs = arcs;
     let mut cible_supprimee: Option<NodeId> = None;
@@ -113,7 +113,7 @@ pub fn reduire_inverse<Key: Ord + Clone>(
         // only holds if only the δ arc is explicit or if the target is D_δ;
         // without a default, all values must be explicit.
         let couvre = match &key_defaut {
-            None => arcs.len() as u64 >= cardinalite,
+            None => arcs.len() as u64 >= cardinality,
             Some(key) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(key)),
         };
         if couvre {
@@ -143,7 +143,7 @@ pub fn reduire_dabs<Key: Ord + Clone>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
-    cardinalite: u64,
+    cardinality: u64,
     defaut: Option<NodeId>,
 ) -> Reduction<Key> {
     // Target of D^default if at least one arc leads to it (used for D-trans A = ∅).
@@ -170,7 +170,7 @@ pub fn reduire_dabs<Key: Ord + Clone>(
     // default, all values must be explicit.
     if let Some(cible) = collapse_arcs(&arcs) {
         let couvre = match &key_defaut {
-            None => arcs.len() as u64 >= cardinalite,
+            None => arcs.len() as u64 >= cardinality,
             Some(key) => est_defaut(cible) || (arcs.len() == 1 && arcs.contains_key(key)),
         };
         if couvre {

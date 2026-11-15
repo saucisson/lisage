@@ -75,9 +75,9 @@ fn test_legende_auto_depuis_legende_des_canaux() {
 fn test_svg_publication_deterministe() {
     let (pool, root) = diagramme_test();
     let theme = Theme::publication();
-    let premier = rendre_svg_publication(&pool, root, "fig", &theme, true);
+    let first = rendre_svg_publication(&pool, root, "fig", &theme, true);
     let second = rendre_svg_publication(&pool, root, "fig", &theme, true);
-    assert_eq!(premier, second);
+    assert_eq!(first, second);
 }
 
 /// The PGF is a standalone TikZ document: diagram nodes and arcs, title.

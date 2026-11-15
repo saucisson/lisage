@@ -367,12 +367,12 @@ fn test_ordre_change_nodes_pas_chemins() {
         None,
     )
     .expect("interned nodes");
-    assert_eq!(rapport.premier.nodes_partages, 10, "natural order");
+    assert_eq!(rapport.first.nodes_partages, 10, "natural order");
     assert_eq!(rapport.second.nodes_partages, 12, "interleaved order");
     // Same logical object: 2^4 = 16 paths and unfolded tree 2^5-1 = 31.
-    assert_eq!(rapport.premier.chemins, 16);
+    assert_eq!(rapport.first.chemins, 16);
     assert_eq!(rapport.second.chemins, 16);
-    assert_eq!(rapport.premier.size_depliee, 31);
+    assert_eq!(rapport.first.size_depliee, 31);
     assert_eq!(rapport.second.size_depliee, 31);
 }
 
@@ -412,9 +412,9 @@ fn test_ordre_intercale_croissance_six_variables() {
         None,
     )
     .expect("interned nodes");
-    assert_eq!(rapport.premier.nodes_partages, 15, "natural order");
+    assert_eq!(rapport.first.nodes_partages, 15, "natural order");
     assert_eq!(rapport.second.nodes_partages, 25, "interleaved order");
-    assert_eq!(rapport.premier.chemins, 64);
+    assert_eq!(rapport.first.chemins, 64);
     assert_eq!(rapport.second.chemins, 64);
 }
 
@@ -451,7 +451,7 @@ fn test_narration_comparaison_ordres() {
         Some(&collecteur),
     )
     .expect("interned nodes");
-    assert_eq!(rapport.premier.nodes_partages, 10);
+    assert_eq!(rapport.first.nodes_partages, 10);
     let events = collecteur.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
@@ -495,7 +495,7 @@ fn test_anchor_fenetre_glisse() {
 
 /// The window read under two composite anchors: each anchor has its root
 /// (the entry arc carries its base), but both reach the same window form
-/// (`meme_forme`) — same nodes, same paths, different absolute readings:
+/// (`same_forme`) — same nodes, same paths, different absolute readings:
 /// "the anchor moves, the pool never does". Over 50 slides, only the root is
 /// created at each step, never the form.
 #[test]
@@ -517,7 +517,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
     )
     .expect("interned nodes");
     assert!(
-        rapport.meme_forme,
+        rapport.same_forme,
         "both anchors reach the same window form"
     );
     assert_eq!(rapport.avant, rapport.apres, "same metrics on both sides");

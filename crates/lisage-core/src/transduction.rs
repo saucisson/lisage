@@ -191,7 +191,7 @@ impl<T: Transduction> Transducteur<T> {
     /// Single-pool variant: reads and writes in the same pool (payload `Out`
     /// = `bool`). Used by `saturate` (M2-4) where the current iteration lives
     /// in the same pool as the result.
-    pub fn run_meme_pool<P>(
+    pub fn run_same_pool<P>(
         &mut self,
         pool: &mut P,
         anchor: Anchor,
@@ -202,7 +202,7 @@ impl<T: Transduction> Transducteur<T> {
         T: Transduction<Out = bool>,
     {
         let h = self.transduction.h0();
-        self.run_avec_meme_pool(pool, anchor, node, h)
+        self.run_avec_same_pool(pool, anchor, node, h)
     }
 
     fn run_avec<PIn, POut>(
@@ -284,7 +284,7 @@ impl<T: Transduction> Transducteur<T> {
         Ok((result, s))
     }
 
-    fn run_avec_meme_pool<P>(
+    fn run_avec_same_pool<P>(
         &mut self,
         pool: &mut P,
         anchor: Anchor,
@@ -320,7 +320,7 @@ impl<T: Transduction> Transducteur<T> {
                         value: format!("{h_arc:?}"),
                     });
                     let (cible_result, s_arc) =
-                        self.run_avec_meme_pool(pool, anchor, cible, h_arc)?;
+                        self.run_avec_same_pool(pool, anchor, cible, h_arc)?;
                     let level_cible = match pool.resolve(cible) {
                         Ok(Form::Node { level, .. }) => Some(*level),
                         Ok(Form::Terminal(_)) => None,

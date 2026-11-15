@@ -143,7 +143,7 @@ pub trait CycleGroup {
     fn apply(&self, key: &Self::Key, argument: &Self::Argument) -> Self::Key;
 
     /// Composition law of arguments: f(n₁)∘f(n₂) = f(n₁ ⊕ n₂).
-    fn compose(&self, premier: &Self::Argument, second: &Self::Argument) -> Self::Argument;
+    fn compose(&self, first: &Self::Argument, second: &Self::Argument) -> Self::Argument;
 
     /// Neutral argument (identity transformation).
     fn neutral(&self) -> Self::Argument;
@@ -177,8 +177,8 @@ impl CycleGroup for ShiftGroup {
         key.saturating_add_signed(*argument)
     }
 
-    fn compose(&self, premier: &i64, second: &i64) -> i64 {
-        premier.saturating_add(*second)
+    fn compose(&self, first: &i64, second: &i64) -> i64 {
+        first.saturating_add(*second)
     }
 
     fn neutral(&self) -> i64 {

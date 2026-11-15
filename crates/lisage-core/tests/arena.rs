@@ -73,9 +73,9 @@ fn arena_avec_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserve
 fn test_r_share_table_unique() {
     let (mut arena, _trace) = arena_avec_trace();
     let anchor = Anchor(0);
-    let premier = arena.intern(anchor, Form::Terminal(true));
+    let first = arena.intern(anchor, Form::Terminal(true));
     let second = arena.intern(anchor, Form::Terminal(true));
-    assert_eq!(premier, second, "R-share: same form ⇒ same node");
+    assert_eq!(first, second, "R-share: same form ⇒ same node");
     assert_eq!(arena.node_count(), 1);
 }
 

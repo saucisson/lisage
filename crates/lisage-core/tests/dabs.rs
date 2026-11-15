@@ -21,7 +21,7 @@ const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
 const INCREMENT_LCG: u64 = 1442695040888963407;
 
 /// Mock cardinality: 4 values per level.
-const CARDINALITE_MOCK: u64 = 4;
+const CARDINALITY_MOCK: u64 = 4;
 /// Test level.
 const LEVEL_TEST: u32 = 1;
 /// Test anchor.
@@ -40,7 +40,7 @@ impl KeyAlgebra for MockKeys {
         *key
     }
     fn cardinality(&self, _level: Level) -> u64 {
-        CARDINALITE_MOCK
+        CARDINALITY_MOCK
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
         self.avec_defaut.then_some(0)
@@ -229,7 +229,7 @@ fn test_dtrans_forme_vide_litterale() {
         BTreeMap::new(),
         Some(0),
         &est_defaut,
-        CARDINALITE_MOCK,
+        CARDINALITY_MOCK,
         Some(NODE_DEFAUT),
     );
     assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
@@ -238,7 +238,7 @@ fn test_dtrans_forme_vide_litterale() {
         BTreeMap::new(),
         Some(0),
         &est_defaut,
-        CARDINALITE_MOCK,
+        CARDINALITY_MOCK,
         None,
     );
     assert_eq!(result, Reduction::Forme(BTreeMap::new()));
@@ -263,7 +263,7 @@ fn test_propriete_dabs_confluence() {
         let nb_arcs = next() % 6;
         let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
             .map(|_| {
-                let key = next() % CARDINALITE_MOCK;
+                let key = next() % CARDINALITY_MOCK;
                 let cible = NodeId((next() % 3) as u32);
                 (key, cible)
             })
@@ -271,29 +271,29 @@ fn test_propriete_dabs_confluence() {
         let key_defaut = if next() % 2 == 0 { Some(0) } else { None };
 
         let defaut = key_defaut.map(|_| NODE_DEFAUT);
-        let premier = reduire_dabs(
+        let first = reduire_dabs(
             arcs.clone(),
             key_defaut,
             &est_defaut,
-            CARDINALITE_MOCK,
+            CARDINALITY_MOCK,
             defaut,
         );
         // Idempotence: a reduced form is a fixed point (a Collapse targets a
         // node, not an arc form — nothing to re-reduce).
-        if let Reduction::Forme(arcs_reduits) = &premier {
+        if let Reduction::Forme(arcs_reduits) = &first {
             let second = reduire_dabs(
                 arcs_reduits.clone(),
                 key_defaut,
                 &est_defaut,
-                CARDINALITE_MOCK,
+                CARDINALITY_MOCK,
                 defaut,
             );
-            assert_eq!(premier.clone(), second, "idempotence of reduire_dabs");
+            assert_eq!(first.clone(), second, "idempotence of reduire_dabs");
         }
 
         // D-abs: when δ(ℓ) exists, no arc toward D^def remains.
         if key_defaut.is_some()
-            && let Reduction::Forme(a) = &premier
+            && let Reduction::Forme(a) = &first
         {
             assert!(
                 a.values().all(|c| !est_defaut(*c)),
@@ -304,14 +304,14 @@ fn test_propriete_dabs_confluence() {
         // with D^def designated (the absent arcs would not be worth D^def).
         if key_defaut.is_none()
             && arcs.is_empty()
-            && let Reduction::Collapse(_) = &premier
+            && let Reduction::Collapse(_) = &first
         {
             panic!("collapse on empty form without a default key");
         }
         // D-trans / R-collapse: a collapse only happens if the coverage is
         // satisfied (same rules as `reduire`) or if A = ∅ after absorption
         // (then the target is D^def).
-        if let Reduction::Collapse(cible) = &premier {
+        if let Reduction::Collapse(cible) = &first {
             // Same arcs after D-abs as in `reduire_dabs`.
             let arcs_filtres: BTreeMap<u64, NodeId> = match key_defaut {
                 Some(_) => arcs
@@ -323,7 +323,7 @@ fn test_propriete_dabs_confluence() {
             };
             let toutes_defaut = !arcs.is_empty() && arcs.values().all(|c| est_defaut(*c));
             let couvre = match key_defaut {
-                None => arcs_filtres.len() as u64 >= CARDINALITE_MOCK,
+                None => arcs_filtres.len() as u64 >= CARDINALITY_MOCK,
                 Some(key) => {
                     est_defaut(*cible)
                         || toutes_defaut

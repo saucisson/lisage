@@ -134,15 +134,15 @@ fn test_integrale_terminaux_dbm() {
     );
 }
 
-/// Differential count → measure: the cardinal fold counts the integer
+/// Differential count → measure: the cardinality fold counts the integer
 /// points of the band (12 points in [0,4)²), the integral measures the
-/// continuous area (9.5) — measure ≤ cardinal, and the two are computed
+/// continuous area (9.5) — measure ≤ cardinality, and the two are computed
 /// independently.
 #[test]
-fn test_differentiel_cardinal_contre_measure() {
+fn test_differentiel_cardinality_contre_measure() {
     let mut pool = pool();
     let root = compiler_bande(&mut pool, ANCHOR);
-    let cardinal: u64 = (0..SIZE_DOMAIN)
+    let cardinality: u64 = (0..SIZE_DOMAIN)
         .flat_map(|x| (0..SIZE_DOMAIN).map(move |y| [x, y]))
         .filter(|point| {
             evaluer(&pool, root, point)
@@ -150,13 +150,13 @@ fn test_differentiel_cardinal_contre_measure() {
                 .unwrap_or(false)
         })
         .count() as u64;
-    assert_eq!(cardinal, 12, "integer points of the band in [0,4)²");
+    assert_eq!(cardinality, 12, "integer points of the band in [0,4)²");
     let measure =
         integrale_dbm_constante(&pool, root, &boite(), &keys(), None).expect("interned node");
     assert_eq!(measure, 19);
     assert!(
-        measure <= 2 * i128::from(cardinal),
-        "doubled area ≤ 2 × cardinal (each point has measure zero)"
+        measure <= 2 * i128::from(cardinality),
+        "doubled area ≤ 2 × cardinality (each point has measure zero)"
     );
 }
 

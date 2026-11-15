@@ -21,7 +21,7 @@ pub const ABSENT: u64 = 0;
 /// Presence arc key: present.
 pub const PRESENT: u64 = 1;
 /// Cardinality of a presence level: {absent, present}.
-pub const CARDINALITE_PRESENCE: u64 = 2;
+pub const CARDINALITY_PRESENCE: u64 = 2;
 /// Stride between the levels of a map: presence of key `i` at level `2i`,
 /// value at level `2i+1`.
 pub const PAS_LEVEL_MAP: u32 = 2;
@@ -174,10 +174,10 @@ impl KeyAlgebra for SchemaKeys {
     fn cardinality(&self, level: Level) -> u64 {
         match &self.schema {
             Schema::Atom(domain) => domain.size() as u64,
-            Schema::Set(_) => CARDINALITE_PRESENCE,
+            Schema::Set(_) => CARDINALITY_PRESENCE,
             Schema::Map(_, domain_values) => {
                 if level.0.is_multiple_of(PAS_LEVEL_MAP) {
-                    CARDINALITE_PRESENCE
+                    CARDINALITY_PRESENCE
                 } else {
                     domain_values.size() as u64
                 }
@@ -186,7 +186,7 @@ impl KeyAlgebra for SchemaKeys {
                 if level.0 < *longueur_max {
                     domain.size() as u64 + 1 // +1 for the end marker
                 } else {
-                    CARDINALITE_PRESENCE
+                    CARDINALITY_PRESENCE
                 }
             }
             Schema::Tag(liste, domain_values) => {

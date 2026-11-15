@@ -14,7 +14,7 @@ use lisage_algebra::interface::{
 };
 
 /// Cardinality of a BDD level: two arcs, `0` (low) and `1` (high).
-pub const CARDINALITE_BDD: u64 = 2;
+pub const CARDINALITY_BDD: u64 = 2;
 
 /// Key algebra of a classic BDD over `nombre_variables` variables: level ℓ
 /// is variable ℓ, `Val(ℓ) = {0, 1}`, no δ(ℓ).
@@ -43,7 +43,7 @@ impl KeyAlgebra for BddKeys {
     }
 
     fn cardinality(&self, _level: Level) -> u64 {
-        CARDINALITE_BDD
+        CARDINALITY_BDD
     }
 
     fn default(&self, _level: Level) -> Option<Self::Key> {

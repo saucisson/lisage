@@ -137,7 +137,7 @@ fn test_alea_lcg_bornes_refusees() {
 }
 
 /// `philosophes` workload: |R_n| pinned over n = 3..7, nodes of R_3 pinned
-/// (33), cardinal via pli == number of states in the file.
+/// (33), cardinality via pli == number of states in the file.
 #[test]
 fn test_philosophes_fil_rouge_epingle() {
     for &(nombre, expected) in R_EXPECTEDS {

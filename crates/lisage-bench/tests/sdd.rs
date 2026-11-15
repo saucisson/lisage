@@ -1,7 +1,7 @@
 //! Tests of the sentential SDD installation without ad hoc extension
 //! (M5-3, C6): vtree = structured order, controller tower = local anchor
-//! per node, C1 canonicity by handle, global cardinal = product of the
-//! local cardinals when the function is decomposable along the vtree.
+//! per node, C1 canonicity by handle, global cardinality = product of the
+//! local cardinalities when the function is decomposable along the vtree.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -61,8 +61,8 @@ fn pool_neuf() -> Arena<ReferenceController> {
     pool_pour_sdd(&vtree_test(), &ensemble_decomposable())
 }
 
-/// Cardinal of the flat DD of the set over the 4 keys (path B reference).
-fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Value>) -> u64 {
+/// Cardinality of the flat DD of the set over the 4 keys (path B reference).
+fn cardinality_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Value>) -> u64 {
     let keys: Vec<Atom> = (0..4).map(Atom).collect();
     let schema = Schema::Map(keys, Domain::new(vec![Atom(0), Atom(1)]));
     let keys = SchemaKeys::new(schema.clone());
@@ -76,15 +76,15 @@ fn cardinal_plat(pool: &mut Arena<ReferenceController>, ensemble: &BTreeSet<Valu
     compter(pool, &mut output, anchor, &schema, root).unwrap()
 }
 
-/// C6 falsification: global cardinal of the flat DD == cardinal of the
+/// C6 falsification: global cardinality of the flat DD == cardinality of the
 /// hierarchical installation, and for a set decomposable along the
-/// vtree, root cardinal == product of the cardinals of the two subtrees.
+/// vtree, root cardinality == product of the cardinalities of the two subtrees.
 #[test]
-fn test_cardinal_global_egal_produit_des_locaux_si_decomposable() {
+fn test_cardinality_global_egal_produit_des_locaux_si_decomposable() {
     let ensemble = ensemble_decomposable();
     let mut pool = pool_neuf();
     let level = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
-    assert_eq!(level.cardinal, 4);
+    assert_eq!(level.cardinality, 4);
     let gauche = installer_sdd(
         &mut pool,
         &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
@@ -97,21 +97,21 @@ fn test_cardinal_global_egal_produit_des_locaux_si_decomposable() {
         &ensemble,
     )
     .unwrap();
-    assert_eq!(gauche.cardinal, 2);
-    assert_eq!(droite.cardinal, 2);
-    assert_eq!(level.cardinal, gauche.cardinal * droite.cardinal);
-    assert_eq!(cardinal_plat(&mut pool, &ensemble), 4);
+    assert_eq!(gauche.cardinality, 2);
+    assert_eq!(droite.cardinality, 2);
+    assert_eq!(level.cardinality, gauche.cardinality * droite.cardinality);
+    assert_eq!(cardinality_plat(&mut pool, &ensemble), 4);
 }
 
-/// Non-decomposable set: the product of the local cardinals upper-bounds the
-/// global cardinal (over-approximation of the decomposition), the global
-/// cardinal remaining exact and equal to the flat DD.
+/// Non-decomposable set: the product of the local cardinalities upper-bounds the
+/// global cardinality (over-approximation of the decomposition), the global
+/// cardinality remaining exact and equal to the flat DD.
 #[test]
 fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
     let ensemble = ensemble_non_decomposable();
     let mut pool = pool_neuf();
     let level = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
-    assert_eq!(level.cardinal, 8);
+    assert_eq!(level.cardinality, 8);
     let gauche = installer_sdd(
         &mut pool,
         &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
@@ -124,10 +124,10 @@ fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
         &ensemble,
     )
     .unwrap();
-    assert_eq!(gauche.cardinal, 4);
-    assert_eq!(droite.cardinal, 4);
-    assert!(gauche.cardinal * droite.cardinal >= level.cardinal);
-    assert_eq!(cardinal_plat(&mut pool, &ensemble), 8);
+    assert_eq!(gauche.cardinality, 4);
+    assert_eq!(droite.cardinality, 4);
+    assert!(gauche.cardinality * droite.cardinality >= level.cardinality);
+    assert_eq!(cardinality_plat(&mut pool, &ensemble), 8);
 }
 
 /// C1 canonicity by handle: reinstalling the same vtree on the same
@@ -136,9 +136,9 @@ fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
 fn test_canonicite_par_handle_reinstallation_identique() {
     let ensemble = ensemble_decomposable();
     let mut pool = pool_neuf();
-    let premier = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
+    let first = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
     let second = installer_sdd(&mut pool, &vtree_test(), &ensemble).unwrap();
-    assert_eq!(premier, second);
+    assert_eq!(first, second);
 }
 
 /// C1 canonicity: same form under two distinct anchors = two
@@ -148,11 +148,11 @@ fn test_canonicite_par_handle_reinstallation_identique() {
 fn test_canonicite_deux_anchors_distinctes() {
     let mut pool = pool_neuf();
     let forme = Form::Terminal(true);
-    let meme_anchor_a = pool.intern(Anchor(0), forme.clone());
-    let meme_anchor_b = pool.intern(Anchor(0), forme.clone());
+    let same_anchor_a = pool.intern(Anchor(0), forme.clone());
+    let same_anchor_b = pool.intern(Anchor(0), forme.clone());
     let other_anchor = pool.intern(Anchor(1), forme);
-    assert_eq!(meme_anchor_a, meme_anchor_b);
-    assert_ne!(meme_anchor_a, other_anchor);
+    assert_eq!(same_anchor_a, same_anchor_b);
+    assert_ne!(same_anchor_a, other_anchor);
 }
 
 /// Projection: keeps only the requested keys.

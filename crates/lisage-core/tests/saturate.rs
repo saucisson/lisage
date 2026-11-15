@@ -137,7 +137,7 @@ fn compiler_ensemble(
 }
 
 /// Cardinality of a diagram (number of members of the denoted family).
-fn cardinal(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
+fn cardinality(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
     let mut output = new_pool(schema);
     compter(pool, &mut output, Anchor(0), schema, node).unwrap()
 }
@@ -319,5 +319,5 @@ fn test_saturate_chaine_croissante_multi_iterations() {
         result.node, expected,
         "fixpoint = union of the initial and the singleton"
     );
-    assert_eq!(cardinal(&pool, &schema, result.node), 2);
+    assert_eq!(cardinality(&pool, &schema, result.node), 2);
 }

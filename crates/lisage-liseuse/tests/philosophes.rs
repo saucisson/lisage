@@ -153,7 +153,7 @@ fn test_sept_formes_contre_r_n() {
             "n={n} : the rejection terminal ⊥ is not reachable from R_n"
         );
 
-        // DD cardinal == enumeration cardinal (test C8): the two
+        // DD cardinality == enumeration cardinality (test C8): the two
         // sets coincide. We record here the (pc, left)
         // combinations appearing in R_n.
         let mut vus: std::collections::BTreeSet<(u64, u64)> = std::collections::BTreeSet::new();
@@ -179,22 +179,22 @@ fn test_sept_formes_contre_r_n() {
 /// `n` over {0,1,2} with no two `2` adjacent (circular constraint included).
 fn reference_circulaire(n: usize) -> u64 {
     (0..3usize)
-        .flat_map(|premier| {
-            dp_lineaire(n, premier)
+        .flat_map(|first| {
+            dp_lineaire(n, first)
                 .into_iter()
-                .filter(move |(dernier, _)| !(premier == 2 && *dernier == 2))
+                .filter(move |(last, _)| !(first == 2 && *last == 2))
                 .map(|(_, compte)| compte)
                 .collect::<Vec<_>>()
         })
         .sum()
 }
 
-/// Linear DP: number of words of length `n` starting with `premier`,
+/// Linear DP: number of words of length `n` starting with `first`,
 /// with no two `2` adjacent (circular constraint not included). Returns
 /// the last symbol and the count.
-fn dp_lineaire(n: usize, premier: usize) -> Vec<(usize, u64)> {
+fn dp_lineaire(n: usize, first: usize) -> Vec<(usize, u64)> {
     let mut dp = [0u64; 3];
-    dp[premier] = 1;
+    dp[first] = 1;
     for _ in 1..n {
         let mut next = [0u64; 3];
         for (v, cellule_next) in next.iter_mut().enumerate() {
@@ -212,7 +212,7 @@ fn dp_lineaire(n: usize, premier: usize) -> Vec<(usize, u64)> {
 
 /// Property (no test dependency): for n = 3..=12, every enumerated word
 /// respects the invariant « no two `eat` adjacent circularly », and
-/// the enumeration has the same cardinal as the reference DP.
+/// the enumeration has the same cardinality as the reference DP.
 #[test]
 fn test_propriete_mots_atteignables_jusqua_n12() {
     for n in 3..=12usize {

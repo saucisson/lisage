@@ -101,7 +101,7 @@ proptest! {
         prop_assert_eq!(dd, expected_opt, "DD path != path A for lookup");
     }
 
-    /// C1 differential, collapsed case: value domain of cardinal 1 ⇒
+    /// C1 differential, collapsed case: value domain of cardinality 1 ⇒
     /// the val(k) level is R-collapsed at compilation, `φ_out`
     /// re-explicits it (T-EXPAND + graft). The DD path must still equal
     /// path A.
