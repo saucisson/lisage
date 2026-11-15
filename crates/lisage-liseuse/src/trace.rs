@@ -118,7 +118,7 @@ impl JsonlObserver {
         }
     }
 
-    /// Collectd JSONL lines (in emission order).
+    /// Collected JSONL lines (in emission order).
     pub fn lignes(&self) -> Vec<String> {
         self.lignes.lock().expect("mutex poisoned").clone()
     }
