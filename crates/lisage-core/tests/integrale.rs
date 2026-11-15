@@ -14,7 +14,7 @@ use lisage_core::integrale::{
     compiler_union, integrale_constante, intersection, measure_intervalle,
 };
 use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
-use lisage_core::region::{Intervalle, RegionController, RegionKeys, VIDE};
+use lisage_core::region::{EMPTY, Intervalle, RegionController, RegionKeys};
 
 type PoolRegion = Arena<RegionController>;
 
@@ -62,7 +62,7 @@ fn test_measure_intervalle_continue() {
     // Continuous length: [a, b] has measure b − a (the point has measure 0).
     assert_eq!(measure_intervalle(&Intervalle::new(2, 5)), 3);
     assert_eq!(measure_intervalle(&Intervalle::point(4)), 0);
-    assert_eq!(measure_intervalle(&VIDE), 0);
+    assert_eq!(measure_intervalle(&EMPTY), 0);
     assert_eq!(measure_intervalle(&Intervalle::new(0, 11)), 11);
     // The discrete cardinality counts points: [2, 5] has 4.
     assert_eq!(Intervalle::new(2, 5).size(), 4);
@@ -75,9 +75,9 @@ fn test_intersection_intervalles() {
     assert_eq!(intersection(&a, &b), Intervalle::new(5, 7));
     // Disjoint → empty.
     let c = Intervalle::new(8, 10);
-    assert_eq!(intersection(&a, &c), VIDE);
+    assert_eq!(intersection(&a, &c), EMPTY);
     // Empty with anything → empty.
-    assert_eq!(intersection(&VIDE, &a), VIDE);
+    assert_eq!(intersection(&EMPTY, &a), EMPTY);
     // Commutativity.
     assert_eq!(intersection(&a, &b), intersection(&b, &a));
 }

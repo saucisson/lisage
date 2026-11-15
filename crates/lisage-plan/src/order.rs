@@ -154,7 +154,7 @@ impl<Key: Debug> std::fmt::Display for ErreurOrder<Key> {
 
 impl<Key: Debug> std::error::Error for ErreurOrder<Key> {}
 
-/// Strategy adopted by [`Order::avec_aval_runtime`] (M5-1, C3): the runtime
+/// Strategy adopted by [`Order::with_aval_runtime`] (M5-1, C3): the runtime
 /// order was accepted, or we fell back to the canonical order.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StrategieAval {
@@ -251,7 +251,7 @@ impl<T: TypeOrder> Order<T> {
     /// (not a permutation or constraint violated), we **fall back to
     /// the canonical order** (degraded reordering as fallback) and report it
     /// via the returned strategy.
-    pub fn avec_aval_runtime(descripteur: &T, pi_runtime: Vec<T::Key>) -> (Self, StrategieAval) {
+    pub fn with_aval_runtime(descripteur: &T, pi_runtime: Vec<T::Key>) -> (Self, StrategieAval) {
         match Order::new(descripteur, pi_runtime) {
             Ok(order) => (order, StrategieAval::OrderRuntime),
             Err(_cause) => (Order::canonique(descripteur), StrategieAval::RepliCanonique),

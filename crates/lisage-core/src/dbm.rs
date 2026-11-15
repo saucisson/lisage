@@ -64,7 +64,7 @@ impl Dbm {
     /// Normal form of the region: closure of the current matrix (fixed
     /// point if already normalized), inconsistency → [`INCOHERENT`].
     fn normaliser(&self) -> Self {
-        if self.est_vide() {
+        if self.est_empty() {
             return INCOHERENT;
         }
         Self::fermer(self.number_variables, self.matrice.clone())
@@ -107,7 +107,7 @@ impl Dbm {
     }
 
     /// Is the region empty (inconsistent)?
-    pub fn est_vide(&self) -> bool {
+    pub fn est_empty(&self) -> bool {
         *self == INCOHERENT
     }
 
@@ -117,7 +117,7 @@ impl Dbm {
     /// already closed, the closure is idempotent. Any empty region
     /// gives [`INCOHERENT`].
     pub fn intersection(&self, other: &Dbm) -> Dbm {
-        if self.est_vide() || other.est_vide() {
+        if self.est_empty() || other.est_empty() {
             return INCOHERENT;
         }
         assert_eq!(
@@ -147,7 +147,7 @@ impl Dbm {
 
     /// Does the point `point[i] = x_i` belong to the region?
     pub fn contains(&self, point: &[u64]) -> bool {
-        if self.est_vide() {
+        if self.est_empty() {
             return false;
         }
         assert_eq!(
@@ -204,7 +204,7 @@ impl DbmKeys {
     /// Empty zone → 0. (Spec Q9 (ii):
     /// "polyhedral regions" — the exact 2D case; n > 2 outside fragment.)
     pub fn measure_zone(&self, zone: &Dbm) -> i128 {
-        if zone.est_vide() {
+        if zone.est_empty() {
             return 0;
         }
         assert_eq!(
@@ -249,13 +249,13 @@ impl DbmKeys {
         // non-empty regions (a family of empty regions covers nothing).
         let Some(n) = regions
             .iter()
-            .find(|region| !region.est_vide())
+            .find(|region| !region.est_empty())
             .map(Dbm::number_variables)
         else {
             return false;
         };
         for region in regions {
-            if !region.est_vide() {
+            if !region.est_empty() {
                 assert_eq!(
                     region.number_variables(),
                     n,

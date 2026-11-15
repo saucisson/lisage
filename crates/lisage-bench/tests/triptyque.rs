@@ -55,7 +55,7 @@ const PNML_CYCLE2: &str = r#"<pnml><net>
 </net></pnml>"#;
 
 /// Net with no place at all.
-const PNML_SANS_PLACE: &str = r#"<pnml><net><transition id="t"/></net></pnml>"#;
+const PNML_WITHOUT_PLACE: &str = r#"<pnml><net><transition id="t"/></net></pnml>"#;
 
 /// Parses a test PNML model.
 fn network(pnml: &str) -> NetworkPetri {
@@ -113,7 +113,7 @@ fn test_cardinality_identique_sur_les_trois_voies() {
 /// Path A is explicit set-theoretic (0 diagram nodes); paths
 /// B/C build a non-empty DD.
 #[test]
-fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
+fn test_voie_a_without_dd_voies_b_c_with_dd() {
     let network = network(PNML_CHOIX);
     assert_eq!(voie_a(&network).nodes_live, 0);
     assert!(voie_b(&network).unwrap().nodes_live > 0);
@@ -162,12 +162,12 @@ fn test_voie_c_order_runtime_adopte() {
 
 /// Net without a place: typed error on paths B and C.
 #[test]
-fn test_sans_place_rejete() {
-    let network = network(PNML_SANS_PLACE);
-    assert_eq!(voie_b(&network).unwrap_err(), ErreurTriptyque::SansPlace);
+fn test_without_place_rejete() {
+    let network = network(PNML_WITHOUT_PLACE);
+    assert_eq!(voie_b(&network).unwrap_err(), ErreurTriptyque::WithoutPlace);
     assert_eq!(
         voie_c(&network, &[]).unwrap_err(),
-        ErreurTriptyque::SansPlace
+        ErreurTriptyque::WithoutPlace
     );
 }
 

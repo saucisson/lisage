@@ -6,7 +6,7 @@
 //!   in `lisage-core` (union of the marking maps);
 //! - **path C** = DD with runtime order: permutation π of the place keys
 //!   supplied at run time, submitted to the `lisage-plan` planner
-//!   (`Order::avec_aval_runtime`) — adopted as-is if valid, otherwise
+//!   (`Order::with_aval_runtime`) — adopted as-is if valid, otherwise
 //!   canonical fallback signalled by the returned strategy.
 //!
 //! The C3/C4 falsification holds here: identical cardinality on the three
@@ -32,7 +32,7 @@ const ANCHOR_BANC: Anchor = Anchor(0);
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ErreurTriptyque {
     /// The net has no place: no marking schema.
-    SansPlace,
+    WithoutPlace,
     /// π is not a permutation of the place keys (key missing, duplicated,
     /// or foreign to the net).
     OrderInvalide,
@@ -45,7 +45,7 @@ pub enum ErreurTriptyque {
 impl std::fmt::Display for ErreurTriptyque {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErreurTriptyque::SansPlace => write!(formatter, "the net has no place"),
+            ErreurTriptyque::WithoutPlace => write!(formatter, "the net has no place"),
             ErreurTriptyque::OrderInvalide => {
                 write!(formatter, "π is not a permutation of the place keys")
             }
@@ -116,7 +116,7 @@ pub struct ResultVoieC {
 }
 
 /// Path C: DD of the reachable space with **runtime order** — π of the
-/// place keys submitted to the `lisage-plan` planner (`Order::avec_aval_runtime`
+/// place keys submitted to the `lisage-plan` planner (`Order::with_aval_runtime`
 /// on the `KeysMap` descriptor); the adopted order (runtime or canonical) is
 /// used to build the schema.
 pub fn voie_c(
@@ -124,7 +124,7 @@ pub fn voie_c(
     order_runtime: &[Atom],
 ) -> Result<ResultVoieC, ErreurTriptyque> {
     if network.number_places() == 0 {
-        return Err(ErreurTriptyque::SansPlace);
+        return Err(ErreurTriptyque::WithoutPlace);
     }
     let keys: Vec<Atom> = (0..network.number_places())
         .map(|index| Atom(index as u64))
@@ -146,7 +146,7 @@ pub fn voie_c(
             ]
         })
         .collect();
-    let (order, strategie) = Order::avec_aval_runtime(&descripteur, pi_runtime);
+    let (order, strategie) = Order::with_aval_runtime(&descripteur, pi_runtime);
     let order_adopte: Vec<Atom> = order
         .sequence()
         .iter()
@@ -163,7 +163,7 @@ pub fn voie_c(
 /// then measures (cardinality via pli, live nodes after construction).
 fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, ErreurTriptyque> {
     if network.number_places() == 0 {
-        return Err(ErreurTriptyque::SansPlace);
+        return Err(ErreurTriptyque::WithoutPlace);
     }
     let schema = schema_petri(network, order_keys)?;
     let espace = pnml::espace_atteignable(network);

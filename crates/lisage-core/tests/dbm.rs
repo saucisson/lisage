@@ -26,8 +26,8 @@ fn test_dbm_cloture_canonique() {
     // x0 − x1 ≤ 2 and x1 − x0 ≤ 3 describe the same region as the direct
     // closure; a redundant constraint does not change the normal form.
     let directe = Dbm::new(2, &[(0, 1, 2), (1, 0, 3)]);
-    let avec_redondance = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 5), (0, 0, 0)]);
-    assert_eq!(directe, avec_redondance, "canonical closure");
+    let with_redondance = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 5), (0, 0, 0)]);
+    assert_eq!(directe, with_redondance, "canonical closure");
     // The closure propagates: x0−x1 ≤ 1 and x1−x2 ≤ 1 entail x0−x2 ≤ 2.
     let propagee = Dbm::new(3, &[(0, 1, 1), (1, 2, 1)]);
     let explicite = Dbm::new(3, &[(0, 1, 1), (1, 2, 1), (0, 2, 2)]);
@@ -42,7 +42,7 @@ fn test_dbm_incoherent_normalise() {
     // x0 − x1 ≤ 2 and x1 − x0 ≤ −3 are incompatible: empty region.
     let incoherente = Dbm::new(2, &[(0, 1, 2), (1, 0, -3)]);
     assert_eq!(incoherente, INCOHERENT);
-    assert!(incoherente.est_vide());
+    assert!(incoherente.est_empty());
     assert!(!incoherente.contains(&[0, 0]));
     // Any inconsistent region, whatever its writing, is INCOHERENT.
     let other = Dbm::new(3, &[(0, 1, -1), (1, 2, 0), (2, 0, 0)]);
@@ -89,17 +89,17 @@ fn test_partage_pool_c1_relatif() {
         pool.intern(ANCHOR, forme_b),
         "same region under two writings = same node"
     );
-    let forme_vide_a = Form::Node {
+    let forme_empty_a = Form::Node {
         level,
         arcs: BTreeMap::from([(INCOHERENT, terminal)]),
     };
-    let forme_vide_b = Form::Node {
+    let forme_empty_b = Form::Node {
         level,
         arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 1), (1, 0, -2)]), terminal)]),
     };
     assert_eq!(
-        pool.intern(ANCHOR, forme_vide_a),
-        pool.intern(ANCHOR, forme_vide_b),
+        pool.intern(ANCHOR, forme_empty_a),
+        pool.intern(ANCHOR, forme_empty_b),
         "empty region under two writings = same node"
     );
     let forme_other = Form::Node {
@@ -145,9 +145,9 @@ fn test_propriete_cloture_lcg() {
         let dbm = Dbm::new(n, &contraintes);
         let normalisee = keys.normal_form(&dbm);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
-        // Membership of a randomly drawn point, consistent with est_vide.
+        // Membership of a randomly drawn point, consistent with est_empty.
         let point: Vec<u64> = (0..n).map(|_| next() % 6).collect();
-        if normalisee.est_vide() {
+        if normalisee.est_empty() {
             assert!(!normalisee.contains(&point));
         }
     }

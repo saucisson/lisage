@@ -9,7 +9,7 @@
 use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::cdd::{
-    Cdd, CddController, CddKeys, VIDE, compiler_union_horloges, count_nodes, evaluate,
+    Cdd, CddController, CddKeys, EMPTY, compiler_union_horloges, count_nodes, evaluate,
 };
 use lisage_core::dbm::Dbm;
 use lisage_core::observer::NoOpObserver;
@@ -33,13 +33,13 @@ fn test_normalisation_union() {
     // Sort + dedup: the writing [a, b, a] normalizes to the derived order [b, a].
     let union = Cdd::new(&[a.clone(), b.clone(), a.clone()]);
     assert_eq!(union.zones(), &[b.clone(), a.clone()]);
-    assert!(!union.est_vide());
+    assert!(!union.est_empty());
     // Empty zones are removed; zero zones = canonical empty union.
-    let avec_vide = Cdd::new(&[a.clone(), lisage_core::dbm::INCOHERENT]);
-    assert_eq!(avec_vide.zones(), &[a]);
-    assert_eq!(Cdd::new(&[]), VIDE);
-    assert!(VIDE.est_vide());
-    assert!(Cdd::new(&[lisage_core::dbm::INCOHERENT]).est_vide());
+    let with_empty = Cdd::new(&[a.clone(), lisage_core::dbm::INCOHERENT]);
+    assert_eq!(with_empty.zones(), &[a]);
+    assert_eq!(Cdd::new(&[]), EMPTY);
+    assert!(EMPTY.est_empty());
+    assert!(Cdd::new(&[lisage_core::dbm::INCOHERENT]).est_empty());
 }
 
 /// Assumed non-canonicity (spec Q9 (i)): two writings of the same non-convex
@@ -50,19 +50,19 @@ fn test_non_canonicite_assumee() {
     let grande = Dbm::new(2, &[(0, 1, 5)]);
     let incluse = Dbm::new(2, &[(0, 1, 0)]);
     assert!(grande.contains(&[0, 0]) && incluse.contains(&[0, 0]));
-    let union_avec_redondance = Cdd::new(&[grande.clone(), incluse.clone()]);
+    let union_with_redondance = Cdd::new(&[grande.clone(), incluse.clone()]);
     let union_seule = Cdd::new(std::slice::from_ref(&grande));
     // Semantically the same region (the included one is inside the big one)…
     for x in 0..SIZE_DOMAIN {
         for y in 0..SIZE_DOMAIN {
             assert_eq!(
-                union_avec_redondance.contains(&[x, y]),
+                union_with_redondance.contains(&[x, y]),
                 union_seule.contains(&[x, y])
             );
         }
     }
     // …but not the same key: no known set-theoretic normal form.
-    assert_ne!(union_avec_redondance, union_seule);
+    assert_ne!(union_with_redondance, union_seule);
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn test_contains_semantique() {
     assert!(union.contains(&[1, 3]));
     assert!(union.contains(&[3, 1]));
     assert!(!union.contains(&[2, 1])); // 0 < x − y < 2
-    assert!(!VIDE.contains(&[0, 0]));
+    assert!(!EMPTY.contains(&[0, 0]));
 }
 
 #[test]
@@ -95,11 +95,11 @@ fn test_intersection_distributive() {
     );
     assert_eq!(union_ab.intersection(&union_ab), union_ab);
     // Meet with the empty union → empty union.
-    assert_eq!(union_ab.intersection(&VIDE), VIDE);
-    assert_eq!(VIDE.intersection(&union_ab), VIDE);
+    assert_eq!(union_ab.intersection(&EMPTY), EMPTY);
+    assert_eq!(EMPTY.intersection(&union_ab), EMPTY);
     // Meet of two disjoint unions → empty union.
     let loin = Cdd::new(&[Dbm::new(2, &[(1, 0, -3)])]); // x − y ≥ 3
-    assert_eq!(union_c.intersection(&loin), VIDE);
+    assert_eq!(union_c.intersection(&loin), EMPTY);
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn test_coverage_boite_bounded() {
     // The union alone does not cover; neither does the empty family; nor the empty union.
     assert!(!keys.coverage(&[union]));
     assert!(!keys.coverage(&[]));
-    assert!(!keys.coverage(&[VIDE]));
+    assert!(!keys.coverage(&[EMPTY]));
 }
 
 /// Test instance: the non-convex region compiled by explicit regions has the
@@ -224,5 +224,5 @@ fn test_propriete_intersection_lcg() {
 fn test_contrat_key_level() {
     let keys = CddKeys::new(SIZE_DOMAIN);
     assert_eq!(keys.cardinality(Level(0)), SIZE_DOMAIN);
-    assert_eq!(keys.default(Level(0)), Some(VIDE));
+    assert_eq!(keys.default(Level(0)), Some(EMPTY));
 }

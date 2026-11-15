@@ -69,14 +69,14 @@ impl Reductions {
         defaut: false,
     };
     /// R-collapse toggled off, R-default active.
-    pub fn sans_collapse() -> Self {
+    pub fn without_collapse() -> Self {
         Reductions {
             collapse: false,
             defaut: true,
         }
     }
     /// R-default toggled off, R-collapse active.
-    pub fn sans_defaut() -> Self {
+    pub fn without_defaut() -> Self {
         Reductions {
             collapse: true,
             defaut: false,
@@ -581,8 +581,8 @@ impl AnchorWindow {
     pub fn new(base: i64, horizon: i64) -> Self {
         AnchorWindow {
             inner: AnchorComposee::new()
-                .avec(fragment_base(), base)
-                .avec(fragment_horizon(), horizon),
+                .with(fragment_base(), base)
+                .with(fragment_horizon(), horizon),
         }
     }
 

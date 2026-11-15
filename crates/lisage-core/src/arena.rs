@@ -10,7 +10,7 @@ use lisage_algebra::interface::{
     Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 use lisage_algebra::reduction::{
-    Reduction, reduce, reduce_dabs as crate_reduction_dabs, reduce_sans_collapse,
+    Reduction, reduce, reduce_dabs as crate_reduction_dabs, reduce_without_collapse,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -86,9 +86,9 @@ impl<C: Controller> Arena<C> {
 
     /// Live nodes of a level (shadow-plane index).
     pub fn index_level(&self, level: Level) -> &BTreeSet<NodeId> {
-        static VIDE: std::sync::LazyLock<BTreeSet<NodeId>> =
+        static EMPTY: std::sync::LazyLock<BTreeSet<NodeId>> =
             std::sync::LazyLock::new(BTreeSet::new);
-        self.index_levels.get(&level).unwrap_or(&VIDE)
+        self.index_levels.get(&level).unwrap_or(&EMPTY)
     }
 
     /// Pool metrics (cache + GC).
@@ -244,7 +244,7 @@ impl<C: Controller> Arena<C> {
         };
         // M4-3: generalized default (D-abs/D-trans) if the controller enables it.
         let reduced = if !self.controleur.collapse_active() {
-            reduce_sans_collapse(arcs, key_defaut, &est_defaut)
+            reduce_without_collapse(arcs, key_defaut, &est_defaut)
         } else if self.controleur.generalized_absorption() {
             // NodeId of D^default under this anchor, if already interned (used
             // for D-trans on empty form A = ∅).

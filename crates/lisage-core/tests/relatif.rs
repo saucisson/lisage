@@ -118,8 +118,8 @@ fn test_anchor_composee_fragments() {
     let machine = Fragment("machine".to_string());
     let convoyeur = Fragment("convoyeur".to_string());
     let anchor = AnchorComposee::new()
-        .avec(machine.clone(), 3)
-        .avec(convoyeur.clone(), -1);
+        .with(machine.clone(), 3)
+        .with(convoyeur.clone(), -1);
     assert_eq!(anchor.decalage(&machine), 3);
     assert_eq!(anchor.decalage(&convoyeur), -1);
     // Absent fragment: zero = fragment start.
@@ -218,7 +218,7 @@ fn test_anchors_composees_degradation_somme() {
     assert_eq!(pool.node_count(), expected);
     assert!(expected < (1 + NB_DECALAGES_PAR_FRAGMENT as usize).pow(2));
     // The composite anchor carries the two named shifts.
-    let anchor = AnchorComposee::new().avec(machine, 2).avec(convoyeur, 5);
+    let anchor = AnchorComposee::new().with(machine, 2).with(convoyeur, 5);
     assert_eq!(anchor.decalage(&Fragment("machine".to_string())), 2);
     assert_eq!(anchor.decalage(&Fragment("convoyeur".to_string())), 5);
 }

@@ -35,7 +35,7 @@ use crate::region::Intervalle;
 /// `length([a, b]) = b − a`; the empty interval and the isolated point
 /// have measure zero.
 pub fn measure_intervalle(intervalle: &Intervalle) -> u64 {
-    if intervalle.est_vide() {
+    if intervalle.est_empty() {
         0
     } else {
         intervalle
@@ -47,8 +47,8 @@ pub fn measure_intervalle(intervalle: &Intervalle) -> u64 {
 /// Intersection of two intervals (set-theoretic meet): the empty interval
 /// if disjoint.
 pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
-    if a.est_vide() || b.est_vide() {
-        return crate::region::VIDE;
+    if a.est_empty() || b.est_empty() {
+        return crate::region::EMPTY;
     }
     Intervalle::new(
         a.bound_inf().max(b.bound_inf()),
@@ -96,7 +96,7 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
             let mut somme = 0u64;
             for (intervalle, cible) in &arcs {
                 let sous_region = intersection(region, intervalle);
-                if sous_region.est_vide() {
+                if sous_region.est_empty() {
                     continue;
                 }
                 let contribution = integrale(pool, *cible, &sous_region, observer, memo)?;
@@ -159,7 +159,7 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
             let mut somme = 0i128;
             for (zone, cible) in &arcs {
                 let sous_region = region.intersection(zone);
-                if sous_region.est_vide() {
+                if sous_region.est_empty() {
                     continue;
                 }
                 let contribution = integrale_dbm(pool, *cible, &sous_region, keys, observer, memo)?;
@@ -194,7 +194,7 @@ pub fn compiler_union<P: Pool<Key = Intervalle, Payload = bool>>(
         intervalles.windows(2).all(|pair| {
             let a = &pair[0];
             let b = &pair[1];
-            a.est_vide() || b.est_vide() || a.bound_sup() < b.bound_inf()
+            a.est_empty() || b.est_empty() || a.bound_sup() < b.bound_inf()
         }),
         "compiler_union requires disjoint intervals (precondition)"
     );

@@ -78,12 +78,12 @@ fn test_ensemble_absents_collapses() {
 
 /// The empty map compiles to ⊤; an absent key skips its presence level.
 #[test]
-fn test_map_vide_et_key_absente() {
+fn test_map_empty_et_key_absente() {
     let schema = Schema::Map(vec![Atom(0), Atom(1)], domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
-    let vide = Value::Map(BTreeMap::new());
-    let root = compiler(&mut pool, anchor, &schema, &vide).unwrap();
+    let empty = Value::Map(BTreeMap::new());
+    let root = compiler(&mut pool, anchor, &schema, &empty).unwrap();
     assert_eq!(pool.resolve(root).unwrap(), &Form::Terminal(true));
 
     // {b ↦ 0}: a's presence level is skipped (R-collapse).
@@ -145,13 +145,13 @@ fn test_schema_atome() {
 /// The empty set compiles to the accepting terminal ⊤ (empty path), and the
 /// full set to the complete chain of presences.
 #[test]
-fn test_ensemble_vide_et_plein() {
+fn test_ensemble_empty_et_plein() {
     let schema = Schema::Set(domain(&[0, 1]));
     let mut pool = arena(schema.clone());
     let anchor = Anchor(0);
-    let vide = Value::Set(BTreeSet::new());
-    let root_vide = compiler(&mut pool, anchor, &schema, &vide).unwrap();
-    assert_eq!(pool.resolve(root_vide).unwrap(), &Form::Terminal(true));
+    let empty = Value::Set(BTreeSet::new());
+    let root_empty = compiler(&mut pool, anchor, &schema, &empty).unwrap();
+    assert_eq!(pool.resolve(root_empty).unwrap(), &Form::Terminal(true));
     let plein = Value::Set(BTreeSet::from([atome(0), atome(1)]));
     let root_plein = compiler(&mut pool, anchor, &schema, &plein).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
@@ -232,9 +232,9 @@ fn test_seq_compilation_round_trip() {
     let anchor = Anchor(0);
 
     // Empty sequence.
-    let seq_vide = Value::Seq(vec![]);
-    let root = compiler(&mut pool, anchor, &schema, &seq_vide).unwrap();
-    assert_eq!(decompiler(&pool, &schema, root).unwrap(), seq_vide);
+    let seq_empty = Value::Seq(vec![]);
+    let root = compiler(&mut pool, anchor, &schema, &seq_empty).unwrap();
+    assert_eq!(decompiler(&pool, &schema, root).unwrap(), seq_empty);
 
     // Sequence [1, 2].
     let seq = Value::Seq(vec![atome(1), atome(2)]);

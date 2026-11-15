@@ -30,7 +30,7 @@ use lisage_algebra::interface::{
 use crate::dbm::Dbm;
 
 /// Canonical empty union: zero zones — the continuous "absent" δ(ℓ).
-pub const VIDE: Cdd = Cdd { zones: Vec::new() };
+pub const EMPTY: Cdd = Cdd { zones: Vec::new() };
 
 /// Non-convex region-key: finite union of closed DBM zones over
 /// `number_variables` clocks. Every construction goes through [`Cdd::new`],
@@ -46,7 +46,7 @@ impl Cdd {
     pub fn new(zones: &[Dbm]) -> Self {
         let mut normalisees: Vec<Dbm> = zones
             .iter()
-            .filter(|zone| !zone.est_vide())
+            .filter(|zone| !zone.est_empty())
             .cloned()
             .collect();
         normalisees.sort();
@@ -60,7 +60,7 @@ impl Cdd {
     }
 
     /// Is the union empty (zero zones)?
-    pub fn est_vide(&self) -> bool {
+    pub fn est_empty(&self) -> bool {
         self.zones.is_empty()
     }
 
@@ -79,7 +79,7 @@ impl Cdd {
         for a in &self.zones {
             for b in &other.zones {
                 let meet = a.intersection(b);
-                if !meet.est_vide() {
+                if !meet.est_empty() {
                     zones.push(meet);
                 }
             }
@@ -90,7 +90,7 @@ impl Cdd {
 
 /// CDD region-key algebra over a per-variable bounded domain:
 /// `Val(ℓ) = [0, size_domain)`, a key = a finite union of DBM zones of
-/// the box, `δ(ℓ)` = the empty union [`VIDE`].
+/// the box, `δ(ℓ)` = the empty union [`EMPTY`].
 #[derive(Clone)]
 pub struct CddKeys {
     size_domain: u64,
@@ -121,7 +121,7 @@ impl CddKeys {
         // of a non-empty union (a family of empty unions covers nothing).
         let Some(n) = regions
             .iter()
-            .find(|region| !region.est_vide())
+            .find(|region| !region.est_empty())
             .and_then(|region| region.zones().first())
             .map(Dbm::number_variables)
         else {
@@ -172,7 +172,7 @@ impl KeyAlgebra for CddKeys {
     }
 
     fn default(&self, _level: Level) -> Option<Self::Key> {
-        Some(VIDE)
+        Some(EMPTY)
     }
 }
 

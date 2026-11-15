@@ -31,7 +31,7 @@ const ANCHOR_TEST: Anchor = Anchor(0);
 const NODE_DEFAUT: NodeId = NodeId(0);
 
 struct MockKeys {
-    avec_defaut: bool,
+    with_defaut: bool,
 }
 
 impl KeyAlgebra for MockKeys {
@@ -43,7 +43,7 @@ impl KeyAlgebra for MockKeys {
         CARDINALITY_MOCK
     }
     fn default(&self, _level: Level) -> Option<Self::Key> {
-        self.avec_defaut.then_some(0)
+        self.with_defaut.then_some(0)
     }
 }
 
@@ -72,7 +72,7 @@ impl Controller for MockController {
 fn arena_dabs() -> Arena<MockController> {
     Arena::new(
         MockController {
-            keys: MockKeys { avec_defaut: true },
+            keys: MockKeys { with_defaut: true },
             absorption: true,
         },
         Box::new(NoOpObserver),
@@ -83,7 +83,7 @@ fn arena_dabs() -> Arena<MockController> {
 fn arena_23() -> Arena<MockController> {
     Arena::new(
         MockController {
-            keys: MockKeys { avec_defaut: true },
+            keys: MockKeys { with_defaut: true },
             absorption: false,
         },
         Box::new(NoOpObserver),
@@ -118,7 +118,7 @@ fn test_dabs_absorption_tout_sous_domain() {
 /// M4-3: without D-abs (§ 2.3 system, `generalized_absorption` false), only
 /// the δ(ℓ) = 0 arc toward D^def is absorbed — the 2 ↦ ⊥ arc remains.
 #[test]
-fn test_sans_dabs_rdefault_seul() {
+fn test_without_dabs_rdefault_seul() {
     let mut pool = arena_23();
     let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
     let vrai = pool.intern(ANCHOR_TEST, Form::Terminal(true));
@@ -142,7 +142,7 @@ fn test_sans_dabs_rdefault_seul() {
 /// M4-3 (D-trans): A = ∅ after absorption → collapse into D^def. A node whose
 /// only arc (key 3, off δ) leads to D^def is transparent: it is D^def itself.
 #[test]
-fn test_dtrans_forme_vide_collapse() {
+fn test_dtrans_forme_empty_collapse() {
     let mut pool = arena_dabs();
     let faux = pool.intern(ANCHOR_TEST, Form::Terminal(false));
     let node = pool.intern(
@@ -194,10 +194,10 @@ fn test_dtrans_coverage() {
 /// M4-3: without a default key (δ(ℓ) = None), D-abs does not apply — the
 /// absent arcs would not be worth D^def.
 #[test]
-fn test_sans_key_defaut_pas_dabs() {
+fn test_without_key_defaut_pas_dabs() {
     let mut pool = Arena::new(
         MockController {
-            keys: MockKeys { avec_defaut: false },
+            keys: MockKeys { with_defaut: false },
             absorption: true,
         },
         Box::new(NoOpObserver),
@@ -223,7 +223,7 @@ fn test_sans_key_defaut_pas_dabs() {
 /// M4-3 (D-trans): a literally empty form (A = ∅) with a designated default
 /// collapses into D^def, even without any arc to designate it.
 #[test]
-fn test_dtrans_forme_vide_litterale() {
+fn test_dtrans_forme_empty_litterale() {
     let est_defaut = |node: NodeId| node == NODE_DEFAUT;
     let result = reduce_dabs(
         BTreeMap::new(),
