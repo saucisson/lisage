@@ -86,7 +86,7 @@ fn test_count_set_maps() {
 /// Empty set: the fold is zero. Full set (all maps): the count is the
 /// product of the cardinalities (every level collapsed).
 #[test]
-fn test_count_set_empty_et_plein() {
+fn test_count_set_empty_and_plein() {
     let schema = Schema::Map(vec![Atom(0)], Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = pool(&schema);
     let mut output = pool(&schema);

@@ -230,7 +230,7 @@ fn test_bench_gaucher_ratio_constant() {
 /// of live nodes that grows with n (the edge, 4n − 4). Live peak and
 /// firings read via the observer.
 #[test]
-fn test_bench_sept_forms_o1_et_bord() {
+fn test_bench_sept_forms_o1_and_bord() {
     let observer = Arc::new(RecordingObserver::default());
     struct Pont(Arc<RecordingObserver>);
     impl Observer for Pont {

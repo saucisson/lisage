@@ -21,7 +21,7 @@ fn pool() -> PoolRef {
 
 /// M2-3: the level memory stores and versions (L1).
 #[test]
-fn test_memory_level_stockage_et_version() {
+fn test_memory_level_stockage_and_version() {
     let mut memory: MemoryLevel<u64> = MemoryLevel::new();
     assert_eq!(memory.version(), 0);
     assert_eq!(memory.read(NodeId(0), Level(0)), None);
@@ -47,7 +47,7 @@ fn test_memory_level_stockage_et_version() {
 #[test]
 fn test_effet_memory_appliquer() {
     let mut memory: MemoryLevel<u64> = MemoryLevel::new();
-    let effet = EffetMemory::une(NodeId(3), Level(1), 7);
+    let effet = EffetMemory::one(NodeId(3), Level(1), 7);
     effet.apply(&mut memory);
     assert_eq!(memory.version(), 1);
     assert_eq!(memory.read(NodeId(3), Level(1)), Some(&7));
@@ -95,7 +95,7 @@ impl Transduction for EcritMemory {
             self.lus.fetch_add(*v, std::sync::atomic::Ordering::SeqCst);
         }
         // Write h into the memory at (input_node, level).
-        let effet = EffetMemory::une(ctx.node_input, ctx.level, *ctx.h);
+        let effet = EffetMemory::one(ctx.node_input, ctx.level, *ctx.h);
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(

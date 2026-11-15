@@ -9,7 +9,7 @@ use lisage_plan::oracle::{
 
 /// M3-3: the rational is normalized (gcd) and arithmetic is exact.
 #[test]
-fn test_rationnel_normalise_et_exact() {
+fn test_rationnel_normalise_and_exact() {
     assert_eq!(Rationnel::new(2, 4), Rationnel::new(1, 2));
     assert_eq!(Rationnel::new(6, 3), Rationnel::entier(2));
     assert_eq!(Rationnel::new(5, 0), Rationnel::new(0, 1));
@@ -38,7 +38,7 @@ fn test_parametres_densite_validee() {
 
 /// M3-3: the model predicts `1 + n·d` nodes and the corresponding total cost.
 #[test]
-fn test_prediction_size_et_cout_total() {
+fn test_prediction_size_and_cout_total() {
     let params = ParametresOracle::new(10, Rationnel::new(1, 2), 3, 4).unwrap();
     let prediction = Oracle::predire(&params);
     assert_eq!(prediction.size_predicted, 6, "1 + 10·(1/2) nodes");
@@ -93,7 +93,7 @@ fn test_guardrail_differentiel() {
 /// and in downstream queries, and the guardrail is conforming when the
 /// measurement equals the prediction.
 #[test]
-fn test_propriete_prediction_monotone_et_guardrail() {
+fn test_propriete_prediction_monotone_and_guardrail() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;

@@ -59,7 +59,7 @@ fn test_dbm_contains() {
 }
 
 #[test]
-fn test_cardinality_et_defaut() {
+fn test_cardinality_and_defaut() {
     let keys = DbmKeys::new(4);
     assert_eq!(keys.cardinality(Level(0)), 4);
     assert_eq!(keys.cardinality(Level(7)), 4);

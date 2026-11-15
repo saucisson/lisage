@@ -114,8 +114,9 @@ impl ParametresOracle {
         requetes_aval: u64,
     ) -> Result<Self, ErrorOracle> {
         let zero = Rationnel::new(0, 1);
-        let un = Rationnel::entier(1);
-        if !(zero.inferieur_ou_egal(&densite_expectede) && densite_expectede.inferieur_ou_egal(&un))
+        let one = Rationnel::entier(1);
+        if !(zero.inferieur_ou_egal(&densite_expectede)
+            && densite_expectede.inferieur_ou_egal(&one))
         {
             return Err(ErrorOracle::DensiteHorsBounds);
         }

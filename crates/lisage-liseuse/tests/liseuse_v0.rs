@@ -29,7 +29,7 @@ fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> l
 /// The JSONL is versioned, one line = one event, and the trace is
 /// deterministic (two identical constructions ⇒ same trace).
 #[test]
-fn test_trace_jsonl_versionnee_et_deterministe() {
+fn test_trace_jsonl_versionnee_and_deterministe() {
     let schema = schema_set();
     let build = |observer: &JsonlObserver| {
         let mut pool = Arena::new(

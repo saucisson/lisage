@@ -37,18 +37,18 @@ fn test_interval_empty_normalise() {
 }
 
 #[test]
-fn test_normal_form_canonique_et_idempotente() {
+fn test_normal_form_canonique_and_idempotente() {
     let keys = RegionKeys::new(vec![8]);
     // Any writing of an empty interval has the same normal form.
     assert_eq!(keys.normal_form(&Interval::new(7, 2)), EMPTY);
     assert_eq!(keys.normal_form(&EMPTY), EMPTY);
-    // Form normale idempotente, et stable sur les non-empty.
+    // Idempotent normal form, stable on non-empty.
     let interval = Interval::new(2, 5);
     assert_eq!(keys.normal_form(&keys.normal_form(&interval)), interval);
 }
 
 #[test]
-fn test_cardinality_et_defaut_par_level() {
+fn test_cardinality_and_defaut_par_level() {
     let keys = RegionKeys::new(vec![8, 3]);
     assert_eq!(keys.cardinality(Level(0)), 8);
     assert_eq!(keys.cardinality(Level(1)), 3);

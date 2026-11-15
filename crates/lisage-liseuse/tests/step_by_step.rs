@@ -107,7 +107,7 @@ fn test_serialisation_v2_evenements_step_by_step() {
 /// M2-6: the runner emits `MemoMiss`/`MemoHit` and the `Attr` of the
 /// inherited/synthesized channels during an observed transduction.
 #[test]
-fn test_runner_emet_memo_et_attr() {
+fn test_runner_emet_memo_and_attr() {
     let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -262,7 +262,7 @@ fn test_saturate_emet_rounds() {
 /// M2-6: the scrubber replays the state at a given position (nodes, attributes,
 /// memo counters, rounds).
 #[test]
-fn test_scrubber_replay_et_diff() {
+fn test_scrubber_replay_and_diff() {
     let evenements = vec![
         TraceEvent::NodeCreated {
             node: NodeId(1),
@@ -327,7 +327,7 @@ fn test_scrubber_replay_et_diff() {
 /// M2-6: the step-by-step SVG rendering colors the channels, marks the ghosts
 /// as dashed, draws the timeline with the rounds, and is deterministic.
 #[test]
-fn test_rendu_svg_step_by_step_channels_et_ghosts() {
+fn test_rendu_svg_step_by_step_channels_and_ghosts() {
     let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -409,7 +409,7 @@ fn test_rendu_svg_step_by_step_channels_et_ghosts() {
 /// k+1 for nodes and counters) and the diff is antisymmetric
 /// (`diff(a→b).ajoutes == diff(b→a).ghosts` and vice versa).
 #[test]
-fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
+fn test_scrubber_proprietes_prefixe_monotone_and_diff_antisymetrique() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;

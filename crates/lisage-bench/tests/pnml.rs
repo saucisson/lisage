@@ -69,7 +69,7 @@ fn test_marquage_initial_vers_value() {
 }
 
 #[test]
-fn test_sensibilisation_et_tir() {
+fn test_sensibilisation_and_tir() {
     let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
     let initial = marquage_depuis_value(&marquage_initial(&network)).unwrap();
     let t1 = TransitionId("t1".to_string());

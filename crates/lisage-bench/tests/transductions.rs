@@ -129,15 +129,15 @@ fn forms_egales(
         (Form::Terminal(pa), Form::Terminal(pb)) => pa == pb,
         (
             Form::Node {
-                level: la,
+                level: level_a,
                 arcs: aa,
             },
             Form::Node {
-                level: lb,
+                level: level_b,
                 arcs: ab,
             },
         ) => {
-            la == lb
+            level_a == level_b
                 && aa.len() == ab.len()
                 && aa.iter().zip(ab.iter()).all(|((va, na), (vb, nb))| {
                     va == vb && forms_egales(pool_a, *na, pool_b, *nb, visites)

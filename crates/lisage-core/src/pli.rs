@@ -38,7 +38,7 @@ pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
     /// Neutral element of ⊕ (zero).
     fn zero() -> Self;
     /// Neutral element of × (one).
-    fn un() -> Self;
+    fn one() -> Self;
     /// Cardinality of a level, translated into the semiring (A4).
     fn depuis_cardinality(cardinality: u64) -> Self;
     /// ⊕ (aggregation of children).
@@ -57,7 +57,7 @@ impl SemiAnneau for Naturel {
     fn zero() -> Self {
         Naturel(0)
     }
-    fn un() -> Self {
+    fn one() -> Self {
         Naturel(1)
     }
     fn depuis_cardinality(cardinality: u64) -> Self {
@@ -81,7 +81,7 @@ impl SemiAnneau for BoolOu {
     fn zero() -> Self {
         BoolOu(false)
     }
-    fn un() -> Self {
+    fn one() -> Self {
         BoolOu(true)
     }
     fn depuis_cardinality(cardinality: u64) -> Self {
@@ -118,7 +118,7 @@ impl<S: SemiAnneau> Pli<S> {
 
     /// Weight of a terminal: `weight(⊤) = 1`, `weight(⊥) = 0` (spec § 5).
     fn weight(&self, payload: bool) -> S {
-        if payload { S::un() } else { S::zero() }
+        if payload { S::one() } else { S::zero() }
     }
 
     /// (A4) multiplier of arc `v` from level `ℓ` to a child of level
@@ -138,7 +138,7 @@ impl<S: SemiAnneau> Pli<S> {
             Some(defaut) if arc == defaut => level.0 + 2,
             _ => level.0 + 1,
         };
-        let mut produit = S::un();
+        let mut produit = S::one();
         while n < bound {
             if self.keys.default(Level(n)).is_some() {
                 // Skipped presence level: default-arc collapse only.

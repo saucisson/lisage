@@ -187,7 +187,7 @@ fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
 /// Inherited channel: the identity transduction rebuilds the same forms; the
 /// returned depth equals the DAG's height.
 #[test]
-fn test_channel_herite_identite_et_depth() {
+fn test_channel_herite_identite_and_depth() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);

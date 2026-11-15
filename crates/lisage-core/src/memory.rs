@@ -81,7 +81,7 @@ impl<V: Clone + Eq + Hash + Debug> EffetMemory<V> {
     }
 
     /// Effect with a single write.
-    pub fn une(node: NodeId, level: Level, value: V) -> Self {
+    pub fn one(node: NodeId, level: Level, value: V) -> Self {
         EffetMemory {
             ecritures: vec![(node, level, value)],
         }

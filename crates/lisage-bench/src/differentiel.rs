@@ -4,7 +4,7 @@
 //! - path C = Lisage + planner (placeholder likewise).
 //!
 //! The real differential tests are written **red** (ignored) before
-//! the core implementation and un-ignored in the issue that delivers the path.
+//! the core implementation and one-ignored in the issue that delivers the path.
 
 use std::collections::BTreeSet;
 

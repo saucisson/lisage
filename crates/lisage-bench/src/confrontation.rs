@@ -40,7 +40,7 @@ const ANCHOR_MEASURE: Anchor = Anchor(0);
 const PENSE: u64 = 0;
 /// `hungry` (intermediate value of the pc domain).
 const AFFAME: u64 = 1;
-/// `eat` (value interdite sur deux voisins circulairement).
+/// `eat` (value forbidden on two circularly adjacent neighbors).
 const MANGE: u64 = 2;
 /// Number of BDD variables of the `window` workload controller (the
 /// sliding window is read over 2 levels: root + window).

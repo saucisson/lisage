@@ -68,7 +68,7 @@ fn card_bdd() -> CardControleur {
 /// linear track of the levels in sweep order, and the kingdoms side by
 /// side with the arrowed conversion and its cost.
 #[test]
-fn test_view_order_card_track_lineaire_kingdoms_et_conversion() {
+fn test_view_order_card_track_lineaire_kingdoms_and_conversion() {
     let kingdoms = vec![
         KingdomView {
             name: "reference".to_string(),
@@ -168,7 +168,7 @@ fn test_view_order_track_arbre_vtree() {
 /// M3-4: the rendering is deterministic and a conversion to an
 /// unknown kingdom is ignored (no arrow).
 #[test]
-fn test_view_order_deterministe_et_conversion_inconnue_ignoree() {
+fn test_view_order_deterministe_and_conversion_inconnue_ignoree() {
     let kingdoms = vec![KingdomView {
         name: "r".to_string(),
         card: card_reference(),

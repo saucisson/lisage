@@ -1,4 +1,4 @@
-//! Lisage liseuse — le visualiseur (trace, index, rendu SVG/HTML).
+//! Lisage liseuse — the viewer (trace, index, SVG/HTML rendering).
 
 pub mod philosophers;
 pub mod publication;
