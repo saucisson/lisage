@@ -20,8 +20,8 @@ use std::process::Command;
 
 /// Calls the `cudd_count` binary in the Docker container and returns the
 /// CUDD node count for the given truth table.
-fn cudd_compter_nodes(nombre_variables: u32, table: &[bool]) -> Option<usize> {
-    let mut input = format!("{}\n", nombre_variables);
+fn cudd_compter_nodes(number_variables: u32, table: &[bool]) -> Option<usize> {
+    let mut input = format!("{}\n", number_variables);
     for &value in table {
         input.push_str(if value { "1 " } else { "0 " });
     }
@@ -71,19 +71,19 @@ proptest! {
     #[test]
     #[ignore = "outside CI — requires the Docker image lisage-cudd:latest"]
     fn test_c6_local_arene_vs_cudd(
-        nombre_variables in 2u32..=8,
+        number_variables in 2u32..=8,
         table in prop::collection::vec(any::<bool>(), 4..=256),
     ) {
-        let size = 1usize << nombre_variables;
+        let size = 1usize << number_variables;
         let table: Vec<bool> = table.into_iter().cycle().take(size).collect();
 
-        let keys = BddKeys::new(nombre_variables);
-        let mut pool = Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver));
+        let keys = BddKeys::new(number_variables);
+        let mut pool = Arena::new(BddController::new(number_variables), Box::new(NoOpObserver));
         let anchor = Anchor(0);
         let root = compiler_bdd(&mut pool, anchor, &keys, &table);
         let nodes_arene = compter_nodes(&pool, root);
 
-        let nodes_cudd = cudd_compter_nodes(nombre_variables, &table)
+        let nodes_cudd = cudd_compter_nodes(number_variables, &table)
             .expect("call to the lisage-cudd Docker container failed");
 
         prop_assert_eq!(

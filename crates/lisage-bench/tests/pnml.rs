@@ -44,8 +44,8 @@ const PNML_BOUCL: &str = r#"<pnml><net>
 #[test]
 fn test_parse_modele_joue() {
     let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
-    assert_eq!(network.nombre_places(), 3);
-    assert_eq!(network.nombre_transitions(), 2);
+    assert_eq!(network.number_places(), 3);
+    assert_eq!(network.number_transitions(), 2);
     assert_eq!(network.arcs.len(), 4);
     assert_eq!(network.places[0].identifiant, PlaceId("p0".to_string()));
     assert_eq!(network.places[0].nom.as_deref(), Some("source"));
@@ -174,12 +174,12 @@ fn test_erreur_element_inexpected() {
 }
 
 #[test]
-fn test_erreur_nombre_invalide() {
+fn test_erreur_number_invalide() {
     let document = "<pnml><net><place id=\"p0\"><initialMarking><text>abc</text></initialMarking></place></net></pnml>";
     let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
     assert!(matches!(
         result,
-        Err(PnmlError::NombreInvalide {
+        Err(PnmlError::NumberInvalide {
             element: "initialMarking",
             ..
         })
@@ -190,13 +190,13 @@ fn test_erreur_nombre_invalide() {
 // Properties (ADR-0012): generated nets, semantic invariants
 // ---------------------------------------------------------------------------
 
-/// Generates a random PNML document: `nombre_places` places (initial
-/// marking 0..=2), `nombre_transitions` transitions, each transition
+/// Generates a random PNML document: `number_places` places (initial
+/// marking 0..=2), `number_transitions` transitions, each transition
 /// linked to an input place and an output place (possibly
 /// the same).
 fn network_aleatoire(
-    nombre_places: usize,
-    nombre_transitions: usize,
+    number_places: usize,
+    number_transitions: usize,
     marquages: Vec<u64>,
 ) -> String {
     let mut document = String::from("<pnml><net>");
@@ -205,12 +205,12 @@ fn network_aleatoire(
             "<place id=\"p{index}\"><initialMarking><text>{marquage}</text></initialMarking></place>"
         ));
     }
-    for index in 0..nombre_transitions {
+    for index in 0..number_transitions {
         document.push_str(&format!("<transition id=\"t{index}\"/>"));
     }
-    for index in 0..nombre_transitions {
-        let input = index % nombre_places.max(1);
-        let output = (index + 1) % nombre_places.max(1);
+    for index in 0..number_transitions {
+        let input = index % number_places.max(1);
+        let output = (index + 1) % number_places.max(1);
         document.push_str(&format!(
             "<arc source=\"p{input}\" target=\"t{index}\"/><arc source=\"t{index}\" target=\"p{output}\"/>"
         ));
@@ -224,17 +224,17 @@ proptest! {
     /// space, and it contains the initial marking.
     #[test]
     fn propriete_espace_atteignable_point_fixe(
-        nombre_places in 1usize..=4,
-        nombre_transitions in 1usize..=4,
+        number_places in 1usize..=4,
+        number_transitions in 1usize..=4,
         marquages in proptest::collection::vec(0u64..=2, 1..=4),
     ) {
         let marquages = {
             let mut m = marquages;
-            m.resize(nombre_places, 0);
-            m.truncate(nombre_places);
+            m.resize(number_places, 0);
+            m.truncate(number_places);
             m
         };
-        let document = network_aleatoire(nombre_places, nombre_transitions, marquages);
+        let document = network_aleatoire(number_places, number_transitions, marquages);
         let network = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
         let espace = espace_atteignable(&network);
         prop_assert!(espace.contains(&marquage_initial(&network)));
@@ -247,17 +247,17 @@ proptest! {
     /// (loop net) — firing invariant.
     #[test]
     fn propriete_tir_sensibilise_produit_successeur_valide(
-        nombre_places in 1usize..=4,
-        nombre_transitions in 1usize..=4,
+        number_places in 1usize..=4,
+        number_transitions in 1usize..=4,
         marquages in proptest::collection::vec(1u64..=3, 1..=4),
     ) {
         let marquages = {
             let mut m = marquages;
-            m.resize(nombre_places, 1);
-            m.truncate(nombre_places);
+            m.resize(number_places, 1);
+            m.truncate(number_places);
             m
         };
-        let document = network_aleatoire(nombre_places, nombre_transitions, marquages);
+        let document = network_aleatoire(number_places, number_transitions, marquages);
         let network = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
         let initial = marquage_depuis_value(&marquage_initial(&network)).unwrap();
         let total_avant: u64 = initial.values().map(|a| a.0).sum();
@@ -265,7 +265,7 @@ proptest! {
             if est_sensibilisee(&network, &transition.identifiant, &initial) {
                 let next = tirer(&network, &transition.identifiant, &initial);
                 // The resulting marking has one entry per place.
-                prop_assert_eq!(next.len(), nombre_places);
+                prop_assert_eq!(next.len(), number_places);
                 // Documented invariant: firing moves one token (weight 1
                 // in input and in output), the total is preserved.
                 let total_apres: u64 = next.values().map(|a| a.0).sum();

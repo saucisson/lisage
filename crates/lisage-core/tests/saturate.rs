@@ -160,7 +160,7 @@ fn test_saturate_termine_et_point_fixe() {
         keys: &keys,
         anchor,
         initial,
-        nombre_levels: schema.nombre_levels(),
+        number_levels: schema.number_levels(),
         observer: None,
     };
     let result = saturer(&mut params).unwrap();
@@ -176,7 +176,7 @@ fn test_saturate_politiques_equivalentes() {
     let keys = SchemaKeys::new(schema.clone());
     let anchor = Anchor(0);
 
-    let levels: Vec<Level> = (0..schema.nombre_levels()).map(Level).collect();
+    let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
     let politique_statique = PolitiqueSaturation::Statique(levels);
     let politique_auto = PolitiqueSaturation::AutoDetectee;
 
@@ -189,7 +189,7 @@ fn test_saturate_politiques_equivalentes() {
         keys: &keys,
         anchor,
         initial: initial_s,
-        nombre_levels: schema.nombre_levels(),
+        number_levels: schema.number_levels(),
         observer: None,
     };
     let r_statique = saturer(&mut params).unwrap();
@@ -203,7 +203,7 @@ fn test_saturate_politiques_equivalentes() {
         keys: &keys,
         anchor,
         initial: initial_a,
-        nombre_levels: schema.nombre_levels(),
+        number_levels: schema.number_levels(),
         observer: None,
     };
     let r_auto = saturer(&mut params).unwrap();
@@ -225,7 +225,7 @@ fn test_saturate_statique_restreint_les_levels() {
     let anchor = Anchor(0);
 
     // Static policy excluding the root level 0.
-    let levels_sans_root: Vec<Level> = (1..schema.nombre_levels()).map(Level).collect();
+    let levels_sans_root: Vec<Level> = (1..schema.number_levels()).map(Level).collect();
     let politique_statique = PolitiqueSaturation::Statique(levels_sans_root);
     let mut pool_s = new_pool(&schema);
     let initial_s = compiler_ensemble(&mut pool_s, anchor, &schema, &[0]);
@@ -240,7 +240,7 @@ fn test_saturate_statique_restreint_les_levels() {
         keys: &keys,
         anchor,
         initial: initial_s,
-        nombre_levels: schema.nombre_levels(),
+        number_levels: schema.number_levels(),
         observer: None,
     };
     let r_statique = saturer(&mut params).unwrap();
@@ -266,7 +266,7 @@ fn test_saturate_statique_restreint_les_levels() {
         keys: &keys,
         anchor,
         initial: initial_a,
-        nombre_levels: schema.nombre_levels(),
+        number_levels: schema.number_levels(),
         observer: None,
     };
     let r_auto = saturer(&mut params).unwrap();
@@ -305,7 +305,7 @@ fn test_saturate_chaine_croissante_multi_iterations() {
         keys: &keys,
         anchor,
         initial,
-        nombre_levels: schema.nombre_levels(),
+        number_levels: schema.number_levels(),
         observer: None,
     };
     let result = saturer(&mut params).unwrap();

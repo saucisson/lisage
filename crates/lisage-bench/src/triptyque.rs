@@ -97,7 +97,7 @@ pub fn voie_a(network: &NetworkPetri) -> MeasureVoie {
 /// Path B: DD of the reachable space with **fixed order** (canonical
 /// order of the places, key = place index).
 pub fn voie_b(network: &NetworkPetri) -> Result<MeasureVoie, ErreurTriptyque> {
-    let order_canonique: Vec<Atom> = (0..network.nombre_places())
+    let order_canonique: Vec<Atom> = (0..network.number_places())
         .map(|index| Atom(index as u64))
         .collect();
     voie_dd(network, &order_canonique)
@@ -123,10 +123,10 @@ pub fn voie_c(
     network: &NetworkPetri,
     order_runtime: &[Atom],
 ) -> Result<ResultVoieC, ErreurTriptyque> {
-    if network.nombre_places() == 0 {
+    if network.number_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
     }
-    let keys: Vec<Atom> = (0..network.nombre_places())
+    let keys: Vec<Atom> = (0..network.number_places())
         .map(|index| Atom(index as u64))
         .collect();
     let descripteur = KeysMap(keys);
@@ -162,7 +162,7 @@ pub fn voie_c(
 /// Builds the DD of the reachable space in the given key order,
 /// then measures (cardinality via pli, live nodes after construction).
 fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, ErreurTriptyque> {
-    if network.nombre_places() == 0 {
+    if network.number_places() == 0 {
         return Err(ErreurTriptyque::SansPlace);
     }
     let schema = schema_petri(network, order_keys)?;
@@ -188,7 +188,7 @@ fn voie_dd(network: &NetworkPetri, order_keys: &[Atom]) -> Result<MeasureVoie, E
 /// the given order (π), value domain = `0..=max_jetons` bounded by
 /// the reachable space. π must be a permutation of the place indexes.
 fn schema_petri(network: &NetworkPetri, order_keys: &[Atom]) -> Result<Schema, ErreurTriptyque> {
-    let mut expected_f: Vec<Atom> = (0..network.nombre_places())
+    let mut expected_f: Vec<Atom> = (0..network.number_places())
         .map(|index| Atom(index as u64))
         .collect();
     let mut recues = order_keys.to_vec();

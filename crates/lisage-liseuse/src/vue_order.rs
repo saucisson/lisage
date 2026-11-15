@@ -69,7 +69,7 @@ const DECALAGE_ETIQUETTE_Y: u32 = 4;
 const MARQUEUR_SIZE: u32 = 8;
 const MARQUEUR_REF_Y: u32 = 4;
 /// Number of controller-card fields (C = eight fields).
-const NOMBRE_CHAMPS_FICHE: u32 = 8;
+const NUMBER_CHAMPS_FICHE: u32 = 8;
 /// Height of a level box in pixels.
 const HAUTEUR_BOITE: u32 = 28;
 /// Stroke thickness in pixels.
@@ -81,7 +81,7 @@ const DASH_CONVERSION: &str = "6 3";
 
 /// Height of the controller card in pixels.
 const fn hauteur_fiche() -> u32 {
-    DECALAGE_LIGNE_FICHE + NOMBRE_CHAMPS_FICHE * HAUTEUR_LIGNE_FICHE
+    DECALAGE_LIGNE_FICHE + NUMBER_CHAMPS_FICHE * HAUTEUR_LIGNE_FICHE
 }
 
 /// Controller card: the eight fields of `C = (δ, Σ, decomposition + O, R,
@@ -175,7 +175,7 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
         ("encoding", &fiche.encodage),
         ("attribution", &fiche.attribution),
     ];
-    debug_assert_eq!(champs.len() as u32, NOMBRE_CHAMPS_FICHE);
+    debug_assert_eq!(champs.len() as u32, NUMBER_CHAMPS_FICHE);
     let hauteur = hauteur_fiche();
     svg.push_str(&format!(
         "<rect x=\"{x}\" y=\"{y}\" width=\"{largeur}\" height=\"{hauteur}\" fill=\"{FOND_FICHE}\" stroke=\"{COULEUR_FICHE}\"/>\n"
@@ -201,8 +201,8 @@ fn rendre_fiche(svg: &mut String, fiche: &FicheControleur, x: u32, y: u32, large
 /// boxes linked by arrows.
 fn rendre_piste_lineaire(svg: &mut String, levels: &[String], x: u32, y: u32, largeur: u32) {
     let y_boite = y + DECALAGE;
-    let nombre = levels.len().max(1) as u32;
-    let pas = largeur / nombre;
+    let number = levels.len().max(1) as u32;
+    let pas = largeur / number;
     for (index, libelle) in levels.iter().enumerate() {
         let boite_x = x + index as u32 * pas + DECALAGE_BOITE;
         let boite_largeur = pas.saturating_sub(DECALAGE).min(LARGEUR_BOITE);
@@ -243,8 +243,8 @@ fn rendre_arbre(svg: &mut String, node: &NodeVtree, x: u32, y: u32, largeur: u32
     if node.enfants.is_empty() {
         return HAUTEUR_LEVEL_ARBRE;
     }
-    let nombre = node.enfants.len() as u32;
-    let pas = largeur / nombre;
+    let number = node.enfants.len() as u32;
+    let pas = largeur / number;
     let y_enfants = y + HAUTEUR_LEVEL_ARBRE;
     let mut hauteur_max = 0;
     for (index, enfant) in node.enfants.iter().enumerate() {
@@ -282,7 +282,7 @@ struct PositionRoyaume {
 
 /// Computes the full layout: total SVG height + position of each
 /// kingdom (name, card, track).
-fn layout(royaumes: &[RoyaumeVue], nombre_conversions: usize) -> (u32, Vec<PositionRoyaume>) {
+fn layout(royaumes: &[RoyaumeVue], number_conversions: usize) -> (u32, Vec<PositionRoyaume>) {
     let mut hauteur = MARGE + HAUTEUR_TITRE;
     let mut positions = Vec::new();
     for royaume in royaumes {
@@ -295,7 +295,7 @@ fn layout(royaumes: &[RoyaumeVue], nombre_conversions: usize) -> (u32, Vec<Posit
         });
         hauteur += DECALAGE + hauteur_fiche() + DECALAGE + hauteur_piste + ESPACE_APRES_PISTE;
     }
-    hauteur += nombre_conversions as u32 * HAUTEUR_LIGNE_CONVERSION + MARGE;
+    hauteur += number_conversions as u32 * HAUTEUR_LIGNE_CONVERSION + MARGE;
     (hauteur, positions)
 }
 

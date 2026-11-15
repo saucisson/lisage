@@ -72,7 +72,7 @@ impl Vtree {
     }
 
     /// Number of variables (size of the tree).
-    pub fn nombre_variables(&self) -> usize {
+    pub fn number_variables(&self) -> usize {
         self.order_plat().len()
     }
 

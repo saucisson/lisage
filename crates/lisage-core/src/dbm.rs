@@ -21,11 +21,11 @@ use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};
 
 /// Number of variables of a null DBM (canonical empty region without variable).
 pub const INCOHERENT: Dbm = Dbm {
-    nombre_variables: 0,
+    number_variables: 0,
     matrice: Vec::new(),
 };
 
-/// Convex region-key: DBM over `nombre_variables` variables, `matrice[i][j]`
+/// Convex region-key: DBM over `number_variables` variables, `matrice[i][j]`
 /// = bound `Some(c)` of the constraint `x_i − x_j ≤ c` (`None` = no
 /// constraint). Every construction goes through [`Dbm::new`], which sets
 /// the diagonal to `x_i − x_i ≤ 0` and normalizes: canonical closure, and
@@ -33,16 +33,16 @@ pub const INCOHERENT: Dbm = Dbm {
 /// equality of regions.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Dbm {
-    nombre_variables: usize,
+    number_variables: usize,
     matrice: Vec<Vec<Option<i128>>>,
 }
 
 impl Dbm {
-    /// DBM over `nombre_variables` variables from constraints
+    /// DBM over `number_variables` variables from constraints
     /// `(i, j, c)` meaning `x_i − x_j ≤ c`, then normalization (canonical
     /// closure; inconsistency → [`INCOHERENT`]).
-    pub fn new(nombre_variables: usize, contraintes: &[(usize, usize, i64)]) -> Self {
-        let n = nombre_variables;
+    pub fn new(number_variables: usize, contraintes: &[(usize, usize, i64)]) -> Self {
+        let n = number_variables;
         let mut matrice = vec![vec![None; n]; n];
         for (i, ligne) in matrice.iter_mut().enumerate() {
             ligne[i] = Some(0);
@@ -67,13 +67,13 @@ impl Dbm {
         if self.est_vide() {
             return INCOHERENT;
         }
-        Self::fermer(self.nombre_variables, self.matrice.clone())
+        Self::fermer(self.number_variables, self.matrice.clone())
     }
 
     /// Shortest-path closure (Floyd-Warshall); if a diagonal
     /// becomes negative, the region is empty → [`INCOHERENT`].
-    fn fermer(nombre_variables: usize, mut matrice: Vec<Vec<Option<i128>>>) -> Self {
-        let n = nombre_variables;
+    fn fermer(number_variables: usize, mut matrice: Vec<Vec<Option<i128>>>) -> Self {
+        let n = number_variables;
         for k in 0..n {
             for i in 0..n {
                 for j in 0..n {
@@ -91,14 +91,14 @@ impl Dbm {
             return INCOHERENT;
         }
         Dbm {
-            nombre_variables: n,
+            number_variables: n,
             matrice,
         }
     }
 
     /// Number of variables of the region.
-    pub fn nombre_variables(&self) -> usize {
-        self.nombre_variables
+    pub fn number_variables(&self) -> usize {
+        self.number_variables
     }
 
     /// Bound matrix `matrice[i][j]` = `Some(c)` for `x_i − x_j ≤ c`.
@@ -121,10 +121,10 @@ impl Dbm {
             return INCOHERENT;
         }
         assert_eq!(
-            self.nombre_variables, other.nombre_variables,
+            self.number_variables, other.number_variables,
             "intersection of regions of different dimensions (internal invariant)"
         );
-        let n = self.nombre_variables;
+        let n = self.number_variables;
         let matrice: Vec<Vec<Option<i128>>> = self
             .matrice
             .iter()
@@ -152,11 +152,11 @@ impl Dbm {
         }
         assert_eq!(
             point.len(),
-            self.nombre_variables,
+            self.number_variables,
             "point of wrong dimension (internal invariant)"
         );
-        (0..self.nombre_variables).all(|i| {
-            (0..self.nombre_variables).all(|j| match self.matrice[i][j] {
+        (0..self.number_variables).all(|i| {
+            (0..self.number_variables).all(|j| match self.matrice[i][j] {
                 Some(c) => i128::from(point[i]) - i128::from(point[j]) <= c,
                 None => true,
             })
@@ -208,7 +208,7 @@ impl DbmKeys {
             return 0;
         }
         assert_eq!(
-            zone.nombre_variables(),
+            zone.number_variables(),
             2,
             "exact measure reserved to 2D zones (internal invariant)"
         );
@@ -250,14 +250,14 @@ impl DbmKeys {
         let Some(n) = regions
             .iter()
             .find(|region| !region.est_vide())
-            .map(Dbm::nombre_variables)
+            .map(Dbm::number_variables)
         else {
             return false;
         };
         for region in regions {
             if !region.est_vide() {
                 assert_eq!(
-                    region.nombre_variables(),
+                    region.number_variables(),
                     n,
                     "coverage of a heterogeneous family (internal invariant)"
                 );

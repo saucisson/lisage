@@ -74,7 +74,7 @@ pub enum Schema {
 
 impl Schema {
     /// Number of levels of the universe sweep.
-    pub fn nombre_levels(&self) -> u32 {
+    pub fn number_levels(&self) -> u32 {
         match self {
             Schema::Atom(_) => 1,
             Schema::Set(domain) => domain.size() as u32,

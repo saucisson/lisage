@@ -16,22 +16,22 @@ use lisage_algebra::interface::{
 /// Cardinality of a BDD level: two arcs, `0` (low) and `1` (high).
 pub const CARDINALITY_BDD: u64 = 2;
 
-/// Key algebra of a classic BDD over `nombre_variables` variables: level ℓ
+/// Key algebra of a classic BDD over `number_variables` variables: level ℓ
 /// is variable ℓ, `Val(ℓ) = {0, 1}`, no δ(ℓ).
 #[derive(Clone)]
 pub struct BddKeys {
-    nombre_variables: u32,
+    number_variables: u32,
 }
 
 impl BddKeys {
-    /// Key algebra for `nombre_variables` ordered variables 0..n-1.
-    pub fn new(nombre_variables: u32) -> Self {
-        BddKeys { nombre_variables }
+    /// Key algebra for `number_variables` ordered variables 0..n-1.
+    pub fn new(number_variables: u32) -> Self {
+        BddKeys { number_variables }
     }
 
     /// Number of variables of the BDD.
-    pub fn nombre_variables(&self) -> u32 {
-        self.nombre_variables
+    pub fn number_variables(&self) -> u32 {
+        self.number_variables
     }
 }
 
@@ -58,10 +58,10 @@ pub struct BddController {
 }
 
 impl BddController {
-    /// Controller for `nombre_variables` ordered variables 0..n-1.
-    pub fn new(nombre_variables: u32) -> Self {
+    /// Controller for `number_variables` ordered variables 0..n-1.
+    pub fn new(number_variables: u32) -> Self {
         BddController {
-            keys: BddKeys::new(nombre_variables),
+            keys: BddKeys::new(number_variables),
         }
     }
 }
@@ -92,10 +92,10 @@ pub fn compiler_bdd<P: Pool<Key = u64, Payload = bool>>(
     keys: &BddKeys,
     table: &[bool],
 ) -> NodeId {
-    let nombre_variables = keys.nombre_variables();
+    let number_variables = keys.number_variables();
     assert_eq!(
         table.len(),
-        1usize << nombre_variables,
+        1usize << number_variables,
         "truth table of size 2^n (internal invariant)"
     );
     shannon(pool, anchor, Level(0), table)

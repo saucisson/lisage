@@ -172,15 +172,15 @@ fn test_propriete_somme_poids_egale_cardinality_lcg() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
+    const NUMBER_CAS: u64 = 30;
     let mut seed = SEED_LCG;
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         seed = seed
             .wrapping_mul(MULTIPLICATEUR_LCG)
             .wrapping_add(INCREMENT_LCG);
-        let nombre_maps = (seed % 5) as usize;
+        let number_maps = (seed % 5) as usize;
         let mut ensemble = BTreeSet::new();
-        for _ in 0..nombre_maps {
+        for _ in 0..number_maps {
             seed = seed
                 .wrapping_mul(MULTIPLICATEUR_LCG)
                 .wrapping_add(INCREMENT_LCG);

@@ -121,7 +121,7 @@ fn test_propriete_cloture_lcg() {
     const SEED_LCG: u64 = 0x853C_49E6_748F_EA9B;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
-    const NOMBRE_CAS: u64 = 30;
+    const NUMBER_CAS: u64 = 30;
     let keys = DbmKeys::new(6);
     let mut seed = SEED_LCG;
     let mut next = || {
@@ -130,10 +130,10 @@ fn test_propriete_cloture_lcg() {
             .wrapping_add(INCREMENT_LCG);
         seed
     };
-    for _ in 0..NOMBRE_CAS {
+    for _ in 0..NUMBER_CAS {
         let n = 2 + (next() % 2) as usize;
-        let nombre_contraintes = next() % 5;
-        let contraintes: Vec<(usize, usize, i64)> = (0..nombre_contraintes)
+        let number_contraintes = next() % 5;
+        let contraintes: Vec<(usize, usize, i64)> = (0..number_contraintes)
             .map(|_| {
                 (
                     (next() % n as u64) as usize,

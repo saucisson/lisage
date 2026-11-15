@@ -16,16 +16,16 @@ use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
 /// Number of keys of the random map.
-const NOMBRE_CLES: u64 = 3;
+const NUMBER_CLES: u64 = 3;
 /// Size of the value domain.
 const SIZE_DOMAIN: u64 = 4;
 
 type PoolRef = Arena<ReferenceController>;
 
-/// `Map` schema with `NOMBRE_CLES` keys over the domain `{0..SIZE_DOMAIN}`.
+/// `Map` schema with `NUMBER_CLES` keys over the domain `{0..SIZE_DOMAIN}`.
 fn schema_test() -> Schema {
     Schema::Map(
-        (0..NOMBRE_CLES).map(Atom).collect(),
+        (0..NUMBER_CLES).map(Atom).collect(),
         Domain::new((0..SIZE_DOMAIN).map(Atom).collect()),
     )
 }
@@ -79,12 +79,12 @@ proptest! {
     /// The other keys are always unchanged.
     #[test]
     fn test_transfert_semantique(
-        values in prop::collection::vec(0u64..SIZE_DOMAIN, NOMBRE_CLES as usize),
-        source in 0u64..NOMBRE_CLES,
-        destination in 0u64..NOMBRE_CLES,
+        values in prop::collection::vec(0u64..SIZE_DOMAIN, NUMBER_CLES as usize),
+        source in 0u64..NUMBER_CLES,
+        destination in 0u64..NUMBER_CLES,
     ) {
         prop_assume!(source < destination);
-        let inputs: BTreeMap<u64, u64> = (0..NOMBRE_CLES).zip(values).collect();
+        let inputs: BTreeMap<u64, u64> = (0..NUMBER_CLES).zip(values).collect();
         let schema = schema_test();
         let anchor = Anchor(0);
         let mut pool = new_pool(&schema);

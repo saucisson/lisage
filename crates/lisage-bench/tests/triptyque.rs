@@ -87,8 +87,8 @@ fn test_cardinality_identique_sur_les_trois_voies() {
         let measure_a = voie_a(&network);
         let measure_b = voie_b(&network).unwrap();
         let result_c_canonique =
-            voie_c(&network, &order_canonique(network.nombre_places())).unwrap();
-        let result_c_inverse = voie_c(&network, &order_inverse(network.nombre_places())).unwrap();
+            voie_c(&network, &order_canonique(network.number_places())).unwrap();
+        let result_c_inverse = voie_c(&network, &order_inverse(network.number_places())).unwrap();
         let measure_c_canonique = result_c_canonique.measure;
         let measure_c_inverse = result_c_inverse.measure;
         assert_eq!(
@@ -118,7 +118,7 @@ fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
     assert_eq!(voie_a(&network).nodes_vivants, 0);
     assert!(voie_b(&network).unwrap().nodes_vivants > 0);
     assert!(
-        voie_c(&network, &order_inverse(network.nombre_places()))
+        voie_c(&network, &order_inverse(network.number_places()))
             .unwrap()
             .measure
             .nodes_vivants
@@ -131,7 +131,7 @@ fn test_voie_a_sans_dd_voies_b_c_avec_dd() {
 fn test_voie_c_canonique_egale_voie_b() {
     let network = network(PNML_CYCLE2);
     let measure_b = voie_b(&network).unwrap();
-    let result_c = voie_c(&network, &order_canonique(network.nombre_places())).unwrap();
+    let result_c = voie_c(&network, &order_canonique(network.number_places())).unwrap();
     assert_eq!(measure_b, result_c.measure);
     assert_eq!(result_c.strategie, StrategieAval::OrderRuntime);
 }
@@ -155,7 +155,7 @@ fn test_voie_c_order_invalide_repli_canonique() {
 #[test]
 fn test_voie_c_order_runtime_adopte() {
     let network = network(PNML_CYCLE2);
-    let result = voie_c(&network, &order_inverse(network.nombre_places())).unwrap();
+    let result = voie_c(&network, &order_inverse(network.number_places())).unwrap();
     assert_eq!(result.strategie, StrategieAval::OrderRuntime);
     assert_eq!(result.measure.cardinality, 6);
 }
@@ -176,7 +176,7 @@ fn test_sans_place_rejete() {
 fn test_determinisme() {
     let network = network(PNML_CYCLE2);
     assert_eq!(voie_b(&network).unwrap(), voie_b(&network).unwrap());
-    let order = order_inverse(network.nombre_places());
+    let order = order_inverse(network.number_places());
     assert_eq!(
         voie_c(&network, &order).unwrap(),
         voie_c(&network, &order).unwrap()

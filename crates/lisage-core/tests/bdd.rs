@@ -8,13 +8,13 @@ use lisage_core::observer::NoOpObserver;
 
 type PoolBdd = Arena<BddController>;
 
-fn pool(nombre_variables: u32) -> PoolBdd {
-    Arena::new(BddController::new(nombre_variables), Box::new(NoOpObserver))
+fn pool(number_variables: u32) -> PoolBdd {
+    Arena::new(BddController::new(number_variables), Box::new(NoOpObserver))
 }
 
 /// Truth table of the constant ⊥.
-fn table_constante(nombre_variables: u32, value: bool) -> Vec<bool> {
-    vec![value; 1usize << nombre_variables]
+fn table_constante(number_variables: u32, value: bool) -> Vec<bool> {
+    vec![value; 1usize << number_variables]
 }
 
 /// Truth table of the XOR of two variables.

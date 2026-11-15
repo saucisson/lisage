@@ -90,7 +90,7 @@ pub enum PnmlError {
         attribut: &'static str,
     },
     /// Invalid numeric value.
-    NombreInvalide {
+    NumberInvalide {
         element: &'static str,
         texte: String,
     },
@@ -115,7 +115,7 @@ impl std::fmt::Display for PnmlError {
             PnmlError::AttributManquant { element, attribut } => {
                 write!(formatter, "attribute {attribut} missing on <{element}>")
             }
-            PnmlError::NombreInvalide { element, texte } => {
+            PnmlError::NumberInvalide { element, texte } => {
                 write!(formatter, "invalid number in <{element}>: {texte:?}")
             }
             PnmlError::ArcVersInconnu { source, cible } => {
@@ -464,12 +464,12 @@ impl NetworkPetri {
     }
 
     /// Number of places.
-    pub fn nombre_places(&self) -> usize {
+    pub fn number_places(&self) -> usize {
         self.places.len()
     }
 
     /// Number of transitions.
-    pub fn nombre_transitions(&self) -> usize {
+    pub fn number_transitions(&self) -> usize {
         self.transitions.len()
     }
 
@@ -600,7 +600,7 @@ fn parser_place(
     let marquage_initial = match lire_texte_enfant(enfants, ELEMENT_MARQUAGE) {
         Some(texte) => texte
             .parse::<u64>()
-            .map_err(|_| PnmlError::NombreInvalide {
+            .map_err(|_| PnmlError::NumberInvalide {
                 element: ELEMENT_MARQUAGE,
                 texte,
             })?,

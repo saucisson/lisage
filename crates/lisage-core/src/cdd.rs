@@ -33,7 +33,7 @@ use crate::dbm::Dbm;
 pub const VIDE: Cdd = Cdd { zones: Vec::new() };
 
 /// Non-convex region-key: finite union of closed DBM zones over
-/// `nombre_variables` clocks. Every construction goes through [`Cdd::new`],
+/// `number_variables` clocks. Every construction goes through [`Cdd::new`],
 /// which normalizes: empty zones removed, sort, dedup — the
 /// *syntactic* normal form of the union (assumed non-canonicity, spec Q9 (i)).
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
@@ -123,14 +123,14 @@ impl CddKeys {
             .iter()
             .find(|region| !region.est_vide())
             .and_then(|region| region.zones().first())
-            .map(Dbm::nombre_variables)
+            .map(Dbm::number_variables)
         else {
             return false;
         };
         for region in regions {
             for zone in region.zones() {
                 assert_eq!(
-                    zone.nombre_variables(),
+                    zone.number_variables(),
                     n,
                     "coverage of a heterogeneous family (internal invariant)"
                 );
