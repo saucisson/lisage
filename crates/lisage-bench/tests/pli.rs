@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{count, union};
+use lisage_core::pli::{count as count_pli, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::interpreter::count;
 use lisage_lang::value::{Atom, Value};
@@ -76,7 +76,7 @@ proptest! {
         );
         let anchor = Anchor(0);
         let root = compiler_ensemble(&mut input, anchor, &schema, &ensemble);
-        let dd = count(&input, &mut output, anchor, &schema, root).unwrap();
+        let dd = count_pli(&input, &mut output, anchor, &schema, root).unwrap();
         prop_assert_eq!(dd, count(&ensemble), "DD path (A4 fold) != path A (count)");
     }
 }
