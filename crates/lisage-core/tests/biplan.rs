@@ -201,7 +201,7 @@ fn test_compaction_profilee() {
     assert_ne!(new, root);
     assert!(pool.resolve(new).is_ok());
     assert!(pool.index_level(Level(LEVEL_ROOT)).contains(&new));
-    // Le seuil n'est step atteint with peu de morts.
+    // Threshold not reached with few dead.
     assert!(!seuil_atteint(1, 100));
     assert_eq!(SEUIL_COMPACTION_NUM, 1);
     assert_eq!(SEUIL_COMPACTION_DEN, 4);
