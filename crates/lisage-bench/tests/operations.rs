@@ -69,7 +69,7 @@ fn predicat_lang(value: &Value) -> bool {
 proptest! {
     /// C1 differential: exists DD (pli `(Bool,∨,∧)`) == exists interpreter.
     #[test]
-    fn test_c1_differentiel_exists_voie_a_vs_dd(
+    fn test_c1_differentiel_exists_lane_a_vs_dd(
         maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)
     ) {
         let schema = Schema::Map(
@@ -102,7 +102,7 @@ proptest! {
     /// C1 differential: filter DD == set filtered by path A,
     /// compared structurally (C1: same set ⇒ same node).
     #[test]
-    fn test_c1_differentiel_filter_voie_a_vs_dd(
+    fn test_c1_differentiel_filter_lane_a_vs_dd(
         maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)
     ) {
         let schema = Schema::Map(
@@ -137,7 +137,7 @@ proptest! {
     /// C1 differential: map(f) DD (relabeling) == map interpreter on a
     /// random set of atoms, compared structurally.
     #[test]
-    fn test_c1_differentiel_map_voie_a_vs_dd(
+    fn test_c1_differentiel_map_lane_a_vs_dd(
         atomes in prop::collection::btree_set(0u64..3, 0..4)
     ) {
         let schema = Schema::Atom(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));

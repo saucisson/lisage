@@ -53,7 +53,7 @@ pub struct EtatTrace {
     /// Nodes seen (created or shared) up to the position.
     pub nodes: BTreeSet<NodeId>,
     /// Attributes seen `(channel, node, value)`, in emission order.
-    pub attributs: Vec<(CanalAttr, NodeId, String)>,
+    pub attributes: Vec<(CanalAttr, NodeId, String)>,
     /// Number of `MemoHit` up to the position.
     pub memo_hits: usize,
     /// Number of `MemoMiss` up to the position.
@@ -120,7 +120,7 @@ impl Scrubber {
                     etat.nodes.insert(*node);
                 }
                 TraceEvent::Attr { canal, node, value } => {
-                    etat.attributs.push((*canal, *node, value.clone()));
+                    etat.attributes.push((*canal, *node, value.clone()));
                 }
                 TraceEvent::MemoHit { .. } => etat.memo_hits += 1,
                 TraceEvent::MemoMiss { .. } => etat.memo_misses += 1,
@@ -154,7 +154,7 @@ fn couleur_canal(canal: CanalAttr) -> &'static str {
 /// on this node (memory > synthesized > inherited > default).
 fn couleur_node(etat: &EtatTrace, node: NodeId) -> &'static str {
     let mut couleur = COULEUR_DEFAUT;
-    for (canal, n, _) in &etat.attributs {
+    for (canal, n, _) in &etat.attributes {
         if *n == node {
             couleur = couleur_canal(*canal);
         }
@@ -193,13 +193,13 @@ fn ouvrir_svg(svg: &mut String, width: u32, height: u32, scrubber: &Scrubber, et
 fn rendre_frise(svg: &mut String, scrubber: &Scrubber, width: u32) {
     let y_frise = MARGE_HAUT + 8;
     let width_frise = width - 2 * MARGE_GAUCHE;
-    let pas = if scrubber.longueur() == 0 {
+    let step = if scrubber.longueur() == 0 {
         0
     } else {
         width_frise / scrubber.longueur() as u32
     };
     for (index, evenement) in scrubber.evenements.iter().enumerate() {
-        let x = MARGE_GAUCHE + index as u32 * pas;
+        let x = MARGE_GAUCHE + index as u32 * step;
         let (height_tiret, couleur) = tiret_frise(evenement);
         svg.push_str(&format!(
             "<line x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" stroke=\"{couleur}\" stroke-width=\"2\"/>\n",
@@ -208,7 +208,7 @@ fn rendre_frise(svg: &mut String, scrubber: &Scrubber, width: u32) {
         ));
     }
     if scrubber.position() > 0 && scrubber.position() <= scrubber.longueur() {
-        let x = MARGE_GAUCHE + scrubber.position() as u32 * pas;
+        let x = MARGE_GAUCHE + scrubber.position() as u32 * step;
         svg.push_str(&format!(
             "<line x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" stroke=\"{COULEUR_CURSEUR}\" stroke-width=\"2\"/>\n",
             y_frise,
@@ -334,7 +334,7 @@ fn rendre_nodes<P: Pool<Key = u64, Payload = bool>>(
 /// event timeline (rounds as vertical bars, current position
 /// highlighted), diagram with colored channels, ghosts as watermark, and
 /// dashboard (hits/misses/rounds).
-pub fn rendre_svg_pas_a_pas<P: Pool<Key = u64, Payload = bool>>(
+pub fn rendre_svg_step_by_step<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     root: NodeId,
     scrubber: &Scrubber,

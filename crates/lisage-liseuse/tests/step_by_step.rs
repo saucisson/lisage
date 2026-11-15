@@ -15,7 +15,9 @@ use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compi
 use lisage_core::transduction::Transducteur;
 use lisage_core::{Anchor, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
-use lisage_liseuse::pas_a_pas::{DiffTrace, Scrubber, diff, legende_canaux, rendre_svg_pas_a_pas};
+use lisage_liseuse::step_by_step::{
+    DiffTrace, Scrubber, diff, legende_canaux, rendre_svg_step_by_step,
+};
 use lisage_liseuse::trace::{TRACE_VERSION, serialiser_evenement};
 
 type PoolRef = Arena<ReferenceController>;
@@ -61,7 +63,7 @@ fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> N
 /// M2-6: the trace schema is versioned v2 and serializes the new
 /// step-by-step events.
 #[test]
-fn test_serialisation_v2_evenements_pas_a_pas() {
+fn test_serialisation_v2_evenements_step_by_step() {
     assert_eq!(TRACE_VERSION, 2);
     let attr = serialiser_evenement(&TraceEvent::Attr {
         canal: CanalAttr::Inherited,
@@ -286,7 +288,7 @@ fn test_scrubber_replay_et_diff() {
     scrubber.aller_a(3);
     let etat3 = scrubber.etat();
     assert_eq!(etat3.nodes, BTreeSet::from([NodeId(1)]));
-    assert_eq!(etat3.attributs.len(), 1);
+    assert_eq!(etat3.attributes.len(), 1);
     assert_eq!(etat3.memo_misses, 1);
     assert_eq!(etat3.memo_hits, 0);
     assert_eq!(etat3.rounds, 0, "the Round at index 3 is not replayed yet");
@@ -325,7 +327,7 @@ fn test_scrubber_replay_et_diff() {
 /// M2-6: the step-by-step SVG rendering colors the channels, marks the ghosts
 /// as dashed, draws the timeline with the rounds, and is deterministic.
 #[test]
-fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
+fn test_rendu_svg_step_by_step_canaux_et_fantomes() {
     let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -369,7 +371,7 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
     let mut scrubber = Scrubber::new(evenements);
     scrubber.aller_a(scrubber.longueur());
     let diff_empty = DiffTrace::default();
-    let svg = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_empty);
+    let svg = rendre_svg_step_by_step(&pool, root, &scrubber, &diff_empty);
     // Colored channels present (inherited blue, synthesized orange).
     let legende = legende_canaux();
     assert!(
@@ -391,14 +393,14 @@ fn test_rendu_svg_pas_a_pas_canaux_et_fantomes() {
         !diff_fantomes.fantomes.is_empty(),
         "present nodes = ghosts when going back to 0"
     );
-    let svg_fantomes = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_fantomes);
+    let svg_fantomes = rendre_svg_step_by_step(&pool, root, &scrubber, &diff_fantomes);
     assert!(
         svg_fantomes.contains("stroke-dasharray=\"4 3\""),
         "ghosts dashed"
     );
 
     // Determinism.
-    let svg2 = rendre_svg_pas_a_pas(&pool, root, &scrubber, &diff_empty);
+    let svg2 = rendre_svg_step_by_step(&pool, root, &scrubber, &diff_empty);
     assert_eq!(svg, svg2, "deterministic rendering");
 }
 
@@ -452,7 +454,7 @@ fn test_scrubber_proprietes_prefixe_monotone_et_diff_antisymetrique() {
             assert!(precedent.memo_hits <= etat.memo_hits);
             assert!(precedent.memo_misses <= etat.memo_misses);
             assert!(precedent.rounds <= etat.rounds);
-            assert!(precedent.attributs.len() <= etat.attributs.len());
+            assert!(precedent.attributes.len() <= etat.attributes.len());
             // Antisymmetry of the diff between positions k-1 and k.
             let diff_avant = diff(&precedent, &etat);
             let diff_arriere = diff(&etat, &precedent);

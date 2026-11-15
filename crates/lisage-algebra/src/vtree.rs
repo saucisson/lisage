@@ -86,24 +86,24 @@ impl Vtree {
 
     /// Validates the vtree: each variable appears only once.
     pub fn valider(&self) -> Result<(), ErrorVtree> {
-        let mut vues = Vec::new();
-        self.collecter_doublons(&mut vues)?;
+        let mut views = Vec::new();
+        self.collecter_doublons(&mut views)?;
         Ok(())
     }
 
     /// Collects the first variable seen twice, if any.
-    fn collecter_doublons(&self, vues: &mut Vec<Atom>) -> Result<(), ErrorVtree> {
+    fn collecter_doublons(&self, views: &mut Vec<Atom>) -> Result<(), ErrorVtree> {
         match self {
             Vtree::Feuille(variable) => {
-                if vues.contains(variable) {
+                if views.contains(variable) {
                     return Err(ErrorVtree::VariableEnDouble(*variable));
                 }
-                vues.push(*variable);
+                views.push(*variable);
                 Ok(())
             }
             Vtree::Node { gauche, droite } => {
-                gauche.collecter_doublons(vues)?;
-                droite.collecter_doublons(vues)
+                gauche.collecter_doublons(views)?;
+                droite.collecter_doublons(views)
             }
         }
     }

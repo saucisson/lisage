@@ -84,7 +84,7 @@ fn test_sensibilisation_et_tir() {
 }
 
 #[test]
-fn test_space_atteignable_voie_a() {
+fn test_space_atteignable_lane_a() {
     let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
     let space = space_atteignable(&network);
     // 3 markings: initial, after t1, after t2.
@@ -116,15 +116,15 @@ fn test_error_xml_mal_form() {
 }
 
 #[test]
-fn test_error_attribut_manquant() {
+fn test_error_attribute_manquant() {
     let result = NetworkPetri::depuis_pnml(&PnmlDocument(
         "<pnml><net><place/></net></pnml>".to_string(),
     ));
     assert!(matches!(
         result,
-        Err(PnmlError::AttributManquant {
+        Err(PnmlError::AttributeManquant {
             element: "place",
-            attribut: "id"
+            attribute: "id"
         })
     ));
 }
