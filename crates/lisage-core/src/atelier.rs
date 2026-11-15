@@ -34,7 +34,7 @@
 //! - [`AnchorFenetre`]: the composite anchor `{base, horizon}` of the
 //!   SWP protocol — two named offsets, the slide is the movement of the base,
 //!   carried by the incoming arc;
-//! - [`construire_fenetre_anchore`] / [`comparer_anchors_fenetre`]: the
+//! - [`construire_fenetre_anchored`] / [`comparer_anchors_fenetre`]: the
 //!   window read under two anchors — each anchor has its own root, the
 //!   relative shape of the window is shared (`meme_forme`), only the
 //!   absolute readings differ: "the anchor moves, the pool never does".
@@ -627,7 +627,7 @@ impl AnchorFenetre {
 /// shape of the window stays relative (keys `0..size-1`, min section = 0)
 /// and shared. Returns `(root, window)`: the root specific to this base,
 /// the window shape reached by its incoming arc.
-pub fn construire_fenetre_anchore<P: Pool<Key = u64, Payload = bool>>(
+pub fn construire_fenetre_anchored<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
@@ -680,8 +680,8 @@ pub fn comparer_anchors_fenetre<P: Pool<Key = u64, Payload = bool>>(
 ) -> Result<RapportComparaisonAnchors, PoolError> {
     // Each anchor enters the pool through its incoming arc (its base); the
     // window shape reached on both sides must be the same node.
-    let (root_avant, fenetre_avant) = construire_fenetre_anchore(pool, anchor, size, anchor_avant);
-    let (root_apres, fenetre_apres) = construire_fenetre_anchore(pool, anchor, size, anchor_apres);
+    let (root_avant, fenetre_avant) = construire_fenetre_anchored(pool, anchor, size, anchor_avant);
+    let (root_apres, fenetre_apres) = construire_fenetre_anchored(pool, anchor, size, anchor_apres);
     let nodes_pool = pool.node_count() as u64;
     let meme_forme = fenetre_avant == fenetre_apres;
     let avant = measure(pool, root_avant, observer)?;
