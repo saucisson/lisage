@@ -10,7 +10,7 @@ use lisage_core::atelier::{AtelierController, Reductions, measure};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::ReferenceController;
 
-use lisage_liseuse::philosophes::{build_r_n, mots_atteignables, pool_neuf, schema_anneau};
+use lisage_liseuse::philosophers::{build_r_n, mots_atteignables, pool_neuf, schema_anneau};
 
 const ANCHOR: Anchor = Anchor(0);
 

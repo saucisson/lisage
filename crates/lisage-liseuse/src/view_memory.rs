@@ -163,7 +163,7 @@ pub fn rendre_svg_view_memory(
             pool.nom,
             pool.live_principal,
             pool.live_ombre,
-            metriques.morts,
+            metriques.dead,
             metriques.gc,
             metriques.compactions,
             metriques.taux_hit()

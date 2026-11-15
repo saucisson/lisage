@@ -14,7 +14,7 @@ use lisage_algebra::reduction::{
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::biplan::{IndexLevels, MetriquesPool, NodeEntry, Plan, StatsGc, seuil_atteint};
+use crate::biplan::{IndexLevels, MetriquesPool, NodeEntry, Plan, StatsGc, threshold_atteint};
 use crate::observer::{Observer, ReductionRule, TraceEvent};
 
 /// Hash-consing key: (controller, anchor, form).
@@ -144,7 +144,7 @@ impl<C: Controller> Arena<C> {
         // slot count, which includes tombstones from a previous GC without
         // compaction).
         let live = self.nodes.iter().filter(|e| e.form.is_some()).count() as u64;
-        let compaction = seuil_atteint(collectes, total);
+        let compaction = threshold_atteint(collectes, total);
         if compaction {
             self.remap = self.compacter();
         } else {
@@ -152,7 +152,7 @@ impl<C: Controller> Arena<C> {
         }
         self.metriques.gc += 1;
         self.metriques.live = live;
-        self.metriques.morts += collectes;
+        self.metriques.dead += collectes;
         if compaction {
             self.metriques.compactions += 1;
         }

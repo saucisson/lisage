@@ -175,7 +175,7 @@ pub struct Order<T: TypeOrder> {
     sequence: Vec<T::Key>,
     /// Order constraints of the type, embedded.
     contraintes: Vec<(T::Key, T::Key)>,
-    marqueur: PhantomData<fn() -> T>,
+    marker: PhantomData<fn() -> T>,
 }
 
 // Manual implementations: derives would add bounds on `T` itself,
@@ -186,7 +186,7 @@ impl<T: TypeOrder> Clone for Order<T> {
             canoniques: self.canoniques.clone(),
             sequence: self.sequence.clone(),
             contraintes: self.contraintes.clone(),
-            marqueur: PhantomData,
+            marker: PhantomData,
         }
     }
 }
@@ -209,7 +209,7 @@ impl<T: TypeOrder> Order<T> {
             sequence: canoniques.clone(),
             canoniques,
             contraintes: descripteur.contraintes(),
-            marqueur: PhantomData,
+            marker: PhantomData,
         }
     }
 
@@ -229,7 +229,7 @@ impl<T: TypeOrder> Order<T> {
             canoniques,
             sequence: pi,
             contraintes: descripteur.contraintes(),
-            marqueur: PhantomData,
+            marker: PhantomData,
         };
         for (avant, apres) in &order.contraintes {
             let satisfait = match (order.position(avant), order.position(apres)) {
@@ -325,7 +325,7 @@ pub trait MarqueOrder<T: TypeOrder>: Sized + Send + Sync {
 /// operands under different orders do not compile.
 pub struct Aligne<T: TypeOrder, O: MarqueOrder<T>, V> {
     value: V,
-    marqueur: PhantomData<fn() -> (T, O)>,
+    marker: PhantomData<fn() -> (T, O)>,
 }
 
 impl<T: TypeOrder, O: MarqueOrder<T>, V> Aligne<T, O, V> {
@@ -333,7 +333,7 @@ impl<T: TypeOrder, O: MarqueOrder<T>, V> Aligne<T, O, V> {
     pub fn new(value: V) -> Self {
         Aligne {
             value,
-            marqueur: PhantomData,
+            marker: PhantomData,
         }
     }
 

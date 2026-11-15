@@ -117,7 +117,7 @@ impl<S: SemiAnneau> Pli<S> {
     }
 
     /// Weight of a terminal: `weight(⊤) = 1`, `weight(⊥) = 0` (spec § 5).
-    fn poids(&self, payload: bool) -> S {
+    fn weight(&self, payload: bool) -> S {
         if payload { S::un() } else { S::zero() }
     }
 
@@ -175,11 +175,11 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
             total = total.plus(&multiplicateur.fois(s));
         }
         // Implicit default arc (R-default): its continuation is D_δ, of
-        // weight `poids(false)` on the reference instance (A6).
+        // weight `weight(false)` on the reference instance (A6).
         if let Some(defaut) = self.keys.default(level)
             && !arcs.contains_key(&defaut)
         {
-            total = total.plus(&self.poids(false));
+            total = total.plus(&self.weight(false));
         }
         total
     }
@@ -211,8 +211,8 @@ impl<S: SemiAnneau> Transduction for Pli<S> {
         _h: &(),
     ) -> (NodeId, S) {
         let terminal = pool.intern(anchor, Form::Terminal(payload));
-        let poids = self.poids(payload);
-        (terminal, poids)
+        let weight = self.weight(payload);
+        (terminal, weight)
     }
 }
 

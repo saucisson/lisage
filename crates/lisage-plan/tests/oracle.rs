@@ -70,27 +70,27 @@ fn test_prediction_size_et_cout_total() {
 /// M3-3: the differential guardrail compares prediction and measurement
 /// within a factor (C4 falsifiable out of bounds).
 #[test]
-fn test_garde_fou_differentiel() {
+fn test_guardrail_differentiel() {
     // conforming: measure = predicted, and at bounds [predicted/2, 2 × predicted].
-    assert!(Oracle::garde_fou(100, 100).est_conforming());
-    assert!(Oracle::garde_fou(100, 50).est_conforming());
-    assert!(Oracle::garde_fou(100, 200).est_conforming());
+    assert!(Oracle::guardrail(100, 100).est_conforming());
+    assert!(Oracle::guardrail(100, 50).est_conforming());
+    assert!(Oracle::guardrail(100, 200).est_conforming());
     // out of bounds: model falsified.
-    assert!(!Oracle::garde_fou(100, 49).est_conforming());
-    assert!(!Oracle::garde_fou(100, 201).est_conforming());
+    assert!(!Oracle::guardrail(100, 49).est_conforming());
+    assert!(!Oracle::guardrail(100, 201).est_conforming());
     // exact ratio.
     assert_eq!(VerdictGardeFou::new(100, 150).ratio(), Rationnel::new(3, 2));
     assert!(BOUND_INFERIEURE.inferieur_ou_egal(&BOUND_SUPERIEURE));
     // predicted = 0 (null encoding cost or queries): conforming iff measure = 0.
-    assert!(Oracle::garde_fou(0, 0).est_conforming());
-    assert!(!Oracle::garde_fou(0, 1).est_conforming());
+    assert!(Oracle::guardrail(0, 0).est_conforming());
+    assert!(!Oracle::guardrail(0, 1).est_conforming());
 }
 
 /// Property (deterministic LCG): the prediction is monotonic in density
 /// and in downstream queries, and the guardrail is conforming when the
 /// measurement equals the prediction.
 #[test]
-fn test_propriete_prediction_monotone_et_garde_fou() {
+fn test_propriete_prediction_monotone_et_guardrail() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
     const INCREMENT_LCG: u64 = 1442695040888963407;
@@ -135,7 +135,7 @@ fn test_propriete_prediction_monotone_et_garde_fou() {
         assert!(prediction.cout_total_predit <= plus_de_requetes.cout_total_predit);
         // Guardrail conforming when measure = prediction.
         assert!(
-            Oracle::garde_fou(prediction.cout_total_predit, prediction.cout_total_predit)
+            Oracle::guardrail(prediction.cout_total_predit, prediction.cout_total_predit)
                 .est_conforming()
         );
     }

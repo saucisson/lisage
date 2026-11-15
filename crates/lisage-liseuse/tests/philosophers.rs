@@ -6,7 +6,7 @@
 use lisage_core::Anchor;
 use lisage_core::operations::{KeyPresentes, existe, filtrer};
 use lisage_core::pli::count;
-use lisage_liseuse::philosophes::{
+use lisage_liseuse::philosophers::{
     build_mangeurs, build_r_n, cellules_legales, count_r_n, mots_atteignables, pool_neuf,
     schema_anneau, schema_mangeurs,
 };
@@ -161,7 +161,7 @@ fn test_sept_forms_contre_r_n() {
             for i in 0..n as usize {
                 vus.insert((
                     mot[i],
-                    lisage_liseuse::philosophes::fourchette(&mot, n as usize, i),
+                    lisage_liseuse::philosophers::fourchette(&mot, n as usize, i),
                 ));
             }
         }
@@ -245,12 +245,12 @@ fn test_figure_svg_r5_exportee() {
 
     let dossier = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
     std::fs::create_dir_all(dossier).expect("creation of bench-results");
-    let path = format!("{dossier}/philosophes-n5.svg");
+    let path = format!("{dossier}/philosophers-n5.svg");
     // The committed figure must be up to date: a diverging rendering fails here.
     let commitee = std::fs::read_to_string(&path).expect("reading the committed figure");
     assert_eq!(
         svg, commitee,
-        "bench-results/philosophes-n5.svg is up to date"
+        "bench-results/philosophers-n5.svg is up to date"
     );
     std::fs::write(&path, &svg).expect("writing the figure");
 }

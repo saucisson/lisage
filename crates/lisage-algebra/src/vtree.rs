@@ -77,10 +77,10 @@ impl Vtree {
     }
 
     /// Depth of the tree (leaf = 1).
-    pub fn profondeur(&self) -> usize {
+    pub fn depth(&self) -> usize {
         match self {
             Vtree::Feuille(_) => 1,
-            Vtree::Node { gauche, droite } => 1 + gauche.profondeur().max(droite.profondeur()),
+            Vtree::Node { gauche, droite } => 1 + gauche.depth().max(droite.depth()),
         }
     }
 

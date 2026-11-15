@@ -137,7 +137,7 @@ impl<T: TypeOrder> Conversion<T> {
 }
 
 /// Variance marker of `Royaume`: no bound on `T`, `O`, `E`.
-type MarqueurRoyaume<T, O, E> = PhantomData<fn() -> (T, O, E)>;
+type MarkerRoyaume<T, O, E> = PhantomData<fn() -> (T, O, E)>;
 
 /// Controller realm: typed contract (type `T`, order mark `O`,
 /// encoding mark `E`) — extension of the typed contract from orders to
@@ -145,7 +145,7 @@ type MarqueurRoyaume<T, O, E> = PhantomData<fn() -> (T, O, E)>;
 /// leaving the realm = explicit conversion.
 pub struct Royaume<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> {
     value: V,
-    marqueur: MarqueurRoyaume<T, O, E>,
+    marker: MarkerRoyaume<T, O, E>,
 }
 
 impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> {
@@ -153,7 +153,7 @@ impl<T: TypeOrder, O: MarqueOrder<T>, E: MarqueEncodage, V> Royaume<T, O, E, V> 
     pub fn new(value: V) -> Self {
         Royaume {
             value,
-            marqueur: PhantomData,
+            marker: PhantomData,
         }
     }
 

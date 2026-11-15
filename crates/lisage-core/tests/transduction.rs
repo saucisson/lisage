@@ -19,9 +19,9 @@ fn pool() -> PoolRef {
 }
 
 /// Identity transduction with inherited channel = depth: H = u64.
-struct IdentiteProfondeur;
+struct IdentiteDepth;
 
-impl Transduction for IdentiteProfondeur {
+impl Transduction for IdentiteDepth {
     type H = u64;
     type S = u64;
     type Out = bool;
@@ -187,19 +187,19 @@ fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
 /// Inherited channel: the identity transduction rebuilds the same forms; the
 /// returned depth equals the DAG's height.
 #[test]
-fn test_channel_herite_identite_et_profondeur() {
+fn test_channel_herite_identite_et_depth() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
     let (_, b) = dag(&mut input, anchor);
-    let mut runner = Transducteur::new(IdentiteProfondeur);
-    let (result, profondeur) = runner.run(&input, &mut output, anchor, b).unwrap();
+    let mut runner = Transducteur::new(IdentiteDepth);
+    let (result, depth) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
         output.resolve(result).unwrap(),
         input.resolve(b).unwrap(),
         "identity ⇒ same forms"
     );
-    assert_eq!(profondeur, 2, "max depth reached = DAG height");
+    assert_eq!(depth, 2, "max depth reached = DAG height");
 }
 
 /// Synthesized channel: φ_aggr sums the children's weights; the count is the
@@ -249,7 +249,7 @@ fn test_memo_fingerprint_op_node() {
     // Another operation (different fingerprint) on the same node: separate
     // memo. With H = depth, ⊤ is visited at two distinct h (1 via b's arc 1,
     // 2 via a's arc 0): 5 entries (b, a, ⊤×2, ⊥).
-    let mut other = Transducteur::new(IdentiteProfondeur);
+    let mut other = Transducteur::new(IdentiteDepth);
     let (r3, _) = other.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(output.resolve(r3).unwrap(), input.resolve(b).unwrap());
     assert_eq!(

@@ -92,8 +92,8 @@ proptest! {
     #[test]
     fn test_lane_a_filter_count(maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)) {
         let set = set_aleatoire(maps);
-        let garde = filter(&set, |m| m != &map_de(&[(0, 1), (1, 1)]));
-        prop_assert!(count(&garde) <= count(&set));
+        let guard = filter(&set, |m| m != &map_de(&[(0, 1), (1, 1)]));
+        prop_assert!(count(&guard) <= count(&set));
     }
 
     /// Path A: `lookup(k)` of a member m equals m(k) (None if absent).

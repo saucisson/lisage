@@ -182,7 +182,7 @@ impl Oracle {
 
     /// Differential guardrail (C4): compares the prediction to the actual
     /// measurement. Conforming if the measurement fits in [predicted/2, 2 × predicted].
-    pub fn garde_fou(predit: u64, measure: u64) -> VerdictGardeFou {
+    pub fn guardrail(predit: u64, measure: u64) -> VerdictGardeFou {
         VerdictGardeFou::new(predit, measure)
     }
 }

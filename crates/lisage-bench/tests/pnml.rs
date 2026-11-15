@@ -145,10 +145,10 @@ fn test_error_arc_mal_oriente() {
 }
 
 #[test]
-fn test_error_poids_non_supporte() {
+fn test_error_weight_non_supporte() {
     let document = "<pnml><net><place id=\"p0\"/><transition id=\"t1\"/><arc source=\"p0\" target=\"t1\" weight=\"2\"/></net></pnml>";
     let result = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string()));
-    assert!(matches!(result, Err(PnmlError::PoidsNonSupporte { .. })));
+    assert!(matches!(result, Err(PnmlError::WeightNonSupporte { .. })));
 }
 
 #[test]

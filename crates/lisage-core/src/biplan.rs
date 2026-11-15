@@ -22,9 +22,9 @@ pub enum Plan {
 
 /// Profiled compaction threshold: compact when the tombstone proportion
 /// reaches 1/4 of the slots (dead × 4 ≥ total).
-pub const SEUIL_COMPACTION_NUM: u64 = 1;
+pub const THRESHOLD_COMPACTION_NUM: u64 = 1;
 /// Denominator of the compaction threshold.
-pub const SEUIL_COMPACTION_DEN: u64 = 4;
+pub const THRESHOLD_COMPACTION_DEN: u64 = 4;
 
 /// Percentage base for `taux_hit` (returned in percent, integer).
 pub const BASE_POURCENTAGE: u64 = 100;
@@ -39,7 +39,7 @@ pub struct MetriquesPool {
     /// Live nodes after the last GC.
     pub live: u64,
     /// Nodes collected in total.
-    pub morts: u64,
+    pub dead: u64,
     /// Number of GCs executed.
     pub gc: u64,
     /// Number of compactions executed.
@@ -79,6 +79,6 @@ pub(crate) struct NodeEntry<Key, Payload> {
 pub(crate) type IndexLevels = BTreeMap<Level, BTreeSet<NodeId>>;
 
 /// Decides whether the profiled compaction threshold is reached.
-pub fn seuil_atteint(morts: u64, total: u64) -> bool {
-    morts * SEUIL_COMPACTION_DEN >= total * SEUIL_COMPACTION_NUM && total > 0
+pub fn threshold_atteint(dead: u64, total: u64) -> bool {
+    dead * THRESHOLD_COMPACTION_DEN >= total * THRESHOLD_COMPACTION_NUM && total > 0
 }

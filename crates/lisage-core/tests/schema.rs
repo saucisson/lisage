@@ -288,7 +288,7 @@ fn test_seq_hors_domain() {
 /// M2-1: Seq — the end marker is a required key: `default()` returns `None`
 /// for all levels of a Seq schema (no absorbable default).
 #[test]
-fn test_seq_marqueur_fin_key_requise() {
+fn test_seq_marker_fin_key_requise() {
     use lisage_algebra::interface::{KeyAlgebra, Level};
     use lisage_core::schema::SchemaKeys;
 

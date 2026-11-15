@@ -49,7 +49,7 @@ const ELEMENT_TEXT: &str = "text";
 /// Initial marking.
 const ELEMENT_MARQUAGE: &str = "initialMarking";
 /// Accepted arc weight (weights > 1 are outside the subset).
-const POIDS_ACCEPTE: &str = "1";
+const WEIGHT_ACCEPTE: &str = "1";
 
 // ---------------------------------------------------------------------------
 // Distinct types for node identifiers (ADR-0006)
@@ -100,7 +100,7 @@ pub enum PnmlError {
     /// transitions (a PNML arc links a place and a transition).
     ArcMalOriente { source: String, cible: String },
     /// Arc weight outside the subset (only weight 1 is supported).
-    PoidsNonSupporte { poids: String },
+    WeightNonSupporte { weight: String },
 }
 
 impl std::fmt::Display for PnmlError {
@@ -127,10 +127,10 @@ impl std::fmt::Display for PnmlError {
                     "badly oriented arc from {source:?} to {cible:?} (place↔transition expected)"
                 )
             }
-            PnmlError::PoidsNonSupporte { poids } => {
+            PnmlError::WeightNonSupporte { weight } => {
                 write!(
                     formatter,
-                    "arc weight {poids:?} not supported (weight 1 only)"
+                    "arc weight {weight:?} not supported (weight 1 only)"
                 )
             }
         }
@@ -631,11 +631,11 @@ fn parser_transition(
 }
 
 fn parser_arc(attributes: &BTreeMap<String, String>) -> Result<ArcBrut, PnmlError> {
-    if let Some(poids) = attributes.get(ATTRIBUTE_WEIGHT)
-        && poids != POIDS_ACCEPTE
+    if let Some(weight) = attributes.get(ATTRIBUTE_WEIGHT)
+        && weight != WEIGHT_ACCEPTE
     {
-        return Err(PnmlError::PoidsNonSupporte {
-            poids: poids.clone(),
+        return Err(PnmlError::WeightNonSupporte {
+            weight: weight.clone(),
         });
     }
     let source = attribute_obligatoire(attributes, ELEMENT_ARC, ATTRIBUTE_SOURCE)?;

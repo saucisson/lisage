@@ -17,17 +17,17 @@ fn extraire_attribute(element: &str, attribute: &str) -> u32 {
     apres[..fin].parse().expect("integer attribute")
 }
 
-/// `y` coordinate of the text element carrying `marqueur` (e.g. `>record<`).
-fn y_texte(svg: &str, marqueur: &str) -> u32 {
-    let position = svg.find(marqueur).expect("marker present");
+/// `y` coordinate of the text element carrying `marker` (e.g. `>record<`).
+fn y_texte(svg: &str, marker: &str) -> u32 {
+    let position = svg.find(marker).expect("marker present");
     let avant = &svg[..position];
     let y_pos = avant.rfind(" y=\"").expect("attribute y before the marker");
     extraire_attribute(&avant[y_pos..], "y")
 }
 
-/// `x` coordinate of the text element carrying `marqueur`.
-fn x_texte(svg: &str, marqueur: &str) -> u32 {
-    let position = svg.find(marqueur).expect("marker present");
+/// `x` coordinate of the text element carrying `marker`.
+fn x_texte(svg: &str, marker: &str) -> u32 {
+    let position = svg.find(marker).expect("marker present");
     let avant = &svg[..position];
     let x_pos = avant.rfind(" x=\"").expect("attribute x before the marker");
     extraire_attribute(&avant[x_pos..], "x")
