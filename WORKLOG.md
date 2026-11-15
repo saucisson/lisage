@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 27: `poids`/`profondeur`/`morts`/`orphelin`/`marqueur`/`seuil`/`fusion`/`garde`/`philosophes` renamed to `weight`/`depth`/`dead`/`orphan`/`marker`/`threshold`/`merge`/`guardrail`/`philosophers` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `poids`→`weight`, `profondeur`→`depth`, `morts`→`dead`, `orphelin(s)`→`orphan(s)`, `marqueur`→`marker`, `seuil`→`threshold`, `fusion`→`merge`, `garde_fou`→`guardrail`, `garde`→`guard`, `philosophes`→`philosophers` (all cases, compounds included), workspace-wide (31 files), per glossary. Module/test files git-mv'd: `philosophes.rs`→`philosophers.rs` (src+tests), `philosophes_bench.rs`→`philosophers_bench.rs`, `atelier_philosophes.rs`→`atelier_philosophers.rs`; the committed figure `bench-results/philosophes-n5.svg`→`philosophers-n5.svg` to match the renamed path string. `test_filtre_garde`→`test_filter_guard` fixed after the word-boundary pass.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
+- **Judgement calls**: `fusion`→`merge` per glossary (local `let merge = ...` shadowing is legal Rust); `garde_fou`→`guardrail`.
 ## 2026-11-14 - M6-6 part 26: `canal`/`canaux` renamed to `channel`/`channels`, wire key `canal` protected (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
