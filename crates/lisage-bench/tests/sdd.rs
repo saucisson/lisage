@@ -145,7 +145,7 @@ fn test_canonicite_par_handle_reinstallation_identique() {
 /// distinct handles (quotient classes), same form under the same anchor = same
 /// handle.
 #[test]
-fn test_canonicite_deux_anchors_distinctes() {
+fn test_canonicite_two_anchors_distinctes() {
     let mut pool = pool_neuf();
     let form = Form::Terminal(true);
     let same_anchor_a = pool.intern(Anchor(0), form.clone());

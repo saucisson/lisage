@@ -368,7 +368,7 @@ fn test_propriete_threshold_rate_hit_and_invariant_gc() {
 /// intermediate compaction counts the living entries over the live entries,
 /// not over the slot count (which includes the tombstones of the first GC).
 #[test]
-fn test_gc_deux_fois_live_exacts() {
+fn test_gc_two_fois_live_exacts() {
     let mut pool = arena();
     let (root, _orphan) = petit_diagramme(&mut pool);
     // Chain of nodes all reachable from the root: the first GC only

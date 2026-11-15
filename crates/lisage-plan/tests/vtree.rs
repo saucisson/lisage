@@ -66,7 +66,7 @@ fn test_pi_violant_vtree_rejete() {
 
 /// π that is not a permutation of the vtree's variables: rejected.
 #[test]
-fn test_pi_pas_une_permutation_rejete() {
+fn test_pi_not_one_permutation_rejete() {
     let result = Order::new(&vtree_test(), vec![Atom(0), Atom(1), Atom(2), Atom(9)]);
     assert_eq!(result.unwrap_err(), ErrorOrder::PasUnePermutation);
 }

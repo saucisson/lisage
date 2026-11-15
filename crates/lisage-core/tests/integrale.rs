@@ -85,7 +85,7 @@ fn test_intersection_intervals() {
 /// fold (discrete) is the sum of their sizes. This is the count → measure
 /// passage.
 #[test]
-fn test_integrale_union_deux_intervals() {
+fn test_integrale_union_two_intervals() {
     let mut pool = pool();
     let intervals = vec![Interval::new(2, 5), Interval::new(7, 9)];
     let root = compiler_union(&mut pool, ANCHOR, &intervals);
