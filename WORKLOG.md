@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 18: `compter`/`compte`/`reduire`/`couverture`/`evaluer` renamed to `count`/`reduce`/`coverage`/`evaluate` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `compteur`→`counter`, `compter`/`compte`→`count`, `reduire`/`reduit(s)`→`reduce`/`reduced(s)`, `couverture`→`coverage`, `evaluer`→`evaluate` (all cases, compounds included), workspace-wide (41 files), per glossary. Already-English `reduction`/`Reduction*` untouched. One collision fixed by hand: `lisage_lang::interpreter::count` was already English, so `lisage_core::pli::count` is imported as `count_pli` in `lisage-bench/tests/pli.rs`.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
+- **Judgement calls**: `count_pli` alias to disambiguate from the pre-existing English `interpreter::count`.
 ## 2026-11-14 - M6-6 part 17: `fenetre`/`construire`/`borne` renamed to `window`/`build`/`bound` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
