@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-14 - M6-6 part 30: `nom`/`piste`/`fiche`/`royaume`/`contenu`/`taux`/`predit`/`ancien`/`lire`/`ecrire`/`boite`/`atelier`/`fantome`/`dossier`/`cellule` renamed to `name`/`track`/`card`/`kingdom`/`content`/`rate`/`predicted`/`old`/`read`/`write`/`box`/`workshop`/`ghost`/`directory`/`cell` (issue #108)
+
+- **Issue**: #108 (M6-6, milestone M6).
+- **Done**: renames `nom`→`name`, `piste`→`track`, `fiche`→`card`, `royaume(s)`→`kingdom(s)`, `contenu`→`content`, `taux`→`rate`, `predit`→`predicted`, `ancien(ne)`→`old`, `lire`→`read`, `ecrire`→`write`, `boite`→`box`, `atelier`→`workshop`, `fantome(s)`→`ghost(s)`, `dossier`→`directory`, `cellule(s)`→`cell(s)` (all cases, compounds included), workspace-wide (36 files), per glossary. Module/test files git-mv'd: `atelier.rs`→`workshop.rs` (src+tests), `atelier_philosophers.rs`→`workshop_philosophers.rs`. One keyword collision fixed: test helper `fn boite()` became reserved `box`, renamed to `full_box()`.
+- **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
+- **Judgement calls**: `ancien`/`ancienne`→`old`; `boite`→`box` with the `full_box` helper rename.
 ## 2026-11-14 - M6-6 part 29: `cible` renamed to `target` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
