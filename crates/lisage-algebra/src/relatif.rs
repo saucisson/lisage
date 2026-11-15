@@ -224,21 +224,21 @@ impl<Argument: Clone> InputArc<Argument> {
     /// Absolute reading of a stored key: effective key = f(n)(key).
     pub fn read_key<Key>(
         &self,
-        groupe: &impl CycleGroup<Key = Key, Argument = Argument>,
+        group: &impl CycleGroup<Key = Key, Argument = Argument>,
         key: &Key,
     ) -> Key {
-        groupe.apply(key, &self.argument)
+        group.apply(key, &self.argument)
     }
 
     /// Composition of two readings: the argument accumulates (n₁ ⊕ n₂),
     /// O(1) per step (invariant of Q6); the final handle is that of the second.
     pub fn compose(
         &self,
-        groupe: &impl CycleGroup<Argument = Argument>,
+        group: &impl CycleGroup<Argument = Argument>,
         other: &InputArc<Argument>,
     ) -> InputArc<Argument> {
         InputArc {
-            argument: groupe.compose(&self.argument, &other.argument),
+            argument: group.compose(&self.argument, &other.argument),
             handle: other.handle,
         }
     }

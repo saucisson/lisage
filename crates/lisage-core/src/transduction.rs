@@ -103,7 +103,7 @@ pub struct Transducteur<T: Transduction> {
     transduction: T,
     memo: HashMap<KeyMemo<T::H>, (NodeId, T::S)>,
     memory: MemoryLevel<T::M>,
-    politique: MemoryPolicy,
+    policy: MemoryPolicy,
     observer: Option<Arc<dyn Observer>>,
 }
 
@@ -111,17 +111,17 @@ impl<T: Transduction> Transducteur<T> {
     /// New runner for the given transduction, empty memory (version 0),
     /// policy `NoMemory` (M1: no level memory), no observer.
     pub fn new(transduction: T) -> Self {
-        Self::with_politique(transduction, MemoryPolicy::NoMemory)
+        Self::with_policy(transduction, MemoryPolicy::NoMemory)
     }
 
     /// Runner with a level-memory storage policy
     /// declared by the controller (M2-3, T3).
-    pub fn with_politique(transduction: T, politique: MemoryPolicy) -> Self {
+    pub fn with_policy(transduction: T, policy: MemoryPolicy) -> Self {
         Transducteur {
             transduction,
             memo: HashMap::new(),
             memory: MemoryLevel::new(),
-            politique,
+            policy,
             observer: None,
         }
     }
@@ -130,14 +130,14 @@ impl<T: Transduction> Transducteur<T> {
     /// and the `Attr` of the three channels during execution.
     pub fn with_observer(
         transduction: T,
-        politique: MemoryPolicy,
+        policy: MemoryPolicy,
         observer: Arc<dyn Observer>,
     ) -> Self {
         Transducteur {
             transduction,
             memo: HashMap::new(),
             memory: MemoryLevel::new(),
-            politique,
+            policy,
             observer: Some(observer),
         }
     }
@@ -266,7 +266,7 @@ impl<T: Transduction> Transducteur<T> {
                     node_input: node,
                 };
                 let (node_result, effet) = self.transduction.phi_out(pool_output, ctx);
-                if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
+                if self.policy == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoryNonAutorisee);
                 }
                 if !effet.ecritures.is_empty() {
@@ -344,7 +344,7 @@ impl<T: Transduction> Transducteur<T> {
                     node_input: node,
                 };
                 let (node_result, effet) = self.transduction.phi_out(pool, ctx);
-                if self.politique == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
+                if self.policy == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
                     return Err(CoreError::MemoryNonAutorisee);
                 }
                 if !effet.ecritures.is_empty() {

@@ -8,11 +8,11 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::atelier::{
-    AtelierController, Reductions, count_chemins, count_nodes, count_size_depliee, measure,
+    AtelierController, Reductions, count_nodes, count_paths, count_size_depliee, measure,
 };
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::region::{EMPTY, Intervalle, RegionController, RegionKeys};
+use lisage_core::region::{EMPTY, Interval, RegionController, RegionKeys};
 
 type PoolBdd = Arena<AtelierController<BddController>>;
 type PoolRegion = Arena<AtelierController<RegionController>>;
@@ -50,7 +50,7 @@ fn test_collapse_commute() {
     assert_eq!(root_with, faux, "R-collapse: the node reduces to ⊥");
     let report = measure(&with, root_with, None).expect("interned node");
     assert_eq!(report.nodes_partages, 1);
-    assert_eq!(report.chemins, 1);
+    assert_eq!(report.paths, 1);
 
     let mut without = pool_bdd(Reductions::without_collapse());
     let faux = without.intern(ANCHOR, Form::Terminal(false));
@@ -64,7 +64,7 @@ fn test_collapse_commute() {
     assert_ne!(root_without, faux, "without R-collapse: the node is kept");
     let report = measure(&without, root_without, None).expect("interned node");
     assert_eq!(report.nodes_partages, 2, "node + terminal ⊥");
-    assert_eq!(report.chemins, 2, "two paths to ⊥");
+    assert_eq!(report.paths, 2, "two paths to ⊥");
 }
 
 /// Commuted R-default: the explicit δ(ℓ) arc toward D_δ is absorbed or not.
@@ -78,7 +78,7 @@ fn test_defaut_commute() {
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(Intervalle::point(0), vrai), (EMPTY, faux)]),
+            arcs: BTreeMap::from([(Interval::point(0), vrai), (EMPTY, faux)]),
         },
     );
     let Form::Node { arcs, .. } = with.resolve(root_with).expect("interned node") else {
@@ -87,7 +87,7 @@ fn test_defaut_commute() {
     assert_eq!(arcs.len(), 1, "R-default: the EMPTY arc to ⊥ is absorbed");
     let report = measure(&with, root_with, None).expect("interned node");
     assert_eq!(report.nodes_partages, 2, "node + ⊤");
-    assert_eq!(report.chemins, 1);
+    assert_eq!(report.paths, 1);
 
     let mut without = pool_region(Reductions::without_defaut());
     let vrai = without.intern(ANCHOR, Form::Terminal(true));
@@ -96,7 +96,7 @@ fn test_defaut_commute() {
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(Intervalle::point(0), vrai), (EMPTY, faux)]),
+            arcs: BTreeMap::from([(Interval::point(0), vrai), (EMPTY, faux)]),
         },
     );
     let Form::Node { arcs, .. } = without.resolve(root_without).expect("interned node") else {
@@ -105,14 +105,14 @@ fn test_defaut_commute() {
     assert_eq!(arcs.len(), 2, "without R-default: the EMPTY arc is kept");
     let report = measure(&without, root_without, None).expect("interned node");
     assert_eq!(report.nodes_partages, 3, "node + ⊤ + ⊥");
-    assert_eq!(report.chemins, 2);
+    assert_eq!(report.paths, 2);
 }
 
 /// Metrics on a diamond: 4 shared nodes (root, n1, ⊤, ⊥) and 4 paths — each
 /// root × n1 arc combination is a path of the unfolded DAG, even when the
 /// sub-paths are shared.
 #[test]
-fn test_chemins_contre_nodes() {
+fn test_paths_contre_nodes() {
     let mut pool = pool_bdd(Reductions::without_collapse());
     let vrai = pool.intern(ANCHOR, Form::Terminal(true));
     let faux = pool.intern(ANCHOR, Form::Terminal(false));
@@ -131,12 +131,12 @@ fn test_chemins_contre_nodes() {
         },
     );
     assert_eq!(count_nodes(&pool, root).expect("interned node"), 4);
-    assert_eq!(count_chemins(&pool, root).expect("interned node"), 4);
+    assert_eq!(count_paths(&pool, root).expect("interned node"), 4);
     // Unfolded size: root (1) + 2 × n1 (1 + ⊤ + ⊥ = 3) = 7.
     assert_eq!(count_size_depliee(&pool, root).expect("interned node"), 7);
     // A non-interned NodeId is a propagated error.
     assert!(count_nodes(&pool, NodeId(u32::MAX)).is_err());
-    assert!(count_chemins(&pool, NodeId(u32::MAX)).is_err());
+    assert!(count_paths(&pool, NodeId(u32::MAX)).is_err());
     assert!(count_size_depliee(&pool, NodeId(u32::MAX)).is_err());
     assert!(measure(&pool, NodeId(u32::MAX), None).is_err());
 }
@@ -191,13 +191,13 @@ fn test_propriete_commutation_lcg() {
         let root_without = arbre(&mut without, 3, amorce);
         let report_with = measure(&with, root_with, None).expect("interned node");
         let report_without = measure(&without, root_without, None).expect("interned node");
-        assert!(report_with.chemins >= 1, "at least one path");
+        assert!(report_with.paths >= 1, "at least one path");
         assert!(
             report_without.nodes_partages >= report_with.nodes_partages,
             "without reduction: nodes ≥ (same form)"
         );
         assert!(
-            report_without.chemins >= report_with.chemins,
+            report_without.paths >= report_with.paths,
             "without reduction: paths ≥ (same form)"
         );
     }
@@ -251,7 +251,7 @@ fn test_narration_measure() {
                 canal: CanalAttr::Synthesized,
                 value,
                 ..
-            } if value == "nodes_partages=4 chemins=4 size_depliee=7"
+            } if value == "nodes_partages=4 paths=4 size_depliee=7"
         )),
         "the narration event carries the full report"
     );
@@ -275,8 +275,8 @@ fn test_window_absolu_croit_relatif_constant() {
     assert_eq!(report.relatif.nodes_partages, 3);
     // Same logical object: same paths (10 bases × 4 keys) and same unfolded
     // size (root + 10 × (window + ⊤)).
-    assert_eq!(report.absolu.chemins, 40);
-    assert_eq!(report.relatif.chemins, 40);
+    assert_eq!(report.absolu.paths, 40);
+    assert_eq!(report.relatif.paths, 40);
     assert_eq!(report.absolu.size_depliee, 51);
     assert_eq!(report.relatif.size_depliee, 51);
 
@@ -292,7 +292,7 @@ fn test_window_absolu_croit_relatif_constant() {
         report.absolu.nodes_partages, 102,
         "the absolute encoding grows with the bases"
     );
-    assert_eq!(report.relatif.chemins, 400);
+    assert_eq!(report.relatif.paths, 400);
 }
 
 /// Narration (ADR-0100): the encoding comparison emits an `Attr`/`Synthesized`
@@ -353,7 +353,7 @@ fn table_ou_deux_paires() -> Vec<bool> {
 /// (R-collapse commuted: otherwise the paths would merge.)
 /// Natural order [0,1,2,3]: 10 nodes; interleaved [0,2,1,3]: 12 nodes.
 #[test]
-fn test_order_change_nodes_pas_chemins() {
+fn test_order_change_nodes_pas_paths() {
     use lisage_core::atelier::{Order, comparer_orders};
 
     let table = table_ou_deux_paires();
@@ -370,8 +370,8 @@ fn test_order_change_nodes_pas_chemins() {
     assert_eq!(report.first.nodes_partages, 10, "natural order");
     assert_eq!(report.second.nodes_partages, 12, "interleaved order");
     // Same logical object: 2^4 = 16 paths and unfolded tree 2^5-1 = 31.
-    assert_eq!(report.first.chemins, 16);
-    assert_eq!(report.second.chemins, 16);
+    assert_eq!(report.first.paths, 16);
+    assert_eq!(report.second.paths, 16);
     assert_eq!(report.first.size_depliee, 31);
     assert_eq!(report.second.size_depliee, 31);
 }
@@ -414,8 +414,8 @@ fn test_order_intercale_croissance_six_variables() {
     .expect("interned nodes");
     assert_eq!(report.first.nodes_partages, 15, "natural order");
     assert_eq!(report.second.nodes_partages, 25, "interleaved order");
-    assert_eq!(report.first.chemins, 64);
-    assert_eq!(report.second.chemins, 64);
+    assert_eq!(report.first.paths, 64);
+    assert_eq!(report.second.paths, 64);
 }
 
 /// Narration (ADR-0100): the order comparison emits an `Attr`/`Synthesized`
@@ -517,7 +517,7 @@ fn test_glisse_pool_constant_lectures_differentes() {
     assert!(report.same_form, "both anchors reach the same window form");
     assert_eq!(report.avant, report.apres, "same metrics on both sides");
     assert_eq!(report.avant.nodes_partages, 3, "root + window + ⊤");
-    assert_eq!(report.avant.chemins, 4, "one path per window key");
+    assert_eq!(report.avant.paths, 4, "one path per window key");
     assert_eq!(report.avant.size_depliee, 6);
     assert_eq!(
         report.nodes_pool, 4,

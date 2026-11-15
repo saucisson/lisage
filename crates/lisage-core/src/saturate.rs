@@ -3,9 +3,9 @@
 //!
 //! Two saturation policies, two instances of the same fixpoint semantics
 //! (same final result, different iteration strategy):
-//! - [`PolitiqueSaturation::Statique`] (Ciardo-style): `τ` is only applied
+//! - [`PolicySaturation::Statique`] (Ciardo-style): `τ` is only applied
 //!   at the declared levels;
-//! - [`PolitiqueSaturation::AutoDetectee`] (Hamez-style): all levels are
+//! - [`PolicySaturation::AutoDetectee`] (Hamez-style): all levels are
 //!   active at first; a level whose current iteration changed nothing is
 //!   removed from the active set.
 //!
@@ -34,7 +34,7 @@ const SEL_FINGERPRINT_WRAPPER: u64 = 0x5A7A_0000_0000_0000;
 /// Both policies produce the same fixpoint when `Statique` declares all
 /// levels; only the iteration strategy differs.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum PolitiqueSaturation {
+pub enum PolicySaturation {
     /// Static by level (Ciardo-style): only the listed levels are saturated
     /// at each iteration.
     Statique(Vec<Level>),
@@ -48,7 +48,7 @@ pub struct ParametresSaturation<'a, T, P> {
     /// Step transduction `τ` (cloneable for the iterations).
     pub transduction: &'a T,
     /// Saturation policy.
-    pub politique: &'a PolitiqueSaturation,
+    pub policy: &'a PolicySaturation,
     /// Single pool (read + write, payload `bool`): the current iteration and
     /// the result live in the same pool.
     pub pool: &'a mut P,
@@ -195,9 +195,9 @@ where
     P: Pool<Key = u64, Payload = bool>,
 {
     // Active levels according to the policy.
-    let mut levels_actifs: Vec<Level> = match params.politique {
-        PolitiqueSaturation::Statique(levels) => levels.clone(),
-        PolitiqueSaturation::AutoDetectee => (0..params.number_levels).map(Level).collect(),
+    let mut levels_actifs: Vec<Level> = match params.policy {
+        PolicySaturation::Statique(levels) => levels.clone(),
+        PolicySaturation::AutoDetectee => (0..params.number_levels).map(Level).collect(),
     };
 
     let mut courant = params.initial;
@@ -222,10 +222,9 @@ where
                 lisage_algebra::interface::MemoryPolicy::PerLevel,
                 Arc::clone(observer),
             ),
-            None => Transducteur::with_politique(
-                etape,
-                lisage_algebra::interface::MemoryPolicy::PerLevel,
-            ),
+            None => {
+                Transducteur::with_policy(etape, lisage_algebra::interface::MemoryPolicy::PerLevel)
+            }
         };
         let (image, _) = runner.run_same_pool(params.pool, params.anchor, courant)?;
         let next = union(params.pool, params.keys, params.anchor, courant, image)?;
@@ -235,7 +234,7 @@ where
                 iterations,
             });
         }
-        if matches!(params.politique, PolitiqueSaturation::AutoDetectee) {
+        if matches!(params.policy, PolicySaturation::AutoDetectee) {
             // Hamez policy: a level not modified by the iteration is removed
             // from the active set.
             let modifies = runner.transduction().levels_modifies();

@@ -159,7 +159,7 @@ fn parser_xml(document: &str) -> Result<XmlNode, PnmlError> {
     let octets: Vec<char> = document.chars().collect();
     let mut position = 0;
     let root = parser_element(&octets, &mut position)?;
-    sauter_espaces(&octets, &mut position);
+    sauter_spaces(&octets, &mut position);
     if position != octets.len() {
         return Err(PnmlError::XmlMalformed {
             position,
@@ -169,7 +169,7 @@ fn parser_xml(document: &str) -> Result<XmlNode, PnmlError> {
     Ok(root)
 }
 
-fn sauter_espaces(octets: &[char], position: &mut usize) {
+fn sauter_spaces(octets: &[char], position: &mut usize) {
     while *position < octets.len() && octets[*position].is_whitespace() {
         *position += 1;
     }
@@ -257,7 +257,7 @@ fn lire_balise_ouvrante(
     let nom = lire_nom(octets, position)?;
     let mut attributs = BTreeMap::new();
     loop {
-        sauter_espaces(octets, position);
+        sauter_spaces(octets, position);
         let Some(&c) = octets.get(*position) else {
             return Err(PnmlError::XmlMalformed {
                 position: *position,
@@ -276,9 +276,9 @@ fn lire_balise_ouvrante(
             }
             _ => {
                 let key = lire_nom(octets, position)?;
-                sauter_espaces(octets, position);
+                sauter_spaces(octets, position);
                 attendre(octets, position, '=')?;
-                sauter_espaces(octets, position);
+                sauter_spaces(octets, position);
                 let value = lire_chaine(octets, position)?;
                 attributs.insert(key, value);
             }
@@ -314,7 +314,7 @@ fn lire_balise_fermante(octets: &[char], position: &mut usize, nom: &str) -> Res
 
 /// Parses a complete element (recursive).
 fn parser_element(octets: &[char], position: &mut usize) -> Result<XmlNode, PnmlError> {
-    sauter_espaces(octets, position);
+    sauter_spaces(octets, position);
     if octets.get(*position) != Some(&'<') {
         return Err(PnmlError::XmlMalformed {
             position: *position,
@@ -350,7 +350,7 @@ fn parser_enfants(
 ) -> Result<Vec<XmlNode>, PnmlError> {
     let mut enfants = Vec::new();
     loop {
-        sauter_espaces(octets, position);
+        sauter_spaces(octets, position);
         let Some(&c) = octets.get(*position) else {
             return Err(PnmlError::XmlMalformed {
                 position: *position,
@@ -769,7 +769,7 @@ pub fn pas_semantique(network: &NetworkPetri, set: &BTreeSet<Value>) -> BTreeSet
 
 /// Reachable marking space (path A, increasing fixpoint over
 /// the reference `lang/` interpreter).
-pub fn espace_atteignable(network: &NetworkPetri) -> BTreeSet<Value> {
+pub fn space_atteignable(network: &NetworkPetri) -> BTreeSet<Value> {
     let initial = BTreeSet::from([marquage_initial(network)]);
     lisage_lang::interpreter::saturate(|set| pas_semantique(network, set), initial)
 }

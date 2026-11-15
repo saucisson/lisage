@@ -24,7 +24,7 @@ const R_EXPECTEDS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152), (6, 416), (7, 1
 /// Shared nodes of R_3 (didactic workshop, fragment 1: 33 nodes).
 const NODES_R3: u64 = 33;
 /// Paths of the test window: 10 bases × 4 positions.
-const CHEMINS_WINDOW: u64 = 40;
+const PATHS_WINDOW: u64 = 40;
 /// Nodes of the absolute window (didactic workshop, fragment 2).
 const NODES_WINDOW_ABSOLUE: u64 = 12;
 /// Nodes of the relative window: a single shared form, O(1).
@@ -91,7 +91,7 @@ static COUNTER_FICHIERS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 /// returns its path.
 fn ecrire_fichier_etats(number: u64) -> PathBuf {
     let numero = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let chemin = std::env::temp_dir().join(format!(
+    let path = std::env::temp_dir().join(format!(
         "confrontation-test-philosophes-{number}-{}-{numero}.txt",
         std::process::id()
     ));
@@ -102,8 +102,8 @@ fn ecrire_fichier_etats(number: u64) -> PathBuf {
         contenu.push_str(&ligne.join(" "));
         contenu.push('\n');
     }
-    std::fs::write(&chemin, contenu).expect("temporary states file written");
-    chemin
+    std::fs::write(&path, contenu).expect("temporary states file written");
+    path
 }
 
 /// `alea-lcg` workload: pinned satisfactions (deterministic LCG), C6
@@ -141,8 +141,8 @@ fn test_alea_lcg_bounds_refusees() {
 #[test]
 fn test_philosophes_fil_rouge_epingle() {
     for &(number, expected) in R_EXPECTEDS {
-        let chemin = ecrire_fichier_etats(number);
-        let parametres = vec![number.to_string(), chemin.display().to_string()];
+        let path = ecrire_fichier_etats(number);
+        let parametres = vec![number.to_string(), path.display().to_string()];
         let measure = executer(&Workload::Philosophes, &parametres, None).expect("workload run");
         assert_eq!(measure.verifie, expected, "n={number}: pinned |R_n|");
         assert_eq!(measure.variante, Variante::Mdd);
@@ -157,8 +157,8 @@ fn test_philosophes_fil_rouge_epingle() {
 /// of the interleaved schema) — typed error, no panic.
 #[test]
 fn test_philosophes_bound_refusee() {
-    let chemin = ecrire_fichier_etats(3);
-    let parametres = vec!["33".to_string(), chemin.display().to_string()];
+    let path = ecrire_fichier_etats(3);
+    let parametres = vec!["33".to_string(), path.display().to_string()];
     let error = executer(&Workload::Philosophes, &parametres, None).expect_err("bound rejected");
     assert!(matches!(
         error,
@@ -180,12 +180,12 @@ fn test_philosophers_inputs_invalid() {
     ];
     for (numero, contenu) in cas.iter().enumerate() {
         let uniq = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let chemin = std::env::temp_dir().join(format!(
+        let path = std::env::temp_dir().join(format!(
             "confrontation-test-invalide-{numero}-{}-{uniq}.txt",
             std::process::id()
         ));
-        std::fs::write(&chemin, contenu).expect("invalid file written");
-        let parametres = vec!["3".to_string(), chemin.display().to_string()];
+        std::fs::write(&path, contenu).expect("invalid file written");
+        let parametres = vec!["3".to_string(), path.display().to_string()];
         let error = executer(&Workload::Philosophes, &parametres, None);
         assert!(error.is_err(), "invalid input rejected: {contenu:?}");
         assert!(
@@ -212,8 +212,8 @@ fn test_window_encodages_epingles() {
         None,
     )
     .expect("relative");
-    assert_eq!(absolu.verifie, CHEMINS_WINDOW);
-    assert_eq!(relatif.verifie, CHEMINS_WINDOW);
+    assert_eq!(absolu.verifie, PATHS_WINDOW);
+    assert_eq!(relatif.verifie, PATHS_WINDOW);
     assert_eq!(absolu.nodes, NODES_WINDOW_ABSOLUE);
     assert_eq!(relatif.nodes, NODES_WINDOW_RELATIVE);
     assert_eq!(absolu.encodage, Some(Encodage::Absolu));
@@ -309,10 +309,10 @@ fn test_narration_workload_epinglee() {
     // The three workloads emit their summary: philosophes and
     // window are pinned here too (a regression that would lose them
     // would fail this test).
-    let chemin = ecrire_fichier_etats(3);
+    let path = ecrire_fichier_etats(3);
     let measure_philo = executer(
         &Workload::Philosophes,
-        &["3".to_string(), chemin.display().to_string()],
+        &["3".to_string(), path.display().to_string()],
         Some(&collecteur),
     )
     .expect("philosophes workload run");

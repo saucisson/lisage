@@ -30,7 +30,7 @@ fn map_de(paires: &[(u64, u64)]) -> Value {
 /// Runs `lookup(key)` on the compiled map and returns (result, fragment).
 fn executer_lookup(
     schema: &Schema,
-    liste_keys: &[Atom],
+    list_keys: &[Atom],
     domain_values: &Domain,
     value: &Value,
     key: Atom,
@@ -45,8 +45,7 @@ fn executer_lookup(
     );
     let anchor = Anchor(0);
     let root = compiler(&mut input, anchor, schema, value).unwrap();
-    let mut runner =
-        Transducteur::new(Lookup::new(key, liste_keys.to_vec(), domain_values.clone()));
+    let mut runner = Transducteur::new(Lookup::new(key, list_keys.to_vec(), domain_values.clone()));
     let (result, fragment) = runner.run(&input, &mut output, anchor, root).unwrap();
     (output, result, fragment)
 }
@@ -57,7 +56,7 @@ fn executer_lookup(
 fn payload_terminal(
     pool: &PoolOutput,
     mut node: NodeId,
-    liste_keys: &[Atom],
+    list_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
 ) -> Option<u64> {
     loop {
@@ -65,7 +64,7 @@ fn payload_terminal(
             Form::Terminal(payload) => return *payload,
             Form::Node { level, arcs } => {
                 let index = (level.0 / 2) as usize;
-                let key = Value::Atom(liste_keys[index]);
+                let key = Value::Atom(list_keys[index]);
                 if level.0.is_multiple_of(2) {
                     match map.get(&key) {
                         Some(_) => node = *arcs.get(&PRESENT).expect("present arc"),
@@ -90,18 +89,18 @@ fn payload_terminal(
 /// Two-key map over V = {0,1}: lookup finds the value of both keys.
 #[test]
 fn test_lookup_keys_presentes() {
-    let liste_keys = vec![Atom(0), Atom(1)];
+    let list_keys = vec![Atom(0), Atom(1)];
     let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
-    let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
+    let schema = Schema::Map(list_keys.clone(), domain_values.clone());
     let value = map_de(&[(0, 1), (1, 0)]);
     let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, result, fragment) =
-        executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(0));
+        executer_lookup(&schema, &list_keys, &domain_values, &value, Atom(0));
     assert_eq!(
-        payload_terminal(&output, result, &liste_keys, map),
+        payload_terminal(&output, result, &list_keys, map),
         Some(1),
         "lookup(a) = 1"
     );
@@ -110,10 +109,9 @@ fn test_lookup_keys_presentes() {
         "the fragment carries the value arc 1 to ε(Some(1))"
     );
 
-    let (output, result, _) =
-        executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(1));
+    let (output, result, _) = executer_lookup(&schema, &list_keys, &domain_values, &value, Atom(1));
     assert_eq!(
-        payload_terminal(&output, result, &liste_keys, map),
+        payload_terminal(&output, result, &list_keys, map),
         Some(0),
         "lookup(b) = 0"
     );
@@ -122,18 +120,18 @@ fn test_lookup_keys_presentes() {
 /// Key absent from the map: the terminal is None (D_δ of the output pool).
 #[test]
 fn test_lookup_key_absente() {
-    let liste_keys = vec![Atom(0), Atom(1)];
+    let list_keys = vec![Atom(0), Atom(1)];
     let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
-    let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
+    let schema = Schema::Map(list_keys.clone(), domain_values.clone());
     let value = map_de(&[(0, 1)]);
     let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, result, fragment) =
-        executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(1));
+        executer_lookup(&schema, &list_keys, &domain_values, &value, Atom(1));
     assert_eq!(
-        payload_terminal(&output, result, &liste_keys, map),
+        payload_terminal(&output, result, &list_keys, map),
         None,
         "lookup(b) = None, absent key"
     );
@@ -144,18 +142,18 @@ fn test_lookup_key_absente() {
 /// time; φ_out re-explicits it (T-EXPAND) and grafts Some(v).
 #[test]
 fn test_lookup_level_value_collapsed_t_expand() {
-    let liste_keys = vec![Atom(0)];
+    let list_keys = vec![Atom(0)];
     let domain_values = Domain::new(vec![Atom(0)]);
-    let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
+    let schema = Schema::Map(list_keys.clone(), domain_values.clone());
     let value = map_de(&[(0, 0)]);
     let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, result, fragment) =
-        executer_lookup(&schema, &liste_keys, &domain_values, &value, Atom(0));
+        executer_lookup(&schema, &list_keys, &domain_values, &value, Atom(0));
     assert_eq!(
-        payload_terminal(&output, result, &liste_keys, map),
+        payload_terminal(&output, result, &list_keys, map),
         Some(0),
         "T-EXPAND: lookup(a) = 0 despite the collapsed value level"
     );

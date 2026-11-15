@@ -6,8 +6,8 @@
 use std::collections::BTreeSet;
 
 use lisage_bench::pnml::{
-    NetworkPetri, PlaceId, PnmlDocument, PnmlError, TransitionId, espace_atteignable,
-    est_sensibilisee, marquage_depuis_value, marquage_initial, pas_semantique, tirer,
+    NetworkPetri, PlaceId, PnmlDocument, PnmlError, TransitionId, est_sensibilisee,
+    marquage_depuis_value, marquage_initial, pas_semantique, space_atteignable, tirer,
 };
 use lisage_lang::value::Atom;
 use proptest::prelude::*;
@@ -84,13 +84,13 @@ fn test_sensibilisation_et_tir() {
 }
 
 #[test]
-fn test_espace_atteignable_voie_a() {
+fn test_space_atteignable_voie_a() {
     let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_JOUET.to_string())).unwrap();
-    let espace = espace_atteignable(&network);
+    let space = space_atteignable(&network);
     // 3 markings: initial, after t1, after t2.
-    assert_eq!(espace.len(), 3);
+    assert_eq!(space.len(), 3);
     let initial = marquage_initial(&network);
-    assert!(espace.contains(&initial));
+    assert!(space.contains(&initial));
 }
 
 #[test]
@@ -102,10 +102,10 @@ fn test_pas_semantique_depuis_set() {
 }
 
 #[test]
-fn test_boucle_espace_stable() {
+fn test_boucle_space_stable() {
     let network = NetworkPetri::depuis_pnml(&PnmlDocument(PNML_BOUCL.to_string())).unwrap();
-    let espace = espace_atteignable(&network);
-    assert_eq!(espace.len(), 1);
+    let space = space_atteignable(&network);
+    assert_eq!(space.len(), 1);
 }
 
 #[test]
@@ -223,7 +223,7 @@ proptest! {
     /// The reachable space is a fixpoint: no successor outside the
     /// space, and it contains the initial marking.
     #[test]
-    fn propriete_espace_atteignable_point_fixe(
+    fn propriete_space_atteignable_point_fixe(
         number_places in 1usize..=4,
         number_transitions in 1usize..=4,
         marquages in proptest::collection::vec(0u64..=2, 1..=4),
@@ -236,10 +236,10 @@ proptest! {
         };
         let document = network_aleatoire(number_places, number_transitions, marquages);
         let network = NetworkPetri::depuis_pnml(&PnmlDocument(document.to_string())).unwrap();
-        let espace = espace_atteignable(&network);
-        prop_assert!(espace.contains(&marquage_initial(&network)));
-        let successeurs = pas_semantique(&network, &espace);
-        prop_assert!(successeurs.is_subset(&espace));
+        let space = space_atteignable(&network);
+        prop_assert!(space.contains(&marquage_initial(&network)));
+        let successeurs = pas_semantique(&network, &space);
+        prop_assert!(successeurs.is_subset(&space));
     }
 
     /// Firing an enabled transition preserves the total number of

@@ -102,12 +102,12 @@ fn test_anchor_relative_shift() {
 /// M4-2: the effective shift reading is saturated in ℕ (total): key + negative
 /// argument clamps to 0, overflow above clamps to u64::MAX.
 #[test]
-fn test_groupe_shift_saturation() {
-    let groupe = ShiftGroup;
-    assert_eq!(groupe.apply(&0, &-5), 0, "low clamp to 0");
-    assert_eq!(groupe.apply(&10, &-5), 5);
-    assert_eq!(groupe.apply(&u64::MAX, &1), u64::MAX, "high clamp");
-    assert_eq!(groupe.apply(&u64::MAX, &-1), u64::MAX - 1);
+fn test_group_shift_saturation() {
+    let group = ShiftGroup;
+    assert_eq!(group.apply(&0, &-5), 0, "low clamp to 0");
+    assert_eq!(group.apply(&10, &-5), 5);
+    assert_eq!(group.apply(&u64::MAX, &1), u64::MAX, "high clamp");
+    assert_eq!(group.apply(&u64::MAX, &-1), u64::MAX - 1);
 }
 
 /// M4-2: composite anchors — named recording of shifts, one per fragment;
@@ -146,7 +146,7 @@ fn test_anchor_composee_fragments() {
 /// back the window {base..base+W-1}.
 #[test]
 fn test_window_glissante_pool_constant() {
-    let groupe = ShiftGroup;
+    let group = ShiftGroup;
     let mut pool = arena();
     let anchor = Anchor(0);
     let vrai = pool.intern(anchor, Form::Terminal(true));
@@ -166,7 +166,7 @@ fn test_window_glissante_pool_constant() {
         let arc = InputArc::new(base, pool.handle(window, anchor));
         // Absolute reading: the window covers {base..base+W-1}.
         for k in 0..SIZE_WINDOW {
-            assert_eq!(arc.read_key(&groupe, &k), (base + k as i64) as u64);
+            assert_eq!(arc.read_key(&group, &k), (base + k as i64) as u64);
         }
         // Re-intern the same relative form: hit, no node created.
         let same = pool.intern(
@@ -188,7 +188,7 @@ fn test_window_glissante_pool_constant() {
 /// M4-2: composite anchors — the degradation stays in O(Σ kᵢ) irregular
 /// points, never in O(∏): the forms factorize per fragment.
 #[test]
-fn test_anchors_composees_degradation_somme() {
+fn test_anchors_composees_degradation_sum() {
     let mut pool = arena();
     let anchor = Anchor(0);
     let vrai = pool.intern(anchor, Form::Terminal(true));
@@ -228,8 +228,8 @@ fn test_anchors_composees_degradation_somme() {
 /// inverse t⁻¹, trivial kernel (f injective), composition of entry arcs.
 /// Bounded values to avoid saturation.
 #[test]
-fn test_propriete_groupe_shift() {
-    let groupe = ShiftGroup;
+fn test_propriete_group_shift() {
+    let group = ShiftGroup;
     let mut seed = SEED_LCG;
     let mut next = move || {
         seed = seed
@@ -248,9 +248,9 @@ fn test_propriete_groupe_shift() {
             .collect();
         // (iii) Confluence: the section is idempotent — applied to the
         // normalized form, it yields the neutral argument and the same form.
-        let (n1, arcs_norm) = groupe.section_arcs(&arcs);
-        let (n2, arcs_norm2) = groupe.section_arcs(&arcs_norm);
-        assert_eq!(n2, groupe.neutral(), "idempotent section");
+        let (n1, arcs_norm) = group.section_arcs(&arcs);
+        let (n2, arcs_norm2) = group.section_arcs(&arcs_norm);
+        assert_eq!(n2, group.neutral(), "idempotent section");
         assert_eq!(arcs_norm2, arcs_norm);
         // The min = 0 section indeed starts at key 0.
         assert!(arcs_norm.contains_key(&0));
@@ -261,23 +261,23 @@ fn test_propriete_groupe_shift() {
         let key_grande = BOUND + next() % BOUND;
         let a1 = (next() % (2 * BOUND)) as i64 - BOUND as i64;
         let a2 = (next() % (2 * BOUND)) as i64 - BOUND as i64;
-        let compose = groupe.compose(&a1, &a2);
+        let compose = group.compose(&a1, &a2);
         assert_eq!(
-            groupe.apply(&key_grande, &compose),
-            groupe.apply(&groupe.apply(&key_grande, &a1), &a2)
+            group.apply(&key_grande, &compose),
+            group.apply(&group.apply(&key_grande, &a1), &a2)
         );
 
         // (i) Inverse: f(n) then f(n)⁻¹ = identity (key large enough).
         let n = (next() % BOUND) as i64;
         assert_eq!(
-            groupe.apply(&groupe.apply(&key_grande, &n), &groupe.invert(&n)),
+            group.apply(&group.apply(&key_grande, &n), &group.invert(&n)),
             key_grande
         );
 
         // (vi) Trivial kernel: f injective over the arguments.
         let n1 = (next() % BOUND) as i64;
         let n2 = (next() % BOUND) as i64;
-        if groupe.apply(&key_grande, &n1) == groupe.apply(&key_grande, &n2) {
+        if group.apply(&key_grande, &n1) == group.apply(&key_grande, &n2) {
             assert_eq!(
                 n1, n2,
                 "f(n₁) = f(n₂) ⇒ n₁ = n₂ (storage modulo the kernel)"
@@ -292,10 +292,10 @@ fn test_propriete_groupe_shift() {
         };
         let arc1 = InputArc::new(a1, handle);
         let arc2 = InputArc::new(a2, handle);
-        let arc_compose = arc1.compose(&groupe, &arc2);
+        let arc_compose = arc1.compose(&group, &arc2);
         assert_eq!(
-            arc_compose.read_key(&groupe, &key_grande),
-            arc2.read_key(&groupe, &arc1.read_key(&groupe, &key_grande))
+            arc_compose.read_key(&group, &key_grande),
+            arc2.read_key(&group, &arc1.read_key(&group, &key_grande))
         );
     }
 }

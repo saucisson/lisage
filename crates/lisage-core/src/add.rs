@@ -74,7 +74,7 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
     value: &Value,
     poids: u64,
 ) -> Result<NodeId, SchemaError> {
-    let Schema::Map(liste_keys, domain) = schema else {
+    let Schema::Map(list_keys, domain) = schema else {
         return Err(SchemaError::TypeMismatch {
             expected: "map",
             recu: "other schema",
@@ -93,32 +93,30 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
                 recu: "non-atomic",
             });
         };
-        if !liste_keys.contains(atome_key) {
+        if !list_keys.contains(atome_key) {
             return Err(SchemaError::HorsDomain(*atome_key));
         }
         if !domain.contains(*atome_value) {
             return Err(SchemaError::HorsDomain(*atome_value));
         }
     }
-    Ok(compiler_map_pondere(
-        pool, anchor, liste_keys, map, 0, poids,
-    ))
+    Ok(compiler_map_pondere(pool, anchor, list_keys, map, 0, poids))
 }
 
 /// Recursive compilation of a map into a weighted presence/value chain.
 fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     anchor: Anchor,
-    liste_keys: &[Atom],
+    list_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
     index: usize,
     poids: u64,
 ) -> NodeId {
-    if index == liste_keys.len() {
+    if index == list_keys.len() {
         return pool.intern(anchor, Form::Terminal(poids));
     }
-    let suite = compiler_map_pondere(pool, anchor, liste_keys, map, index + 1, poids);
-    let key = Value::Atom(liste_keys[index]);
+    let suite = compiler_map_pondere(pool, anchor, list_keys, map, index + 1, poids);
+    let key = Value::Atom(list_keys[index]);
     let arcs = match map.get(&key) {
         Some(Value::Atom(value)) => {
             let node_value = pool.intern(
@@ -246,7 +244,7 @@ fn merge_with_other<P: Pool<Key = u64, Payload = u64>>(
 /// Weighted fold: sum of the terminal weights over all accepting paths
 /// (A4 counting expansion like `Pli`). Exact **only** on a lifted ADD
 /// construction — this is the compatibility guard (Q8).
-pub fn somme_poids<P: Pool<Key = u64, Payload = u64>>(
+pub fn sum_poids<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
     schema: &Schema,
     node: NodeId,
@@ -254,11 +252,11 @@ pub fn somme_poids<P: Pool<Key = u64, Payload = u64>>(
     let keys = SchemaKeys::new(schema.clone());
     let number_levels = schema.number_levels();
     let mut memo = HashMap::new();
-    somme(pool, &keys, number_levels, node, &mut memo)
+    sum(pool, &keys, number_levels, node, &mut memo)
 }
 
 /// Recursive weighted sum with memo on nodes.
-fn somme<P: Pool<Key = u64, Payload = u64>>(
+fn sum<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
     keys: &SchemaKeys,
     number_levels: u32,
@@ -279,7 +277,7 @@ fn somme<P: Pool<Key = u64, Payload = u64>>(
                     Form::Terminal(_) => None,
                 };
                 let multiplicateur = multiplicateur(keys, number_levels, level, *arc, level_cible);
-                total += multiplicateur * somme(pool, keys, number_levels, *cible, memo)?;
+                total += multiplicateur * sum(pool, keys, number_levels, *cible, memo)?;
             }
             // Implicit default arc: D_δ = terminal(0), of zero weight.
             total

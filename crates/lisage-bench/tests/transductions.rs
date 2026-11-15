@@ -62,9 +62,9 @@ impl Transduction for Identite {
     }
 }
 
-struct CountChemins;
+struct CountPaths;
 
-impl Transduction for CountChemins {
+impl Transduction for CountPaths {
     type H = ();
     type S = u64;
     type Out = bool;
@@ -204,7 +204,7 @@ proptest! {
         let anchor = Anchor(0);
         let root = dag_aleatoire(&mut input, anchor, paires);
         let expected = count_naif(&input, root);
-        let mut runner = Transducteur::new(CountChemins);
+        let mut runner = Transducteur::new(CountPaths);
         let (result, count) = runner.run(&input, &mut output, anchor, root).unwrap();
         prop_assert!(forms_egales(
             &input,

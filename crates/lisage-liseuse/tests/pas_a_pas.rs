@@ -10,7 +10,7 @@ use lisage_core::MemoryPolicy;
 use lisage_core::arena::Arena;
 use lisage_core::observer::{CanalAttr, Observer, TraceEvent};
 use lisage_core::pli::Pli;
-use lisage_core::saturate::{ParametresSaturation, PolitiqueSaturation, saturer};
+use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::Transducteur;
 use lisage_core::{Anchor, NodeId, Pool};
@@ -233,10 +233,10 @@ fn test_saturate_emet_rounds() {
     let levels: Vec<lisage_core::Level> = (0..schema.number_levels())
         .map(lisage_core::Level)
         .collect();
-    let politique = PolitiqueSaturation::Statique(levels);
+    let policy = PolicySaturation::Statique(levels);
     let mut params = ParametresSaturation {
         transduction: &Identite,
-        politique: &politique,
+        policy: &policy,
         pool: &mut pool,
         keys: &keys,
         anchor,

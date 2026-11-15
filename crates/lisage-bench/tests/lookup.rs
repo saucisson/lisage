@@ -25,7 +25,7 @@ fn atome(value: u64) -> Value {
 fn payload_terminal(
     pool: &PoolOutput,
     mut node: NodeId,
-    liste_keys: &[Atom],
+    list_keys: &[Atom],
     map: &BTreeMap<Value, Value>,
 ) -> Option<u64> {
     loop {
@@ -33,7 +33,7 @@ fn payload_terminal(
             Form::Terminal(payload) => return *payload,
             Form::Node { level, arcs } => {
                 let index = (level.0 / 2) as usize;
-                let key = Value::Atom(liste_keys[index]);
+                let key = Value::Atom(list_keys[index]);
                 if level.0.is_multiple_of(2) {
                     match map.get(&key) {
                         Some(_) => node = *arcs.get(&PRESENT).expect("arc present"),
@@ -63,9 +63,9 @@ proptest! {
         paires in prop::collection::vec((0u64..2, 0u64..2), 0..5),
         key in 0u64..2,
     ) {
-        let liste_keys = vec![Atom(0), Atom(1)];
+        let list_keys = vec![Atom(0), Atom(1)];
         let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
-        let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
+        let schema = Schema::Map(list_keys.clone(), domain_values.clone());
         let map: BTreeMap<Value, Value> = paires
             .iter()
             .map(|(k, v)| (atome(*k), atome(*v)))
@@ -85,11 +85,11 @@ proptest! {
         let key_atome = Atom(key);
         let mut runner = Transducteur::new(Lookup::new(
             key_atome,
-            liste_keys.clone(),
+            list_keys.clone(),
             domain_values.clone(),
         ));
         let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
-        let dd = payload_terminal(&output, result, &liste_keys, &map);
+        let dd = payload_terminal(&output, result, &list_keys, &map);
 
         // Path A: reference interpreter on the set {map}.
         let set = BTreeSet::from([value.clone()]);
@@ -110,9 +110,9 @@ proptest! {
         paires in prop::collection::vec((0u64..2, 0u64..1), 0..5),
         key in 0u64..2,
     ) {
-        let liste_keys = vec![Atom(0), Atom(1)];
+        let list_keys = vec![Atom(0), Atom(1)];
         let domain_values = Domain::new(vec![Atom(0)]);
-        let schema = Schema::Map(liste_keys.clone(), domain_values.clone());
+        let schema = Schema::Map(list_keys.clone(), domain_values.clone());
         let map: BTreeMap<Value, Value> = paires
             .iter()
             .map(|(k, v)| (atome(*k), atome(*v)))
@@ -132,11 +132,11 @@ proptest! {
         let key_atome = Atom(key);
         let mut runner = Transducteur::new(Lookup::new(
             key_atome,
-            liste_keys.clone(),
+            list_keys.clone(),
             domain_values.clone(),
         ));
         let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
-        let dd = payload_terminal(&output, result, &liste_keys, &map);
+        let dd = payload_terminal(&output, result, &list_keys, &map);
 
         let set = BTreeSet::from([value.clone()]);
         let expected = lookup(&set, &atome(key))[&value].clone();

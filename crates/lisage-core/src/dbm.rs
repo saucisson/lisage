@@ -78,10 +78,10 @@ impl Dbm {
             for i in 0..n {
                 for j in 0..n {
                     if let (Some(a), Some(b)) = (matrice[i][k], matrice[k][j]) {
-                        let somme = a + b;
+                        let sum = a + b;
                         matrice[i][j] = Some(match matrice[i][j] {
-                            Some(ancienne) => ancienne.min(somme),
-                            None => somme,
+                            Some(ancienne) => ancienne.min(sum),
+                            None => sum,
                         });
                     }
                 }

@@ -27,7 +27,7 @@ use crate::pli::{BoolOu, SemiAnneau};
 use crate::schema::{PAS_LEVEL_MAP, PRESENT, Schema};
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
-/// Base of the fingerprint namespace of the guard/image family.
+/// Base of the fingerprint namspace of the guard/image family.
 const FINGERPRINT_BASE_GARDE: u64 = 5000;
 
 /// Set of keys present on the path of a map under construction.
@@ -40,22 +40,22 @@ pub type PredicatMap = Box<dyn Fn(&KeyPresentes) -> bool + Send + Sync>;
 /// `(Bool, ∨, ∧)`, the verdict is resolved at the terminal on the complete
 /// path (spec § 5).
 pub struct Existe {
-    liste_keys: Vec<u64>,
+    list_keys: Vec<u64>,
     predicat: PredicatMap,
 }
 
 impl Existe {
-    /// `exists(p)` for the given `Map(liste_keys, _)` schema; typed error if
+    /// `exists(p)` for the given `Map(list_keys, _)` schema; typed error if
     /// the schema is not a map.
     pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
-        let Schema::Map(liste_keys, _) = schema else {
+        let Schema::Map(list_keys, _) = schema else {
             return Err(CoreError::SchemaInexpected {
                 expected: "Map",
                 recu: form_schema(schema),
             });
         };
         Ok(Existe {
-            liste_keys: liste_keys.iter().map(|atome| atome.0).collect(),
+            list_keys: list_keys.iter().map(|atome| atome.0).collect(),
             predicat,
         })
     }
@@ -64,22 +64,22 @@ impl Existe {
 /// Transduction `filter(p)` (guard) on a set of maps: restriction, rejected
 /// members lead to `ε(false)` (spec § 4, `f_filter` = preimage of `p`).
 pub struct Filtre {
-    liste_keys: Vec<u64>,
+    list_keys: Vec<u64>,
     predicat: PredicatMap,
 }
 
 impl Filtre {
-    /// `filter(p)` for the given `Map(liste_keys, _)` schema; typed error if
+    /// `filter(p)` for the given `Map(list_keys, _)` schema; typed error if
     /// the schema is not a map.
     pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
-        let Schema::Map(liste_keys, _) = schema else {
+        let Schema::Map(list_keys, _) = schema else {
             return Err(CoreError::SchemaInexpected {
                 expected: "Map",
                 recu: form_schema(schema),
             });
         };
         Ok(Filtre {
-            liste_keys: liste_keys.iter().map(|atome| atome.0).collect(),
+            list_keys: list_keys.iter().map(|atome| atome.0).collect(),
             predicat,
         })
     }
@@ -97,7 +97,7 @@ fn form_schema(schema: &Schema) -> &'static str {
 }
 
 /// Checks that all levels of the diagram are in the schema (otherwise
-/// `disperser_chemin` would index out of bounds): typed `CoreError`.
+/// `disperser_path` would index out of bounds): typed `CoreError`.
 fn valider_levels<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     schema: &Schema,
@@ -138,12 +138,12 @@ impl Image {
 /// Common descendant: updates the set of present keys along arc `v` of
 /// level `ℓ` (a presence level with the `present` arc adds the key; a value
 /// level changes nothing).
-fn disperser_chemin(liste_keys: &[u64], level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
+fn disperser_path(list_keys: &[u64], level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
     let mut h = h.clone();
     if level.0.is_multiple_of(PAS_LEVEL_MAP) && arc == PRESENT {
         let index = (level.0 / PAS_LEVEL_MAP) as usize;
         // Guaranteed by `valider_levels` before the transduction.
-        if let Some(&key) = liste_keys.get(index) {
+        if let Some(&key) = list_keys.get(index) {
             h.insert(key);
         }
     }
@@ -165,7 +165,7 @@ impl Transduction for Existe {
     }
 
     fn phi_disp(&self, level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
-        disperser_chemin(&self.liste_keys, level, h, arc)
+        disperser_path(&self.list_keys, level, h, arc)
     }
 
     fn phi_aggr(
@@ -228,7 +228,7 @@ impl Transduction for Filtre {
     }
 
     fn phi_disp(&self, level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
-        disperser_chemin(&self.liste_keys, level, h, arc)
+        disperser_path(&self.list_keys, level, h, arc)
     }
 
     fn phi_aggr(

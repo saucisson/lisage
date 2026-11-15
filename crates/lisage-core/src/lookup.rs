@@ -20,7 +20,7 @@ use lisage_lang::value::Atom;
 use crate::schema::{Domain, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
 
-/// Base of the fingerprint namespace of the `lookup` family (key = base + value).
+/// Base of the fingerprint namspace of the `lookup` family (key = base + value).
 const FINGERPRINT_BASE_LOOKUP: u64 = 3000;
 
 /// Inherited mode of `lookup` (spec § 6.3).
@@ -93,9 +93,9 @@ pub struct Lookup {
 }
 
 impl Lookup {
-    /// `lookup(key)` for the `Map(liste_keys, domain_values)` schema.
-    pub fn new(key: Atom, liste_keys: Vec<Atom>, domain_values: Domain) -> Self {
-        let index_key = liste_keys
+    /// `lookup(key)` for the `Map(list_keys, domain_values)` schema.
+    pub fn new(key: Atom, list_keys: Vec<Atom>, domain_values: Domain) -> Self {
+        let index_key = list_keys
             .iter()
             .position(|c| *c == key)
             .expect("the searched key must belong to the schema");

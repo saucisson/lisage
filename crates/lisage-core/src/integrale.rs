@@ -29,28 +29,26 @@ use lisage_algebra::interface::{Form, NodeId, Pool, PoolError};
 
 use crate::dbm::{Dbm, DbmKeys};
 use crate::observer::{CanalAttr, Observer, TraceEvent};
-use crate::region::Intervalle;
+use crate::region::Interval;
 
 /// Lebesgue measure of an interval in the continuous interpretation:
 /// `length([a, b]) = b − a`; the empty interval and the isolated point
 /// have measure zero.
-pub fn measure_intervalle(intervalle: &Intervalle) -> u64 {
-    if intervalle.est_empty() {
+pub fn measure_interval(interval: &Interval) -> u64 {
+    if interval.est_empty() {
         0
     } else {
-        intervalle
-            .bound_sup()
-            .saturating_sub(intervalle.bound_inf())
+        interval.bound_sup().saturating_sub(interval.bound_inf())
     }
 }
 
 /// Intersection of two intervals (set-theoretic meet): the empty interval
 /// if disjoint.
-pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
+pub fn intersection(a: &Interval, b: &Interval) -> Interval {
     if a.est_empty() || b.est_empty() {
         return crate::region::EMPTY;
     }
-    Intervalle::new(
+    Interval::new(
         a.bound_inf().max(b.bound_inf()),
         a.bound_sup().min(b.bound_sup()),
     )
@@ -62,22 +60,22 @@ pub fn intersection(a: &Intervalle, b: &Intervalle) -> Intervalle {
 ///
 /// `observer`: narration channel (ADR-0100) — each visited node emits
 /// an `Attr`/`Synthesized` event with the computed measure.
-pub fn integrale_constante<P: Pool<Key = Intervalle, Payload = bool>>(
+pub fn integrale_constante<P: Pool<Key = Interval, Payload = bool>>(
     pool: &P,
     root: NodeId,
-    region: &Intervalle,
+    region: &Interval,
     observer: Option<&dyn Observer>,
 ) -> Result<u64, PoolError> {
-    let mut memo: HashMap<(NodeId, Intervalle), u64> = HashMap::new();
+    let mut memo: HashMap<(NodeId, Interval), u64> = HashMap::new();
     integrale(pool, root, region, observer, &mut memo)
 }
 
-fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
+fn integrale<P: Pool<Key = Interval, Payload = bool>>(
     pool: &P,
     node: NodeId,
-    region: &Intervalle,
+    region: &Interval,
     observer: Option<&dyn Observer>,
-    memo: &mut HashMap<(NodeId, Intervalle), u64>,
+    memo: &mut HashMap<(NodeId, Interval), u64>,
 ) -> Result<u64, PoolError> {
     if let Some(total) = memo.get(&(node, *region)) {
         if let Some(obs) = observer {
@@ -90,19 +88,19 @@ fn integrale<P: Pool<Key = Intervalle, Payload = bool>>(
         return Ok(*total);
     }
     let total = match pool.resolve(node)?.clone() {
-        Form::Terminal(true) => measure_intervalle(region),
+        Form::Terminal(true) => measure_interval(region),
         Form::Terminal(false) => 0,
         Form::Node { arcs, .. } => {
-            let mut somme = 0u64;
-            for (intervalle, cible) in &arcs {
-                let sous_region = intersection(region, intervalle);
+            let mut sum = 0u64;
+            for (interval, cible) in &arcs {
+                let sous_region = intersection(region, interval);
                 if sous_region.est_empty() {
                     continue;
                 }
                 let contribution = integrale(pool, *cible, &sous_region, observer, memo)?;
-                somme = somme.saturating_add(contribution);
+                sum = sum.saturating_add(contribution);
             }
-            somme
+            sum
         }
     };
     if let Some(obs) = observer {
@@ -156,16 +154,16 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
         Form::Terminal(true) => keys.measure_zone(region),
         Form::Terminal(false) => 0,
         Form::Node { arcs, .. } => {
-            let mut somme = 0i128;
+            let mut sum = 0i128;
             for (zone, cible) in &arcs {
                 let sous_region = region.intersection(zone);
                 if sous_region.est_empty() {
                     continue;
                 }
                 let contribution = integrale_dbm(pool, *cible, &sous_region, keys, observer, memo)?;
-                somme += contribution;
+                sum += contribution;
             }
-            somme
+            sum
         }
     };
     if let Some(obs) = observer {
@@ -180,18 +178,18 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
 }
 
 /// Builds a single-level diagram denoting the union of the given
-/// `intervalles` (arcs to `⊤`), the complement going to `⊥` — integral
+/// `intervals` (arcs to `⊤`), the complement going to `⊥` — integral
 /// instance-test: the measure of the union is the sum of the lengths.
 /// **Precondition**: the intervals are pairwise disjoint (debug assertion)
 /// — otherwise the integral would sum the individual lengths and
 /// over-count the measure of the union.
-pub fn compiler_union<P: Pool<Key = Intervalle, Payload = bool>>(
+pub fn compiler_union<P: Pool<Key = Interval, Payload = bool>>(
     pool: &mut P,
     anchor: lisage_algebra::interface::Anchor,
-    intervalles: &[Intervalle],
+    intervals: &[Interval],
 ) -> NodeId {
     debug_assert!(
-        intervalles.windows(2).all(|pair| {
+        intervals.windows(2).all(|pair| {
             let a = &pair[0];
             let b = &pair[1];
             a.est_empty() || b.est_empty() || a.bound_sup() < b.bound_inf()
@@ -199,10 +197,8 @@ pub fn compiler_union<P: Pool<Key = Intervalle, Payload = bool>>(
         "compiler_union requires disjoint intervals (precondition)"
     );
     let vrai = pool.intern(anchor, Form::Terminal(true));
-    let arcs: BTreeMap<Intervalle, NodeId> = intervalles
-        .iter()
-        .map(|intervalle| (*intervalle, vrai))
-        .collect();
+    let arcs: BTreeMap<Interval, NodeId> =
+        intervals.iter().map(|interval| (*interval, vrai)).collect();
     pool.intern(
         anchor,
         Form::Node {

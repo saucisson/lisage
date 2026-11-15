@@ -245,12 +245,12 @@ fn test_figure_svg_r5_exportee() {
 
     let dossier = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
     std::fs::create_dir_all(dossier).expect("creation of bench-results");
-    let chemin = format!("{dossier}/philosophes-n5.svg");
+    let path = format!("{dossier}/philosophes-n5.svg");
     // The committed figure must be up to date: a diverging rendering fails here.
-    let commitee = std::fs::read_to_string(&chemin).expect("reading the committed figure");
+    let commitee = std::fs::read_to_string(&path).expect("reading the committed figure");
     assert_eq!(
         svg, commitee,
         "bench-results/philosophes-n5.svg is up to date"
     );
-    std::fs::write(&chemin, &svg).expect("writing the figure");
+    std::fs::write(&path, &svg).expect("writing the figure");
 }

@@ -10,11 +10,9 @@ use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{Anchor, Form, Pool};
 use lisage_core::arena::Arena;
-use lisage_core::integrale::{
-    compiler_union, integrale_constante, intersection, measure_intervalle,
-};
+use lisage_core::integrale::{compiler_union, integrale_constante, intersection, measure_interval};
 use lisage_core::observer::{CanalAttr, NoOpObserver, Observer, TraceEvent};
-use lisage_core::region::{EMPTY, Intervalle, RegionController, RegionKeys};
+use lisage_core::region::{EMPTY, Interval, RegionController, RegionKeys};
 
 type PoolRegion = Arena<RegionController>;
 
@@ -53,28 +51,28 @@ impl Observer for Collecteur {
 }
 
 /// Full region of the universe: [0, SIZE_DOMAIN).
-fn region_pleine() -> Intervalle {
-    Intervalle::new(0, SIZE_DOMAIN - 1)
+fn region_pleine() -> Interval {
+    Interval::new(0, SIZE_DOMAIN - 1)
 }
 
 #[test]
-fn test_measure_intervalle_continue() {
+fn test_measure_interval_continue() {
     // Continuous length: [a, b] has measure b − a (the point has measure 0).
-    assert_eq!(measure_intervalle(&Intervalle::new(2, 5)), 3);
-    assert_eq!(measure_intervalle(&Intervalle::point(4)), 0);
-    assert_eq!(measure_intervalle(&EMPTY), 0);
-    assert_eq!(measure_intervalle(&Intervalle::new(0, 11)), 11);
+    assert_eq!(measure_interval(&Interval::new(2, 5)), 3);
+    assert_eq!(measure_interval(&Interval::point(4)), 0);
+    assert_eq!(measure_interval(&EMPTY), 0);
+    assert_eq!(measure_interval(&Interval::new(0, 11)), 11);
     // The discrete cardinality counts points: [2, 5] has 4.
-    assert_eq!(Intervalle::new(2, 5).size(), 4);
+    assert_eq!(Interval::new(2, 5).size(), 4);
 }
 
 #[test]
-fn test_intersection_intervalles() {
-    let a = Intervalle::new(2, 7);
-    let b = Intervalle::new(5, 10);
-    assert_eq!(intersection(&a, &b), Intervalle::new(5, 7));
+fn test_intersection_intervals() {
+    let a = Interval::new(2, 7);
+    let b = Interval::new(5, 10);
+    assert_eq!(intersection(&a, &b), Interval::new(5, 7));
     // Disjoint → empty.
-    let c = Intervalle::new(8, 10);
+    let c = Interval::new(8, 10);
     assert_eq!(intersection(&a, &c), EMPTY);
     // Empty with anything → empty.
     assert_eq!(intersection(&EMPTY, &a), EMPTY);
@@ -87,15 +85,15 @@ fn test_intersection_intervalles() {
 /// fold (discrete) is the sum of their sizes. This is the count → measure
 /// passage.
 #[test]
-fn test_integrale_union_deux_intervalles() {
+fn test_integrale_union_deux_intervals() {
     let mut pool = pool();
-    let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
-    let root = compiler_union(&mut pool, ANCHOR, &intervalles);
+    let intervals = vec![Interval::new(2, 5), Interval::new(7, 9)];
+    let root = compiler_union(&mut pool, ANCHOR, &intervals);
     let measure = integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
     // Continuous measure: (5−2) + (9−7) = 3 + 2 = 5.
     assert_eq!(measure, 5, "integral = sum of lengths");
     // Discrete cardinality: (5−2+1) + (9−7+1) = 4 + 3 = 7.
-    let cardinality: u64 = intervalles.iter().map(Intervalle::size).sum();
+    let cardinality: u64 = intervals.iter().map(Interval::size).sum();
     assert_eq!(cardinality, 7, "cardinality = sum of sizes (points)");
     assert_ne!(measure, cardinality, "count ≠ measure on the continuum");
 }
@@ -105,14 +103,14 @@ fn test_integrale_union_deux_intervalles() {
 #[test]
 fn test_integrale_restreinte_a_une_region() {
     let mut pool = pool();
-    let intervalles = vec![Intervalle::new(2, 8)];
-    let root = compiler_union(&mut pool, ANCHOR, &intervalles);
+    let intervals = vec![Interval::new(2, 8)];
+    let root = compiler_union(&mut pool, ANCHOR, &intervals);
     // Restriction to [5, 11]: measure of [2,8] ∩ [5,11] = [5,8], length 3.
-    let sous_region = Intervalle::new(5, 11);
+    let sous_region = Interval::new(5, 11);
     let measure = integrale_constante(&pool, root, &sous_region, None).expect("interned node");
     assert_eq!(measure, 3);
     // Restriction to a disjoint region: zero measure.
-    let disjointe = Intervalle::new(9, 11);
+    let disjointe = Interval::new(9, 11);
     let measure_nulle = integrale_constante(&pool, root, &disjointe, None).expect("interned node");
     assert_eq!(measure_nulle, 0);
 }
@@ -143,8 +141,8 @@ fn test_integrale_terminaux() {
 #[test]
 fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
-    let intervalles = vec![Intervalle::new(2, 5), Intervalle::new(7, 9)];
-    let root = compiler_union(&mut pool, ANCHOR, &intervalles);
+    let intervals = vec![Interval::new(2, 5), Interval::new(7, 9)];
+    let root = compiler_union(&mut pool, ANCHOR, &intervals);
     let collecteur = Collecteur::new();
     let measure = integrale_constante(&pool, root, &region_pleine(), Some(&collecteur))
         .expect("interned node");
@@ -192,7 +190,7 @@ fn test_propriete_integrale_contre_cardinality_lcg() {
         // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
         let set: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
         // Compression into disjoint intervals.
-        let mut intervalles = Vec::new();
+        let mut intervals = Vec::new();
         let mut point = 0;
         while point < SIZE_DOMAIN {
             if set.contains(&point) {
@@ -200,25 +198,25 @@ fn test_propriete_integrale_contre_cardinality_lcg() {
                 while fin + 1 < SIZE_DOMAIN && set.contains(&(fin + 1)) {
                     fin += 1;
                 }
-                intervalles.push(Intervalle::new(point, fin));
+                intervals.push(Interval::new(point, fin));
                 point = fin + 1;
             } else {
                 point += 1;
             }
         }
         let mut pool = pool();
-        let root = compiler_union(&mut pool, ANCHOR, &intervalles);
+        let root = compiler_union(&mut pool, ANCHOR, &intervals);
         let measure =
             integrale_constante(&pool, root, &region_pleine(), None).expect("interned node");
         // Analytic measure: sum of (end − start) of the intervals.
-        let measure_expectede: u64 = intervalles
+        let measure_expectede: u64 = intervals
             .iter()
             .map(|i| i.bound_sup().saturating_sub(i.bound_inf()))
             .sum();
         assert_eq!(measure, measure_expectede, "integral == sum of lengths");
         // Analytic cardinality: |S|.
         let cardinality_expected = set.len() as u64;
-        let cardinality: u64 = intervalles.iter().map(Intervalle::size).sum();
+        let cardinality: u64 = intervals.iter().map(Interval::size).sum();
         assert_eq!(cardinality, cardinality_expected, "cardinality == |S|");
         // On the continuum, measure ≤ cardinality (each point has measure 0).
         assert!(measure <= cardinality);
