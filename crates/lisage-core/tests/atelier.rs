@@ -212,10 +212,10 @@ fn test_narration_measure() {
     use lisage_core::observer::{ChannelAttr, TraceEvent};
 
     #[derive(Clone)]
-    struct Collecteur {
+    struct Collector {
         evenements: Arc<Mutex<Vec<TraceEvent>>>,
     }
-    impl lisage_core::observer::Observer for Collecteur {
+    impl lisage_core::observer::Observer for Collector {
         fn on_event(&self, event: &TraceEvent) {
             self.evenements.lock().expect("mutex").push(event.clone());
         }
@@ -238,12 +238,12 @@ fn test_narration_measure() {
             arcs: BTreeMap::from([(0, n1), (1, n1)]),
         },
     );
-    let collecteur = Collecteur {
+    let collector = Collector {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let report = measure(&pool, root, Some(&collecteur)).expect("interned node");
+    let report = measure(&pool, root, Some(&collector)).expect("interned node");
     assert_eq!(report.nodes_partages, 4);
-    let events = collecteur.evenements.lock().expect("mutex").clone();
+    let events = collector.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
             e,
@@ -305,23 +305,23 @@ fn test_narration_comparaison_encodages() {
     use lisage_core::observer::{ChannelAttr, TraceEvent};
 
     #[derive(Clone)]
-    struct Collecteur {
+    struct Collector {
         evenements: Arc<Mutex<Vec<TraceEvent>>>,
     }
-    impl lisage_core::observer::Observer for Collecteur {
+    impl lisage_core::observer::Observer for Collector {
         fn on_event(&self, event: &TraceEvent) {
             self.evenements.lock().expect("mutex").push(event.clone());
         }
     }
 
     let mut pool = pool_bdd(Reductions::without_collapse());
-    let collecteur = Collecteur {
+    let collector = Collector {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
-    let report = comparer_encodages_window(&mut pool, ANCHOR, 4, 10, Some(&collecteur))
+    let report = comparer_encodages_window(&mut pool, ANCHOR, 4, 10, Some(&collector))
         .expect("interned nodes");
     assert_eq!(report.relatif.nodes_partages, 3);
-    let events = collecteur.evenements.lock().expect("mutex").clone();
+    let events = collector.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
             e,
@@ -428,10 +428,10 @@ fn test_narration_comparaison_orders() {
     use lisage_core::observer::{ChannelAttr, TraceEvent};
 
     #[derive(Clone)]
-    struct Collecteur {
+    struct Collector {
         evenements: Arc<Mutex<Vec<TraceEvent>>>,
     }
-    impl lisage_core::observer::Observer for Collecteur {
+    impl lisage_core::observer::Observer for Collector {
         fn on_event(&self, event: &TraceEvent) {
             self.evenements.lock().expect("mutex").push(event.clone());
         }
@@ -439,7 +439,7 @@ fn test_narration_comparaison_orders() {
 
     let table = table_ou_deux_paires();
     let mut pool = pool_bdd(Reductions::without_collapse());
-    let collecteur = Collecteur {
+    let collector = Collector {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
     let report = comparer_orders(
@@ -448,11 +448,11 @@ fn test_narration_comparaison_orders() {
         &table,
         &Order::naturel(4),
         &Order::personnalise(vec![0, 2, 1, 3]),
-        Some(&collecteur),
+        Some(&collector),
     )
     .expect("interned nodes");
     assert_eq!(report.first.nodes_partages, 10);
-    let events = collecteur.evenements.lock().expect("mutex").clone();
+    let events = collector.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
             e,
@@ -595,17 +595,17 @@ fn test_narration_comparaison_anchors() {
     use lisage_core::observer::{ChannelAttr, TraceEvent};
 
     #[derive(Clone)]
-    struct Collecteur {
+    struct Collector {
         evenements: Arc<Mutex<Vec<TraceEvent>>>,
     }
-    impl lisage_core::observer::Observer for Collecteur {
+    impl lisage_core::observer::Observer for Collector {
         fn on_event(&self, event: &TraceEvent) {
             self.evenements.lock().expect("mutex").push(event.clone());
         }
     }
 
     let mut pool = pool_bdd(Reductions::without_collapse());
-    let collecteur = Collecteur {
+    let collector = Collector {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
     let report = comparer_anchors_window(
@@ -614,11 +614,11 @@ fn test_narration_comparaison_anchors() {
         4,
         &AnchorWindow::new(0, 4),
         &AnchorWindow::new(2, 4),
-        Some(&collecteur),
+        Some(&collector),
     )
     .expect("interned nodes");
     assert_eq!(report.avant.nodes_partages, 3);
-    let events = collecteur.evenements.lock().expect("mutex").clone();
+    let events = collector.evenements.lock().expect("mutex").clone();
     assert!(
         events.iter().any(|e| matches!(
             e,

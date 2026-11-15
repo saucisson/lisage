@@ -87,12 +87,12 @@ impl Vtree {
     /// Validates the vtree: each variable appears only once.
     pub fn valider(&self) -> Result<(), ErrorVtree> {
         let mut views = Vec::new();
-        self.collecter_doublons(&mut views)?;
+        self.collect_doublons(&mut views)?;
         Ok(())
     }
 
     /// Collects the first variable seen twice, if any.
-    fn collecter_doublons(&self, views: &mut Vec<Atom>) -> Result<(), ErrorVtree> {
+    fn collect_doublons(&self, views: &mut Vec<Atom>) -> Result<(), ErrorVtree> {
         match self {
             Vtree::Feuille(variable) => {
                 if views.contains(variable) {
@@ -102,8 +102,8 @@ impl Vtree {
                 Ok(())
             }
             Vtree::Node { gauche, droite } => {
-                gauche.collecter_doublons(views)?;
-                droite.collecter_doublons(views)
+                gauche.collect_doublons(views)?;
+                droite.collect_doublons(views)
             }
         }
     }
@@ -112,20 +112,20 @@ impl Vtree {
     /// left variable precedes every right variable.
     pub fn contraintes_order(&self) -> Vec<(Atom, Atom)> {
         let mut contraintes = Vec::new();
-        self.collecter_contraintes(&mut contraintes);
+        self.collect_contraintes(&mut contraintes);
         contraintes
     }
 
     /// Accumulates the (left × right) constraints of each internal node.
-    fn collecter_contraintes(&self, contraintes: &mut Vec<(Atom, Atom)>) {
+    fn collect_contraintes(&self, contraintes: &mut Vec<(Atom, Atom)>) {
         if let Vtree::Node { gauche, droite } = self {
             for variable_gauche in gauche.order_plat() {
                 for variable_droite in droite.order_plat() {
                     contraintes.push((variable_gauche, variable_droite));
                 }
             }
-            gauche.collecter_contraintes(contraintes);
-            droite.collecter_contraintes(contraintes);
+            gauche.collect_contraintes(contraintes);
+            droite.collect_contraintes(contraintes);
         }
     }
 }

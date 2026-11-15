@@ -92,11 +92,11 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
         TraceEvent::MemoMiss { node } => ("MemoMiss", format!("\"noeud\":{}", node.0)),
         TraceEvent::Gc {
             live,
-            collectes,
+            collected,
             compaction,
         } => (
             "Gc",
-            format!("\"vivants\":{live},\"collectes\":{collectes},\"compaction\":{compaction}"),
+            format!("\"vivants\":{live},\"collectes\":{collected},\"compaction\":{compaction}"),
         ),
         TraceEvent::Round { numero } => ("Round", format!("\"numero\":{numero}")),
     };
@@ -118,7 +118,7 @@ impl JsonlObserver {
         }
     }
 
-    /// Collected JSONL lines (in emission order).
+    /// Collectd JSONL lines (in emission order).
     pub fn lignes(&self) -> Vec<String> {
         self.lignes.lock().expect("mutex poisoned").clone()
     }

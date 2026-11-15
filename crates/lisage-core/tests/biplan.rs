@@ -141,11 +141,11 @@ fn test_gc_mark_sweep() {
     let stats = pool.gc(&[root]);
     // R-default removed the default arc: reachable = root + true.
     assert_eq!(stats.live, 2, "root + true terminal");
-    assert_eq!(stats.collectes, (avant as u64) - 2);
+    assert_eq!(stats.collected, (avant as u64) - 2);
     // Compaction depends on the profiled threshold applied to observed dead.
     assert_eq!(
         stats.compaction,
-        threshold_atteint(stats.collectes, avant as u64)
+        threshold_atteint(stats.collected, avant as u64)
     );
     assert_eq!(pool.live(), 2);
     assert_eq!(
@@ -247,7 +247,7 @@ fn test_metriques_cache_et_evenement_gc() {
     let metriques = pool.metriques();
     assert_eq!(metriques.gc, 1);
     assert_eq!(metriques.live, stats.live);
-    assert_eq!(metriques.dead, stats.collectes);
+    assert_eq!(metriques.dead, stats.collected);
     assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     // Gc event emitted.
     let events = observer.events.lock().unwrap();
@@ -256,9 +256,9 @@ fn test_metriques_cache_et_evenement_gc() {
             e,
             TraceEvent::Gc {
                 live,
-                collectes,
+                collected,
                 ..
-            } if *live == stats.live && *collectes == stats.collectes
+            } if *live == stats.live && *collected == stats.collected
         )),
         "Gc event emitted"
     );
@@ -284,7 +284,7 @@ fn test_intern_plan_hit_cache_replanifie() {
 
 /// M4-1 (property tier, LCG): invariants of the compaction threshold, the
 /// hit rate and the GC — bound `dead × 4 == total` included, `taux_hit`
-/// bounded, `live + collectes == total` over random scenarios.
+/// bounded, `live + collected == total` over random scenarios.
 #[test]
 fn test_propriete_threshold_taux_hit_et_invariant_gc() {
     let mut seed = SEED_LCG;
@@ -338,7 +338,7 @@ fn test_propriete_threshold_taux_hit_et_invariant_gc() {
         assert_eq!(taux, expected);
     }
 
-    // GC invariant: live + collectes == total, and the metrics
+    // GC invariant: live + collected == total, and the metrics
     // reflect the last GC.
     for _ in 0..100 {
         let mut pool = arena();
@@ -355,11 +355,11 @@ fn test_propriete_threshold_taux_hit_et_invariant_gc() {
         }
         let total = pool.node_count() as u64;
         let stats = pool.gc(&[root]);
-        assert_eq!(stats.live + stats.collectes, total);
+        assert_eq!(stats.live + stats.collected, total);
         assert_eq!(stats.live, pool.live() as u64);
         let metriques = pool.metriques();
         assert_eq!(metriques.live, stats.live);
-        assert_eq!(metriques.dead, stats.collectes);
+        assert_eq!(metriques.dead, stats.collected);
         assert_eq!(metriques.compactions, if stats.compaction { 1 } else { 0 });
     }
 }
@@ -390,11 +390,11 @@ fn test_gc_deux_fois_live_exacts() {
     assert!(!first.compaction, "few dead: no compaction");
     assert!(pool.node_count() > pool.live(), "tombstones kept");
     // Second GC: the living must not count the tombstones of the
-    // first GC — live + collectes == live entries before the GC.
+    // first GC — live + collected == live entries before the GC.
     let live_before = pool.live() as u64;
     let stats = pool.gc(&[root, courant]);
     assert_eq!(stats.live, pool.live() as u64);
-    assert_eq!(stats.live + stats.collectes, live_before);
+    assert_eq!(stats.live + stats.collected, live_before);
     let metriques = pool.metriques();
     assert_eq!(metriques.live, stats.live);
     assert_eq!(metriques.gc, 2);

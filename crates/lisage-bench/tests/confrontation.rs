@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use lisage_bench::confrontation::{
-    ErrorConfrontation, MeasureConfrontation, OUTIL, Variante, Workload, executer, serialiser_ligne,
+    ErrorConfrontation, MeasureConfrontation, TOOL, Variant, Workload, executer, serialiser_ligne,
 };
 use lisage_core::atelier::Encodage;
 
@@ -113,8 +113,8 @@ fn ecrire_fichier_etats(number: u64) -> PathBuf {
 fn test_alea_lcg_satisfactions_epinglees() {
     for (n, satisfait) in [(4, SATISFACTIONS_LCG_N4), (12, SATISFACTIONS_LCG_N12)] {
         let measure = executer(&Workload::AleaLcg, &[n.to_string()], None).expect("workload run");
-        assert_eq!(OUTIL, "lisage");
-        assert_eq!(measure.variante, Variante::Bdd);
+        assert_eq!(TOOL, "lisage");
+        assert_eq!(measure.variant, Variant::Bdd);
         assert_eq!(measure.workload, Workload::AleaLcg);
         assert_eq!(measure.verifie, satisfait, "n={n}: pinned satisfactions");
         assert!(measure.nodes > 0, "n={n}: non-empty diagram");
@@ -145,7 +145,7 @@ fn test_philosophers_fil_rouge_epingle() {
         let parametres = vec![number.to_string(), path.display().to_string()];
         let measure = executer(&Workload::Philosophers, &parametres, None).expect("workload run");
         assert_eq!(measure.verifie, expected, "n={number}: pinned |R_n|");
-        assert_eq!(measure.variante, Variante::Mdd);
+        assert_eq!(measure.variant, Variant::Mdd);
         if number == 3 {
             assert_eq!(measure.nodes, NODES_R3, "R_3: 33 shared nodes");
         }
@@ -238,7 +238,7 @@ fn test_workloads_inconnues_refusees() {
 #[test]
 fn test_serialisation_ligne_epinglee() {
     let measure = MeasureConfrontation {
-        variante: Variante::Mdd,
+        variant: Variant::Mdd,
         workload: Workload::Window,
         parametres: vec![
             ("taille".to_string(), "4".to_string()),
@@ -288,20 +288,20 @@ fn test_narration_workload_epinglee() {
     use lisage_core::observer::{ChannelAttr, Observer, TraceEvent};
 
     #[derive(Clone)]
-    struct Collecteur {
+    struct Collector {
         evenements: Arc<Mutex<Vec<TraceEvent>>>,
     }
-    impl Observer for Collecteur {
+    impl Observer for Collector {
         fn on_event(&self, event: &TraceEvent) {
             self.evenements.lock().expect("mutex").push(event.clone());
         }
     }
 
-    let collecteur = Collecteur {
+    let collector = Collector {
         evenements: Arc::new(Mutex::new(Vec::new())),
     };
     let measure =
-        executer(&Workload::AleaLcg, &["4".to_string()], Some(&collecteur)).expect("workload run");
+        executer(&Workload::AleaLcg, &["4".to_string()], Some(&collector)).expect("workload run");
     let expected = format!(
         "workload=alea-lcg nodes={} check={}",
         measure.nodes, SATISFACTIONS_LCG_N4
@@ -313,13 +313,13 @@ fn test_narration_workload_epinglee() {
     let measure_philo = executer(
         &Workload::Philosophers,
         &["3".to_string(), path.display().to_string()],
-        Some(&collecteur),
+        Some(&collector),
     )
     .expect("philosophers workload run");
     let measure_window = executer(
         &Workload::Window,
         &["4".to_string(), "10".to_string(), "relatif".to_string()],
-        Some(&collecteur),
+        Some(&collector),
     )
     .expect("window workload run");
     let expected_list = [
@@ -333,7 +333,7 @@ fn test_narration_workload_epinglee() {
             measure_window.nodes, measure_window.verifie
         ),
     ];
-    let events = collecteur.evenements.lock().expect("mutex").clone();
+    let events = collector.evenements.lock().expect("mutex").clone();
     for expected in &expected_list {
         assert!(
             events.iter().any(|e| matches!(

@@ -28,13 +28,13 @@ fn pool() -> PoolRegion {
 
 /// Collecting observer to pin the narration events.
 #[derive(Clone)]
-struct Collecteur {
+struct Collector {
     evenements: Arc<Mutex<Vec<TraceEvent>>>,
 }
 
-impl Collecteur {
+impl Collector {
     fn new() -> Self {
-        Collecteur {
+        Collector {
             evenements: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -44,7 +44,7 @@ impl Collecteur {
     }
 }
 
-impl Observer for Collecteur {
+impl Observer for Collector {
     fn on_event(&self, event: &TraceEvent) {
         self.evenements.lock().expect("mutex").push(event.clone());
     }
@@ -143,11 +143,11 @@ fn test_narration_evenements_attr_synthesized() {
     let mut pool = pool();
     let intervals = vec![Interval::new(2, 5), Interval::new(7, 9)];
     let root = compiler_union(&mut pool, ANCHOR, &intervals);
-    let collecteur = Collecteur::new();
-    let measure = integrale_constante(&pool, root, &region_pleine(), Some(&collecteur))
+    let collector = Collector::new();
+    let measure = integrale_constante(&pool, root, &region_pleine(), Some(&collector))
         .expect("interned node");
     assert_eq!(measure, 5);
-    let events = collecteur.events();
+    let events = collector.events();
     // At least one Attr/Synthesized event emitted, with the final measure.
     let attrs: Vec<&TraceEvent> = events
         .iter()

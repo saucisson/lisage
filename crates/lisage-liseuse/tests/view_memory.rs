@@ -56,7 +56,7 @@ fn test_view_pool_depuis_metriques_gc() {
     assert_eq!(view.nom, "reference");
     assert_eq!(view.metriques.gc, 1);
     assert_eq!(view.metriques.live, stats_gc.live);
-    assert_eq!(view.metriques.dead, stats_gc.collectes);
+    assert_eq!(view.metriques.dead, stats_gc.collected);
     assert_eq!(view.live_principal, stats_gc.live);
     assert_eq!(view.live_ombre, 0);
 }
