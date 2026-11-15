@@ -264,7 +264,7 @@ fn echapper_json(chaine: &str) -> String {
 }
 
 /// Serializes a measurement as one JSON line (without the trailing `\n`). The
-/// key order is fixed and pinned by test: `tool`, `variant`, `charge`,
+/// key order is fixed and pinned by test: `outil`, `variante`, `charge`,
 /// `parametres`, `encodage` (window only), `temps_ms`, `rss_max_ko`,
 /// `nodes`, `verifie`.
 pub fn serialiser_ligne(measure: &MeasureConfrontation) -> String {
