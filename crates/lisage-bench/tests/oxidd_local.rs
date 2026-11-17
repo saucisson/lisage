@@ -65,12 +65,12 @@ fn shell_quote(s: &str) -> String {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(20))]
 
-    /// Local M7-2: the node count of the classic BDD (lisage arena) equals
-    /// the one computed by real OxiDD (Docker container) on random
-    /// truth tables.
+    /// Local M7-3: the node count of the classic BDD is identical across
+    /// the three witnesses — lisage arena, the internal mini-BDD, and real
+    /// OxiDD (Docker container) — on random truth tables.
     #[test]
     #[ignore = "outside CI — requires the Docker image lisage-oxidd:latest"]
-    fn test_m7_2_local_arena_vs_oxidd(
+    fn test_m7_3_local_arena_vs_minibdd_vs_oxidd(
         number_variables in 2u32..=8,
         table in prop::collection::vec(any::<bool>(), 4..=256),
     ) {
@@ -83,13 +83,22 @@ proptest! {
         let root = compiler_bdd(&mut pool, anchor, &keys, &table);
         let nodes_arena = count_nodes(&pool, root);
 
+        let mut temoin = lisage_bench::temoin_bdd::MiniBdd::new();
+        let root_temoin = temoin.compiler_table(number_variables, &table);
+        let nodes_temoin = temoin.count_nodes(root_temoin);
+
         let nodes_oxidd = oxidd_count_nodes(number_variables, &table)
             .expect("call to the lisage-oxidd Docker container failed");
 
         prop_assert_eq!(
             nodes_arena,
+            nodes_temoin,
+            "local M7-3: lisage arena and internal mini-BDD disagree"
+        );
+        prop_assert_eq!(
+            nodes_arena,
             nodes_oxidd as u64,
-            "local M7-2: identical reproduction of the node count against real OxiDD"
+            "local M7-3: identical reproduction of the node count against real OxiDD"
         );
     }
 }

@@ -46,6 +46,13 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-17 - M7-3: three-way differential harness lisage / mini-BDD / OxiDD (issue #113)
+
+- **Issue**: #113 (M7-3, milestone M7) — extend the local OxiDD differential harness.
+- **Done**: `crates/lisage-bench/tests/oxidd_local.rs` (created in #112) now asserts three-way equality on random truth tables: lisage arena `count_nodes` == internal mini-BDD `temoin_bdd::MiniBdd::count_nodes` == `oxidd_count` in the `lisage-oxidd` container. Still `#[ignore]`d, outside `make check`; run manually with `cargo test -p lisage-bench --test oxidd_local -- --ignored`.
+- **Evidence**: the ignored test passes 20/20 proptest cases with Docker available (arena == mini-BDD == OxiDD, zero discrepancy); `cargo test -p lisage-bench` without `--ignored` does not run it (0 tests in that target); `make lint`, `make typecheck`, `make imports`, `make test` (34 passed, 94.76%), `make english-only`, `cargo fmt --check`, `cargo clippy -p lisage-bench --all-targets -- -D warnings` all pass.
+- **Judgement calls**: no change needed in the `confrontation.rs` harness — the `alea-lcg` workload already serializes the same truth-table charge and checks C6 internally against the mini-BDD; the OxiDD container consumes the same stdin format.
+
 ## 2026-11-17 - M7-2: local Docker witness for OxiDD (issue #112)
 
 - **Issue**: #112 (M7-2, milestone M7) — `docker/oxidd/` following the ADR-0102 pattern.
