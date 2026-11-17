@@ -482,9 +482,13 @@ fn table_relation_pnml(reseau: &NetworkPetri) -> Result<(u32, Vec<bool>), ErrorC
     Ok((number_variables, table))
 }
 
+/// Values per line in the stdin serialization of a charge (witnesses read
+/// whitespace-separated tokens, the wrapping is cosmetic).
+const VALEURS_PAR_LIGNE_STDIN: usize = 64;
+
 /// Serializes a charge as a truth table in the standard stdin protocol of
 /// the external witnesses (`cudd_count`, `oxidd_count`): first line `n`,
-/// then the `2^n` values `0`/`1`, 64 per line.
+/// then the `2^n` values `0`/`1`, [`VALEURS_PAR_LIGNE_STDIN`] per line.
 pub fn serialiser_charge_stdin(number_variables: u32, table: &[bool]) -> String {
     assert_eq!(
         table.len(),
@@ -494,7 +498,11 @@ pub fn serialiser_charge_stdin(number_variables: u32, table: &[bool]) -> String 
     let mut sortie = format!("{number_variables}\n");
     for (indice, valeur) in table.iter().enumerate() {
         if indice > 0 {
-            sortie.push(if indice % 64 == 0 { '\n' } else { ' ' });
+            sortie.push(if indice % VALEURS_PAR_LIGNE_STDIN == 0 {
+                '\n'
+            } else {
+                ' '
+            });
         }
         sortie.push(if *valeur { '1' } else { '0' });
     }
