@@ -6,7 +6,9 @@
 
 use std::process::ExitCode;
 
-use lisage_bench::confrontation::{Workload, executer, serialiser_ligne};
+use lisage_bench::confrontation::{
+    Workload, executer, serialiser_charge_depuis_fichier, serialiser_ligne,
+};
 
 /// Exit code: incorrect usage.
 const CODE_USAGE: u8 = 2;
@@ -16,6 +18,32 @@ const USAGE_WORKLOADS: &str = "workloads: alea-lcg <n> | philosophers <n> <path>
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
+    // `dump-charge <workload> <path>`: serializes the charge in the standard
+    // stdin protocol of the external witnesses (orchestrator feed).
+    if arguments.first().map(String::as_str) == Some("dump-charge") {
+        let Some(name_workload) = arguments.get(1) else {
+            eprintln!("usage: confrontation dump-charge <workload> <path>");
+            return ExitCode::from(CODE_USAGE);
+        };
+        let Some(workload) = Workload::depuis_name(name_workload) else {
+            eprintln!("unknown workload: {name_workload}");
+            return ExitCode::from(CODE_USAGE);
+        };
+        let Some(path) = arguments.get(2) else {
+            eprintln!("usage: confrontation dump-charge <workload> <path>");
+            return ExitCode::from(CODE_USAGE);
+        };
+        return match serialiser_charge_depuis_fichier(&workload, path) {
+            Ok(charge) => {
+                print!("{charge}");
+                ExitCode::SUCCESS
+            }
+            Err(error) => {
+                eprintln!("confrontation: {error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     let Some((name_workload, parametres)) = arguments.split_first() else {
         eprintln!("usage: confrontation <workload> [parameters…]");
         eprintln!("{USAGE_WORKLOADS}");

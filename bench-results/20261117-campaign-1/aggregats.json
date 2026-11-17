@@ -1,0 +1,108 @@
+{
+  "run": "20261117-campaign-1",
+  "aggregats": [
+    {
+      "outil": "lisage",
+      "charge": "cnf-uf20-01",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 355.409,
+        "min": 352.25,
+        "max": 361.583
+      },
+      "rss_max_ko": {
+        "mediane": 5388,
+        "min": 5388,
+        "max": 5392
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "oxidd",
+      "charge": "cnf-uf20-01",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 88.704,
+        "min": 86.365,
+        "max": 90.937
+      },
+      "rss_max_ko": {
+        "mediane": 52692,
+        "min": 52464,
+        "max": 52804
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "lisage",
+      "charge": "pnml-swimmingpool-1",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 85.649,
+        "min": 85.339,
+        "max": 87.186
+      },
+      "rss_max_ko": {
+        "mediane": 4204,
+        "min": 4204,
+        "max": 4208
+      },
+      "noeuds": 1859,
+      "verifie": 1408
+    },
+    {
+      "outil": "oxidd",
+      "charge": "pnml-swimmingpool-1",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 24.52,
+        "min": 23.616,
+        "max": 25.99
+      },
+      "rss_max_ko": {
+        "mediane": 32060,
+        "min": 31888,
+        "max": 32192
+      },
+      "noeuds": 1859,
+      "verifie": 1408
+    },
+    {
+      "outil": "lisage",
+      "charge": "pnml-erk-000001",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 1348.648,
+        "min": 1346.584,
+        "max": 1361.794
+      },
+      "rss_max_ko": {
+        "mediane": 19768,
+        "min": 19724,
+        "max": 19768
+      },
+      "noeuds": 9721,
+      "verifie": 8672
+    },
+    {
+      "outil": "oxidd",
+      "charge": "pnml-erk-000001",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 353.863,
+        "min": 345.218,
+        "max": 370.428
+      },
+      "rss_max_ko": {
+        "mediane": 135720,
+        "min": 135516,
+        "max": 135800
+      },
+      "noeuds": 9721,
+      "verifie": 8672
+    }
+  ],
+  "divergences": []
+}

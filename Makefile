@@ -14,7 +14,7 @@ ACCENTS := [àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]
         rust-lint rust-format rust-test rust-check rust-audit rust-deny \
         english-only \
         day-start day-report smoke-test mutate notify review merge-pr pr claim \
-        claim-pr update-pr wait-ci night review-bundle sync-daily clean
+        claim-pr update-pr wait-ci night review-bundle sync-daily clean bench-confrontation
 
 help: ## List available targets with their description.
 	@grep --extended-regexp '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -126,6 +126,9 @@ wait-ci: ## Actively wait for CI on the pull request head: PR=N (ADR-0018).
 
 night: ## Run the unattended loop: ISSUES="12,13,14", MILESTONES="3,4", or auto-discovery when empty (ADR-0017).
 	$(PYTHON) -m scripts night --issues "$(ISSUES)" --milestones "$(MILESTONES)"
+
+bench-confrontation: ## Run the confrontation benchmark campaign, local only, never in CI (ADR-0102, M7-5): ARGS="--repetitions 5".
+	$(PYTHON) -m scripts bench-confrontation $(ARGS)
 
 review-bundle: ## Print the reviewer bundle against origin/daily (ADR-0010).
 	$(PYTHON) -m scripts review-bundle --base-ref origin/daily
