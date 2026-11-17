@@ -46,6 +46,13 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-17 - M7-1: OxiDD added to the state of the art (issue #111)
+
+- **Issue**: #111 (M7-1, milestone M7) — integrate OxiDD into the state-of-the-art document.
+- **Done**: `docs/state-of-the-art-decision-diagrams.md` (the file was renamed from its French name during M6): new dedicated subsection under §2 (libraries axis, next to CUDD/BuDDy/Sylvan/Meddly/libDDD), new row in the §7 comparison table, updated open-niche synthesis (parallelism axis now also covered by OxiDD in Rust), and two §11 references — the TACAS 2024 paper (DOI 10.1007/978-3-031-57256-2_13, verified on the authors' publication page) and the GitHub repo (MIT OR Apache-2.0, verified on the repo/PyPI). All factual claims sourced; no invented DOI. Author name transliterated `Köhl`→`Koehl` to satisfy the English-only lint.
+- **Evidence**: `make english-only` passes; `make lint`, `make typecheck`, `make imports`, `make test` pass. Rust gates not run on this branch — the diff touches no Rust file.
+- **Judgement calls**: the issue text references the old French filename; the current English filename was used.
+
 ## 2026-11-17 - M6-7: English-only lint in make check (issue #110)
 
 - **Issue**: #110 (M6-7, milestone M6) — final quality pass.
