@@ -34,6 +34,8 @@ use lisage_core::workshop::{
 };
 use lisage_lang::value::{Atom, Value};
 
+use crate::pnml::{NetworkPetri, NodeId, PnmlDocument};
+
 /// Measurement anchor (a single anchor per measurement, harness convention).
 const ANCHOR_MEASURE: Anchor = Anchor(0);
 /// `think`.
@@ -54,9 +56,12 @@ pub const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
 pub const MULTIPLICATEUR_LCG: u64 = 6_364_136_223_846_793_005;
 /// LCG increment.
 pub const INCREMENT_LCG: u64 = 1_442_695_040_888_963_407;
-/// Maximum number of variables accepted by the `alea-lcg` workload (guard:
-/// the truth table is `2^n` entries in memory).
+/// Maximum number of variables accepted by the `alea-lcg` and `cnf`
+/// workloads (guard: the truth table is `2^n` entries in memory).
 const VARIABLES_MAXIMALES_ALEA: u32 = 24;
+/// Maximum number of variables of the `pnml` workload transition relation
+/// (guard: 2p variables, the truth table is `2^(2p)` entries in memory).
+const VARIABLES_MAXIMALES_PNML: u32 = 24;
 /// Maximum number of philosophers accepted by the `philosophers` workload
 /// (guard: the interleaved schema has `2n` keys, R_n grows fast — the bench
 /// measures n ≤ 7).
@@ -77,6 +82,11 @@ pub enum Workload {
     Philosophers,
     /// Sliding window, absolute or relative encoding.
     Window,
+    /// Real CNF charge (DIMACS file): BDD of the Boolean function.
+    Cnf,
+    /// Real Petri-net charge (PNML file): BDD of the transition relation
+    /// over 2p variables.
+    Pnml,
 }
 
 impl Workload {
@@ -86,6 +96,8 @@ impl Workload {
             "alea-lcg" => Some(Workload::AleaLcg),
             "philosophers" => Some(Workload::Philosophers),
             "window" => Some(Workload::Window),
+            "cnf" => Some(Workload::Cnf),
+            "pnml" => Some(Workload::Pnml),
             _ => None,
         }
     }
@@ -96,6 +108,8 @@ impl Workload {
             Workload::AleaLcg => "alea-lcg",
             Workload::Philosophers => "philosophers",
             Workload::Window => "window",
+            Workload::Cnf => "cnf",
+            Workload::Pnml => "pnml",
         }
     }
 }
@@ -337,6 +351,290 @@ fn table_lcg(number_variables: u32) -> Vec<bool> {
             (etat >> 63) == 1
         })
         .collect()
+}
+
+/// Parses a DIMACS CNF file: comment lines `c …`, problem line
+/// `p cnf <n> <m>`, then the clauses as integer literals terminated by `0`
+/// (a clause may span several lines). Returns the number of variables and
+/// the clauses.
+fn lire_cnf(contenu: &str) -> Result<(u32, Vec<Vec<i64>>), ErrorConfrontation> {
+    let mut number_variables: Option<u32> = None;
+    let mut clauses: Vec<Vec<i64>> = Vec::new();
+    let mut clause_courante: Vec<i64> = Vec::new();
+    for ligne in contenu.lines() {
+        let ligne = ligne.trim();
+        if ligne.is_empty() || ligne.starts_with('c') || ligne.starts_with('%') {
+            continue;
+        }
+        if let Some(rest) = ligne.strip_prefix('p') {
+            let mut parties = rest.split_whitespace();
+            let format = parties.next();
+            let n = parties.next();
+            if format != Some("cnf") || n.is_none() {
+                return Err(ErrorConfrontation::InvalidInput {
+                    detail: format!("malformed DIMACS problem line: {ligne}"),
+                });
+            }
+            number_variables =
+                Some(
+                    n.unwrap()
+                        .parse::<u32>()
+                        .map_err(|_| ErrorConfrontation::InvalidInput {
+                            detail: format!("unreadable variable count: {ligne}"),
+                        })?,
+                );
+            continue;
+        }
+        for jeton in ligne.split_whitespace() {
+            let valeur: i64 = jeton
+                .parse()
+                .map_err(|_| ErrorConfrontation::InvalidInput {
+                    detail: format!("unreadable literal: {jeton}"),
+                })?;
+            if valeur == 0 {
+                clauses.push(std::mem::take(&mut clause_courante));
+            } else {
+                clause_courante.push(valeur);
+            }
+        }
+    }
+    if !clause_courante.is_empty() {
+        return Err(ErrorConfrontation::InvalidInput {
+            detail: "DIMACS clause not terminated by 0".to_string(),
+        });
+    }
+    let n = number_variables.ok_or_else(|| ErrorConfrontation::InvalidInput {
+        detail: "missing DIMACS problem line `p cnf <n> <m>`".to_string(),
+    })?;
+    Ok((n, clauses))
+}
+
+/// Truth table of a CNF function over `n` variables (bit ℓ of the index =
+/// variable ℓ, variable 0 at the root — the `compiler_bdd` convention).
+fn table_cnf(number_variables: u32, clauses: &[Vec<i64>]) -> Vec<bool> {
+    (0..(1usize << number_variables))
+        .map(|index| {
+            clauses.iter().all(|clause| {
+                clause.iter().any(|&litteral| {
+                    let variable = (litteral.unsigned_abs() - 1) as usize;
+                    let bit = (index >> variable) & 1 == 1;
+                    if litteral > 0 { bit } else { !bit }
+                })
+            })
+        })
+        .collect()
+}
+
+/// Truth table of the transition relation of a P/T net (1-safe models,
+/// unit arc weights) over `2p` variables: bits `0..p` = current marking
+/// `x`, bits `p..2p` = next marking `x'`. T(x,x') = OR_t [ enabled(t,x)
+/// AND x' == x − pre(t) + post(t) ], with enabled(t,x) = AND_{p∈pre(t)} x_p.
+fn table_relation_pnml(reseau: &NetworkPetri) -> Result<(u32, Vec<bool>), ErrorConfrontation> {
+    let p = reseau.number_places();
+    if p == 0 {
+        return Err(ErrorConfrontation::InvalidInput {
+            detail: "PNML net without places".to_string(),
+        });
+    }
+    let number_variables = 2 * p as u32;
+    if number_variables > VARIABLES_MAXIMALES_PNML {
+        return Err(ErrorConfrontation::ParametresInvalides {
+            workload: Workload::Pnml.label(),
+            detail: format!("2p must be ≤ {VARIABLES_MAXIMALES_PNML} (p={p})"),
+        });
+    }
+    // Pre/post masks of each transition (bit i = place i).
+    let mut masques: Vec<(u64, u64)> = Vec::with_capacity(reseau.number_transitions());
+    for transition in &reseau.transitions {
+        let mut pre: u64 = 0;
+        let mut post: u64 = 0;
+        for arc in &reseau.arcs {
+            let (place, vers_transition) = match (&arc.source, &arc.target) {
+                (NodeId::Place(identifiant), NodeId::Transition(t)) => (identifiant, t),
+                (NodeId::Transition(t), NodeId::Place(identifiant)) => (identifiant, t),
+                _ => continue,
+            };
+            if vers_transition != &transition.identifiant {
+                continue;
+            }
+            let Some(indice) = reseau.index_place(place) else {
+                return Err(ErrorConfrontation::InvalidInput {
+                    detail: format!("arc on unknown place {}", place.0),
+                });
+            };
+            match (&arc.source, &arc.target) {
+                (NodeId::Place(_), NodeId::Transition(_)) => pre |= 1 << indice,
+                _ => post |= 1 << indice,
+            }
+        }
+        masques.push((pre, post));
+    }
+    let masque_places = (1u64 << p) - 1;
+    let table: Vec<bool> = (0..(1usize << number_variables))
+        .map(|index| {
+            let x = (index as u64) & masque_places;
+            let xp = (index as u64) >> p;
+            masques
+                .iter()
+                .any(|(pre, post)| (x & pre) == *pre && xp == ((x & !pre) | post))
+        })
+        .collect();
+    Ok((number_variables, table))
+}
+
+/// Serializes a charge as a truth table in the standard stdin protocol of
+/// the external witnesses (`cudd_count`, `oxidd_count`): first line `n`,
+/// then the `2^n` values `0`/`1`, 64 per line.
+pub fn serialiser_charge_stdin(number_variables: u32, table: &[bool]) -> String {
+    assert_eq!(
+        table.len(),
+        1usize << number_variables,
+        "truth table size mismatch"
+    );
+    let mut sortie = format!("{number_variables}\n");
+    for (indice, valeur) in table.iter().enumerate() {
+        if indice > 0 {
+            sortie.push(if indice % 64 == 0 { '\n' } else { ' ' });
+        }
+        sortie.push(if *valeur { '1' } else { '0' });
+    }
+    sortie.push('\n');
+    sortie
+}
+
+/// Shared measurement of a truth-table charge: BDD by Shannon expansion,
+/// node count, C6 falsification against the independent mini-BDD witness,
+/// cross-check value = number of satisfying assignments (computable by
+/// every witness from the same truth table).
+fn mesurer_table(
+    workload: Workload,
+    parametres: Vec<(String, String)>,
+    number_variables: u32,
+    table: &[bool],
+    observer: Option<&dyn Observer>,
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
+    let keys = BddKeys::new(number_variables);
+    let mut pool = Arena::new(BddController::new(number_variables), Box::new(NoOpObserver));
+    let debut = Instant::now();
+    let expected_satisfactions = table.iter().filter(|value| **value).count() as u64;
+    let root = compiler_bdd(&mut pool, ANCHOR_MEASURE, &keys, table);
+    let nodes = count_nodes_bdd(&pool, root);
+    let duree = debut.elapsed();
+    // C6 falsification: the arena and the independent mini-BDD witness must
+    // count the same number of nodes on the same table.
+    let mut temoin = crate::temoin_bdd::MiniBdd::new();
+    let root_temoin = temoin.compiler_table(number_variables, table);
+    let nodes_temoin = temoin.count_nodes(root_temoin);
+    if nodes != nodes_temoin {
+        return Err(ErrorConfrontation::VerifieEchoue {
+            expected: nodes_temoin,
+            obtenu: nodes,
+        });
+    }
+    if temoin.evaluate(root_temoin, 0) != table[0] {
+        return Err(ErrorConfrontation::VerifieEchoue {
+            expected: table[0] as u64,
+            obtenu: temoin.evaluate(root_temoin, 0) as u64,
+        });
+    }
+    if let Some(observer) = observer {
+        observer.on_event(&TraceEvent::Attr {
+            channel: ChannelAttr::Synthesized,
+            node: root,
+            value: format!(
+                "workload={} nodes={} check={}",
+                workload.label(),
+                nodes,
+                expected_satisfactions
+            ),
+        });
+    }
+    Ok(MeasureConfrontation {
+        variant: Variant::Bdd,
+        workload,
+        parametres,
+        encodage: None,
+        temps_ms: duree.as_secs_f64() * MILLIS_PAR_SECONDE,
+        rss_max_ko: rss_max_ko()?,
+        nodes,
+        verifie: expected_satisfactions,
+    })
+}
+
+/// `cnf` workload: BDD of a real CNF charge (DIMACS file, e.g. the SATLIB
+/// `uf20-01.cnf`). The cross-check value is the number of satisfying
+/// assignments.
+fn workload_cnf(
+    path: &str,
+    observer: Option<&dyn Observer>,
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
+    let contenu =
+        std::fs::read_to_string(path).map_err(|error| ErrorConfrontation::InvalidInput {
+            detail: format!("CNF file {path} unreadable: {error}"),
+        })?;
+    let (number_variables, clauses) = lire_cnf(&contenu)?;
+    if number_variables == 0 || number_variables > VARIABLES_MAXIMALES_ALEA {
+        return Err(ErrorConfrontation::ParametresInvalides {
+            workload: Workload::Cnf.label(),
+            detail: format!("n must be in 1..={VARIABLES_MAXIMALES_ALEA}"),
+        });
+    }
+    let max_variable = clauses
+        .iter()
+        .flatten()
+        .map(|litteral| litteral.unsigned_abs())
+        .max()
+        .unwrap_or(0);
+    if max_variable > u64::from(number_variables) {
+        return Err(ErrorConfrontation::InvalidInput {
+            detail: format!("literal on variable {max_variable} > n={number_variables}"),
+        });
+    }
+    let table = table_cnf(number_variables, &clauses);
+    mesurer_table(
+        Workload::Cnf,
+        vec![
+            ("path".to_string(), path.to_string()),
+            ("clauses".to_string(), clauses.len().to_string()),
+        ],
+        number_variables,
+        &table,
+        observer,
+    )
+}
+
+/// `pnml` workload: BDD of the transition relation of a real Petri-net
+/// charge (PNML file, e.g. an MCC model). The cross-check value is the
+/// number of satisfying assignments of the relation (the number of
+/// (marking, transition) firing pairs).
+fn workload_pnml(
+    path: &str,
+    observer: Option<&dyn Observer>,
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
+    let contenu =
+        std::fs::read_to_string(path).map_err(|error| ErrorConfrontation::InvalidInput {
+            detail: format!("PNML file {path} unreadable: {error}"),
+        })?;
+    let reseau = NetworkPetri::depuis_pnml(&PnmlDocument(contenu)).map_err(|error| {
+        ErrorConfrontation::InvalidInput {
+            detail: format!("PNML file {path} invalid: {error}"),
+        }
+    })?;
+    let (number_variables, table) = table_relation_pnml(&reseau)?;
+    mesurer_table(
+        Workload::Pnml,
+        vec![
+            ("path".to_string(), path.to_string()),
+            ("places".to_string(), reseau.number_places().to_string()),
+            (
+                "transitions".to_string(),
+                reseau.number_transitions().to_string(),
+            ),
+        ],
+        number_variables,
+        &table,
+        observer,
+    )
 }
 
 /// `alea-lcg` workload: classic BDD of a deterministic random
@@ -619,7 +917,8 @@ fn workload_window(
 
 /// Runs a workload once and returns the measurement. Parameters:
 /// `alea-lcg <n>`, `philosophers <n> <path>`,
-/// `window <size> <nb_bases> [absolu|relatif]` (absolu by default).
+/// `window <size> <nb_bases> [absolu|relatif]` (absolu by default),
+/// `cnf <path>`, `pnml <path>`.
 /// `observer`: narration channel (ADR-0100) — an
 /// `Attr`/`Synthesized` event carries the workload summary.
 pub fn executer(
@@ -692,6 +991,26 @@ pub fn executer(
                 }
             };
             workload_window(size, nb_bases, encodage, observer)
+        }
+        Workload::Cnf => {
+            let seul =
+                parametres
+                    .first()
+                    .ok_or_else(|| ErrorConfrontation::ParametresInvalides {
+                        workload: Workload::Cnf.label(),
+                        detail: "expected: cnf <path>".to_string(),
+                    })?;
+            workload_cnf(seul, observer)
+        }
+        Workload::Pnml => {
+            let seul =
+                parametres
+                    .first()
+                    .ok_or_else(|| ErrorConfrontation::ParametresInvalides {
+                        workload: Workload::Pnml.label(),
+                        detail: "expected: pnml <path>".to_string(),
+                    })?;
+            workload_pnml(seul, observer)
         }
     }
 }

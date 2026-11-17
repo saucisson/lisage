@@ -12,8 +12,7 @@ use lisage_bench::confrontation::{Workload, executer, serialiser_ligne};
 const CODE_USAGE: u8 = 2;
 
 /// Workload usage line, written as-is on stderr.
-const USAGE_WORKLOADS: &str =
-    "workloads: alea-lcg <n> | philosophers <n> <path> | window <size> <nb_bases> [absolu|relatif]";
+const USAGE_WORKLOADS: &str = "workloads: alea-lcg <n> | philosophers <n> <path> | window <size> <nb_bases> [absolu|relatif] | cnf <path> | pnml <path>";
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();

@@ -34,6 +34,9 @@ const ELEMENT_PLACE: &str = "place";
 const ELEMENT_TRANSITION: &str = "transition";
 /// Arc element.
 const ELEMENT_ARC: &str = "arc";
+
+/// PNML `page` element (MCC models nest the net content in pages).
+const ELEMENT_PAGE: &str = "page";
 /// Identifier attribute.
 const ATTRIBUTE_ID: &str = "id";
 /// Arc source attribute.
@@ -443,7 +446,20 @@ impl NetworkPetri {
         let mut places = Vec::new();
         let mut transitions = Vec::new();
         let mut arcs_bruts = Vec::new();
+        // MCC models nest the places/transitions/arcs inside `<page>`
+        // elements: the pages are flattened (single-page nets are the
+        // common case).
+        let mut elements: Vec<&XmlNode> = Vec::new();
         for child in net {
+            if let XmlNode::Element { name, children, .. } = child
+                && name == ELEMENT_PAGE
+            {
+                elements.extend(children.iter());
+                continue;
+            }
+            elements.push(child);
+        }
+        for child in elements {
             let XmlNode::Element {
                 name,
                 attributes,
