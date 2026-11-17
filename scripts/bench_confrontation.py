@@ -314,6 +314,11 @@ def run(*, arguments: argparse.Namespace) -> int:
             output_directory=arguments.output_dir,
             run_identifier=run_identifier,
         )
-    except (RuntimeError, ValueError) as error:
+    except RuntimeError as error:
+        # A measurement failed: the campaign criteria are unmet (exit 1).
+        print(f"Error: {error}", file=sys.stderr)
+        return EXIT_CODE_CRITERIA_UNMET
+    except ValueError as error:
+        # Usage/config error: protocol failure (exit 2).
         print(f"Error: {error}", file=sys.stderr)
         return EXIT_CODE_PROTOCOL_FAILURE
