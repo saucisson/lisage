@@ -1,0 +1,11 @@
+[package]
+name = "oxidd_count"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+oxidd = { path = "/opt/oxidd/crates/oxidd" }
+
+[profile.release]
+opt-level = 2
