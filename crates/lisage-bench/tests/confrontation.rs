@@ -306,9 +306,9 @@ fn test_narration_workload_epinglee() {
         "workload=alea-lcg nodes={} check={}",
         measure.nodes, SATISFACTIONS_LCG_N4
     );
-    // The three workloads emit their summary: philosophers and
-    // window are pinned here too (a regression that would lose them
-    // would fail this test).
+    // Every workload emits its summary: philosophers, window, cnf and
+    // pnml are pinned here too (a regression that would lose one of
+    // them would fail this test).
     let path = write_fichier_etats(3);
     let measure_philo = executer(
         &Workload::Philosophers,
@@ -322,6 +322,18 @@ fn test_narration_workload_epinglee() {
         Some(&collector),
     )
     .expect("window workload run");
+    let measure_cnf = executer(
+        &Workload::Cnf,
+        &[chemin_modele("uf20-01.cnf")],
+        Some(&collector),
+    )
+    .expect("cnf workload run");
+    let measure_pnml = executer(
+        &Workload::Pnml,
+        &[chemin_modele("SwimmingPool-1.pnml")],
+        Some(&collector),
+    )
+    .expect("pnml workload run");
     let expected_list = [
         expected,
         format!(
@@ -331,6 +343,14 @@ fn test_narration_workload_epinglee() {
         format!(
             "workload=window encoding=relatif nodes={} check={}",
             measure_window.nodes, measure_window.verifie
+        ),
+        format!(
+            "workload=cnf nodes={} check={}",
+            measure_cnf.nodes, measure_cnf.verifie
+        ),
+        format!(
+            "workload=pnml nodes={} check={}",
+            measure_pnml.nodes, measure_pnml.verifie
         ),
     ];
     let events = collector.evenements.lock().expect("mutex").clone();
@@ -511,4 +531,70 @@ fn test_pnml_bound_refusee_et_noms() {
         error,
         ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "pnml"
     ));
+}
+
+/// Property (ADR-0012 property tier): on deterministic pseudo-random CNF
+/// charges, the workload's cross-check value equals an independent
+/// brute-force satisfaction count computed in the test (the LCG of the
+/// `alea-lcg` workload drives the generation).
+#[test]
+fn test_cnf_propriete_verifie_contre_force_brute() {
+    use lisage_bench::confrontation::{INCREMENT_LCG, MULTIPLICATEUR_LCG, SEED_LCG};
+    let mut etat = SEED_LCG;
+    let mut next_bit = move || {
+        etat = etat
+            .wrapping_mul(MULTIPLICATEUR_LCG)
+            .wrapping_add(INCREMENT_LCG);
+        (etat >> 63) == 1
+    };
+    for essai in 0..8 {
+        let n = 3 + (essai % 4) as u32; // 3..6 variables
+        let m = 2 + essai as usize * 3; // 2..23 clauses
+        let mut clauses: Vec<Vec<i64>> = Vec::new();
+        let mut contenu = format!("p cnf {n} {m}\n");
+        for _ in 0..m {
+            let mut clause: Vec<i64> = Vec::new();
+            for _ in 0..3 {
+                let variable = 1 + (next_bit() as u32) * n / 2 + (next_bit() as u32) * (n - n / 2);
+                let variable = 1 + (variable - 1) % n;
+                clause.push(if next_bit() {
+                    variable as i64
+                } else {
+                    -(variable as i64)
+                });
+            }
+            contenu.push_str(
+                &clause
+                    .iter()
+                    .map(|l| l.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+            contenu.push_str(" 0\n");
+            clauses.push(clause);
+        }
+        let uniq = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "confrontation-test-cnf-propriete-{essai}-{}-{uniq}.cnf",
+            std::process::id()
+        ));
+        std::fs::write(&path, &contenu).expect("random CNF written");
+        let measure = executer(&Workload::Cnf, &[path.display().to_string()], None)
+            .expect("cnf workload run");
+        let attendu = (0..(1u64 << n))
+            .filter(|index| {
+                clauses.iter().all(|clause| {
+                    clause.iter().any(|&litteral| {
+                        let bit = (index >> (litteral.unsigned_abs() - 1)) & 1 == 1;
+                        if litteral > 0 { bit } else { !bit }
+                    })
+                })
+            })
+            .count() as u64;
+        assert_eq!(
+            measure.verifie, attendu,
+            "essai {essai}: verifie == brute-force count"
+        );
+        assert!(measure.nodes > 0);
+    }
 }
