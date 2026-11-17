@@ -46,6 +46,13 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-17 - M7-2: local Docker witness for OxiDD (issue #112)
+
+- **Issue**: #112 (M7-2, milestone M7) — `docker/oxidd/` following the ADR-0102 pattern.
+- **Done**: `docker/oxidd/Dockerfile` builds `lisage-oxidd:latest` with OxiDD pinned at commit `c7a458df8b747a3ee44d0e9e61059a1621865fcd`; `oxidd_count` binary reads the same stdin format as `cudd_count` (n, then 2^n 0/1) and prints the BDD node count; `README.md` documents the pinned SHA and build command. No reference to `docker/oxidd` in Cargo.toml, CI workflows, Makefile or scripts (grep-verified). Variable convention matches lisage's `compiler_bdd` (bit l of the index = variable l, variable 0 at the root); `node_count()` (terminals included) matches lisage's `count_nodes` exactly — verified locally on 30+ truth tables (n=1..6), diff 0 everywhere, plus the Docker self-test `2 / 0 1 1 0 -> 5`.
+- **Evidence**: `docker build -t lisage-oxidd:latest docker/oxidd` succeeds; `docker run --rm -i lisage-oxidd:latest oxidd_count` returns 5 (XOR n=2), 1 (constant), 6 (n=3 sample) — identical to lisage `count_nodes`. The paired `#[ignore]`d differential `crates/lisage-bench/tests/oxidd_local.rs` (ADR-0102 pattern, outside CI) passes against the real container: `cargo test -p lisage-bench --test oxidd_local -- --ignored` 20/20 proptest cases, lisage == OxiDD. `make lint`, `make typecheck`, `make imports`, `make test`, `make english-only`, `cargo fmt --check`, `cargo clippy -p lisage-bench --all-targets -- -D warnings` pass. Note: the pre-existing `cudd_local` differential (lisage vs CUDD) currently fails on terminal counting (lisage counts terminals, CUDD DagSize does not) — pre-existing, out of scope here; oxidd_count follows the lisage convention.
+- **Judgement calls**: OxiDD API at the pinned SHA uses `ManagerRef` + shared/exclusive locks (building inside `with_manager_exclusive` deadlocks — operations take the shared lock); constants are `BDDFunction::t/f`.
+
 ## 2026-11-17 - M7-1: OxiDD added to the state of the art (issue #111)
 
 - **Issue**: #111 (M7-1, milestone M7) — integrate OxiDD into the state-of-the-art document.
