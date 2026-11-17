@@ -46,6 +46,13 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-17 - M7-5: benchmark campaign runner + deposited results lisage vs OxiDD (issue #115)
+
+- **Issue**: #115 (M7-5, milestone M7) — run the comparative campaign on the M7-4 charges, time AND memory, per the ADR-0102 protocol.
+- **Done**: new orchestrator `scripts/bench_confrontation.py` (`python -m scripts bench-confrontation`, `make bench-confrontation`, ADR-0021 wiring): each charge x tool x repetition runs as a **fresh process** (fresh Docker container for OxiDD), raw JSONL deposited in `bench-results/<run-id>/`, aggregates (median/min/max) in `aggregats.json`, cross-tool divergence check on `noeuds`/`verifie` (exit 1 on divergence). The witnesses receive the exact charge serialized by lisage (`confrontation dump-charge <workload> <path>`, new binary mode backed by the new pub `serialiser_charge_depuis_fichier`). `oxidd_count` now emits the full protocol JSONL line (`temps_ms`, `rss_max_ko`, `noeuds`, `verifie`) with manager init outside the measured block (variables pre-declared up to 24). In `confrontation.rs` the measured block of the `cnf`/`pnml` workloads now includes input reading (protocol alignment). Protocol documented in `docs/bench-confrontation-witnesses-and-measures.md`. Campaign `20261117-campaign-1` deposited in `bench-results/` (5 repetitions, 3 charges x 2 tools, zero divergences; cross-checks identical across tools: 51/8, 1859/1408, 9721/8672), reproduction command in its README.
+- **Evidence**: campaign run locally, exit 0, `divergences: []`; medians — cnf-uf20-01: lisage 355.4 ms / 5 388 ko vs OxiDD 88.7 ms / 52 692 ko; pnml-swimmingpool-1: 85.6 ms / 4 204 ko vs 24.5 ms / 32 060 ko; pnml-erk-000001: 1 348.6 ms / 19 768 ko vs 353.9 ms / 135 720 ko. Gates: `make lint`, `make typecheck`, `make imports`, `make test` (39 passed, 94.76%), `make english-only`, `make rust-check` (301 passed, 5 skipped), `cargo fmt --check`, `cargo clippy -p lisage-bench --all-targets -- -D warnings` all pass. Not run in CI by design (ADR-0102: Docker witnesses are local only).
+- **Judgement calls**: the campaign normalizes the `charge` field to the charge label uniformly across tools (the binary reports the workload label) — the cross-check caught this inconsistency on the first run and it was fixed before depositing. The `philosophers` workload is not part of the campaign (toy-scale states file, documented in #114).
+
 ## 2026-11-17 - M7-4: real non-toy benchmark charges for all witnesses (issue #114)
 
 - **Issue**: #114 (M7-4, milestone M7) — at least 3 real charges, each with a versioned input and a pinned cross-check value, implemented in lisage and serializable for the OxiDD witness; no toy examples.

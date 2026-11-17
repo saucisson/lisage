@@ -519,11 +519,11 @@ fn mesurer_table(
     parametres: Vec<(String, String)>,
     number_variables: u32,
     table: &[bool],
+    debut: Instant,
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
     let keys = BddKeys::new(number_variables);
     let mut pool = Arena::new(BddController::new(number_variables), Box::new(NoOpObserver));
-    let debut = Instant::now();
     let expected_satisfactions = table.iter().filter(|value| **value).count() as u64;
     let root = compiler_bdd(&mut pool, ANCHOR_MEASURE, &keys, table);
     let nodes = count_nodes_bdd(&pool, root);
@@ -572,10 +572,9 @@ fn mesurer_table(
 /// `cnf` workload: BDD of a real CNF charge (DIMACS file, e.g. the SATLIB
 /// `uf20-01.cnf`). The cross-check value is the number of satisfying
 /// assignments.
-fn workload_cnf(
-    path: &str,
-    observer: Option<&dyn Observer>,
-) -> Result<MeasureConfrontation, ErrorConfrontation> {
+/// Reads and parses a CNF charge file into its truth table (input reading,
+/// part of the measured block at the workload level).
+fn charge_cnf(path: &str) -> Result<(u32, Vec<bool>, usize), ErrorConfrontation> {
     let contenu =
         std::fs::read_to_string(path).map_err(|error| ErrorConfrontation::InvalidInput {
             detail: format!("CNF file {path} unreadable: {error}"),
@@ -599,14 +598,77 @@ fn workload_cnf(
         });
     }
     let table = table_cnf(number_variables, &clauses);
+    Ok((number_variables, table, clauses.len()))
+}
+
+/// Parsed PNML charge: number of variables, truth table of the transition
+/// relation, (places, transitions).
+type ChargePnml = (u32, Vec<bool>, (usize, usize));
+
+/// Reads and parses a PNML charge file into the truth table of its
+/// transition relation (input reading, part of the measured block at the
+/// workload level).
+fn charge_pnml(path: &str) -> Result<ChargePnml, ErrorConfrontation> {
+    let contenu =
+        std::fs::read_to_string(path).map_err(|error| ErrorConfrontation::InvalidInput {
+            detail: format!("PNML file {path} unreadable: {error}"),
+        })?;
+    let reseau = NetworkPetri::depuis_pnml(&PnmlDocument(contenu)).map_err(|error| {
+        ErrorConfrontation::InvalidInput {
+            detail: format!("PNML file {path} invalid: {error}"),
+        }
+    })?;
+    let (number_variables, table) = table_relation_pnml(&reseau)?;
+    Ok((
+        number_variables,
+        table,
+        (reseau.number_places(), reseau.number_transitions()),
+    ))
+}
+
+/// Serializes the charge of a file-based workload (`cnf`, `pnml`) in the
+/// standard stdin protocol of the external witnesses. The orchestrator
+/// feeds the witnesses this exact input: same charge, same serialization.
+pub fn serialiser_charge_depuis_fichier(
+    workload: &Workload,
+    path: &str,
+) -> Result<String, ErrorConfrontation> {
+    match workload {
+        Workload::Cnf => {
+            let (number_variables, table, _) = charge_cnf(path)?;
+            Ok(serialiser_charge_stdin(number_variables, &table))
+        }
+        Workload::Pnml => {
+            let (number_variables, table, _) = charge_pnml(path)?;
+            Ok(serialiser_charge_stdin(number_variables, &table))
+        }
+        autre => Err(ErrorConfrontation::ParametresInvalides {
+            workload: autre.label(),
+            detail: "dump-charge supports only the file-based workloads: cnf, pnml".to_string(),
+        }),
+    }
+}
+
+/// `cnf` workload: BDD of a real CNF charge (DIMACS file, e.g. the SATLIB
+/// `uf20-01.cnf`). The cross-check value is the number of satisfying
+/// assignments.
+fn workload_cnf(
+    path: &str,
+    observer: Option<&dyn Observer>,
+) -> Result<MeasureConfrontation, ErrorConfrontation> {
+    // Measured block (protocol): input reading + table construction +
+    // diagram construction + counting. Pool/keys creation is outside.
+    let debut = Instant::now();
+    let (number_variables, table, nombre_clauses) = charge_cnf(path)?;
     mesurer_table(
         Workload::Cnf,
         vec![
             ("path".to_string(), path.to_string()),
-            ("clauses".to_string(), clauses.len().to_string()),
+            ("clauses".to_string(), nombre_clauses.to_string()),
         ],
         number_variables,
         &table,
+        debut,
         observer,
     )
 }
@@ -619,28 +681,20 @@ fn workload_pnml(
     path: &str,
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
-    let contenu =
-        std::fs::read_to_string(path).map_err(|error| ErrorConfrontation::InvalidInput {
-            detail: format!("PNML file {path} unreadable: {error}"),
-        })?;
-    let reseau = NetworkPetri::depuis_pnml(&PnmlDocument(contenu)).map_err(|error| {
-        ErrorConfrontation::InvalidInput {
-            detail: format!("PNML file {path} invalid: {error}"),
-        }
-    })?;
-    let (number_variables, table) = table_relation_pnml(&reseau)?;
+    // Measured block (protocol): input reading + table construction +
+    // diagram construction + counting. Pool/keys creation is outside.
+    let debut = Instant::now();
+    let (number_variables, table, (places, transitions)) = charge_pnml(path)?;
     mesurer_table(
         Workload::Pnml,
         vec![
             ("path".to_string(), path.to_string()),
-            ("places".to_string(), reseau.number_places().to_string()),
-            (
-                "transitions".to_string(),
-                reseau.number_transitions().to_string(),
-            ),
+            ("places".to_string(), places.to_string()),
+            ("transitions".to_string(), transitions.to_string()),
         ],
         number_variables,
         &table,
+        debut,
         observer,
     )
 }
