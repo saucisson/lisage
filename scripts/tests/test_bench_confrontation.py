@@ -6,9 +6,11 @@ divergence check, and the integrity of the charge list.
 """
 
 import json
+from pathlib import Path
 
 import pytest
 
+from scripts import bench_confrontation as bc
 from scripts.bench_confrontation import (
     CHARGES,
     aggregate_measures,
@@ -106,3 +108,38 @@ def test_charges_versionnees_existent() -> None:
     for charge in CHARGES:
         assert charge.path.is_file(), f"missing charge input: {charge.path}"
         assert charge.workload in ("cnf", "pnml")
+
+
+def test_run_campaign_exit_1_sur_divergence(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Acceptance criterion: a cross-tool divergence on noeuds/verifie exits 1.
+
+    The raw lines and the aggregates (with the divergence recorded) are
+    still deposited as evidence.
+    """
+    charge = bc.Charge("c", "cnf", Path("x"))
+
+    def lisage_measure(*, binary: Path, charge: bc.Charge) -> dict[str, object]:
+        return make_measure(outil="lisage", charge="c", temps_ms=1.0, rss=1, noeuds=51)
+
+    def oxidd_measure(*, image: str, charge_stdin: str, label: str) -> dict[str, object]:
+        return make_measure(outil="oxidd", charge="c", temps_ms=2.0, rss=2, noeuds=49)
+
+    monkeypatch.setattr(bc, "run_lisage_measurement", lisage_measure)
+    monkeypatch.setattr(bc, "run_oxidd_measurement", oxidd_measure)
+    monkeypatch.setattr(bc, "dump_charge", lambda *, binary, charge: "2\n0 1 1 0\n")
+    exit_code = bc.run_campaign(
+        charges=[charge],
+        tools=["lisage", "oxidd"],
+        repetitions=2,
+        binary=Path("b"),
+        image="img",
+        output_directory=tmp_path,
+        run_identifier="t",
+    )
+    assert exit_code == 1
+    deposited = json.loads((tmp_path / "t" / "aggregats.json").read_text(encoding="utf-8"))
+    assert len(deposited["divergences"]) == 1
+    assert (tmp_path / "t" / "c-lisage.jsonl").is_file()
+    assert (tmp_path / "t" / "c-oxidd.jsonl").is_file()
