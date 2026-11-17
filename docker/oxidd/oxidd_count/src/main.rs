@@ -8,10 +8,11 @@ use oxidd::bdd::{BDDFunction, new_manager};
 use oxidd::util::AllocResult;
 use oxidd::{BooleanFunction, BooleanOperator, Function, Manager, ManagerRef};
 
-/// Capacity of the manager's unique table (witness sizing, not a protocol value).
-const INNER_NODE_CAPACITY: usize = 1024;
+/// Capacity of the manager's unique table (witness sizing, not a protocol
+/// value): sized for the real M7-4 charges (ERK-PT-000001 needs 9 721 nodes).
+const INNER_NODE_CAPACITY: usize = 1 << 20;
 /// Capacity of the manager's apply cache (witness sizing, not a protocol value).
-const APPLY_CACHE_CAPACITY: usize = 1024;
+const APPLY_CACHE_CAPACITY: usize = 1 << 20;
 /// Worker threads: counting is single-threaded, one worker is enough.
 const THREADS: u32 = 1;
 

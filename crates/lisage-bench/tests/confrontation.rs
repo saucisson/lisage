@@ -348,3 +348,167 @@ fn test_narration_workload_epinglee() {
         );
     }
 }
+
+/// Path of a versioned model of `crates/lisage-bench/models/` (cargo runs
+/// the tests with the crate root as working directory).
+fn chemin_modele(nom: &str) -> String {
+    format!("models/{nom}")
+}
+
+/// Pinned cross-check values of the real charges (M7-4, issue #114): BDD
+/// node count (`nodes`) and satisfying assignments (`verifie`) on the
+/// versioned inputs of `models/`, cross-checked against the OxiDD witness
+/// (same truth-table stdin protocol). SATLIB `uf20-01.cnf`: 20 variables,
+/// 91 clauses, phase-transition 3-SAT.
+const CNF_UF20_01_NODES: u64 = 51;
+/// Satisfactions of `uf20-01.cnf`.
+const CNF_UF20_01_SATISFAITS: u64 = 8;
+/// MCC `SwimmingPool-PT-01`: 9 places → 18 variables.
+const PNML_SWIMMINGPOOL_NODES: u64 = 1859;
+/// Firing pairs of `SwimmingPool-PT-01`.
+const PNML_SWIMMINGPOOL_SATISFAITS: u64 = 1408;
+/// MCC `ERK-PT-000001`: 11 places → 22 variables (heavy).
+const PNML_ERK_NODES: u64 = 9721;
+/// Firing pairs of `ERK-PT-000001`.
+const PNML_ERK_SATISFAITS: u64 = 8672;
+
+/// `cnf` workload on the real SATLIB charge `uf20-01.cnf`: pinned node
+/// count and pinned satisfactions (cross-tool comparable), `bdd` variant.
+#[test]
+fn test_cnf_uf20_epingle() {
+    let path = chemin_modele("uf20-01.cnf");
+    let measure = executer(&Workload::Cnf, &[path], None).expect("cnf workload run");
+    assert_eq!(measure.variant, Variant::Bdd);
+    assert_eq!(measure.workload, Workload::Cnf);
+    assert_eq!(measure.nodes, CNF_UF20_01_NODES, "uf20-01: pinned nodes");
+    assert_eq!(
+        measure.verifie, CNF_UF20_01_SATISFAITS,
+        "uf20-01: pinned satisfactions"
+    );
+    assert!(measure.rss_max_ko > 0);
+}
+
+/// `pnml` workload on the real MCC charge `SwimmingPool-1.pnml`: pinned
+/// node count of the transition relation (18 variables) and pinned number
+/// of firing pairs.
+#[test]
+fn test_pnml_swimmingpool_epingle() {
+    let path = chemin_modele("SwimmingPool-1.pnml");
+    let measure = executer(&Workload::Pnml, &[path], None).expect("pnml workload run");
+    assert_eq!(measure.variant, Variant::Bdd);
+    assert_eq!(measure.workload, Workload::Pnml);
+    assert_eq!(
+        measure.nodes, PNML_SWIMMINGPOOL_NODES,
+        "SwimmingPool-1: pinned nodes"
+    );
+    assert_eq!(
+        measure.verifie, PNML_SWIMMINGPOOL_SATISFAITS,
+        "SwimmingPool-1: pinned firing pairs"
+    );
+}
+
+/// `pnml` workload on the heavy MCC charge `erk-000001.pnml` (22
+/// variables, 2^22-entry truth table): pinned values, `#[ignore]`d —
+/// several seconds even in release, run explicitly with
+/// `cargo test -p lisage-bench -- --ignored`.
+#[test]
+#[ignore]
+fn test_pnml_erk_epingle() {
+    let path = chemin_modele("erk-000001.pnml");
+    let measure = executer(&Workload::Pnml, &[path], None).expect("pnml workload run");
+    assert_eq!(measure.nodes, PNML_ERK_NODES, "ERK-000001: pinned nodes");
+    assert_eq!(
+        measure.verifie, PNML_ERK_SATISFAITS,
+        "ERK-000001: pinned firing pairs"
+    );
+}
+
+/// The real charges serialize in the standard stdin protocol of the
+/// external witnesses (`cudd_count`, `oxidd_count`): first line `n`, then
+/// the `2^n` values `0`/`1`, 64 per line — pinned on a small table.
+#[test]
+fn test_serialiser_charge_stdin_epingle() {
+    use lisage_bench::confrontation::serialiser_charge_stdin;
+    let table = [false, true, true, false, false, false, true, true];
+    let sortie = serialiser_charge_stdin(3, &table);
+    assert_eq!(sortie, "3\n0 1 1 0 0 0 1 1\n");
+    // 64 values per line: n = 7 wraps after the 64th value.
+    let grande = vec![true; 128];
+    let sortie = serialiser_charge_stdin(7, &grande);
+    let lignes: Vec<&str> = sortie.lines().collect();
+    assert_eq!(lignes[0], "7");
+    assert_eq!(lignes[1].split(' ').count(), 64);
+    assert_eq!(lignes[2].split(' ').count(), 64);
+}
+
+/// `cnf` workload: malformed DIMACS inputs (missing problem line,
+/// unreadable literal, unterminated clause, literal beyond `n`) and
+/// unreadable file → typed errors, never swallowed.
+#[test]
+fn test_cnf_inputs_invalides() {
+    let cas = [
+        "1 2 0\n",
+        "p cnf 2 1\nx 0\n",
+        "p cnf 2 1\n1 2\n",
+        "p cnf 2 1\n3 0\n",
+        "p sat 2 1\n1 0\n",
+    ];
+    for (numero, content) in cas.iter().enumerate() {
+        let uniq = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "confrontation-test-cnf-invalide-{numero}-{}-{uniq}.cnf",
+            std::process::id()
+        ));
+        std::fs::write(&path, content).expect("invalid CNF written");
+        let error = executer(&Workload::Cnf, &[path.display().to_string()], None);
+        assert!(
+            matches!(error, Err(ErrorConfrontation::InvalidInput { .. })),
+            "typed error InvalidInput: {error:?}"
+        );
+    }
+    let error = executer(&Workload::Cnf, &["models/inexistant.cnf".to_string()], None)
+        .expect_err("missing file rejected");
+    assert!(matches!(error, ErrorConfrontation::InvalidInput { .. }));
+    let error = executer(&Workload::Cnf, &[], None).expect_err("missing parameter rejected");
+    assert!(matches!(
+        error,
+        ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "cnf"
+    ));
+}
+
+/// `pnml` workload: a synthetic 13-place net exceeds the 2p ≤ 24 guard →
+/// typed error, no panic; unknown names and the new names at the binary
+/// edge.
+#[test]
+fn test_pnml_bound_refusee_et_noms() {
+    assert_eq!(Workload::depuis_name("cnf"), Some(Workload::Cnf));
+    assert_eq!(Workload::depuis_name("pnml"), Some(Workload::Pnml));
+    let mut contenu = String::from(
+        "<?xml version=\"1.0\"?><pnml><net id=\"t\" \
+         type=\"http://www.pnml.org/version-2009/grammar/ptnet\"><page id=\"p0\">",
+    );
+    for i in 0..13 {
+        contenu.push_str(&format!("<place id=\"p{i}\"/>"));
+    }
+    contenu.push_str(
+        "<transition id=\"t0\"/><arc id=\"a0\" source=\"p0\" target=\"t0\"/>\
+                      <arc id=\"a1\" source=\"t0\" target=\"p1\"/></page></net></pnml>",
+    );
+    let uniq = COUNTER_FICHIERS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let path = std::env::temp_dir().join(format!(
+        "confrontation-test-pnml-13places-{}-{uniq}.pnml",
+        std::process::id()
+    ));
+    std::fs::write(&path, contenu).expect("13-place PNML written");
+    let error =
+        executer(&Workload::Pnml, &[path.display().to_string()], None).expect_err("bound rejected");
+    assert!(matches!(
+        error,
+        ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "pnml"
+    ));
+    let error = executer(&Workload::Pnml, &[], None).expect_err("missing parameter rejected");
+    assert!(matches!(
+        error,
+        ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "pnml"
+    ));
+}
