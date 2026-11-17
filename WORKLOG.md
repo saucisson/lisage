@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-17 - M6-7: English-only lint in make check (issue #110)
+
+- **Issue**: #110 (M6-7, milestone M6) — final quality pass.
+- **Done**: new `make english-only` target fails on French accented characters in `docs/**/*.md`, root `*.md` and `crates/**/*.rs`; wired into `make check`. Allowlist (documented in the Makefile): `docs/glossary.md` (FR→EN mapping terms), `docs/audit-french-inventory.md` (quoted French strings), `WORKLOG.md` (pre-M6 entries stay French per its own header). One residual accent fixed: "Université Pierre et Marie Curie" → "Pierre and Marie Curie University (UPMC)" in the state-of-the-art. PR #181 (issue #107, docs/agents + docs/decisions) merged into daily with human authorization.
+- **Evidence**: `make english-only` passes on the converted tree and fails on a planted accented file (sanity check); `make lint`, `make typecheck`, `make imports`, `make test` pass. **Not run**: the Rust gates on this branch — the diff touches no Rust file (last full run on daily HEAD: 293 passed, clippy and fmt clean). **Not done**: wiring the lint into `.github/workflows/ci.yml` — the app token lacks the `workflow` scope and refuses workflow edits; left to the human.
+- **Judgement calls**: WORKLOG.md exempted from the lint rather than translated — its header forbids rewriting past entries (honesty rule); the lint enforces English-only for all new content.
+- **Escalations**: lint/CI configuration and constitutional docs are on the ADR-0010 escalation list — the human authorized both in the session directive ("Termine la M6 et merge daily; traduis tous les documents et ajoute le lint English-only").
+
 ## 2026-11-14 - M6-6 part 31 (final): articles `un`/`une`/`deux`/`la`/`et` renamed to `one`/`two`/`level_a`/`_and_`, remaining French prose comments translated (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6) — final identifier batch.

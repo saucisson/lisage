@@ -269,7 +269,7 @@ Static saturation (Ciardo, ~2001-2004), automatic saturation (Hamez, 2008), [mul
 - Zhang, Berard, Kordon, Thierry-Mieg — *Automated Controllability and Synthesis with HSDD*, IFAC 2010. https://doi.org/10.3182/20100830-3-de-4013.00047
 - Hamez et al. — *A Symbolic Model Checker for Petri Nets: pnmc*, 2016. https://doi.org/10.1007/978-3-662-53401-4_15
 - Linard, Paviot-Adet, Charron, Buchs — *polyDD: Towards a Framework Generalizing Decision Diagrams*, ACSD 2010. https://doi.org/10.1109/acsd.2010.17
-- Linard, A. — *Parametrizable Semantics of Decision Diagrams: An Approach Towards Unification*, thesis, Université Pierre et Marie Curie, 2009 (2009PA066655, theses.fr).
+- Linard, A. — *Parametrizable Semantics of Decision Diagrams: An Approach Towards Unification*, thesis, Pierre and Marie Curie University (UPMC), 2009 (2009PA066655, theses.fr).
 - Linard, Hamez et al. — *Specification of Decision Diagram Operations*, 2010.
 - van Dijk & Pol — *Sylvan: multi-core framework for decision diagrams*, 2016. https://doi.org/10.1007/s10009-016-0433-2
 - Choi & Darwiche — *Dynamic Minimization of Sentential Decision Diagrams*, AAAI 2013. https://doi.org/10.1609/aaai.v27i1.8690
