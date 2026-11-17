@@ -34,6 +34,16 @@ It is precisely this matrix that a unified framework must cover: polyDD tackled 
 
 **Lesson for unification**: this line is well charted; the "domains" and "leaf values" axes have been systematically explored there. The difficulty of unification begins with operations (each library hard-codes Apply, restrict, etc.) and sharing behind the scenes (libraries share nothing with one another).
 
+### OxiDD (TACAS 2024): the Rust-native concurrent framework
+
+- **What it is**: a highly modular decision-diagram framework written in **native Rust** ([github.com/oxidd/oxidd](https://github.com/oxidd/oxidd), [oxidd.net](https://oxidd.net)), with instances for BDDs, MDDs and ZDDs among others, plus C/C++ and Python FFI bindings.
+- **Concurrency**: DDs can be safely used in multi-threaded contexts (multi-core); the authors report performance competitive with — and sometimes above — BuDDy, CUDD and Sylvan.
+- **Canonicity**: reduced ordered BDDs are canonical, so equality of Boolean functions is decidable in constant time.
+- **License / language**: MIT OR Apache-2.0; native Rust gives memory safety and zero-cost abstractions without a GC.
+- **Limits**: like Sylvan and Meddly, unification is by **framework**, not by a controller — each DD kind re-implements its own reductions; no HSDD-style hierarchy, no declarative saturation, no generic edge valuation.
+
+---
+
 ---
 
 ## 3. Multi-valued line and saturation: the Ciardo/Miner school
@@ -127,11 +137,12 @@ A parallel community made the same unification move, but **on the logic side** �
 | DDD homomorphisms (Couvreur et al. 2002) | Operations over arbitrary domains | Classic Boolean structures, canonicity |
 | Darwiche's SDD (2011) + KC map (2002) | Compilation languages vs queries | The entire "large graphs/memory sharing" side |
 | Sylvan (2016) | BDD/MDD + multi-core | Rich domains, hierarchy, saturation |
+| [OxiDD](https://github.com/oxidd/oxidd) (Husung et al., TACAS 2024, [DOI](https://doi.org/10.1007/978-3-031-57256-2_13)) | BDD/MDD/ZDD + multi-core, in native Rust (MIT OR Apache-2.0) | Rich domains, hierarchy, saturation, generic edge valuation |
 | DD modulo theories (2024) | Canonicity + theories | State spaces, hierarchy |
 | [MEDDLY / multi-domain package](https://link.springer.com/chapter/10.1007/978-0-387-35190-2_12) (Miner et al.; Becker/Drechsler school) | All MDD types in one package; 11 pseudo-Boolean types (BDD, FDD, OKFDD, MTBDD, EVBDD, BMD, *BMD, p*BMD, HDD, K*BMD, ZDD) | Unification by **framework**, without a controller: each type re-codes its reductions |
 | [SLDD](https://www.ijcai.org/Proceedings/05/Papers/0857.pdf) (Wilson, IJCAI 2005) | Query semirings on DD edges | Structure of atoms, attribution (the **construction** semiring is not separated) |
 
-**Clearly open niche**: no existing framework simultaneously unifies (1) generic edge valuation, (2) HSDD hierarchy, (3) saturation as a *declarative* strategy (since Hamez, no one has generalized automatic saturation beyond the Petri/net context), (4) parallelism (Sylvan), and (5) Darwiche-style canonicity guarantees.
+**Clearly open niche**: no existing framework simultaneously unifies (1) generic edge valuation, (2) HSDD hierarchy, (3) saturation as a *declarative* strategy (since Hamez, no one has generalized automatic saturation beyond the Petri/net context), (4) parallelism (Sylvan, and since TACAS 2024 also OxiDD — in Rust), and (5) Darwiche-style canonicity guarantees.
 
 ---
 
@@ -272,6 +283,8 @@ Static saturation (Ciardo, ~2001-2004), automatic saturation (Hamez, 2008), [mul
 - Linard, A. — *Parametrizable Semantics of Decision Diagrams: An Approach Towards Unification*, thesis, Pierre and Marie Curie University (UPMC), 2009 (2009PA066655, theses.fr).
 - Linard, Hamez et al. — *Specification of Decision Diagram Operations*, 2010.
 - van Dijk & Pol — *Sylvan: multi-core framework for decision diagrams*, 2016. https://doi.org/10.1007/s10009-016-0433-2
+- Husung, Dubslaff, Hermanns, Koehl — *OxiDD: A Safe, Concurrent, Modular, and Performant Decision Diagram Framework in Rust*, TACAS 2024, LNCS 14579, pp. 255–275 (EASST Best Paper Award). https://doi.org/10.1007/978-3-031-57256-2_13
+- OxiDD framework — https://github.com/oxidd/oxidd (MIT OR Apache-2.0), documentation at https://oxidd.net
 - Choi & Darwiche — *Dynamic Minimization of Sentential Decision Diagrams*, AAAI 2013. https://doi.org/10.1609/aaai.v27i1.8690
 - Choi, Xue & Darwiche — *Zero-Suppressed Sentential Decision Diagrams*, AAAI 2016. https://doi.org/10.1609/aaai.v30i1.10114
 - Darwiche & Marquis — *A Knowledge Compilation Map*, JAIR 2002.
