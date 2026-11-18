@@ -1,0 +1,5 @@
+{"charge": "window-4x10-relatif", "encodage": "relatif", "noeuds": 3, "outil": "lisage", "parametres": {"nb_bases": "10", "taille": "4"}, "rss_max_ko": 2300, "temps_ms": 0.015, "variante": "mdd", "verifie": 40}
+{"charge": "window-4x10-relatif", "encodage": "relatif", "noeuds": 3, "outil": "lisage", "parametres": {"nb_bases": "10", "taille": "4"}, "rss_max_ko": 2312, "temps_ms": 0.013, "variante": "mdd", "verifie": 40}
+{"charge": "window-4x10-relatif", "encodage": "relatif", "noeuds": 3, "outil": "lisage", "parametres": {"nb_bases": "10", "taille": "4"}, "rss_max_ko": 2268, "temps_ms": 0.015, "variante": "mdd", "verifie": 40}
+{"charge": "window-4x10-relatif", "encodage": "relatif", "noeuds": 3, "outil": "lisage", "parametres": {"nb_bases": "10", "taille": "4"}, "rss_max_ko": 2300, "temps_ms": 0.014, "variante": "mdd", "verifie": 40}
+{"charge": "window-4x10-relatif", "encodage": "relatif", "noeuds": 3, "outil": "lisage", "parametres": {"nb_bases": "10", "taille": "4"}, "rss_max_ko": 2276, "temps_ms": 0.017, "variante": "mdd", "verifie": 40}

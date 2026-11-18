@@ -7,6 +7,11 @@ it does not divide into in-process repetitions). Raw JSONL lines are
 deposited in ``bench-results/<run-id>/<charge>-<outil>.jsonl`` and the
 aggregates (median, min, max) in ``bench-results/<run-id>/aggregats.json``.
 
+The MEM-7 pilot charges (``--pilot``, issue #123) run the
+``alea-lcg`` / ``philosophers`` / ``window`` workloads: the generalization
+gate of the MEM-A port — ``alea-lcg`` against the OxiDD witness, the
+DDD/MDD workloads as lisage-only lines with pinned node counts.
+
 Fairness (protocol): same input, same object built, same cross-check
 value. The witnesses receive the exact charge serialized by lisage
 itself (``confrontation dump-charge``), and ``noeuds``/``verifie`` must
@@ -56,17 +61,56 @@ MEASURE_KEYS = (
 
 @dataclass(frozen=True)
 class Charge:
-    """One real benchmark charge (M7-4): label, workload, versioned input."""
+    """One benchmark charge: label, workload, parameters, optional versioned input.
+
+    `parameters` are the workload arguments after the workload name
+    (`alea-lcg <n>`, `philosophers <n> <path>`, `window <size> <nb_bases>
+    [absolu|relatif]`, `cnf <path>`, `pnml <path>`); when empty, the
+    charge is file-based and the single parameter is the input path.
+    `tools` restricts the witnesses measured for this charge (the pilot
+    DDD/MDD workloads have no external witness in the stdin protocol:
+    lisage only).
+    """
 
     label: str
     workload: str
-    path: Path
+    path: Path | None = None
+    parameters: tuple[str, ...] = ()
+    tools: tuple[str, ...] = DEFAULT_TOOLS
+
+
+def charge_parameters(*, charge: Charge) -> tuple[str, ...]:
+    """Workload arguments of a charge (default: the input path alone)."""
+    if charge.parameters:
+        return charge.parameters
+    if charge.path is not None:
+        return (str(charge.path),)
+    return ()
 
 
 CHARGES: tuple[Charge, ...] = (
     Charge("cnf-uf20-01", "cnf", Path("crates/lisage-bench/models/uf20-01.cnf")),
     Charge("pnml-swimmingpool-1", "pnml", Path("crates/lisage-bench/models/SwimmingPool-1.pnml")),
     Charge("pnml-erk-000001", "pnml", Path("crates/lisage-bench/models/erk-000001.pnml")),
+)
+
+# Pilot charges (MEM-7, issue #123): the generalization gate of the
+# MEM-A port. `alea-lcg` is cross-checked against the OxiDD witness (the
+# deterministic LCG table is the charge, reproducible from SEED_LCG);
+# `philosophers` and `window` are lisage-only lines (no external witness
+# for DDD/MDD in the stdin protocol), their node counts pinned in
+# `tests/confrontation.rs`.
+PILOT_CHARGES: tuple[Charge, ...] = (
+    Charge("alea-lcg-20", "alea-lcg", parameters=("20",)),
+    Charge(
+        "philosophers-n5",
+        "philosophers",
+        Path("crates/lisage-bench/models/philosophers-n5-states.txt"),
+        parameters=("5", "crates/lisage-bench/models/philosophers-n5-states.txt"),
+        tools=("lisage",),
+    ),
+    Charge("window-4x10-absolu", "window", parameters=("4", "10", "absolu"), tools=("lisage",)),
+    Charge("window-4x10-relatif", "window", parameters=("4", "10", "relatif"), tools=("lisage",)),
 )
 
 
@@ -137,7 +181,7 @@ def cross_check_aggregates(*, aggregates: Sequence[dict[str, object]]) -> list[s
 def run_lisage_measurement(*, binary: Path, charge: Charge) -> dict[str, object]:
     """One lisage measurement: a fresh process running the workload once."""
     completed = subprocess.run(
-        [str(binary), charge.workload, str(charge.path)],
+        [str(binary), charge.workload, *charge_parameters(charge=charge)],
         capture_output=True,
         text=True,
         check=False,
@@ -153,7 +197,7 @@ def dump_charge(*, binary: Path, charge: Charge) -> str:
     The witnesses receive the exact input lisage measured.
     """
     completed = subprocess.run(
-        [str(binary), "dump-charge", charge.workload, str(charge.path)],
+        [str(binary), "dump-charge", charge.workload, *charge_parameters(charge=charge)],
         capture_output=True,
         text=True,
         check=False,
@@ -193,7 +237,7 @@ def run_campaign(
     aggregates: list[dict[str, object]] = []
     for charge in charges:
         charge_stdin: str | None = None
-        for tool in tools:
+        for tool in [tool for tool in tools if tool in charge.tools]:
             measures: list[dict[str, object]] = []
             for _ in range(repetitions):
                 if tool == "lisage":
@@ -262,7 +306,12 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
         "--charges",
         type=str,
         default="",
-        help="Comma-separated charge labels (default: all).",
+        help="Comma-separated charge labels (real + pilot; default: all real charges).",
+    )
+    subparser.add_argument(
+        "--pilot",
+        action="store_true",
+        help="Run the MEM-7 pilot charges (alea-lcg, philosophers, window).",
     )
     subparser.add_argument(
         "--binary",
@@ -293,13 +342,19 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 def run(*, arguments: argparse.Namespace) -> int:
     """Entry point: run the campaign, deposit results, report divergences."""
-    labels = [label.strip() for label in arguments.charges.split(",") if label.strip()]
-    charges = [charge for charge in CHARGES if not labels or charge.label in labels]
+    all_charges = CHARGES + PILOT_CHARGES
+    if arguments.pilot:
+        charges = list(PILOT_CHARGES)
+    else:
+        labels = [label.strip() for label in arguments.charges.split(",") if label.strip()]
+        charges = [charge for charge in all_charges if not labels or charge.label in labels]
+        if not labels:
+            charges = list(CHARGES)
     if not charges:
         print("Error: no charge selected", file=sys.stderr)
         return EXIT_CODE_PROTOCOL_FAILURE
     for charge in charges:
-        if not charge.path.is_file():
+        if charge.path is not None and not charge.path.is_file():
             print(f"Error: charge input missing: {charge.path}", file=sys.stderr)
             return EXIT_CODE_PROTOCOL_FAILURE
     tools = [tool.strip() for tool in arguments.tools.split(",") if tool.strip()]

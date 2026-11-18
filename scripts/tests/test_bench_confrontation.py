@@ -13,7 +13,9 @@ import pytest
 from scripts import bench_confrontation as bc
 from scripts.bench_confrontation import (
     CHARGES,
+    PILOT_CHARGES,
     aggregate_measures,
+    charge_parameters,
     cross_check_aggregates,
     parse_measure_line,
 )
@@ -106,8 +108,48 @@ def test_charges_versionnees_existent() -> None:
     """Every declared charge points at a versioned input file of the repo."""
     assert len(CHARGES) >= 3
     for charge in CHARGES:
-        assert charge.path.is_file(), f"missing charge input: {charge.path}"
+        assert charge.path is not None and charge.path.is_file(), (
+            f"missing charge input: {charge.path}"
+        )
         assert charge.workload in ("cnf", "pnml")
+
+
+def test_pilot_charges_mem7() -> None:
+    """MEM-7 pilot charges (issue #123): the three pilot workloads, with
+    their parameters and their witness restriction."""
+    by_label = {charge.label: charge for charge in PILOT_CHARGES}
+    assert set(by_label) == {
+        "alea-lcg-20",
+        "philosophers-n5",
+        "window-4x10-absolu",
+        "window-4x10-relatif",
+    }
+    # alea-lcg: deterministic LCG charge, cross-checked against OxiDD.
+    alea = by_label["alea-lcg-20"]
+    assert alea.workload == "alea-lcg"
+    assert charge_parameters(charge=alea) == ("20",)
+    assert "oxidd" in alea.tools
+    # philosophers: versioned states file, lisage-only (no DDD witness).
+    philo = by_label["philosophers-n5"]
+    assert philo.workload == "philosophers"
+    assert philo.path is not None and philo.path.is_file()
+    assert charge_parameters(charge=philo) == ("5", str(philo.path))
+    assert philo.tools == ("lisage",)
+    # window: parameterized (size=4, nb_bases=10 — the pinned values of
+    # tests/confrontation.rs), both encodings, lisage-only.
+    for label, encodage in (("window-4x10-absolu", "absolu"), ("window-4x10-relatif", "relatif")):
+        window = by_label[label]
+        assert window.workload == "window"
+        assert charge_parameters(charge=window) == ("4", "10", encodage)
+        assert window.tools == ("lisage",)
+
+
+def test_charge_parameters_default_path() -> None:
+    """A file-based charge without explicit parameters runs on its path."""
+    charge = bc.Charge("c", "cnf", Path("x"))
+    assert charge_parameters(charge=charge) == ("x",)
+    charge_sans_fichier = bc.Charge("c", "alea-lcg", parameters=("12",))
+    assert charge_parameters(charge=charge_sans_fichier) == ("12",)
 
 
 def test_run_campaign_exit_1_sur_divergence(
