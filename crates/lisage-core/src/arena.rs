@@ -19,9 +19,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use crate::biplan::{IndexLevels, MetriquesPool, NodeEntry, Plan, StatsGc, threshold_atteint};
 use crate::classes::{ClassArena, ClassMap, ClassMetrics};
 use crate::observer::{Observer, ReductionRule, TraceEvent};
-
-/// Hash-consing key: (controller, anchor, form).
-type KeyInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
+use crate::unique::{TableUnique, hash_cle};
 
 /// Arena: canonical, content-addressed storage of forms. Holds the
 /// controller instance: its key algebra (parameterized by the schema, M1-3)
@@ -32,7 +30,11 @@ pub struct Arena<C: Controller> {
     class_map: ClassMap,
     /// Per-class arenas, created lazily (MEM-9).
     arenas: Vec<Option<ClassArena<C::Key, C::Payload>>>,
-    unique: HashMap<KeyInterning<C::Key, C::Payload>, NodeId>,
+    /// Unique table (MEM-14): open addressing of `(hash, anchor, NodeId)`
+    /// — the semantic form is compared through the stored entry, never
+    /// cloned into the key; `ControllerId` is constant per pool and out
+    /// of the key.
+    unique: TableUnique,
     /// Terminal singletons of the pool (MEM-11): keyed by payload only —
     /// canonicity by handle concerns internal nodes, terminals are
     /// pool-wide singletons, shared across anchors.
@@ -56,7 +58,7 @@ impl<C: Controller> Arena<C> {
         Arena {
             class_map,
             arenas,
-            unique: HashMap::new(),
+            unique: TableUnique::new(),
             unique_terminals: HashMap::new(),
             index_levels: IndexLevels::new(),
             metriques: MetriquesPool::default(),
@@ -156,6 +158,30 @@ impl<C: Controller> Arena<C> {
         &self.remap
     }
 
+    /// Number of keys in the unique table (MEM-14).
+    pub fn unique_len(&self) -> usize {
+        self.unique.len()
+    }
+
+    /// End-to-end memory per live node in bytes (MEM-14 counter): unique
+    /// table + class arenas + shadow index, over the live node count.
+    pub fn bytes_per_node(&self) -> f64 {
+        let live = self.live().max(1) as f64;
+        let unique = self.unique.bytes() as f64;
+        let arenas: usize = self
+            .arenas
+            .iter()
+            .flatten()
+            .map(|arena| arena.bytes())
+            .sum();
+        let index: usize = self
+            .index_levels
+            .values()
+            .map(|set| set.len() * size_of::<NodeId>())
+            .sum();
+        (unique + arenas as f64 + index as f64) / live
+    }
+
     /// Number of live nodes.
     pub fn live(&self) -> usize {
         self.arenas
@@ -219,7 +245,7 @@ impl<C: Controller> Arena<C> {
                 .and_then(|arena| arena.get(index))
                 .is_some_and(|entry| entry.form.is_some())
         };
-        self.unique.retain(|_, node| is_live(*node));
+        self.unique.retain(&is_live);
         self.unique_terminals.retain(|_, node| is_live(*node));
         for set in self.index_levels.values_mut() {
             set.retain(|node| is_live(*node));
@@ -420,12 +446,18 @@ impl<C: Controller> Pool for Arena<C> {
             }
             terminal => terminal,
         };
-        let key = (Self::CONTROLLER, anchor, form.clone());
-        if let Some(node) = self.unique.get(&key) {
+        // MEM-14: the hash-consing key is still the semantic form
+        // (anchor, form), hashed in place — no form clone in the table.
+        let hash = hash_cle(anchor, &form);
+        let meme_forme = |node: NodeId| {
+            self.entry(node)
+                .and_then(|input| input.form.as_ref())
+                .is_some_and(|stored| *stored == form)
+        };
+        if let Some(node) = self.unique.get(hash, anchor, meme_forme) {
             self.metriques.partages += 1;
-            self.observer
-                .on_event(&TraceEvent::NodeShared { node: *node });
-            return *node;
+            self.observer.on_event(&TraceEvent::NodeShared { node });
+            return node;
         }
         // MEM-9: the node is routed to the arena of its class (degree),
         // the NodeId carries class bits + index bits.
@@ -442,7 +474,7 @@ impl<C: Controller> Pool for Arena<C> {
         if let Some(level) = level {
             self.index_levels.entry(level).or_default().insert(node);
         }
-        self.unique.insert(key, node);
+        self.unique.insert(hash, anchor, node);
         self.metriques.creations += 1;
         self.observer
             .on_event(&TraceEvent::NodeCreated { node, level });

@@ -129,6 +129,12 @@ impl<Key, Payload> ClassArena<Key, Payload> {
     }
 
     /// Number of allocated slots (live + tombstones).
+    /// Memory footprint of the arena in bytes: slots at the exact stride
+    /// of `NodeEntry` (MEM-14 counter).
+    pub(crate) fn bytes(&self) -> usize {
+        self.slots * size_of::<NodeEntry<Key, Payload>>()
+    }
+
     pub(crate) fn slot_count(&self) -> usize {
         self.slots
     }
