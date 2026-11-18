@@ -71,12 +71,12 @@ The MEM-A track is governed by **seven invariants**:
    declared by the schema and read at runtime (M1-3); nothing about the
    layout is hard-coded in the store.
 6. **Tripartite identifier budget.** `NodeId(u32)` = **class bits + index
-   bits + tag bits** (see chiffrage below).
+   bits + tag bits** (see sizing below).
 7. **Order: interface → tests → implementation.** Every MEM-A issue lands
    the port/trait first, then the tests (including the differential and
    boundary tests), then the implementation (roadmap § 1 execution model).
 
-### Chiffrage: the tripartite budget of the identifier
+### Sizing: the tripartite budget of the identifier
 
 `NodeId` is a `u32` split into three fields:
 
@@ -90,7 +90,7 @@ The arc-key width `b` is **not** part of the identifier: it is the smallest
 integer with `2^b − 2 ≥ max_ℓ C(ℓ)`, derived from `cardinality()` at
 runtime (MEM-8, #124), with a compile-time window `b_max` (default 8) and a
 catch-all class beyond the window, without loss of correctness. Known
-chiffrages: BDD → `b = 2`; philosophers → `b = 3` or `4`; open domain →
+Known sizing figures: BDD → `b = 2`; philosophers → `b = 3` or `4`; open domain →
 low default with declared overload. In the current single-class,
 tag-free instantiation the class and tag fields are zero-width and the
 index field takes the full 32 bits (BDD case: `b = 2`, 30 usable index
@@ -121,7 +121,7 @@ bits once the two key bits are accounted).
   factor ⇒ layout, complexity gap ⇒ stop and escalate.
 - **MEM-13 (#129)**: arbitration of the tag bits (CUDD-style complement
   bit vs. shift nibble for M4-2). M4-2 does not open without this
-  decision; the chiffrage above is merged with it.
+  decision; the sizing above is merged with it.
 
 ## References
 
