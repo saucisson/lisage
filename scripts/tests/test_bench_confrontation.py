@@ -5,6 +5,7 @@ are pinned — JSONL parsing, aggregation (median/min/max), the cross-tool
 divergence check, and the integrity of the charge list.
 """
 
+import argparse
 import json
 from pathlib import Path
 
@@ -150,6 +151,71 @@ def test_charge_parameters_default_path() -> None:
     assert charge_parameters(charge=charge) == ("x",)
     charge_without_file = bc.Charge("c", "alea-lcg", parameters=("12",))
     assert charge_parameters(charge=charge_without_file) == ("12",)
+
+
+def test_run_pilot_selects_pilot_charges(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`--pilot` selects the MEM-7 pilot charges, not the real charges."""
+    captured: dict[str, object] = {}
+
+    def fake_run_campaign(**kwargs: object) -> int:
+        captured.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(bc, "run_campaign", fake_run_campaign)
+    arguments = argparse.Namespace(
+        pilot=True,
+        charges="",
+        tools="lisage,oxidd",
+        repetitions=1,
+        binary=Path("b"),
+        image="img",
+        output_dir=Path("out"),
+        run_id="t",
+    )
+    assert bc.run(arguments=arguments) == 0
+    charges = captured["charges"]
+    assert isinstance(charges, list)
+    assert [charge.label for charge in charges] == [charge.label for charge in PILOT_CHARGES]
+    assert all(charge not in CHARGES for charge in charges)
+
+
+def test_run_campaign_restricts_tools_per_charge(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A lisage-only pilot charge never runs the OxiDD witness, even when
+    `--tools lisage,oxidd` is requested: no oxidd line is deposited and
+    `dump_charge` is never called for it."""
+    charge = bc.Charge("p", "window", parameters=("4", "10", "absolu"), tools=("lisage",))
+    calls: list[str] = []
+
+    def lisage_measure(*, binary: Path, charge: bc.Charge) -> dict[str, object]:
+        calls.append("lisage")
+        return make_measure(outil="lisage", charge="p", temps_ms=1.0, rss=1, noeuds=12, verifie=40)
+
+    def oxidd_measure(*, image: str, charge_stdin: str, label: str) -> dict[str, object]:
+        calls.append("oxidd")
+        return make_measure(outil="oxidd", charge="p", temps_ms=2.0, rss=2, noeuds=12, verifie=40)
+
+    def fail_dump(*, binary: Path, charge: bc.Charge) -> str:
+        calls.append("dump")
+        raise AssertionError("dump_charge must not be called for a lisage-only charge")
+
+    monkeypatch.setattr(bc, "run_lisage_measurement", lisage_measure)
+    monkeypatch.setattr(bc, "run_oxidd_measurement", oxidd_measure)
+    monkeypatch.setattr(bc, "dump_charge", fail_dump)
+    exit_code = bc.run_campaign(
+        charges=[charge],
+        tools=["lisage", "oxidd"],
+        repetitions=2,
+        binary=Path("b"),
+        image="img",
+        output_directory=tmp_path,
+        run_identifier="t",
+    )
+    assert exit_code == 0
+    assert calls == ["lisage", "lisage"]
+    assert (tmp_path / "t" / "p-lisage.jsonl").is_file()
+    assert not (tmp_path / "t" / "p-oxidd.jsonl").exists()
 
 
 def test_run_campaign_exit_1_sur_divergence(
