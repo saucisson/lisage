@@ -15,3 +15,15 @@ models, unit arc weights) as a Boolean function over `2p` variables
 (`x_0..x_{p-1}` current marking, `x'_0..x'_{p-1}` next marking), serialized
 for the external witnesses as a truth table in the standard stdin format
 (`n` then `2^n` values `0`/`1`) consumed by `cudd_count` / `oxidd_count`.
+
+## Pilot inputs (MEM-7, issue #123)
+
+| File | Source | Charge |
+|---|---|---|
+| `philosophers-n5-states.txt` | Extended states of R_5 of the golden thread (docs/golden-thread-example-n-philosophers-end-to-end), enumerated deterministically: circular `pc` words over {think, hungry, eat} without adjacent `eat`, interleaved with the derived `left_i` fork — the same algorithm as `etats_etendus` in `tests/confrontation.rs`, validated against the pinned |R_n| for n = 3..7 (20, 56, 152, 416, 1136) | `philosophers` pilot workload: R_5 over the interleaved schema (152 states, |R_5| pinned) |
+
+The `alea-lcg` pilot workload needs no input file: its truth table is the
+deterministic LCG of `SEED_LCG` (same LCG as the M1-8 baseline), so the
+randomized IDs are reproducible by construction. The `window` pilot
+workload is parameterized (`size`, `nb_bases`, encoding) and needs no
+input file either.

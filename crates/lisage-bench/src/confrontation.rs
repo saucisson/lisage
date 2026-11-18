@@ -626,9 +626,12 @@ fn charge_pnml(path: &str) -> Result<ChargePnml, ErrorConfrontation> {
     ))
 }
 
-/// Serializes the charge of a file-based workload (`cnf`, `pnml`) in the
-/// standard stdin protocol of the external witnesses. The orchestrator
-/// feeds the witnesses this exact input: same charge, same serialization.
+/// Serializes the charge of a workload in the standard stdin protocol of
+/// the external witnesses. The orchestrator feeds the witnesses this
+/// exact input: same charge, same serialization. Supported: the
+/// file-based workloads (`cnf`, `pnml`, the argument is the file path)
+/// and `alea-lcg` (the argument is `n`; the deterministic LCG table is
+/// the charge, reproducible by construction from `SEED_LCG`).
 pub fn serialiser_charge_depuis_fichier(
     workload: &Workload,
     path: &str,
@@ -642,9 +645,25 @@ pub fn serialiser_charge_depuis_fichier(
             let (number_variables, table, _) = charge_pnml(path)?;
             Ok(serialiser_charge_stdin(number_variables, &table))
         }
+        Workload::AleaLcg => {
+            let number_variables =
+                path.parse::<u32>()
+                    .map_err(|_| ErrorConfrontation::ParametresInvalides {
+                        workload: Workload::AleaLcg.label(),
+                        detail: format!("unreadable n: {path}"),
+                    })?;
+            if number_variables == 0 || number_variables > VARIABLES_MAXIMALES_ALEA {
+                return Err(ErrorConfrontation::ParametresInvalides {
+                    workload: Workload::AleaLcg.label(),
+                    detail: format!("n must be in 1..={VARIABLES_MAXIMALES_ALEA}"),
+                });
+            }
+            let table = table_lcg(number_variables);
+            Ok(serialiser_charge_stdin(number_variables, &table))
+        }
         autre => Err(ErrorConfrontation::ParametresInvalides {
             workload: autre.label(),
-            detail: "dump-charge supports only the file-based workloads: cnf, pnml".to_string(),
+            detail: "dump-charge supports only the workloads with a truth-table charge: cnf, pnml, alea-lcg".to_string(),
         }),
     }
 }
