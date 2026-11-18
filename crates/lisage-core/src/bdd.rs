@@ -70,6 +70,7 @@ impl Controller for BddController {
     type Key = u64;
     type Payload = bool;
     type Keys = BddKeys;
+    type Arcs = BTreeMap<Self::Key, NodeId>;
 
     const FINGERPRINT: ControllerId = ControllerId(3);
 

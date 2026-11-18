@@ -58,6 +58,7 @@ impl Controller for LookupController {
     type Key = u64;
     type Payload = Option<u64>;
     type Keys = SchemaKeys;
+    type Arcs = BTreeMap<Self::Key, NodeId>;
 
     const FINGERPRINT: ControllerId = ControllerId(2);
 

@@ -46,6 +46,13 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-18 - MEM-3: ArcStore port in the lisage-algebra interface (issue #119)
+
+- **Issue**: #119 (MEM-3, milestone MEM-A) — ArcStore port in the interface: associated type on the controller, minimal contract (ordered iteration of (key, target), builder-side insertion, size), default instance = the current BTreeMap; reductions see only the port's iteration.
+- **Done**: `lisage-algebra/src/interface.rs` gains the `ArcStore` port (`iter` ordered over `(key, target)`, `len`, `is_empty`, associated `Builder`) and the `ArcStoreBuilder` trait (`insert`, `build`); `BTreeMap<Key, NodeId>` implements both, so the default instance is literally the current map. `Controller` gains `type Arcs: ArcStore<Key = Self::Key>` (set to `BTreeMap<Self::Key, NodeId>` in all 15 impls), and `Controller::collapse` / `reduction::collapse_arcs` are now generic over `&impl ArcStore` — the collapse check sees only the port's ordered iteration. `Form` is unchanged (still `BTreeMap` arcs): rewiring the form to the store type is MEM-5 (sorted-run store), keeping this PR behavior-preserving. New test `crates/lisage-core/tests/arc_store.rs` pins the contract, incl. a `Vec`-backed alternative layout proving the port is layout-agnostic. Cites ADR-0103 (draft, #117).
+- **Evidence**: `cargo check --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo test --workspace` (73 binaries, 0 failures), `make rust-check` (304 passed, 5 skipped), `make test` (45 passed), `make lint`, `make typecheck`, `make imports`, `make english-only`, `cargo doc -p lisage-algebra --no-deps` all pass. No behavior change: the differential A/B/C suite is part of the 304 passing tests. `core` still does not inspect `Val(ℓ)`, `δ` or `⊕` (untouched).
+- **Judgement calls**: the port is introduced with the BTreeMap as default instance and the collapse path already generic over the port; making `Form` itself generic over the store is deferred to MEM-5 (it would touch ~180 construction sites, over the ADR-0101 PR budget) — recorded here so the deferral is conscious.
+
 ## 2026-11-18 - MEM-2: English-only charter in AGENTS.md and the review checklist (issue #118)
 
 - **Issue**: #118 (MEM-2, milestone MEM-A) — amend AGENTS.md and the review checklist: new modules in English, French identifiers renamed incrementally (no big-bang, ADR-0101), review case "no new French identifier introduced".

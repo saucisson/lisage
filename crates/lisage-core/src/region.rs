@@ -9,7 +9,9 @@
 //! over a continuous dimension (integral, measure semiring) and DBMs remain
 //! outside this fragment.
 
-use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level};
+use std::collections::BTreeMap;
+
+use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level, NodeId};
 
 /// Canonical empty interval: `bound_inf > bound_sup`, normalized to `(1, 0)`.
 pub const EMPTY: Interval = Interval {
@@ -135,6 +137,7 @@ impl Controller for RegionController {
     type Key = Interval;
     type Payload = bool;
     type Keys = RegionKeys;
+    type Arcs = BTreeMap<Self::Key, NodeId>;
 
     const FINGERPRINT: ControllerId = ControllerId(4);
 

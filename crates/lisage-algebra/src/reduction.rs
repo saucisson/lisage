@@ -4,8 +4,10 @@
 //! commutation.
 
 use std::collections::BTreeMap;
+use std::fmt::Debug;
+use std::hash::Hash;
 
-use crate::interface::NodeId;
+use crate::interface::{ArcStore, NodeId};
 
 /// Result of reducing a node form.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -17,9 +19,14 @@ pub enum Reduction<Key> {
 }
 
 /// Pure R-collapse: all targets equal ⇒ `Some(target)`, otherwise `None`.
-pub fn collapse_arcs<Key: Ord>(arcs: &BTreeMap<Key, NodeId>) -> Option<NodeId> {
+/// Sees only the ordered iteration of the `ArcStore` port (MEM-3).
+pub fn collapse_arcs<Key, Store>(arcs: &Store) -> Option<NodeId>
+where
+    Key: Ord,
+    Store: ArcStore<Key = Key> + ?Sized,
+{
     let mut target: Option<NodeId> = None;
-    for child in arcs.values() {
+    for (_, child) in arcs.iter() {
         match target {
             None => target = Some(*child),
             Some(previous) if previous == *child => {}
@@ -35,7 +42,7 @@ pub fn collapse_arcs<Key: Ord>(arcs: &BTreeMap<Key, NodeId>) -> Option<NodeId> {
 /// - `est_defaut`: predicate "this node is the default diagram D_δ"
 ///   designated by the controller (the implicit default arc denotes D_δ);
 /// - `cardinality`: |Val(ℓ)|, required when the level has no default.
-pub fn reduce<Key: Ord + Clone>(
+pub fn reduce<Key: Clone + Ord + Hash + Debug + Send + Sync>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
@@ -70,7 +77,7 @@ pub fn reduce<Key: Ord + Clone>(
 /// R-default **alone** (without R-collapse): the explicit arc δ(ℓ) leading
 /// to D_δ is removed, the form is never collapsed. Used to toggle
 /// R-collapse independently (didactic workshop, backlog § 9).
-pub fn reduce_without_collapse<Key: Ord + Clone>(
+pub fn reduce_without_collapse<Key: Clone + Ord + Hash + Debug + Send + Sync>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
@@ -86,7 +93,7 @@ pub fn reduce_without_collapse<Key: Ord + Clone>(
 
 /// Reverse order (R-default first, then R-collapse) — the confluence PBT
 /// checks that both orders give the same result.
-pub fn reduce_inverse<Key: Ord + Clone>(
+pub fn reduce_inverse<Key: Clone + Ord + Hash + Debug + Send + Sync>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
@@ -139,7 +146,7 @@ pub fn reduce_inverse<Key: Ord + Clone>(
 /// Canonicity remains relative to the contract (controller, order, anchor):
 /// `≡ D^default` is tested by `est_defaut` (the pool being canonical, same
 /// form = same node).
-pub fn reduce_dabs<Key: Ord + Clone>(
+pub fn reduce_dabs<Key: Clone + Ord + Hash + Debug + Send + Sync>(
     arcs: BTreeMap<Key, NodeId>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
