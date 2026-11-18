@@ -64,6 +64,7 @@ DATA_FILE_EXTENSIONS = frozenset(
     {".pnml", ".cnf", ".jsonl", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".bin"}
 )
 ELISION_MARKER = "ELIDED FROM REVIEW (data file, not reviewed)"
+ELIDED_FILES_HEADER = "## ELIDED FILES (data files, not reviewed)"
 
 
 def read_text_file(*, path: Path) -> str:
@@ -134,7 +135,7 @@ def elide_data_files(*, diff_text: str) -> str:
             kept.append(section)
     if not elided:
         return diff_text
-    summary = "## ELIDED FILES (data files, not reviewed)\n\n" + "\n".join(
+    summary = ELIDED_FILES_HEADER + "\n\n" + "\n".join(
         f"- {path} ({line_count} diff lines)" for path, line_count in elided
     )
     return summary + "\n\n" + "".join(kept)
