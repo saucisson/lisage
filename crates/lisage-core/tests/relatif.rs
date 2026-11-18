@@ -8,7 +8,7 @@
 use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool,
+    Anchor, ArcRun, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool,
 };
 use lisage_algebra::relatif::{
     AnchorComposee, AnchorRelative, CycleGroup, Fragment, InputArc, ShiftGroup,
@@ -61,7 +61,7 @@ impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
     const FINGERPRINT: ControllerId = ControllerId(11);
     fn keys(&self) -> &Self::Keys {
         &self.keys
@@ -152,7 +152,7 @@ fn test_window_glissante_pool_constant() {
     let anchor = Anchor(0);
     let vrai = pool.intern(anchor, Form::Terminal(true));
     // Relative window: keys 0..W-1 (min = 0 section), all true.
-    let arcs: BTreeMap<u64, NodeId> = (0..SIZE_WINDOW).map(|k| (k, vrai)).collect();
+    let arcs: ArcRun<u64> = (0..SIZE_WINDOW).map(|k| (k, vrai)).collect();
     let window = pool.intern(
         anchor,
         Form::Node {
@@ -201,7 +201,7 @@ fn test_anchors_composees_degradation_sum() {
             anchor,
             Form::Node {
                 level: Level(LEVEL_MACHINE),
-                arcs: BTreeMap::from([(i, vrai)]),
+                arcs: ArcRun::from_pairs([(i, vrai)]),
             },
         );
     }
@@ -210,7 +210,7 @@ fn test_anchors_composees_degradation_sum() {
             anchor,
             Form::Node {
                 level: Level(LEVEL_CONVOYEUR),
-                arcs: BTreeMap::from([(j, vrai)]),
+                arcs: ArcRun::from_pairs([(j, vrai)]),
             },
         );
     }

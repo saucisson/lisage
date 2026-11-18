@@ -7,10 +7,10 @@
 //! (internal mini-BDD, CUDD/Sylvan via FFI — see
 //! `docs/spike-ffi-cudd-sylvan.md`).
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
+    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 
 /// Cardinality of a BDD level: two arcs, `0` (low) and `1` (high).
@@ -86,7 +86,7 @@ impl Controller for BddController {
     type Key = u64;
     type Payload = bool;
     type Keys = BddKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
 
     const FINGERPRINT: ControllerId = ControllerId(3);
 
@@ -138,7 +138,7 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level,
-            arcs: BTreeMap::from([(0, bas), (1, haut)]),
+            arcs: ArcRun::from_pairs([(0, bas), (1, haut)]),
         },
     )
 }

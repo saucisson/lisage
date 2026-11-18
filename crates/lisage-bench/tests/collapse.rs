@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level, NodeId};
+use lisage_algebra::interface::{ArcRun, Controller, ControllerId, KeyAlgebra, Level, NodeId};
 use proptest::prelude::*;
 
 struct MockKeys;
@@ -30,7 +30,7 @@ impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
     const FINGERPRINT: ControllerId = ControllerId(1);
     fn keys(&self) -> &Self::Keys {
         &self.keys

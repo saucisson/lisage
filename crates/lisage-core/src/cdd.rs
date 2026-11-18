@@ -21,10 +21,10 @@
 //! never through point enumeration — free DDD realm assumed on the
 //! continuum.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
+    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 
 use crate::dbm::Dbm;
@@ -194,7 +194,7 @@ impl Controller for CddController {
     type Key = Cdd;
     type Payload = bool;
     type Keys = CddKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
 
     const FINGERPRINT: ControllerId = ControllerId(6);
 
@@ -275,7 +275,7 @@ pub fn compiler_union_horloges<P: Pool<Key = Cdd, Payload = bool>>(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(union, vrai), (complementaire, faux)]),
+            arcs: ArcRun::from_pairs([(union, vrai), (complementaire, faux)]),
         },
     )
 }

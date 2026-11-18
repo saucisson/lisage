@@ -12,7 +12,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
+    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 use lisage_lang::value::{Atom, Value};
 
@@ -259,7 +259,7 @@ impl Controller for ReferenceController {
     type Key = u64;
     type Payload = bool;
     type Keys = SchemaKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
 
     const FINGERPRINT: ControllerId = ControllerId(1);
 
@@ -302,7 +302,7 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
                 anchor,
                 Form::Node {
                     level: Level(0),
-                    arcs: BTreeMap::from([(atome.0, terminal)]),
+                    arcs: ArcRun::from_pairs([(atome.0, terminal)]),
                 },
             ))
         }
@@ -407,7 +407,7 @@ fn compiler_set<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level: Level(index as u32),
-            arcs: BTreeMap::from([(arc, suite)]),
+            arcs: ArcRun::from_pairs([(arc, suite)]),
         },
     ))
 }
@@ -430,10 +430,10 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
                 anchor,
                 Form::Node {
                     level: Schema::level_value(index),
-                    arcs: BTreeMap::from([(value.0, suite)]),
+                    arcs: ArcRun::from_pairs([(value.0, suite)]),
                 },
             );
-            BTreeMap::from([(PRESENT, node_value)])
+            ArcRun::from_pairs([(PRESENT, node_value)])
         }
         Some(other) => {
             return Err(SchemaError::TypeMismatch {
@@ -441,7 +441,7 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
                 recu: form_value(other),
             });
         }
-        None => BTreeMap::from([(ABSENT, suite)]),
+        None => ArcRun::from_pairs([(ABSENT, suite)]),
     };
     Ok(pool.intern(
         anchor,
@@ -509,7 +509,7 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
             anchor,
             Form::Node {
                 level: Level(longueur_max),
-                arcs: BTreeMap::from([(PRESENT, terminal)]),
+                arcs: ArcRun::from_pairs([(PRESENT, terminal)]),
             },
         ));
     }
@@ -526,7 +526,7 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level: Level(position),
-            arcs: BTreeMap::from([(arc, suite)]),
+            arcs: ArcRun::from_pairs([(arc, suite)]),
         },
     ))
 }
@@ -572,7 +572,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(atome_value.0, terminal)]),
+            arcs: ArcRun::from_pairs([(atome_value.0, terminal)]),
         },
     );
     let index = list.iter().position(|a| *a == discriminant).unwrap();
@@ -581,7 +581,7 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(index as u64, node_value)]),
+            arcs: ArcRun::from_pairs([(index as u64, node_value)]),
         },
     ))
 }

@@ -3,9 +3,7 @@
 //! didactic metrics — shared nodes (R-share) vs paths (size of the unfolded
 //! DAG). Pool errors are propagated, never swallowed.
 
-use std::collections::BTreeMap;
-
-use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd};
 use lisage_core::observer::NoOpObserver;
@@ -44,7 +42,7 @@ fn test_collapse_commute() {
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, faux), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, faux), (1, faux)]),
         },
     );
     assert_eq!(root_with, faux, "R-collapse: the node reduces to ⊥");
@@ -58,7 +56,7 @@ fn test_collapse_commute() {
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, faux), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, faux), (1, faux)]),
         },
     );
     assert_ne!(root_without, faux, "without R-collapse: the node is kept");
@@ -78,7 +76,7 @@ fn test_defaut_commute() {
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(Interval::point(0), vrai), (EMPTY, faux)]),
+            arcs: ArcRun::from_pairs([(Interval::point(0), vrai), (EMPTY, faux)]),
         },
     );
     let Form::Node { arcs, .. } = with.resolve(root_with).expect("interned node") else {
@@ -96,7 +94,7 @@ fn test_defaut_commute() {
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(Interval::point(0), vrai), (EMPTY, faux)]),
+            arcs: ArcRun::from_pairs([(Interval::point(0), vrai), (EMPTY, faux)]),
         },
     );
     let Form::Node { arcs, .. } = without.resolve(root_without).expect("interned node") else {
@@ -120,14 +118,14 @@ fn test_paths_contre_nodes() {
         ANCHOR,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
         },
     );
     let root = pool.intern(
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, n1), (1, n1)]),
+            arcs: ArcRun::from_pairs([(0, n1), (1, n1)]),
         },
     );
     assert_eq!(count_nodes(&pool, root).expect("interned node"), 4);
@@ -177,7 +175,7 @@ fn test_propriete_commutation_lcg() {
                 ANCHOR,
                 Form::Node {
                     level: Level(depth),
-                    arcs: BTreeMap::from([(0, gauche), (1, droite)]),
+                    arcs: ArcRun::from_pairs([(0, gauche), (1, droite)]),
                 },
             )
         }
@@ -228,14 +226,14 @@ fn test_narration_measure() {
         ANCHOR,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
         },
     );
     let root = pool.intern(
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, n1), (1, n1)]),
+            arcs: ArcRun::from_pairs([(0, n1), (1, n1)]),
         },
     );
     let collector = Collector {

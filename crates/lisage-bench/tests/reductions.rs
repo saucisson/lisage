@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::NodeId;
+use lisage_algebra::interface::{ArcRun, NodeId};
 use lisage_algebra::reduction::{Reduction, reduce, reduce_inverse};
 use proptest::prelude::*;
 
@@ -15,7 +15,7 @@ fn est_defaut(node: NodeId) -> bool {
     node == NODE_DEFAUT
 }
 
-fn vers_arcs(paires: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
+fn vers_arcs(paires: Vec<(u8, u32)>) -> ArcRun<u64> {
     paires
         .into_iter()
         .map(|(key, target)| (u64::from(key), NodeId(target)))
@@ -26,7 +26,7 @@ fn vers_arcs(paires: Vec<(u8, u32)>) -> BTreeMap<u64, NodeId> {
 fn test_collapse_level_value_exemple_spec() {
     // val(a): 0 and 1 lead to the same sub-DD ⇒ R-collapse (spec § 2.3 example).
     let x = NodeId(5);
-    let arcs = BTreeMap::from([(0, x), (1, x)]);
+    let arcs = ArcRun::from_pairs([(0, x), (1, x)]);
     let result = reduce(arcs, None, &est_defaut, 2);
     assert_eq!(result, Reduction::Collapse(x));
 }
@@ -35,24 +35,24 @@ fn test_collapse_level_value_exemple_spec() {
 fn test_r_default_arc_absent_vers_defaut() {
     // presence: absent ↦ ⊥ (D_δ) is removed, present ↦ X stays.
     let x = NodeId(5);
-    let arcs = BTreeMap::from([(0, NODE_DEFAUT), (1, x)]);
+    let arcs = ArcRun::from_pairs([(0, NODE_DEFAUT), (1, x)]);
     let result = reduce(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(result, Reduction::Form(BTreeMap::from([(1, x)])));
+    assert_eq!(result, Reduction::Form(ArcRun::from_pairs([(1, x)])));
 }
 
 #[test]
 fn test_pas_de_collapse_si_target_non_defaut() {
     // {present ↦ X} with implicit default ⊥ and X ≠ ⊥: no collapse.
     let x = NodeId(5);
-    let arcs = BTreeMap::from([(1, x)]);
+    let arcs = ArcRun::from_pairs([(1, x)]);
     let result = reduce(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(result, Reduction::Form(BTreeMap::from([(1, x)])));
+    assert_eq!(result, Reduction::Form(ArcRun::from_pairs([(1, x)])));
 }
 
 #[test]
 fn test_collapse_si_tout_vaut_le_defaut() {
     // {absent ↦ ⊥, present ↦ ⊥} ⇒ collapse to ⊥.
-    let arcs = BTreeMap::from([(0, NODE_DEFAUT), (1, NODE_DEFAUT)]);
+    let arcs = ArcRun::from_pairs([(0, NODE_DEFAUT), (1, NODE_DEFAUT)]);
     let result = reduce(arcs, Some(0), &est_defaut, 2);
     assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
 }
@@ -73,6 +73,21 @@ proptest! {
             let seconde = reduce(arcs_reduceds.clone(), key, &est_defaut, cardinality);
             prop_assert_eq!(seconde, first, "reduce∘reduce = reduce");
         }
+    }
+
+    /// "Last write wins": a duplicate key in the construction keeps the
+    /// LAST target (MEM-5 semantics of the sorted run).
+    #[test]
+    fn test_dernier_ecrit_gagne(
+        paires in prop::collection::vec((0u8..4, 0u32..6), 0..8),
+    ) {
+        let run = vers_arcs(paires.clone());
+        let mut attendu: BTreeMap<u64, NodeId> = BTreeMap::new();
+        for (key, target) in paires {
+            attendu.insert(u64::from(key), NodeId(target));
+        }
+        let reconstruit: BTreeMap<u64, NodeId> = run.iter().map(|(k, t)| (*k, *t)).collect();
+        prop_assert_eq!(reconstruit, attendu);
     }
 
     /// Commutation of the quotients: R-collapse then R-default == R-default

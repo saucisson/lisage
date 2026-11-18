@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
@@ -171,14 +171,14 @@ fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
         },
     );
     let b = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(0, a), (1, vrai)]),
+            arcs: ArcRun::from_pairs([(0, a), (1, vrai)]),
         },
     );
     (a, b)

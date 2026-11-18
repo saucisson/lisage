@@ -30,7 +30,7 @@
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 
 use crate::memory::{EffetMemory, MemoryLevel};
 use crate::pli::union;
@@ -183,7 +183,7 @@ impl TransfertNonLocal {
                 anchor,
                 Form::Node {
                     level: self.level_destination(),
-                    arcs: BTreeMap::from([(montant, suite)]),
+                    arcs: ArcRun::from_pairs([(montant, suite)]),
                 },
             );
             // Collision with an existing PRESENT arc (family): union.

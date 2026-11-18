@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lisage_algebra::interface::{Anchor, Form, Level, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{
@@ -54,7 +54,7 @@ fn test_compilation_map_exemple_spec() {
         panic!("value node expected");
     };
     assert_eq!(*level, Level(3));
-    assert_eq!(arcs, &BTreeMap::from([(ABSENT, terminal)]));
+    assert_eq!(arcs, &ArcRun::from_pairs([(ABSENT, terminal)]));
 }
 
 /// R-collapse skips the presence levels of absent elements (ZDD style): {a}
@@ -71,7 +71,7 @@ fn test_set_absents_collapses() {
         pool.resolve(root).unwrap(),
         &Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(PRESENT, terminal)]),
+            arcs: ArcRun::from_pairs([(PRESENT, terminal)]),
         }
     );
 }
@@ -94,14 +94,14 @@ fn test_map_empty_and_key_absente() {
         anchor,
         Form::Node {
             level: Level(3),
-            arcs: BTreeMap::from([(ABSENT, terminal)]),
+            arcs: ArcRun::from_pairs([(ABSENT, terminal)]),
         },
     );
     assert_eq!(
         pool.resolve(root).unwrap(),
         &Form::Node {
             level: Level(2),
-            arcs: BTreeMap::from([(PRESENT, node_value_b)]),
+            arcs: ArcRun::from_pairs([(PRESENT, node_value_b)]),
         }
     );
 }
@@ -137,7 +137,7 @@ fn test_schema_atome() {
         pool.resolve(root).unwrap(),
         &Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(2, terminal)]),
+            arcs: ArcRun::from_pairs([(2, terminal)]),
         }
     );
 }
@@ -159,14 +159,14 @@ fn test_set_empty_and_plein() {
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(PRESENT, terminal)]),
+            arcs: ArcRun::from_pairs([(PRESENT, terminal)]),
         },
     );
     assert_eq!(
         pool.resolve(root_plein).unwrap(),
         &Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(PRESENT, node_presence_b)]),
+            arcs: ArcRun::from_pairs([(PRESENT, node_presence_b)]),
         }
     );
 }

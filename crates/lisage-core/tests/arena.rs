@@ -1,11 +1,10 @@
 //! Arena tests (M1-1): R-share (unique table), handles, trace events pinned
 //! by a recording observer.
 
-use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
+    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
 };
 use lisage_core::arena::Arena;
 use lisage_core::observer::{NoOpObserver, Observer, ReductionRule, TraceEvent};
@@ -33,7 +32,7 @@ impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
     const FINGERPRINT: ControllerId = ControllerId(7);
     fn keys(&self) -> &Self::Keys {
         &self.keys
@@ -99,7 +98,7 @@ fn test_handles_unicite() {
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(1, terminal)]),
+            arcs: ArcRun::from_pairs([(1, terminal)]),
         },
     );
     let handle_a = arena.handle(node, anchor);
@@ -142,7 +141,7 @@ impl Controller for NormalizingController {
     type Key = u64;
     type Payload = bool;
     type Keys = NormalizingKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
     const FINGERPRINT: ControllerId = ControllerId(8);
     fn keys(&self) -> &Self::Keys {
         &self.keys
@@ -166,14 +165,14 @@ fn test_normalisation_keys_avant_hachage() {
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, terminal)]),
+            arcs: ArcRun::from_pairs([(0, terminal)]),
         },
     );
     let via_2 = arena.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(2, terminal)]),
+            arcs: ArcRun::from_pairs([(2, terminal)]),
         },
     );
     assert_eq!(
@@ -192,7 +191,7 @@ fn test_events_trace_narration() {
         anchor,
         Form::Node {
             level: Level(5),
-            arcs: BTreeMap::from([(1, node)]),
+            arcs: ArcRun::from_pairs([(1, node)]),
         },
     );
     let events = trace.events.lock().unwrap();
@@ -221,7 +220,7 @@ fn test_events_reduction_applied() {
         anchor,
         Form::Node {
             level,
-            arcs: BTreeMap::from([(0, defaut), (1, defaut)]),
+            arcs: ArcRun::from_pairs([(0, defaut), (1, defaut)]),
         },
     );
     assert_eq!(target, defaut);
@@ -230,7 +229,7 @@ fn test_events_reduction_applied() {
         anchor,
         Form::Node {
             level,
-            arcs: BTreeMap::from([(0, defaut), (1, other)]),
+            arcs: ArcRun::from_pairs([(0, defaut), (1, other)]),
         },
     );
     assert_ne!(node, defaut);

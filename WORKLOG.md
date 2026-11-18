@@ -46,6 +46,13 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-18 - MEM-5: sorted run as arc storage (issue #121)
+
+- **Issue**: #121 (MEM-5, milestone MEM-A) — the reduce pipeline normalizes to a sorted run `Box<[(key, NodeId)]>` with "last write wins" semantics; reductions run on the run; hash-consing on the semantic form (level + sorted run); BTreeMap demoted to construction accumulator.
+- **Done**: new `ArcRun<Key>` in `lisage-algebra` (sorted `Box<[(Key, NodeId)]>`, one entry per key): `ArcStore`/`ArcStoreBuilder` impls, `from_pairs`/`From<BTreeMap>`/`FromIterator` with last-write-wins, `get`/`contains_key`/`iter`/`values`/`keys`/`len`/`Index`. `Form::Node.arcs` is now `ArcRun<Key>` — the hash-consing key is the semantic form (level + sorted run), never the construction pallet. `Reduction::Form` carries the run; `reduce`/`reduce_without_collapse`/`reduce_inverse`/`reduce_dabs` operate on the run (R-default removal rebuilds the run once). All 15 `Controller::Arcs` set to `ArcRun`. Merge paths (add/pli/lookup/workshop) accumulate in a `BTreeMap` and convert once at interning — one run allocation per interned form. New PBT `test_dernier_ecrit_gagne` pins last-write-wins; confluence PBTs (reduce∘reduce, quotient commutation, reduce_dabs idempotence) and the C1 handle PBTs updated and green. Unique-table key unchanged at this stage. Cites ADR-0103 (draft, #117).
+- **Evidence**: `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo test --workspace` (74 binaries, 0 failures), `make rust-check` (308 passed, 5 skipped), `make test` (45 passed), `make lint`, `make typecheck`, `make imports`, `make english-only` all pass. Not run: a counting-allocator test for the "one allocation per interning" criterion — a global counting allocator in a multi-threaded test binary is flaky; the single-allocation property holds by construction (one `collect` into the `Box` per interned form, plus at most one rebuild when R-default removes an arc).
+- **Judgement calls**: `ArcRun` keeps inherent `get`/`contains_key`/`values`/`keys` so read-only consumers (liseuse, tests) needed no trait import; the BTreeMap remains only as the builder-side accumulator, per the issue.
+
 ## 2026-11-18 - MEM-4: rank/unrank in KeyAlgebra (issue #120)
 
 - **Issue**: #120 (MEM-4, milestone MEM-A) — rank/unrank derived from the region enumeration required by the key contract; rank availability exposed to normalization; dense ordinal storage writes no code per controller.

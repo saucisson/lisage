@@ -37,10 +37,7 @@ pub struct Level(pub u32);
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Form<Key, Payload> {
     Terminal(Payload),
-    Node {
-        level: Level,
-        arcs: BTreeMap<Key, NodeId>,
-    },
+    Node { level: Level, arcs: ArcRun<Key> },
 }
 
 /// Arc storage port (MEM-3, ADR-0103): the minimal contract the pool and
@@ -112,6 +109,175 @@ where
 
     fn build(self) -> Self::Store {
         self
+    }
+}
+
+/// Sorted run of arcs (MEM-5, ADR-0103): the canonical arc storage —
+/// `Box<[(key, target)]>` sorted by key, one entry per key. Built from a
+/// `BTreeMap` accumulator (construction side) with "last write wins"
+/// semantics; the hash-consing key is the semantic form (level + sorted
+/// run), never the construction pallet.
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
+pub struct ArcRun<Key> {
+    pairs: Box<[(Key, NodeId)]>,
+}
+
+impl<Key> ArcRun<Key>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    /// Build a sorted run from pairs, keeping the LAST target of each key.
+    pub fn from_pairs(pairs: impl IntoIterator<Item = (Key, NodeId)>) -> Self {
+        let mut map: BTreeMap<Key, NodeId> = BTreeMap::new();
+        for (key, target) in pairs {
+            map.insert(key, target);
+        }
+        ArcRun {
+            pairs: map.into_iter().collect(),
+        }
+    }
+
+    /// Target of `key`, if present.
+    pub fn get(&self, key: &Key) -> Option<&NodeId> {
+        self.pairs
+            .binary_search_by(|(k, _)| k.cmp(key))
+            .ok()
+            .map(|index| &self.pairs[index].1)
+    }
+
+    /// Is `key` present?
+    pub fn contains_key(&self, key: &Key) -> bool {
+        self.get(key).is_some()
+    }
+
+    /// Iteration over the targets, in key order.
+    pub fn values(&self) -> impl DoubleEndedIterator<Item = &NodeId> {
+        self.pairs.iter().map(|(_, target)| target)
+    }
+
+    /// Iteration over the keys, in order.
+    pub fn keys(&self) -> impl DoubleEndedIterator<Item = &Key> {
+        self.pairs.iter().map(|(key, _)| key)
+    }
+
+    /// Ordered iteration of the `(key, target)` pairs.
+    pub fn iter(&self) -> impl Iterator<Item = (&Key, &NodeId)> {
+        self.pairs.iter().map(|(key, target)| (key, target))
+    }
+
+    /// Number of arcs.
+    pub fn len(&self) -> usize {
+        self.pairs.len()
+    }
+
+    /// True when the run holds no arc.
+    pub fn is_empty(&self) -> bool {
+        self.pairs.is_empty()
+    }
+}
+
+impl<Key> std::iter::FromIterator<(Key, NodeId)> for ArcRun<Key>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    /// Collect with "last write wins" semantics, then sort.
+    fn from_iter<T: IntoIterator<Item = (Key, NodeId)>>(iter: T) -> Self {
+        ArcRun::from_pairs(iter)
+    }
+}
+
+impl<Key> IntoIterator for ArcRun<Key>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    type Item = (Key, NodeId);
+    type IntoIter = std::vec::IntoIter<(Key, NodeId)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.pairs.into_vec().into_iter()
+    }
+}
+
+impl<'a, Key> IntoIterator for &'a ArcRun<Key>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    type Item = (&'a Key, &'a NodeId);
+    type IntoIter = Box<dyn Iterator<Item = (&'a Key, &'a NodeId)> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.pairs.iter().map(|(key, target)| (key, target)))
+    }
+}
+
+impl<Key> From<BTreeMap<Key, NodeId>> for ArcRun<Key>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    fn from(map: BTreeMap<Key, NodeId>) -> Self {
+        ArcRun {
+            pairs: map.into_iter().collect(),
+        }
+    }
+}
+
+impl<Key> std::ops::Index<&Key> for ArcRun<Key>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    type Output = NodeId;
+
+    fn index(&self, key: &Key) -> &Self::Output {
+        self.get(key).expect("arc key absent from the run")
+    }
+}
+
+impl<Key> ArcStore for ArcRun<Key>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    type Key = Key;
+    type Builder = ArcRunBuilder<Key>;
+
+    fn iter(&self) -> impl Iterator<Item = (&Self::Key, &NodeId)> {
+        self.pairs.iter().map(|(key, target)| (key, target))
+    }
+
+    fn len(&self) -> usize {
+        self.pairs.len()
+    }
+}
+
+/// Builder of an [`ArcRun`]: insertion with "last write wins" semantics,
+/// sorted run produced by [`ArcStoreBuilder::build`].
+pub struct ArcRunBuilder<Key> {
+    map: BTreeMap<Key, NodeId>,
+}
+
+impl<Key> Default for ArcRunBuilder<Key>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    fn default() -> Self {
+        ArcRunBuilder {
+            map: BTreeMap::new(),
+        }
+    }
+}
+
+impl<Key> ArcStoreBuilder for ArcRunBuilder<Key>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    type Key = Key;
+    type Store = ArcRun<Key>;
+
+    fn insert(&mut self, key: Self::Key, target: NodeId) {
+        self.map.insert(key, target);
+    }
+
+    fn build(self) -> Self::Store {
+        ArcRun::from(self.map)
     }
 }
 

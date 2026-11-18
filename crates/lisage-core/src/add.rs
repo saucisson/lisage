@@ -10,7 +10,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
+    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
 };
 
 use crate::error::CoreError;
@@ -44,7 +44,7 @@ impl Controller for AddController {
     type Key = u64;
     type Payload = u64;
     type Keys = SchemaKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
 
     const FINGERPRINT: ControllerId = FINGERPRINT_ADD;
 
@@ -126,12 +126,12 @@ fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
                 anchor,
                 Form::Node {
                     level: Schema::level_value(index),
-                    arcs: BTreeMap::from([(value.0, suite)]),
+                    arcs: ArcRun::from_pairs([(value.0, suite)]),
                 },
             );
-            BTreeMap::from([(PRESENT, node_value)])
+            ArcRun::from_pairs([(PRESENT, node_value)])
         }
-        _ => BTreeMap::from([(ABSENT, suite)]),
+        _ => ArcRun::from_pairs([(ABSENT, suite)]),
     };
     pool.intern(
         anchor,
@@ -182,15 +182,15 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
             },
         ) => {
             if level_a == level_b {
-                let mut arcs = arcs_a;
+                let mut acc: BTreeMap<u64, NodeId> = arcs_a.into_iter().collect();
                 for (arc, target_b) in arcs_b {
-                    match arcs.remove(&arc) {
+                    match acc.remove(&arc) {
                         Some(target_a) => {
                             let merge = merge_add(pool, keys, anchor, target_a, target_b)?;
-                            arcs.insert(arc, merge);
+                            acc.insert(arc, merge);
                         }
                         None => {
-                            arcs.insert(arc, target_b);
+                            acc.insert(arc, target_b);
                         }
                     }
                 }
@@ -198,7 +198,7 @@ pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
                     anchor,
                     Form::Node {
                         level: level_a,
-                        arcs,
+                        arcs: acc.into(),
                     },
                 ))
             } else if level_a < level_b {
@@ -219,29 +219,36 @@ fn merge_with_other<P: Pool<Key = u64, Payload = u64>>(
     keys: &SchemaKeys,
     anchor: Anchor,
     level: Level,
-    mut arcs: BTreeMap<u64, NodeId>,
+    arcs: ArcRun<u64>,
     other: NodeId,
 ) -> Result<NodeId, CoreError> {
+    let mut acc: BTreeMap<u64, NodeId> = arcs.into_iter().collect();
     match keys.default(level) {
         Some(defaut) => {
-            let target = match arcs.remove(&defaut) {
+            let target = match acc.remove(&defaut) {
                 Some(target) => merge_add(pool, keys, anchor, target, other)?,
                 None => other,
             };
-            arcs.insert(defaut, target);
+            acc.insert(defaut, target);
         }
         None => {
             let cardinality = keys.cardinality(level);
             for v in 0..cardinality {
-                let target = match arcs.remove(&v) {
+                let target = match acc.remove(&v) {
                     Some(target) => merge_add(pool, keys, anchor, target, other)?,
                     None => other,
                 };
-                arcs.insert(v, target);
+                acc.insert(v, target);
             }
         }
     }
-    Ok(pool.intern(anchor, Form::Node { level, arcs }))
+    Ok(pool.intern(
+        anchor,
+        Form::Node {
+            level,
+            arcs: acc.into(),
+        },
+    ))
 }
 
 /// Weighted fold: sum of the terminal weights over all accepting paths

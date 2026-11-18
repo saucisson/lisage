@@ -23,9 +23,9 @@
 //! event (channel `Synthesized`) to the optional observer, with the computed
 //! measure; the test pins these events.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
-use lisage_algebra::interface::{Form, NodeId, Pool, PoolError};
+use lisage_algebra::interface::{ArcRun, Form, NodeId, Pool, PoolError};
 
 use crate::dbm::{Dbm, DbmKeys};
 use crate::observer::{ChannelAttr, Observer, TraceEvent};
@@ -198,8 +198,7 @@ pub fn compiler_union<P: Pool<Key = Interval, Payload = bool>>(
         "compiler_union requires disjoint intervals (precondition)"
     );
     let vrai = pool.intern(anchor, Form::Terminal(true));
-    let arcs: BTreeMap<Interval, NodeId> =
-        intervals.iter().map(|interval| (*interval, vrai)).collect();
+    let arcs: ArcRun<Interval> = intervals.iter().map(|interval| (*interval, vrai)).collect();
     pool.intern(
         anchor,
         Form::Node {
