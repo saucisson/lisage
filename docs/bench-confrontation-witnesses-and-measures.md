@@ -23,6 +23,18 @@ standard stdin protocol (`n`, then `2^n` values `0`/`1`), produced by
 `confrontation dump-charge <workload> <path>` — the witnesses receive
 the exact input lisage measured.
 
+## Witnesses
+
+- **lisage**: the `confrontation` binary (`cargo build --release -p
+  lisage-bench --bin confrontation`), one JSONL line per run.
+- **OxiDD**: the `lisage-oxidd:latest` container
+  (`docker build -t lisage-oxidd:latest docker/oxidd`, OxiDD pinned at
+  commit `c7a458df8b747a3ee44d0e9e61059a1621865fcd`), `oxidd_count`
+  reading the charge on stdin, one fresh container per measurement.
+- **CUDD/Sylvan**: `docker/cudd/` exists (ADR-0102 pattern); not part of
+  the deposited campaigns (the CUDD `DagSize` terminal-counting
+  divergence is documented in WORKLOG).
+
 ## Fairness rules
 
 - **Same input**: the witnesses read the truth table serialized by
@@ -73,3 +85,9 @@ make bench-confrontation ARGS="--repetitions 5 --run-id <run-id>"
 
 The exact command of each deposited run is recorded in
 `bench-results/<run-id>/README.md`.
+
+## Deposited results
+
+- `bench-results/20261117-campaign-1/` — first campaign (M7-5): raw
+  JSONL, aggregates, reproduction command, and the comparative report
+  `REPORT.md` (M7-6).
