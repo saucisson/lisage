@@ -3,13 +3,29 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{
     ABSENT, Domain, PRESENT, ReferenceController, Schema, SchemaError, compiler, decompiler,
 };
 use lisage_lang::value::{Atom, Value};
+
+/// MEM-12: family-agnostic form assertion — the dense/sorted family is a
+/// normalization choice, not part of the semantics: compare the level and
+/// the (key, target) pairs in order.
+fn assert_forme(form: &Form<u64, bool>, level: Level, paires: &[(u64, NodeId)]) {
+    let Form::Node {
+        level: niveau,
+        arcs,
+    } = form
+    else {
+        panic!("node expected, got {form:?}");
+    };
+    assert_eq!(*niveau, level);
+    let obtenu: Vec<(u64, NodeId)> = arcs.iter().map(|(key, target)| (*key, *target)).collect();
+    assert_eq!(obtenu, paires);
+}
 
 fn domain(values: &[u64]) -> Domain {
     Domain::new(values.iter().map(|&v| Atom(v)).collect())
@@ -54,7 +70,14 @@ fn test_compilation_map_exemple_spec() {
         panic!("value node expected");
     };
     assert_eq!(*level, Level(3));
-    assert_eq!(arcs, &ArcRun::from_pairs([(ABSENT, terminal)]));
+    assert_forme(
+        &Form::Node {
+            level: *level,
+            arcs: arcs.clone(),
+        },
+        Level(3),
+        &[(ABSENT, terminal)],
+    );
 }
 
 /// R-collapse skips the presence levels of absent elements (ZDD style): {a}
@@ -67,12 +90,10 @@ fn test_set_absents_collapses() {
     let set = Value::Set(BTreeSet::from([atome(0)]));
     let root = compiler(&mut pool, anchor, &schema, &set).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    assert_eq!(
+    assert_forme(
         pool.resolve(root).unwrap(),
-        &Form::Node {
-            level: Level(0),
-            arcs: ArcRun::from_pairs([(PRESENT, terminal)]),
-        }
+        Level(0),
+        &[(PRESENT, terminal)],
     );
 }
 
@@ -97,12 +118,10 @@ fn test_map_empty_and_key_absente() {
             arcs: ArcRun::from_pairs([(ABSENT, terminal)]),
         },
     );
-    assert_eq!(
+    assert_forme(
         pool.resolve(root).unwrap(),
-        &Form::Node {
-            level: Level(2),
-            arcs: ArcRun::from_pairs([(PRESENT, node_value_b)]),
-        }
+        Level(2),
+        &[(PRESENT, node_value_b)],
     );
 }
 
@@ -133,13 +152,7 @@ fn test_schema_atome() {
     let anchor = Anchor(0);
     let root = compiler(&mut pool, anchor, &schema, &atome(2)).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    assert_eq!(
-        pool.resolve(root).unwrap(),
-        &Form::Node {
-            level: Level(0),
-            arcs: ArcRun::from_pairs([(2, terminal)]),
-        }
-    );
+    assert_forme(pool.resolve(root).unwrap(), Level(0), &[(2, terminal)]);
 }
 
 /// The empty set compiles to the accepting terminal ⊤ (empty path), and the
@@ -162,12 +175,10 @@ fn test_set_empty_and_plein() {
             arcs: ArcRun::from_pairs([(PRESENT, terminal)]),
         },
     );
-    assert_eq!(
+    assert_forme(
         pool.resolve(root_plein).unwrap(),
-        &Form::Node {
-            level: Level(0),
-            arcs: ArcRun::from_pairs([(PRESENT, node_presence_b)]),
-        }
+        Level(0),
+        &[(PRESENT, node_presence_b)],
     );
 }
 

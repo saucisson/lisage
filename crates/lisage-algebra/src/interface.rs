@@ -112,14 +112,26 @@ where
     }
 }
 
-/// Sorted run of arcs (MEM-5, ADR-0103): the canonical arc storage —
-/// `Box<[(key, target)]>` sorted by key, one entry per key. Built from a
-/// `BTreeMap` accumulator (construction side) with "last write wins"
-/// semantics; the hash-consing key is the semantic form (level + sorted
-/// run), never the construction pallet.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
-pub struct ArcRun<Key> {
-    pairs: Box<[(Key, NodeId)]>,
+/// Arc storage of a node (MEM-5 sorted run, MEM-12 dense ordinal,
+/// ADR-0103): two families behind the same type, the family being chosen
+/// in normalization (see [`ArcRun::choose_dense_family`]).
+/// - [`ArcRun::Sorted`]: `Box<[(key, target)]>` sorted by key, one entry
+///   per key — the default family, built by [`ArcRun::from_pairs`].
+/// - [`ArcRun::Dense`]: one slot per rank of the level, holes = default
+///   not stored — the dense ordinal family (MEM-12).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ArcRun<Key> {
+    /// Sorted run (MEM-5): the default family.
+    Sorted(Box<[(Key, NodeId)]>),
+    /// Dense ordinal family (MEM-12): one slot per rank of the level,
+    /// `None` = hole = default not stored.
+    Dense(Box<[Option<(Key, NodeId)>]>),
+}
+
+impl<Key> Default for ArcRun<Key> {
+    fn default() -> Self {
+        ArcRun::Sorted(Box::default())
+    }
 }
 
 impl<Key> ArcRun<Key>
@@ -132,17 +144,56 @@ where
         for (key, target) in pairs {
             map.insert(key, target);
         }
-        ArcRun {
-            pairs: map.into_iter().collect(),
+        ArcRun::Sorted(map.into_iter().collect())
+    }
+
+    /// MEM-12: choose the dense ordinal family when every key of `arcs`
+    /// has a rank in `keys` at `level` and the fill is at least one third
+    /// (threshold `4·|Val(ℓ)| ≤ 12·arcs`); otherwise keep the sorted run.
+    /// The choice is deterministic in (level, keys, content), so C1 holds:
+    /// the same semantic form always lands in the same family.
+    pub fn choose_dense_family<K: KeyAlgebra<Key = Key>>(
+        level: Level,
+        keys: &K,
+        arcs: ArcRun<Key>,
+    ) -> ArcRun<Key> {
+        let ArcRun::Sorted(pairs) = &arcs else {
+            return arcs;
+        };
+        let cardinality = keys.cardinality(level);
+        let arcs_len = pairs.len() as u64;
+        if 4 * cardinality > 12 * arcs_len {
+            return arcs;
         }
+        let mut slots: Vec<Option<(Key, NodeId)>> = vec![None; cardinality as usize];
+        for (key, target) in pairs.iter() {
+            match keys.rank(level, key) {
+                Some(rang) if (rang as usize) < slots.len() => {
+                    slots[rang as usize] = Some((key.clone(), *target));
+                }
+                _ => return arcs,
+            }
+        }
+        ArcRun::Dense(slots.into_boxed_slice())
+    }
+
+    /// Is this the dense ordinal family (MEM-12)?
+    pub fn is_dense(&self) -> bool {
+        matches!(self, ArcRun::Dense(_))
     }
 
     /// Target of `key`, if present.
     pub fn get(&self, key: &Key) -> Option<&NodeId> {
-        self.pairs
-            .binary_search_by(|(k, _)| k.cmp(key))
-            .ok()
-            .map(|index| &self.pairs[index].1)
+        match self {
+            ArcRun::Sorted(pairs) => pairs
+                .binary_search_by(|(k, _)| k.cmp(key))
+                .ok()
+                .map(|index| &pairs[index].1),
+            ArcRun::Dense(slots) => slots.iter().find_map(|slot| {
+                slot.as_ref()
+                    .and_then(|(k, target)| (k == key).then_some(target))
+            }),
+        }
     }
 
     /// Is `key` present?
@@ -150,29 +201,41 @@ where
         self.get(key).is_some()
     }
 
-    /// Iteration over the targets, in key order.
+    /// Ordered iteration of the `(key, target)` pairs (key order for the
+    /// sorted run, rank order for the dense family).
+    pub fn iter(&self) -> Box<dyn DoubleEndedIterator<Item = (&Key, &NodeId)> + '_> {
+        match self {
+            ArcRun::Sorted(pairs) => Box::new(pairs.iter().map(|(key, target)| (key, target))),
+            ArcRun::Dense(slots) => Box::new(slots.iter().filter(|slot| slot.is_some()).map(
+                |slot| match slot {
+                    Some((key, target)) => (key, target),
+                    None => unreachable!("filtered above"),
+                },
+            )),
+        }
+    }
+
+    /// Iteration over the targets, in key/rank order.
     pub fn values(&self) -> impl DoubleEndedIterator<Item = &NodeId> {
-        self.pairs.iter().map(|(_, target)| target)
+        self.iter().map(|(_, target)| target)
     }
 
     /// Iteration over the keys, in order.
     pub fn keys(&self) -> impl DoubleEndedIterator<Item = &Key> {
-        self.pairs.iter().map(|(key, _)| key)
-    }
-
-    /// Ordered iteration of the `(key, target)` pairs.
-    pub fn iter(&self) -> impl Iterator<Item = (&Key, &NodeId)> {
-        self.pairs.iter().map(|(key, target)| (key, target))
+        self.iter().map(|(key, _)| key)
     }
 
     /// Number of arcs.
     pub fn len(&self) -> usize {
-        self.pairs.len()
+        match self {
+            ArcRun::Sorted(pairs) => pairs.len(),
+            ArcRun::Dense(slots) => slots.iter().filter(|slot| slot.is_some()).count(),
+        }
     }
 
     /// True when the run holds no arc.
     pub fn is_empty(&self) -> bool {
-        self.pairs.is_empty()
+        self.len() == 0
     }
 }
 
@@ -194,7 +257,15 @@ where
     type IntoIter = std::vec::IntoIter<(Key, NodeId)>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.pairs.into_vec().into_iter()
+        match self {
+            ArcRun::Sorted(pairs) => pairs.into_vec().into_iter(),
+            ArcRun::Dense(slots) => slots
+                .into_vec()
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .into_iter(),
+        }
     }
 }
 
@@ -206,7 +277,7 @@ where
     type IntoIter = Box<dyn Iterator<Item = (&'a Key, &'a NodeId)> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.pairs.iter().map(|(key, target)| (key, target)))
+        Box::new(self.iter())
     }
 }
 
@@ -215,9 +286,7 @@ where
     Key: Clone + Ord + Hash + Debug + Send + Sync,
 {
     fn from(map: BTreeMap<Key, NodeId>) -> Self {
-        ArcRun {
-            pairs: map.into_iter().collect(),
-        }
+        ArcRun::Sorted(map.into_iter().collect())
     }
 }
 
@@ -240,11 +309,11 @@ where
     type Builder = ArcRunBuilder<Key>;
 
     fn iter(&self) -> impl Iterator<Item = (&Self::Key, &NodeId)> {
-        self.pairs.iter().map(|(key, target)| (key, target))
+        self.iter()
     }
 
     fn len(&self) -> usize {
-        self.pairs.len()
+        self.len()
     }
 }
 
