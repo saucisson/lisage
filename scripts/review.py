@@ -58,12 +58,12 @@ EXIT_CODE_PRECONDITIONS_UNMET = 3  # the review never started: not a verdict, no
 
 # Data files are never application code: the reviewer does not go over
 # them. A file is elided from the diff when its extension is a known data
-# extension, or when its diff section exceeds MAX_DIFF_LINES_PER_FILE.
+# extension. Code files are always kept in full, whatever their size —
+# the reviewer must see the whole diff of application code (ADR-0010).
 DATA_FILE_EXTENSIONS = frozenset(
     {".pnml", ".cnf", ".jsonl", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".bin"}
 )
-MAX_DIFF_LINES_PER_FILE = 400
-ELISION_MARKER = "ELIDED FROM REVIEW (data or oversized file, not reviewed)"
+ELISION_MARKER = "ELIDED FROM REVIEW (data file, not reviewed)"
 
 
 def read_text_file(*, path: Path) -> str:
@@ -112,12 +112,14 @@ def section_file_path(*, section: str) -> str:
 
 
 def elide_data_files(*, diff_text: str) -> str:
-    """Replace the diff sections of data/oversized files with an explicit marker.
+    """Replace the diff sections of data files with an explicit marker.
 
     The reviewer's context is bounded: large data files (benchmark models,
     deposited results, images) are not application code and must not
-    consume the reviewer's turns. The elision is explicit — a marker per
-    elided file plus a summary at the top of the diff — never silent.
+    consume the reviewer's turns. Only data extensions are elided — code
+    files stay in full, whatever their size. The elision is explicit — a
+    marker per elided file plus a summary at the top of the diff — never
+    silent.
     """
     kept: list[str] = []
     elided: list[tuple[str, int]] = []
@@ -125,14 +127,14 @@ def elide_data_files(*, diff_text: str) -> str:
         path = section_file_path(section=section)
         line_count = len(section.splitlines())
         extension = Path(path).suffix.lower()
-        if extension in DATA_FILE_EXTENSIONS or line_count > MAX_DIFF_LINES_PER_FILE:
+        if extension in DATA_FILE_EXTENSIONS:
             elided.append((path, line_count))
             kept.append(f"### {ELISION_MARKER}: {path} ({line_count} diff lines omitted)\n")
         else:
             kept.append(section)
     if not elided:
         return diff_text
-    summary = "## ELIDED FILES (data or oversized, not reviewed)\n\n" + "\n".join(
+    summary = "## ELIDED FILES (data files, not reviewed)\n\n" + "\n".join(
         f"- {path} ({line_count} diff lines)" for path, line_count in elided
     )
     return summary + "\n\n" + "".join(kept)

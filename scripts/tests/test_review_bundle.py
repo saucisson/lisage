@@ -1,19 +1,19 @@
 """Tests of the review-bundle data elision (human directive, 2026-11-17).
 
 The reviewer's context is bounded: data files (benchmark models, deposited
-results, images) and oversized diff sections are elided from the bundle
-with an explicit marker — never silently. Code files are kept in full.
+results, images) are elided from the bundle with an explicit marker —
+never silently. Code files are kept in full, whatever their size.
 """
 
 from scripts.review import (
     ELISION_MARKER,
-    MAX_DIFF_LINES_PER_FILE,
     elide_data_files,
+    render_bundle,
     section_file_path,
     split_diff_sections,
 )
 
-RS_DIFF = """diff --git a/crates/x/src/lib.rs b/crates/x/src/lib.rs
+RUST_DIFF = """diff --git a/crates/x/src/lib.rs b/crates/x/src/lib.rs
 index 1111111..2222222 100644
 --- a/crates/x/src/lib.rs
 +++ b/crates/x/src/lib.rs
@@ -37,8 +37,8 @@ PNML_DIFF = (
 
 
 def make_oversized_diff(path: str = "crates/x/src/big.rs") -> str:
-    """A code file whose diff section exceeds the per-file line cap."""
-    body = "".join(f"+line {i}\n" for i in range(MAX_DIFF_LINES_PER_FILE + 10))
+    """A code file with a very large diff section (over 400 lines)."""
+    body = "".join(f"+line {i}\n" for i in range(410))
     return (
         f"diff --git a/{path} b/{path}\nindex 1111111..2222222 100644\n"
         f"--- a/{path}\n+++ b/{path}\n@@ -1,1 +1,1 @@\n-old\n{body}"
@@ -47,7 +47,7 @@ def make_oversized_diff(path: str = "crates/x/src/big.rs") -> str:
 
 def test_data_extension_is_elided_with_marker() -> None:
     """A .pnml model file is replaced by an explicit marker, the code file kept."""
-    diff = RS_DIFF + PNML_DIFF
+    diff = RUST_DIFF + PNML_DIFF
     result = elide_data_files(diff_text=diff)
     assert ELISION_MARKER in result
     assert "SwimmingPool-1.pnml" in result
@@ -58,20 +58,35 @@ def test_data_extension_is_elided_with_marker() -> None:
 
 def test_small_diff_is_unchanged() -> None:
     """A diff with only small code files passes through untouched."""
-    assert elide_data_files(diff_text=RS_DIFF) == RS_DIFF
+    assert elide_data_files(diff_text=RUST_DIFF) == RUST_DIFF
 
 
-def test_oversized_code_file_is_elided() -> None:
-    """Even a code file over the line cap is elided (bounded context)."""
-    result = elide_data_files(diff_text=make_oversized_diff())
-    assert ELISION_MARKER in result
-    assert "big.rs" in result
-    assert "line 399" not in result
+def test_oversized_code_file_is_kept_in_full() -> None:
+    """A code file is never elided, whatever its diff size (ADR-0010)."""
+    diff = make_oversized_diff()
+    result = elide_data_files(diff_text=diff)
+    assert result == diff
+    assert ELISION_MARKER not in result
+    assert "line 409" in result
+
+
+def test_render_bundle_applies_elision_to_diff_section() -> None:
+    """render_bundle wires elide_data_files into the DIFF section of the bundle."""
+    bundle = render_bundle(
+        diff_text=RUST_DIFF + PNML_DIFF,
+        description_text="test description",
+        decisions=[],
+    )
+    diff_section = bundle.split("## DIFF UNDER REVIEW", maxsplit=1)[1]
+    assert ELISION_MARKER in diff_section
+    assert "SwimmingPool-1.pnml" in diff_section
+    assert "<pnml>" not in diff_section
+    assert "pub fn g() {}" in diff_section
 
 
 def test_split_and_path_helpers() -> None:
     """The diff splitter and path extractor handle additions and deletions."""
-    sections = split_diff_sections(diff_text=RS_DIFF + PNML_DIFF)
+    sections = split_diff_sections(diff_text=RUST_DIFF + PNML_DIFF)
     assert len(sections) == 2
     assert section_file_path(section=sections[0]) == "crates/x/src/lib.rs"
     assert section_file_path(section=sections[1]) == PNML_PATH
