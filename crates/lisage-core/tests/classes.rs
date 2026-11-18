@@ -139,6 +139,134 @@ fn test_catch_all_class_holds_sorted_run_entries() {
     }
 }
 
+/// Intern a degree-2 node at the given level (arcs to two distinct
+/// terminals — no R-collapse), class 2 at b = 2.
+fn intern_degree2_at(pool: &mut PoolMock, level: u32) -> NodeId {
+    let t0 = pool.terminal(Anchor(0), 0);
+    let t1 = pool.terminal(Anchor(0), 1);
+    pool.intern(
+        Anchor(0),
+        Form::Node {
+            level: Level(level),
+            arcs: ArcRun::from_pairs([(0, t0), (1, t1)]),
+        },
+    )
+}
+
+/// Intern a degree-3 node at the given level, catch-all class 3 at b = 2.
+fn intern_degree3_at(pool: &mut PoolMock, level: u32) -> NodeId {
+    let t0 = pool.terminal(Anchor(0), 0);
+    let t1 = pool.terminal(Anchor(0), 1);
+    let t2 = pool.terminal(Anchor(0), 2);
+    pool.intern(
+        Anchor(0),
+        Form::Node {
+            level: Level(level),
+            arcs: ArcRun::from_pairs([(0, t0), (1, t1), (2, t2)]),
+        },
+    )
+}
+
+#[test]
+fn test_marking_bitmap_memory_under_old_btree_set() {
+    // 2000 nodes: the marking bitmap is 1 bit per slot, far under the old
+    // `BTreeSet<NodeId>` (4-byte ids plus tree overhead per node).
+    let mut pool = pool();
+    let roots: Vec<NodeId> = (0..2000u32)
+        .map(|i| intern_degree2_at(&mut pool, i))
+        .collect();
+    let total = pool.node_count() as u64;
+    let stats = pool.gc(&roots);
+    assert_eq!(stats.live, total, "all roots live");
+    // Exact bitmap size: one word per 64 slots, per class arena.
+    let classes = pool.class_map().number_classes() as u64;
+    assert!(
+        stats.mark_bytes * 8 <= total + 64 * classes,
+        "1 bit per node: {} bytes for {} slots",
+        stats.mark_bytes,
+        total
+    );
+    // Measured threshold: under the raw ids alone of the old BTreeSet.
+    assert!(
+        stats.mark_bytes < total * 4,
+        "marking bitmap ({} B) under the old set's raw ids ({} B)",
+        stats.mark_bytes,
+        total * 4
+    );
+}
+
+#[test]
+fn test_no_index_reused_outside_remap_protocol() {
+    // Below the compaction threshold: tombstones keep their slots, a
+    // re-interned dead form gets a FRESH index, never the stale one.
+    let mut pool = pool();
+    let nodes: Vec<NodeId> = (0..10u32)
+        .map(|i| intern_degree2_at(&mut pool, i))
+        .collect();
+    let stats = pool.gc(&nodes[..9]);
+    assert!(!stats.compaction, "below the threshold: no compaction");
+    let stale = nodes[9];
+    assert!(pool.resolve(stale).is_err(), "stale id is unknown");
+    let recreated = intern_degree2_at(&mut pool, 9);
+    assert_ne!(recreated, stale, "index not reused outside the protocol");
+    assert!(pool.resolve(recreated).is_ok());
+    // With compaction, reuse happens only through the recorded remap.
+    let mut orphans = Vec::new();
+    for i in 100..140u32 {
+        orphans.push(intern_degree2_at(&mut pool, i));
+    }
+    let stats = pool.gc(&nodes[..9]);
+    assert!(stats.compaction, "threshold reached: compaction");
+    let remap = pool.last_remap();
+    for orphan in &orphans {
+        assert_eq!(remap.get(&orphan.0), Some(&None), "orphan remapped to None");
+    }
+    assert!(
+        remap.get(&nodes[0].0).is_some_and(|n| n.is_some()),
+        "live root remapped"
+    );
+}
+
+#[test]
+fn test_emptied_class_releases_pages_without_recycling_indices() {
+    // 100 live catch-all nodes (class 3) + 3 dead exact-class nodes
+    // (class 2): below the threshold, class 2 empties and releases its
+    // pages, keeping the slot high-water mark.
+    let mut pool = pool();
+    let live: Vec<NodeId> = (0..100u32)
+        .map(|i| intern_degree3_at(&mut pool, i))
+        .collect();
+    let dead: Vec<NodeId> = (0..3u32)
+        .map(|i| intern_degree2_at(&mut pool, 1000 + i))
+        .collect();
+    let slots_before = pool.node_count();
+    let stats = pool.gc(&live);
+    assert!(!stats.compaction);
+    assert_eq!(stats.live, live.len() as u64 + 3, "live + 3 terminals");
+    let by_class = |class: u32| {
+        pool.class_metrics()
+            .into_iter()
+            .find(|m| m.class == class)
+            .unwrap_or_default()
+    };
+    assert_eq!(by_class(2).live, 0, "class 2 emptied");
+    assert_eq!(
+        pool.node_count(),
+        slots_before,
+        "pages released but slots kept as high-water mark"
+    );
+    for node in &dead {
+        assert!(pool.resolve(*node).is_err());
+    }
+    // A new node of the emptied class gets a fresh index beyond the
+    // high-water mark — no stale id aliased.
+    let fresh = intern_degree2_at(&mut pool, 2000);
+    let (class, index) = fresh.decode(pool.class_map().class_bits);
+    assert_eq!(class, 2);
+    assert_eq!(index, 3, "index beyond the 3 old slots of class 2");
+    assert!(pool.resolve(fresh).is_ok());
+}
+
 #[test]
 fn test_per_class_live_and_peak_traced() {
     let mut pool = pool();

@@ -164,12 +164,24 @@ impl<C: Controller> Arena<C> {
     /// dead threshold is reached, profiled compaction with a `NodeId`
     /// remapping table.
     pub fn gc(&mut self, roots: &[NodeId]) -> StatsGc {
-        let mut atteints = BTreeSet::new();
+        // Marking: 1 bit per node, one bitmap per class arena (MEM-10),
+        // replacing the old `BTreeSet<NodeId>`.
+        let class_bits = self.class_map.class_bits;
+        let mut marks: Vec<Option<Vec<u64>>> = self
+            .arenas
+            .iter()
+            .map(|arena| arena.as_ref().map(|a| a.empty_marks()))
+            .collect();
         let mut stack: Vec<NodeId> = roots.to_vec();
         while let Some(node) = stack.pop() {
-            if !atteints.insert(node) {
+            let (class, index) = node.decode(class_bits);
+            let Some(Some(words)) = marks.get_mut(class as usize) else {
+                continue;
+            };
+            if ClassArena::<C::Key, C::Payload>::mark_of(words, index) {
                 continue;
             }
+            ClassArena::<C::Key, C::Payload>::set_mark(words, index);
             if let Some(NodeEntry {
                 form: Some(Form::Node { arcs, .. }),
                 ..
@@ -178,13 +190,17 @@ impl<C: Controller> Arena<C> {
                 stack.extend(arcs.values().copied());
             }
         }
+        let mark_bytes: u64 = marks
+            .iter()
+            .flatten()
+            .map(|words| words.len() as u64 * 8)
+            .sum();
         let total = self.node_count() as u64;
-        let class_bits = self.class_map.class_bits;
         let mut collected = 0u64;
         for class in 0..self.class_map.number_classes() {
             if let Some(arena) = self.arenas.get_mut(class as usize).and_then(|a| a.as_mut()) {
-                collected += arena
-                    .sweep(&|index| atteints.contains(&NodeId::encode(class, index, class_bits)));
+                let words = marks[class as usize].as_ref().expect("marks allocated");
+                collected += arena.sweep(words);
             }
         }
         // Removal of tombstones from the unique table and the shadow index.
@@ -210,6 +226,14 @@ impl<C: Controller> Arena<C> {
             self.remap = self.compacter();
         } else {
             self.remap.clear();
+            // Page rendering: an emptied class releases its slabs, keeping
+            // the slot count as high-water mark (no index recycled outside
+            // the remap protocol, MEM-10).
+            for arena in self.arenas.iter_mut().flatten() {
+                if arena.live_count() == 0 {
+                    arena.release_pages();
+                }
+            }
         }
         self.metriques.gc += 1;
         self.metriques.live = live;
@@ -221,6 +245,7 @@ impl<C: Controller> Arena<C> {
             live,
             collected,
             compaction,
+            mark_bytes,
         };
         self.observer.on_event(&TraceEvent::Gc {
             live,

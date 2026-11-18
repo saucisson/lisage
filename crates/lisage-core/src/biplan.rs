@@ -57,7 +57,8 @@ impl MetriquesPool {
     }
 }
 
-/// GC statistics: live, collected, compaction performed.
+/// GC statistics: live, collected, compaction performed, marking bitmap
+/// size in bytes (MEM-10: 1 bit per node).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StatsGc {
     /// Live nodes (reached from the roots).
@@ -66,6 +67,8 @@ pub struct StatsGc {
     pub collected: u64,
     /// Compaction performed (dead threshold reached).
     pub compaction: bool,
+    /// Marking bitmap size in bytes at the last GC (1 bit per slot).
+    pub mark_bytes: u64,
 }
 
 /// Two-plane pool entry: plane + form (tombstone after GC).
