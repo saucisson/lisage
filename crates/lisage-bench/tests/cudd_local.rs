@@ -125,3 +125,30 @@ proptest! {
         );
     }
 }
+
+/// Variable-order pin (MEM-6): on the asymmetric table
+/// `x0 AND (x1 OR x2)` over 3 variables, the lisage order (variable 0
+/// at the root) gives 5 nodes (3 internal + 2 terminals); the reversed
+/// order would give 6. The CUDD witness must reproduce 5 — this pins
+/// that `cudd_count` builds with variable l = bit l of the index,
+/// variable 0 at the root, like lisage.
+#[test]
+#[ignore = "outside CI — requires the Docker image lisage-cudd:latest"]
+fn test_c6_local_order_pinned_asymmetric() {
+    let table = [false, false, false, true, false, true, false, true];
+
+    let mut witness = MiniBdd::new();
+    let root_witness = witness.compiler_table(3, &table);
+    assert_eq!(
+        witness.count_nodes(root_witness),
+        5,
+        "lisage order: 3 internal + 2 terminals"
+    );
+
+    let nodes_cudd =
+        cudd_count_nodes(3, &table).expect("call to the lisage-cudd Docker container failed");
+    assert_eq!(
+        nodes_cudd, 5,
+        "CUDD must build the same variable order (reversed would give 6)"
+    );
+}
