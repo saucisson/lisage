@@ -333,6 +333,14 @@ pub trait KeyAlgebra: Send + Sync {
     fn unrank(&self, _level: Level, _rang: u64) -> Option<Self::Key> {
         None
     }
+
+    /// Declarative overload of the class field width `b` of `NodeId`
+    /// (MEM-8, ADR-0103): when declared, it wins over the runtime
+    /// derivation from `cardinality`, clamped to the compile-time window.
+    /// `None` by default: the width is derived from the cardinalities.
+    fn declared_class_bits(&self) -> Option<u32> {
+        None
+    }
 }
 
 /// Level-memory storage policy (M2-3, spec § 3.1): declared by the

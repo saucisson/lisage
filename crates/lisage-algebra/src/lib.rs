@@ -4,6 +4,7 @@
 //! pool (`lisage-core`) is only a canonical storage implementing this
 //! contract.
 
+pub mod class_bits;
 pub mod interface;
 pub mod reduction;
 pub mod relatif;
