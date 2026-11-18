@@ -135,8 +135,10 @@ def elide_data_files(*, diff_text: str) -> str:
             kept.append(section)
     if not elided:
         return diff_text
-    summary = ELIDED_FILES_HEADER + "\n\n" + "\n".join(
-        f"- {path} ({line_count} diff lines)" for path, line_count in elided
+    summary = (
+        ELIDED_FILES_HEADER
+        + "\n\n"
+        + "\n".join(f"- {path} ({line_count} diff lines)" for path, line_count in elided)
     )
     return summary + "\n\n" + "".join(kept)
 
