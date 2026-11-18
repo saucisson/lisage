@@ -14,9 +14,9 @@
 //! never through point enumeration — free DDD domain assumed on the
 //! continuum.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
-use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool, PoolError};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool, PoolError};
 
 use crate::dbm::Dbm;
 
@@ -76,14 +76,14 @@ pub fn compiler_bande<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: 
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(Dbm::new(2, &[(1, 0, 2)]), vrai)]),
+            arcs: ArcRun::from_pairs([(Dbm::new(2, &[(1, 0, 2)]), vrai)]),
         },
     );
     pool.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([
+            arcs: ArcRun::from_pairs([
                 (Dbm::new(2, &[(0, 1, 1)]), level_1),
                 (Dbm::new(2, &[(1, 0, -2)]), faux),
             ]),

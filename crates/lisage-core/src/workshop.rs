@@ -42,7 +42,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Level, MemoryPolicy, NodeId, Pool, PoolError,
+    Anchor, ArcRun, Controller, ControllerId, Form, Level, MemoryPolicy, NodeId, Pool, PoolError,
 };
 use lisage_algebra::relatif::{AnchorComposee, CycleGroup, Fragment};
 
@@ -107,7 +107,7 @@ impl<C: Controller> Controller for WorkshopController<C> {
     type Key = C::Key;
     type Payload = C::Payload;
     type Keys = C::Keys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
 
     // Fingerprint specific to the wrapper (outside the native controllers 1-6 range).
     const FINGERPRINT: ControllerId = ControllerId(100);
@@ -309,7 +309,7 @@ pub fn build_window_absolue<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level: Level(LEVEL_ROOT),
-            arcs,
+            arcs: arcs.into(),
         },
     )
 }
@@ -342,7 +342,7 @@ pub fn build_window_relative<P: Pool<Key = u64, Payload = bool>>(
     nb_bases: u64,
 ) -> NodeId {
     let window = interner_window_relative(pool, anchor, size);
-    let arcs = (0..nb_bases).map(|base| (base, window)).collect();
+    let arcs: ArcRun<u64> = (0..nb_bases).map(|base| (base, window)).collect();
     pool.intern(
         anchor,
         Form::Node {
@@ -503,7 +503,7 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level,
-            arcs: BTreeMap::from([(0, bas), (1, haut)]),
+            arcs: ArcRun::from_pairs([(0, bas), (1, haut)]),
         },
     )
 }
@@ -639,7 +639,7 @@ pub fn build_window_anchored<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level: Level(LEVEL_ROOT),
-            arcs: BTreeMap::from([(window_anchor.key_input(), window)]),
+            arcs: ArcRun::from_pairs([(window_anchor.key_input(), window)]),
         },
     );
     (root, window)

@@ -4,7 +4,8 @@
 use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
+    Anchor, ArcRun, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool,
+    PoolError,
 };
 use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
 
@@ -33,7 +34,7 @@ impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
     const FINGERPRINT: ControllerId = ControllerId(1);
     fn keys(&self) -> &Self::Keys {
         &self.keys

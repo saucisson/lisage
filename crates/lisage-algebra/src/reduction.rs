@@ -3,19 +3,19 @@
 //! Confluence tested by PBT: `reduce∘reduce = reduce` and quotient
 //! commutation.
 
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::interface::{ArcStore, NodeId};
+use crate::interface::{ArcRun, ArcStore, NodeId};
 
 /// Result of reducing a node form.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Reduction<Key> {
     /// R-collapse: the form reduces to this target.
     Collapse(NodeId),
-    /// Reduced form (R-default applied), to be interned as-is.
-    Form(BTreeMap<Key, NodeId>),
+    /// Reduced form (R-default applied), to be interned as-is: a sorted
+    /// run (MEM-5), the canonical arc storage.
+    Form(ArcRun<Key>),
 }
 
 /// Pure R-collapse: all targets equal ⇒ `Some(target)`, otherwise `None`.
@@ -43,7 +43,7 @@ where
 ///   designated by the controller (the implicit default arc denotes D_δ);
 /// - `cardinality`: |Val(ℓ)|, required when the level has no default.
 pub fn reduce<Key: Clone + Ord + Hash + Debug + Send + Sync>(
-    arcs: BTreeMap<Key, NodeId>,
+    arcs: ArcRun<Key>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
     cardinality: u64,
@@ -65,12 +65,12 @@ pub fn reduce<Key: Clone + Ord + Hash + Debug + Send + Sync>(
         }
     }
     // R-default: the explicit arc δ(ℓ) leading to D_δ is removed.
-    let mut arcs = arcs;
-    if let Some(key) = &key_defaut
-        && arcs.get(key).is_some_and(|target| est_defaut(*target))
-    {
-        arcs.remove(key);
-    }
+    let arcs = match &key_defaut {
+        Some(key) if arcs.get(key).is_some_and(|target| est_defaut(*target)) => {
+            ArcRun::from_pairs(arcs.into_iter().filter(|(k, _)| k != key))
+        }
+        _ => arcs,
+    };
     Reduction::Form(arcs)
 }
 
@@ -78,36 +78,35 @@ pub fn reduce<Key: Clone + Ord + Hash + Debug + Send + Sync>(
 /// to D_δ is removed, the form is never collapsed. Used to toggle
 /// R-collapse independently (didactic workshop, backlog § 9).
 pub fn reduce_without_collapse<Key: Clone + Ord + Hash + Debug + Send + Sync>(
-    arcs: BTreeMap<Key, NodeId>,
+    arcs: ArcRun<Key>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
 ) -> Reduction<Key> {
-    let mut arcs = arcs;
-    if let Some(key) = &key_defaut
-        && arcs.get(key).is_some_and(|target| est_defaut(*target))
-    {
-        arcs.remove(key);
-    }
+    let arcs = match &key_defaut {
+        Some(key) if arcs.get(key).is_some_and(|target| est_defaut(*target)) => {
+            ArcRun::from_pairs(arcs.into_iter().filter(|(k, _)| k != key))
+        }
+        _ => arcs,
+    };
     Reduction::Form(arcs)
 }
 
 /// Reverse order (R-default first, then R-collapse) — the confluence PBT
 /// checks that both orders give the same result.
 pub fn reduce_inverse<Key: Clone + Ord + Hash + Debug + Send + Sync>(
-    arcs: BTreeMap<Key, NodeId>,
+    arcs: ArcRun<Key>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
     cardinality: u64,
 ) -> Reduction<Key> {
-    let mut arcs = arcs;
     let mut target_supprimee: Option<NodeId> = None;
-    if let Some(key) = &key_defaut
-        && let Some(target) = arcs.get(key)
-        && est_defaut(*target)
-    {
-        target_supprimee = Some(*target);
-        arcs.remove(key);
-    }
+    let arcs = match &key_defaut {
+        Some(key) if let Some(target) = arcs.get(key).filter(|t| est_defaut(**t)) => {
+            target_supprimee = Some(*target);
+            ArcRun::from_pairs(arcs.into_iter().filter(|(k, _)| k != key))
+        }
+        _ => arcs,
+    };
     // If the default arc was the only arc, the node denotes D_δ: collapse.
     if arcs.is_empty() {
         return match target_supprimee {
@@ -147,7 +146,7 @@ pub fn reduce_inverse<Key: Clone + Ord + Hash + Debug + Send + Sync>(
 /// `≡ D^default` is tested by `est_defaut` (the pool being canonical, same
 /// form = same node).
 pub fn reduce_dabs<Key: Clone + Ord + Hash + Debug + Send + Sync>(
-    arcs: BTreeMap<Key, NodeId>,
+    arcs: ArcRun<Key>,
     key_defaut: Option<Key>,
     est_defaut: &dyn Fn(NodeId) -> bool,
     cardinality: u64,
@@ -156,11 +155,8 @@ pub fn reduce_dabs<Key: Clone + Ord + Hash + Debug + Send + Sync>(
     // Target of D^default if at least one arc leads to it (used for D-trans A = ∅).
     let target_defaut = defaut.or(arcs.values().find(|c| est_defaut(**c)).copied());
     // (D-abs): absorption over any subdomain, when the level has a default.
-    let arcs: BTreeMap<Key, NodeId> = match &key_defaut {
-        Some(_) => arcs
-            .into_iter()
-            .filter(|(_, target)| !est_defaut(*target))
-            .collect(),
+    let arcs: ArcRun<Key> = match &key_defaut {
+        Some(_) => ArcRun::from_pairs(arcs.into_iter().filter(|(_, target)| !est_defaut(*target))),
         None => arcs,
     };
     // (D-trans): A = ∅ after absorption → D^default (transparent node).

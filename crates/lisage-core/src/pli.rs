@@ -23,7 +23,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
-use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, NodeId, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, KeyAlgebra, Level, NodeId, Pool};
 
 use crate::error::CoreError;
 use crate::schema::{Schema, SchemaKeys};
@@ -283,15 +283,15 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
             },
         ) => {
             if level_a == level_b {
-                let mut arcs = arcs_a;
+                let mut acc: BTreeMap<u64, NodeId> = arcs_a.into_iter().collect();
                 for (arc, target_b) in arcs_b {
-                    match arcs.remove(&arc) {
+                    match acc.remove(&arc) {
                         Some(target_a) => {
                             let uni = union(pool, keys, anchor, target_a, target_b)?;
-                            arcs.insert(arc, uni);
+                            acc.insert(arc, uni);
                         }
                         None => {
-                            arcs.insert(arc, target_b);
+                            acc.insert(arc, target_b);
                         }
                     }
                 }
@@ -299,7 +299,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
                     anchor,
                     Form::Node {
                         level: level_a,
-                        arcs,
+                        arcs: acc.into(),
                     },
                 ))
             } else if level_a < level_b {
@@ -321,27 +321,34 @@ fn union_with_other<P: Pool<Key = u64, Payload = bool>>(
     keys: &SchemaKeys,
     anchor: Anchor,
     level: Level,
-    mut arcs: BTreeMap<u64, NodeId>,
+    arcs: ArcRun<u64>,
     other: NodeId,
 ) -> Result<NodeId, CoreError> {
+    let mut acc: BTreeMap<u64, NodeId> = arcs.into_iter().collect();
     match keys.default(level) {
         Some(defaut) => {
-            let target = match arcs.remove(&defaut) {
+            let target = match acc.remove(&defaut) {
                 Some(target) => union(pool, keys, anchor, target, other)?,
                 None => other,
             };
-            arcs.insert(defaut, target);
+            acc.insert(defaut, target);
         }
         None => {
             let cardinality = keys.cardinality(level);
             for v in 0..cardinality {
-                let target = match arcs.remove(&v) {
+                let target = match acc.remove(&v) {
                     Some(target) => union(pool, keys, anchor, target, other)?,
                     None => other,
                 };
-                arcs.insert(v, target);
+                acc.insert(v, target);
             }
         }
     }
-    Ok(pool.intern(anchor, Form::Node { level, arcs }))
+    Ok(pool.intern(
+        anchor,
+        Form::Node {
+            level,
+            arcs: acc.into(),
+        },
+    ))
 }

@@ -4,10 +4,8 @@
 //! remains designated by the controller (`default_payload`), never by the
 //! form. The § 2.3 system (R-default on δ(ℓ) alone) remains the default.
 
-use std::collections::BTreeMap;
-
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
+    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
 };
 use lisage_algebra::reduction::{Reduction, reduce_dabs};
 use lisage_core::arena::Arena;
@@ -56,7 +54,7 @@ impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
     const FINGERPRINT: ControllerId = ControllerId(13);
     fn keys(&self) -> &Self::Keys {
         &self.keys
@@ -103,14 +101,14 @@ fn test_dabs_absorption_tout_sous_domain() {
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(0, faux), (1, vrai), (2, faux), (3, faux)]),
+            arcs: ArcRun::from_pairs([(0, faux), (1, vrai), (2, faux), (3, faux)]),
         },
     );
     assert_eq!(
         pool.resolve(node),
         Ok(&Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(1, vrai)]),
+            arcs: ArcRun::from_pairs([(1, vrai)]),
         }),
         "D-abs: the arcs 0, 2, 3 toward D^def are absorbed"
     );
@@ -127,14 +125,14 @@ fn test_without_dabs_rdefault_seul() {
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(0, faux), (1, vrai), (2, faux)]),
+            arcs: ArcRun::from_pairs([(0, faux), (1, vrai), (2, faux)]),
         },
     );
     assert_eq!(
         pool.resolve(node),
         Ok(&Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(1, vrai), (2, faux)]),
+            arcs: ArcRun::from_pairs([(1, vrai), (2, faux)]),
         }),
         "R-default: only the δ(ℓ) = 0 arc is absorbed"
     );
@@ -150,7 +148,7 @@ fn test_dtrans_form_empty_collapse() {
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(3, faux)]),
+            arcs: ArcRun::from_pairs([(3, faux)]),
         },
     );
     assert_eq!(node, faux, "D-trans: ν(ℓ, {{3 ↦ D^def}}) = D^def");
@@ -170,7 +168,7 @@ fn test_dtrans_coverage() {
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(0, vrai)]),
+            arcs: ArcRun::from_pairs([(0, vrai)]),
         },
     );
     assert_eq!(seul_delta, vrai, "δ arc alone: collapse into its target");
@@ -179,14 +177,14 @@ fn test_dtrans_coverage() {
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(1, vrai), (2, vrai)]),
+            arcs: ArcRun::from_pairs([(1, vrai), (2, vrai)]),
         },
     );
     assert_eq!(
         pool.resolve(deux_arcs),
         Ok(&Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(1, vrai), (2, vrai)]),
+            arcs: ArcRun::from_pairs([(1, vrai), (2, vrai)]),
         }),
         "outside coverage: both arcs remain (presence)"
     );
@@ -208,14 +206,14 @@ fn test_without_key_defaut_pas_dabs() {
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(1, faux), (2, faux)]),
+            arcs: ArcRun::from_pairs([(1, faux), (2, faux)]),
         },
     );
     assert_eq!(
         pool.resolve(node),
         Ok(&Form::Node {
             level: Level(LEVEL_TEST),
-            arcs: BTreeMap::from([(1, faux), (2, faux)]),
+            arcs: ArcRun::from_pairs([(1, faux), (2, faux)]),
         }),
         "no δ(ℓ): no absorption"
     );
@@ -227,7 +225,7 @@ fn test_without_key_defaut_pas_dabs() {
 fn test_dtrans_form_empty_litterale() {
     let est_defaut = |node: NodeId| node == NODE_DEFAUT;
     let result = reduce_dabs(
-        BTreeMap::new(),
+        ArcRun::from_pairs([]),
         Some(0),
         &est_defaut,
         CARDINALITY_MOCK,
@@ -236,13 +234,13 @@ fn test_dtrans_form_empty_litterale() {
     assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
     // Without a designated D^def: the empty form remains an empty form.
     let result = reduce_dabs(
-        BTreeMap::new(),
+        ArcRun::from_pairs([]),
         Some(0),
         &est_defaut,
         CARDINALITY_MOCK,
         None,
     );
-    assert_eq!(result, Reduction::Form(BTreeMap::new()));
+    assert_eq!(result, Reduction::Form(ArcRun::from_pairs([])));
 }
 
 /// M4-3 (property tier, LCG): confluence of the generalized default —
@@ -262,7 +260,7 @@ fn test_propriete_dabs_confluence() {
 
     for _ in 0..1000 {
         let nb_arcs = next() % 6;
-        let arcs: BTreeMap<u64, NodeId> = (0..nb_arcs)
+        let arcs: ArcRun<u64> = (0..nb_arcs)
             .map(|_| {
                 let key = next() % CARDINALITY_MOCK;
                 let target = NodeId((next() % 3) as u32);
@@ -314,12 +312,12 @@ fn test_propriete_dabs_confluence() {
         // (then the target is D^def).
         if let Reduction::Collapse(target) = &first {
             // Same arcs after D-abs as in `reduce_dabs`.
-            let arcs_filtres: BTreeMap<u64, NodeId> = match key_defaut {
-                Some(_) => arcs
-                    .iter()
-                    .filter(|(_, c)| !est_defaut(**c))
-                    .map(|(k, v)| (*k, *v))
-                    .collect(),
+            let arcs_filtres: ArcRun<u64> = match key_defaut {
+                Some(_) => ArcRun::from_pairs(
+                    arcs.iter()
+                        .filter(|(_, c)| !est_defaut(**c))
+                        .map(|(k, v)| (*k, *v)),
+                ),
                 None => arcs.clone(),
             };
             let toutes_defaut = !arcs.is_empty() && arcs.values().all(|c| est_defaut(*c));

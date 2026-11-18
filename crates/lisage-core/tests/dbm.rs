@@ -3,9 +3,7 @@
 //! inconsistency, cardinality, default, pool sharing, and membership
 //! differential against naive enumeration over a small box.
 
-use std::collections::BTreeMap;
-
-use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, KeyAlgebra, Level, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::dbm::{Dbm, DbmController, DbmKeys, INCOHERENT};
 use lisage_core::observer::NoOpObserver;
@@ -78,11 +76,11 @@ fn test_partage_pool_c1_relatif() {
     let region_b = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 9)]);
     let form_a = Form::Node {
         level,
-        arcs: BTreeMap::from([(region_a, terminal)]),
+        arcs: ArcRun::from_pairs([(region_a, terminal)]),
     };
     let form_b = Form::Node {
         level,
-        arcs: BTreeMap::from([(region_b, terminal)]),
+        arcs: ArcRun::from_pairs([(region_b, terminal)]),
     };
     assert_eq!(
         pool.intern(ANCHOR, form_a.clone()),
@@ -91,11 +89,11 @@ fn test_partage_pool_c1_relatif() {
     );
     let form_empty_a = Form::Node {
         level,
-        arcs: BTreeMap::from([(INCOHERENT, terminal)]),
+        arcs: ArcRun::from_pairs([(INCOHERENT, terminal)]),
     };
     let form_empty_b = Form::Node {
         level,
-        arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 1), (1, 0, -2)]), terminal)]),
+        arcs: ArcRun::from_pairs([(Dbm::new(2, &[(0, 1, 1), (1, 0, -2)]), terminal)]),
     };
     assert_eq!(
         pool.intern(ANCHOR, form_empty_a),
@@ -104,7 +102,7 @@ fn test_partage_pool_c1_relatif() {
     );
     let form_other = Form::Node {
         level,
-        arcs: BTreeMap::from([(Dbm::new(2, &[(0, 1, 0)]), terminal)]),
+        arcs: ArcRun::from_pairs([(Dbm::new(2, &[(0, 1, 0)]), terminal)]),
     };
     assert_ne!(
         pool.intern(ANCHOR, form_a),
@@ -170,7 +168,7 @@ fn test_differentiel_appartenance_contre_enumeration() {
         ANCHOR,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([
+            arcs: ArcRun::from_pairs([
                 (region_dessous.clone(), vrai_terminal),
                 (region_dessus.clone(), faux_terminal),
                 (INCOHERENT, faux_terminal),

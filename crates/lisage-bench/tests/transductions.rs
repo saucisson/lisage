@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema};
@@ -169,7 +169,7 @@ fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> 
             anchor,
             Form::Node {
                 level: Level(u32::from(level % 4)),
-                arcs: BTreeMap::from([(u64::from(level % 2), target)]),
+                arcs: ArcRun::from_pairs([(u64::from(level % 2), target)]),
             },
         );
         nodes.push(node);

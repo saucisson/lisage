@@ -17,9 +17,7 @@
 //! on the measure side; the semiring with polynomial densities remains
 //! outside the fragment.
 
-use std::collections::BTreeMap;
-
-use lisage_algebra::interface::{Controller, ControllerId, KeyAlgebra, Level, NodeId};
+use lisage_algebra::interface::{ArcRun, Controller, ControllerId, KeyAlgebra, Level};
 
 /// Number of variables of a null DBM (canonical empty region without variable).
 pub const INCOHERENT: Dbm = Dbm {
@@ -323,7 +321,7 @@ impl Controller for DbmController {
     type Key = Dbm;
     type Payload = bool;
     type Keys = DbmKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
 
     const FINGERPRINT: ControllerId = ControllerId(5);
 

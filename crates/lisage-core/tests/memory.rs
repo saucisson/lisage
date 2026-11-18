@@ -4,7 +4,9 @@
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::{Anchor, Controller, Form, Level, MemoryPolicy, NodeId, Pool};
+use lisage_algebra::interface::{
+    Anchor, ArcRun, Controller, Form, Level, MemoryPolicy, NodeId, Pool,
+};
 use lisage_core::arena::Arena;
 use lisage_core::memory::{EffetMemory, MemoryLevel};
 use lisage_core::observer::NoOpObserver;
@@ -132,14 +134,14 @@ fn test_transduction_with_memory_ecrit() {
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
         },
     );
     let b = input.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(0, a), (1, vrai)]),
+            arcs: ArcRun::from_pairs([(0, a), (1, vrai)]),
         },
     );
 
@@ -186,7 +188,7 @@ fn test_policy_aucune_rejette_effet_memory() {
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
         },
     );
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));

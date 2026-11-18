@@ -2,11 +2,10 @@
 //! forms index in the shadow plane, mark-and-sweep GC, profiled compaction
 //! (dead threshold), cache metrics, `Gc` event.
 
-use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
+    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
 };
 use lisage_core::arena::Arena;
 use lisage_core::biplan::{
@@ -59,7 +58,7 @@ impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
     const FINGERPRINT: ControllerId = ControllerId(7);
     fn keys(&self) -> &Self::Keys {
         &self.keys
@@ -94,14 +93,14 @@ fn petit_diagramme(pool: &mut Arena<MockController>) -> (NodeId, NodeId) {
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_ROOT),
-            arcs: BTreeMap::from([(0, faux), (1, vrai)]),
+            arcs: ArcRun::from_pairs([(0, faux), (1, vrai)]),
         },
     );
     let orphan = pool.intern(
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_ORPHAN),
-            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
         },
     );
     (root, orphan)
@@ -119,7 +118,7 @@ fn test_plans_and_index_ombre() {
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_OMBRE),
-            arcs: BTreeMap::from([(1, root)]),
+            arcs: ArcRun::from_pairs([(1, root)]),
         },
         Plan::Ombre,
     );
@@ -162,7 +161,7 @@ fn test_gc_mark_sweep() {
         ANCHOR_TEST,
         Form::Node {
             level: Level(LEVEL_ORPHAN),
-            arcs: BTreeMap::from([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
         },
     );
     // After compaction ids are recycled: the assertion is on the validity of
@@ -184,7 +183,7 @@ fn test_compaction_profilee() {
             ANCHOR_TEST,
             Form::Node {
                 level: Level(LEVEL_BASE_ORPHANS + i as u32),
-                arcs: BTreeMap::from([(1, root)]),
+                arcs: ArcRun::from_pairs([(1, root)]),
             },
         ));
     }
@@ -350,7 +349,7 @@ fn test_propriete_threshold_rate_hit_and_invariant_gc() {
                 ANCHOR_TEST,
                 Form::Node {
                     level: Level(LEVEL_BASE_ORPHANS + i as u32),
-                    arcs: BTreeMap::from([(1, root)]),
+                    arcs: ArcRun::from_pairs([(1, root)]),
                 },
             );
         }
@@ -381,7 +380,7 @@ fn test_gc_two_fois_live_exacts() {
             ANCHOR_TEST,
             Form::Node {
                 level: Level(LEVEL_BASE_ORPHANS + i as u32 + 100),
-                arcs: BTreeMap::from([(1, courant)]),
+                arcs: ArcRun::from_pairs([(1, courant)]),
             },
         );
     }

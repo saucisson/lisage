@@ -7,12 +7,13 @@
 //! spec § 2.3): R-collapse and R-default.
 
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool, PoolError,
+    Anchor, ArcRun, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool,
+    PoolError,
 };
 use lisage_algebra::reduction::{
     Reduction, reduce, reduce_dabs as crate_reduction_dabs, reduce_without_collapse,
 };
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap};
 
 use crate::biplan::{IndexLevels, MetriquesPool, NodeEntry, Plan, StatsGc, threshold_atteint};
 use crate::observer::{Observer, ReductionRule, TraceEvent};
@@ -222,7 +223,7 @@ impl<C: Controller> Arena<C> {
         &self,
         anchor: Anchor,
         level: Level,
-        arcs: BTreeMap<C::Key, NodeId>,
+        arcs: ArcRun<C::Key>,
     ) -> Result<Form<C::Key, C::Payload>, NodeId> {
         // Didactic workshop (backlog § 9): the controller can toggle
         // R-default and R-collapse one at a time.

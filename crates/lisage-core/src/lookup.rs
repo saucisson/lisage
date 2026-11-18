@@ -14,7 +14,9 @@
 
 use std::collections::BTreeMap;
 
-use lisage_algebra::interface::{Anchor, Controller, ControllerId, Form, Level, NodeId, Pool};
+use lisage_algebra::interface::{
+    Anchor, ArcRun, Controller, ControllerId, Form, Level, NodeId, Pool,
+};
 use lisage_lang::value::Atom;
 
 use crate::schema::{Domain, PRESENT, Schema, SchemaKeys};
@@ -58,7 +60,7 @@ impl Controller for LookupController {
     type Key = u64;
     type Payload = Option<u64>;
     type Keys = SchemaKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
 
     const FINGERPRINT: ControllerId = ControllerId(2);
 
@@ -214,7 +216,7 @@ impl Transduction for Lookup {
                     Ok(Form::Node { level: l, .. }) if *l == self.level_value()
                 );
                 if !child_est_level_value {
-                    let mut greffon = BTreeMap::new();
+                    let mut greffon: BTreeMap<u64, NodeId> = BTreeMap::new();
                     for v in &self.domain_values.values {
                         let mut memo = BTreeMap::new();
                         let branche = Self::greffer(pool, anchor, child, Some(v.0), &mut memo);
@@ -224,7 +226,7 @@ impl Transduction for Lookup {
                         anchor,
                         Form::Node {
                             level: self.level_value(),
-                            arcs: greffon,
+                            arcs: greffon.into(),
                         },
                     );
                     let mut arcs_output: BTreeMap<u64, NodeId> = arcs
@@ -238,7 +240,7 @@ impl Transduction for Lookup {
                             anchor,
                             Form::Node {
                                 level,
-                                arcs: arcs_output,
+                                arcs: arcs_output.into(),
                             },
                         ),
                         crate::memory::EffetMemory::new(),

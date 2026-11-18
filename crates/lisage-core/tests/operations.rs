@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::error::CoreError;
 use lisage_core::observer::NoOpObserver;
@@ -185,7 +185,7 @@ fn test_filtre_level_hors_schema_error_typee() {
         anchor,
         Form::Node {
             level: Level(4),
-            arcs: BTreeMap::from([(0, terminal_faux), (1, terminal_vrai)]),
+            arcs: ArcRun::from_pairs([(0, terminal_faux), (1, terminal_vrai)]),
         },
     );
 

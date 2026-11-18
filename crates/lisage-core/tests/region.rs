@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lisage_algebra::interface::{Anchor, Form, KeyAlgebra, Level, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, KeyAlgebra, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::region::{EMPTY, Interval, RegionController, RegionKeys};
@@ -66,11 +66,11 @@ fn test_partage_pool_c1_relatif() {
     let level = Level(0);
     let form_empty_a = Form::Node {
         level,
-        arcs: BTreeMap::from([(EMPTY, terminal)]),
+        arcs: ArcRun::from_pairs([(EMPTY, terminal)]),
     };
     let form_empty_b = Form::Node {
         level,
-        arcs: BTreeMap::from([(Interval::new(9, 2), terminal)]),
+        arcs: ArcRun::from_pairs([(Interval::new(9, 2), terminal)]),
     };
     assert_eq!(
         pool.intern(ANCHOR, form_empty_a.clone()),
@@ -79,11 +79,11 @@ fn test_partage_pool_c1_relatif() {
     );
     let form_point_a = Form::Node {
         level,
-        arcs: BTreeMap::from([(Interval::point(3), terminal)]),
+        arcs: ArcRun::from_pairs([(Interval::point(3), terminal)]),
     };
     let form_point_b = Form::Node {
         level,
-        arcs: BTreeMap::from([(Interval::new(3, 3), terminal)]),
+        arcs: ArcRun::from_pairs([(Interval::new(3, 3), terminal)]),
     };
     assert_eq!(
         pool.intern(ANCHOR, form_point_a.clone()),
@@ -92,7 +92,7 @@ fn test_partage_pool_c1_relatif() {
     );
     let form_other = Form::Node {
         level,
-        arcs: BTreeMap::from([(Interval::point(4), terminal)]),
+        arcs: ArcRun::from_pairs([(Interval::point(4), terminal)]),
     };
     assert_ne!(
         pool.intern(ANCHOR, form_point_a),
@@ -158,7 +158,7 @@ fn test_differentiel_union_intervals_contre_enumeration() {
         // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
         let set: BTreeSet<u64> = (0..SIZE_DOMAIN).filter(|_| next() % 2 == 1).collect();
         // Compression of S and its complement into disjoint intervals.
-        let mut arcs = BTreeMap::new();
+        let mut arcs: BTreeMap<Interval, NodeId> = BTreeMap::new();
         let mut point = 0;
         while point < SIZE_DOMAIN {
             let dans_s = set.contains(&point);
@@ -178,7 +178,7 @@ fn test_differentiel_union_intervals_contre_enumeration() {
             ANCHOR,
             Form::Node {
                 level: Level(0),
-                arcs,
+                arcs: arcs.into(),
             },
         );
         let count_dd: u64 = match pool.resolve(root).expect("interned node") {

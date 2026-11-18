@@ -3,10 +3,8 @@
 //! have distinct handles. Canonicity is tested by handle
 //! (controller, anchor, form), not by bare node (spec § 2.4.3).
 
-use std::collections::BTreeMap;
-
 use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
+    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
 };
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
@@ -35,7 +33,7 @@ impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
-    type Arcs = BTreeMap<Self::Key, NodeId>;
+    type Arcs = ArcRun<Self::Key>;
     const FINGERPRINT: ControllerId = ControllerId(7);
     fn keys(&self) -> &Self::Keys {
         &self.keys
@@ -55,7 +53,7 @@ fn form_aleatoire(paires: Vec<(u8, u32)>, level: u8) -> Form<u64, bool> {
         arcs: paires
             .into_iter()
             .map(|(key, target)| (u64::from(key), NodeId(target)))
-            .collect::<BTreeMap<u64, NodeId>>(),
+            .collect::<ArcRun<u64>>(),
     }
 }
 
@@ -84,7 +82,7 @@ proptest! {
         use lisage_algebra::reduction::{reduce, Reduction};
         let est_defaut = |node: NodeId| node == NodeId(0);
         let reducede = |paires: Vec<(u8, u32)>| -> Reduction<u64> {
-            let arcs: std::collections::BTreeMap<u64, NodeId> = paires
+            let arcs: ArcRun<u64> = paires
                 .into_iter()
                 .map(|(key, target)| (u64::from(key), NodeId(target)))
                 .collect();
