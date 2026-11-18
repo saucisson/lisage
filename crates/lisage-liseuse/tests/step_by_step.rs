@@ -64,7 +64,7 @@ fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> N
 /// step-by-step events.
 #[test]
 fn test_serialisation_v2_evenements_step_by_step() {
-    assert_eq!(TRACE_VERSION, 2);
+    assert_eq!(TRACE_VERSION, 3);
     let attr = serialiser_evenement(&TraceEvent::Attr {
         channel: ChannelAttr::Inherited,
         node: NodeId(3),
@@ -72,19 +72,19 @@ fn test_serialisation_v2_evenements_step_by_step() {
     });
     assert_eq!(
         attr,
-        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
+        "{\"v\":3,\"type\":\"Attr\",\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::MemoHit { node: NodeId(7) }),
-        "{\"v\":2,\"type\":\"MemoHit\",\"noeud\":7}"
+        "{\"v\":3,\"type\":\"MemoHit\",\"noeud\":7}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::MemoMiss { node: NodeId(8) }),
-        "{\"v\":2,\"type\":\"MemoMiss\",\"noeud\":8}"
+        "{\"v\":3,\"type\":\"MemoMiss\",\"noeud\":8}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Round { numero: 2 }),
-        "{\"v\":2,\"type\":\"Round\",\"numero\":2}"
+        "{\"v\":3,\"type\":\"Round\",\"numero\":2}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Gc {
@@ -92,7 +92,7 @@ fn test_serialisation_v2_evenements_step_by_step() {
             collected: 5,
             compaction: true,
         }),
-        "{\"v\":2,\"type\":\"Gc\",\"vivants\":12,\"collectes\":5,\"compaction\":true}"
+        "{\"v\":3,\"type\":\"Gc\",\"vivants\":12,\"collectes\":5,\"compaction\":true}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Attr {
@@ -100,7 +100,7 @@ fn test_serialisation_v2_evenements_step_by_step() {
             node: NodeId(1),
             value: "true".to_string(),
         }),
-        "{\"v\":2,\"type\":\"Attr\",\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
+        "{\"v\":3,\"type\":\"Attr\",\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
     );
 }
 

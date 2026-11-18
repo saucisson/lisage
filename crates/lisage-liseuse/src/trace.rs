@@ -1,5 +1,5 @@
 //! **Versioned JSONL** trace serializer (M1-9 Liseuse v0, M2-6 v1 step by
-//! step): one JSON line per event, schema `{"v":2, ...}` (see
+//! step): one JSON line per event, schema `{"v":3, ...}` (see
 //! `docs/reader-visualizer-of-diagram-orders-and-operations.md` § 3).
 //! Hand-written serialization: no external dependency (escalation list
 //! AGENTS.md).
@@ -7,11 +7,12 @@
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
-use lisage_core::observer::{ChannelAttr, Observer, ReductionRule, TraceEvent};
+use lisage_core::observer::{ChannelAttr, ClassHistogram, Observer, ReductionRule, TraceEvent};
 
-/// Trace schema version (`{"v":2, ...}`): v2 adds the
-/// `Attr`/`MemoHit`/`MemoMiss`/`Round` events of the step-by-step view (M2-6).
-pub const TRACE_VERSION: u32 = 2;
+/// Trace schema version (`{"v":3, ...}`): v2 adds the
+/// `Attr`/`MemoHit`/`MemoMiss`/`Round` events of the step-by-step view (M2-6);
+/// v3 adds the `Histogram` event (MEM-17: degree histogram per class).
+pub const TRACE_VERSION: u32 = 3;
 
 /// Minimal JSON escaping of a string (events carry no dynamic
 /// ones, but the contract stays correct).
@@ -47,6 +48,20 @@ fn name_channel(channel: ChannelAttr) -> &'static str {
         ChannelAttr::Synthesized => "synthetise",
         ChannelAttr::Memory => "memoire",
     }
+}
+
+/// Serializes the per-class degree histogram (MEM-17) as a JSON array.
+fn serialiser_histogramme(classes: &[ClassHistogram]) -> String {
+    let entries: Vec<String> = classes
+        .iter()
+        .map(|c| {
+            format!(
+                "{{\"class\":{},\"live\":{},\"peak\":{},\"slack\":{}}}",
+                c.class, c.live, c.peak, c.slack
+            )
+        })
+        .collect();
+    format!("\"classes\":[{}]", entries.join(","))
 }
 
 /// Serializes a trace event as one JSONL line (without the trailing `\n`).
@@ -99,6 +114,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             format!("\"vivants\":{live},\"collectes\":{collected},\"compaction\":{compaction}"),
         ),
         TraceEvent::Round { numero } => ("Round", format!("\"numero\":{numero}")),
+        TraceEvent::Histogram { classes } => ("Histogram", serialiser_histogramme(classes)),
     };
     format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{champs}}}")
 }

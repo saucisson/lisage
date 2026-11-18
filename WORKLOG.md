@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-18 - MEM-17: degree histogram per class, slack traced, JSONL v3 (issue #133)
+
+- **Issue**: #133 (MEM-17, milestone MEM-B) — histogram of degrees and `MetriquesPool` per class. Criteria: the histogram is visible in the Observer AND in the JSON line; MEM-9's C boundary justified by measurement; the expected mass at 1-4 arcs on the reference instance confronted with reality.
+- **Done**: `ClassMetrics` gains `slack = slots − live` (tombstone slots kept below the compaction threshold), so the per-class pool metrics now expose live / peak / slack. New `ClassHistogram { class, live, peak, slack }` and `TraceEvent::Histogram { classes }`, emitted by `Arena::gc()` right after the `Gc` event, plus a public `Arena::histogram()` accessor. The liseuse serializer bumps `TRACE_VERSION` to 3 and emits one JSON line `{"v":3,"type":"Histogram","classes":[{"class":..,"live":..,"peak":..,"slack":..}]}` per GC; the step-by-step reader handles the new event; the trace-format doc § 3 updated (v3 + Histogram row). Tests: `classes.rs` — slack=5 after a sub-threshold GC, histogram accessor mirrors the metrics, exactly one Histogram event per GC carrying the same data; `philosophers.rs` — on the reference instance R_5, ≥ 90% of internal nodes sit in classes 1..=4 and ≤ 10% in the catch-all class, which confronts the expected 1-4 arc mass with the measured one and justifies MEM-9's C boundary (exact classes cover the observed degrees, the catch-all stays marginal); golden trace tests updated to v3.
+- **Evidence**: `cargo test --workspace` green (79 suites, 0 failed); `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session).
+- **Judgement calls**: the histogram rides the existing GC event stream (one Histogram line per GC) rather than a new throttled snapshot — the GC is already the natural per-class accounting point and the volume stays bounded by the GC frequency. Slack is reported per class in the same event instead of a separate counter event, keeping the JSONL schema to one new event type.
+- **Escalations**: none.
+
 ## 2026-11-18 - MEM-15: co-located memories in dense per-class arrays (issue #131)
 
 - **Issue**: #131 (MEM-15, milestone MEM-B) — replace the `HashMap<(NodeId, Level), V>` (~48 B/entry) with dense parallel arrays per class (4–8 B/entry); bounded eviction policy unchanged. Criteria: lemma L1 (key `(id, h, version(M))`) and fingerprints unchanged, PBTs green; remap applied by the memory holders; memory footprint divided (counter).

@@ -25,6 +25,20 @@ pub enum ChannelAttr {
     Memory,
 }
 
+/// Per-class degree histogram entry (MEM-17): live, peak and slack
+/// (tombstone slots) of one class.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ClassHistogram {
+    /// Class identifier.
+    pub class: u32,
+    /// Live nodes in the class.
+    pub live: u64,
+    /// Peak of live nodes in the class.
+    pub peak: u64,
+    /// Slack: tombstone slots kept in the class arena.
+    pub slack: u64,
+}
+
 /// Typed events emitted by the pool during diagram construction and by the
 /// transduction runner during execution (M2-6). This is the trace that
 /// Liseuse serializes and renders.
@@ -70,6 +84,13 @@ pub enum TraceEvent {
     Round {
         /// Round number (1-based).
         numero: u32,
+    },
+    /// Degree histogram per class (MEM-17): emitted at each GC — live,
+    /// peak and slack per class; fixes the C boundary of MEM-9 and
+    /// monitors the drift.
+    Histogram {
+        /// Per-class entries.
+        classes: Vec<ClassHistogram>,
     },
 }
 

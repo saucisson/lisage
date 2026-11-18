@@ -35,7 +35,7 @@ The three building blocks are modules of the `lisage-reader` crate, one more cra
 
 ## 3. The trace format (the contract between the engine and the eye)
 
-JSONL, one line = one event, versioned schema (`{"v":1, ...}`). Event types:
+JSONL, one line = one event, versioned schema (`{"v":3, ...}`). Event types:
 
 | Event | Fields | What it makes visible |
 |---|---|---|
@@ -47,6 +47,7 @@ JSONL, one line = one event, versioned schema (`{"v":1, ...}`). Event types:
 | `Round` | start/end, level, pass counter | the rounds and their convergence |
 | `Convert` | source controller, target, cost | the kingdoms and conversions with predictable cost |
 | `Pool` | plane, creations, live, GC | the two-plane pool, memory |
+| `Histogram` | per-class live, peak, slack | the degree histogram emitted at each GC |
 | `Snapshot` | (throttle) full pool state | the scrubber anchor points on long traces |
 
 Two design rules: (i) the `Observer` port is **the only** exit point (the pool never inspects ⊕, and the instrumentation doesn't either: it observes identifiers and counters, not semantics); (ii) volume is **bounded by windowing**: one full trace per round, one coarse trace (counters + snapshots) for long runs; the setting is a simple integer (events per window).
