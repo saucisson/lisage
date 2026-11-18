@@ -625,9 +625,39 @@ fn test_serialiser_charge_depuis_fichier_epingle() {
         );
     }
     let error = serialiser_charge_depuis_fichier(&Workload::AleaLcg, "models/uf20-01.cnf")
-        .expect_err("non-file workload rejected");
+        .expect_err("non-numeric alea-lcg argument rejected");
     assert!(matches!(
         error,
         ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "alea-lcg"
     ));
+}
+
+/// `dump-charge alea-lcg <n>` (MEM-7 pilot feed of the witnesses): the
+/// serialized charge is the deterministic LCG table — first line `n`,
+/// then exactly `2^n` values `0`/`1`, with the pinned number of
+/// satisfactions; out-of-range `n` is a typed error.
+#[test]
+fn test_serialiser_charge_alea_lcg_epinglee() {
+    use lisage_bench::confrontation::serialiser_charge_depuis_fichier;
+    for (n, satisfait) in [(4u32, SATISFACTIONS_LCG_N4), (12, SATISFACTIONS_LCG_N12)] {
+        let sortie = serialiser_charge_depuis_fichier(&Workload::AleaLcg, &n.to_string())
+            .expect("alea-lcg charge serialized");
+        let mut lignes = sortie.lines();
+        assert_eq!(lignes.next(), Some(n.to_string().as_str()));
+        let valeurs: Vec<&str> = lignes
+            .flat_map(|l| l.split(' '))
+            .filter(|t| !t.is_empty())
+            .collect();
+        assert_eq!(valeurs.len(), 1usize << n, "n={n}: 2^n values");
+        let ones = valeurs.iter().filter(|&&v| v == "1").count();
+        assert_eq!(ones, satisfait as usize, "n={n}: pinned LCG satisfactions");
+    }
+    for n in ["0", "25", "abc"] {
+        let error = serialiser_charge_depuis_fichier(&Workload::AleaLcg, n)
+            .expect_err("invalid n rejected");
+        assert!(matches!(
+            error,
+            ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "alea-lcg"
+        ));
+    }
 }
