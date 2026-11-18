@@ -86,11 +86,11 @@ proptest! {
         for (key, target) in paires {
             expected.insert(u64::from(key), NodeId(target));
         }
-        let rebuilt: BTreeMap<u64, NodeId> = run.iter().map(|(k, t)| (*k, *t)).collect();
-        prop_assert_eq!(rebuilt, expected);
         // One entry per key: the run holds no duplicate (binary_search in
         // `get` relies on it).
         prop_assert_eq!(run.len(), expected.len());
+        let rebuilt: BTreeMap<u64, NodeId> = run.iter().map(|(k, t)| (*k, *t)).collect();
+        prop_assert_eq!(rebuilt, expected);
     }
 
     /// Commutation of the quotients: R-collapse then R-default == R-default
