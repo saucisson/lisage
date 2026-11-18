@@ -78,23 +78,41 @@ The MEM-A track is governed by **seven invariants**:
 
 ### Sizing: the tripartite budget of the identifier
 
-`NodeId` is a `u32` split into three fields:
+`NodeId` is a `u32` split into three fields, tag on top:
 
 | Field | Width (default) | Role |
 | ----- | --------------- | ---- |
-| tag   | 4 bits          | reserved for edge transformers (CUDD-style complement bit, shift nibble of M4-2) — arbitrated by MEM-13 (#129) |
-| class | 8 bits          | index into the frozen class map (256 classes max) |
-| index | 20 bits         | position inside the class arena |
+| tag   | 4 bits          | **arbitrated by MEM-13 (#129)**: bit 0 = CUDD-style complement bit (`TAG_COMPLEMENT`), bits 1..=3 = shift nibble of M4-2 (`TAG_SHIFT_MASK`) |
+| class | `b` bits, runtime-derived (8 max) | index into the frozen class map |
+| index | `32 − 4 − b` bits | position inside the class arena |
 
 The arc-key width `b` is **not** part of the identifier: it is the smallest
 integer with `2^b − 2 ≥ max_ℓ C(ℓ)`, derived from `cardinality()` at
 runtime (MEM-8, #124), with a compile-time window `b_max` (default 8) and a
 catch-all class beyond the window, without loss of correctness. Known
-Known sizing figures: BDD → `b = 2`; philosophers → `b = 3` or `4`; open domain →
-low default with declared overload. In the current single-class,
-tag-free instantiation the class and tag fields are zero-width and the
-index field takes the full 32 bits (BDD case: `b = 2`, 30 usable index
-bits once the two key bits are accounted).
+sizing figures: BDD → `b = 2` (index 26 bits ≈ 67M per class); philosophers →
+`b = 3` or `4`; open domain → low default with declared overload.
+
+#### Tag arbitration (MEM-13, #129) — decided
+
+The 4-bit tag field is **reserved unconditionally** at the top of the
+identifier, not borrowed from the key bits on small domains. Motivation:
+
+- The class width `b` is runtime data (schema-dependent), so borrowing key
+  bits would make the identifier layout depend on the domain size — two
+  pools over different schemas would split the same 32-bit space
+  differently, and a handle could not be read without its pool's `b`.
+  A fixed tag width keeps the layout pool-independent and the decoder
+  parameterized by `b` alone.
+- Cost: the index field loses 4 bits. At the typical `b = 2` (BDD) the
+  index keeps 26 bits (≈ 67M nodes per class); at the window maximum
+  `b = 8` it keeps 16 bits (≈ 65k per class) — the same order as the
+  negative already recorded below, accepted deliberately.
+- Split inside the tag: bit 0 is the complement bit (CUDD-style edge
+  transformer), bits 1..=3 the per-arc shift nibble of M4-2 (shift amount
+  0..=7). The two uses are disjoint (`TAG_COMPLEMENT & TAG_SHIFT_MASK = 0`),
+  so a complemented edge can still carry a shift. M4-2 does not open
+  without this arbitration (issue #129 criterion).
 
 ## Consequences
 

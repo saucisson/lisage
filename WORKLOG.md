@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-18 - MEM-13: tag bits arbitrated in the tripartite NodeId budget (issue #129)
+
+- **Issue**: #129 (MEM-13, milestone MEM-B) — arbitration of the tripartite identifier budget (class + index + tag): CUDD-style complement bit, ceiling for the M4-2 shift (borrow key bits on small domains or tag nibble per arc). Criteria: ADR-0103 section merged with the sizing; motivated decision; M4-2 does not open without it.
+- **Done**: `NodeId(u32)` layout is now **tag (4 bits, highest) + class (b bits) + index (32−4−b bits, low)**. New constants in `lisage_algebra::class_bits`: `TAG_BITS = 4`, `TAG_COMPLEMENT = 0b0001` (bit 0, CUDD-style edge transformer), `TAG_SHIFT_MASK = 0b1110` (bits 1..=3, per-arc shift nibble of M4-2, disjoint from the complement bit). `NodeId::encode` keeps its signature (zero tag); new `encode_tagged`/`decode_tagged`/`tag`; `decode` still returns `(class, index)` with the tag masked out, so all existing callers (arena, tests) are unchanged. `index_bits` now subtracts the tag field. ADR-0103 sizing section merged with the arbitration: the tag is reserved unconditionally (4 bits) rather than borrowed from key bits on small domains, because `b` is runtime schema data and a fixed tag keeps the layout pool-independent; cost recorded (index 26 bits at b=2, 16 bits at b=8). Tests: tag round-trip (complement bit + shift nibble, layout, disjointness, zero tag of `encode`), tag window rejection, updated index-window expectations (30→26 bits); `bench-results/philosophers-n5.svg` regenerated (raw NodeIds shifted by the tag field).
+- **Evidence**: `cargo test --workspace` green (78 suites, 0 failed); `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session).
+- **Judgement calls**: fixed 4-bit tag reservation over borrowing key bits on small domains — the deciding factor is identifier-layout stability across pools (the decoder stays parameterized by `b` alone); the index cost at b=8 (16 bits ≈ 65k/class) is accepted and recorded in the ADR. M4-2 remains closed until it consumes `TAG_SHIFT_MASK`.
+- **Escalations**: none.
+
 ## 2026-11-18 - MEM-12: dense ordinal arc family, chosen in normalization (issue #128)
 
 - **Issue**: #128 (MEM-12, milestone MEM-B) — third family of the `ArcStore` port: arcs indexed by rank, holes = default not stored; chosen in normalization when the rank exists and the fill is at least one third (threshold `4·|Val(ℓ)| ≤ 12·arcs`); composes with the class tier by arc count. Criteria: C1 PBTs green with the dense family; threshold documented and tested; no per-controller code (rank derived from `KeyAlgebra`).
