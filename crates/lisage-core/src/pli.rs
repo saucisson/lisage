@@ -283,15 +283,15 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
             },
         ) => {
             if level_a == level_b {
-                let mut acc: BTreeMap<u64, NodeId> = arcs_a.into_iter().collect();
+                let mut accumulator: BTreeMap<u64, NodeId> = arcs_a.into_iter().collect();
                 for (arc, target_b) in arcs_b {
-                    match acc.remove(&arc) {
+                    match accumulator.remove(&arc) {
                         Some(target_a) => {
                             let uni = union(pool, keys, anchor, target_a, target_b)?;
-                            acc.insert(arc, uni);
+                            accumulator.insert(arc, uni);
                         }
                         None => {
-                            acc.insert(arc, target_b);
+                            accumulator.insert(arc, target_b);
                         }
                     }
                 }
@@ -299,7 +299,7 @@ pub fn union<P: Pool<Key = u64, Payload = bool>>(
                     anchor,
                     Form::Node {
                         level: level_a,
-                        arcs: acc.into(),
+                        arcs: accumulator.into(),
                     },
                 ))
             } else if level_a < level_b {
@@ -324,23 +324,23 @@ fn union_with_other<P: Pool<Key = u64, Payload = bool>>(
     arcs: ArcRun<u64>,
     other: NodeId,
 ) -> Result<NodeId, CoreError> {
-    let mut acc: BTreeMap<u64, NodeId> = arcs.into_iter().collect();
+    let mut accumulator: BTreeMap<u64, NodeId> = arcs.into_iter().collect();
     match keys.default(level) {
         Some(defaut) => {
-            let target = match acc.remove(&defaut) {
+            let target = match accumulator.remove(&defaut) {
                 Some(target) => union(pool, keys, anchor, target, other)?,
                 None => other,
             };
-            acc.insert(defaut, target);
+            accumulator.insert(defaut, target);
         }
         None => {
             let cardinality = keys.cardinality(level);
             for v in 0..cardinality {
-                let target = match acc.remove(&v) {
+                let target = match accumulator.remove(&v) {
                     Some(target) => union(pool, keys, anchor, target, other)?,
                     None => other,
                 };
-                acc.insert(v, target);
+                accumulator.insert(v, target);
             }
         }
     }
@@ -348,7 +348,7 @@ fn union_with_other<P: Pool<Key = u64, Payload = bool>>(
         anchor,
         Form::Node {
             level,
-            arcs: acc.into(),
+            arcs: accumulator.into(),
         },
     ))
 }
