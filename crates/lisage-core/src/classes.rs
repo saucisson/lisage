@@ -173,14 +173,31 @@ impl<Key, Payload> ClassArena<Key, Payload> {
             .as_mut()
     }
 
-    /// Tombstone the dead slots (form set to `None`), returns the number
-    /// of collected slots.
-    pub(crate) fn sweep(&mut self, is_live: &dyn Fn(u32) -> bool) -> u64 {
+    /// Empty marking bitmap for this arena: 1 bit per slot (MEM-10).
+    pub(crate) fn empty_marks(&self) -> Vec<u64> {
+        vec![0u64; self.slots / 64 + 1]
+    }
+
+    /// Set the mark bit of `index`.
+    pub(crate) fn set_mark(marks: &mut [u64], index: u32) {
+        marks[index as usize / 64] |= 1u64 << (index % 64);
+    }
+
+    /// Mark bit of `index` set?
+    pub(crate) fn mark_of(marks: &[u64], index: u32) -> bool {
+        marks
+            .get(index as usize / 64)
+            .is_some_and(|word| word & (1u64 << (index % 64)) != 0)
+    }
+
+    /// Tombstone the unmarked slots (form set to `None`), returns the
+    /// number of collected slots. Marking: 1 bit per node (MEM-10).
+    pub(crate) fn sweep(&mut self, marks: &[u64]) -> u64 {
         let mut collected = 0;
         for index in 0..self.slots as u32 {
             if let Some(entry) = self.get_mut(index)
                 && entry.form.is_some()
-                && !is_live(index)
+                && !Self::mark_of(marks, index)
             {
                 entry.form = None;
                 collected += 1;
@@ -188,6 +205,14 @@ impl<Key, Payload> ClassArena<Key, Payload> {
         }
         self.live -= collected;
         collected
+    }
+
+    /// Release the pages of an emptied class: the slabs are freed but the
+    /// slot count stays as high-water mark — no index is recycled outside
+    /// the compaction remap protocol (MEM-10, ADR-0103 invariant 3).
+    pub(crate) fn release_pages(&mut self) {
+        self.slabs.clear();
+        self.live = 0;
     }
 
     /// Compact: remove the tombstones, returns the index remap
