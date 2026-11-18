@@ -46,6 +46,12 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-18 - MEM-2: English-only charter in AGENTS.md and the review checklist (issue #118)
+
+- **Issue**: #118 (MEM-2, milestone MEM-A) — amend AGENTS.md and the review checklist: new modules in English, French identifiers renamed incrementally (no big-bang, ADR-0101), review case "no new French identifier introduced".
+- **Done**: `AGENTS.md` style section gains the English-only charter line (new modules/identifiers in English, incremental renaming of remaining French identifiers, enforced by `make english-only`); `docs/review-checklist.md` section 2 gains the binary case "No new French identifier introduced (issues #110/#118); `make english-only` passes". The AGENTS.md/checklist edits are the explicit object of issue #118 (human directive), an authorized exception to the "no constitutional file" checklist rule.
+- **Evidence**: docs-only change. `make lint`, `make english-only` pass. `make typecheck`/`imports`/`test`/`rust-check` not re-run (no Python or Rust file in the diff).
+- **Judgement calls**: the issue text's carve-out "docs/ADRs/discussions stay in French" is superseded by M6 (issue #110): the repository is English-only everywhere, enforced by the `make english-only` lint over `docs/`, root Markdown and `crates/` — the charter states the post-M6 rule instead of the pre-M6 one.
 ## 2026-11-18 - MEM-1: ADR-0103 draft — arc storage port and per-controller-instance layouts (issue #117)
 
 - **Issue**: #117 (MEM-1, milestone MEM-A) — draft ADR-0103 with the seven track invariants, the tripartite identifier budget (class + index + tag), and the reference to the analysis canvas sections 4 and 5.
