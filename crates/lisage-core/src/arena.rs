@@ -6,6 +6,7 @@
 //! table. At handle creation, the controller's reductions apply (M1-2,
 //! spec § 2.3): R-collapse and R-default.
 
+use lisage_algebra::class_bits::TERMINAL_CLASS;
 use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, NodeId, Pool,
     PoolError,
@@ -32,6 +33,10 @@ pub struct Arena<C: Controller> {
     /// Per-class arenas, created lazily (MEM-9).
     arenas: Vec<Option<ClassArena<C::Key, C::Payload>>>,
     unique: HashMap<KeyInterning<C::Key, C::Payload>, NodeId>,
+    /// Terminal singletons of the pool (MEM-11): keyed by payload only —
+    /// canonicity by handle concerns internal nodes, terminals are
+    /// pool-wide singletons, shared across anchors.
+    unique_terminals: HashMap<C::Payload, NodeId>,
     /// Shadow-plane index: level → live nodes of that level.
     index_levels: IndexLevels,
     metriques: MetriquesPool,
@@ -52,6 +57,7 @@ impl<C: Controller> Arena<C> {
             class_map,
             arenas,
             unique: HashMap::new(),
+            unique_terminals: HashMap::new(),
             index_levels: IndexLevels::new(),
             metriques: MetriquesPool::default(),
             remap: BTreeMap::new(),
@@ -214,6 +220,7 @@ impl<C: Controller> Arena<C> {
                 .is_some_and(|entry| entry.form.is_some())
         };
         self.unique.retain(|_, node| is_live(*node));
+        self.unique_terminals.retain(|_, node| is_live(*node));
         for set in self.index_levels.values_mut() {
             set.retain(|node| is_live(*node));
         }
@@ -310,7 +317,7 @@ impl<C: Controller> Arena<C> {
     /// Returns either the collapse target or the reduced form to intern.
     fn reduced(
         &self,
-        anchor: Anchor,
+        _anchor: Anchor,
         level: Level,
         arcs: ArcRun<C::Key>,
     ) -> Result<Form<C::Key, C::Payload>, NodeId> {
@@ -338,11 +345,9 @@ impl<C: Controller> Arena<C> {
         } else if self.controleur.generalized_absorption() {
             // NodeId of D^default under this anchor, if already interned (used
             // for D-trans on empty form A = ∅).
-            let defaut = payload_defaut.as_ref().and_then(|p| {
-                self.unique
-                    .get(&(Self::CONTROLLER, anchor, Form::Terminal(p.clone())))
-                    .copied()
-            });
+            let defaut = payload_defaut
+                .as_ref()
+                .and_then(|p| self.unique_terminals.get(p).copied());
             crate_reduction_dabs(arcs, key_defaut, &est_defaut, cardinality, defaut)
         } else {
             reduce(arcs, key_defaut, &est_defaut, cardinality)
@@ -365,6 +370,27 @@ impl<C: Controller> Pool for Arena<C> {
 
     fn intern(&mut self, anchor: Anchor, form: Form<Self::Key, Self::Payload>) -> NodeId {
         let form = self.form_normalisee(form);
+        // MEM-11: terminals are pool-wide singletons (class 0), keyed by
+        // payload only — the anchor does not enter their canonicity.
+        if let Form::Terminal(payload) = &form {
+            if let Some(node) = self.unique_terminals.get(payload) {
+                self.metriques.partages += 1;
+                self.observer
+                    .on_event(&TraceEvent::NodeShared { node: *node });
+                return *node;
+            }
+            let index = self.arena_mut(TERMINAL_CLASS).push(NodeEntry {
+                plan: Plan::Principal,
+                form: Some(form.clone()),
+            });
+            let node = NodeId::encode(TERMINAL_CLASS, index, self.class_map.class_bits);
+            self.unique_terminals.insert(payload.clone(), node);
+            self.metriques.terminaux += 1;
+            self.metriques.creations += 1;
+            self.observer
+                .on_event(&TraceEvent::NodeCreated { node, level: None });
+            return node;
+        }
         let form = match form {
             Form::Node { level, arcs } => {
                 let size_avant = arcs.len();

@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lisage_algebra::interface::{Anchor, Form, Pool};
+use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, Pool};
 use lisage_algebra::vtree::{ErrorVtree, Vtree};
 use lisage_bench::sdd::{ErrorSdd, installer_sdd, pool_pour_sdd, projeter};
 use lisage_core::arena::Arena;
@@ -141,18 +141,27 @@ fn test_canonicite_par_handle_reinstallation_identique() {
     assert_eq!(first, second);
 }
 
-/// C1 canonicity: same form under two distinct anchors = two
+/// C1 canonicity: same internal form under two distinct anchors = two
 /// distinct handles (quotient classes), same form under the same anchor = same
-/// handle.
+/// handle. Terminals are the exception (MEM-11): pool-wide singletons keyed
+/// by payload only, shared across anchors.
 #[test]
 fn test_canonicite_two_anchors_distinctes() {
     let mut pool = pool_neuf();
-    let form = Form::Terminal(true);
+    let t_true = pool.intern(Anchor(0), Form::Terminal(true));
+    let t_false = pool.intern(Anchor(0), Form::Terminal(false));
+    let form = Form::Node {
+        level: Level(0),
+        arcs: ArcRun::from_pairs([(0, t_true), (1, t_false)]),
+    };
     let same_anchor_a = pool.intern(Anchor(0), form.clone());
     let same_anchor_b = pool.intern(Anchor(0), form.clone());
     let other_anchor = pool.intern(Anchor(1), form);
     assert_eq!(same_anchor_a, same_anchor_b);
     assert_ne!(same_anchor_a, other_anchor);
+    // MEM-11: a terminal interned under another anchor is the same singleton.
+    let t_true_autre_ancre = pool.intern(Anchor(1), Form::Terminal(true));
+    assert_eq!(t_true, t_true_autre_ancre);
 }
 
 /// Projection: keeps only the requested keys.
