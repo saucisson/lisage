@@ -217,6 +217,9 @@ impl<T: Transduction> Transducteur<T> {
         PIn: Pool<Key = u64, Payload = bool>,
         POut: Pool<Key = u64, Payload = T::Out>,
     {
+        // MEM-15: the co-located memory decodes NodeIds with the pool's
+        // class width.
+        self.memory.set_class_bits(pool_input.class_bits());
         let key = (
             self.transduction.fingerprint(),
             node,
@@ -295,6 +298,9 @@ impl<T: Transduction> Transducteur<T> {
         P: Pool<Key = u64, Payload = bool>,
         T: Transduction<Out = bool>,
     {
+        // MEM-15: the co-located memory decodes NodeIds with the pool's
+        // class width.
+        self.memory.set_class_bits(pool.class_bits());
         let key = (
             self.transduction.fingerprint(),
             node,

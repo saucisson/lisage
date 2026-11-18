@@ -525,4 +525,11 @@ pub trait Pool: Send + Sync {
 
     /// Number of interned nodes, terminals included.
     fn node_count(&self) -> usize;
+
+    /// Class width `b` of the pool's `NodeId` layout (MEM-8/MEM-13): used
+    /// by co-located memories to decode `(class, index)` (MEM-15).
+    /// Default 0: single class, the raw id is the index.
+    fn class_bits(&self) -> u32 {
+        0
+    }
 }
