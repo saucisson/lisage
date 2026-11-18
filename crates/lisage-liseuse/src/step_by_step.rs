@@ -131,7 +131,8 @@ impl Scrubber {
                 TraceEvent::Round { numero } => etat.rounds = etat.rounds.max(*numero),
                 TraceEvent::ReductionApplied { .. }
                 | TraceEvent::DiagramBuilt { .. }
-                | TraceEvent::Gc { .. } => {}
+                | TraceEvent::Gc { .. }
+                | TraceEvent::Histogram { .. } => {}
             }
         }
         etat

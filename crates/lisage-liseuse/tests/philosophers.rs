@@ -254,3 +254,51 @@ fn test_figure_svg_r5_exportee() {
     );
     std::fs::write(&path, &svg).expect("writing the figure");
 }
+
+/// MEM-17: the degree histogram on the reference instance (R_5) confronts
+/// the expected mass at 1-4 arcs with the measured one, and justifies the
+/// C boundary of MEM-9 (exact classes cover the observed degrees, the
+/// catch-all stays marginal).
+#[test]
+fn test_histogramme_degres_instance_reference_r5() {
+    let n = 5u64;
+    let schema = schema_anneau(n);
+    let mut pool = pool_neuf(&schema);
+    let root = build_r_n(&mut pool, Anchor(0), n);
+    let _ = count_r_n(&pool, &mut pool_neuf(&schema), Anchor(0), n, root);
+    let histogram = pool.histogram();
+    let internal: u64 = histogram
+        .iter()
+        .filter(|h| h.class >= 1)
+        .map(|h| h.live)
+        .sum();
+    assert!(internal > 0, "R_5 has internal nodes");
+    let mass_1_4: u64 = histogram
+        .iter()
+        .filter(|h| (1..=4).contains(&h.class))
+        .map(|h| h.live)
+        .sum();
+    let catch_all = pool.class_map().catch_all;
+    let mass_catch_all: u64 = histogram
+        .iter()
+        .filter(|h| h.class == catch_all)
+        .map(|h| h.live)
+        .sum();
+    let share_1_4 = mass_1_4 as f64 / internal as f64;
+    let share_catch_all = mass_catch_all as f64 / internal as f64;
+    // Expected: the mass sits at 1-4 arcs on the reference instance.
+    assert!(
+        share_1_4 >= 0.90,
+        "mass at degrees 1-4: {:.1}% (expected ≥ 90%), histogram: {:?}",
+        share_1_4 * 100.0,
+        histogram
+    );
+    // The C boundary of MEM-9 is justified: the catch-all class beyond the
+    // exact window stays marginal on the reference instance.
+    assert!(
+        share_catch_all <= 0.10,
+        "catch-all share: {:.1}% (C boundary justified if ≤ 10%), histogram: {:?}",
+        share_catch_all * 100.0,
+        histogram
+    );
+}

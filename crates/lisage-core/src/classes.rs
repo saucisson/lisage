@@ -96,6 +96,8 @@ pub struct ClassMetrics {
     pub live: u64,
     /// Peak of live nodes in the class.
     pub peak: u64,
+    /// Slack: tombstone slots kept in the class arena (slots − live).
+    pub slack: u64,
 }
 
 /// One class arena: created lazily, grown by doubling, slabs of
@@ -263,6 +265,7 @@ impl<Key, Payload> ClassArena<Key, Payload> {
             class,
             live: self.live,
             peak: self.peak,
+            slack: self.slots.saturating_sub(self.live as usize) as u64,
         }
     }
 }

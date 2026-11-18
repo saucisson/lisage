@@ -476,3 +476,62 @@ fn test_large_payload_terminal_in_dedicated_class() {
     assert!(pool.resolve(n).is_ok());
     assert_eq!(pool.metriques().terminaux, 2);
 }
+
+/// MEM-17: the slack (tombstone slots) is traced per class, and the GC
+/// emits the degree histogram on the observer.
+#[test]
+fn test_slack_trace_et_histogramme_sur_observer() {
+    use lisage_core::observer::{ClassHistogram, Observer, TraceEvent};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Clone, Default)]
+    struct Recording(Arc<Mutex<Vec<TraceEvent>>>);
+    impl Observer for Recording {
+        fn on_event(&self, event: &TraceEvent) {
+            self.0.lock().unwrap().push(event.clone());
+        }
+    }
+
+    let recording = Recording::default();
+    let mut pool = Arena::new(
+        MockController { keys: MockKeys },
+        Box::new(recording.clone()),
+    );
+    let live: Vec<NodeId> = (0..20u32)
+        .map(|i| intern_degree2_at(&mut pool, i))
+        .collect();
+    let dead: Vec<NodeId> = (0..5u32)
+        .map(|i| intern_degree2_at(&mut pool, 100 + i))
+        .collect();
+    // Below the compaction threshold: tombstones keep their slots → slack.
+    let stats = pool.gc(&live);
+    assert!(!stats.compaction);
+    let by_class = |class: u32| {
+        pool.class_metrics()
+            .into_iter()
+            .find(|m| m.class == class)
+            .unwrap_or_default()
+    };
+    assert_eq!(by_class(2).live, 20);
+    assert_eq!(by_class(2).slack, 5, "5 tombstone slots kept as slack");
+    assert_eq!(by_class(2).peak, 25);
+    // The histogram accessor mirrors the metrics.
+    let histogram = pool.histogram();
+    let class2 = histogram.iter().find(|h| h.class == 2).unwrap();
+    assert_eq!((class2.live, class2.peak, class2.slack), (20, 25, 5));
+    // The GC emitted a Histogram event carrying the same data.
+    let events = recording.0.lock().unwrap();
+    let histograms: Vec<&Vec<ClassHistogram>> = events
+        .iter()
+        .filter_map(|e| match e {
+            TraceEvent::Histogram { classes } => Some(classes),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(histograms.len(), 1, "one Histogram event per GC");
+    let h2 = histograms[0].iter().find(|h| h.class == 2).unwrap();
+    assert_eq!((h2.live, h2.peak, h2.slack), (20, 25, 5));
+    for node in &dead {
+        assert!(pool.resolve(*node).is_err());
+    }
+}

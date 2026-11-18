@@ -82,18 +82,18 @@ fn test_serialiser_evenement_golden() {
             node: NodeId(3),
             level: Some(Level(2))
         }),
-        "{\"v\":2,\"type\":\"NodeCreated\",\"noeud\":3,\"level\":2}"
+        "{\"v\":3,\"type\":\"NodeCreated\",\"noeud\":3,\"level\":2}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::NodeShared { node: NodeId(7) }),
-        "{\"v\":2,\"type\":\"NodeShared\",\"noeud\":7}"
+        "{\"v\":3,\"type\":\"NodeShared\",\"noeud\":7}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Collapse,
             level: Level(1)
         }),
-        "{\"v\":2,\"type\":\"Reduction\",\"rule\":\"R-collapse\",\"level\":1}"
+        "{\"v\":3,\"type\":\"Reduction\",\"rule\":\"R-collapse\",\"level\":1}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::DiagramBuilt {
@@ -104,7 +104,28 @@ fn test_serialiser_evenement_golden() {
             },
             nodes: 5
         }),
-        "{\"v\":2,\"type\":\"DiagramBuilt\",\"controller\":1,\"anchor\":0,\"noeud\":4,\"noeuds\":5}"
+        "{\"v\":3,\"type\":\"DiagramBuilt\",\"controller\":1,\"anchor\":0,\"noeud\":4,\"noeuds\":5}"
+    );
+    // MEM-17: the degree histogram per class serializes as a JSON array.
+    use lisage_core::observer::ClassHistogram;
+    assert_eq!(
+        serialiser_evenement(&TraceEvent::Histogram {
+            classes: vec![
+                ClassHistogram {
+                    class: 0,
+                    live: 2,
+                    peak: 2,
+                    slack: 0
+                },
+                ClassHistogram {
+                    class: 2,
+                    live: 5,
+                    peak: 7,
+                    slack: 3
+                },
+            ]
+        }),
+        "{\"v\":3,\"type\":\"Histogram\",\"classes\":[{\"class\":0,\"live\":2,\"peak\":2,\"slack\":0},{\"class\":2,\"live\":5,\"peak\":7,\"slack\":3}]}"
     );
 }
 

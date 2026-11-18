@@ -18,7 +18,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::biplan::{IndexLevels, MetriquesPool, NodeEntry, Plan, StatsGc, threshold_atteint};
 use crate::classes::{ClassArena, ClassMap, ClassMetrics};
-use crate::observer::{Observer, ReductionRule, TraceEvent};
+use crate::observer::{ClassHistogram, Observer, ReductionRule, TraceEvent};
 use crate::unique::{TableUnique, hash_cle};
 
 /// Arena: canonical, content-addressed storage of forms. Holds the
@@ -73,7 +73,21 @@ impl<C: Controller> Arena<C> {
         self.class_map
     }
 
-    /// Per-class metrics: live and peak per class (traced, MEM-9).
+    /// Degree histogram per class (MEM-17): live, peak and slack per
+    /// class — the instrument that fixes the C boundary of MEM-9.
+    pub fn histogram(&self) -> Vec<ClassHistogram> {
+        self.class_metrics()
+            .into_iter()
+            .map(|m| ClassHistogram {
+                class: m.class,
+                live: m.live,
+                peak: m.peak,
+                slack: m.slack,
+            })
+            .collect()
+    }
+
+    /// Per-class metrics: live, peak and slack per class (traced, MEM-9).
     pub fn class_metrics(&self) -> Vec<ClassMetrics> {
         self.arenas
             .iter()
@@ -284,6 +298,10 @@ impl<C: Controller> Arena<C> {
             live,
             collected,
             compaction,
+        });
+        // MEM-17: the degree histogram per class rides the GC event.
+        self.observer.on_event(&TraceEvent::Histogram {
+            classes: self.histogram(),
         });
         stats
     }
