@@ -38,8 +38,11 @@ the exact input lisage measured.
 
 Identical across all tools: **input reading + diagram construction +
 verification counting**. Library initialization (manager, workers,
-pre-declared variables) is outside the block: it varies from one tool
-to another and is not the compared workload.
+pre-declared variables) is outside the block at the witnesses: it varies
+from one tool to another and is not the compared workload. (lisage
+creates its pool inside the block, right after the parse that yields the
+variable count — noted in the code; the witness pre-declares its
+variables upfront.)
 
 ## Time and memory
 
