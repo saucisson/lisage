@@ -56,6 +56,11 @@ pub struct Arena<C: Controller> {
     remap: BTreeMap<u32, Option<NodeId>>,
     observer: Box<dyn Observer>,
     controleur: C,
+    /// Layout toggle (MEM-19): `true` = inline exact-class entries
+    /// (MEM-16, stride `8·d + header`); `false` = every node in the
+    /// catch-all class with the boxed `NodeEntry` (pre-MEM-16 layout).
+    /// Same node counts either way (C1): only the container differs.
+    layout_inline: bool,
 }
 
 impl<C: Controller> Arena<C>
@@ -78,7 +83,19 @@ where
             remap: BTreeMap::new(),
             observer,
             controleur,
+            layout_inline: true,
         }
+    }
+
+    /// Layout toggle (MEM-19): enable/disable the inline exact-class
+    /// entries. Must be set before any interning.
+    pub fn set_layout_inline(&mut self, actif: bool) {
+        self.layout_inline = actif;
+    }
+
+    /// Current layout: inline exact-class entries on?
+    pub fn layout_inline(&self) -> bool {
+        self.layout_inline
     }
 
     /// Class map of the pool (frozen at construction, MEM-9).
@@ -208,6 +225,16 @@ where
             .map(|set| set.len() * size_of::<NodeId>())
             .sum();
         (unique + arenas as f64 + index as f64) / live
+    }
+
+    /// Memory of the class arenas alone, in bytes (MEM-19: the
+    /// structural counter, without the unique table and the shadow index).
+    pub fn arenas_bytes(&self) -> usize {
+        self.arenas
+            .iter()
+            .flatten()
+            .map(|arena| arena.bytes())
+            .sum()
     }
 
     /// Number of live nodes.
@@ -512,7 +539,8 @@ where
         };
         let class = match level {
             Some(level)
-                if degree >= 1
+                if self.layout_inline
+                    && degree >= 1
                     && degree <= self.class_map.exact_max
                     && self.narrowable(level, &form) =>
             {
