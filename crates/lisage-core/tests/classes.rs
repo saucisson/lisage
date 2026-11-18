@@ -3,6 +3,7 @@
 //! `NodeId`, whatever the tier), catch-all class beyond the window, and
 //! per-class live/peak metrics.
 
+use lisage_algebra::class_bits::TERMINAL_CLASS;
 use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
 };
@@ -298,4 +299,180 @@ fn test_per_class_live_and_peak_traced() {
     assert!(pool.resolve(n2).is_err(), "collected node is unknown");
     assert!(pool.resolve(n3).is_err());
     assert!(pool.resolve(n1).is_ok());
+}
+
+/// Mock algebra with a designated default key δ(ℓ) = 0, cardinality 3.
+struct MockKeysDefault;
+
+impl KeyAlgebra for MockKeysDefault {
+    type Key = u64;
+
+    fn normal_form(&self, key: &Self::Key) -> Self::Key {
+        *key
+    }
+
+    fn cardinality(&self, _level: Level) -> u64 {
+        3
+    }
+
+    fn default(&self, _level: Level) -> Option<Self::Key> {
+        Some(0)
+    }
+}
+
+/// Mock controller designating D_δ = terminal 99 (R-default active).
+struct MockControllerDefault {
+    keys: MockKeysDefault,
+}
+
+impl Controller for MockControllerDefault {
+    type Key = u64;
+    type Payload = u64;
+    type Keys = MockKeysDefault;
+    type Arcs = ArcRun<u64>;
+
+    const FINGERPRINT: ControllerId = ControllerId(3);
+
+    fn keys(&self) -> &Self::Keys {
+        &self.keys
+    }
+
+    fn default_payload(&self, _level: Level) -> Option<Self::Payload> {
+        Some(99)
+    }
+}
+
+#[test]
+fn test_terminal_singleton_per_pool_across_anchors() {
+    // MEM-11: a terminal is a pool-wide singleton keyed by payload only —
+    // the anchor does not enter its canonicity.
+    let mut pool = pool();
+    let t_a = pool.terminal(Anchor(0), 42);
+    let t_b = pool.terminal(Anchor(7), 42);
+    assert_eq!(t_a, t_b, "same payload, same terminal NodeId pool-wide");
+    let (class, _index) = t_a.decode(pool.class_map().class_bits);
+    assert_eq!(
+        class, TERMINAL_CLASS,
+        "terminals live in the dedicated class 0"
+    );
+    let t_c = pool.terminal(Anchor(0), 43);
+    assert_ne!(t_a, t_c, "distinct payloads: distinct terminals");
+    assert_eq!(pool.metriques().terminaux, 2, "one singleton per payload");
+    // Re-interning shares the singleton instead of creating a new one.
+    let t_d = pool.terminal(Anchor(3), 42);
+    assert_eq!(t_d, t_a);
+    assert_eq!(pool.metriques().terminaux, 2);
+    assert!(pool.metriques().partages >= 2, "hits counted as shares");
+    // GC keeps live terminal singletons; re-interning still shares.
+    let stats = pool.gc(&[t_a]);
+    assert!(stats.live >= 1);
+    assert!(pool.resolve(t_a).is_ok());
+    let t_e = pool.terminal(Anchor(2), 42);
+    assert_eq!(t_e, t_a, "singleton survives the GC");
+}
+
+#[test]
+fn test_r_collapse_inter_anchor_shares_terminal() {
+    // MEM-11: R-collapse (all arcs to the same target) yields the terminal
+    // singleton whatever the anchor — canonicity by handle only concerns
+    // internal nodes.
+    let mut pool = pool();
+    let t = pool.terminal(Anchor(0), 7);
+    let form = Form::Node {
+        level: Level(0),
+        arcs: ArcRun::from_pairs([(0, t), (1, t)]),
+    };
+    let n_a = pool.intern(Anchor(0), form.clone());
+    let n_b = pool.intern(Anchor(5), form);
+    assert_eq!(n_a, t, "R-collapse to the terminal");
+    assert_eq!(n_b, t, "same collapse under another anchor");
+}
+
+#[test]
+fn test_r_default_sees_pool_wide_default_terminal_across_anchors() {
+    // MEM-11: R-default absorbs the arc δ(ℓ) → D_δ; D_δ is interned once
+    // per pool, so the reduced form is identical under every anchor.
+    let mut pool = Arena::new(
+        MockControllerDefault {
+            keys: MockKeysDefault,
+        },
+        Box::new(NoOpObserver),
+    );
+    let d = pool.terminal(Anchor(0), 99); // D_δ
+    let t5 = pool.terminal(Anchor(0), 5);
+    let t6 = pool.terminal(Anchor(0), 6);
+    let form = Form::Node {
+        level: Level(0),
+        arcs: ArcRun::from_pairs([(0, d), (1, t5), (2, t6)]),
+    };
+    let n_a = pool.intern(Anchor(0), form.clone());
+    let n_a2 = pool.intern(Anchor(0), form.clone());
+    assert_eq!(n_a, n_a2, "same reduced form, same anchor: same NodeId");
+    // Under another anchor the internal node gets its own handle
+    // (canonicity by handle), but its arcs reference the SAME terminal
+    // singletons — est_defaut saw the pool-wide D_δ.
+    let n_b = pool.intern(Anchor(9), form);
+    assert_ne!(n_a, n_b, "internal nodes stay per-anchor handles");
+    for node in [n_a, n_b] {
+        match pool.resolve(node) {
+            Ok(Form::Node { arcs, .. }) => {
+                assert_eq!(arcs.len(), 2, "the δ(0) arc toward D_δ was absorbed");
+                assert_eq!(arcs.get(&1), Some(&t5), "same terminal across anchors");
+                assert_eq!(arcs.get(&2), Some(&t6), "same terminal across anchors");
+            }
+            other => panic!("expected a node, got {other:?}"),
+        }
+    }
+    assert_eq!(
+        pool.metriques().terminaux,
+        3,
+        "D_δ interned once per pool, not once per anchor"
+    );
+}
+
+/// Mock controller with a large payload (4 KiB): the terminal class holds
+/// payloads of any size without touching internal nodes.
+struct BigController {
+    keys: MockKeys,
+}
+
+impl Controller for BigController {
+    type Key = u64;
+    type Payload = [u8; 4096];
+    type Keys = MockKeys;
+    type Arcs = ArcRun<u64>;
+
+    const FINGERPRINT: ControllerId = ControllerId(4);
+
+    fn keys(&self) -> &Self::Keys {
+        &self.keys
+    }
+
+    fn default_payload(&self, _level: Level) -> Option<Self::Payload> {
+        None
+    }
+}
+
+#[test]
+fn test_large_payload_terminal_in_dedicated_class() {
+    let mut pool = Arena::new(BigController { keys: MockKeys }, Box::new(NoOpObserver));
+    let t_big = pool.terminal(Anchor(0), [7u8; 4096]);
+    let t_big_again = pool.terminal(Anchor(1), [7u8; 4096]);
+    assert_eq!(t_big, t_big_again, "large payload: pool-wide singleton too");
+    let (class, _index) = t_big.decode(pool.class_map().class_bits);
+    assert_eq!(class, TERMINAL_CLASS);
+    // Internal nodes are unaffected: a degree-2 node over two distinct
+    // large terminals lands in its exact class, not in class 0.
+    let t_other = pool.terminal(Anchor(0), [8u8; 4096]);
+    let n = pool.intern(
+        Anchor(0),
+        Form::Node {
+            level: Level(0),
+            arcs: ArcRun::from_pairs([(0, t_big), (1, t_other)]),
+        },
+    );
+    let (n_class, _n_index) = n.decode(pool.class_map().class_bits);
+    assert_eq!(n_class, 2, "degree 2 → exact class 2 at b = 2");
+    assert!(pool.resolve(n).is_ok());
+    assert_eq!(pool.metriques().terminaux, 2);
 }

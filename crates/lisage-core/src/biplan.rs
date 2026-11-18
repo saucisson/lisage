@@ -44,6 +44,8 @@ pub struct MetriquesPool {
     pub gc: u64,
     /// Number of compactions executed.
     pub compactions: u64,
+    /// Terminal singletons of the pool (MEM-11): one per distinct payload.
+    pub terminaux: u64,
 }
 
 impl MetriquesPool {
