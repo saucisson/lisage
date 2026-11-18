@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-18 - PERF-1: phase-level profile of the alea-lcg intern path (issue #280, milestone PERF #279)
+
+- **Issue**: #280 (PERF-1, first increment of milestone PERF #279 chosen after BENCH-1: close the constant ~4x OxiDD time gap by attacking the per-intern cost). Pure profiling, no core change.
+- **Done**: `table_lcg` made public; new runner `crates/lisage-bench/src/bin/profile_intern.rs` (`profile_intern [n]`, default 20) times the three phases of the alea-lcg workload separately (table generation / BDD construction / node counting) under a counting global allocator (MEM-18 pattern) and prints one JSON line. New test `crates/lisage-bench/tests/profile_intern.rs` pins the structural counters (nodes 106 760, verifie 523 228, internements 2^20-1, allocs_table = 1), a falsifiable gate on allocations per internement (range 6.0-10.0), and the build-dominance share; publishes `bench-results/perf1-profile-intern.md` under `PERF1_PUBLISH=1`.
+- **Measured verdict (written)**: on alea-lcg-20 the measured block is **555 ms build (93%) vs 1.8 ms table + 37 ms count** — the intern path is essentially the whole cost. The build performs **8 890 949 allocations for 1 048 575 intern calls = 8.48 allocations/internement** (468 MB transient bytes), i.e. ~83 allocations per created node (106 760 nodes). Same at n=22 (8.45/intern). This confirms the BENCH-1 hypothesis: the ~4x OxiDD gap is per-intern overhead (allocations + observer + ArcRun), not hash-consing or the table. Next increment (PERF-2): cut the allocations per intern.
+- **Evidence**: `cargo test --release -p lisage-bench --test profile_intern` green in assert and publish modes; runner output reproduced 3x (allocs identical, times within noise); `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session).
+- **Judgement calls**: internements counted as 2^n-1 (the exact number of intern calls of the bottom-up Shannon expansion), not as created nodes — the allocation gate is per intern *call*, matching the MEM-18 convention. Times are machine-dependent and only published, never pinned.
+- **Escalations**: none.
+
 ## 2026-11-18 - BENCH-1: time/memory vs CUDD and libDDD, OxiDD 4x gap analysis, memory crossover (issue #277)
 
 - **Issue**: #277 (BENCH-1) — extend the confrontation campaigns beyond node counts: full time+RSS measurement against CUDD and libDDD (LIP6), a multi-n campaign for the memory crossover, and an analysis of the constant ~4x OxiDD time gap.

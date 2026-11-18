@@ -340,8 +340,9 @@ fn rss_max_ko() -> Result<u64, ErrorConfrontation> {
 }
 
 /// Generates the deterministic LCG truth table over `n` variables (high bit
-/// of the state, same LCG as the M1-8 baseline).
-fn table_lcg(number_variables: u32) -> Vec<bool> {
+/// of the state, same LCG as the M1-8 baseline). Public for the PERF-1
+/// profiling runner (`profile_intern`), which times the phases separately.
+pub fn table_lcg(number_variables: u32) -> Vec<bool> {
     let mut etat = SEED_LCG;
     (0..(1usize << number_variables))
         .map(|_| {
