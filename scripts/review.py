@@ -56,6 +56,15 @@ NO_DESCRIPTION_TEXT = "No pull request description was provided."
 EXIT_CODE_FAILURE = EXIT_CODE_CRITERIA_UNMET  # local alias: a bundle component is missing
 EXIT_CODE_PRECONDITIONS_UNMET = 3  # the review never started: not a verdict, not an attempt
 
+# Data files are never application code: the reviewer does not go over
+# them. A file is elided from the diff when its extension is a known data
+# extension, or when its diff section exceeds MAX_DIFF_LINES_PER_FILE.
+DATA_FILE_EXTENSIONS = frozenset(
+    {".pnml", ".cnf", ".jsonl", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".bin"}
+)
+MAX_DIFF_LINES_PER_FILE = 400
+ELISION_MARKER = "ELIDED FROM REVIEW (data or oversized file, not reviewed)"
+
 
 def read_text_file(*, path: Path) -> str:
     """Read one text file, failing loudly on a missing bundle component."""
@@ -75,6 +84,60 @@ def collect_decisions() -> list[tuple[str, str]]:
     return decisions
 
 
+def split_diff_sections(*, diff_text: str) -> list[str]:
+    """Split a unified diff into per-file sections at each `diff --git` line."""
+    sections: list[str] = []
+    current: list[str] = []
+    for line in diff_text.splitlines(keepends=True):
+        if line.startswith("diff --git ") and current:
+            sections.append("".join(current))
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        sections.append("".join(current))
+    return sections
+
+
+def section_file_path(*, section: str) -> str:
+    """Extract the file path of one diff section (`+++ b/<path>`, or `--- a/` for deletions)."""
+    lines = section.splitlines()
+    for line in lines:
+        if line.startswith("+++ b/"):
+            return line[len("+++ b/") :].strip()
+    for line in lines:
+        if line.startswith("--- a/"):
+            return line[len("--- a/") :].strip()
+    return ""
+
+
+def elide_data_files(*, diff_text: str) -> str:
+    """Replace the diff sections of data/oversized files with an explicit marker.
+
+    The reviewer's context is bounded: large data files (benchmark models,
+    deposited results, images) are not application code and must not
+    consume the reviewer's turns. The elision is explicit — a marker per
+    elided file plus a summary at the top of the diff — never silent.
+    """
+    kept: list[str] = []
+    elided: list[tuple[str, int]] = []
+    for section in split_diff_sections(diff_text=diff_text):
+        path = section_file_path(section=section)
+        line_count = len(section.splitlines())
+        extension = Path(path).suffix.lower()
+        if extension in DATA_FILE_EXTENSIONS or line_count > MAX_DIFF_LINES_PER_FILE:
+            elided.append((path, line_count))
+            kept.append(f"### {ELISION_MARKER}: {path} ({line_count} diff lines omitted)\n")
+        else:
+            kept.append(section)
+    if not elided:
+        return diff_text
+    summary = "## ELIDED FILES (data or oversized, not reviewed)\n\n" + "\n".join(
+        f"- {path} ({line_count} diff lines)" for path, line_count in elided
+    )
+    return summary + "\n\n" + "".join(kept)
+
+
 def render_bundle(
     *,
     diff_text: str,
@@ -89,7 +152,7 @@ def render_bundle(
     for decision_title, decision_content in decisions:
         sections.append(f"## DECISION - {decision_title}\n\n{decision_content}")
     sections.append(f"## PULL REQUEST SPECIFICATION\n\n{description_text}")
-    sections.append(f"## DIFF UNDER REVIEW\n\n{diff_text}")
+    sections.append(f"## DIFF UNDER REVIEW\n\n{elide_data_files(diff_text=diff_text)}")
     return SECTION_SEPARATOR.join(sections)
 
 
