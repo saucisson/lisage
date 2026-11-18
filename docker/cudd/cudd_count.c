@@ -57,9 +57,12 @@ static DdNode *build_from_table(DdManager *m, DdNode **vars, int n, int *table, 
     DdNode *low = build_from_table(m, vars, n, table, niveau + 1);
     DdNode *high = build_from_table(m, vars, n, table + moitie, niveau + 1);
     /* The half-split at depth `niveau` isolates bit (n - 1 - niveau) of
-     * the table index; assign it to variable (n - 1 - niveau) so that
-     * variable l = bit l of the index, variable 0 at the root — the
-     * same convention as lisage (CUDD puts index 0 at the root). */
+     * the table index; assign that bit to variable (n - 1 - niveau), so
+     * variable l = bit l of the index. Cudd_bddIte returns the canonical
+     * BDD for the manager order (index 0 at the root), hence the root of
+     * the result is variable 0 = bit 0 — the same convention as lisage
+     * (bit l = variable l, variable 0 at the root). The order is pinned
+     * by an asymmetric-table case in tests/cudd_local.rs. */
     return Cudd_bddIte(m, vars[n - 1 - niveau], high, low);
 }
 
