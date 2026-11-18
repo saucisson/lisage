@@ -241,6 +241,7 @@ impl Controller for ReferenceController {
     type Key = u64;
     type Payload = bool;
     type Keys = SchemaKeys;
+    type Arcs = BTreeMap<Self::Key, NodeId>;
 
     const FINGERPRINT: ControllerId = ControllerId(1);
 

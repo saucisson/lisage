@@ -33,6 +33,7 @@ impl Controller for MockController {
     type Key = u64;
     type Payload = bool;
     type Keys = MockKeys;
+    type Arcs = BTreeMap<Self::Key, NodeId>;
     const FINGERPRINT: ControllerId = ControllerId(7);
     fn keys(&self) -> &Self::Keys {
         &self.keys
@@ -141,6 +142,7 @@ impl Controller for NormalizingController {
     type Key = u64;
     type Payload = bool;
     type Keys = NormalizingKeys;
+    type Arcs = BTreeMap<Self::Key, NodeId>;
     const FINGERPRINT: ControllerId = ControllerId(8);
     fn keys(&self) -> &Self::Keys {
         &self.keys

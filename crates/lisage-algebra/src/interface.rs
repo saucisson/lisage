@@ -43,6 +43,78 @@ pub enum Form<Key, Payload> {
     },
 }
 
+/// Arc storage port (MEM-3, ADR-0103): the minimal contract the pool and
+/// the reductions see — ordered iteration of `(key, target)` pairs, plus
+/// the size. Insertion lives on the builder side ([`ArcStoreBuilder`]).
+/// The default instance is the current `BTreeMap<Key, NodeId>`; another
+/// layout (sorted run, MEM-5) implements the same port.
+pub trait ArcStore: Send + Sync {
+    /// Arc key: decision value of a level.
+    type Key: Clone + Ord + Hash + Debug + Send + Sync;
+
+    /// Builder producing this store (insertion side).
+    type Builder: ArcStoreBuilder<Store = Self>;
+
+    /// Ordered iteration of the `(key, target)` pairs.
+    fn iter(&self) -> impl Iterator<Item = (&Self::Key, &NodeId)>;
+
+    /// Number of arcs.
+    fn len(&self) -> usize;
+
+    /// True when the store holds no arc.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// Builder side of an [`ArcStore`]: insertion of `(key, target)` pairs,
+/// then build. The reductions and transductions never see this side.
+pub trait ArcStoreBuilder {
+    /// Arc key: decision value of a level.
+    type Key: Clone + Ord + Hash + Debug + Send + Sync;
+
+    /// Store produced by [`ArcStoreBuilder::build`].
+    type Store: ArcStore<Key = Self::Key>;
+
+    /// Insert one `(key, target)` pair.
+    fn insert(&mut self, key: Self::Key, target: NodeId);
+
+    /// Build the store.
+    fn build(self) -> Self::Store;
+}
+
+impl<Key> ArcStore for BTreeMap<Key, NodeId>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    type Key = Key;
+    type Builder = Self;
+
+    fn iter(&self) -> impl Iterator<Item = (&Self::Key, &NodeId)> {
+        BTreeMap::iter(self)
+    }
+
+    fn len(&self) -> usize {
+        BTreeMap::len(self)
+    }
+}
+
+impl<Key> ArcStoreBuilder for BTreeMap<Key, NodeId>
+where
+    Key: Clone + Ord + Hash + Debug + Send + Sync,
+{
+    type Key = Key;
+    type Store = Self;
+
+    fn insert(&mut self, key: Self::Key, target: NodeId) {
+        BTreeMap::insert(self, key, target);
+    }
+
+    fn build(self) -> Self::Store {
+        self
+    }
+}
+
 /// Typed error of the pool port: unknown identifiers, cause preserved.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PoolError {
@@ -100,6 +172,10 @@ pub trait Controller: Send + Sync {
     type Payload: Clone + Eq + Hash + Debug + Send + Sync;
     /// Key algebra of the instance.
     type Keys: KeyAlgebra<Key = Self::Key>;
+    /// Arc storage of the instance (MEM-3, ADR-0103): default is the
+    /// current `BTreeMap<Key, NodeId>`; another layout implements the
+    /// same `ArcStore` port.
+    type Arcs: ArcStore<Key = Self::Key>;
 
     /// Fingerprint placed in every handle and every cache key.
     const FINGERPRINT: ControllerId;
@@ -112,8 +188,12 @@ pub trait Controller: Send + Sync {
     fn default_payload(&self, level: Level) -> Option<Self::Payload>;
 
     /// R-collapse (spec § 2.3): all arcs lead to the same target ⇒ the
-    /// form reduces to that target. Pure, tested by PBT.
-    fn collapse(arcs: &BTreeMap<Self::Key, NodeId>) -> Option<NodeId> {
+    /// form reduces to that target. Pure, tested by PBT. Sees only the
+    /// ordered iteration of the `ArcStore` port.
+    fn collapse<Store>(arcs: &Store) -> Option<NodeId>
+    where
+        Store: ArcStore<Key = Self::Key> + ?Sized,
+    {
         crate::reduction::collapse_arcs(arcs)
     }
 

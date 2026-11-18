@@ -44,6 +44,7 @@ impl Controller for AddController {
     type Key = u64;
     type Payload = u64;
     type Keys = SchemaKeys;
+    type Arcs = BTreeMap<Self::Key, NodeId>;
 
     const FINGERPRINT: ControllerId = FINGERPRINT_ADD;
 

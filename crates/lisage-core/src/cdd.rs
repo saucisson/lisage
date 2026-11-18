@@ -194,6 +194,7 @@ impl Controller for CddController {
     type Key = Cdd;
     type Payload = bool;
     type Keys = CddKeys;
+    type Arcs = BTreeMap<Self::Key, NodeId>;
 
     const FINGERPRINT: ControllerId = ControllerId(6);
 

@@ -107,6 +107,7 @@ impl<C: Controller> Controller for WorkshopController<C> {
     type Key = C::Key;
     type Payload = C::Payload;
     type Keys = C::Keys;
+    type Arcs = BTreeMap<Self::Key, NodeId>;
 
     // Fingerprint specific to the wrapper (outside the native controllers 1-6 range).
     const FINGERPRINT: ControllerId = ControllerId(100);
