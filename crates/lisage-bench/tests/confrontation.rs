@@ -598,3 +598,36 @@ fn test_cnf_propriete_verifie_contre_force_brute() {
         assert!(measure.nodes > 0);
     }
 }
+
+/// `serialiser_charge_depuis_fichier` (the `dump-charge` feed of the
+/// witnesses): the serialized charge of a real input starts with `n` and
+/// carries exactly `2^n` values; non-file workloads are rejected.
+#[test]
+fn test_serialiser_charge_depuis_fichier_epingle() {
+    use lisage_bench::confrontation::serialiser_charge_depuis_fichier;
+    for (workload, nom, n) in [
+        (Workload::Cnf, "uf20-01.cnf", 20u32),
+        (Workload::Pnml, "SwimmingPool-1.pnml", 18),
+    ] {
+        let sortie = serialiser_charge_depuis_fichier(&workload, &chemin_modele(nom))
+            .expect("charge serialized");
+        let mut lignes = sortie.lines();
+        assert_eq!(lignes.next(), Some(n.to_string().as_str()));
+        let valeurs: usize = lignes
+            .flat_map(|l| l.split(' '))
+            .filter(|t| !t.is_empty())
+            .count();
+        assert_eq!(valeurs, 1usize << n, "{nom}: 2^n values");
+        assert!(
+            sortie
+                .bytes()
+                .all(|b| b.is_ascii_digit() || b == b' ' || b == b'\n')
+        );
+    }
+    let error = serialiser_charge_depuis_fichier(&Workload::AleaLcg, "models/uf20-01.cnf")
+        .expect_err("non-file workload rejected");
+    assert!(matches!(
+        error,
+        ErrorConfrontation::ParametresInvalides { workload, .. } if workload == "alea-lcg"
+    ));
+}
