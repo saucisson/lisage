@@ -657,7 +657,8 @@ fn workload_cnf(
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
     // Measured block (protocol): input reading + table construction +
-    // diagram construction + counting. Pool/keys creation is outside.
+    // diagram construction + counting. The pool/keys are created inside
+    // the block (they follow the parse, which yields the variable count).
     let debut = Instant::now();
     let (number_variables, table, nombre_clauses) = charge_cnf(path)?;
     mesurer_table(
@@ -682,7 +683,8 @@ fn workload_pnml(
     observer: Option<&dyn Observer>,
 ) -> Result<MeasureConfrontation, ErrorConfrontation> {
     // Measured block (protocol): input reading + table construction +
-    // diagram construction + counting. Pool/keys creation is outside.
+    // diagram construction + counting. The pool/keys are created inside
+    // the block (they follow the parse, which yields the variable count).
     let debut = Instant::now();
     let (number_variables, table, (places, transitions)) = charge_pnml(path)?;
     mesurer_table(
