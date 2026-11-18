@@ -17,11 +17,30 @@ use oxidd::bdd::{BDDFunction, new_manager};
 use oxidd::util::AllocResult;
 use oxidd::{BooleanFunction, BooleanOperator, Function, Manager, ManagerRef};
 
-/// Capacity of the manager's unique table (witness sizing, not a protocol
-/// value): sized for the real M7-4 charges (ERK-PT-000001 needs 9 721 nodes).
-const INNER_NODE_CAPACITY: usize = 1 << 20;
-/// Capacity of the manager's apply cache (witness sizing, not a protocol value).
-const APPLY_CACHE_CAPACITY: usize = 1 << 20;
+/// Default capacity of the manager's unique table (witness sizing, not a
+/// protocol value): sized for the real M7-4 charges (ERK-PT-000001 needs
+/// 9 721 nodes). Overridable via `OXIDD_INNER_CAPACITY` for the large-n
+/// crossover charges (BENCH-1, issue #277).
+const INNER_NODE_CAPACITY_DEFAULT: usize = 1 << 20;
+/// Default capacity of the manager's apply cache (witness sizing, not a
+/// protocol value). Overridable via `OXIDD_APPLY_CACHE_CAPACITY`.
+const APPLY_CACHE_CAPACITY_DEFAULT: usize = 1 << 20;
+
+/// Capacity of the manager's unique table, from the environment if set.
+fn inner_node_capacity() -> usize {
+    std::env::var("OXIDD_INNER_CAPACITY")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(INNER_NODE_CAPACITY_DEFAULT)
+}
+
+/// Capacity of the manager's apply cache, from the environment if set.
+fn apply_cache_capacity() -> usize {
+    std::env::var("OXIDD_APPLY_CACHE_CAPACITY")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(APPLY_CACHE_CAPACITY_DEFAULT)
+}
 /// Worker threads: counting is single-threaded, one worker is enough.
 const THREADS: u32 = 1;
 /// Maximum number of variables pre-declared at init (the `pnml` charges use
@@ -47,7 +66,7 @@ fn rss_max_ko() -> u64 {
 fn main() -> AllocResult<()> {
     let charge = std::env::args().nth(1).unwrap_or_else(|| "stdin".to_string());
     // Library initialization, outside the measured block.
-    let manager_ref = new_manager(INNER_NODE_CAPACITY, APPLY_CACHE_CAPACITY, THREADS);
+    let manager_ref = new_manager(inner_node_capacity(), apply_cache_capacity(), THREADS);
     manager_ref.with_manager_exclusive(|manager| {
         manager.add_vars(MAX_VARIABLES);
     });

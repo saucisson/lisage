@@ -54,7 +54,14 @@ fn oxidd_count_nodes(number_variables: u32, table: &[bool]) -> Option<usize> {
         );
         return None;
     }
-    String::from_utf8_lossy(&output.stdout).trim().parse().ok()
+    // The witness writes one JSON line of the confrontation protocol since
+    // M7-5: extract the `noeuds` field.
+    let line = String::from_utf8_lossy(&output.stdout);
+    let key = "\"noeuds\":";
+    let start = line.find(key)? + key.len();
+    let rest = &line[start..];
+    let end = rest.find([',', '}']).unwrap_or(rest.len());
+    rest[..end].trim().parse().ok()
 }
 
 /// Escapes a string for the POSIX shell.
