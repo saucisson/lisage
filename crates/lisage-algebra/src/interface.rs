@@ -148,6 +148,25 @@ pub trait KeyAlgebra: Send + Sync {
 
     /// Default value δ(ℓ) of the level, if the level has one.
     fn default(&self, level: Level) -> Option<Self::Key>;
+
+    /// Ordinal rank of a key in the level's enumeration (MEM-4, ADR-0103),
+    /// derived from the region enumeration the key contract requires.
+    /// `Some(rang)` when the level's domain is bounded and the key belongs
+    /// to it; `None` otherwise. The default `None` declares the absence of
+    /// rank properly (unbounded domain: the DDD path is unchanged), so the
+    /// dense ordinal storage (MEM-B) writes no code per controller.
+    /// Rank availability is exposed to the normalization: `normal_form`
+    /// may encode keys by their rank when it exists.
+    fn rank(&self, _level: Level, _key: &Self::Key) -> Option<u64> {
+        None
+    }
+
+    /// Inverse of [`KeyAlgebra::rank`]: the key of ordinal `rang` in the
+    /// level's enumeration, `None` when the domain is unbounded or `rang`
+    /// is out of range.
+    fn unrank(&self, _level: Level, _rang: u64) -> Option<Self::Key> {
+        None
+    }
 }
 
 /// Level-memory storage policy (M2-3, spec § 3.1): declared by the

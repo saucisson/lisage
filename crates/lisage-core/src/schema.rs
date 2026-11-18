@@ -214,6 +214,24 @@ impl KeyAlgebra for SchemaKeys {
             Schema::Tag(_, _) => None, // discriminant = required key
         }
     }
+
+    fn rank(&self, level: Level, key: &Self::Key) -> Option<u64> {
+        // Bounded domains of the reference instance: the key IS the
+        // ordinal of the level's enumeration (0..cardinality).
+        if *key < self.cardinality(level) {
+            Some(*key)
+        } else {
+            None
+        }
+    }
+
+    fn unrank(&self, level: Level, rang: u64) -> Option<Self::Key> {
+        if rang < self.cardinality(level) {
+            Some(rang)
+        } else {
+            None
+        }
+    }
 }
 
 /// Controller of the reference instance: carries the schema, designates D_δ =

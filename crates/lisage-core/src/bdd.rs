@@ -49,6 +49,22 @@ impl KeyAlgebra for BddKeys {
     fn default(&self, _level: Level) -> Option<Self::Key> {
         None
     }
+
+    fn rank(&self, level: Level, key: &Self::Key) -> Option<u64> {
+        if *key < self.cardinality(level) {
+            Some(*key)
+        } else {
+            None
+        }
+    }
+
+    fn unrank(&self, level: Level, rang: u64) -> Option<Self::Key> {
+        if rang < self.cardinality(level) {
+            Some(rang)
+        } else {
+            None
+        }
+    }
 }
 
 /// Classic BDD controller: boolean payload, no default diagram designated
