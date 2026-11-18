@@ -26,6 +26,7 @@ pub mod saturate;
 pub mod schema;
 pub mod transduction;
 pub mod transfert;
+mod unique;
 pub mod workshop;
 
 pub use lisage_algebra::interface::{
