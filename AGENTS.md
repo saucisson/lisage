@@ -65,6 +65,10 @@ checklist - read them in `docs/architecture.md`. The short version:
 
 - Keyword-only parameters. No abbreviations (`id`, `url`, `http`
   excepted). Constants in `UPPER_CASE`. Linear over decomposed.
+- English-only code and docs (issues #110, #118): new modules and new
+  identifiers are in English; any remaining French identifier is renamed
+  incrementally as it is touched, never in a big-bang (ADR-0101 budget).
+  Enforced by `make english-only`.
 - Types: strict static typing, distinct types for domain
   primitives, closed sets, discriminated unions, explicit
   narrowing. No unjustified dynamic escape.

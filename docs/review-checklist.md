@@ -22,6 +22,8 @@ applies its equivalents.
 - [ ] All parameters named/keyword-only (exceptions: `self`/`this`, single
       obvious primitive).
 - [ ] No abbreviations (allowed: `id`, `url`, `http`).
+- [ ] No new French identifier introduced (English-only charter, issues
+      #110/#118); `make english-only` passes.
 - [ ] Every literal with meaning is a named constant.
 - [ ] Functions are linear and flat: no arbitrary extraction; extracted
       blocks are reused ≥ 2× or intention-named.
