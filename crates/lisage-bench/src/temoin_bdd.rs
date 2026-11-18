@@ -14,6 +14,57 @@ pub const TERMINAL_FAUX: u32 = 0;
 /// Index of the ⊤ terminal (true).
 pub const TERMINAL_VRAI: u32 = 1;
 
+/// Published binary node of the witness (MEM-6): the `Val(level) = 2`
+/// case of the port — a node at level `LEVEL` has exactly two arcs,
+/// `LOW` (variable = 0) and `HIGH` (variable = 1). The three fields of
+/// the classic BDD node are const generics; the only runtime state is
+/// the CUDD-style complement bit.
+pub struct BinaryNode<const LEVEL: u32, const LOW: u32, const HIGH: u32> {
+    complement: bool,
+}
+
+impl<const LEVEL: u32, const LOW: u32, const HIGH: u32> BinaryNode<LEVEL, LOW, HIGH> {
+    /// Static size of the published binary node, in bytes.
+    pub const SIZE: usize = size_of::<Self>();
+
+    /// Builds the published node carrying the given complement bit.
+    pub const fn new(complement: bool) -> Self {
+        Self { complement }
+    }
+
+    /// Level (variable index) of the node.
+    pub const fn level() -> u32 {
+        LEVEL
+    }
+
+    /// Low arc (variable = 0).
+    pub const fn low() -> u32 {
+        LOW
+    }
+
+    /// High arc (variable = 1).
+    pub const fn high() -> u32 {
+        HIGH
+    }
+
+    /// CUDD-style complement bit of the node.
+    pub const fn is_complemented(&self) -> bool {
+        self.complement
+    }
+
+    /// Complement edge, CUDD style: flips the bit, shares the node.
+    pub const fn negate(&self) -> Self {
+        Self {
+            complement: !self.complement,
+        }
+    }
+}
+
+/// The published binary node is exactly one byte: level/low/high live at
+/// the type level (const generics), only the complement bit is runtime
+/// state.
+const _: () = assert!(BinaryNode::<0, TERMINAL_FAUX, TERMINAL_VRAI>::SIZE == 1);
+
 /// Mini-BDD: nodes `(variable, low, high)` in a table, terminals at
 /// indices 0 and 1.
 pub struct MiniBdd {
@@ -43,6 +94,23 @@ impl MiniBdd {
         self.nodes.push(triplet);
         self.table_unique.insert(triplet, indice);
         indice
+    }
+
+    /// Materializes the node at `index` as the published binary node
+    /// when its runtime fields match the const generics, `None`
+    /// otherwise. The complement bit is a view (CUDD-style edge), not
+    /// stored: it defaults to `false` and is flipped by
+    /// [`BinaryNode::negate`].
+    pub fn binary_node<const LEVEL: u32, const LOW: u32, const HIGH: u32>(
+        &self,
+        index: u32,
+    ) -> Option<BinaryNode<LEVEL, LOW, HIGH>> {
+        let (level, low, high) = self.nodes[index as usize];
+        if level == LEVEL && low == LOW && high == HIGH {
+            Some(BinaryNode::new(false))
+        } else {
+            None
+        }
     }
 
     /// Builds the BDD of a truth table (`table[a]`, bit ℓ of `a` =
