@@ -75,19 +75,19 @@ proptest! {
         }
     }
 
-    /// "Last write wins": a duplicate key in the construction keeps the
+    /// Last write wins: a duplicate key in the construction keeps the
     /// LAST target (MEM-5 semantics of the sorted run).
     #[test]
-    fn test_dernier_ecrit_gagne(
+    fn test_last_write_wins(
         paires in prop::collection::vec((0u8..4, 0u32..6), 0..8),
     ) {
         let run = vers_arcs(paires.clone());
-        let mut attendu: BTreeMap<u64, NodeId> = BTreeMap::new();
+        let mut expected: BTreeMap<u64, NodeId> = BTreeMap::new();
         for (key, target) in paires {
-            attendu.insert(u64::from(key), NodeId(target));
+            expected.insert(u64::from(key), NodeId(target));
         }
-        let reconstruit: BTreeMap<u64, NodeId> = run.iter().map(|(k, t)| (*k, *t)).collect();
-        prop_assert_eq!(reconstruit, attendu);
+        let rebuilt: BTreeMap<u64, NodeId> = run.iter().map(|(k, t)| (*k, *t)).collect();
+        prop_assert_eq!(rebuilt, expected);
     }
 
     /// Commutation of the quotients: R-collapse then R-default == R-default
