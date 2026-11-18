@@ -341,6 +341,14 @@ pub trait KeyAlgebra: Send + Sync {
     fn declared_class_bits(&self) -> Option<u32> {
         None
     }
+
+    /// Number of levels of the universe sweep, used to derive the class
+    /// width `b` at pool creation (MEM-8/9). Default `1`: algebras whose
+    /// cardinality is level-independent (BDD, CDD, DBM, region) need no
+    /// more; the reference instance overrides it with the schema's sweep.
+    fn sweep_levels(&self) -> u32 {
+        1
+    }
 }
 
 /// Level-memory storage policy (M2-3, spec § 3.1): declared by the

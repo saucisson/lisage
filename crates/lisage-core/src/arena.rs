@@ -13,9 +13,10 @@ use lisage_algebra::interface::{
 use lisage_algebra::reduction::{
     Reduction, reduce, reduce_dabs as crate_reduction_dabs, reduce_without_collapse,
 };
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::biplan::{IndexLevels, MetriquesPool, NodeEntry, Plan, StatsGc, threshold_atteint};
+use crate::classes::{ClassArena, ClassMap, ClassMetrics};
 use crate::observer::{Observer, ReductionRule, TraceEvent};
 
 /// Hash-consing key: (controller, anchor, form).
@@ -25,29 +26,71 @@ type KeyInterning<Key, Payload> = (ControllerId, Anchor, Form<Key, Payload>);
 /// controller instance: its key algebra (parameterized by the schema, M1-3)
 /// decides normal forms, cardinalities and defaults.
 pub struct Arena<C: Controller> {
-    nodes: Vec<NodeEntry<C::Key, C::Payload>>,
+    /// Frozen class map (MEM-9, ADR-0103): class bits + index bits of the
+    /// `NodeId`, fixed at construction.
+    class_map: ClassMap,
+    /// Per-class arenas, created lazily (MEM-9).
+    arenas: Vec<Option<ClassArena<C::Key, C::Payload>>>,
     unique: HashMap<KeyInterning<C::Key, C::Payload>, NodeId>,
     /// Shadow-plane index: level → live nodes of that level.
     index_levels: IndexLevels,
     metriques: MetriquesPool,
-    /// Remapping table of the last compaction (empty otherwise).
-    remap: Vec<Option<NodeId>>,
+    /// Remapping table of the last compaction, keyed by the old raw
+    /// `NodeId` (empty otherwise).
+    remap: BTreeMap<u32, Option<NodeId>>,
     observer: Box<dyn Observer>,
     controleur: C,
 }
 
 impl<C: Controller> Arena<C> {
-    /// New arena with the given controller and trace observer.
+    /// New arena with the given controller and trace observer. The class
+    /// map is derived from the controller's key algebra and frozen here.
     pub fn new(controleur: C, observer: Box<dyn Observer>) -> Self {
+        let class_map = ClassMap::new(controleur.keys(), controleur.keys().sweep_levels());
+        let arenas = (0..class_map.number_classes()).map(|_| None).collect();
         Arena {
-            nodes: Vec::new(),
+            class_map,
+            arenas,
             unique: HashMap::new(),
             index_levels: IndexLevels::new(),
             metriques: MetriquesPool::default(),
-            remap: Vec::new(),
+            remap: BTreeMap::new(),
             observer,
             controleur,
         }
+    }
+
+    /// Class map of the pool (frozen at construction, MEM-9).
+    pub fn class_map(&self) -> ClassMap {
+        self.class_map
+    }
+
+    /// Per-class metrics: live and peak per class (traced, MEM-9).
+    pub fn class_metrics(&self) -> Vec<ClassMetrics> {
+        self.arenas
+            .iter()
+            .enumerate()
+            .filter_map(|(class, arena)| arena.as_ref().map(|a| a.metrics(class as u32)))
+            .collect()
+    }
+
+    /// Decode a `NodeId` into `(class, index)` with the effective width.
+    fn decode(&self, node: NodeId) -> (u32, u32) {
+        node.decode(self.class_map.class_bits)
+    }
+
+    /// Entry of a node, if the identifier is valid.
+    fn entry(&self, node: NodeId) -> Option<&NodeEntry<C::Key, C::Payload>> {
+        let (class, index) = self.decode(node);
+        self.arenas.get(class as usize)?.as_ref()?.get(index)
+    }
+
+    /// Lazily-created arena of a class.
+    fn arena_mut(&mut self, class: u32) -> &mut ClassArena<C::Key, C::Payload> {
+        self.arenas
+            .get_mut(class as usize)
+            .expect("class within the frozen map")
+            .get_or_insert_with(ClassArena::new)
     }
 
     /// Controller owning this arena.
@@ -70,7 +113,13 @@ impl<C: Controller> Arena<C> {
         plan: Plan,
     ) -> NodeId {
         let node = self.intern(anchor, form);
-        if let Some(input) = self.nodes.get_mut(node.0 as usize) {
+        let (class, index) = self.decode(node);
+        if let Some(input) = self
+            .arenas
+            .get_mut(class as usize)
+            .and_then(|arena| arena.as_mut())
+            .and_then(|arena| arena.get_mut(index))
+        {
             input.plan = plan;
         }
         node
@@ -78,11 +127,8 @@ impl<C: Controller> Arena<C> {
 
     /// Plane of a live node.
     pub fn plan_de(&self, node: NodeId) -> Option<Plan> {
-        self.nodes
-            .get(node.0 as usize)?
-            .form
-            .as_ref()
-            .map(|_| self.nodes[node.0 as usize].plan)
+        self.entry(node)
+            .and_then(|input| input.form.as_ref().map(|_| input.plan))
     }
 
     /// Live nodes of a level (shadow-plane index).
@@ -97,15 +143,20 @@ impl<C: Controller> Arena<C> {
         self.metriques
     }
 
-    /// Remapping table of the last compaction: `remap[old] = new` (`None` if
-    /// the old node was a tombstone). Empty if the last GC did not compact.
-    pub fn last_remap(&self) -> &[Option<NodeId>] {
+    /// Remapping table of the last compaction, keyed by the old raw
+    /// `NodeId`: `remap[old] = Some(new)` (`None` if the old node was a
+    /// tombstone). Empty if the last GC did not compact.
+    pub fn last_remap(&self) -> &BTreeMap<u32, Option<NodeId>> {
         &self.remap
     }
 
     /// Number of live nodes.
     pub fn live(&self) -> usize {
-        self.nodes.iter().filter(|e| e.form.is_some()).count()
+        self.arenas
+            .iter()
+            .flatten()
+            .map(|arena| arena.live_count() as usize)
+            .sum()
     }
 
     /// Mark-and-sweep GC from the given roots: unreachable nodes become
@@ -122,29 +173,38 @@ impl<C: Controller> Arena<C> {
             if let Some(NodeEntry {
                 form: Some(Form::Node { arcs, .. }),
                 ..
-            }) = self.nodes.get(node.0 as usize)
+            }) = self.entry(node)
             {
                 stack.extend(arcs.values().copied());
             }
         }
-        let total = self.nodes.len() as u64;
+        let total = self.node_count() as u64;
+        let class_bits = self.class_map.class_bits;
         let mut collected = 0u64;
-        for (index, input) in self.nodes.iter_mut().enumerate() {
-            if input.form.is_some() && !atteints.contains(&NodeId(index as u32)) {
-                input.form = None;
-                collected += 1;
+        for class in 0..self.class_map.number_classes() {
+            if let Some(arena) = self.arenas.get_mut(class as usize).and_then(|a| a.as_mut()) {
+                collected += arena
+                    .sweep(&|index| atteints.contains(&NodeId::encode(class, index, class_bits)));
             }
         }
         // Removal of tombstones from the unique table and the shadow index.
-        self.unique
-            .retain(|_, node| self.nodes[node.0 as usize].form.is_some());
+        let arenas = &self.arenas;
+        let is_live = |node: NodeId| -> bool {
+            let (class, index) = node.decode(class_bits);
+            arenas
+                .get(class as usize)
+                .and_then(|arena| arena.as_ref())
+                .and_then(|arena| arena.get(index))
+                .is_some_and(|entry| entry.form.is_some())
+        };
+        self.unique.retain(|_, node| is_live(*node));
         for set in self.index_levels.values_mut() {
-            set.retain(|node| self.nodes[node.0 as usize].form.is_some());
+            set.retain(|node| is_live(*node));
         }
         // Live nodes counted on actually-live entries (not derived from the
         // slot count, which includes tombstones from a previous GC without
         // compaction).
-        let live = self.nodes.iter().filter(|e| e.form.is_some()).count() as u64;
+        let live = self.live() as u64;
         let compaction = threshold_atteint(collected, total);
         if compaction {
             self.remap = self.compacter();
@@ -170,32 +230,36 @@ impl<C: Controller> Arena<C> {
         stats
     }
 
-    /// Compaction: rebuilds the node vector without tombstones and remaps
-    /// the `NodeId`s (returned remapping table). Reserved for the `gc` path,
-    /// which first cleans the tombstones from the unique table: a direct
-    /// call with tombstones would leave stale `NodeId`s in `unique`.
-    fn compacter(&mut self) -> Vec<Option<NodeId>> {
-        self.remap.clear();
-        let mut remap: Vec<Option<NodeId>> = Vec::with_capacity(self.nodes.len());
-        let mut new_nodes: Vec<NodeEntry<C::Key, C::Payload>> = Vec::new();
-        for input in self.nodes.drain(..) {
-            if input.form.is_some() {
-                remap.push(Some(NodeId(new_nodes.len() as u32)));
-                new_nodes.push(input);
-            } else {
-                remap.push(None);
+    /// Compaction: rebuilds each class arena without tombstones and remaps
+    /// the `NodeId`s (returned remapping table, keyed by the old raw id).
+    /// Reserved for the `gc` path, which first cleans the tombstones from
+    /// the unique table: a direct call with tombstones would leave stale
+    /// `NodeId`s in `unique`.
+    fn compacter(&mut self) -> BTreeMap<u32, Option<NodeId>> {
+        let mut remap = BTreeMap::new();
+        let class_bits = self.class_map.class_bits;
+        for class in 0..self.class_map.number_classes() {
+            let Some(arena) = self.arenas.get_mut(class as usize).and_then(|a| a.as_mut()) else {
+                continue;
+            };
+            let index_remap = arena.compact();
+            for (old_index, new_index) in index_remap.into_iter().enumerate() {
+                let old = NodeId::encode(class, old_index as u32, class_bits);
+                remap.insert(
+                    old.0,
+                    new_index.map(|new| NodeId::encode(class, new, class_bits)),
+                );
             }
         }
-        self.nodes = new_nodes;
         for node in self.unique.values_mut() {
-            if let Some(Some(new)) = remap.get(node.0 as usize) {
+            if let Some(Some(new)) = remap.get(&node.0) {
                 *node = *new;
             }
         }
         for set in self.index_levels.values_mut() {
             *set = set
                 .iter()
-                .filter_map(|node| remap.get(node.0 as usize).copied().flatten())
+                .filter_map(|node| remap.get(&node.0).copied().flatten())
                 .collect();
         }
         remap
@@ -308,15 +372,18 @@ impl<C: Controller> Pool for Arena<C> {
                 .on_event(&TraceEvent::NodeShared { node: *node });
             return *node;
         }
-        let node = NodeId(self.nodes.len() as u32);
-        let level = match &form {
-            Form::Terminal(_) => None,
-            Form::Node { level, .. } => Some(*level),
+        // MEM-9: the node is routed to the arena of its class (degree),
+        // the NodeId carries class bits + index bits.
+        let (degree, level) = match &form {
+            Form::Terminal(_) => (0, None),
+            Form::Node { level, arcs } => (arcs.len() as u32, Some(*level)),
         };
-        self.nodes.push(NodeEntry {
+        let class = self.class_map.class_of_degree(degree);
+        let index = self.arena_mut(class).push(NodeEntry {
             plan: Plan::Principal,
             form: Some(form),
         });
+        let node = NodeId::encode(class, index, self.class_map.class_bits);
         if let Some(level) = level {
             self.index_levels.entry(level).or_default().insert(node);
         }
@@ -328,8 +395,8 @@ impl<C: Controller> Pool for Arena<C> {
     }
 
     fn resolve(&self, node: NodeId) -> Result<&Form<Self::Key, Self::Payload>, PoolError> {
-        match self.nodes.get(node.0 as usize) {
-            Some(input) => input.form.as_ref().ok_or(PoolError::UnknownNode(node)),
+        match self.entry(node).and_then(|input| input.form.as_ref()) {
+            Some(form) => Ok(form),
             None => Err(PoolError::UnknownNode(node)),
         }
     }
@@ -343,6 +410,10 @@ impl<C: Controller> Pool for Arena<C> {
     }
 
     fn node_count(&self) -> usize {
-        self.nodes.len()
+        self.arenas
+            .iter()
+            .flatten()
+            .map(|arena| arena.slot_count())
+            .sum()
     }
 }

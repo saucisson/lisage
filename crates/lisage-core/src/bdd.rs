@@ -65,6 +65,10 @@ impl KeyAlgebra for BddKeys {
             None
         }
     }
+
+    fn sweep_levels(&self) -> u32 {
+        self.number_variables
+    }
 }
 
 /// Classic BDD controller: boolean payload, no default diagram designated
