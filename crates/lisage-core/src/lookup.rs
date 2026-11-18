@@ -213,7 +213,7 @@ impl Transduction for Lookup {
             if let Some(child) = child_present {
                 let child_est_level_value = matches!(
                     pool.resolve(child),
-                    Ok(Form::Node { level: l, .. }) if *l == self.level_value()
+                    Ok(Form::Node { level: l, .. }) if l == self.level_value()
                 );
                 if !child_est_level_value {
                     let mut greffon: BTreeMap<u64, NodeId> = BTreeMap::new();

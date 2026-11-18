@@ -171,7 +171,7 @@ pub fn evaluate<P: Pool<Key = u64, Payload = bool>>(
     let mut node = root;
     loop {
         match pool.resolve(node)? {
-            Form::Terminal(payload) => return Ok(*payload),
+            Form::Terminal(payload) => return Ok(payload),
             Form::Node { level, arcs } => {
                 let bit = (affectation >> level.0) & 1;
                 node = *arcs.get(&bit).ok_or(PoolError::UnknownNode(node))?;

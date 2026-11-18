@@ -239,7 +239,7 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
         if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
             let depart = &placement[&node];
             for (key, target) in arcs {
-                let arrivee = &placement[target];
+                let arrivee = &placement[&target];
                 svg.push_str(&format!(
                     "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{COULEUR_ARC}\"/>\n",
                     depart.x,
@@ -253,7 +253,7 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
                     (depart.y + arrivee.y) / 2 + y_decalage,
                     echapper_xml(&key.to_string())
                 ));
-                stack.push(*target);
+                stack.push(target);
             }
         }
     }
@@ -290,7 +290,7 @@ fn rendre_node<P: Pool<Key = u64, Payload = bool>>(
                 "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">{}</text>\n",
                 position.x,
                 position.y + y_decalage + 4,
-                if *payload { "⊤" } else { "⊥" }
+                if payload { "⊤" } else { "⊥" }
             ));
         }
         Ok(Form::Node { level, .. }) => {

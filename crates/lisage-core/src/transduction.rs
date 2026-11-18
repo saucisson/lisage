@@ -247,7 +247,7 @@ impl<T: Transduction> Transducteur<T> {
                     let (target_result, s_arc) =
                         self.run_with(pool_input, pool_output, anchor, target, h_arc)?;
                     let level_target = match pool_input.resolve(target) {
-                        Ok(Form::Node { level, .. }) => Some(*level),
+                        Ok(Form::Node { level, .. }) => Some(level),
                         Ok(Form::Terminal(_)) => None,
                         Err(error) => return Err(error.into()),
                     };
@@ -328,7 +328,7 @@ impl<T: Transduction> Transducteur<T> {
                     let (target_result, s_arc) =
                         self.run_with_same_pool(pool, anchor, target, h_arc)?;
                     let level_target = match pool.resolve(target) {
-                        Ok(Form::Node { level, .. }) => Some(*level),
+                        Ok(Form::Node { level, .. }) => Some(level),
                         Ok(Form::Terminal(_)) => None,
                         Err(error) => return Err(error.into()),
                     };

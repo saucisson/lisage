@@ -616,15 +616,15 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
                     node,
                 });
             };
-            if *level != Level(0) {
+            if level != Level(0) {
                 return Err(SchemaError::NodeInexpected {
                     expected: "level 0",
                     node,
                 });
             }
             for (key, target) in arcs {
-                if matches!(pool.resolve(*target), Ok(Form::Terminal(true))) {
-                    let atome = Atom(*key);
+                if matches!(pool.resolve(target), Ok(Form::Terminal(true))) {
+                    let atome = Atom(key);
                     if domain.contains(atome) {
                         return Ok(Value::Atom(atome));
                     }
@@ -667,7 +667,7 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
             node,
         });
     };
-    if *level != Level(0) {
+    if level != Level(0) {
         return Err(SchemaError::NodeInexpected {
             expected: "discriminant level (0)",
             node,
@@ -695,7 +695,7 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
             node: node_value,
         });
     };
-    if *level_value != Level(1) {
+    if level_value != Level(1) {
         return Err(SchemaError::NodeInexpected {
             expected: "value level (1)",
             node: node_value,
@@ -848,7 +848,7 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                             node: node_value,
                         });
                     };
-                    if *level_value != Schema::level_value(index) {
+                    if level_value != Schema::level_value(index) {
                         return Err(SchemaError::NodeInexpected {
                             expected: "value level of the key",
                             node: node_value,

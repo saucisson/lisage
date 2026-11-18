@@ -116,7 +116,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
         if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
             let depart = &placement[&node];
             for (key, target) in arcs {
-                let arrivee = &placement[target];
+                let arrivee = &placement[&target];
                 svg.push_str(&format!(
                     "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{}\"/>\n",
                     depart.x,
@@ -132,7 +132,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
                     couleurs.label,
                     echapper_xml(&key.to_string())
                 ));
-                stack.push(*target);
+                stack.push(target);
             }
         }
     }
@@ -151,7 +151,7 @@ pub(crate) fn dessiner_corps<P: Pool<Key = u64, Payload = bool>>(
                     "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">{}</text>\n",
                     position.x,
                     position.y + 4,
-                    if *payload { "⊤" } else { "⊥" }
+                    if payload { "⊤" } else { "⊥" }
                 ));
             }
             Ok(Form::Node { level, .. }) => {

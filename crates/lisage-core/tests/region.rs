@@ -184,7 +184,7 @@ fn test_differentiel_union_intervals_contre_enumeration() {
         let count_dd: u64 = match pool.resolve(root).expect("interned node") {
             Form::Terminal(value) => {
                 // R-collapse: S empty or full, the node reduces to the terminal.
-                if *value { SIZE_DOMAIN } else { 0 }
+                if value { SIZE_DOMAIN } else { 0 }
             }
             Form::Node { arcs, .. } => {
                 assert!(

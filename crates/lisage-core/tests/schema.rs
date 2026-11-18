@@ -53,26 +53,26 @@ fn test_compilation_map_exemple_spec() {
     let Form::Node { level, arcs } = pool.resolve(root).unwrap() else {
         panic!("the root must be a presence node");
     };
-    assert_eq!(*level, Level(0));
+    assert_eq!(level, Level(0));
     let node_value_a = arcs[&PRESENT];
     let Form::Node { level, arcs } = pool.resolve(node_value_a).unwrap() else {
         panic!("value node expected");
     };
-    assert_eq!(*level, Level(1));
+    assert_eq!(level, Level(1));
     assert_eq!(arcs.len(), 1);
     let node_presence_b = arcs[&PRESENT];
     let Form::Node { level, arcs } = pool.resolve(node_presence_b).unwrap() else {
         panic!("presence node expected");
     };
-    assert_eq!(*level, Level(2));
+    assert_eq!(level, Level(2));
     let node_value_b = arcs[&PRESENT];
     let Form::Node { level, arcs } = pool.resolve(node_value_b).unwrap() else {
         panic!("value node expected");
     };
-    assert_eq!(*level, Level(3));
+    assert_eq!(level, Level(3));
     assert_forme(
         &Form::Node {
-            level: *level,
+            level,
             arcs: arcs.clone(),
         },
         Level(3),
@@ -91,7 +91,7 @@ fn test_set_absents_collapses() {
     let root = compiler(&mut pool, anchor, &schema, &set).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
     assert_forme(
-        pool.resolve(root).unwrap(),
+        &pool.resolve(root).unwrap(),
         Level(0),
         &[(PRESENT, terminal)],
     );
@@ -105,7 +105,7 @@ fn test_map_empty_and_key_absente() {
     let anchor = Anchor(0);
     let empty = Value::Map(BTreeMap::new());
     let root = compiler(&mut pool, anchor, &schema, &empty).unwrap();
-    assert_eq!(pool.resolve(root).unwrap(), &Form::Terminal(true));
+    assert_eq!(pool.resolve(root).unwrap(), Form::Terminal(true));
 
     // {b ↦ 0}: a's presence level is skipped (R-collapse).
     let map = Value::Map(BTreeMap::from([(atome(1), atome(0))]));
@@ -119,7 +119,7 @@ fn test_map_empty_and_key_absente() {
         },
     );
     assert_forme(
-        pool.resolve(root).unwrap(),
+        &pool.resolve(root).unwrap(),
         Level(2),
         &[(PRESENT, node_value_b)],
     );
@@ -152,7 +152,7 @@ fn test_schema_atome() {
     let anchor = Anchor(0);
     let root = compiler(&mut pool, anchor, &schema, &atome(2)).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    assert_forme(pool.resolve(root).unwrap(), Level(0), &[(2, terminal)]);
+    assert_forme(&pool.resolve(root).unwrap(), Level(0), &[(2, terminal)]);
 }
 
 /// The empty set compiles to the accepting terminal ⊤ (empty path), and the
@@ -164,7 +164,7 @@ fn test_set_empty_and_plein() {
     let anchor = Anchor(0);
     let empty = Value::Set(BTreeSet::new());
     let root_empty = compiler(&mut pool, anchor, &schema, &empty).unwrap();
-    assert_eq!(pool.resolve(root_empty).unwrap(), &Form::Terminal(true));
+    assert_eq!(pool.resolve(root_empty).unwrap(), Form::Terminal(true));
     let plein = Value::Set(BTreeSet::from([atome(0), atome(1)]));
     let root_plein = compiler(&mut pool, anchor, &schema, &plein).unwrap();
     let terminal = pool.intern(anchor, Form::Terminal(true));
@@ -176,7 +176,7 @@ fn test_set_empty_and_plein() {
         },
     );
     assert_forme(
-        pool.resolve(root_plein).unwrap(),
+        &pool.resolve(root_plein).unwrap(),
         Level(0),
         &[(PRESENT, node_presence_b)],
     );
