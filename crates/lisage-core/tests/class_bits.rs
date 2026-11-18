@@ -4,7 +4,8 @@
 //! the window, and the assertion rejection of invalid identifiers.
 
 use lisage_algebra::class_bits::{
-    CLASS_BITS_MAX, CLASS_BITS_OPEN_DEFAULT, TERMINAL_CLASS, class_bits_of, derive_class_bits,
+    CLASS_BITS_MAX, CLASS_BITS_OPEN_DEFAULT, TAG_BITS, TAG_COMPLEMENT, TAG_SHIFT_MASK,
+    TERMINAL_CLASS, class_bits_of, derive_class_bits,
 };
 use lisage_algebra::interface::{KeyAlgebra, Level, NodeId};
 use lisage_core::bdd::BddKeys;
@@ -57,13 +58,14 @@ impl KeyAlgebra for OpenKeysOverload {
 }
 
 #[test]
-fn test_derive_bdd_is_2_with_30_index_bits() {
-    // BDD: C(ℓ) = 2, smallest b with 2^b − 2 ≥ 2 is b = 2.
+fn test_derive_bdd_is_2_with_26_index_bits() {
+    // BDD: C(ℓ) = 2, smallest b with 2^b − 2 ≥ 2 is b = 2. The tag field
+    // (MEM-13, TAG_BITS = 4) sits on top: index gets 32 − 4 − 2 = 26 bits.
     let keys = BddKeys::new(8);
     assert_eq!(keys.cardinality(Level(0)), 2);
     assert_eq!(derive_class_bits(2), 2);
     assert_eq!(class_bits_of(&keys, 8), 2);
-    assert_eq!(NodeId::index_bits(2), 30);
+    assert_eq!(NodeId::index_bits(2), 32 - TAG_BITS - 2);
 }
 
 #[test]
@@ -107,11 +109,7 @@ fn test_encode_decode_roundtrip() {
         } else {
             (1u32 << class_bits) - 1
         };
-        let max_index = if index_bits == 32 {
-            u32::MAX
-        } else {
-            (1u32 << index_bits) - 1
-        };
+        let max_index = (1u32 << index_bits) - 1;
         for (class, index) in [
             (0, 0),
             (max_class, 0),
@@ -120,12 +118,53 @@ fn test_encode_decode_roundtrip() {
         ] {
             let node = NodeId::encode(class, index, class_bits);
             assert_eq!(node.decode(class_bits), (class, index));
+            assert_eq!(node.tag(class_bits), 0, "encode sets a zero tag");
         }
     }
-    // Layout: class in the high bits, index in the low bits.
-    assert_eq!(NodeId::encode(1, 0, 2).0, 1 << 30);
+    // Layout: tag in the highest bits, then class, then index in the low bits.
+    assert_eq!(NodeId::encode(1, 0, 2).0, 1 << 26);
     assert_eq!(NodeId::encode(0, 5, 2).0, 5);
-    assert_eq!(NodeId::encode(3, 7, 2).0, (3 << 30) | 7);
+    assert_eq!(NodeId::encode(3, 7, 2).0, (3 << 26) | 7);
+}
+
+#[test]
+fn test_tag_roundtrip_complement_and_shift_nibble() {
+    // MEM-13: the tag field carries the complement bit (bit 0) and the
+    // shift nibble (bits 1..=3) of M4-2; encode/decode round-trips them.
+    for (class_bits, class) in [(0, 0), (2, 2), (8, 2)] {
+        for tag in [
+            0,
+            TAG_COMPLEMENT,
+            TAG_SHIFT_MASK,
+            TAG_COMPLEMENT | TAG_SHIFT_MASK,
+            0b1111,
+        ] {
+            let node = NodeId::encode_tagged(tag, class, 42, class_bits);
+            assert_eq!(node.decode_tagged(class_bits), (tag, class, 42));
+            assert_eq!(node.tag(class_bits), tag);
+            // decode masks the tag out: (class, index) unchanged.
+            assert_eq!(node.decode(class_bits), (class, 42));
+        }
+    }
+    // Layout: tag in the highest TAG_BITS bits.
+    assert_eq!(
+        NodeId::encode_tagged(TAG_COMPLEMENT, 0, 0, 2).0,
+        TAG_COMPLEMENT << 28
+    );
+    assert_eq!(
+        NodeId::encode_tagged(TAG_SHIFT_MASK, 1, 5, 2).0,
+        (TAG_SHIFT_MASK << 28) | (1 << 26) | 5
+    );
+    // The complement bit and the shift nibble are disjoint.
+    assert_eq!(TAG_COMPLEMENT & TAG_SHIFT_MASK, 0);
+    assert_eq!(TAG_COMPLEMENT | TAG_SHIFT_MASK, 0b1111);
+    assert_eq!(TAG_BITS, 4);
+}
+
+#[test]
+#[should_panic(expected = "tag 16 out of the 4-bit tag window")]
+fn test_encode_rejects_tag_out_of_window() {
+    let _ = NodeId::encode_tagged(16, 0, 0, 2);
 }
 
 #[test]
@@ -149,7 +188,7 @@ fn test_encode_rejects_class_out_of_window() {
 }
 
 #[test]
-#[should_panic(expected = "index 1073741824 out of the 30-bit index window")]
+#[should_panic(expected = "index 1073741824 out of the 26-bit index window")]
 fn test_encode_rejects_index_out_of_window() {
     let _ = NodeId::encode(0, 1 << 30, 2);
 }

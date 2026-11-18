@@ -1,5 +1,8 @@
-//! Class bits of the `NodeId` budget (MEM-8, ADR-0103): `NodeId(u32)` =
-//! **class bits (high) + index bits (low)**. The class field width `b` is
+//! Class and tag bits of the `NodeId` budget (MEM-8, MEM-13, ADR-0103):
+//! `NodeId(u32)` = **tag bits (highest) + class bits + index bits (low)**.
+//! The tag field (MEM-13 arbitration) is [`TAG_BITS`] wide: bit 0 is the
+//! CUDD-style complement bit ([`TAG_COMPLEMENT`]), bits 1..=3 the shift
+//! nibble of M4-2 ([`TAG_SHIFT_MASK`]). The class field width `b` is
 //! the smallest integer with `2^b − 2 ≥ max_ℓ C(ℓ)`, derived from
 //! [`KeyAlgebra::cardinality`] at runtime and clamped to the compile-time
 //! window [`CLASS_BITS_MAX`]. An open (unbounded) domain cannot be derived:
@@ -23,6 +26,18 @@ pub const CLASS_BITS_OPEN_DEFAULT: u32 = 1;
 
 /// Terminal class: class `0` carries the terminals.
 pub const TERMINAL_CLASS: u32 = 0;
+
+/// Width of the tag field (MEM-13 arbitration of the tripartite budget,
+/// ADR-0103): 4 bits, taken from the top of the identifier. Bit 0 is the
+/// CUDD-style complement bit, bits 1..=3 the shift nibble of M4-2.
+pub const TAG_BITS: u32 = 4;
+
+/// Complement bit of the tag field (bit 0, CUDD-style edge transformer).
+pub const TAG_COMPLEMENT: u32 = 0b0001;
+
+/// Shift nibble of the tag field (bits 1..=3, per-arc shift amount of
+/// M4-2, 0..=7).
+pub const TAG_SHIFT_MASK: u32 = 0b1110;
 
 /// Smallest `b` in `1..=CLASS_BITS_MAX` with `2^b − 2 ≥ max_cardinality`.
 /// An open domain (cardinality beyond the window, e.g. `u64::MAX` for the
@@ -54,13 +69,15 @@ where
 }
 
 impl NodeId {
-    /// Number of index bits for a class field of `class_bits` bits.
+    /// Number of index bits for a class field of `class_bits` bits: the
+    /// tag field ([`TAG_BITS`]) sits on top of the identifier, so the
+    /// index gets `32 − TAG_BITS − class_bits` low bits.
     pub fn index_bits(class_bits: u32) -> u32 {
         assert!(
-            class_bits <= 32,
+            class_bits + TAG_BITS <= 32,
             "class field wider than the 32-bit identifier"
         );
-        32 - class_bits
+        32 - TAG_BITS - class_bits
     }
 
     /// Catch-all class value for a class field of `class_bits` bits
@@ -73,11 +90,23 @@ impl NodeId {
         ((1u64 << class_bits) - 1) as u32
     }
 
-    /// Encode `(class, index)` into a `NodeId`: the class in the high
-    /// `class_bits` bits, the index in the low `32 − class_bits` bits.
-    /// Fields out of their window are rejected by assertion.
+    /// Encode `(class, index)` into a `NodeId` with a zero tag: the tag
+    /// in the highest [`TAG_BITS`] bits, the class in the next
+    /// `class_bits` bits, the index in the low bits. Fields out of their
+    /// window are rejected by assertion.
     pub fn encode(class: u32, index: u32, class_bits: u32) -> NodeId {
+        Self::encode_tagged(0, class, index, class_bits)
+    }
+
+    /// Encode `(tag, class, index)` into a `NodeId` (MEM-13): tag in the
+    /// highest [`TAG_BITS`] bits, class in the next `class_bits` bits,
+    /// index in the low `32 − TAG_BITS − class_bits` bits.
+    pub fn encode_tagged(tag: u32, class: u32, index: u32, class_bits: u32) -> NodeId {
         let index_bits = Self::index_bits(class_bits);
+        assert!(
+            (tag as u64) < (1u64 << TAG_BITS),
+            "tag {tag} out of the {TAG_BITS}-bit tag window"
+        );
         assert!(
             (class as u64) < (1u64 << class_bits),
             "class {class} out of the {class_bits}-bit class window"
@@ -86,19 +115,41 @@ impl NodeId {
             (index as u64) < (1u64 << index_bits),
             "index {index} out of the {index_bits}-bit index window"
         );
-        NodeId((((class as u64) << index_bits) | index as u64) as u32)
+        NodeId(
+            (((tag as u64) << (32 - TAG_BITS)) | ((class as u64) << index_bits) | index as u64)
+                as u32,
+        )
     }
 
-    /// Decode with the effective class width `b`: `(class, index)`.
+    /// Decode with the effective class width `b`: `(class, index)`, the
+    /// tag field masked out (see [`NodeId::decode_tagged`]).
     pub fn decode(self, class_bits: u32) -> (u32, u32) {
+        let (tag, class, index) = self.decode_tagged(class_bits);
+        let _ = tag;
+        (class, index)
+    }
+
+    /// Decode with the effective class width `b`: `(tag, class, index)`.
+    pub fn decode_tagged(self, class_bits: u32) -> (u32, u32, u32) {
         let index_bits = Self::index_bits(class_bits);
-        let class = (self.0 as u64 >> index_bits) as u32;
+        let tag = (self.0 as u64 >> (32 - TAG_BITS)) as u32;
+        let class_mask = if class_bits == 32 {
+            u32::MAX
+        } else {
+            (1u32 << class_bits) - 1
+        };
+        let class = ((self.0 as u64 >> index_bits) as u32) & class_mask;
         let index_mask = if index_bits == 32 {
             u32::MAX
         } else {
             (1u32 << index_bits) - 1
         };
-        (class, self.0 & index_mask)
+        (tag, class, self.0 & index_mask)
+    }
+
+    /// Tag field of the identifier (MEM-13).
+    pub fn tag(self, class_bits: u32) -> u32 {
+        self.decode_tagged(class_bits).0
     }
 
     /// Class of a node of the given `degree`: the exact class when the
