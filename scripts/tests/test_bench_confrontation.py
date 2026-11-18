@@ -137,10 +137,10 @@ def test_pilot_charges_mem7() -> None:
     assert philo.tools == ("lisage",)
     # window: parameterized (size=4, nb_bases=10 — the pinned values of
     # tests/confrontation.rs), both encodings, lisage-only.
-    for label, encodage in (("window-4x10-absolu", "absolu"), ("window-4x10-relatif", "relatif")):
+    for label, encoding in (("window-4x10-absolu", "absolu"), ("window-4x10-relatif", "relatif")):
         window = by_label[label]
         assert window.workload == "window"
-        assert charge_parameters(charge=window) == ("4", "10", encodage)
+        assert charge_parameters(charge=window) == ("4", "10", encoding)
         assert window.tools == ("lisage",)
 
 
@@ -148,8 +148,8 @@ def test_charge_parameters_default_path() -> None:
     """A file-based charge without explicit parameters runs on its path."""
     charge = bc.Charge("c", "cnf", Path("x"))
     assert charge_parameters(charge=charge) == ("x",)
-    charge_sans_fichier = bc.Charge("c", "alea-lcg", parameters=("12",))
-    assert charge_parameters(charge=charge_sans_fichier) == ("12",)
+    charge_without_file = bc.Charge("c", "alea-lcg", parameters=("12",))
+    assert charge_parameters(charge=charge_without_file) == ("12",)
 
 
 def test_run_campaign_exit_1_sur_divergence(
