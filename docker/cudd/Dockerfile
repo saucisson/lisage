@@ -28,8 +28,12 @@ RUN ./configure --enable-shared --enable-obj --disable-dependency-tracking \
 # Lit sur stdin : n (nombre de variables) puis 2^n valeurs 0/1 (table de vérité).
 # Écrit sur stdout : le nombre de nœuds du BDD CUDD (un entier suivi d'un retour à la ligne).
 COPY cudd_count.c /opt/cudd_count.c
+COPY cudd_measure.c /opt/cudd_measure.c
 RUN gcc -O2 /opt/cudd_count.c -o /usr/local/bin/cudd_count \
         -I/usr/local/include -L/usr/local/lib -lcudd \
-    && printf '2\n0 1 1 0\n' | cudd_count
+    && gcc -O2 /opt/cudd_measure.c -o /usr/local/bin/cudd_measure \
+        -I/usr/local/include -L/usr/local/lib -lcudd \
+    && printf '2\n0 1 1 0\n' | cudd_count \
+    && printf '2\n0 1 1 0\n' | cudd_measure
 
 CMD ["/bin/bash"]

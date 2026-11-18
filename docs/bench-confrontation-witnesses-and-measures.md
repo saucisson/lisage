@@ -30,10 +30,26 @@ the exact input lisage measured.
 - **OxiDD**: the `lisage-oxidd:latest` container
   (`docker build -t lisage-oxidd:latest docker/oxidd`, OxiDD pinned at
   commit `c7a458df8b747a3ee44d0e9e61059a1621865fcd`), `oxidd_count`
-  reading the charge on stdin, one fresh container per measurement.
-- **CUDD/Sylvan**: `docker/cudd/` exists (ADR-0102 pattern); not part of
-  the deposited campaigns (the CUDD `DagSize` terminal-counting
-  divergence is documented in WORKLOG).
+  reading the charge on stdin, one fresh container per measurement. The
+  unique-table / apply-cache capacities default to 2^20 entries each and
+  can be raised per charge through the `OXIDD_INNER_CAPACITY` /
+  `OXIDD_APPLY_CACHE_CAPACITY` environment variables (BENCH-1 crossover
+  charges).
+- **CUDD**: the `lisage-cudd:latest` container
+  (`docker build -t lisage-cudd:latest docker/cudd`, CUDD pinned at tag
+  `cudd-3.0.0` = commit `fc30c18f8db2e7d03d13241038b61eb0056a734e`),
+  `cudd_measure` reading the charge on stdin, one fresh container per
+  measurement. Node count in the lisage convention: distinct
+  (node, complement-bit) pairs reachable from the root, terminals
+  included (the raw `Cudd_DagSize` is not comparable — complement-edge
+  sharing, documented in WORKLOG).
+- **libDDD (LIP6)**: the `lisage-libddd:latest` container
+  (`docker build -t lisage-libddd:latest docker/libddd`, pinned at commit
+  `b775aed3e8405a8906b10f937f6dbcc4a4b8831c`), `libddd_measure` reading
+  the charge on stdin, one fresh container per measurement. libDDD has no
+  complement edges, so `GDDD::size()` (distinct reachable nodes, terminals
+  included) is directly the lisage convention.
+- **Sylvan**: not yet dockerized (spike SP-2, issue #154).
 
 ## Fairness rules
 
@@ -91,3 +107,7 @@ The exact command of each deposited run is recorded in
 - `bench-results/20261117-campaign-1/` — first campaign (M7-5): raw
   JSONL, aggregates, reproduction command, and the comparative report
   `REPORT.md` (M7-6).
+- `bench-results/20261118-campaign-2/` — BENCH-1 campaign (issue #277):
+  lisage vs OxiDD vs CUDD vs libDDD on the crossover charges
+  (`alea-lcg` n = 20/22/24, `cnf-uf20-01`, `pnml-swimmingpool-1`), with
+  the OxiDD ~4x gap analysis and the memory crossover in `REPORT.md`.

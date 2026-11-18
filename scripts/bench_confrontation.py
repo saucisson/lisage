@@ -44,8 +44,21 @@ if TYPE_CHECKING:
 DEFAULT_REPETITIONS = 5
 DEFAULT_OUTPUT_DIRECTORY = Path("bench-results")
 DEFAULT_BINARY = Path("target/release/confrontation")
-DEFAULT_OXIDD_IMAGE = "lisage-oxidd:latest"
 DEFAULT_TOOLS = ("lisage", "oxidd")
+
+# Docker witnesses (ADR-0102, local only): image and stdin command of each
+# external tool. `oxidd_env` carries per-charge environment overrides for
+# the OxiDD witness (capacities of the unique table / apply cache).
+WITNESS_IMAGES = {
+    "oxidd": "lisage-oxidd:latest",
+    "cudd": "lisage-cudd:latest",
+    "libddd": "lisage-libddd:latest",
+}
+WITNESS_COMMANDS = {
+    "oxidd": ["oxidd_count"],
+    "cudd": ["cudd_measure"],
+    "libddd": ["libddd_measure"],
+}
 
 MEASURE_KEYS = (
     "outil",
@@ -69,7 +82,8 @@ class Charge:
     charge is file-based and the single parameter is the input path.
     `tools` restricts the witnesses measured for this charge (the pilot
     DDD/MDD workloads have no external witness in the stdin protocol:
-    lisage only).
+    lisage only). `oxidd_env` overrides the environment of the OxiDD
+    witness for this charge (unique-table / apply-cache capacities).
     """
 
     label: str
@@ -77,6 +91,7 @@ class Charge:
     path: Path | None = None
     parameters: tuple[str, ...] = ()
     tools: tuple[str, ...] = DEFAULT_TOOLS
+    oxidd_env: tuple[tuple[str, str], ...] = ()
 
 
 def charge_parameters(*, charge: Charge) -> tuple[str, ...]:
@@ -111,6 +126,40 @@ PILOT_CHARGES: tuple[Charge, ...] = (
     ),
     Charge("window-4x10-absolu", "window", parameters=("4", "10", "absolu"), tools=("lisage",)),
     Charge("window-4x10-relatif", "window", parameters=("4", "10", "relatif"), tools=("lisage",)),
+)
+
+# Crossover charges (BENCH-1, issue #277): alea-lcg at several n to track
+# time and RSS against the node count, plus two real charges — all measured
+# against every witness. alea-lcg-24 reaches ~1.4M nodes, beyond the default
+# 2^20 unique-table capacity of the OxiDD witness: its capacities are raised
+# via the environment (documented in the campaign report; the default image
+# stays the reference).
+ALL_WITNESS_TOOLS = ("lisage", "oxidd", "cudd", "libddd")
+CROSSOVER_CHARGES: tuple[Charge, ...] = (
+    Charge("alea-lcg-20", "alea-lcg", parameters=("20",), tools=ALL_WITNESS_TOOLS),
+    Charge("alea-lcg-22", "alea-lcg", parameters=("22",), tools=ALL_WITNESS_TOOLS),
+    Charge(
+        "alea-lcg-24",
+        "alea-lcg",
+        parameters=("24",),
+        tools=ALL_WITNESS_TOOLS,
+        oxidd_env=(
+            ("OXIDD_INNER_CAPACITY", str(1 << 23)),
+            ("OXIDD_APPLY_CACHE_CAPACITY", str(1 << 23)),
+        ),
+    ),
+    Charge(
+        "cnf-uf20-01",
+        "cnf",
+        Path("crates/lisage-bench/models/uf20-01.cnf"),
+        tools=ALL_WITNESS_TOOLS,
+    ),
+    Charge(
+        "pnml-swimmingpool-1",
+        "pnml",
+        Path("crates/lisage-bench/models/SwimmingPool-1.pnml"),
+        tools=ALL_WITNESS_TOOLS,
+    ),
 )
 
 
@@ -207,17 +256,27 @@ def dump_charge(*, binary: Path, charge: Charge) -> str:
     return completed.stdout
 
 
-def run_oxidd_measurement(*, image: str, charge_stdin: str, label: str) -> dict[str, object]:
-    """One OxiDD measurement: a fresh container, charge on stdin."""
+def run_witness_measurement(
+    *,
+    tool: str,
+    charge_stdin: str,
+    label: str,
+    oxidd_env: tuple[tuple[str, str], ...] = (),
+) -> dict[str, object]:
+    """One external-witness measurement: a fresh container, charge on stdin."""
+    command = ["docker", "run", "--rm", "-i"]
+    for key, value in oxidd_env:
+        command += ["-e", f"{key}={value}"]
+    command += [WITNESS_IMAGES[tool], *WITNESS_COMMANDS[tool], label]
     completed = subprocess.run(
-        ["docker", "run", "--rm", "-i", image, "oxidd_count", label],
+        command,
         input=charge_stdin,
         capture_output=True,
         text=True,
         check=False,
     )
     if completed.returncode != EXIT_CODE_SUCCESS:
-        raise RuntimeError(f"oxidd measurement failed: {completed.stderr.strip()}")
+        raise RuntimeError(f"{tool} measurement failed: {completed.stderr.strip()}")
     return parse_measure_line(line=completed.stdout.strip())
 
 
@@ -227,7 +286,6 @@ def run_campaign(
     tools: Sequence[str],
     repetitions: int,
     binary: Path,
-    image: str,
     output_directory: Path,
     run_identifier: str,
 ) -> int:
@@ -242,11 +300,14 @@ def run_campaign(
             for _ in range(repetitions):
                 if tool == "lisage":
                     measure = run_lisage_measurement(binary=binary, charge=charge)
-                elif tool == "oxidd":
+                elif tool in WITNESS_IMAGES:
                     if charge_stdin is None:
                         charge_stdin = dump_charge(binary=binary, charge=charge)
-                    measure = run_oxidd_measurement(
-                        image=image, charge_stdin=charge_stdin, label=charge.label
+                    measure = run_witness_measurement(
+                        tool=tool,
+                        charge_stdin=charge_stdin,
+                        label=charge.label,
+                        oxidd_env=charge.oxidd_env if tool == "oxidd" else (),
                     )
                 else:
                     raise ValueError(f"unknown tool: {tool}")
@@ -300,7 +361,7 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
         "--tools",
         type=str,
         default=",".join(DEFAULT_TOOLS),
-        help="Comma-separated tools: lisage,oxidd.",
+        help="Comma-separated tools: lisage,oxidd,cudd,libddd.",
     )
     subparser.add_argument(
         "--charges",
@@ -314,16 +375,15 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
         help="Run the MEM-7 pilot charges (alea-lcg, philosophers, window).",
     )
     subparser.add_argument(
+        "--crossover",
+        action="store_true",
+        help="Run the BENCH-1 crossover charges (alea-lcg 20/22/24, cnf, pnml; issue #277).",
+    )
+    subparser.add_argument(
         "--binary",
         type=Path,
         default=DEFAULT_BINARY,
         help="Path of the release confrontation binary.",
-    )
-    subparser.add_argument(
-        "--image",
-        type=str,
-        default=DEFAULT_OXIDD_IMAGE,
-        help="OxiDD witness image.",
     )
     subparser.add_argument(
         "--output-dir",
@@ -342,9 +402,11 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 def run(*, arguments: argparse.Namespace) -> int:
     """Entry point: run the campaign, deposit results, report divergences."""
-    all_charges = CHARGES + PILOT_CHARGES
+    all_charges = CHARGES + PILOT_CHARGES + CROSSOVER_CHARGES
     if arguments.pilot:
         charges = list(PILOT_CHARGES)
+    elif arguments.crossover:
+        charges = list(CROSSOVER_CHARGES)
     else:
         labels = [label.strip() for label in arguments.charges.split(",") if label.strip()]
         charges = [charge for charge in all_charges if not labels or charge.label in labels]
@@ -365,7 +427,6 @@ def run(*, arguments: argparse.Namespace) -> int:
             tools=tools,
             repetitions=arguments.repetitions,
             binary=arguments.binary,
-            image=arguments.image,
             output_directory=arguments.output_dir,
             run_identifier=run_identifier,
         )

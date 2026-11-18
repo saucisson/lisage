@@ -14,7 +14,10 @@ import pytest
 from scripts import bench_confrontation as bc
 from scripts.bench_confrontation import (
     CHARGES,
+    CROSSOVER_CHARGES,
     PILOT_CHARGES,
+    WITNESS_COMMANDS,
+    WITNESS_IMAGES,
     aggregate_measures,
     charge_parameters,
     cross_check_aggregates,
@@ -145,6 +148,39 @@ def test_pilot_charges_mem7() -> None:
         assert window.tools == ("lisage",)
 
 
+def test_crossover_charges_bench1() -> None:
+    """BENCH-1 crossover charges (issue #277): alea-lcg at n=20/22/24 plus
+    two real charges, all measured against every witness; alea-lcg-24
+    raises the OxiDD witness capacities beyond the default 2^20."""
+    by_label = {charge.label: charge for charge in CROSSOVER_CHARGES}
+    assert set(by_label) == {
+        "alea-lcg-20",
+        "alea-lcg-22",
+        "alea-lcg-24",
+        "cnf-uf20-01",
+        "pnml-swimmingpool-1",
+    }
+    for label in ("alea-lcg-20", "alea-lcg-22", "alea-lcg-24"):
+        charge = by_label[label]
+        assert charge.workload == "alea-lcg"
+        assert charge_parameters(charge=charge) == (label.rsplit("-", 1)[1],)
+        assert set(charge.tools) == {"lisage", "oxidd", "cudd", "libddd"}
+    big = by_label["alea-lcg-24"]
+    assert ("OXIDD_INNER_CAPACITY", str(1 << 23)) in big.oxidd_env
+    assert ("OXIDD_APPLY_CACHE_CAPACITY", str(1 << 23)) in big.oxidd_env
+    for label in ("cnf-uf20-01", "pnml-swimmingpool-1"):
+        charge = by_label[label]
+        assert charge.path is not None and charge.path.is_file()
+        assert charge.oxidd_env == ()
+
+
+def test_witness_registry_couvre_les_outils_externes() -> None:
+    """Every external tool has a pinned image and a stdin command."""
+    assert set(WITNESS_IMAGES) == set(WITNESS_COMMANDS) == {"oxidd", "cudd", "libddd"}
+    assert WITNESS_COMMANDS["cudd"] == ["cudd_measure"]
+    assert WITNESS_COMMANDS["libddd"] == ["libddd_measure"]
+
+
 def test_charge_parameters_default_path() -> None:
     """A file-based charge without explicit parameters runs on its path."""
     charge = bc.Charge("c", "cnf", Path("x"))
@@ -168,7 +204,6 @@ def test_run_pilot_selects_pilot_charges(monkeypatch: pytest.MonkeyPatch) -> Non
         tools="lisage,oxidd",
         repetitions=1,
         binary=Path("b"),
-        image="img",
         output_dir=Path("out"),
         run_id="t",
     )
@@ -192,23 +227,24 @@ def test_run_campaign_restricts_tools_per_charge(
         calls.append("lisage")
         return make_measure(outil="lisage", charge="p", temps_ms=1.0, rss=1, noeuds=12, verifie=40)
 
-    def oxidd_measure(*, image: str, charge_stdin: str, label: str) -> dict[str, object]:
-        calls.append("oxidd")
-        return make_measure(outil="oxidd", charge="p", temps_ms=2.0, rss=2, noeuds=12, verifie=40)
+    def witness_measure(
+        *, tool: str, charge_stdin: str, label: str, oxidd_env: tuple[tuple[str, str], ...] = ()
+    ) -> dict[str, object]:
+        calls.append(tool)
+        return make_measure(outil=tool, charge="p", temps_ms=2.0, rss=2, noeuds=12, verifie=40)
 
     def fail_dump(*, binary: Path, charge: bc.Charge) -> str:
         calls.append("dump")
         raise AssertionError("dump_charge must not be called for a lisage-only charge")
 
     monkeypatch.setattr(bc, "run_lisage_measurement", lisage_measure)
-    monkeypatch.setattr(bc, "run_oxidd_measurement", oxidd_measure)
+    monkeypatch.setattr(bc, "run_witness_measurement", witness_measure)
     monkeypatch.setattr(bc, "dump_charge", fail_dump)
     exit_code = bc.run_campaign(
         charges=[charge],
         tools=["lisage", "oxidd"],
         repetitions=2,
         binary=Path("b"),
-        image="img",
         output_directory=tmp_path,
         run_identifier="t",
     )
@@ -231,18 +267,19 @@ def test_run_campaign_exit_1_sur_divergence(
     def lisage_measure(*, binary: Path, charge: bc.Charge) -> dict[str, object]:
         return make_measure(outil="lisage", charge="c", temps_ms=1.0, rss=1, noeuds=51)
 
-    def oxidd_measure(*, image: str, charge_stdin: str, label: str) -> dict[str, object]:
-        return make_measure(outil="oxidd", charge="c", temps_ms=2.0, rss=2, noeuds=49)
+    def witness_measure(
+        *, tool: str, charge_stdin: str, label: str, oxidd_env: tuple[tuple[str, str], ...] = ()
+    ) -> dict[str, object]:
+        return make_measure(outil=tool, charge="c", temps_ms=2.0, rss=2, noeuds=49)
 
     monkeypatch.setattr(bc, "run_lisage_measurement", lisage_measure)
-    monkeypatch.setattr(bc, "run_oxidd_measurement", oxidd_measure)
+    monkeypatch.setattr(bc, "run_witness_measurement", witness_measure)
     monkeypatch.setattr(bc, "dump_charge", lambda *, binary, charge: "2\n0 1 1 0\n")
     exit_code = bc.run_campaign(
         charges=[charge],
         tools=["lisage", "oxidd"],
         repetitions=2,
         binary=Path("b"),
-        image="img",
         output_directory=tmp_path,
         run_identifier="t",
     )

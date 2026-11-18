@@ -1,0 +1,5 @@
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "libddd", "parametres": {"n": "20"}, "rss_max_ko": 32352, "temps_ms": 290.341, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "libddd", "parametres": {"n": "20"}, "rss_max_ko": 32308, "temps_ms": 289.761, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "libddd", "parametres": {"n": "20"}, "rss_max_ko": 32348, "temps_ms": 288.256, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "libddd", "parametres": {"n": "20"}, "rss_max_ko": 32344, "temps_ms": 288.602, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "libddd", "parametres": {"n": "20"}, "rss_max_ko": 32464, "temps_ms": 290.769, "variante": "bdd", "verifie": 8}
