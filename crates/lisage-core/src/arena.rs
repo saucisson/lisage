@@ -503,4 +503,8 @@ impl<C: Controller> Pool for Arena<C> {
             .map(|arena| arena.slot_count())
             .sum()
     }
+
+    fn class_bits(&self) -> u32 {
+        self.class_map.class_bits
+    }
 }

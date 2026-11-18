@@ -216,3 +216,95 @@ fn test_policy_memory_du_controleur() {
         "default policy (M1): no level memory"
     );
 }
+
+/// MEM-15: dense parallel arrays per class — the footprint per entry is
+/// divided by at least 2 against the old `HashMap<(NodeId, Level), V>`
+/// (~48 B per entry).
+#[test]
+fn test_empreinte_memo_dense_divisee() {
+    const BASELINE_HASHMAP_BYTES_PER_ENTRY: usize = 48;
+    let mut memory: MemoryLevel<u64> = MemoryLevel::new();
+    for node in 0..500u32 {
+        memory.write(NodeId(node), Level(node % 7), node as u64 * 3);
+    }
+    assert_eq!(memory.size(), 500);
+    let per_entry = memory.bytes() as f64 / memory.size() as f64;
+    assert!(
+        per_entry <= (BASELINE_HASHMAP_BYTES_PER_ENTRY / 2) as f64,
+        "dense arrays: {per_entry:.1} B/entry, must be ≤ {} B/entry (half of the ~48 B HashMap)",
+        BASELINE_HASHMAP_BYTES_PER_ENTRY / 2
+    );
+    // Read-after-write still exact.
+    for node in 0..500u32 {
+        assert_eq!(
+            memory.read(NodeId(node), Level(node % 7)),
+            Some(&(node as u64 * 3))
+        );
+    }
+}
+
+/// MEM-15: several levels for the same node keep the exact `(node, level)`
+/// semantics (dense slot + overflow list).
+#[test]
+fn test_plusieurs_niveaux_par_noeud() {
+    let mut memory: MemoryLevel<u64> = MemoryLevel::new();
+    assert_eq!(memory.write(NodeId(5), Level(0), 10), None);
+    assert_eq!(
+        memory.write(NodeId(5), Level(1), 11),
+        None,
+        "second level: new key"
+    );
+    assert_eq!(
+        memory.write(NodeId(5), Level(0), 12),
+        Some(10),
+        "overwrite same key"
+    );
+    assert_eq!(memory.size(), 2);
+    assert_eq!(memory.read(NodeId(5), Level(0)), Some(&12));
+    assert_eq!(memory.read(NodeId(5), Level(1)), Some(&11));
+    assert_eq!(memory.read(NodeId(5), Level(2)), None);
+    assert_eq!(memory.version(), 3);
+}
+
+/// MEM-15: the memory holders apply the compaction remap — stored node ids
+/// are translated, dead nodes drop their entry, the version bumps (L1).
+#[test]
+fn test_remap_applique_par_les_porteurs() {
+    let mut memory: MemoryLevel<u64> = MemoryLevel::new();
+    memory.write(NodeId(0), Level(0), 100);
+    memory.write(NodeId(1), Level(0), 200);
+    memory.write(NodeId(2), Level(1), 300);
+    let version_before = memory.version();
+    // Compaction remap: 0 → 10, 1 → dead, 2 → 20.
+    let remap: BTreeMap<u32, Option<NodeId>> =
+        BTreeMap::from([(0, Some(NodeId(10))), (1, None), (2, Some(NodeId(20)))]);
+    memory.remap(&remap);
+    assert_eq!(memory.size(), 2, "the dead entry is dropped");
+    assert_eq!(memory.read(NodeId(10), Level(0)), Some(&100));
+    assert_eq!(memory.read(NodeId(20), Level(1)), Some(&300));
+    assert_eq!(memory.read(NodeId(0), Level(0)), None);
+    assert_eq!(memory.read(NodeId(1), Level(0)), None);
+    assert!(memory.version() > version_before, "L1: the memory changed");
+}
+
+/// MEM-15: with a pool class width `b`, the memory decodes `(class, index)`
+/// — entries land in the dense array of their class.
+#[test]
+fn test_decode_avec_class_bits_du_pool() {
+    use lisage_algebra::class_bits::TAG_BITS;
+    // b = 2: class in bits [26..28), index in the low 26 bits.
+    let mut memory: MemoryLevel<u64> = MemoryLevel::with_class_bits(2);
+    let class_2_index_5 = NodeId::encode(2, 5, 2);
+    let class_3_index_1 = NodeId::encode(3, 1, 2);
+    assert_eq!(class_2_index_5.0 >> (32 - TAG_BITS - 2), 2);
+    memory.write(class_2_index_5, Level(0), 42);
+    memory.write(class_3_index_1, Level(1), 43);
+    assert_eq!(memory.read(class_2_index_5, Level(0)), Some(&42));
+    assert_eq!(memory.read(class_3_index_1, Level(1)), Some(&43));
+    assert_eq!(
+        memory.read(class_2_index_5, Level(1)),
+        None,
+        "keyed by (node, level)"
+    );
+    assert_eq!(memory.size(), 2);
+}
