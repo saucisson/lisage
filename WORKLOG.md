@@ -46,6 +46,13 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-18 - MEM-4: rank/unrank in KeyAlgebra (issue #120)
+
+- **Issue**: #120 (MEM-4, milestone MEM-A) — rank/unrank derived from the region enumeration required by the key contract; rank availability exposed to normalization; dense ordinal storage writes no code per controller.
+- **Done**: `KeyAlgebra` gains `rank(level, key) -> Option<u64>` and `unrank(level, rang) -> Option<Key>`, both defaulting to `None` — the absence of rank is properly declared for unbounded domains (DDD path unchanged), and the dense ordinal storage (MEM-B) needs no per-controller code. `SchemaKeys` (reference instance) and `BddKeys` implement them: on bounded domains the key IS the ordinal (`rank`/`unrank` bounded by `cardinality`). Doc note: rank availability is exposed to `normal_form`, which may encode keys by rank when it exists. PBT `crates/lisage-bench/tests/rank_unrank.rs`: round-trip `rank ∘ unrank` on bounded atom domains of the reference instance and on the BDD algebra, out-of-range `None` both directions, and declared absence on an unbounded algebra. Cites ADR-0103 (draft, #117).
+- **Evidence**: `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `make rust-check` (307 passed, 5 skipped, incl. the 3 new PBT cases), `make test` (45 passed), `make lint`, `make typecheck`, `make imports`, `make english-only`, `cargo doc -p lisage-algebra --no-deps` all pass.
+- **Judgement calls**: rank/unrank are implemented only for the bounded u64-domain algebras (reference instance, BDD); region/CDD/DBM keys keep the default `None` (their "regions" are not simple ordinals) — the criterion only demands the reference instance's bounded domains plus declared absence elsewhere.
+
 ## 2026-11-18 - MEM-3: ArcStore port in the lisage-algebra interface (issue #119)
 
 - **Issue**: #119 (MEM-3, milestone MEM-A) — ArcStore port in the interface: associated type on the controller, minimal contract (ordered iteration of (key, target), builder-side insertion, size), default instance = the current BTreeMap; reductions see only the port's iteration.
