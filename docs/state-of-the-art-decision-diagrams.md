@@ -41,6 +41,7 @@ It is precisely this matrix that a unified framework must cover: polyDD tackled 
 - **Canonicity**: reduced ordered BDDs are canonical, so equality of Boolean functions is decidable in constant time.
 - **License / language**: MIT OR Apache-2.0; native Rust gives memory safety and zero-cost abstractions without a GC.
 - **Limits**: like Sylvan and Meddly, unification is by **framework**, not by a controller — each DD kind re-implements its own reductions; no HSDD-style hierarchy, no declarative saturation, no generic edge valuation.
+- **Benchmark against lisage**: OxiDD is the external witness of the local confrontation campaign (ADR-0102, protocol in `docs/bench-confrontation-witnesses-and-measures.md`); the deposited results and the comparative reading are in `bench-results/20261117-campaign-1/REPORT.md`.
 
 ---
 

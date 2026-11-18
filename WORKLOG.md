@@ -46,6 +46,13 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-17 - M7-6: comparative results report lisage vs OxiDD (issue #116)
+
+- **Issue**: #116 (M7-6, milestone M7) — write the comparative report from the M7-5 results and update the docs.
+- **Done**: report `bench-results/20261117-campaign-1/REPORT.md` (versioned next to the data): cross-check table (noeuds/verifie identical across tools: 51/8, 1859/1408, 9721/8672), time and peak-RSS tables per charge (median [min,max], 5 reps, every number sourced from `aggregats.json`), and a reading section — lisage uses 7-10x less peak RSS (OxiDD witness pre-allocates 2^20 unique-table/apply-cache entries, a fixed baseline), OxiDD is 3.5-4.0x faster (mature engine + apply cache vs lisage's Shannon expansion over the materialized 2^n table); measurement limits stated (single machine, 5 reps, table materialization in the measured block, CUDD/Sylvan not measured). Protocol doc `docs/bench-confrontation-witnesses-and-measures.md` now lists the witnesses (lisage binary, OxiDD container, CUDD not in campaigns) and the deposited results; `docs/state-of-the-art-decision-diagrams.md` links the report from the OxiDD section.
+- **Evidence**: `make lint`, `make typecheck`, `make imports`, `make test` (40 passed, 94.76%), `make rust-check` (302 passed, 5 skipped), `make english-only` all pass. No Rust code changed in this PR (docs + deposited report only), so `cargo fmt`/`clippy` were not re-run — no Rust file in the diff.
+- **Judgement calls**: the report lives in `bench-results/20261117-campaign-1/` (next to the data it cites) rather than `docs/`, and is linked from both docs; CUDD/Sylvan are explicitly marked as not measured rather than silently omitted.
+
 ## 2026-11-17 - M7-5: benchmark campaign runner + deposited results lisage vs OxiDD (issue #115)
 
 - **Issue**: #115 (M7-5, milestone M7) — run the comparative campaign on the M7-4 charges, time AND memory, per the ADR-0102 protocol.
