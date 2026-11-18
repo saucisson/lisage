@@ -232,6 +232,10 @@ impl KeyAlgebra for SchemaKeys {
             None
         }
     }
+
+    fn sweep_levels(&self) -> u32 {
+        self.schema.number_levels()
+    }
 }
 
 /// Controller of the reference instance: carries the schema, designates D_δ =

@@ -196,13 +196,20 @@ fn test_compaction_profilee() {
     assert!(stats.compaction, "profiled compaction triggered");
     assert_eq!(pool.live(), 2);
     assert_eq!(pool.node_count(), 2, "tombstones compacted");
-    // Compaction invalidates old NodeIds: the live root is remapped to a new
-    // id, resolvable and indexed at level 1.
+    // Compaction remaps the NodeIds per class arena: the live root maps to
+    // a resolvable id indexed at level 1 (identity when it already heads
+    // its class), the tombstoned orphans map to None.
     let remap = pool.last_remap();
-    let new = remap[root.0 as usize].expect("live root remapped");
-    assert_ne!(new, root);
+    let new = remap
+        .get(&root.0)
+        .copied()
+        .flatten()
+        .expect("live root remapped");
     assert!(pool.resolve(new).is_ok());
     assert!(pool.index_level(Level(LEVEL_ROOT)).contains(&new));
+    for orphan in &orphans {
+        assert_eq!(remap.get(&orphan.0), Some(&None), "orphan tombstoned");
+    }
     // Threshold not reached with few dead.
     assert!(!threshold_atteint(1, 100));
     assert_eq!(THRESHOLD_COMPACTION_NUM, 1);
