@@ -12,6 +12,7 @@
 //! ```
 
 use lisage_algebra::interface::Anchor;
+use lisage_bench::temoin_bdd::MiniBdd;
 use lisage_core::arena::Arena;
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, count_nodes};
 use lisage_core::observer::NoOpObserver;
@@ -19,7 +20,8 @@ use proptest::prelude::*;
 use std::process::Command;
 
 /// Calls the `cudd_count` binary in the Docker container and returns the
-/// CUDD node count for the given truth table.
+/// CUDD node count for the given truth table, in the lisage convention
+/// (distinct (node, complement-bit) pairs, terminals included).
 fn cudd_count_nodes(number_variables: u32, table: &[bool]) -> Option<usize> {
     let mut input = format!("{}\n", number_variables);
     for &value in table {
@@ -90,6 +92,36 @@ proptest! {
             nodes_arene,
             nodes_cudd as u64,
             "local C6: identical reproduction of the node count against real CUDD"
+        );
+    }
+
+    /// Local C6 (MEM-6): the node count of the independent mini-BDD
+    /// witness — whose published binary node is `BinaryNode<LEVEL, LOW,
+    /// HIGH>` with the CUDD-style complement bit — equals the one
+    /// computed by real CUDD (Docker container) on random truth tables.
+    /// `cudd_count` counts distinct (node, complement-bit) pairs,
+    /// terminals included: the lisage convention, so the counts are
+    /// directly comparable.
+    #[test]
+    #[ignore = "outside CI — requires the Docker image lisage-cudd:latest"]
+    fn test_c6_local_witness_vs_cudd(
+        number_variables in 2u32..=8,
+        table in prop::collection::vec(any::<bool>(), 4..=256),
+    ) {
+        let size = 1usize << number_variables;
+        let table: Vec<bool> = table.into_iter().cycle().take(size).collect();
+
+        let mut witness = MiniBdd::new();
+        let root_witness = witness.compiler_table(number_variables, &table);
+        let nodes_witness = witness.count_nodes(root_witness);
+
+        let nodes_cudd = cudd_count_nodes(number_variables, &table)
+            .expect("call to the lisage-cudd Docker container failed");
+
+        prop_assert_eq!(
+            nodes_witness,
+            nodes_cudd as u64,
+            "local C6: identical reproduction of the witness node count against real CUDD"
         );
     }
 }

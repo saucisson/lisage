@@ -4,14 +4,20 @@ RUN apt-get update -qq && apt-get install -y -qq \
     build-essential \
     git \
     ca-certificates \
+    autoconf \
+    automake \
+    libtool \
+    perl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/cudd
 
 # Pin by commit SHA (tag cudd-3.0.0 = fc30c18f8db2e7d03d13241038b61eb0056a734e)
+# The git checkout has no generated configure script: autoreconf first.
 RUN git clone --depth 1 https://github.com/ivmai/cudd.git . \
     && git fetch --depth 1 origin fc30c18f8db2e7d03d13241038b61eb0056a734e \
-    && git checkout fc30c18f8db2e7d03d13241038b61eb0056a734e
+    && git checkout fc30c18f8db2e7d03d13241038b61eb0056a734e \
+    && autoreconf -fi
 
 RUN ./configure --enable-shared --enable-obj --disable-dependency-tracking \
     && make -j"$(nproc)" \
