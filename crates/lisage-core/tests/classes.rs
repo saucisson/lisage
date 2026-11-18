@@ -27,6 +27,14 @@ impl KeyAlgebra for MockKeys {
     fn default(&self, _level: Level) -> Option<Self::Key> {
         None
     }
+
+    fn rank(&self, _level: Level, key: &Self::Key) -> Option<u64> {
+        (*key < 2).then_some(*key)
+    }
+
+    fn unrank(&self, _level: Level, rang: u64) -> Option<Self::Key> {
+        (rang < 2).then_some(rang)
+    }
 }
 
 /// Mock controller with a `u64` payload: many distinct terminals, so a
@@ -317,6 +325,14 @@ impl KeyAlgebra for MockKeysDefault {
 
     fn default(&self, _level: Level) -> Option<Self::Key> {
         Some(0)
+    }
+
+    fn rank(&self, _level: Level, key: &Self::Key) -> Option<u64> {
+        (*key < 3).then_some(*key)
+    }
+
+    fn unrank(&self, _level: Level, rang: u64) -> Option<Self::Key> {
+        (rang < 3).then_some(rang)
     }
 }
 

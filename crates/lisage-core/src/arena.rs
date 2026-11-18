@@ -16,8 +16,14 @@ use lisage_algebra::reduction::{
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::biplan::{IndexLevels, MetriquesPool, NodeEntry, Plan, StatsGc, threshold_atteint};
-use crate::classes::{ClassArena, ClassMap, ClassMetrics};
+use crate::biplan::{IndexLevels, MetriquesPool, Plan, StatsGc, threshold_atteint};
+use crate::classes::{ClassArenaDyn, ClassMap, ClassMetrics, mark_of, new_arena, set_mark};
+
+/// Per-class arenas behind the object-safe trait (MEM-16): exact classes
+/// hold monomorphic inline entries, terminal and catch-all classes the
+/// `NodeEntry` with the full form.
+type Arenas<C> =
+    Vec<Option<Box<dyn ClassArenaDyn<<C as Controller>::Keys, <C as Controller>::Payload>>>>;
 use crate::observer::{ClassHistogram, Observer, ReductionRule, TraceEvent};
 use crate::unique::{TableUnique, hash_cle};
 
@@ -28,8 +34,11 @@ pub struct Arena<C: Controller> {
     /// Frozen class map (MEM-9, ADR-0103): class bits + index bits of the
     /// `NodeId`, fixed at construction.
     class_map: ClassMap,
-    /// Per-class arenas, created lazily (MEM-9).
-    arenas: Vec<Option<ClassArena<C::Key, C::Payload>>>,
+    /// Per-class arenas, created lazily (MEM-9). MEM-16: exact classes
+    /// hold monomorphic inline entries (`InlineEntry<d>`, stride
+    /// `8·d + header`); terminal and catch-all classes keep the `NodeEntry`
+    /// with the full form — behind the same object-safe trait.
+    arenas: Arenas<C>,
     /// Unique table (MEM-14): open addressing of `(hash, anchor, NodeId)`
     /// — the semantic form is compared through the stored entry, never
     /// cloned into the key; `ControllerId` is constant per pool and out
@@ -49,7 +58,11 @@ pub struct Arena<C: Controller> {
     controleur: C,
 }
 
-impl<C: Controller> Arena<C> {
+impl<C: Controller> Arena<C>
+where
+    C::Keys: 'static,
+    C::Payload: 'static,
+{
     /// New arena with the given controller and trace observer. The class
     /// map is derived from the controller's key algebra and frozen here.
     pub fn new(controleur: C, observer: Box<dyn Observer>) -> Self {
@@ -101,18 +114,20 @@ impl<C: Controller> Arena<C> {
         node.decode(self.class_map.class_bits)
     }
 
-    /// Entry of a node, if the identifier is valid.
-    fn entry(&self, node: NodeId) -> Option<&NodeEntry<C::Key, C::Payload>> {
-        let (class, index) = self.decode(node);
-        self.arenas.get(class as usize)?.as_ref()?.get(index)
+    /// Arena of a class, if created.
+    fn arena(&self, class: u32) -> Option<&dyn ClassArenaDyn<C::Keys, C::Payload>> {
+        self.arenas.get(class as usize)?.as_deref()
     }
 
-    /// Lazily-created arena of a class.
-    fn arena_mut(&mut self, class: u32) -> &mut ClassArena<C::Key, C::Payload> {
-        self.arenas
-            .get_mut(class as usize)
-            .expect("class within the frozen map")
-            .get_or_insert_with(ClassArena::new)
+    /// True when every arc key of the form narrows to its 32-bit storage
+    /// form at this level (MEM-16): the node can live in an exact class.
+    fn narrowable(&self, level: Level, form: &Form<C::Key, C::Payload>) -> bool {
+        let Form::Node { arcs, .. } = form else {
+            return false;
+        };
+        let keys = self.controleur.keys();
+        arcs.iter()
+            .all(|(key, _)| keys.narrow(level, key).is_some())
     }
 
     /// Controller owning this arena.
@@ -136,21 +151,20 @@ impl<C: Controller> Arena<C> {
     ) -> NodeId {
         let node = self.intern(anchor, form);
         let (class, index) = self.decode(node);
-        if let Some(input) = self
+        if let Some(arena) = self
             .arenas
             .get_mut(class as usize)
             .and_then(|arena| arena.as_mut())
-            .and_then(|arena| arena.get_mut(index))
         {
-            input.plan = plan;
+            arena.set_plan(index, plan);
         }
         node
     }
 
     /// Plane of a live node.
     pub fn plan_de(&self, node: NodeId) -> Option<Plan> {
-        self.entry(node)
-            .and_then(|input| input.form.as_ref().map(|_| input.plan))
+        let (class, index) = self.decode(node);
+        self.arena(class).and_then(|arena| arena.plan_of(index))
     }
 
     /// Live nodes of a level (shadow-plane index).
@@ -224,16 +238,14 @@ impl<C: Controller> Arena<C> {
             let Some(Some(words)) = marks.get_mut(class as usize) else {
                 continue;
             };
-            if ClassArena::<C::Key, C::Payload>::mark_of(words, index) {
+            if mark_of(words, index) {
                 continue;
             }
-            ClassArena::<C::Key, C::Payload>::set_mark(words, index);
-            if let Some(NodeEntry {
-                form: Some(Form::Node { arcs, .. }),
-                ..
-            }) = self.entry(node)
-            {
-                stack.extend(arcs.values().copied());
+            set_mark(words, index);
+            // MEM-16: children read through the arena trait — the exact
+            // classes store the arcs inline, no form is rebuilt.
+            if let Some(arena) = self.arena(class) {
+                stack.extend(arena.targets(index));
             }
         }
         let mark_bytes: u64 = marks
@@ -256,8 +268,7 @@ impl<C: Controller> Arena<C> {
             arenas
                 .get(class as usize)
                 .and_then(|arena| arena.as_ref())
-                .and_then(|arena| arena.get(index))
-                .is_some_and(|entry| entry.form.is_some())
+                .is_some_and(|arena| arena.is_live(index))
         };
         self.unique.retain(&is_live);
         self.unique_terminals.retain(|_, node| is_live(*node));
@@ -381,7 +392,7 @@ impl<C: Controller> Arena<C> {
         };
         let est_defaut = |node: NodeId| -> bool {
             default_active
-                && matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(payload))
+                && matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(&payload))
         };
         // M4-3: generalized default (D-abs/D-trans) if the controller enables it.
         let reduced = if !self.controleur.collapse_active() {
@@ -406,7 +417,11 @@ impl<C: Controller> Arena<C> {
     }
 }
 
-impl<C: Controller> Pool for Arena<C> {
+impl<C: Controller> Pool for Arena<C>
+where
+    C::Keys: 'static,
+    C::Payload: 'static,
+{
     type Key = C::Key;
     type Payload = C::Payload;
 
@@ -423,10 +438,16 @@ impl<C: Controller> Pool for Arena<C> {
                     .on_event(&TraceEvent::NodeShared { node: *node });
                 return *node;
             }
-            let index = self.arena_mut(TERMINAL_CLASS).push(NodeEntry {
-                plan: Plan::Principal,
-                form: Some(form.clone()),
-            });
+            let map = self.class_map;
+            let keys = self.controleur.keys();
+            let arena = self
+                .arenas
+                .get_mut(TERMINAL_CLASS as usize)
+                .expect("class within the frozen map")
+                .get_or_insert_with(|| new_arena(TERMINAL_CLASS, &map));
+            let index = arena
+                .push_form(Plan::Principal, form.clone(), keys)
+                .expect("terminal form representable in the terminal class");
             let node = NodeId::encode(TERMINAL_CLASS, index, self.class_map.class_bits);
             self.unique_terminals.insert(payload.clone(), node);
             self.metriques.terminaux += 1;
@@ -466,11 +487,14 @@ impl<C: Controller> Pool for Arena<C> {
         };
         // MEM-14: the hash-consing key is still the semantic form
         // (anchor, form), hashed in place — no form clone in the table.
+        // MEM-16: equality is decided through the stored entry, widening
+        // the narrowed keys of an exact class back to the full key.
         let hash = hash_cle(anchor, &form);
+        let keys = self.controleur.keys();
         let meme_forme = |node: NodeId| {
-            self.entry(node)
-                .and_then(|input| input.form.as_ref())
-                .is_some_and(|stored| *stored == form)
+            let (class, index) = self.decode(node);
+            self.arena(class)
+                .is_some_and(|arena| arena.same_form(index, &form, keys))
         };
         if let Some(node) = self.unique.get(hash, anchor, meme_forme) {
             self.metriques.partages += 1;
@@ -478,16 +502,36 @@ impl<C: Controller> Pool for Arena<C> {
             return node;
         }
         // MEM-9: the node is routed to the arena of its class (degree),
-        // the NodeId carries class bits + index bits.
+        // the NodeId carries class bits + index bits. MEM-16: a node
+        // whose keys all narrow lives in the exact class of its degree
+        // (inline arcs, stride `8·d + header`); otherwise the catch-all
+        // class keeps the full key/value run — no loss on open domains.
         let (degree, level) = match &form {
             Form::Terminal(_) => (0, None),
             Form::Node { level, arcs } => (arcs.len() as u32, Some(*level)),
         };
-        let class = self.class_map.class_of_degree(degree);
-        let index = self.arena_mut(class).push(NodeEntry {
-            plan: Plan::Principal,
-            form: Some(form),
-        });
+        let class = match level {
+            Some(level)
+                if degree >= 1
+                    && degree <= self.class_map.exact_max
+                    && self.narrowable(level, &form) =>
+            {
+                degree
+            }
+            // Open domain or degree beyond the window: the catch-all class
+            // keeps the full key/value run — no loss on open domains.
+            Some(_) => self.class_map.catch_all,
+            None => self.class_map.class_of_degree(degree),
+        };
+        let map = self.class_map;
+        let arena = self
+            .arenas
+            .get_mut(class as usize)
+            .expect("class within the frozen map")
+            .get_or_insert_with(|| new_arena(class, &map));
+        let index = arena
+            .push_form(Plan::Principal, form, keys)
+            .expect("form representable in its class");
         let node = NodeId::encode(class, index, self.class_map.class_bits);
         if let Some(level) = level {
             self.index_levels.entry(level).or_default().insert(node);
@@ -499,11 +543,14 @@ impl<C: Controller> Pool for Arena<C> {
         node
     }
 
-    fn resolve(&self, node: NodeId) -> Result<&Form<Self::Key, Self::Payload>, PoolError> {
-        match self.entry(node).and_then(|input| input.form.as_ref()) {
-            Some(form) => Ok(form),
-            None => Err(PoolError::UnknownNode(node)),
-        }
+    fn resolve(&self, node: NodeId) -> Result<Form<Self::Key, Self::Payload>, PoolError> {
+        // MEM-16 (ADR-0104): owned form — an exact-class entry stores the
+        // arcs inline and no `Form` in memory, so the form is rebuilt here
+        // with the keys widened back from their narrowed storage form.
+        let (class, index) = self.decode(node);
+        self.arena(class)
+            .and_then(|arena| arena.to_form(index, self.controleur.keys()))
+            .ok_or(PoolError::UnknownNode(node))
     }
 
     fn handle(&self, node: NodeId, anchor: Anchor) -> Handle {

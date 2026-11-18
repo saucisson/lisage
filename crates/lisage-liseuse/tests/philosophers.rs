@@ -136,7 +136,7 @@ fn test_sept_forms_contre_r_n() {
             }
             match input.resolve(node).unwrap() {
                 Form::Terminal(payload) => {
-                    terminaux_vus.insert(*payload);
+                    terminaux_vus.insert(payload);
                 }
                 Form::Node { arcs, .. } => stack.extend(arcs.values().copied()),
             }

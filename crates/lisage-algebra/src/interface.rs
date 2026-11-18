@@ -162,7 +162,12 @@ where
         };
         let cardinality = keys.cardinality(level);
         let arcs_len = pairs.len() as u64;
-        if 4 * cardinality > 12 * arcs_len {
+        // Checked arithmetic: an open domain (cardinality near u64::MAX)
+        // can never satisfy the threshold — never dense, no overflow.
+        if cardinality
+            .checked_mul(4)
+            .is_none_or(|c4| c4 > 12 * arcs_len)
+        {
             return arcs;
         }
         let mut slots: Vec<Option<(Key, NodeId)>> = vec![None; cardinality as usize];
@@ -418,6 +423,48 @@ pub trait KeyAlgebra: Send + Sync {
     fn sweep_levels(&self) -> u32 {
         1
     }
+
+    /// Declared key width of a level (MEM-16): `u8` when the cardinality
+    /// fits in 8 bits, `u16` up to 16 bits, `u32` up to 32 bits; `None`
+    /// on an open domain (cardinality beyond 32 bits), where no
+    /// narrowing is lossless and the key/value run path is unchanged.
+    fn key_width(&self, level: Level) -> Option<KeyWidth> {
+        match self.cardinality(level) {
+            c if c <= 1 << 8 => Some(KeyWidth::U8),
+            c if c <= 1 << 16 => Some(KeyWidth::U16),
+            c if c <= u32::MAX as u64 => Some(KeyWidth::U32),
+            _ => None,
+        }
+    }
+
+    /// Narrow a key to its 32-bit storage form (MEM-16): the ordinal rank
+    /// of the key in the level's enumeration, when the level's domain is
+    /// bounded (a declared key width exists) and the rank fits in 32 bits.
+    /// `None` on an open domain: the node keeps the full-width key/value
+    /// run (catch-all class).
+    fn narrow(&self, level: Level, key: &Self::Key) -> Option<u32> {
+        self.key_width(level)?;
+        self.rank(level, key)
+            .and_then(|rang| u32::try_from(rang).ok())
+    }
+
+    /// Inverse of [`KeyAlgebra::narrow`]: the key of a narrowed 32-bit
+    /// form, `None` when the domain is open or the form is out of range.
+    fn widen(&self, level: Level, narrowed: u32) -> Option<Self::Key> {
+        self.unrank(level, narrowed as u64)
+    }
+}
+
+/// Declared key width of a level (MEM-16), derived from the level's
+/// cardinality: the narrowest lossless storage width.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum KeyWidth {
+    /// Cardinality ≤ 2^8.
+    U8,
+    /// Cardinality ≤ 2^16.
+    U16,
+    /// Cardinality ≤ 2^32.
+    U32,
 }
 
 /// Level-memory storage policy (M2-3, spec § 3.1): declared by the
@@ -518,7 +565,11 @@ pub trait Pool: Send + Sync {
     fn intern(&mut self, anchor: Anchor, form: Form<Self::Key, Self::Payload>) -> NodeId;
 
     /// Form of a node, or typed error if the identifier is unknown.
-    fn resolve(&self, node: NodeId) -> Result<&Form<Self::Key, Self::Payload>, PoolError>;
+    /// Owned since MEM-16 (ADR-0104): exact-class entries store the arcs
+    /// inline at stride `8·d + header` and no longer hold a `Form` in
+    /// memory, so the form is rebuilt on resolution (keys widened back
+    /// from their narrowed storage form).
+    fn resolve(&self, node: NodeId) -> Result<Form<Self::Key, Self::Payload>, PoolError>;
 
     /// Canonical handle of a node for this reading (controller, anchor).
     fn handle(&self, node: NodeId, anchor: Anchor) -> Handle;

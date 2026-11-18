@@ -30,7 +30,7 @@ fn payload_terminal(
 ) -> Option<u64> {
     loop {
         match pool.resolve(node).unwrap() {
-            Form::Terminal(payload) => return *payload,
+            Form::Terminal(payload) => return payload,
             Form::Node { level, arcs } => {
                 let index = (level.0 / 2) as usize;
                 let key = Value::Atom(list_keys[index]);

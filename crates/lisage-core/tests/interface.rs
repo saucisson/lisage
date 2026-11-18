@@ -53,7 +53,7 @@ impl Pool for MockPool {
     fn intern(&mut self, _anchor: Anchor, _form: Form<Self::Key, Self::Payload>) -> NodeId {
         NodeId(0)
     }
-    fn resolve(&self, node: NodeId) -> Result<&Form<Self::Key, Self::Payload>, PoolError> {
+    fn resolve(&self, node: NodeId) -> Result<Form<Self::Key, Self::Payload>, PoolError> {
         Err(PoolError::UnknownNode(node))
     }
     fn handle(&self, node: NodeId, anchor: Anchor) -> Handle {

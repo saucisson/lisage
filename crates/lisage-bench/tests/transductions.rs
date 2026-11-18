@@ -152,7 +152,7 @@ fn forms_egales(
 /// Naive recursive count of accepting paths (independent oracle).
 fn count_naif(pool: &PoolRef, node: NodeId) -> u64 {
     match pool.resolve(node).unwrap() {
-        Form::Terminal(payload) => u64::from(*payload),
+        Form::Terminal(payload) => u64::from(payload),
         Form::Node { arcs, .. } => arcs.values().map(|&c| count_naif(pool, c)).sum(),
     }
 }

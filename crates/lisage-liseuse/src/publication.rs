@@ -185,7 +185,7 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
         let y = -(position.y as f64 * ECHELLE_PGF_CM_PAR_PIXEL);
         match pool.resolve(*node) {
             Ok(lisage_core::Form::Terminal(payload)) => {
-                let label = if *payload { "$\\top$" } else { "$\\bot$" };
+                let label = if payload { "$\\top$" } else { "$\\bot$" };
                 pgf.push_str(&format!(
                     "\\node[draw, rectangle, minimum width=1.2cm] (n{}) at ({x:.2},{y:.2}) {{{label}}};\n",
                     node.0
@@ -216,7 +216,7 @@ pub fn rendre_pgf<P: Pool<Key = u64, Payload = bool>>(
                     target.0,
                     echapper_pgf(&key.to_string())
                 ));
-                stack.push(*target);
+                stack.push(target);
             }
         }
     }

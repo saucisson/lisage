@@ -218,7 +218,7 @@ pub fn evaluate<P: Pool<Key = Cdd, Payload = bool>>(
     let mut node = root;
     loop {
         match pool.resolve(node)? {
-            Form::Terminal(payload) => return Ok(Some(*payload)),
+            Form::Terminal(payload) => return Ok(Some(payload)),
             Form::Node { arcs, .. } => {
                 match arcs
                     .iter()

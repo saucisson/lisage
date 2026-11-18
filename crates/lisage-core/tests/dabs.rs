@@ -106,7 +106,7 @@ fn test_dabs_absorption_tout_sous_domain() {
     );
     assert_eq!(
         pool.resolve(node),
-        Ok(&Form::Node {
+        Ok(Form::Node {
             level: Level(LEVEL_TEST),
             arcs: ArcRun::from_pairs([(1, vrai)]),
         }),
@@ -130,7 +130,7 @@ fn test_without_dabs_rdefault_seul() {
     );
     assert_eq!(
         pool.resolve(node),
-        Ok(&Form::Node {
+        Ok(Form::Node {
             level: Level(LEVEL_TEST),
             arcs: ArcRun::from_pairs([(1, vrai), (2, faux)]),
         }),
@@ -152,7 +152,7 @@ fn test_dtrans_form_empty_collapse() {
         },
     );
     assert_eq!(node, faux, "D-trans: ν(ℓ, {{3 ↦ D^def}}) = D^def");
-    assert_eq!(pool.resolve(node), Ok(&Form::Terminal(false)));
+    assert_eq!(pool.resolve(node), Ok(Form::Terminal(false)));
 }
 
 /// M4-3 (D-trans) "all targets ≡ D": a single explicit arc on δ collapses
@@ -182,7 +182,7 @@ fn test_dtrans_coverage() {
     );
     assert_eq!(
         pool.resolve(deux_arcs),
-        Ok(&Form::Node {
+        Ok(Form::Node {
             level: Level(LEVEL_TEST),
             arcs: ArcRun::from_pairs([(1, vrai), (2, vrai)]),
         }),
@@ -211,7 +211,7 @@ fn test_without_key_defaut_pas_dabs() {
     );
     assert_eq!(
         pool.resolve(node),
-        Ok(&Form::Node {
+        Ok(Form::Node {
             level: Level(LEVEL_TEST),
             arcs: ArcRun::from_pairs([(1, faux), (2, faux)]),
         }),
