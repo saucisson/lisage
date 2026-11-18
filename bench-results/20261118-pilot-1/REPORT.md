@@ -42,7 +42,7 @@ match the pinned semantic values of `tests/confrontation.rs`:
 |---|---|---|---|
 | alea-lcg-20 | 31000 [30972, 31016] | 50328 [50172, 50424] | 1.6x |
 | philosophers-n5 | 2852 [2832, 2876] | — | — |
-| window-4x10-absolu | 2312 [2292, 2312] | — | — |
+| window-4x10-absolu | 2296 [2292, 2312] | — | — |
 | window-4x10-relatif | 2300 [2268, 2312] | — | — |
 
 ## Decision (written, per issue #123)
