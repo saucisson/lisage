@@ -409,6 +409,10 @@ impl<C: Controller> Pool for Arena<C> {
                                 level,
                             });
                         }
+                        // MEM-12: the dense ordinal family is chosen in
+                        // normalization, after the reductions so that the
+                        // choice survives on the stored (hash-consed) form.
+                        let arcs = ArcRun::choose_dense_family(level, self.controleur.keys(), arcs);
                         Form::Node { level, arcs }
                     }
                     Ok(terminal) => terminal,
