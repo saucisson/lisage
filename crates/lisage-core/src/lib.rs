@@ -20,6 +20,7 @@ pub mod lookup;
 pub mod memory;
 pub mod observer;
 pub mod operations;
+pub mod parallel_ops;
 pub mod pli;
 pub mod region;
 pub mod saturate;

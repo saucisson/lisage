@@ -309,3 +309,126 @@ fn test_multi_executor_is_parallel() {
         "MultiExecutor must be a real parallel executor"
     );
 }
+
+// ---------------------------------------------------------------------------
+// P1-1 (issue #139): independent operations on a read-shared input pool.
+// ---------------------------------------------------------------------------
+
+/// Counting transduction: synthesized attribute = number of accepting
+/// paths (independent oracle for the semantics).
+#[derive(Clone)]
+struct CountPaths;
+
+impl Transduction for CountPaths {
+    type H = ();
+    type S = u64;
+    type Out = bool;
+    type M = ();
+
+    fn fingerprint(&self) -> u64 {
+        7002
+    }
+    fn h0(&self) {}
+    fn phi_disp(&self, _level: Level, _h: &(), _arc: u64) {}
+    fn phi_aggr(&self, _level: Level, _h: &(), arcs: &BTreeMap<u64, (Option<Level>, u64)>) -> u64 {
+        arcs.values().map(|(_, s)| *s).sum()
+    }
+    fn phi_out<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
+                },
+            ),
+            lisage_core::memory::EffetMemory::new(),
+        )
+    }
+    fn psi<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        _h: &(),
+    ) -> (NodeId, u64) {
+        (
+            pool.intern(anchor, Form::Terminal(payload)),
+            u64::from(payload),
+        )
+    }
+}
+
+/// Builds a random set-diagram in a fresh pool: union of random members.
+/// Returns the pool, its schema, the union root and the member roots.
+fn random_input_pool(workload: &Workload) -> (PoolRef, Schema, NodeId, Vec<NodeId>) {
+    let schema = Schema::Set(Domain::new((0..workload.domain_size).map(Atom).collect()));
+    let keys = SchemaKeys::new(schema.clone());
+    let mut pool = Arena::new(
+        ReferenceController::new(schema.clone()),
+        Box::new(NoOpObserver),
+    );
+    let mut root = pool.intern(ANCHOR, Form::Terminal(false));
+    let mut members = Vec::new();
+    for member in &workload.members {
+        let value = Value::Set(
+            member
+                .iter()
+                .map(|&a| Value::Atom(Atom(a)))
+                .collect::<BTreeSet<_>>(),
+        );
+        let node = compiler(&mut pool, ANCHOR, &schema, &value).unwrap();
+        root = union(&mut pool, &keys, ANCHOR, root, node).unwrap();
+        members.push(node);
+    }
+    (pool, schema, root, members)
+}
+
+proptest! {
+    /// P1-1 (issue #139, PAR-1): n independent operations on the same
+    /// read-shared input pool — the sequential path and the rayon parallel
+    /// path agree on every synthesized attribute and on the structural form
+    /// of every output root (each op in its own output pool, INV10).
+    #[test]
+    fn test_p1_1_independent_ops_equivalence(
+        workload in workload_strategy(),
+        number_ops in 1usize..6,
+    ) {
+        use lisage_core::parallel_ops::{
+            IndependentOp, run_independent_par, run_independent_seq,
+        };
+        let (input, schema, root, members) = random_input_pool(&workload);
+        // Each op counts the accepting paths of a root of the shared input
+        // pool (the union root, or a member root when available).
+        let roots: Vec<NodeId> = (0..number_ops)
+            .map(|i| {
+                if members.is_empty() || i % 2 == 0 {
+                    root
+                } else {
+                    members[i % members.len()]
+                }
+            })
+            .collect();
+        let ops: Vec<IndependentOp<CountPaths>> = roots
+            .iter()
+            .map(|&root| IndependentOp { transduction: CountPaths, root })
+            .collect();
+        let seq = run_independent_seq(&input, &schema, ANCHOR, &ops).unwrap();
+        let par = run_independent_par(&input, &schema, ANCHOR, &ops).unwrap();
+        prop_assert_eq!(seq.len(), par.len());
+        prop_assert_eq!(seq.len(), number_ops);
+        for (i, ((pool_seq, node_seq, attr_seq), (pool_par, node_par, attr_par))) in
+            seq.iter().zip(par.iter()).enumerate()
+        {
+            prop_assert_eq!(attr_seq, attr_par, "op {}: same synthesized attribute", i);
+            prop_assert!(
+                forms_equal(pool_seq, *node_seq, pool_par, *node_par, &mut HashMap::new()),
+                "op {}: same structural form of the output root", i
+            );
+        }
+    }
+}
