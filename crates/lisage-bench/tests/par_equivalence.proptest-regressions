@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc a022112849430d7cfe1b0eb5ff98d3effb1c72c1f2d99391b73eabed25e24b2a # shrinks to workload = Workload { domain_size: 2, members: [[0, 1], [1, 0], []] }
