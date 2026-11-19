@@ -32,4 +32,4 @@ Remaining ~1.7 allocs/intern: the `from_pairs` box at the call site, the dense-f
 
 ## Gap vs OxiDD (BENCH-1 campaign 20261118-campaign-2: OxiDD alea-lcg-20 = 122.3 ms)
 
-lisage build 533.9 ms -> 214.4 ms: the lisage/OxiDD time ratio on alea-lcg-20 goes from ~4.4x to ~1.8x.
+Two lisage baselines exist for alea-lcg-20: the campaign-2 confrontation median 533.9 ms (the figure behind the published ~4.4x ratio) and this machine's `profile_intern` baseline 563.4 ms (table above). After PERF-2 the `profile_intern` build is 214.4 ms on the same machine, i.e. 563.4 -> 214.4 ms locally (2.6x); against the OxiDD reference of 122.3 ms the ratio goes from ~4.4x to ~1.8x.

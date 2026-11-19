@@ -392,15 +392,15 @@ where
                 // Canonical already: sorted family, strictly increasing
                 // keys (what `from_pairs` would produce), and every key in
                 // normal form — otherwise the rebuild below canonicalizes.
-                let famille_triee = matches!(arcs, ArcRun::Sorted(_));
-                let mut precedent: Option<&C::Key> = None;
-                let deja_canonique = famille_triee
+                let sorted_family = matches!(arcs, ArcRun::Sorted(_));
+                let mut previous: Option<&C::Key> = None;
+                let already_canonical = sorted_family
                     && arcs.iter().all(|(key, _)| {
-                        let ok = precedent.is_none_or(|p| p < key) && keys.normal_form(key) == *key;
-                        precedent = Some(key);
+                        let ok = previous.is_none_or(|p| p < key) && keys.normal_form(key) == *key;
+                        previous = Some(key);
                         ok
                     });
-                if deja_canonique {
+                if already_canonical {
                     Form::Node { level, arcs }
                 } else {
                     Form::Node {
