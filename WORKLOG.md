@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-19 - PERF-4: post-PERF confrontation campaign + golden hash test (issue #286, milestone PERF #279)
+
+- **Issue**: #286 (PERF-4, fourth increment of milestone PERF #279): the milestone requires a published measurement per step on the same charges with the same witnesses; also folds in the review suggestion of PR #285 (golden determinism test for the FastHasher).
+- **Done**: (1) re-ran the BENCH-1 crossover campaign with the same charges and witnesses as 20261118-campaign-2 (`--crossover --tools lisage,oxidd,cudd,libddd --repetitions 5 --run-id 20261119-campaign-3`, same pinned docker images, same OXIDD 2^23 capacity for alea-lcg-24) and published `bench-results/20261119-campaign-3/` (raw jsonl, aggregats.json, README, REPORT). (2) Added a golden unit test in `crates/lisage-core/src/unique.rs` pinning the exact `hash_cle` value for a fixed form (3 561 021 471 050 673 137) plus an anchor-sensitivity assertion — any change to the hash algorithm or loss of cross-run determinism fails it.
+- **Measured verdict (written)**: the lisage/OxiDD time ratio goes from **3.7-4.5x (campaign-2) to 1.1-2.0x (campaign-3)** on every charge — alea-lcg-20: 533.9 -> 169.8 ms vs OxiDD 122.3 ms (**1.39x**), alea-lcg-22: 1.99x, alea-lcg-24: 2.04x, cnf-uf20-01: 1.37x, pnml-swimmingpool-1: 1.12x. Cross-check `noeuds`/`verifie` identical across all four tools and `divergences` empty (C1 holds after PERF-2/3). RSS unchanged within noise (20 224 vs 20 524 KiB on alea-lcg-20): the wins are time and transient allocations, MEM-18 thresholds not degraded. The residual factor grows with n, pointing at a per-created-node cost (shadow index, slab growth), not the intern path — next PERF increments should target that.
+- **Evidence**: campaign run locally end to end (5 repetitions x 5 charges x 4 tools, fresh process/container per measurement); `cargo test -p lisage-core --lib unique` green (golden test); `make check` green before the PR (ruff, mypy strict, import-linter, pytest 51, fmt, clippy `-D warnings`, nextest 359 passed / 10 skipped, english-only). Not run: GitHub CI before the PR.
+- **Judgement calls**: campaign-3 numbers are compared against the published campaign-2 medians (same machine class, same protocol); the per-charge ratios are computed from medians, not per-repetition pairs.
+- **Escalations**: none.
+
 ## 2026-11-19 - PERF-3: fast deterministic hash + no dense box for inline classes (issue #284, milestone PERF #279)
 
 - **Issue**: #284 (PERF-3, third increment of milestone PERF #279): after PERF-2 (1.70 allocs/intern, 214 ms build on alea-lcg-20), attack the remaining time (SipHash on every interned form) and the remaining allocations (dense-family box dropped for inline classes).
