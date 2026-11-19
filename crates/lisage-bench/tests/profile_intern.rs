@@ -99,9 +99,13 @@ fn test_profile_intern_alea_lcg_20() {
         "the counting traversal allocates its visited set"
     );
     // Falsifiable gate: allocations per internement, measured 8.48 at
-    // PERF-1 (MEM-18 measured ~9.2 on the seeded workload, frozen at 10).
+    // PERF-1 and 1.70 at PERF-2 (issue #282: Vec-based `from_pairs`,
+    // allocation-free `ArcRun::iter`, `form_normalisee` fast path,
+    // copy-free `shannon`). The range is re-pinned on the new measured
+    // baseline, as a frozen threshold may only be lowered: a regression
+    // above 3.0 fails, a value below 1.0 means the measurement broke.
     assert!(
-        (6.0..=10.0).contains(&mesure.allocs_par_internement),
+        (1.0..=3.0).contains(&mesure.allocs_par_internement),
         "allocations per internement regressed: {}",
         mesure.allocs_par_internement
     );
