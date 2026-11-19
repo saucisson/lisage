@@ -7,7 +7,7 @@
 //! the diagram nodes. Storage stays shared (C1); only traversal
 //! distinguishes the planes.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Level, NodeId};
 
@@ -80,8 +80,13 @@ pub(crate) struct NodeEntry<Key, Payload> {
     pub form: Option<lisage_algebra::interface::Form<Key, Payload>>,
 }
 
-/// Shadow-plane index: level → live nodes of that level.
-pub(crate) type IndexLevels = BTreeMap<Level, BTreeSet<NodeId>>;
+/// Shadow-plane index: level → live nodes of that level. A `Vec` per level
+/// (PERF-5, issue #288): `push` at creation is amortized and allocation-free
+/// per node, against one tree-node allocation per created node for the
+/// previous `BTreeSet`. No duplicates are possible (the unique table
+/// guarantees a single creation per form); GC `retain` and compaction
+/// rebuild keep the same semantics.
+pub(crate) type IndexLevels = BTreeMap<Level, Vec<NodeId>>;
 
 /// Decides whether the profiled compaction threshold is reached.
 pub fn threshold_atteint(dead: u64, total: u64) -> bool {
