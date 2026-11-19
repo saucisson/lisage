@@ -61,16 +61,28 @@ proptest! {
     /// C1: deterministic interning — the same form interned twice
     /// (same arena or distinct arenas) gives the same handle.
     #[test]
-    fn test_c1_unicite_handles(paires in prop::collection::vec((0u8..3, 0u32..4), 0..5), level in 0u8..4) {
+    fn test_c1_unicite_handles(paires in prop::collection::vec((1u8..3, 0u32..2), 0..5), level in 0u8..4) {
         let form = form_aleatoire(paires, level);
         let anchor = Anchor(0);
         let mut arena_a = nouvelle_arena();
         let mut arena_b = nouvelle_arena();
+        // Intern the two terminals first so the arc targets are real nodes
+        // in both arenas (NodeId(0) = false, NodeId(1) = true).
+        prop_assert_eq!(arena_a.terminal(anchor, false), NodeId(0));
+        prop_assert_eq!(arena_a.terminal(anchor, true), NodeId(1));
+        prop_assert_eq!(arena_b.terminal(anchor, false), NodeId(0));
+        prop_assert_eq!(arena_b.terminal(anchor, true), NodeId(1));
         let node_a1 = arena_a.intern(anchor, form.clone());
         let node_a2 = arena_a.intern(anchor, form.clone());
         let node_b = arena_b.intern(anchor, form);
         prop_assert_eq!(node_a1, node_a2, "same form ⇒ same node in the same arena");
-        prop_assert_eq!(node_a1, node_b, "same form ⇒ same node across arenas");
+        // NodeIds are pool-local: across arenas, compare forms, not NodeIds
+        // (issue #137 survey — requalified as a form comparison).
+        prop_assert_eq!(
+            arena_a.resolve(node_a1).unwrap(),
+            arena_b.resolve(node_b).unwrap(),
+            "same form ⇒ same form across arenas"
+        );
         prop_assert_eq!(arena_a.handle(node_a1, anchor), arena_b.handle(node_b, anchor));
     }
 

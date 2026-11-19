@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-19 - P0-2: mono vs multi equivalence harness (issue #137)
+
+- **Issue**: #137 (P0-2, PAR-1): PBT mono vs multi on the same inputs (node counts, semantics), written red before any implementation; survey of existing tests comparing NodeId (to requalify as form comparisons). DoD: harness green on the current mono-thread, ready to falsify PAR-1 to PAR-4.
+- **Done**: (1) New harness `crates/lisage-bench/tests/par_equivalence.rs`: a proptest workload (bounded set schema + random members) is executed by two executors — `MonoExecutor` (the current single-threaded `Arena` path: compile + union into R, saturate with a fixed singleton step, count the fixpoint) and `MultiExecutor` (placeholder delegating to mono until P1-1/P2-1 land a real parallel executor). The PBT asserts equal live node counts, equal fixpoint iterations, equal cardinality (semantics) and structural form equality of the roots across the two pools (`forms_equal`, never bare NodeIds). A non-vacuity PBT pins rounds >= 1 and a non-empty pool. An `#[ignore]`d red marker `test_multi_executor_is_parallel` fails while `MultiExecutor` is still the placeholder — un-ignore when a real multi-thread executor lands. (2) Survey of NodeId-comparing tests: same-pool comparisons (`schemas.rs`, `schema.rs`, `cdd.rs`, `ddd.rs`, `liseuse_v0.rs`, `classes.rs`, `dense.rs`) are the canonicity property C1 and stay valid under multi-thread; `transductions.rs` already compared forms cross-pool; `handles.rs` compared bare NodeIds across two arenas — requalified as a form comparison via `resolve` (arc targets interned first so both arenas resolve), the handle comparison next to it remaining the spec-level C1 assertion.
+- **Measured verdict (written)**: harness green on the current mono-thread: `test_mono_multi_equivalence` and `test_harness_is_not_vacuous` pass, red marker skipped as designed.
+- **Evidence**: `cargo nextest run -p lisage-bench` green (101 passed, 11 skipped incl. the red marker); clippy `-D warnings` and `make english-only` green on the touched crates. Not run: full-workspace `make check` in this session (per-crate gates run instead); GitHub CI before the PR.
+- **Judgement calls**: the multi leg is a documented placeholder (DoD asks for a green harness on the current mono-thread, ready to falsify PAR-1..PAR-4); cross-pool NodeId equality was requalified only where it was actually cross-pool (`handles.rs`), same-pool C1 assertions left untouched.
+- **Escalations**: none.
+
 ## 2026-11-19 - P0-1: contention bench anchored on philosophers saturation n=5 (issue #136)
 
 - **Issue**: #136 (P0-1, contention bench, spec PAR-2): instrument the existing metrics (shares, creations) — intern distribution per level, R-share and memo hit rates, saturation phase profile — with an anchored bench (philosophers, saturation n=5+), baselines published in `bench-results/`, CI refusing time regressions.
