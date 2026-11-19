@@ -14,7 +14,7 @@ use lisage_algebra::interface::{
 use lisage_algebra::reduction::{
     Reduction, reduce, reduce_dabs as crate_reduction_dabs, reduce_without_collapse,
 };
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 
 use crate::biplan::{IndexLevels, MetriquesPool, Plan, StatsGc, threshold_atteint};
 use crate::classes::{ClassArenaDyn, ClassMap, ClassMetrics, mark_of, new_arena, set_mark};
@@ -182,10 +182,12 @@ where
     }
 
     /// Live nodes of a level (shadow-plane index).
-    pub fn index_level(&self, level: Level) -> &BTreeSet<NodeId> {
-        static EMPTY: std::sync::LazyLock<BTreeSet<NodeId>> =
-            std::sync::LazyLock::new(BTreeSet::new);
-        self.index_levels.get(&level).unwrap_or(&EMPTY)
+    pub fn index_level(&self, level: Level) -> &[NodeId] {
+        static EMPTY: &[NodeId] = &[];
+        self.index_levels
+            .get(&level)
+            .map(Vec::as_slice)
+            .unwrap_or(EMPTY)
     }
 
     /// Pool metrics (cache + GC).
@@ -216,6 +218,9 @@ where
             .flatten()
             .map(|arena| arena.bytes())
             .sum();
+        // PERF-5: the shadow index is a Vec per level; the MEM-14 counter
+        // keeps its historical `len` semantics (frozen threshold calibrated
+        // on it) — the real footprint is lower than the old BTreeSet's.
         let index: usize = self
             .index_levels
             .values()
@@ -588,7 +593,7 @@ where
             .expect("form representable in its class");
         let node = NodeId::encode(class, index, self.class_map.class_bits);
         if let Some(level) = level {
-            self.index_levels.entry(level).or_default().insert(node);
+            self.index_levels.entry(level).or_default().push(node);
         }
         self.unique.insert(hash, anchor, node);
         self.metriques.creations += 1;

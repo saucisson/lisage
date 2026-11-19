@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-19 - PERF-5: shadow-plane index as Vec per level (issue #288, milestone PERF #279)
+
+- **Issue**: #288 (PERF-5, fifth increment of milestone PERF #279): the campaign-3 residual gap vs OxiDD grows with n (1.39x at n=20, 2.04x at n=24) — a per-created-node cost, not per-intern. Suspect: the shadow index `BTreeSet` per level (one tree-node allocation per created node).
+- **Done**: `IndexLevels` (`crates/lisage-core/src/biplan.rs`) becomes `BTreeMap<Level, Vec<NodeId>>` — `push` at creation (amortized, allocation-free per node), GC `retain` and compaction rebuild unchanged semantically, no duplicates possible (unique table = single creation per form). Public getter `index_level` now returns `&[NodeId]` (existing consumers only use `contains`/`is_empty`). The MEM-14 `bytes_per_node` counter keeps its historical `len` semantics so the frozen MEM-18 threshold stays comparable. Published `bench-results/perf5-shadow-index.md`.
+- **Measured verdict (written)**: on alea-lcg-20, allocs/intern **1.017 -> 1.000** (1 066 455 -> 1 048 802 allocations, exactly one per created node removed), build **152 -> 132 ms** (median of 3, 131.4-138.8), RSS 14 456 -> 13 480 KiB (the Vec index really uses less memory than the BTreeSet); n=22: 1.000 allocs/intern, 865 -> 846 ms. Node count and satisfying assignments identical (C1). Against the OxiDD reference (122.3 ms), the alea-lcg-20 ratio is now **~1.08x** — the milestone's ~4x gap is closed. Remaining 1.0 alloc/intern: the call-site `from_pairs` box.
+- **Evidence**: nextest per crate all green (algebra+core 187 passed, bench 98 passed / 10 skipped FFI, plan+lang+liseuse+backend 72 passed, 0 failed — including the MEM-18 threshold gates); `make check` green before the PR; runner output reproduced 3x (allocation counters identical). Not run: GitHub CI before the PR.
+- **Judgement calls**: the `bytes_per_node` counter keeps `len` semantics (the frozen 66.0 threshold was calibrated on it); counting `capacity` instead made the gate read 72.74 and fail — the real footprint is lower (RSS), so the `len` semantics is kept for comparability, noted in the code.
+- **Escalations**: none.
+
 ## 2026-11-19 - PERF-4: post-PERF confrontation campaign + golden hash test (issue #286, milestone PERF #279)
 
 - **Issue**: #286 (PERF-4, fourth increment of milestone PERF #279): the milestone requires a published measurement per step on the same charges with the same witnesses; also folds in the review suggestion of PR #285 (golden determinism test for the FastHasher).
