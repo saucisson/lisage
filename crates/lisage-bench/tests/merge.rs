@@ -49,7 +49,7 @@ fn test_bench_merge_pools() {
         "cross-pool sharing: merged ({merged_live}) < one copy ({input_live})"
     );
     assert!(seq_ms > 0.0 && par_ms > 0.0, "both paths measured");
-    assert!(speedup > 0.0, "speedup is positive");
+    assert!(speedup.is_finite(), "speedup is finite");
 
     if std::env::var("P12_PUBLISH").is_ok() {
         let publication = format!(

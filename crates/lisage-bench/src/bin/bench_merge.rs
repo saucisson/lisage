@@ -17,6 +17,16 @@ use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compi
 use lisage_lang::value::{Atom, Value};
 
 const ANCHOR: Anchor = Anchor(0);
+/// LCG multiplier of the deterministic word generator.
+const LCG_MULTIPLIER: u64 = 6364136223846793005;
+/// LCG increment of the deterministic word generator.
+const LCG_INCREMENT: u64 = 1442695040888963407;
+/// Seed of the deterministic word generator.
+const LCG_SEED: u64 = 0x5EED;
+/// Number of random words in the merge input diagram.
+const NUMBER_WORDS: usize = 4000;
+/// Domain size of the random words ({0, 1, 2}).
+const DOMAIN_SIZE: u64 = 3;
 
 type PoolRef = Arena<ReferenceController>;
 
@@ -25,9 +35,9 @@ fn random_words(number_words: usize, keys: u64, seed: u64) -> Vec<Vec<u64>> {
     let mut state = seed;
     let mut next = move || {
         state = state
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        (state >> 33) % 3
+            .wrapping_mul(LCG_MULTIPLIER)
+            .wrapping_add(LCG_INCREMENT);
+        (state >> 33) % DOMAIN_SIZE
     };
     (0..number_words)
         .map(|_| (0..keys).map(|_| next()).collect())
@@ -47,7 +57,7 @@ fn build_input(n: u64, number_words: usize) -> (PoolRef, Schema, NodeId) {
         Box::new(NoOpObserver),
     );
     let mut root = pool.intern(ANCHOR, Form::Terminal(false));
-    for word in random_words(number_words, 2 * n, 0x5EED) {
+    for word in random_words(number_words, 2 * n, LCG_SEED) {
         let map: BTreeMap<Value, Value> = word
             .iter()
             .enumerate()
@@ -73,7 +83,7 @@ fn main() {
     assert!((1..=8).contains(&n), "n in 1..=8");
     assert!((1..=64).contains(&number_pools), "pools in 1..=64");
 
-    let (input, schema, union_root) = build_input(n, 4000);
+    let (input, schema, union_root) = build_input(n, NUMBER_WORDS);
 
     // k output pools, each a full copy of the input diagram (cross-pool
     // sharing at merge). Built twice: the merge functions consume them.
