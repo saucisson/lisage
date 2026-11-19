@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-19 - P0-3: ADR blind routing to structure (issue #138)
+
+- **Issue**: #138 (P0-3): ADR covering the invariants INV1-INV10, the decision against level-sharding (and why), the position vs Sylvan (per variable) and vs the Paris school/pnmc; plan B Adiar documented as the fallback condition. DoD: ADR merged in `docs/decisions/`; the boundary tests validate the signatures.
+- **Done**: new `docs/decisions/adr-0105-blind-routing-to-structure.md` (draft, human accepts): routing is blind to structure — the unique table is a single content-addressed table routing on the hash of `(ControllerId, Anchor, Form)` with full equality verified at the probe; INV1-INV10 enumerated (content-addressed routing, CAS insert-or-find, flat NodeIds without central counter, shadow plane off the intern path, frozen level-memory versions per round, GC without compaction at round barriers, round barrier with agreed active-level set, sharded lock-free memo, order as controller contract, read-shared input pool with per-op output pools); level-sharding and Sylvan-style per-variable sharding rejected with reasons; Sylvan kept as witness; Paris-school/pnmc level-wise sweeps kept for saturation semantics only; Adiar (SP-1, issue #153) documented as plan B with the trigger condition "PAR-2/PAR-5 not held after P3, or memory need > speed need".
+- **Measured verdict (written)**: no code change; the boundary tests validate the signatures — `cargo nextest run -p lisage-bench --test frontieres` green (3 passed, incl. `test_frontieres_signatures_send_sync`).
+- **Evidence**: `make english-only` green; `frontieres` boundary tests green. Not run: full `make check` in this session (docs-only change; per-crate gates run instead); GitHub CI before the PR.
+- **Judgement calls**: the ADR is drafted as **draft** per the ADR convention (0100+ range drafted in a PR, accepted by the human only); INV7/INV9 were not yet referenced by any issue and are defined here (round barrier / no dynamic reordering) to complete INV1-INV10.
+- **Escalations**: none (ADR drafting in the 0100+ range is explicitly allowed by ADR-0010; acceptance stays with the human).
+
 ## 2026-11-19 - P0-2: mono vs multi equivalence harness (issue #137)
 
 - **Issue**: #137 (P0-2, PAR-1): PBT mono vs multi on the same inputs (node counts, semantics), written red before any implementation; survey of existing tests comparing NodeId (to requalify as form comparisons). DoD: harness green on the current mono-thread, ready to falsify PAR-1 to PAR-4.
