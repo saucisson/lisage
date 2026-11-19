@@ -4,7 +4,7 @@ Runner `bench_contention {n}`, one process per run. Anchored criterion n = 5;
 the saturation step is a synthetic contention step (one fixed illegal member),
 exercising rounds/memo/union on the philosophers diagram.
 
-| n | noeuds | verifie | rounds | creations | partages | taux hit R-share (%) | memo hits | memo misses | taux hit memo | temps build (ms) | temps saturation (ms) | temps count (ms) |
+| n | nodes | verified | rounds | creations | shares | R-share hit rate (%) | memo hits | memo misses | memo hit rate | build (ms) | saturation (ms) | count (ms) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 5 | 1860 | 153 | 2 | 1860 | 3510 | 65 | 43 | 158 | 0.2139 | 29.533 | 1.664 | 1.505 |
 

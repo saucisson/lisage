@@ -16,81 +16,73 @@ const N: u32 = 5;
 /// that: it only catches algorithmic regressions (a complexity change),
 /// never machine noise — wall time is otherwise machine-dependent and only
 /// published, never pinned tightly.
-const SEUIL_TEMPS_TOTAL_MS: f64 = 30_000.0;
+const TOTAL_TIME_CEILING_MS: f64 = 30_000.0;
 
 /// One JSON line of the runner, parsed field by field (no dependency).
-struct Mesure {
+struct Measurement {
     n: u64,
     nodes: u64,
-    verifie: u64,
+    verified: u64,
     rounds: u64,
     creations: u64,
-    partages: u64,
-    taux_hit_rshare: u64,
+    shares: u64,
+    rshare_hit_rate: u64,
     memo_hits: u64,
     memo_misses: u64,
-    taux_hit_memo: f64,
-    interns_par_niveau: Vec<u64>,
-    temps_build_ms: f64,
-    temps_saturation_ms: f64,
-    temps_count_ms: f64,
+    memo_hit_rate: f64,
+    interns_per_level: Vec<u64>,
+    build_ms: f64,
+    saturation_ms: f64,
+    count_ms: f64,
 }
 
-fn champ(json: &str, cle: &str) -> String {
-    let marqueur = format!("\"{cle}\":");
-    let debut = json.find(&marqueur).expect("field present") + marqueur.len();
-    let reste = &json[debut..];
-    if let Some(stripped) = reste.strip_prefix('"') {
-        let fin = stripped.find('"').expect("closing quote");
-        stripped[..fin].to_string()
+fn field(json: &str, key: &str) -> String {
+    let marker = format!("\"{key}\":");
+    let start = json.find(&marker).expect("field present") + marker.len();
+    let rest = &json[start..];
+    if let Some(stripped) = rest.strip_prefix('"') {
+        let end = stripped.find('"').expect("closing quote");
+        stripped[..end].to_string()
     } else {
-        let fin = reste.find([',', '}']).expect("field terminator");
-        reste[..fin].to_string()
+        let end = rest.find([',', '}']).expect("field terminator");
+        rest[..end].to_string()
     }
 }
 
-fn mesurer(n: u32) -> Mesure {
-    let sortie = Command::new(env!("CARGO_BIN_EXE_bench_contention"))
+fn measure(n: u32) -> Measurement {
+    let output = Command::new(env!("CARGO_BIN_EXE_bench_contention"))
         .args([&n.to_string()])
         .output()
         .expect("running the bench_contention runner");
-    assert!(sortie.status.success(), "runner exit status");
-    let json = String::from_utf8(sortie.stdout).expect("utf-8 JSON line");
-    let ligne = json.lines().next().expect("one JSON line");
-    // Array field: read from `[` to the matching `]` (champ() stops at the
+    assert!(output.status.success(), "runner exit status");
+    let json = String::from_utf8(output.stdout).expect("utf-8 JSON line");
+    let line = json.lines().next().expect("one JSON line");
+    // Array field: read from `[` to the matching `]` (field() stops at the
     // first comma, which is inside the array).
-    let marqueur = "\"interns_par_niveau\":[";
-    let debut = ligne.find(marqueur).expect("array field present") + marqueur.len();
-    let fin = ligne[debut..].find(']').expect("array closing bracket") + debut;
-    let interns: Vec<u64> = ligne[debut..fin]
+    let marker = "\"interns_per_level\":[";
+    let start = line.find(marker).expect("array field present") + marker.len();
+    let end = line[start..].find(']').expect("array closing bracket") + start;
+    let interns: Vec<u64> = line[start..end]
         .split(',')
         .map(|v| v.trim().parse().expect("u64"))
         .collect();
-    Mesure {
-        n: champ(ligne, "n").parse().expect("n"),
-        nodes: champ(ligne, "noeuds").parse().expect("noeuds"),
-        verifie: champ(ligne, "verifie").parse().expect("verifie"),
-        rounds: champ(ligne, "rounds").parse().expect("rounds"),
-        creations: champ(ligne, "creations").parse().expect("creations"),
-        partages: champ(ligne, "partages").parse().expect("partages"),
-        taux_hit_rshare: champ(ligne, "taux_hit_rshare")
+    Measurement {
+        n: field(line, "n").parse().expect("n"),
+        nodes: field(line, "nodes").parse().expect("nodes"),
+        verified: field(line, "verified").parse().expect("verified"),
+        rounds: field(line, "rounds").parse().expect("rounds"),
+        creations: field(line, "creations").parse().expect("creations"),
+        shares: field(line, "shares").parse().expect("shares"),
+        rshare_hit_rate: field(line, "rshare_hit_rate")
             .parse()
-            .expect("taux_hit_rshare"),
-        memo_hits: champ(ligne, "memo_hits").parse().expect("memo_hits"),
-        memo_misses: champ(ligne, "memo_misses").parse().expect("memo_misses"),
-        taux_hit_memo: champ(ligne, "taux_hit_memo")
-            .parse()
-            .expect("taux_hit_memo"),
-        interns_par_niveau: interns,
-        temps_build_ms: champ(ligne, "temps_build_ms")
-            .parse()
-            .expect("temps_build_ms"),
-        temps_saturation_ms: champ(ligne, "temps_saturation_ms")
-            .parse()
-            .expect("temps_saturation_ms"),
-        temps_count_ms: champ(ligne, "temps_count_ms")
-            .parse()
-            .expect("temps_count_ms"),
+            .expect("rshare_hit_rate"),
+        memo_hits: field(line, "memo_hits").parse().expect("memo_hits"),
+        memo_misses: field(line, "memo_misses").parse().expect("memo_misses"),
+        memo_hit_rate: field(line, "memo_hit_rate").parse().expect("memo_hit_rate"),
+        interns_per_level: interns,
+        build_ms: field(line, "build_ms").parse().expect("build_ms"),
+        saturation_ms: field(line, "saturation_ms").parse().expect("saturation_ms"),
+        count_ms: field(line, "count_ms").parse().expect("count_ms"),
     }
 }
 
@@ -98,47 +90,56 @@ fn mesurer(n: u32) -> Mesure {
 /// per-level distribution, frozen time ceiling, published baselines.
 #[test]
 fn test_bench_contention_philosophers_n5() {
-    let mesure = mesurer(N);
+    let measurement = measure(N);
     // Structural counters: R_5 = 152 members + 1 illegal member added by
     // the saturation step; 2 rounds (add, then fixpoint).
-    assert_eq!(mesure.n, 5);
-    assert_eq!(mesure.verifie, 153, "|R_5| + the saturation-added member");
-    assert_eq!(mesure.rounds, 2, "singleton step: add then fixpoint");
-    assert_eq!(mesure.creations, mesure.nodes, "creations == live nodes");
-    assert!(mesure.partages > 0, "R-share hits exist on this workload");
+    assert_eq!(measurement.n, 5);
+    assert_eq!(
+        measurement.verified, 153,
+        "|R_5| + the saturation-added member"
+    );
+    assert_eq!(measurement.rounds, 2, "singleton step: add then fixpoint");
+    assert_eq!(
+        measurement.creations, measurement.nodes,
+        "creations == live nodes"
+    );
+    assert!(
+        measurement.shares > 0,
+        "R-share hits exist on this workload"
+    );
     // Falsifiable hit-rate ranges (measured 65% R-share, 21% memo at P0-1).
     assert!(
-        (50..=80).contains(&mesure.taux_hit_rshare),
+        (50..=80).contains(&measurement.rshare_hit_rate),
         "R-share hit rate regressed: {}",
-        mesure.taux_hit_rshare
+        measurement.rshare_hit_rate
     );
     assert!(
-        (0.10..=0.40).contains(&mesure.taux_hit_memo),
+        (0.10..=0.40).contains(&measurement.memo_hit_rate),
         "memo hit rate regressed: {}",
-        mesure.taux_hit_memo
+        measurement.memo_hit_rate
     );
     assert!(
-        mesure.memo_hits > 0 && mesure.memo_misses > 0,
+        measurement.memo_hits > 0 && measurement.memo_misses > 0,
         "the saturation exercises the memo both ways"
     );
     // Per-level intern distribution: a Map of 2n keys has 4n levels
     // (presence + value per key), all exercised.
     assert_eq!(
-        mesure.interns_par_niveau.len(),
+        measurement.interns_per_level.len(),
         4 * N as usize,
         "one counter per level of the interleaved schema"
     );
     assert!(
-        mesure.interns_par_niveau.iter().all(|&v| v > 0),
+        measurement.interns_per_level.iter().all(|&v| v > 0),
         "every level sees intern calls: {:?}",
-        mesure.interns_par_niveau
+        measurement.interns_per_level
     );
     // Frozen time ceiling: CI refuses gross time regressions (algorithmic),
-    // not machine noise — see SEUIL_TEMPS_TOTAL_MS.
-    let total = mesure.temps_build_ms + mesure.temps_saturation_ms + mesure.temps_count_ms;
+    // not machine noise — see TOTAL_TIME_CEILING_MS.
+    let total = measurement.build_ms + measurement.saturation_ms + measurement.count_ms;
     assert!(
-        total <= SEUIL_TEMPS_TOTAL_MS,
-        "REGRESSION: total time {total:.1} ms > ceiling {SEUIL_TEMPS_TOTAL_MS} ms"
+        total <= TOTAL_TIME_CEILING_MS,
+        "REGRESSION: total time {total:.1} ms > ceiling {TOTAL_TIME_CEILING_MS} ms"
     );
 
     if std::env::var("P01_PUBLISH").is_ok() {
@@ -147,25 +148,25 @@ fn test_bench_contention_philosophers_n5() {
              Runner `bench_contention {{n}}`, one process per run. Anchored criterion n = 5;\n\
              the saturation step is a synthetic contention step (one fixed illegal member),\n\
              exercising rounds/memo/union on the philosophers diagram.\n\n\
-             | n | noeuds | verifie | rounds | creations | partages | taux hit R-share (%) | memo hits | memo misses | taux hit memo | temps build (ms) | temps saturation (ms) | temps count (ms) |\n\
+             | n | nodes | verified | rounds | creations | shares | R-share hit rate (%) | memo hits | memo misses | memo hit rate | build (ms) | saturation (ms) | count (ms) |\n\
              |---|---|---|---|---|---|---|---|---|---|---|---|---|\n\
              | {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.4} | {:.3} | {:.3} | {:.3} |\n\n\
              Interns per level (n = {}): {:?}\n",
-            mesure.n,
-            mesure.nodes,
-            mesure.verifie,
-            mesure.rounds,
-            mesure.creations,
-            mesure.partages,
-            mesure.taux_hit_rshare,
-            mesure.memo_hits,
-            mesure.memo_misses,
-            mesure.taux_hit_memo,
-            mesure.temps_build_ms,
-            mesure.temps_saturation_ms,
-            mesure.temps_count_ms,
-            mesure.n,
-            mesure.interns_par_niveau,
+            measurement.n,
+            measurement.nodes,
+            measurement.verified,
+            measurement.rounds,
+            measurement.creations,
+            measurement.shares,
+            measurement.rshare_hit_rate,
+            measurement.memo_hits,
+            measurement.memo_misses,
+            measurement.memo_hit_rate,
+            measurement.build_ms,
+            measurement.saturation_ms,
+            measurement.count_ms,
+            measurement.n,
+            measurement.interns_per_level,
         );
         let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
         std::fs::write(format!("{directory}/p01-contention.md"), publication)
