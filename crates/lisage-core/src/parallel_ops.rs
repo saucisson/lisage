@@ -132,6 +132,7 @@ pub fn merge_pools_seq(
 ) -> Result<(PoolRef, NodeId), CoreError> {
     use crate::pli::union;
     use lisage_algebra::interface::Pool as _;
+    assert_eq!(pools.len(), roots.len(), "one root per pool");
     let keys = SchemaKeys::new(schema.clone());
     let mut merged = Arena::new(
         ReferenceController::new(schema.clone()),
