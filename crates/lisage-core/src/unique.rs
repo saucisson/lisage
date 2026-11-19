@@ -220,3 +220,28 @@ where
     form.hash(&mut hasher);
     hasher.finish()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lisage_algebra::interface::{ArcRun, Level};
+
+    /// PERF-3 (issue #284): golden value pinning `hash_cle` — the
+    /// `FastHasher` must stay deterministic across runs and machines
+    /// (MEM-18 seeded-workload reproducibility); any change to the hash
+    /// algorithm fails this test.
+    #[test]
+    fn test_hash_cle_golden_value() {
+        let form: Form<u64, bool> = Form::Node {
+            level: Level(3),
+            arcs: ArcRun::from_pairs([(0, NodeId(11)), (1, NodeId(12))]),
+        };
+        assert_eq!(
+            hash_cle(Anchor(0), &form),
+            3_561_021_471_050_673_137,
+            "golden hash_cle value (PERF-3 FastHasher)"
+        );
+        // Same key, different anchor: the anchor is part of the key.
+        assert_ne!(hash_cle(Anchor(1), &form), hash_cle(Anchor(0), &form));
+    }
+}

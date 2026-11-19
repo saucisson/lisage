@@ -1,0 +1,5 @@
+{"charge": "alea-lcg-22", "noeuds": 325824, "outil": "cudd", "parametres": {"n": "22"}, "rss_max_ko": 274840, "temps_ms": 4612.879, "variante": "bdd", "verifie": 2096246}
+{"charge": "alea-lcg-22", "noeuds": 325824, "outil": "cudd", "parametres": {"n": "22"}, "rss_max_ko": 274972, "temps_ms": 4678.778, "variante": "bdd", "verifie": 2096246}
+{"charge": "alea-lcg-22", "noeuds": 325824, "outil": "cudd", "parametres": {"n": "22"}, "rss_max_ko": 274964, "temps_ms": 4619.203, "variante": "bdd", "verifie": 2096246}
+{"charge": "alea-lcg-22", "noeuds": 325824, "outil": "cudd", "parametres": {"n": "22"}, "rss_max_ko": 274924, "temps_ms": 4610.97, "variante": "bdd", "verifie": 2096246}
+{"charge": "alea-lcg-22", "noeuds": 325824, "outil": "cudd", "parametres": {"n": "22"}, "rss_max_ko": 274848, "temps_ms": 4555.122, "variante": "bdd", "verifie": 2096246}
