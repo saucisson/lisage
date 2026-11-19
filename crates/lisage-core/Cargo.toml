@@ -9,5 +9,8 @@ repository.workspace = true
 [dependencies]
 lisage-lang = { path = "../lisage-lang" }
 lisage-algebra = { path = "../lisage-algebra" }
+# Named by issue #139 (P1-1); already in the lockfile as a transitive
+# dependency, promoted here to a direct one — no new version introduced.
+rayon = "1.12"
 
 [dev-dependencies]

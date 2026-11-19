@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-19 - P1-1: independent operations, separate pools (issue #139)
+
+- **Issue**: #139 (P1-1, PAR-1): module `parallel_ops.rs` — parallel execution (rayon) of independent transductions reading the same input pool read-shared, each in its own output pool (INV10). DoD: PBT PAR-1 on n concurrent operations; bench showing the gain on multi-query workloads.
+- **Done**: (1) New `crates/lisage-core/src/parallel_ops.rs`: `IndependentOp<T>` (transduction + root), `run_independent_seq` (one-worker reference) and `run_independent_par` (rayon fork-join, results in input order), each op in its own output pool, input pool read-shared (INV10). rayon 1.12 promoted from transitive (already in Cargo.lock) to a direct dependency of lisage-core — named by issue #139, no new version introduced. (2) PBT in `crates/lisage-bench/tests/par_equivalence.rs` (`test_p1_1_independent_ops_equivalence`): n ops (1..6) on roots of a random read-shared input pool — seq vs par agree on every synthesized attribute and on the structural form of every output root (`forms_equal`, never bare NodeIds). (3) Bench runner `crates/lisage-bench/src/bin/bench_parallel_ops.rs` + test `crates/lisage-bench/tests/parallel_ops.rs`: multi-query workload on philosophers R_8 (3104 members), 16 counting ops, seq vs par, PAR-1 sanity asserted inside the runner; publishes `bench-results/p11-parallel-ops.md` under `P11_PUBLISH=1`.
+- **Measured verdict (written)**: published `bench-results/p11-parallel-ops.md`: n=8, 16 ops — seq 23.065 ms vs par 10.257 ms, speedup 2.25x on 4 cores (release runner: 1.48x at 16 ops, 1.85x at 32 ops).
+- **Evidence**: `cargo nextest run -p lisage-bench --test parallel_ops --test par_equivalence` green; `cargo nextest run -p lisage-core` green (187 passed); clippy `-D warnings`, import-linter (1 contract kept), `make english-only` green. Known pre-existing failure, not from this change: `lisage-bench::dense test_c1_famille_dense` (latent proptest seed, fails on base too). Not run: full-workspace `make check` in this session; GitHub CI before the PR.
+- **Judgement calls**: rayon used as named by the issue (already in the lockfile, so no new version decision); ops in the bench alternate the union root (heavy query) and member roots; wall times published, not pinned.
+- **Escalations**: none (the rayon dependency was specified by issue #139 itself).
+
 ## 2026-11-19 - P0-3: ADR blind routing to structure (issue #138)
 
 - **Issue**: #138 (P0-3): ADR covering the invariants INV1-INV10, the decision against level-sharding (and why), the position vs Sylvan (per variable) and vs the Paris school/pnmc; plan B Adiar documented as the fallback condition. DoD: ADR merged in `docs/decisions/`; the boundary tests validate the signatures.
