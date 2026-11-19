@@ -226,6 +226,9 @@ mod tests {
     use super::*;
     use lisage_algebra::interface::{ArcRun, Level};
 
+    /// Golden `hash_cle` value for the fixed form of the test below.
+    const GOLDEN_HASH_CLE: u64 = 3_561_021_471_050_673_137;
+
     /// PERF-3 (issue #284): golden value pinning `hash_cle` — the
     /// `FastHasher` must stay deterministic across runs and machines
     /// (MEM-18 seeded-workload reproducibility); any change to the hash
@@ -238,7 +241,7 @@ mod tests {
         };
         assert_eq!(
             hash_cle(Anchor(0), &form),
-            3_561_021_471_050_673_137,
+            GOLDEN_HASH_CLE,
             "golden hash_cle value (PERF-3 FastHasher)"
         );
         // Same key, different anchor: the anchor is part of the key.

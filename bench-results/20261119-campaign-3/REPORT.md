@@ -22,9 +22,9 @@ and `divergences` is empty — the campaign is valid (C1 holds after PERF-2/3).
 |---|---|---|
 | alea-lcg-20 | 106 760 | 523 228 |
 | alea-lcg-22 | 325 824 | 2 096 246 |
-| alea-lcg-24 | 1 071 698 | 8 388 608 |
-| cnf-uf20-01 | (see aggregats) | (see aggregats) |
-| pnml-swimmingpool-1 | (see aggregats) | (see aggregats) |
+| alea-lcg-24 | 1 071 698 | 8 386 976 |
+| cnf-uf20-01 | 51 | 8 |
+| pnml-swimmingpool-1 | 1 859 | 1 408 |
 
 ## Time: median ms (5 repetitions), campaign-2 -> campaign-3
 
