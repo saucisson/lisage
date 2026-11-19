@@ -50,6 +50,9 @@ pub struct Arena<C: Controller> {
     unique_terminals: HashMap<C::Payload, NodeId>,
     /// Shadow-plane index: level → live nodes of that level.
     index_levels: IndexLevels,
+    /// Intern calls per level (P0-1, issue #136): `interns_per_level[ℓ]`
+    /// counts the node-form intern calls at level ℓ (hit or miss).
+    interns_per_level: Vec<u64>,
     metriques: MetriquesPool,
     /// Remapping table of the last compaction, keyed by the old raw
     /// `NodeId` (empty otherwise).
@@ -79,6 +82,7 @@ where
             unique: TableUnique::new(),
             unique_terminals: HashMap::new(),
             index_levels: IndexLevels::new(),
+            interns_per_level: Vec::new(),
             metriques: MetriquesPool::default(),
             remap: BTreeMap::new(),
             observer,
@@ -193,6 +197,12 @@ where
     /// Pool metrics (cache + GC).
     pub fn metriques(&self) -> MetriquesPool {
         self.metriques
+    }
+
+    /// Intern calls per level (P0-1, issue #136): index ℓ = level ℓ,
+    /// value = node-form intern calls at that level (R-share hit or miss).
+    pub fn interns_per_level(&self) -> &[u64] {
+        &self.interns_per_level
     }
 
     /// Remapping table of the last compaction, keyed by the old raw
@@ -505,6 +515,15 @@ where
             self.observer
                 .on_event(&TraceEvent::NodeCreated { node, level: None });
             return node;
+        }
+        // P0-1 (issue #136): per-level intern counter — every node-form
+        // intern call counts at its level, hit or miss.
+        if let Form::Node { level, .. } = &form {
+            let level_index = level.0 as usize;
+            if self.interns_per_level.len() <= level_index {
+                self.interns_per_level.resize(level_index + 1, 0);
+            }
+            self.interns_per_level[level_index] += 1;
         }
         // PERF-3: a node routed to an exact inline class stores its arcs
         // inline — the boxed run of the dense family would be dropped
