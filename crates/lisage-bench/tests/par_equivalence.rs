@@ -40,7 +40,7 @@ const STEP_FINGERPRINT: u64 = 6002;
 
 /// A workload: a bounded set schema and a list of members (subsets of the
 /// domain) to compile and union into R, then saturate and count.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Workload {
     domain_size: u64,
     members: Vec<Vec<u64>>,
@@ -430,5 +430,65 @@ proptest! {
                 "op {}: same structural form of the output root", i
             );
         }
+    }
+}
+
+proptest! {
+    /// P1-2 (issue #140, PAR-1): merging k output pools — the sequential
+    /// fold and the parallel pairwise tree reduction agree on the
+    /// structural form of the merged root and on its cardinality; the
+    /// merged pool shares nodes across the source pools (cross-pool
+    /// sharing: live nodes <= sum of the source pools' live nodes).
+    #[test]
+    fn test_p1_2_merge_pools_equivalence(
+        workload in workload_strategy(),
+        number_pools in 1usize..7,
+    ) {
+        use lisage_core::parallel_ops::{merge_pools_par, merge_pools_seq};
+        // k independent output pools, each holding a random diagram. Built
+        // twice: the merge functions consume the pools.
+        let build = |workload: &Workload| {
+            let mut pools = Vec::new();
+            let mut roots = Vec::new();
+            let mut schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
+            for i in 0..number_pools {
+                let mut w = workload.clone();
+                w.members = w
+                    .members
+                    .into_iter()
+                    .map(|m| m.into_iter().map(|a| (a + i as u64) % w.domain_size).collect())
+                    .collect();
+                let (pool, s, root, _members) = random_input_pool(&w);
+                schema = s;
+                pools.push(pool);
+                roots.push(root);
+            }
+            (pools, roots, schema)
+        };
+        let (pools_seq, roots_seq, schema) = build(&workload);
+        let (pools_par, roots_par, _) = build(&workload);
+        let sum_live: usize = pools_seq.iter().map(|p| p.live()).sum();
+        let (pool_seq, root_seq) = merge_pools_seq(&schema, ANCHOR, &pools_seq, &roots_seq).unwrap();
+        let (pool_par, root_par) =
+            merge_pools_par(&schema, ANCHOR, pools_par, roots_par).unwrap();
+        prop_assert!(
+            forms_equal(&pool_seq, root_seq, &pool_par, root_par, &mut HashMap::new()),
+            "same structural form of the merged root"
+        );
+        let mut output = Arena::new(
+            ReferenceController::new(schema.clone()),
+            Box::new(NoOpObserver),
+        );
+        let card_seq = count(&pool_seq, &mut output, ANCHOR, &schema, root_seq).unwrap();
+        let card_par = count(&pool_par, &mut output, ANCHOR, &schema, root_par).unwrap();
+        prop_assert_eq!(card_seq, card_par, "same cardinality of the merged root");
+        // Cross-pool sharing: the merged pool stays within the sum of the
+        // source pools plus one union-root node per pool.
+        let bound = sum_live + number_pools;
+        prop_assert!(
+            pool_seq.live() <= bound && pool_par.live() <= bound,
+            "cross-pool sharing: merged live ({} / {}) <= sum of sources + k ({})",
+            pool_seq.live(), pool_par.live(), bound
+        );
     }
 }

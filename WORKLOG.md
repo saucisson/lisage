@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-19 - P1-2: parallel merge of the output pools (issue #140)
+
+- **Issue**: #140 (P1-2, PAR-1): parallel pairwise union of the output pools (merge at barriers), including cross-pool sharing. DoD: equivalence to sequential merges (PBT); bench scaling vs sequential merge.
+- **Done**: (1) `crates/lisage-core/src/parallel_ops.rs` gains `copy_into` (recursive cross-pool copy with per-source-node memo — identical subforms share nodes in the destination's unique table), `merge_pools_seq` (sequential fold: copy each root into one merge pool + union) and `merge_pools_par` (pairwise tree reduction on rayon: each pair merged in its own task into a fresh pool, until one remains). (2) PBT `test_p1_2_merge_pools_equivalence` in `par_equivalence.rs`: k (1..7) random output pools — seq vs par agree on the structural form of the merged root and its cardinality; cross-pool sharing pinned (merged live <= sum of sources + k union-root nodes). (3) Bench runner `bench_merge.rs` + test `merge.rs`: k pools, each a full copy of a random Map diagram (n=8: 16 keys, domain {0,1,2}, 4000 words, 136 286 live nodes), merged seq vs par with PAR-1 sanity inside the runner; publishes `bench-results/p12-merge.md` under `P12_PUBLISH=1`.
+- **Measured verdict (written)**: published `bench-results/p12-merge.md`: n=8, 16 pools — seq 1481.866 ms vs par 1091.228 ms, speedup 1.36x on 4 cores (release runner: 1.14x at 16 pools, 1.21x at 32 pools); merged pool 17 928 live nodes vs 136 286 per copy (cross-pool sharing effective).
+- **Evidence**: `cargo nextest run -p lisage-bench --test par_equivalence --test merge` green; `cargo nextest run -p lisage-core` green (187 passed); clippy `-D warnings`, import-linter, `make english-only` green. Not run: full-workspace `make check` in this session; GitHub CI before the PR.
+- **Judgement calls**: the merge bench uses copies of one random Map diagram (the philosophers R_n root is too compact — ~100 reachable nodes — to show scaling); wall times published, not pinned; the sharing bound allows one union-root node per pool.
+- **Escalations**: none.
+
 ## 2026-11-19 - P1-1: independent operations, separate pools (issue #139)
 
 - **Issue**: #139 (P1-1, PAR-1): module `parallel_ops.rs` — parallel execution (rayon) of independent transductions reading the same input pool read-shared, each in its own output pool (INV10). DoD: PBT PAR-1 on n concurrent operations; bench showing the gain on multi-query workloads.
