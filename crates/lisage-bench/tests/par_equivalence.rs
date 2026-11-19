@@ -222,22 +222,25 @@ fn forms_equal(
         pool_a.resolve(node_a).unwrap(),
         pool_b.resolve(node_b).unwrap(),
     ) {
-        (Form::Terminal(pa), Form::Terminal(pb)) => pa == pb,
+        (Form::Terminal(payload_a), Form::Terminal(payload_b)) => payload_a == payload_b,
         (
             Form::Node {
-                level: la,
-                arcs: aa,
+                level: level_a,
+                arcs: arcs_a,
             },
             Form::Node {
-                level: lb,
-                arcs: ab,
+                level: level_b,
+                arcs: arcs_b,
             },
         ) => {
-            la == lb
-                && aa.len() == ab.len()
-                && aa.iter().zip(ab.iter()).all(|((va, na), (vb, nb))| {
-                    va == vb && forms_equal(pool_a, *na, pool_b, *nb, visited)
-                })
+            level_a == level_b
+                && arcs_a.len() == arcs_b.len()
+                && arcs_a.iter().zip(arcs_b.iter()).all(
+                    |((value_a, child_a), (value_b, child_b))| {
+                        value_a == value_b
+                            && forms_equal(pool_a, *child_a, pool_b, *child_b, visited)
+                    },
+                )
         }
         _ => false,
     };

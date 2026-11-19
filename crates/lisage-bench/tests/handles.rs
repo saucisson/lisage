@@ -61,6 +61,10 @@ proptest! {
     /// C1: deterministic interning — the same form interned twice
     /// (same arena or distinct arenas) gives the same handle.
     #[test]
+    // Input ranges: keys start at 1 because key 0 is the default key — such
+    // arcs are R-default-dropped and the form may reduce to a terminal, which
+    // the cross-arena form comparison below cannot resolve; targets are the
+    // two terminals interned first (issue #137 requalification).
     fn test_c1_unicite_handles(paires in prop::collection::vec((1u8..3, 0u32..2), 0..5), level in 0u8..4) {
         let form = form_aleatoire(paires, level);
         let anchor = Anchor(0);
