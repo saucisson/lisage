@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-19 - PERF-3: fast deterministic hash + no dense box for inline classes (issue #284, milestone PERF #279)
+
+- **Issue**: #284 (PERF-3, third increment of milestone PERF #279): after PERF-2 (1.70 allocs/intern, 214 ms build on alea-lcg-20), attack the remaining time (SipHash on every interned form) and the remaining allocations (dense-family box dropped for inline classes).
+- **Done**: (1) `hash_cle` (`crates/lisage-core/src/unique.rs`) replaces `DefaultHasher` (SipHash-1-3) with `FastHasher`, an FxHash-style rotate-xor-multiply hasher over 64-bit words, fixed golden-ratio seed, little-endian reads — deterministic across runs and machines (MEM-18); the unique table uses the hash only for bucket placement, equality stays semantic via `same_form`, so any deterministic hasher is correct. (2) `Arena::intern` skips the MEM-12 dense-family allocation when the node routes to an exact inline class (arcs stored inline there, the boxed run would be dropped); the decision is deterministic in (level, keys, content, layout) so the hash-consing key stays canonical and C1 holds; `resolve` still re-applies the dense family on rebuild. Published `bench-results/perf3-fast-hash-inline.md`.
+- **Measured verdict (written)**: on alea-lcg-20, allocs/intern **1.697 -> 1.017** (1 779 598 -> 1 066 455 allocations, 81.7 MB -> 47.4 MB transient), build **214 -> 152 ms** (median of 3, 148.0-161.4); n=22: 1.690 -> 1.013, 1159 -> 865 ms. Node count and satisfying assignments identical throughout (106 760 / 523 228 — C1 preserved). Milestone total on alea-lcg-20: 8.479 -> 1.017 allocs/intern (8.3x), 563 -> 152 ms build (3.7x). Against the BENCH-1 campaign-2 OxiDD reference (122.3 ms), the lisage/OxiDD ratio goes from ~4.4x to ~1.2x. Remaining ~1.0 alloc/intern: call-site `from_pairs` box + amortized slab growth.
+- **Evidence**: `cargo nextest run` per crate, all green (lisage-algebra+lisage-core 186 passed, lisage-bench 98 passed / 10 skipped FFI, plan+lang+liseuse+backend 72 passed, 0 failed); clippy `-D warnings` clean, `cargo fmt --check` green; runner output reproduced 3x (allocation counters identical). Not run yet at entry time: full `make check` (run before the PR), GitHub CI.
+- **Judgement calls**: the inline-skip of the dense family is keyed on the exact-inline routing decision computed before the family choice — deterministic per pool, so two interns of the same semantic form always take the same path (C1); the dense family is still chosen for the catch-all class and re-applied by `resolve`, so MEM-12 observable behavior is unchanged (dense PBT green).
+- **Escalations**: none.
+
 ## 2026-11-19 - PERF-2: cut the allocations per intern on the alea-lcg path (issue #282, milestone PERF #279)
 
 - **Issue**: #282 (PERF-2, second increment of milestone PERF #279): PERF-1 measured 8.48 allocations/internement on alea-lcg-20; cut them in the core intern path.
