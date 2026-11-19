@@ -138,10 +138,7 @@ where
 
     /// True when every arc key of the form narrows to its 32-bit storage
     /// form at this level (MEM-16): the node can live in an exact class.
-    fn narrowable(&self, level: Level, form: &Form<C::Key, C::Payload>) -> bool {
-        let Form::Node { arcs, .. } = form else {
-            return false;
-        };
+    fn narrowable(&self, level: Level, arcs: &ArcRun<C::Key>) -> bool {
         let keys = self.controleur.keys();
         arcs.iter()
             .all(|(key, _)| keys.narrow(level, key).is_some())
@@ -504,6 +501,12 @@ where
                 .on_event(&TraceEvent::NodeCreated { node, level: None });
             return node;
         }
+        // PERF-3: a node routed to an exact inline class stores its arcs
+        // inline — the boxed run of the dense family would be dropped
+        // there, so the dense conversion is skipped for those nodes. The
+        // decision is deterministic in (level, keys, content, layout), so
+        // the hash-consing key stays canonical and C1 holds.
+        let mut exact_inline = false;
         let form = match form {
             Form::Node { level, arcs } => {
                 let size_avant = arcs.len();
@@ -522,10 +525,19 @@ where
                                 level,
                             });
                         }
+                        let degree = arcs.len() as u32;
+                        exact_inline = self.layout_inline
+                            && degree >= 1
+                            && degree <= self.class_map.exact_max
+                            && self.narrowable(level, &arcs);
                         // MEM-12: the dense ordinal family is chosen in
                         // normalization, after the reductions so that the
                         // choice survives on the stored (hash-consed) form.
-                        let arcs = ArcRun::choose_dense_family(level, self.controleur.keys(), arcs);
+                        let arcs = if exact_inline {
+                            arcs
+                        } else {
+                            ArcRun::choose_dense_family(level, self.controleur.keys(), arcs)
+                        };
                         Form::Node { level, arcs }
                     }
                     Ok(terminal) => terminal,
@@ -559,14 +571,7 @@ where
             Form::Node { level, arcs } => (arcs.len() as u32, Some(*level)),
         };
         let class = match level {
-            Some(level)
-                if self.layout_inline
-                    && degree >= 1
-                    && degree <= self.class_map.exact_max
-                    && self.narrowable(level, &form) =>
-            {
-                degree
-            }
+            Some(_) if exact_inline => degree,
             // Open domain or degree beyond the window: the catch-all class
             // keeps the full key/value run — no loss on open domains.
             Some(_) => self.class_map.catch_all,

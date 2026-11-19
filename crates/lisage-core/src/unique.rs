@@ -135,6 +135,79 @@ impl TableUnique {
     }
 }
 
+/// Fast deterministic hasher (PERF-3): FxHash-style rotate-xor-multiply
+/// over 64-bit words with a fixed seed, replacing SipHash
+/// (`DefaultHasher`) on the intern path — SipHash's constant cost on the
+/// small node forms dominated the remaining build time. The unique table
+/// uses the hash only for bucket placement (equality stays semantic via
+/// `same_form`), so any deterministic hasher is correct; the fixed seed
+/// and little-endian word reads keep measurements reproducible across
+/// runs and machines (MEM-18 seeded workload).
+struct FastHasher {
+    hash: u64,
+}
+
+/// Fixed seed: the golden-ratio constant.
+const FAST_SEED: u64 = 0x9E37_79B9_7F4A_7C15;
+/// FxHash multiplier constant.
+const FAST_K: u64 = 0x517C_C1B7_2722_0A95;
+
+impl FastHasher {
+    fn new() -> Self {
+        FastHasher { hash: FAST_SEED }
+    }
+
+    #[inline]
+    fn add_word(&mut self, word: u64) {
+        self.hash = (self.hash.rotate_left(5) ^ word).wrapping_mul(FAST_K);
+    }
+}
+
+impl Hasher for FastHasher {
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.hash
+    }
+
+    #[inline]
+    fn write(&mut self, bytes: &[u8]) {
+        let (words, tail) = bytes.as_chunks::<8>();
+        for word in words {
+            self.add_word(u64::from_le_bytes(*word));
+        }
+        if !tail.is_empty() {
+            let mut word = [0u8; 8];
+            word[..tail.len()].copy_from_slice(tail);
+            self.add_word(u64::from_le_bytes(word));
+        }
+    }
+
+    #[inline]
+    fn write_u8(&mut self, value: u8) {
+        self.add_word(u64::from(value));
+    }
+
+    #[inline]
+    fn write_u16(&mut self, value: u16) {
+        self.add_word(u64::from(value));
+    }
+
+    #[inline]
+    fn write_u32(&mut self, value: u32) {
+        self.add_word(u64::from(value));
+    }
+
+    #[inline]
+    fn write_u64(&mut self, value: u64) {
+        self.add_word(value);
+    }
+
+    #[inline]
+    fn write_usize(&mut self, value: usize) {
+        self.add_word(value as u64);
+    }
+}
+
 /// Hash of the hash-consing key `(anchor, form)` — the semantic form,
 /// hashed in place, never cloned.
 pub(crate) fn hash_cle<Key, Payload>(anchor: Anchor, form: &Form<Key, Payload>) -> u64
@@ -142,7 +215,7 @@ where
     Key: Hash,
     Payload: Hash,
 {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = FastHasher::new();
     anchor.hash(&mut hasher);
     form.hash(&mut hasher);
     hasher.finish()
