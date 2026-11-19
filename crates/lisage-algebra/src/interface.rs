@@ -139,12 +139,26 @@ where
     Key: Clone + Ord + Hash + Debug + Send + Sync,
 {
     /// Build a sorted run from pairs, keeping the LAST target of each key.
+    /// Vec + sort + dedup (PERF-2): one allocation for the common
+    /// duplicate-free case with an exact size hint, against one tree-node
+    /// allocation per pair for the previous `BTreeMap` build.
     pub fn from_pairs(pairs: impl IntoIterator<Item = (Key, NodeId)>) -> Self {
-        let mut map: BTreeMap<Key, NodeId> = BTreeMap::new();
-        for (key, target) in pairs {
-            map.insert(key, target);
-        }
-        ArcRun::Sorted(map.into_iter().collect())
+        let iter = pairs.into_iter();
+        let (lower, upper) = iter.size_hint();
+        let mut vec: Vec<(Key, NodeId)> = Vec::with_capacity(upper.unwrap_or(lower));
+        vec.extend(iter);
+        vec.sort_by(|a, b| a.0.cmp(&b.0));
+        // Last write wins: on equal keys, the later pair overwrites the
+        // retained one and is then removed.
+        vec.dedup_by(|later, retained| {
+            if later.0 == retained.0 {
+                retained.1 = later.1;
+                true
+            } else {
+                false
+            }
+        });
+        ArcRun::Sorted(vec.into_boxed_slice())
     }
 
     /// MEM-12: choose the dense ordinal family when every key of `arcs`
@@ -207,17 +221,12 @@ where
     }
 
     /// Ordered iteration of the `(key, target)` pairs (key order for the
-    /// sorted run, rank order for the dense family).
-    pub fn iter(&self) -> Box<dyn DoubleEndedIterator<Item = (&Key, &NodeId)> + '_> {
-        match self {
-            ArcRun::Sorted(pairs) => Box::new(pairs.iter().map(|(key, target)| (key, target))),
-            ArcRun::Dense(slots) => Box::new(slots.iter().filter(|slot| slot.is_some()).map(
-                |slot| match slot {
-                    Some((key, target)) => (key, target),
-                    None => unreachable!("filtered above"),
-                },
-            )),
-        }
+    /// sorted run, rank order for the dense family). Concrete iterator
+    /// (PERF-2): the intern path calls `iter()` several times per
+    /// interning (unique-table probes, normalization, reductions) and each
+    /// boxed `dyn` iterator was one heap allocation.
+    pub fn iter(&self) -> ArcRunIter<'_, Key> {
+        ArcRunIter::new(self)
     }
 
     /// Iteration over the targets, in key/rank order.
@@ -241,6 +250,69 @@ where
     /// True when the run holds no arc.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+/// Allocation-free double-ended iteration over an [`ArcRun`] (PERF-2):
+/// scans the underlying storage between `front` and `back`, skipping the
+/// holes of the dense family.
+pub struct ArcRunIter<'a, Key> {
+    run: &'a ArcRun<Key>,
+    front: usize,
+    back: usize,
+}
+
+impl<'a, Key> ArcRunIter<'a, Key> {
+    fn new(run: &'a ArcRun<Key>) -> Self {
+        let len = match run {
+            ArcRun::Sorted(pairs) => pairs.len(),
+            ArcRun::Dense(slots) => slots.len(),
+        };
+        ArcRunIter {
+            run,
+            front: 0,
+            back: len,
+        }
+    }
+
+    fn get(&self, index: usize) -> Option<(&'a Key, &'a NodeId)> {
+        match self.run {
+            ArcRun::Sorted(pairs) => pairs.get(index).map(|(key, target)| (key, target)),
+            ArcRun::Dense(slots) => slots
+                .get(index)
+                .and_then(|slot| slot.as_ref().map(|(key, target)| (key, target))),
+        }
+    }
+}
+
+impl<'a, Key> Iterator for ArcRunIter<'a, Key> {
+    type Item = (&'a Key, &'a NodeId);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.front < self.back {
+            let index = self.front;
+            self.front += 1;
+            if let Some(pair) = self.get(index) {
+                return Some(pair);
+            }
+        }
+        None
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.back - self.front))
+    }
+}
+
+impl<'a, Key> DoubleEndedIterator for ArcRunIter<'a, Key> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        while self.front < self.back {
+            self.back -= 1;
+            if let Some(pair) = self.get(self.back) {
+                return Some(pair);
+            }
+        }
+        None
     }
 }
 

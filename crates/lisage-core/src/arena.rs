@@ -381,16 +381,37 @@ where
 
     /// Normalized form of a node: keys go through the normal form of the
     /// controller's key algebra (otherwise hash-consing would violate C1).
+    /// PERF-2 fast path: when every key is already in normal form (the
+    /// identity case, e.g. BDD keys), the run is kept as-is — no rebuild,
+    /// no allocation.
     fn form_normalisee(&self, form: Form<C::Key, C::Payload>) -> Form<C::Key, C::Payload> {
         match form {
             Form::Terminal(payload) => Form::Terminal(payload),
-            Form::Node { level, arcs } => Form::Node {
-                level,
-                arcs: arcs
-                    .into_iter()
-                    .map(|(key, target)| (self.controleur.keys().normal_form(&key), target))
-                    .collect(),
-            },
+            Form::Node { level, arcs } => {
+                let keys = self.controleur.keys();
+                // Canonical already: sorted family, strictly increasing
+                // keys (what `from_pairs` would produce), and every key in
+                // normal form — otherwise the rebuild below canonicalizes.
+                let famille_triee = matches!(arcs, ArcRun::Sorted(_));
+                let mut precedent: Option<&C::Key> = None;
+                let deja_canonique = famille_triee
+                    && arcs.iter().all(|(key, _)| {
+                        let ok = precedent.is_none_or(|p| p < key) && keys.normal_form(key) == *key;
+                        precedent = Some(key);
+                        ok
+                    });
+                if deja_canonique {
+                    Form::Node { level, arcs }
+                } else {
+                    Form::Node {
+                        level,
+                        arcs: arcs
+                            .into_iter()
+                            .map(|(key, target)| (keys.normal_form(&key), target))
+                            .collect(),
+                    }
+                }
+            }
         }
     }
 

@@ -119,25 +119,34 @@ pub fn compiler_bdd<P: Pool<Key = u64, Payload = bool>>(
         1usize << number_variables,
         "truth table of size 2^n (internal invariant)"
     );
-    shannon(pool, anchor, Level(0), table)
+    shannon(pool, anchor, Level(0), table, 0, 1)
 }
 
 /// Shannon expansion: `table` is indexed by the bits of variables
-/// `level.0..n` (bit ℓ of the index = variable ℓ); even positions (bit of
-/// the current variable = 0) give arc 0, odd ones arc 1.
+/// `level.0..n` (bit ℓ of the index = variable ℓ); the sub-table of the
+/// current variable is the strided window `(table, offset, stride)` —
+/// PERF-2: no half-table copy per level (two `Vec` allocations per
+/// interning before), arc 0 reads `offset`, arc 1 reads `offset + stride`.
 fn shannon<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     level: Level,
     table: &[bool],
+    offset: usize,
+    stride: usize,
 ) -> NodeId {
-    if table.len() == 1 {
-        return pool.intern(anchor, Form::Terminal(table[0]));
+    if stride == table.len() {
+        return pool.intern(anchor, Form::Terminal(table[offset]));
     }
-    let bas_table: Vec<bool> = table.iter().step_by(2).copied().collect();
-    let haut_table: Vec<bool> = table.iter().skip(1).step_by(2).copied().collect();
-    let bas = shannon(pool, anchor, Level(level.0 + 1), &bas_table);
-    let haut = shannon(pool, anchor, Level(level.0 + 1), &haut_table);
+    let bas = shannon(pool, anchor, Level(level.0 + 1), table, offset, stride * 2);
+    let haut = shannon(
+        pool,
+        anchor,
+        Level(level.0 + 1),
+        table,
+        offset + stride,
+        stride * 2,
+    );
     pool.intern(
         anchor,
         Form::Node {
