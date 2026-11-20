@@ -35,23 +35,15 @@ REGISTER_CONTENT = """# Machine register
 
 
 def test_hardware_hash_is_deterministic_and_short() -> None:
-    first = _hardware_hash(
-        cpu_model="cpu", physical_cores=4, logical_cores=8, ram_total_kib=1000
-    )
-    second = _hardware_hash(
-        cpu_model="cpu", physical_cores=4, logical_cores=8, ram_total_kib=1000
-    )
+    first = _hardware_hash(cpu_model="cpu", physical_cores=4, logical_cores=8, ram_total_kib=1000)
+    second = _hardware_hash(cpu_model="cpu", physical_cores=4, logical_cores=8, ram_total_kib=1000)
     assert first == second
     assert len(first) == HARDWARE_HASH_PREFIX_LENGTH
 
 
 def test_hardware_hash_changes_with_material() -> None:
-    base = _hardware_hash(
-        cpu_model="cpu", physical_cores=4, logical_cores=8, ram_total_kib=1000
-    )
-    other = _hardware_hash(
-        cpu_model="cpu", physical_cores=4, logical_cores=8, ram_total_kib=2000
-    )
+    base = _hardware_hash(cpu_model="cpu", physical_cores=4, logical_cores=8, ram_total_kib=1000)
+    other = _hardware_hash(cpu_model="cpu", physical_cores=4, logical_cores=8, ram_total_kib=2000)
     assert base != other
 
 
@@ -65,27 +57,19 @@ def test_hardware_hash_tolerates_null_fields() -> None:
 def test_machine_id_from_register_matches_hash(tmp_path: Path) -> None:
     register = tmp_path / "machines.md"
     register.write_text(REGISTER_CONTENT, encoding="utf-8")
-    assert (
-        _machine_id_from_register(register_path=register, hardware_hash="febd14ed") == "M2"
-    )
-    assert (
-        _machine_id_from_register(register_path=register, hardware_hash="aaaa1111") == "M1"
-    )
+    assert _machine_id_from_register(register_path=register, hardware_hash="febd14ed") == "M2"
+    assert _machine_id_from_register(register_path=register, hardware_hash="aaaa1111") == "M1"
 
 
 def test_machine_id_from_register_unknown_hash_is_null(tmp_path: Path) -> None:
     register = tmp_path / "machines.md"
     register.write_text(REGISTER_CONTENT, encoding="utf-8")
-    assert (
-        _machine_id_from_register(register_path=register, hardware_hash="00000000") is None
-    )
+    assert _machine_id_from_register(register_path=register, hardware_hash="00000000") is None
 
 
 def test_machine_id_from_register_missing_file_is_null(tmp_path: Path) -> None:
     missing = tmp_path / "no-such-register.md"
-    assert (
-        _machine_id_from_register(register_path=missing, hardware_hash="febd14ed") is None
-    )
+    assert _machine_id_from_register(register_path=missing, hardware_hash="febd14ed") is None
 
 
 def test_fingerprint_without_register_has_null_machine_id() -> None:
@@ -116,9 +100,7 @@ def test_fingerprint_with_register_deduces_machine_id(tmp_path: Path) -> None:
     register.write_text(REGISTER_CONTENT, encoding="utf-8")
     result = fingerprint(register_path=register)
     hardware_hash = str(result["hardware_hash"])
-    expected = _machine_id_from_register(
-        register_path=register, hardware_hash=hardware_hash
-    )
+    expected = _machine_id_from_register(register_path=register, hardware_hash=hardware_hash)
     assert result["machine_id"] == expected
 
 
