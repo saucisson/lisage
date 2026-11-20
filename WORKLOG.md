@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - ALIGN-7: escalation notes (push and issue creation denied)
+
+- **Issue**: ALIGN-7 (same increment as the entry below).
+- **Done**: the increment is committed locally on `feat/align-7-machine-protocol` (commit dd65996, 22 files, +447/-16). Two external effects were **denied by the integration token**, reported as-is, not routed around: (1) `git push` of the branch is refused — "refusing to allow an OAuth App to create or update workflow `.github/workflows/ci.yml` without `workflow` scope" — the CI patch is part of this increment, so the whole push is blocked until a token with `workflow` scope (or the human) pushes; (2) `issue_write` (create ALIGN-7 issue/milestone/labels) returns 403 "Resource not accessible by integration" — no issue, milestone or label could be created; the ALIGN-7 tracking lives in this WORKLOG entry and the branch name until the human creates them.
+- **Evidence**: `make lint typecheck imports test english-only` green (51 passed, coverage 94.76%); `cargo clippy -p lisage-core --all-targets -- -D warnings` green on a clean worktree of HEAD 207ad0f — the clippy `type_complexity` errors in the working tree come from the pre-existing uncommitted issue-#141 changes (`transduction.rs`, `par_equivalence.rs`), not from this increment; `uv run python scripts/machine_fingerprint.py --register bench-results/machines.md` returns `machine_id: M2`, hash `febd14ed`, in ~0.4 s.
+- **Judgement calls**: none.
+- **Escalations**: needs-human — push rights (`workflow` scope) for the CI patch, and issue/milestone/label creation rights for ALIGN-7 tracking.
+
 ## 2026-11-20 - ALIGN-7: machine protocol and fingerprint (ALIGN-7a..7e)
 
 - **Issue**: ALIGN-7 (machine change M1 -> M2 on the evening of 2026-11-19; deposits before/after the switch are not comparable in absolute time).
