@@ -1,4 +1,6 @@
 # Campaign 20261119-campaign-3 (PERF-4, issue #286)
+Machine: M1
+
 
 Post-PERF confrontation campaign: same charges, same witnesses, same protocol
 as `20261118-campaign-2` (BENCH-1, issue #277), after PERF-2 (#282) and

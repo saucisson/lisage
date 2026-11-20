@@ -1,4 +1,6 @@
 # P0-1 contention bench — philosophers saturation (issue #136)
+Machine: M1
+
 
 Runner `bench_contention {n}`, one process per run. Anchored criterion n = 5;
 the saturation step is a synthetic contention step (one fixed illegal member),

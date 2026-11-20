@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - ALIGN-7: machine protocol and fingerprint (ALIGN-7a..7e)
+
+- **Issue**: ALIGN-7 (machine change M1 -> M2 on the evening of 2026-11-19; deposits before/after the switch are not comparable in absolute time).
+- **Done**: (7a) `scripts/machine_fingerprint.py` emits one normalized JSON line (machine id deduced from the register, hardware hash, CPU model, physical/logical cores, RAM visible, kernel, WSL2 config best-effort, page size, UTC date; every field null-with-source on absence, never fails, < 1 s). (7b) `bench-results/machines.md` append-only register: M1 (until 2026-11-19 evening, unverified fields marked as requested from the human) and M2 (fingerprinted 2026-11-20, hardware hash `febd14ed`). (7c) `docs/bench-confrontation-witnesses-and-measures.md` gains a mandatory "Machine" section: id + fingerprint JSON header on every `bench-results/` publication, no absolute-time comparison across machines (ratios only), Docker witnesses share the host so inter-tool ratios stay valid. (7d) additive `Machine:` header on all 16 existing bench-results files (M1, except p11/p12 annotated as the M1/M2 switch window of 2026-11-19 evening); no figure or verdict touched. (7e) verdict in `bench-results/align1-unique-niche.md`: the 132.1 ms (PERF-5, M1) -> 69.8 ms (ALIGN-1 before, M2) gap on the same charge/runner with identical allocation counters is attributed to the M1 -> M2 hardware change; the "nextest ~10x" note is reformulated (valid for test runs, does not explain this gap); PERF (M1) and ALIGN (M2) absolute times are not comparable, campaign-3 lisage/OxiDD ratio stays exact. CI: `.github/workflows/ci.yml` gains concurrency cancel-in-progress, `taiki-e/install-action` for cargo tools, criterion benches removed from CI, coverage via `cargo llvm-cov nextest`.
+- **Evidence**: `uv run python scripts/machine_fingerprint.py --register bench-results/machines.md` returns `machine_id: M2`, hardware hash `febd14ed`, in 0.4 s; `git diff bench-results/` shows 32 insertions / 0 deletions (Machine headers only). Not run yet: full `make check` (run before the PR).
+- **Judgement calls**: p11 (19:00) and p12 (19:56) of 2026-11-19 fall inside the switch window; annotated as "M1 or M2" with the uncertainty documented rather than forced. M1 fingerprint fields are marked unverified and requested from the human, never invented.
+- **Escalations**: none (M1 hardware fields requested from the human in `bench-results/machines.md`, non-blocking).
+
 ## 2026-11-19 - P1-2: parallel merge of the output pools (issue #140)
 
 - **Issue**: #140 (P1-2, PAR-1): parallel pairwise union of the output pools (merge at barriers), including cross-pool sharing. DoD: equivalence to sequential merges (PBT); bench scaling vs sequential merge.

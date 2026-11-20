@@ -1,4 +1,6 @@
 # MEM-19: layout on/off confrontation (issue #135)
+Machine: M1
+
 
 Seeded BDD workload, n = 20000 interned degree-2 nodes, one runner process per layout.
 

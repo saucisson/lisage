@@ -1,4 +1,6 @@
 # PERF-3 — fast deterministic hash + no dense box for inline classes (issue #284)
+Machine: M1
+
 
 Runner `profile_intern {n}` (unchanged), one process per run, counting global allocator (MEM-18 pattern). Same charge as `perf1-profile-intern.md` / `perf2-allocs-intern.md`: alea-lcg, bottom-up Shannon expansion, 2^n - 1 intern calls.
 
