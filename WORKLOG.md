@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - ALIGN-1: NonZero<u32> hash tag in the unique-table slot (Option<Slot> 16 -> 12 bytes)
+
+- **Issue**: none — ALIGN-i issues cannot be opened on GitHub (POST /issues → 403, integration denied); drafts in the session scratchpad, work driven by the human directive of 2026-11-20. ALIGN-1 = slot niche of the unique table.
+- **Done**: `Slot.hash` is now `NonZero<u32>` in `crates/lisage-core/src/unique.rs`; `slot_tag` remaps a truncated hash of 0 to 1 (documented: the tag only steers probing, equality stays semantic via `same_form`). `Option<Slot>` is now 12 bytes (was 16). Witnesses: `test_align1_option_slot_is_12_bytes`, `test_align1_slot_tag_remaps_zero` (the ALIGN-0 witness is replaced). `TableUnique::bytes()` follows automatically. `hash_cle` golden value untouched. `bench-results/mem19-layout-on-off.md` republished via `MEM19_PUBLISH=1` (the layout test's designed update path): on-row 80.42 → 67.32 bytes/node, node counts identical. Publication `bench-results/align1-unique-niche.md` with an `ALIGN1_PUBLISH` hook in `crates/lisage-bench/tests/profile_intern.rs`.
+- **Measured verdict (written)**: alea-lcg-20, same machine/session — nodes 106 760 and internements 1 048 575 identical (C1), allocs/internement 1.000 unchanged, octets_build 47 256 948 → 45 159 828 (−2 097 120 B), rss_max 13 432 → 12 296 KiB (−8.5%), build 69.8 → 69.1 ms (noise). MEM-19 charge: −13.10 bytes/node (65 536 slots × 4 B / 20 002 nodes). Hypothesis (~−8 B/node at load factor 1/2) confirmed in direction and order of magnitude.
+- **Evidence**: `make check` green on this commit (ruff, mypy, lint-imports, pytest, cargo fmt/clippy/nextest: 369 passed, 11 skipped, english-only); `differentiel` 5 passed / 2 skipped (skipped need external witness binaries); after-row = median of 3 direct `cargo run --release -p lisage-bench --bin profile_intern` runs (nextest-wrapped runs are ~10x slower from harness contention on this 4-core box — noted in the publication). Not run: campaign-4 (that is ALIGN-5).
+- **Judgement calls**: the MEM-19 publication is republished through its own `MEM19_PUBLISH` gate rather than hand-edited, because the layout test pins the committed structural cells; the verdict text of the file is unchanged.
+- **Escalations**: none.
+
 ## 2026-11-20 - ALIGN-0: static size witnesses for the ALIGN track (no functional change)
 
 - **Issue**: none — the ALIGN-i issues could not be opened on GitHub (issue creation is denied to the integration: POST /issues → 403 on saucisson/lisage, probed 2026-11-20); drafts written in the session scratchpad, work driven by the human directive of 2026-11-20. ALIGN-0 = premise witnesses for ALIGN-1/2.

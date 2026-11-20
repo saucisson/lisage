@@ -1,6 +1,7 @@
 //! Unique table without form clone (MEM-14, ADR-0103): open addressing of
-//! `(hash, anchor, NodeId)` records at load factor 0.5 (~16 bytes per node
-//! at that factor, against the cloned-form `HashMap` key before). The
+//! `(hash, anchor, NodeId)` records at load factor 0.5 (~24 bytes per node
+//! at that factor — 12-byte slots thanks to the `NonZero<u32>` hash niche,
+//! ALIGN-1; 32 before — against the cloned-form `HashMap` key before). The
 //! hash-consing key is still the semantic form: equality is decided through
 //! the stored node's entry (`same_form` callback), never by cloning the form
 //! into the key. `ControllerId` is dropped from the key — it is constant
@@ -8,6 +9,7 @@
 
 use lisage_algebra::interface::{Anchor, Form, NodeId};
 use std::hash::{Hash, Hasher};
+use std::num::NonZero;
 
 /// Load factor ceiling: the table grows when `len / capacity > 1/2`.
 const CHARGE_NUM: usize = 1;
@@ -16,11 +18,25 @@ const CHARGE_DEN: usize = 2;
 /// One occupied slot: truncated hash of the key (32 bits — equality is
 /// always confirmed through the stored form, so a collision only costs a
 /// probe), anchor, and the interned node. 12 bytes per slot.
+///
+/// The hash tag is `NonZero<u32>` (ALIGN-1): the zero niche makes
+/// `Option<Slot>` 12 bytes instead of 16 (tag + padding before). A
+/// truncated hash of 0 is remapped to 1 by [`slot_tag`] — safe because the
+/// tag only steers bucket placement, never equality.
 #[derive(Clone, Copy, Debug)]
 struct Slot {
-    hash: u32,
+    hash: NonZero<u32>,
     anchor: Anchor,
     node: NodeId,
+}
+
+/// Truncate the 64-bit key hash to the 32-bit slot tag, remapping 0 to 1
+/// so the tag stays non-zero (ALIGN-1 niche). Documented invariant: the tag
+/// is used for bucket placement and cheap pre-filtering only; equality is
+/// always confirmed semantically through the stored node's form.
+#[inline]
+fn slot_tag(hash: u64) -> NonZero<u32> {
+    NonZero::new(hash as u32).unwrap_or(NonZero::<u32>::MIN)
 }
 
 /// Open-addressing unique table (linear probing, power-of-two capacity).
@@ -61,7 +77,7 @@ impl TableUnique {
         let mut new_slots: Vec<Option<Slot>> = Vec::with_capacity(new_capacity);
         new_slots.resize_with(new_capacity, || None);
         for slot in self.slots.iter().flatten() {
-            let mut index = ((slot.hash as u64) & (new_capacity as u64 - 1)) as usize;
+            let mut index = (slot.hash.get() as usize) & (new_capacity - 1);
             while new_slots[index].is_some() {
                 index = (index + 1) & (new_capacity - 1);
             }
@@ -81,12 +97,12 @@ impl TableUnique {
         if self.slots.is_empty() {
             return None;
         }
-        let hash32 = hash as u32;
+        let tag = slot_tag(hash);
         let mask = self.slots.len() - 1;
-        let mut index = (hash32 as usize) & mask;
+        let mut index = (tag.get() as usize) & mask;
         loop {
             let slot = self.slots[index]?;
-            if slot.hash == hash32 && slot.anchor == anchor && same_form(slot.node) {
+            if slot.hash == tag && slot.anchor == anchor && same_form(slot.node) {
                 return Some(slot.node);
             }
             index = (index + 1) & mask;
@@ -98,17 +114,17 @@ impl TableUnique {
         if (self.len + 1) * CHARGE_DEN > self.slots.len() * CHARGE_NUM {
             self.grow();
         }
-        let hash32 = hash as u32;
+        let tag = slot_tag(hash);
         let mask = self.slots.len() - 1;
-        let mut index = (hash32 as usize) & mask;
+        let mut index = (tag.get() as usize) & mask;
         while let Some(slot) = self.slots[index] {
-            if slot.hash == hash32 && slot.anchor == anchor && slot.node == node {
+            if slot.hash == tag && slot.anchor == anchor && slot.node == node {
                 return;
             }
             index = (index + 1) & mask;
         }
         self.slots[index] = Some(Slot {
-            hash: hash32,
+            hash: tag,
             anchor,
             node,
         });
@@ -229,17 +245,35 @@ mod tests {
     /// Golden `hash_cle` value for the fixed form of the test below.
     const GOLDEN_HASH_CLE: u64 = 3_561_021_471_050_673_137;
 
-    /// ALIGN-0 witness: `Slot` is 12 bytes but `Option<Slot>` is really 16
-    /// (tag + padding — no field provides a niche). Pinned as the starting
-    /// point; ALIGN-1 turns it into 12 via a `NonZero<u32>` hash. If this
-    /// measurement differs on this toolchain, stop and document.
+    /// ALIGN-1 witness: the `NonZero<u32>` hash tag gives `Option<Slot>` a
+    /// niche, so the occupied/empty discriminant costs nothing and
+    /// `Option<Slot>` is 12 bytes (was 16 at ALIGN-0 — tag + padding).
     #[test]
-    fn test_align0_option_slot_is_16_bytes() {
-        assert_eq!(size_of::<Slot>(), 12, "Slot: hash u32 + anchor + NodeId");
+    fn test_align1_option_slot_is_12_bytes() {
+        assert_eq!(
+            size_of::<Slot>(),
+            12,
+            "Slot: hash NonZero<u32> + anchor + NodeId"
+        );
         assert_eq!(
             size_of::<Option<Slot>>(),
-            16,
-            "ALIGN-0 premise: no niche, Option<Slot> = 16 bytes"
+            12,
+            "ALIGN-1: NonZero<u32> niche, Option<Slot> = 12 bytes"
+        );
+    }
+
+    /// ALIGN-1 invariant: a truncated hash of 0 is remapped to 1 so the tag
+    /// stays non-zero; placement/equality semantics are unchanged because
+    /// the tag only steers probing.
+    #[test]
+    fn test_align1_slot_tag_remaps_zero() {
+        assert_eq!(slot_tag(0).get(), 1);
+        assert_eq!(slot_tag(0x1_0000_0000).get(), 1, "low 32 bits are 0");
+        assert_eq!(slot_tag(42).get(), 42);
+        assert_eq!(
+            slot_tag(0x1_0000_002A).get(),
+            42,
+            "only the low 32 bits are kept"
         );
     }
 
