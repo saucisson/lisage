@@ -16,7 +16,7 @@ during the switch window itself (p11, p12 — see their headers) carry an
 explicit uncertainty note.
 
 The fingerprint of each machine is emitted by
-`uv run python scripts/machine_fingerprint.py` (ALIGN-7a); the
+`make machine-fingerprint` / `python -m scripts machine-fingerprint` (ALIGN-7a); the
 `hardware_hash` line below is the key the script matches on.
 
 ---
@@ -45,7 +45,7 @@ The fingerprint of each machine is emitted by
 ## M2 — new development machine (current)
 
 - **Hardware hash**: `febd14ed`
-- **Fingerprint** (emitted by `scripts/machine_fingerprint.py` on
+- **Fingerprint** (emitted by `python -m scripts machine-fingerprint` on
   2026-11-20, WSL2):
 
 ```json
