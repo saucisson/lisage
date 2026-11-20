@@ -656,3 +656,22 @@ pub trait Pool: Send + Sync {
         0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// ALIGN-0 witness: one dense-family slot is `Option<(u32, NodeId)>` =
+    /// 12 bytes (no niche). Pinned as the starting point; ALIGN-2 turns it
+    /// into `Option<NodeId>` = 8 bytes by eliding the key (rank = position).
+    #[test]
+    fn test_align0_option_dense_slot_is_12_bytes() {
+        assert_eq!(size_of::<(u32, NodeId)>(), 8);
+        assert_eq!(
+            size_of::<Option<(u32, NodeId)>>(),
+            12,
+            "ALIGN-0 premise: dense slot stores (narrowed key, target), 12 bytes"
+        );
+        assert_eq!(size_of::<Option<NodeId>>(), 8);
+    }
+}
