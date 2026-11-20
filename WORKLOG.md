@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - fix: ALIGN-1 publication arithmetic (review #296 TO-FIX)
+
+- **Issue**: none — review finding on PR #296 (TO-FIX, non-blocking, merged with the PR per ADR-0009 since only BLOCKING gates the merge); fixed here.
+- **Done**: corrected the end-to-end saving of the unique-table niche on alea-lcg-20 in `bench-results/align1-unique-niche.md` and in the `ALIGN1_PUBLISH` hook string: capacity 2^18 = 262 144 slots x 4 bytes = 1 048 576 bytes (~9.8 bytes/node at load factor ~0.41), not 262 144 bytes; the measured range across charges is 9.8-13 bytes/node. The hook now republishes the whole file (all sections), so it can regenerate the committed artifact.
+- **Evidence**: `make check` green on this commit (369 passed, 11 skipped). The corrected figures are cross-checked against the measured octets_build drop (-2 097 120 B ~ 2 x 1 048 576 over the doubling growths) and the RSS drop (13 432 -> 12 296 KiB).
+- **Judgement calls**: none.
+- **Escalations**: none.
+
 ## 2026-11-20 - ALIGN-1: NonZero<u32> hash tag in the unique-table slot (Option<Slot> 16 -> 12 bytes)
 
 - **Issue**: none — ALIGN-i issues cannot be opened on GitHub (POST /issues → 403, integration denied); drafts in the session scratchpad, work driven by the human directive of 2026-11-20. ALIGN-1 = slot niche of the unique table.
