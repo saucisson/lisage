@@ -11,7 +11,7 @@ report lives in `bench-results/` (issue #116).
 Every publication in `bench-results/` opens with a mandatory **Machine**
 header: the short machine identifier from the register
 `bench-results/machines.md` (ALIGN-7b), followed by the normalized
-fingerprint JSON emitted by `scripts/machine_fingerprint.py` (ALIGN-7a)
+fingerprint JSON emitted by `python -m scripts machine-fingerprint` (ALIGN-7a)
 in a fenced code block:
 
 ```
