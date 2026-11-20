@@ -3,7 +3,7 @@
 Machine: M2
 
 ```json
-{"machine_id": "M2", "hardware_hash": "febd14ed", "cpu_model": "Intel(R) Core(TM) i5-3470 CPU @ 3.20GHz", "physical_cores": 4, "logical_cores": 4, "ram_total_kib": 3979828, "kernel": "6.18.58.1-microsoft-standard-WSL2", "wsl2_config": null, "page_size": 4096}
+{"machine_id": "M2", "hardware_hash": null, "note": "M2 fingerprint not captured while this session ran on M2 (2026-11-20 morning); fields unverified, requested from the human — see bench-results/machines.md. The hash febd14ed is M1, captured on 2026-11-20 evening after the switch back."}
 ```
 
 
