@@ -9,7 +9,18 @@ import argparse
 import sys
 from typing import TYPE_CHECKING
 
-from scripts import bench_confrontation, ci, claims, day, merge, night, pulls, review, session
+from scripts import (
+    bench_confrontation,
+    ci,
+    claims,
+    day,
+    machine_fingerprint,
+    merge,
+    night,
+    pulls,
+    review,
+    session,
+)
 from scripts._shared import load_environment_file
 
 if TYPE_CHECKING:
@@ -24,7 +35,18 @@ if TYPE_CHECKING:
             ...
 
 
-COMMAND_MODULES = (claims, pulls, merge, ci, review, session, day, night, bench_confrontation)
+COMMAND_MODULES = (
+    claims,
+    pulls,
+    merge,
+    ci,
+    review,
+    session,
+    day,
+    night,
+    bench_confrontation,
+    machine_fingerprint,
+)
 
 
 def build_argument_parser() -> argparse.ArgumentParser:

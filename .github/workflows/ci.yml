@@ -8,11 +8,6 @@ on:
 permissions:
   contents: read
 
-# Cancel obsolete runs of the same branch/PR.
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   check:
     name: quality gate
@@ -66,31 +61,26 @@ jobs:
       - name: clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      # Perfs (criterion) run locally only, not in CI.
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
-
       - name: nextest
-        run: cargo nextest run --all-targets
+        run: cargo install cargo-nextest --locked && cargo nextest run --all-targets
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-llvm-cov
+      - name: bench (criterion, refuse les régressions)
+        run: cargo bench --all --bench '*' -- --measurement-time 1 --warm-up-time 1
 
       - name: coverage
-        run: cargo llvm-cov nextest --all-targets --lcov --output-path lcov.info
+        run: |
+          cargo install cargo-llvm-cov --locked
+          cargo llvm-cov --all-targets --lcov --output-path lcov.info
 
-      # The Rust audit lives in the "security gates" job; do not duplicate it here.
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deny
+      - name: audit
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
 
       - name: deny
-        run: cargo deny check
+        run: |
+          cargo install cargo-deny --locked
+          cargo deny check
 
   security:
     name: security gates
@@ -115,10 +105,7 @@ jobs:
             --output-file requirements.txt
           uvx pip-audit --requirement requirements.txt --strict
 
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-audit
-
       - name: cargo audit
-        run: cargo audit
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit

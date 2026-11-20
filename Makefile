@@ -130,6 +130,9 @@ night: ## Run the unattended loop: ISSUES="12,13,14", MILESTONES="3,4", or auto-
 bench-confrontation: ## Run the confrontation benchmark campaign, local only, never in CI (ADR-0102, M7-5): ARGS="--repetitions 5".
 	$(PYTHON) -m scripts bench-confrontation $(ARGS)
 
+machine-fingerprint: ## Emit one normalized JSON line fingerprinting this machine (ALIGN-7a): ARGS="--register bench-results/machines.md".
+	$(PYTHON) -m scripts machine-fingerprint $(ARGS)
+
 review-bundle: ## Print the reviewer bundle against origin/daily (ADR-0010).
 	$(PYTHON) -m scripts review-bundle --base-ref origin/daily
 
