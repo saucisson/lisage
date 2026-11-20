@@ -1,4 +1,6 @@
 # PERF-2 — allocations per intern cut on the alea-lcg intern path (issue #282)
+Machine: M1
+
 
 Runner `profile_intern {n}` (PERF-1 runner, unchanged), one process per run, counting global allocator (MEM-18 pattern). Same charge as `perf1-profile-intern.md`: alea-lcg, bottom-up Shannon expansion, 2^n - 1 intern calls.
 

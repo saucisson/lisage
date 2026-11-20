@@ -1,4 +1,6 @@
 # PERF-1 profile — alea-lcg intern path (issue #280)
+Machine: M1
+
 
 Runner `profile_intern {n}`, one process per run, counting global allocator (MEM-18 pattern).
 

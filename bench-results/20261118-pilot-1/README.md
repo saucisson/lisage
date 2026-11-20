@@ -1,4 +1,6 @@
 # Pilot campaign 20261118-pilot-1 (MEM-7, issue #123)
+Machine: M1
+
 
 Pilot measurement of the MEM-A port (generalization gate): the
 `alea-lcg` / `philosophers` / `window` workloads of the confrontation

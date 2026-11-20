@@ -6,6 +6,35 @@ the witnesses run in local Docker containers, **never in CI**. This
 document is the protocol the campaign follows (issue #115); the results
 report lives in `bench-results/` (issue #116).
 
+## Machine (ALIGN-7c)
+
+Every publication in `bench-results/` opens with a mandatory **Machine**
+header: the short machine identifier from the register
+`bench-results/machines.md` (ALIGN-7b), followed by the normalized
+fingerprint JSON emitted by `scripts/machine_fingerprint.py` (ALIGN-7a)
+in a fenced code block:
+
+```
+Machine: M2
+
+```json
+{"machine_id": "M2", "hardware_hash": "febd14ed", ...}
+```
+```
+
+Rules:
+
+- **No absolute-time comparison across machines.** When the machine
+  changes, absolute wall-clock times of different campaigns are not
+  comparable; comparisons are made in **ratios** (e.g. lisage/OxiDD of
+  the same charge) only.
+- **Docker witnesses share the host.** A machine change applies to all
+  four tools at once, so inter-tool ratios of one campaign remain valid
+  across machines.
+- Deterministic counters (allocations, bytes/node, node counts) are
+  hardware-insensitive and stay comparable in absolute value across
+  machines.
+
 ## Charges (M7-4)
 
 Real, versioned inputs in `crates/lisage-bench/models/` (sources in its
