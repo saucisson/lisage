@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - ALIGN-0: static size witnesses for the ALIGN track (no functional change)
+
+- **Issue**: none — the ALIGN-i issues could not be opened on GitHub (issue creation is denied to the integration: POST /issues → 403 on saucisson/lisage, probed 2026-11-20); drafts written in the session scratchpad, work driven by the human directive of 2026-11-20. ALIGN-0 = premise witnesses for ALIGN-1/2.
+- **Done**: `test_align0_option_slot_is_16_bytes` in `crates/lisage-core/src/unique.rs` pins `size_of::<Slot>() == 12` and `size_of::<Option<Slot>>() == 16` (no niche); `test_align0_option_dense_slot_is_12_bytes` in `crates/lisage-algebra/src/interface.rs` pins `size_of::<Option<(u32, NodeId)>>() == 12` and `size_of::<Option<NodeId>>() == 8`. No functional change.
+- **Evidence**: `make check` green on this commit (ruff, mypy 2.4.0 pure-python, lint-imports, pytest, cargo fmt/clippy/nextest: 368 passed, 11 skipped, english-only). Environment note: rustup stable 1.100.0 installed in-session; mypy/hypothesis installed `--no-binary` because their compiled wheels segfault in this sandbox — CI is the authoritative gate.
+- **Judgement calls**: witnesses live in the existing `#[cfg(test)]` modules of the touched files so the runner collects them; premises confirmed on rustc 1.100.0 (16/12/8 bytes as expected).
+- **Escalations**: none.
+
 ## 2026-11-19 - P1-2: parallel merge of the output pools (issue #140)
 
 - **Issue**: #140 (P1-2, PAR-1): parallel pairwise union of the output pools (merge at barriers), including cross-pool sharing. DoD: equivalence to sequential merges (PBT); bench scaling vs sequential merge.

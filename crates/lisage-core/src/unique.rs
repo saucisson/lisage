@@ -229,6 +229,20 @@ mod tests {
     /// Golden `hash_cle` value for the fixed form of the test below.
     const GOLDEN_HASH_CLE: u64 = 3_561_021_471_050_673_137;
 
+    /// ALIGN-0 witness: `Slot` is 12 bytes but `Option<Slot>` is really 16
+    /// (tag + padding — no field provides a niche). Pinned as the starting
+    /// point; ALIGN-1 turns it into 12 via a `NonZero<u32>` hash. If this
+    /// measurement differs on this toolchain, stop and document.
+    #[test]
+    fn test_align0_option_slot_is_16_bytes() {
+        assert_eq!(size_of::<Slot>(), 12, "Slot: hash u32 + anchor + NodeId");
+        assert_eq!(
+            size_of::<Option<Slot>>(),
+            16,
+            "ALIGN-0 premise: no niche, Option<Slot> = 16 bytes"
+        );
+    }
+
     /// PERF-3 (issue #284): golden value pinning `hash_cle` — the
     /// `FastHasher` must stay deterministic across runs and machines
     /// (MEM-18 seeded-workload reproducibility); any change to the hash
