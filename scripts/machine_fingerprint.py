@@ -123,9 +123,7 @@ def _wsl2_config(*, sources: dict[str, str]) -> dict[str, str] | None:
         sources["wsl2_config"] = "not WSL2 (kernel release and WSL_DISTRO_NAME absent)"
         return None
     candidates = (
-        sorted(WSL_CONFIG_MOUNT_ROOT.glob("*/.wslconfig"))
-        if WSL_CONFIG_MOUNT_ROOT.is_dir()
-        else []
+        sorted(WSL_CONFIG_MOUNT_ROOT.glob("*/.wslconfig")) if WSL_CONFIG_MOUNT_ROOT.is_dir() else []
     )
     if not candidates:
         sources["wsl2_config"] = (
@@ -260,8 +258,6 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 def run(*, arguments: argparse.Namespace) -> int:
     """Print the fingerprint as one JSON line; never fails."""
-    register_path: Path | None = (
-        arguments.register if arguments.register.is_file() else None
-    )
+    register_path: Path | None = arguments.register if arguments.register.is_file() else None
     print(json.dumps(fingerprint(register_path=register_path), sort_keys=True))
     return 0
