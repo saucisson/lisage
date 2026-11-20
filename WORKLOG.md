@@ -46,6 +46,13 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - CI speedup: pinned install-action + gate set (ADR-0106 draft)
+
+- **Issue**: needs-human escalation from the ALIGN-7 review (#304): new third-party dependency + constitutional CI file.
+- **Done**: ADR-0106 drafted (`docs/decisions/adr-0106-ci-tool-install-and-gates.md`, status draft — human accepts). `.github/workflows/ci.yml`: `concurrency` cancel-in-progress; cargo tools (nextest, llvm-cov, deny, audit) installed via `taiki-e/install-action` **pinned by commit SHA** `75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f` (tag v2); criterion bench step removed from CI (benches stay local, ADR-0102); coverage measured via `cargo llvm-cov nextest`; `cargo audit` runs once, in the security job only. The gates' checks are unchanged.
+- **Evidence**: YAML validated locally; expected effect is several minutes saved per PR (no more `cargo install` of four tools, no duplicated audit, no criterion bench). CI on this PR measures the new workflow itself.
+- **Judgement calls**: SHA pinning instead of the mutable `v2` tag, per the review's BLOCKING on unpinned actions.
+- **Escalations**: this PR *is* the needs-human escalation for the CI dependency/gate change; merge only after human acceptance of ADR-0106.
 ## 2026-11-20 - ALIGN-7 register correction: switch back to M1 on 2026-11-20 evening
 
 - **Issue**: #300 (ALIGN-7). A human answer contradicted the first register: M1 (this machine, hash `febd14ed`) was used first, then M2 (more recent, shared) from the 2026-11-19 evening, then **back to M1 on the 2026-11-20 evening**. The register is adapted, not forced.
