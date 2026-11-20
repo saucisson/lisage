@@ -5,6 +5,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::sync::Arc;
 
 /// Node identifier in the pool, in creation order, never moved.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -112,6 +113,22 @@ where
     }
 }
 
+/// Payload of the dense ordinal family (MEM-12, ALIGN-2).
+///
+/// Holds one `Option<NodeId>` slot per rank of the level (8 bytes — the key
+/// is elided; by ordinal construction the key of slot `r` is `keys[r]`),
+/// plus the shared per-level enumeration that re-emits the keys by rank
+/// (rank/unrank of MEM-16). Boxed so the `ArcRun` enum keeps its 16-byte
+/// layout: the per-slot saving stays out of the inline entry size.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct DenseRun<Key> {
+    /// Shared enumeration of the level's domain in rank order, one `Arc`
+    /// per level cloned per node (no per-node allocation).
+    pub keys: Arc<[Key]>,
+    /// Targets by rank; `None` = hole = default not stored.
+    pub slots: Box<[Option<NodeId>]>,
+}
+
 /// Arc storage of a node (MEM-5 sorted run, MEM-12 dense ordinal,
 /// ADR-0103): two families behind the same type, the family being chosen
 /// in normalization (see [`ArcRun::choose_dense_family`]).
@@ -124,8 +141,10 @@ pub enum ArcRun<Key> {
     /// Sorted run (MEM-5): the default family.
     Sorted(Box<[(Key, NodeId)]>),
     /// Dense ordinal family (MEM-12): one slot per rank of the level,
-    /// `None` = hole = default not stored.
-    Dense(Box<[Option<(Key, NodeId)>]>),
+    /// `None` = hole = default not stored. ALIGN-2: the key is elided from
+    /// the slots (`Option<NodeId>`, 8 bytes) and re-emitted by rank from
+    /// the shared enumeration instead of being stored per slot.
+    Dense(Box<DenseRun<Key>>),
 }
 
 impl<Key> Default for ArcRun<Key> {
@@ -184,16 +203,22 @@ where
         {
             return arcs;
         }
-        let mut slots: Vec<Option<(Key, NodeId)>> = vec![None; cardinality as usize];
+        // ALIGN-2: the key is elided from the slots; the shared per-level
+        // enumeration (rank/unrank of MEM-16) re-emits it by rank.
+        let table = keys.enumeration(level);
+        let mut slots: Vec<Option<NodeId>> = vec![None; table.len()];
         for (key, target) in pairs.iter() {
             match keys.rank(level, key) {
-                Some(rang) if (rang as usize) < slots.len() => {
-                    slots[rang as usize] = Some((key.clone(), *target));
+                Some(rank) if (rank as usize) < slots.len() => {
+                    slots[rank as usize] = Some(*target);
                 }
                 _ => return arcs,
             }
         }
-        ArcRun::Dense(slots.into_boxed_slice())
+        ArcRun::Dense(Box::new(DenseRun {
+            keys: table,
+            slots: slots.into_boxed_slice(),
+        }))
     }
 
     /// Is this the dense ordinal family (MEM-12)?
@@ -208,10 +233,11 @@ where
                 .binary_search_by(|(k, _)| k.cmp(key))
                 .ok()
                 .map(|index| &pairs[index].1),
-            ArcRun::Dense(slots) => slots.iter().find_map(|slot| {
-                slot.as_ref()
-                    .and_then(|(k, target)| (k == key).then_some(target))
-            }),
+            ArcRun::Dense(dense) => dense
+                .keys
+                .iter()
+                .position(|k| k == key)
+                .and_then(|rank| dense.slots.get(rank).and_then(|slot| slot.as_ref())),
         }
     }
 
@@ -243,7 +269,7 @@ where
     pub fn len(&self) -> usize {
         match self {
             ArcRun::Sorted(pairs) => pairs.len(),
-            ArcRun::Dense(slots) => slots.iter().filter(|slot| slot.is_some()).count(),
+            ArcRun::Dense(dense) => dense.slots.iter().filter(|slot| slot.is_some()).count(),
         }
     }
 
@@ -266,7 +292,7 @@ impl<'a, Key> ArcRunIter<'a, Key> {
     fn new(run: &'a ArcRun<Key>) -> Self {
         let len = match run {
             ArcRun::Sorted(pairs) => pairs.len(),
-            ArcRun::Dense(slots) => slots.len(),
+            ArcRun::Dense(dense) => dense.slots.len(),
         };
         ArcRunIter {
             run,
@@ -278,9 +304,13 @@ impl<'a, Key> ArcRunIter<'a, Key> {
     fn get(&self, index: usize) -> Option<(&'a Key, &'a NodeId)> {
         match self.run {
             ArcRun::Sorted(pairs) => pairs.get(index).map(|(key, target)| (key, target)),
-            ArcRun::Dense(slots) => slots
+            // ALIGN-2: the key of slot `index` is re-emitted by rank from
+            // the shared enumeration — the iteration order (rank order)
+            // and the yielded pairs are exactly those of the stored form.
+            ArcRun::Dense(dense) => dense
+                .slots
                 .get(index)
-                .and_then(|slot| slot.as_ref().map(|(key, target)| (key, target))),
+                .and_then(|slot| slot.as_ref().map(|target| (&dense.keys[index], target))),
         }
     }
 }
@@ -336,10 +366,12 @@ where
     fn into_iter(self) -> Self::IntoIter {
         match self {
             ArcRun::Sorted(pairs) => pairs.into_vec().into_iter(),
-            ArcRun::Dense(slots) => slots
+            ArcRun::Dense(dense) => dense
+                .slots
                 .into_vec()
                 .into_iter()
-                .flatten()
+                .enumerate()
+                .filter_map(|(rank, slot)| slot.map(|target| (dense.keys[rank].clone(), target)))
                 .collect::<Vec<_>>()
                 .into_iter(),
         }
@@ -463,21 +495,43 @@ pub trait KeyAlgebra: Send + Sync {
 
     /// Ordinal rank of a key in the level's enumeration (MEM-4, ADR-0103),
     /// derived from the region enumeration the key contract requires.
-    /// `Some(rang)` when the level's domain is bounded and the key belongs
+    /// `Some(rank)` when the level's domain is bounded and the key belongs
     /// to it; `None` otherwise. The default `None` declares the absence of
     /// rank properly (unbounded domain: the DDD path is unchanged), so the
     /// dense ordinal storage (MEM-B) writes no code per controller.
     /// Rank availability is exposed to the normalization: `normal_form`
-    /// may encode keys by their rank when it exists.
+    /// may encode keys by their rank when it exists. ALIGN-2: the dense
+    /// family also needs [`KeyAlgebra::unrank`] (via
+    /// [`KeyAlgebra::enumeration`]) to re-emit the key of a slot by its
+    /// rank — an algebra defining `rank` without `unrank` stays on the
+    /// sorted family.
     fn rank(&self, _level: Level, _key: &Self::Key) -> Option<u64> {
         None
     }
 
-    /// Inverse of [`KeyAlgebra::rank`]: the key of ordinal `rang` in the
-    /// level's enumeration, `None` when the domain is unbounded or `rang`
+    /// Inverse of [`KeyAlgebra::rank`]: the key of ordinal `rank` in the
+    /// level's enumeration, `None` when the domain is unbounded or `rank`
     /// is out of range.
-    fn unrank(&self, _level: Level, _rang: u64) -> Option<Self::Key> {
+    fn unrank(&self, _level: Level, _rank: u64) -> Option<Self::Key> {
         None
+    }
+
+    /// Shared enumeration of the level's domain in rank order (MEM-16):
+    /// `enumeration(level)[rank] == unrank(level, rank)`. The dense arc
+    /// family (ALIGN-2) stores one `Arc` clone of this table per node and
+    /// re-emits the key of a slot by its rank, so algebras with a bounded
+    /// domain should override this with a cached table — the default
+    /// builds it from `unrank` on each call (one allocation per call).
+    fn enumeration(&self, level: Level) -> Arc<[Self::Key]> {
+        let cardinality = self.cardinality(level);
+        let mut table = Vec::new();
+        for rank in 0..cardinality {
+            match self.unrank(level, rank) {
+                Some(key) => table.push(key),
+                None => break,
+            }
+        }
+        table.into()
     }
 
     /// Declarative overload of the class field width `b` of `NodeId`
@@ -517,7 +571,7 @@ pub trait KeyAlgebra: Send + Sync {
     fn narrow(&self, level: Level, key: &Self::Key) -> Option<u32> {
         self.key_width(level)?;
         self.rank(level, key)
-            .and_then(|rang| u32::try_from(rang).ok())
+            .and_then(|rank| u32::try_from(rank).ok())
     }
 
     /// Inverse of [`KeyAlgebra::narrow`]: the key of a narrowed 32-bit
@@ -673,5 +727,24 @@ mod tests {
             "ALIGN-0 premise: dense slot stores (narrowed key, target), 12 bytes"
         );
         assert_eq!(size_of::<Option<NodeId>>(), 8);
+    }
+
+    /// ALIGN-2 witness: the dense-family slot is now `Option<NodeId>` =
+    /// 8 bytes (was 12 at ALIGN-0 for a u32 key, 24 for a u64 key) — the
+    /// key is elided and re-emitted by rank from the shared enumeration.
+    #[test]
+    fn test_align2_dense_slot_is_8_bytes() {
+        assert_eq!(
+            size_of::<Option<NodeId>>(),
+            8,
+            "ALIGN-2: dense slot = Option<NodeId>, key elided (rank = position)"
+        );
+        // The per-slot saving for the production u64 keys of BDD/schema.
+        assert_eq!(size_of::<(u64, NodeId)>(), 16);
+        assert_eq!(
+            size_of::<Option<(u64, NodeId)>>(),
+            24,
+            "ALIGN-0 layout for u64 keys: no niche, 24 bytes per slot"
+        );
     }
 }

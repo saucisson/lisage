@@ -110,6 +110,9 @@ fn test_seuil_un_tiers_exact() {
         fn rank(&self, _level: Level, key: &Self::Key) -> Option<u64> {
             (*key < 3).then_some(*key)
         }
+        fn unrank(&self, _level: Level, rank: u64) -> Option<Self::Key> {
+            (rank < 3).then_some(rank)
+        }
     }
     let arcs = ArcRun::from_pairs([(2, NodeId(9))]);
     let chosen = ArcRun::choose_dense_family(Level(0), &Trois, arcs);

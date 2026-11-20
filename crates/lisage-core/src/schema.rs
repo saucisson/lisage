@@ -9,7 +9,8 @@
 //! the other leads to the carrier default D_δ = terminal(false) on presences
 //! (R-collapse skips absents, ZDD style).
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
@@ -155,12 +156,18 @@ impl From<PoolError> for SchemaError {
 #[derive(Clone)]
 pub struct SchemaKeys {
     schema: Schema,
+    /// Cached shared enumerations per level (ALIGN-2): the dense arc
+    /// family clones one `Arc` per node, so each table is built once.
+    enumerations: Arc<Mutex<HashMap<Level, Arc<[u64]>>>>,
 }
 
 impl SchemaKeys {
     /// Key algebra for the given schema.
     pub fn new(schema: Schema) -> Self {
-        SchemaKeys { schema }
+        SchemaKeys {
+            schema,
+            enumerations: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 }
 
@@ -231,6 +238,16 @@ impl KeyAlgebra for SchemaKeys {
         } else {
             None
         }
+    }
+
+    fn enumeration(&self, level: Level) -> Arc<[Self::Key]> {
+        // Cached per level: the dense arc family (ALIGN-2) clones one Arc
+        // per node and must not allocate per node.
+        let mut cache = self.enumerations.lock().expect("enumeration cache");
+        cache
+            .entry(level)
+            .or_insert_with(|| (0..self.cardinality(level)).collect::<Vec<_>>().into())
+            .clone()
     }
 
     fn sweep_levels(&self) -> u32 {
