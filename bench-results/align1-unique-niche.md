@@ -3,7 +3,7 @@
 Machine: M2
 
 ```json
-{"machine_id": "M2", "hardware_hash": null, "note": "M2 fingerprint not captured while this session ran on M2 (2026-11-20 morning); fields unverified, requested from the human — see bench-results/machines.md. The hash febd14ed is M1, captured on 2026-11-20 evening after the switch back."}
+{"machine_id": "M2", "hardware_hash": null, "note": "M2 fingerprint not captured while this session ran on M2 (2026-11-20 morning); fields unverified, requested from the human — see bench-results/machines.md. The hash febd14ed is M1, captured 2026-11-20T11:56:45Z."}
 ```
 
 

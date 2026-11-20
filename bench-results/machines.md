@@ -36,7 +36,7 @@ The fingerprint of each machine is emitted by
 
 - **Hardware hash**: `febd14ed`
 - **Fingerprint** (emitted by `python -m scripts machine-fingerprint` on
-  2026-11-20 evening, after the switch back from M2, WSL2):
+  2026-11-20, captured 2026-11-20T11:56:45Z, WSL2):
 
 ```json
 {"cpu_model": "Intel(R) Core(TM) i5-3470 CPU @ 3.20GHz", "date_utc": "2026-11-20T11:56:45+00:00", "hardware_hash": "febd14ed", "kernel": "6.18.58.1-microsoft-standard-WSL2", "logical_cores": 4, "machine_id": null, "page_size": 4096, "physical_cores": 4, "ram_total_kib": 3979828, "sources": {"cpu_model": "/proc/cpuinfo: model name", "kernel": "uname -r (platform.release())", "logical_cores": "/proc/cpuinfo: count of 'processor' entries", "machine_id": "no register given (--register)", "page_size": "os.sysconf(SC_PAGE_SIZE)", "physical_cores": "/proc/cpuinfo: unique (physical id, core id) pairs", "ram_total_kib": "/proc/meminfo: MemTotal", "wsl2_config": "no /mnt/c/Users/*/.wslconfig reachable from inside WSL2"}, "wsl2_config": null}
