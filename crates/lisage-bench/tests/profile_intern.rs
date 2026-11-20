@@ -118,6 +118,39 @@ fn test_profile_intern_alea_lcg_20() {
         "the BDD construction must dominate the profile"
     );
 
+    if std::env::var("ALIGN1_PUBLISH").is_ok() {
+        // ALIGN-1 (unique-table slot niche): republish
+        // bench-results/align1-unique-niche.md. The before-row constants
+        // were measured on daily @ 9876585 (ALIGN-0 merged), same machine,
+        // same session, same runner.
+        let publication = format!(
+            "# ALIGN-1 — NonZero<u32> hash tag in the unique-table slot\n\n\
+             Runner `profile_intern {{n}}`, one process per run, counting global allocator (MEM-18 pattern).\n\
+             Same charge as the PERF publications: alea-lcg, bottom-up Shannon expansion, 2^n - 1 intern calls.\n\n\
+             ## Before / after (n=20, same machine, same runner, same session)\n\n\
+             | row | noeuds | internements | temps table (ms) | temps build (ms) | temps count (ms) | allocs build | octets build | allocs/internement | rss_max_ko |\n\
+             |---|---|---|---|---|---|---|---|---|---|\n\
+             | before (daily @ 9876585, Option<Slot> = 16) | 106760 | 1048575 | 1.187 | 69.818 | 14.087 | 1048803 | 47256948 | 1.000 | 13432 |\n\
+             | after (ALIGN-1, Option<Slot> = 12) | {} | {} | {:.3} | {:.3} | {:.3} | {} | {} | {:.3} | {} |\n\n\
+             Node and internement counts are identical (C1); allocs/internement stays at the 1.000 floor.\n\
+             The unique table holds 106 760 keys at capacity 2^18 slots: 4 bytes/slot saved = 262 144 bytes\n\
+             end-to-end (~2.46 bytes/node at this load factor; the MEM-19 charge at 20 002 nodes shows\n\
+             80.42 -> 67.32 bytes/node, i.e. -13.10 = 65 536 slots x 4 bytes / 20 002 nodes).\n",
+            mesure.nodes,
+            mesure.internements,
+            mesure.temps_table_ms,
+            mesure.temps_build_ms,
+            mesure.temps_count_ms,
+            mesure.allocs_build,
+            mesure.octets_build,
+            mesure.allocs_par_internement,
+            mesure.rss_max_ko,
+        );
+        let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
+        std::fs::write(format!("{directory}/align1-unique-niche.md"), publication)
+            .expect("writing the publication");
+    }
+
     if std::env::var("PERF1_PUBLISH").is_ok() {
         let publication = format!(
             "# PERF-1 profile — alea-lcg intern path (issue #280)\n\n\
