@@ -1,7 +1,6 @@
 # ADR-0106: CI tool installation via a pinned action, and the CI gate set
 
-- Status: **draft** (drafted by the agent in the CI-speedup PR; only the
-  human owner accepts it)
+- Status: accepted (accepted by the human owner on 2026-11-20)
 - Date: 2026-11-20
 
 > Draft written in the CI-speedup PR: a project ADR is *drafted* in a PR
