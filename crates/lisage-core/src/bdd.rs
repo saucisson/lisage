@@ -8,6 +8,7 @@
 //! `docs/spike-ffi-cudd-sylvan.md`).
 
 use std::collections::BTreeSet;
+use std::sync::{Arc, OnceLock};
 
 use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
@@ -21,12 +22,18 @@ pub const CARDINALITY_BDD: u64 = 2;
 #[derive(Clone)]
 pub struct BddKeys {
     number_variables: u32,
+    /// Cached shared enumeration of a level's domain (ALIGN-2): the dense
+    /// arc family clones one `Arc` per node, so the table is built once.
+    enumeration: Arc<OnceLock<Arc<[u64]>>>,
 }
 
 impl BddKeys {
     /// Key algebra for `number_variables` ordered variables 0..n-1.
     pub fn new(number_variables: u32) -> Self {
-        BddKeys { number_variables }
+        BddKeys {
+            number_variables,
+            enumeration: Arc::new(OnceLock::new()),
+        }
     }
 
     /// Number of variables of the BDD.
@@ -64,6 +71,13 @@ impl KeyAlgebra for BddKeys {
         } else {
             None
         }
+    }
+
+    fn enumeration(&self, _level: Level) -> Arc<[Self::Key]> {
+        // Cardinality is constant over levels: one cached table for all.
+        self.enumeration
+            .get_or_init(|| (0..CARDINALITY_BDD).collect::<Vec<_>>().into())
+            .clone()
     }
 
     fn sweep_levels(&self) -> u32 {

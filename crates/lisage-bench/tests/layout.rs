@@ -69,9 +69,14 @@ fn test_confrontation_layout_on_off() {
     let facteur_bout_en_bout = off.bytes_par_noeud / on.bytes_par_noeud;
     let facteur_rss = off.rss_max_ko as f64 / on.rss_max_ko as f64;
     // Pinned, falsifiable ranges (measured at MEM-19: arenas 1.67x,
-    // end-to-end ~1.2x, RSS ~1.26x — constant in n).
+    // end-to-end ~1.2x, RSS ~1.26x — constant in n). Re-pinned on the
+    // ALIGN-2 measured baseline: the dense-family slots went from
+    // Option<(u64, NodeId)> = 24 bytes to Option<NodeId> = 8 bytes and the
+    // ArcRun enum from 24 to 16 bytes, so the arena factor is now 1.33x
+    // (32.00/24.00 bytes/node on the n=20000 charge) — a frozen range may
+    // only be re-pinned on a measured baseline, never widened to pass.
     assert!(
-        (1.5..=2.0).contains(&facteur_arenas),
+        (1.2..=1.6).contains(&facteur_arenas),
         "arena factor {facteur_arenas:.3} out of the pinned range"
     );
     assert!(
