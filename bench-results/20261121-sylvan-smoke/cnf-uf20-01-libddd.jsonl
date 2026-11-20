@@ -1,0 +1,3 @@
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "libddd", "parametres": {"n": "20"}, "rss_max_ko": 32280, "temps_ms": 295.295, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "libddd", "parametres": {"n": "20"}, "rss_max_ko": 32400, "temps_ms": 295.6, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "libddd", "parametres": {"n": "20"}, "rss_max_ko": 32256, "temps_ms": 298.605, "variante": "bdd", "verifie": 8}

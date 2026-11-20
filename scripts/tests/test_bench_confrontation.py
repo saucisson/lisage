@@ -164,7 +164,7 @@ def test_crossover_charges_bench1() -> None:
         charge = by_label[label]
         assert charge.workload == "alea-lcg"
         assert charge_parameters(charge=charge) == (label.rsplit("-", 1)[1],)
-        assert set(charge.tools) == {"lisage", "oxidd", "cudd", "libddd"}
+        assert set(charge.tools) == {"lisage", "oxidd", "cudd", "libddd", "sylvan"}
     big = by_label["alea-lcg-24"]
     assert ("OXIDD_INNER_CAPACITY", str(1 << 23)) in big.oxidd_env
     assert ("OXIDD_APPLY_CACHE_CAPACITY", str(1 << 23)) in big.oxidd_env
@@ -176,9 +176,10 @@ def test_crossover_charges_bench1() -> None:
 
 def test_witness_registry_couvre_les_outils_externes() -> None:
     """Every external tool has a pinned image and a stdin command."""
-    assert set(WITNESS_IMAGES) == set(WITNESS_COMMANDS) == {"oxidd", "cudd", "libddd"}
+    assert set(WITNESS_IMAGES) == set(WITNESS_COMMANDS) == {"oxidd", "cudd", "libddd", "sylvan"}
     assert WITNESS_COMMANDS["cudd"] == ["cudd_measure"]
     assert WITNESS_COMMANDS["libddd"] == ["libddd_measure"]
+    assert WITNESS_COMMANDS["sylvan"] == ["sylvan_measure"]
 
 
 def test_charge_parameters_default_path() -> None:

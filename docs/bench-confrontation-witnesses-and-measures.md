@@ -29,7 +29,7 @@ Rules:
   comparable; comparisons are made in **ratios** (e.g. lisage/OxiDD of
   the same charge) only.
 - **Docker witnesses share the host.** A machine change applies to all
-  four tools at once, so inter-tool ratios of one campaign remain valid
+  tools at once, so inter-tool ratios of one campaign remain valid
   across machines.
 - Deterministic counters (allocations, bytes/node, node counts) are
   hardware-insensitive and stay comparable in absolute value across
@@ -78,7 +78,15 @@ the exact input lisage measured.
   the charge on stdin, one fresh container per measurement. libDDD has no
   complement edges, so `GDDD::size()` (distinct reachable nodes, terminals
   included) is directly the lisage convention.
-- **Sylvan**: not yet dockerized (spike SP-2, issue #154).
+- **Sylvan**: the `lisage-sylvan:latest` container
+  (`docker build -t lisage-sylvan:latest docker/sylvan`, Sylvan pinned at
+  tag `v1.12.8` = commit `fe8f9463a5f64ea8542534d82dd74a6766de127b`, Lace
+  fetched by Sylvan's CMake at `v1.11.1`), `sylvan_measure` reading the
+  charge on stdin, one fresh container per measurement. Sylvan BDDs carry
+  a complement edge, so the node count follows the CUDD convention:
+  distinct (node, complement-bit) pairs reachable from the root, terminals
+  included. Sylvan is a parallel package (Lace workers on all cores); the
+  measured wall-clock includes that parallelism.
 
 ## Fairness rules
 
@@ -125,7 +133,10 @@ The orchestrator `python -m scripts bench-confrontation`
 ```bash
 cargo build --release -p lisage-bench --bin confrontation
 docker build -t lisage-oxidd:latest docker/oxidd
-make bench-confrontation ARGS="--repetitions 5 --run-id <run-id>"
+docker build -t lisage-cudd:latest docker/cudd
+docker build -t lisage-libddd:latest docker/libddd
+docker build -t lisage-sylvan:latest docker/sylvan
+make bench-confrontation ARGS="--repetitions 5 --run-id <run-id> --tools lisage,oxidd,cudd,libddd,sylvan"
 ```
 
 The exact command of each deposited run is recorded in
@@ -140,3 +151,6 @@ The exact command of each deposited run is recorded in
   lisage vs OxiDD vs CUDD vs libDDD on the crossover charges
   (`alea-lcg` n = 20/22/24, `cnf-uf20-01`, `pnml-swimmingpool-1`), with
   the OxiDD ~4x gap analysis and the memory crossover in `REPORT.md`.
+- `bench-results/20261121-sylvan-smoke/` — smoke run with the dockerized
+  Sylvan witness (issue #308, closes SP-2 #154): `cnf-uf20-01` against
+  all five tools, cross-check clean.

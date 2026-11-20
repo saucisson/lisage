@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - Sylvan witness dockerized, 4th external tool of the confrontation (issue #308, closes SP-2 #154)
+
+- **Issue**: #308 (closes #154, spike SP-2); labels area/bench, area/infra.
+- **Done**: `docker/sylvan/` — Dockerfile (ubuntu:24.04, Sylvan pinned at tag v1.12.8 = commit `fe8f9463a5f64ea8542534d82dd74a6766de127b`, Lace fetched by Sylvan's CMake at v1.11.1) + `sylvan_measure.c` (stdin protocol n + 2^n values, one JSONL line of the confrontation protocol). Two Sylvan-specific findings, both fixed and documented in the code: (1) `lace_start(0, 1000000)` must run before `sylvan_init_package` (llmsset_create runs a Lace task); (2) the main thread is not a Lace worker, so the measured block runs inside a Lace task (`RUN(measure_task)`), as in Sylvan's own examples. Node count in the lisage convention (distinct (node, complement-bit) pairs, terminals included — Sylvan BDDs carry a complement edge), GC safety via sylvan_protect on the live layer. Orchestrator: sylvan added to WITNESS_IMAGES / WITNESS_COMMANDS / ALL_WITNESS_TOOLS / --tools help; tests updated. Docs: witness section + reproduction + deposited-results entry in `docs/bench-confrontation-witnesses-and-measures.md`. Smoke run deposited in `bench-results/20261121-sylvan-smoke/` (charge cnf-uf20-01, 5 tools x 3 repetitions, Machine: M1 header with fingerprint).
+- **Evidence**: `docker build -t lisage-sylvan:latest docker/sylvan` succeeds (smoke `printf '2\n0 1 1 0\n'` → valid JSON line, noeuds=5 verifie=2); smoke campaign exit 0 with `divergences: []` — noeuds=51 / verifie=8 identical across lisage, oxidd, cudd, libddd, sylvan; `make lint typecheck imports test english-only` green (61 Python tests, coverage 94.76%); `make check` run in full (see PR). Not run: the full crossover campaign (campaign-4 stays deferred, issue #301).
+- **Judgement calls**: pin Sylvan at the latest release tag v1.12.8 by commit SHA, same pattern as the other witnesses; Sylvan's parallelism (Lace workers on all cores) is included in its wall-clock, documented in the protocol doc.
+- **Escalations**: none (ADR-0102 pattern: local Docker only, never in CI; no project dependency added).
+
 ## 2026-11-20 - CI speedup: pinned install-action + gate set (ADR-0106 accepted by the human owner)
 
 - **Issue**: needs-human escalation from the ALIGN-7 review (#304): new third-party dependency + constitutional CI file.

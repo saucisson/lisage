@@ -53,11 +53,13 @@ WITNESS_IMAGES = {
     "oxidd": "lisage-oxidd:latest",
     "cudd": "lisage-cudd:latest",
     "libddd": "lisage-libddd:latest",
+    "sylvan": "lisage-sylvan:latest",
 }
 WITNESS_COMMANDS = {
     "oxidd": ["oxidd_count"],
     "cudd": ["cudd_measure"],
     "libddd": ["libddd_measure"],
+    "sylvan": ["sylvan_measure"],
 }
 
 MEASURE_KEYS = (
@@ -134,7 +136,7 @@ PILOT_CHARGES: tuple[Charge, ...] = (
 # 2^20 unique-table capacity of the OxiDD witness: its capacities are raised
 # via the environment (documented in the campaign report; the default image
 # stays the reference).
-ALL_WITNESS_TOOLS = ("lisage", "oxidd", "cudd", "libddd")
+ALL_WITNESS_TOOLS = ("lisage", "oxidd", "cudd", "libddd", "sylvan")
 CROSSOVER_CHARGES: tuple[Charge, ...] = (
     Charge("alea-lcg-20", "alea-lcg", parameters=("20",), tools=ALL_WITNESS_TOOLS),
     Charge("alea-lcg-22", "alea-lcg", parameters=("22",), tools=ALL_WITNESS_TOOLS),
@@ -361,7 +363,7 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
         "--tools",
         type=str,
         default=",".join(DEFAULT_TOOLS),
-        help="Comma-separated tools: lisage,oxidd,cudd,libddd.",
+        help="Comma-separated tools: lisage,oxidd,cudd,libddd,sylvan.",
     )
     subparser.add_argument(
         "--charges",
