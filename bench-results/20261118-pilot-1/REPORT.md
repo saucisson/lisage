@@ -1,4 +1,6 @@
 # Pilot report — run 20261118-pilot-1 (MEM-7, issue #123)
+Machine: M1
+
 
 Pilot measurement of the MEM-A port (ArcStore/ArcRun layout), the
 generalization gate: **gap = constant factor → the layout is validated

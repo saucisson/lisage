@@ -1,5 +1,12 @@
 # ALIGN-1 — NonZero<u32> hash tag in the unique-table slot
 
+Machine: M2
+
+```json
+{"machine_id": "M2", "hardware_hash": "febd14ed", "cpu_model": "Intel(R) Core(TM) i5-3470 CPU @ 3.20GHz", "physical_cores": 4, "logical_cores": 4, "ram_total_kib": 3979828, "kernel": "6.18.58.1-microsoft-standard-WSL2", "wsl2_config": null, "page_size": 4096}
+```
+
+
 Runner `profile_intern {n}`, one process per run, counting global allocator (MEM-18 pattern).
 Same charge as the PERF publications: alea-lcg, bottom-up Shannon expansion, 2^n - 1 intern calls.
 
@@ -57,3 +64,24 @@ order of magnitude.
 the skipped ones need the external witness binaries).
 - MEM-18 thresholds: green (`make check`, 369 passed / 11 skipped on this commit).
 - allocs/internement: 1.000 unchanged (the slot niche touches no allocation).
+
+## Verdict (ALIGN-7e) — the PERF-5 vs ALIGN-1 "before" gap is the machine, not the code
+
+The PERF-5 publication (`perf5-shadow-index.md`, **Machine: M1**) reports 132.1 ms build
+time at n=20; the ALIGN-1 "before" row above (**Machine: M2**) reports 69.818 ms on the
+same charge, same runner, same session protocol — with byte-identical allocation counters
+(1 048 803 allocs build, 1.000 alloc/internement). The work performed is therefore
+identical and the 132.1 -> 69.8 ms gap is attributed to the **M1 -> M2 machine change**
+of the evening of 2026-11-19 (see `bench-results/machines.md`), not to any code change.
+
+**Reformulated nextest note**: the note above ("under the nextest harness the runner is
+~10x slower") remains true in itself for test-suite runs (nextest runs test binaries in
+parallel across cores, unlike a single-process runner), but it does **not** explain this
+gap — both rows come from the same single-process `profile_intern` runner, so the factor
+between them is the hardware, not the test harness.
+
+**Consequence**: absolute times of the PERF series (M1) and the ALIGN series (M2) are
+**not comparable to each other**; only ratios within one campaign on one machine are.
+The lisage/OxiDD ratio of campaign-3 (2.04x at n=24) remains exact: the Docker witnesses
+share the host, so a machine change applies to all four tools at once and inter-tool
+ratios stay valid (ALIGN-7c).

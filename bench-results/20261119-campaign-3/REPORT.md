@@ -1,4 +1,6 @@
 # Campaign 20261119-campaign-3 (PERF-4, issue #286)
+Machine: M1
+
 
 Post-PERF comparative measurements lisage vs OxiDD vs CUDD vs libDDD (LIP6) on
 the BENCH-1 crossover charges, **same charges, same witnesses, same protocol**

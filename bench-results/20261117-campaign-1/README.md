@@ -1,4 +1,6 @@
 # Campaign 20261117-campaign-1 (M7-5, issue #115)
+Machine: M1
+
 
 Comparative measurements lisage vs OxiDD on the M7-4 real charges,
 protocol `docs/bench-confrontation-witnesses-and-measures.md`.

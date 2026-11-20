@@ -1,4 +1,6 @@
 # Campaign 20261118-campaign-2 (BENCH-1, issue #277)
+Machine: M1
+
 
 Comparative measurements lisage vs OxiDD vs CUDD vs libDDD (LIP6) on the
 BENCH-1 crossover charges: `alea-lcg` at n = 20/22/24 (time and RSS
