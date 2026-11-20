@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - ALIGN-7 register correction: switch back to M1 on 2026-11-20 evening
+
+- **Issue**: #300 (ALIGN-7). A human answer contradicted the first register: M1 (this machine, hash `febd14ed`) was used first, then M2 (more recent, shared) from the 2026-11-19 evening, then **back to M1 on the 2026-11-20 evening**. The register is adapted, not forced.
+- **Done**: `bench-results/machines.md` rewritten — M1 = `febd14ed` with two periods of use (up to 2026-11-19 evening; from 2026-11-20 evening onward), M2 = more recent machine, period 2026-11-19 night → 2026-11-20 evening, fingerprint not captured (unverified, requested from the human). `bench-results/align1-unique-niche.md` header corrected: Machine M2 with `hardware_hash: null` (M2 fingerprint not captured on 2026-11-20 morning; `febd14ed` is M1). The ALIGN-7e verdict is unchanged and still valid: PERF-5 (2026-11-19 15:47, M1) vs ALIGN-1 (2026-11-20 08:04, M2) — the 132.1 → 69.8 ms gap is the M1 → M2 change. p11/p12 keep their documented M1-or-M2 uncertainty (exact switch hour unknown).
+- **Evidence**: commit dates from `git log` (align1 2026-11-20T08:04+01:00, perf5 2026-11-19T15:47+01:00); `python -m scripts machine-fingerprint` on 2026-11-20 evening returns hash `febd14ed` = M1.
+- **Judgement calls**: the first register version attributed `febd14ed` to M2 — wrong; corrected per the human answer, with the contradiction documented here.
+- **Escalations**: none.
+
 ## 2026-11-20 - ALIGN-7: review #302 rework (5 BLOCKING fixed)
 
 - **Issue**: #300 (ALIGN-7), PR #302 review report (5 BLOCKING, 1 SUGGESTION).
