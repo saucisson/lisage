@@ -1,0 +1,3 @@
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "sylvan", "parametres": {"n": "20"}, "rss_max_ko": 18780, "temps_ms": 138.403, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "sylvan", "parametres": {"n": "20"}, "rss_max_ko": 18804, "temps_ms": 135.854, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "sylvan", "parametres": {"n": "20"}, "rss_max_ko": 18608, "temps_ms": 137.518, "variante": "bdd", "verifie": 8}
