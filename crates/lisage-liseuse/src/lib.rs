@@ -6,6 +6,7 @@ pub mod inspection;
 pub mod json;
 pub mod mirror;
 pub mod oracle;
+pub mod page;
 pub mod philosophers;
 pub mod predicates;
 pub mod publication;
