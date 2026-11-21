@@ -1599,3 +1599,9 @@ One entry per commit or pull request:
 - **Issue**: #175 (D6-2, passerelle loopback et page live). needs-human escalation posted on the issue for the new dependencies tokio + tokio-tungstenite (ADR-0010), plus proptest as a dev-dependency; the human approved both in the working session. Cargo.lock is untracked in this repository (.gitignore), so no resolved-graph audit (ADR-0008) was run on the new tokio/tokio-tungstenite/proptest entries; versions are pinned exactly in Cargo.toml instead.
 - **Done**: `gateway.rs` (D6-2 loopback gateway: `GatewayState`, bearer-auth page, first-frame-auth WebSocket replaying a `.jsonl` trace; protocol in `docs/gateway-protocol.md`), bin `lisage-gateway.rs`, tests `gateway_dod.rs` (7 DoD) + `gateway_property.rs` (proptest) + 6 unit tests. needs-human approvals recorded on #175 (tokio + tokio-tungstenite runtime deps; proptest dev-dep).
 - **Evidence**: `cargo test -p lisage-liseuse --all-targets` green (23 suites); clippy/fmt clean.
+
+## 2026-11-21 - D6-3: DAP adapter over stdio (Debug Adapter Protocol)
+
+- **Issue**: #176 — DAP adapter so VS Code / any DAP client can drive the liseuse debugger.
+- **Done**: new module `crates/lisage-liseuse/src/dap.rs` (DapServer: initialize/launch/setBreakpoints/configurationDone/threads/stackTrace/scopes/variables/continue/next/pause/disconnect, stdio transport with Content-Length framing, default scenario n=13 so round 12 exists for the breakpoint DoD), binary `src/bin/lisage-dap.rs` (stdio default, --port stub for future socket transport), `tests/dap_dod.rs` (4 DoD tests) + 7 unit tests.
+- **Evidence**: `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean, `cargo test -p lisage-liseuse --all-targets` 63 passed 0 failed, `cargo fmt --all`, `make english-only` green.
