@@ -12,7 +12,7 @@ use lisage_liseuse::debugger::{
 /// Hand-built trace with nested spans: an Op span [0..10] holding a
 /// Visite span [2..5] and a second Visite span [6..8].
 fn nested_spans_trace() -> Vec<TraceEvent> {
-    let visite = |node: u32| TraceEvent::VisiteEntree {
+    let visit_entree = |node: u32| TraceEvent::VisiteEntree {
         node: NodeId(node),
         span: None,
     };
@@ -31,15 +31,15 @@ fn nested_spans_trace() -> Vec<TraceEvent> {
             kind: SpanKind::Visite,
             lane: 0,
         }, // 2
-        visite(10),                                // 3
-        visite(11),                                // 4
+        visit_entree(10),                          // 3
+        visit_entree(11),                          // 4
         TraceEvent::SpanClose { span: SpanId(2) }, // 5
         TraceEvent::SpanOpen {
             span: SpanId(3),
             kind: SpanKind::Visite,
             lane: 0,
         }, // 6
-        visite(12),                                // 7
+        visit_entree(12),                          // 7
         TraceEvent::SpanClose { span: SpanId(3) }, // 8
         TraceEvent::OpEnd { span: None },          // 9
         TraceEvent::SpanClose { span: SpanId(1) }, // 10
