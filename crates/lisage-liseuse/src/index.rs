@@ -12,20 +12,20 @@ use lisage_core::observer::TraceEvent;
 /// queried by node / round / op.
 pub struct IndexTrace {
     /// Number of indexed events.
-    longueur: usize,
+    length: usize,
     /// Node → ranges of event positions mentioning it (merged when
     /// contiguous).
-    par_noeud: BTreeMap<NodeId, Vec<Range<usize>>>,
+    by_node: BTreeMap<NodeId, Vec<Range<usize>>>,
     /// Round number → interval of event positions of the round.
-    par_round: BTreeMap<u32, Range<usize>>,
+    by_round: BTreeMap<u32, Range<usize>>,
     /// Op index → interval of event positions of the operation (from
     /// `OpStart` to `OpEnd` inclusive).
-    par_op: Vec<Range<usize>>,
+    by_op: Vec<Range<usize>>,
 }
 
 /// Node carried by an event, if any.
-fn noeud_de(evenement: &TraceEvent) -> Option<NodeId> {
-    match evenement {
+fn node_of(event: &TraceEvent) -> Option<NodeId> {
+    match event {
         TraceEvent::NodeCreated { node, .. }
         | TraceEvent::NodeShared { node, .. }
         | TraceEvent::Attr { node, .. }
@@ -40,11 +40,11 @@ fn noeud_de(evenement: &TraceEvent) -> Option<NodeId> {
 
 /// Pushes `position` into the node's range list, merging with the last
 /// range when contiguous.
-fn pousser_position(ranges: &mut Vec<Range<usize>>, position: usize) {
-    if let Some(dernier) = ranges.last_mut()
-        && dernier.end == position
+fn push_position(ranges: &mut Vec<Range<usize>>, position: usize) {
+    if let Some(last_range) = ranges.last_mut()
+        && last_range.end == position
     {
-        dernier.end = position + 1;
+        last_range.end = position + 1;
         return;
     }
     ranges.push(position..position + 1);
@@ -52,85 +52,89 @@ fn pousser_position(ranges: &mut Vec<Range<usize>>, position: usize) {
 
 impl IndexTrace {
     /// Builds the index from the trace events, in one pass (O(n)).
-    pub fn construire(evenements: &[TraceEvent]) -> Self {
-        let mut par_noeud: BTreeMap<NodeId, Vec<Range<usize>>> = BTreeMap::new();
-        let mut par_round: BTreeMap<u32, Range<usize>> = BTreeMap::new();
-        let mut par_op: Vec<Range<usize>> = Vec::new();
-        let mut debut_round: Option<(u32, usize)> = None;
-        let mut pile_ops: Vec<usize> = Vec::new();
+    pub fn build(events: &[TraceEvent]) -> Self {
+        let mut by_node: BTreeMap<NodeId, Vec<Range<usize>>> = BTreeMap::new();
+        let mut by_round: BTreeMap<u32, Range<usize>> = BTreeMap::new();
+        let mut by_op: Vec<Range<usize>> = Vec::new();
+        let mut round_start: Option<(u32, usize)> = None;
+        let mut op_stack: Vec<usize> = Vec::new();
 
-        for (position, evenement) in evenements.iter().enumerate() {
-            if let Some(node) = noeud_de(evenement) {
-                pousser_position(par_noeud.entry(node).or_default(), position);
+        for (position, event) in events.iter().enumerate() {
+            if let Some(node) = node_of(event) {
+                push_position(by_node.entry(node).or_default(), position);
             }
-            match evenement {
+            match event {
                 TraceEvent::Round { numero, .. } => {
                     // The previous round ends where this one starts.
-                    if let Some((numero_avant, debut)) = debut_round.take() {
-                        par_round.insert(numero_avant, debut..position);
+                    if let Some((prev_number, start)) = round_start.take() {
+                        by_round.insert(prev_number, start..position);
                     }
-                    debut_round = Some((*numero, position));
+                    round_start = Some((*numero, position));
                 }
-                TraceEvent::OpStart { .. } => pile_ops.push(position),
+                TraceEvent::OpStart { .. } => {
+                    // The op index is assigned in start order.
+                    by_op.push(position..position);
+                    op_stack.push(by_op.len() - 1);
+                }
                 TraceEvent::OpEnd { .. } => {
-                    if let Some(debut) = pile_ops.pop() {
-                        par_op.push(debut..position + 1);
+                    if let Some(index) = op_stack.pop() {
+                        by_op[index].end = position + 1;
                     }
                 }
                 _ => {}
             }
         }
-        if let Some((numero, debut)) = debut_round {
-            par_round.insert(numero, debut..evenements.len());
+        if let Some((number, start)) = round_start {
+            by_round.insert(number, start..events.len());
         }
         IndexTrace {
-            longueur: evenements.len(),
-            par_noeud,
-            par_round,
-            par_op,
+            length: events.len(),
+            by_node,
+            by_round,
+            by_op,
         }
     }
 
     /// Number of indexed events.
-    pub fn longueur(&self) -> usize {
-        self.longueur
+    pub fn length(&self) -> usize {
+        self.length
     }
 
     /// `explain(node)`: positions of the events mentioning `node`, by
     /// index lookup — O(log n + k), no linear scan.
-    pub fn explain(&self, noeud: NodeId) -> Vec<usize> {
-        self.par_noeud
-            .get(&noeud)
-            .map(|ranges| ranges.iter().flat_map(|plage| plage.clone()).collect())
+    pub fn explain(&self, node: NodeId) -> Vec<usize> {
+        self.by_node
+            .get(&node)
+            .map(|ranges| ranges.iter().flat_map(|range| range.clone()).collect())
             .unwrap_or_default()
     }
 
     /// Ranges of event positions mentioning `node` (merged form).
-    pub fn plages_noeud(&self, noeud: NodeId) -> &[Range<usize>] {
-        self.par_noeud
-            .get(&noeud)
+    pub fn node_ranges(&self, node: NodeId) -> &[Range<usize>] {
+        self.by_node
+            .get(&node)
             .map(|ranges| ranges.as_slice())
             .unwrap_or(&[])
     }
 
-    /// Interval of event positions of round `numero` — O(log n).
-    pub fn plage_round(&self, numero: u32) -> Option<Range<usize>> {
-        self.par_round.get(&numero).cloned()
+    /// Interval of event positions of round `number` — O(log n).
+    pub fn round_range(&self, number: u32) -> Option<Range<usize>> {
+        self.by_round.get(&number).cloned()
     }
 
     /// Interval of event positions of the `index`-th operation — O(1).
-    pub fn plage_op(&self, index: usize) -> Option<Range<usize>> {
-        self.par_op.get(index).cloned()
+    pub fn op_range(&self, index: usize) -> Option<Range<usize>> {
+        self.by_op.get(index).cloned()
     }
 
     /// `goto` a round by number: first event position of the round —
     /// O(log n) via the round map.
-    pub fn position_round(&self, numero: u32) -> Option<usize> {
-        self.par_round.get(&numero).map(|plage| plage.start)
+    pub fn round_position(&self, number: u32) -> Option<usize> {
+        self.by_round.get(&number).map(|range| range.start)
     }
 
     /// `goto` an op by index: first event position of the op — O(1).
-    pub fn position_op(&self, index: usize) -> Option<usize> {
-        self.par_op.get(index).map(|plage| plage.start)
+    pub fn op_position(&self, index: usize) -> Option<usize> {
+        self.by_op.get(index).map(|range| range.start)
     }
 }
