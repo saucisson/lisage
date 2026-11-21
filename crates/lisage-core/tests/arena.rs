@@ -195,28 +195,37 @@ fn test_events_trace_narration() {
         },
     );
     let events = trace.events.lock().unwrap();
+    // D1-3: the forms are lazy fragments — compare the forced renderings.
+    let rendus: Vec<(NodeId, Option<Level>, String)> = events
+        .iter()
+        .map(|e| match e {
+            TraceEvent::NodeCreated {
+                node, level, forme, ..
+            } => (*node, *level, forme.rendre()),
+            TraceEvent::NodeShared { node, .. } => (*node, None, "partage".to_string()),
+            _ => panic!("unexpected event"),
+        })
+        .collect();
     assert_eq!(
-        events.as_slice(),
-        &[
-            TraceEvent::NodeCreated {
+        rendus,
+        vec![
+            (
                 node,
-                level: None,
-                forme: format!("{:?}", Form::<u64, bool>::Terminal(true)),
-                span: None
-            },
-            TraceEvent::NodeShared { node, span: None },
-            TraceEvent::NodeCreated {
-                node: node2,
-                level: Some(Level(5)),
-                forme: format!(
+                None,
+                format!("{:?}", Form::<u64, bool>::Terminal(true))
+            ),
+            (node, None, "partage".to_string()),
+            (
+                node2,
+                Some(Level(5)),
+                format!(
                     "{:?}",
                     Form::<u64, bool>::Node {
                         level: Level(5),
                         arcs: ArcRun::from_pairs([(1, node)]),
                     }
-                ),
-                span: None,
-            },
+                )
+            ),
         ]
     );
 }

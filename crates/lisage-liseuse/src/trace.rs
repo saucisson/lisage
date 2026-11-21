@@ -150,12 +150,12 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                     "\"noeud\":{},\"level\":{},\"forme\":\"{}\"",
                     node.0,
                     level.0,
-                    echapper_json(forme)
+                    echapper_json(&forme.rendre())
                 ),
                 None => format!(
                     "\"noeud\":{},\"level\":null,\"forme\":\"{}\"",
                     node.0,
-                    echapper_json(forme)
+                    echapper_json(&forme.rendre())
                 ),
             },
         ),
@@ -186,7 +186,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                 "\"canal\":\"{}\",\"noeud\":{},\"valeur\":\"{}\"",
                 name_channel(*channel),
                 node.0,
-                echapper_json(value)
+                echapper_json(&value.rendre())
             ),
         ),
         TraceEvent::MemoHit { node, .. } => ("MemoHit", format!("\"noeud\":{}", node.0)),
@@ -246,7 +246,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             format!(
                 "\"empreinte\":{fingerprint},\"noeud\":{},\"h\":\"{}\",\"version\":{version},\"touche\":{hit}",
                 node.0,
-                echapper_json(h)
+                echapper_json(&h.rendre())
             ),
         ),
         TraceEvent::MemoInsert {
@@ -261,7 +261,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             format!(
                 "\"empreinte\":{fingerprint},\"noeud\":{},\"h\":\"{}\",\"version\":{version},\"resultat\":{}",
                 node.0,
-                echapper_json(h),
+                echapper_json(&h.rendre()),
                 resultat.0
             ),
         ),
@@ -300,9 +300,15 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
 
 /// Observer that collects the trace in memory, serialized JSONL.
 /// Cloneable: a clone placed in the pool shares the same trace.
+/// Event filter of a `JsonlObserver` (D1-3).
+pub type FiltreTrace = Arc<dyn Fn(&TraceEvent) -> bool + Send + Sync>;
+
 #[derive(Clone)]
 pub struct JsonlObserver {
     lignes: Arc<Mutex<Vec<String>>>,
+    /// Optional event filter (D1-3): only events passing the filter are
+    /// serialized — and only then are their lazy `TraceVal` values forced.
+    filtre: Option<FiltreTrace>,
 }
 
 impl JsonlObserver {
@@ -310,6 +316,16 @@ impl JsonlObserver {
     pub fn new() -> Self {
         JsonlObserver {
             lignes: Arc::new(Mutex::new(Vec::new())),
+            filtre: None,
+        }
+    }
+
+    /// New observer keeping only the events that pass `filtre` (D1-3):
+    /// the lazy values of the rejected events are never forced.
+    pub fn avec_filtre(filtre: FiltreTrace) -> Self {
+        JsonlObserver {
+            lignes: Arc::new(Mutex::new(Vec::new())),
+            filtre: Some(filtre),
         }
     }
 
@@ -335,6 +351,13 @@ impl Default for JsonlObserver {
 
 impl Observer for JsonlObserver {
     fn on_event(&self, event: &TraceEvent) {
+        // D1-3: the filter runs on the cheap fields first; the lazy
+        // values are forced (serialized) only if the filter passes.
+        if let Some(filtre) = &self.filtre
+            && !filtre(event)
+        {
+            return;
+        }
         self.lignes
             .lock()
             .expect("mutex poisoned")

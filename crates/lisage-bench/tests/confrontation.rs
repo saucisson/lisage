@@ -362,7 +362,7 @@ fn test_narration_workload_epinglee() {
                     channel: ChannelAttr::Synthesized,
                     value,
                     ..
-                } if value == expected
+                } if value.rendre() == *expected
             )),
             "the narration event carries the summary: {expected}"
         );

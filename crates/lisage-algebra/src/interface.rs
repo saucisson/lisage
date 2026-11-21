@@ -610,9 +610,9 @@ pub enum MemoryPolicy {
 /// Extended controller (proposal § 1.2): instance of the eight fields that
 /// decide reductions and encoding. The pool stays blind.
 pub trait Controller: Send + Sync {
-    type Key: Clone + Ord + Hash + Debug + Send + Sync;
+    type Key: Clone + Ord + Hash + Debug + Send + Sync + 'static;
     /// Payload of terminals (Bool for a set, Option(V) for lookup…).
-    type Payload: Clone + Eq + Hash + Debug + Send + Sync;
+    type Payload: Clone + Eq + Hash + Debug + Send + Sync + 'static;
     /// Key algebra of the instance.
     type Keys: KeyAlgebra<Key = Self::Key>;
     /// Arc storage of the instance (MEM-3, ADR-0103): default is the

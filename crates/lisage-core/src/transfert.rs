@@ -33,6 +33,7 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 
 use crate::memory::{EffetMemory, MemoryLevel};
+use crate::observer::{TraceVal, Traceable};
 use crate::pli::union;
 use crate::schema::{ABSENT, Domain, PRESENT, Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transduction};
@@ -52,6 +53,18 @@ pub enum EtatTransfert {
     /// Transfer in progress: amount to add to the value of the
     /// destination key (1 unit transferred).
     Transfert(u64),
+}
+
+impl Traceable for EtatTransfert {
+    fn trace_val(&self) -> TraceVal {
+        match self {
+            EtatTransfert::Normal => TraceVal::texte("Normal"),
+            EtatTransfert::Transfert(montant) => TraceVal::carte(vec![(
+                TraceVal::texte("Transfert"),
+                TraceVal::entier(*montant as i64),
+            )]),
+        }
+    }
 }
 
 /// Non-local transition `m(a) -= 1; m(b) += 1` compiled into a level-memory

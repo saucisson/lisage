@@ -29,7 +29,8 @@ use lisage_algebra::interface::{ArcRun, Form, NodeId, Pool, PoolError};
 
 use crate::dbm::{Dbm, DbmKeys};
 use crate::observer::{
-    ChannelAttr, Observer, SpanKind, TraceEvent, contextualiser, next_span_id, pop_span, push_span,
+    ChannelAttr, Observer, SpanKind, TraceEvent, TraceVal, contextualiser, next_span_id, pop_span,
+    push_span,
 };
 use crate::region::Interval;
 
@@ -124,7 +125,10 @@ fn integrale_inner<P: Pool<Key = Interval, Payload = bool>>(
             obs.on_event(&contextualiser(TraceEvent::Attr {
                 channel: ChannelAttr::Synthesized,
                 node,
-                value: format!("measure_memo={total}"),
+                value: TraceVal::carte(vec![(
+                    TraceVal::texte("measure_memo"),
+                    TraceVal::entier((*total).try_into().unwrap_or(i64::MAX)),
+                )]),
                 span: None,
             }));
         }
@@ -150,7 +154,10 @@ fn integrale_inner<P: Pool<Key = Interval, Payload = bool>>(
         obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node,
-            value: format!("measure={total}"),
+            value: TraceVal::carte(vec![(
+                TraceVal::texte("measure"),
+                TraceVal::entier(total.try_into().unwrap_or(i64::MAX)),
+            )]),
             span: None,
         }));
     }
@@ -230,7 +237,10 @@ fn integrale_dbm_inner<P: Pool<Key = Dbm, Payload = bool>>(
             obs.on_event(&contextualiser(TraceEvent::Attr {
                 channel: ChannelAttr::Synthesized,
                 node,
-                value: format!("measure_memo={total}"),
+                value: TraceVal::carte(vec![(
+                    TraceVal::texte("measure_memo"),
+                    TraceVal::entier((*total).try_into().unwrap_or(i64::MAX)),
+                )]),
                 span: None,
             }));
         }
@@ -257,7 +267,10 @@ fn integrale_dbm_inner<P: Pool<Key = Dbm, Payload = bool>>(
         obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node,
-            value: format!("measure={total}"),
+            value: TraceVal::carte(vec![(
+                TraceVal::texte("measure"),
+                TraceVal::entier(total.try_into().unwrap_or(i64::MAX)),
+            )]),
             span: None,
         }));
     }

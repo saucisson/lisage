@@ -74,14 +74,14 @@ fn test_trace_jsonl_versionnee_and_deterministe() {
 /// Exact (golden) serialization of one event of each type.
 #[test]
 fn test_serialiser_evenement_golden() {
-    use lisage_core::observer::{ReductionRule, TraceEvent};
+    use lisage_core::observer::{ReductionRule, TraceEvent, TraceVal};
     use lisage_core::{ControllerId, Handle, Level, NodeId};
 
     assert_eq!(
         serialiser_evenement(&TraceEvent::NodeCreated {
             node: NodeId(3),
             level: Some(Level(2)),
-            forme: "Terminal(true)".to_string(),
+            forme: TraceVal::texte("Terminal(true)"),
             span: None,
         }),
         "{\"v\":5,\"type\":\"NodeCreated\",\"span\":null,\"noeud\":3,\"level\":2,\"forme\":\"Terminal(true)\"}"
@@ -180,4 +180,77 @@ fn test_svg_structure_equilibree() {
     let fermetures_rect = svg.matches("/>").count();
     assert!(ouvertures >= 2, "node + terminal rendered");
     assert!(fermetures_rect >= ouvertures, "self-closing tags present");
+}
+
+/// D1-3: a filtered JSONL observer forces the lazy `TraceVal` values only
+/// for the events that pass the filter (elision).
+#[test]
+fn test_jsonl_observer_filtre_et_elision() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use lisage_core::NodeId;
+    use lisage_core::observer::{ChannelAttr, Observer, TraceEvent, TraceVal};
+    use lisage_liseuse::trace::JsonlObserver;
+
+    let compteur = Arc::new(AtomicU64::new(0));
+    let compteur_clone = compteur.clone();
+    let valeur_lazy = TraceVal::Fragment(Arc::new(move || {
+        compteur_clone.fetch_add(1, Ordering::Relaxed);
+        TraceVal::texte("calcule")
+    }));
+
+    let observer = JsonlObserver::avec_filtre(Arc::new(|e: &TraceEvent| {
+        matches!(e, TraceEvent::StructureChange { .. })
+    }));
+    // Rejected by the filter: the lazy value is never forced.
+    observer.on_event(&TraceEvent::Attr {
+        channel: ChannelAttr::Inherited,
+        node: NodeId(1),
+        value: valeur_lazy.clone(),
+        span: None,
+    });
+    assert_eq!(compteur.load(Ordering::Relaxed), 0);
+    assert!(observer.lignes().is_empty());
+
+    // Accepted: the value is forced exactly once, at serialization.
+    observer.on_event(&TraceEvent::StructureChange {
+        node: NodeId(1),
+        classification: lisage_core::observer::StructureChangeKind::Identite,
+        arcs_avant: vec![],
+        arcs_apres: vec![],
+        span: None,
+    });
+    assert_eq!(observer.lignes().len(), 1);
+    assert!(observer.lignes()[0].contains("\"classification\":\"identite\""));
+    assert_eq!(
+        compteur.load(Ordering::Relaxed),
+        0,
+        "the accepted event carries no lazy value"
+    );
+
+    // An accepted event carrying a lazy value forces it once.
+    observer.on_event(&TraceEvent::Attr {
+        channel: ChannelAttr::Memory,
+        node: NodeId(2),
+        value: valeur_lazy,
+        span: None,
+    });
+    // The filter rejects Attr: still not forced.
+    assert_eq!(compteur.load(Ordering::Relaxed), 0);
+
+    let tout = JsonlObserver::new();
+    tout.on_event(&TraceEvent::Attr {
+        channel: ChannelAttr::Memory,
+        node: NodeId(2),
+        value: TraceVal::Fragment(Arc::new(move || {
+            compteur.fetch_add(1, Ordering::Relaxed);
+            TraceVal::texte("calcule")
+        })),
+        span: None,
+    });
+    assert_eq!(
+        tout.lignes()[0],
+        "{\"v\":5,\"type\":\"Attr\",\"span\":null,\"canal\":\"memoire\",\"noeud\":2,\"valeur\":\"calcule\"}"
+    );
 }

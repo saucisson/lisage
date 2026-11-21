@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use lisage_core::MemoryPolicy;
 use lisage_core::arena::Arena;
-use lisage_core::observer::{ChannelAttr, Observer, TraceEvent};
+use lisage_core::observer::{ChannelAttr, Observer, TraceEvent, TraceVal};
 use lisage_core::pli::Pli;
 use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
@@ -68,7 +68,7 @@ fn test_serialisation_v5_evenements_step_by_step() {
     let attr = serialiser_evenement(&TraceEvent::Attr {
         channel: ChannelAttr::Inherited,
         node: NodeId(3),
-        value: "Transfert(1)".to_string(),
+        value: TraceVal::texte("Transfert(1)"),
         span: None,
     });
     assert_eq!(
@@ -116,7 +116,7 @@ fn test_serialisation_v5_evenements_step_by_step() {
         serialiser_evenement(&TraceEvent::Attr {
             channel: ChannelAttr::Memory,
             node: NodeId(1),
-            value: "true".to_string(),
+            value: TraceVal::texte("true"),
             span: None,
         }),
         "{\"v\":5,\"type\":\"Attr\",\"span\":null,\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
@@ -286,13 +286,13 @@ fn test_scrubber_replay_and_diff() {
         TraceEvent::NodeCreated {
             node: NodeId(1),
             level: Some(lisage_core::Level(0)),
-            forme: "Noeud".to_string(),
+            forme: TraceVal::texte("Noeud"),
             span: None,
         },
         TraceEvent::Attr {
             channel: ChannelAttr::Inherited,
             node: NodeId(1),
-            value: "0".to_string(),
+            value: TraceVal::texte("0"),
             span: None,
         },
         TraceEvent::MemoMiss {
@@ -312,7 +312,7 @@ fn test_scrubber_replay_and_diff() {
         TraceEvent::NodeCreated {
             node: NodeId(2),
             level: Some(lisage_core::Level(1)),
-            forme: "Noeud".to_string(),
+            forme: TraceVal::texte("Noeud"),
             span: None,
         },
         TraceEvent::MemoHit {
@@ -360,13 +360,13 @@ fn test_scrubber_replay_and_diff() {
         TraceEvent::NodeCreated {
             node: NodeId(1),
             level: None,
-            forme: "Noeud".to_string(),
+            forme: TraceVal::texte("Noeud"),
             span: None,
         },
         TraceEvent::NodeCreated {
             node: NodeId(2),
             level: None,
-            forme: "Noeud".to_string(),
+            forme: TraceVal::texte("Noeud"),
             span: None,
         },
     ]);
@@ -424,7 +424,7 @@ fn test_rendu_svg_step_by_step_channels_and_ghosts() {
         evenements.push(TraceEvent::NodeCreated {
             node: n,
             level: None,
-            forme: "Noeud".to_string(),
+            forme: TraceVal::texte("Noeud"),
             span: None,
         });
         if let Ok(lisage_core::Form::Node { arcs, .. }) = pool.resolve(n) {
@@ -497,13 +497,13 @@ fn test_scrubber_proprietes_prefixe_monotone_and_diff_antisymetrique() {
                     0 => TraceEvent::NodeCreated {
                         node,
                         level: None,
-                        forme: "Noeud".to_string(),
+                        forme: TraceVal::texte("Noeud"),
                         span: None,
                     },
                     1 => TraceEvent::Attr {
                         channel: ChannelAttr::Inherited,
                         node,
-                        value: "x".to_string(),
+                        value: TraceVal::texte("x"),
                         span: None,
                     },
                     2 => TraceEvent::MemoHit { node, span: None },

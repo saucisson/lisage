@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - D1-3: TraceVal / Traceable — lazy bounded trace values (issue #157)
+
+- **Issue**: #157 (D1-3, trace v5 values); labels debug-outillage, trace-v3, perf.
+- **Done**: new bounded mini-ADT `TraceVal` in `observer.rs` — `Entier`/`Texte`/`Ensemble`/`Carte` eager, `Fragment` lazy (`Arc<dyn Fn() -> TraceVal>`, Debug-formatted only when forced), `Elide`; bounds enforced by constructors (`TRACE_VAL_MAX_JETONS`=64, `TRACE_VAL_MAX_TEXTE`=256, fragment depth `TRACE_VAL_MAX_PROFONDEUR`=16). `Traceable` trait with a lazy **Debug fallback** default; structured impls for the H/S/M of the existing transductions: `Mode`, `KeyPresentes` (BTreeSet<u64>), `BTreeMap<u64, NodeId>`, `Naturel`, `BoolOu`, `EtatTransfert`, `bool`, `u64`, `NodeId`, `Level`, `()`, `Vec<(NodeId, Level, M)>`. The hot-path event fields become lazy: `NodeCreated.forme`, `Attr.value`, `MemoConsult.h`, `MemoInsert.h` — **no `format!` remains on the engine hot path** (transduction runner, arena intern, saturation); `integrale.rs`/`workshop.rs` measure and comparison narrations use `Entier`/`Carte`/`fragment_format`. `Transduction` H/S/M bounds and `SemiAnneau` gain `Traceable`; `Controller::Key/Payload` gain `'static` (needed by the lazy fragments). Serializer forces values at serialization time (off the hot path); `JsonlObserver::avec_filtre` checks the filter on cheap fields first and forces lazy values only for accepted events. New tests `crates/lisage-core/tests/trace_val.rs` (bounds, elision with an atomic counter, Traceable impls) and a filtered-observer elision test in liseuse; existing narration tests updated to `value.rendre()`.
+- **Evidence**: `make check` green on the branch (ruff, mypy strict, import-linter, pytest 61 passed / coverage 94.76%, cargo fmt --check, clippy -D warnings, cargo nextest 380 passed / 11 skipped, english-only).
+- **Judgement calls**: `Fragment` equality is by `Arc::ptr_eq` (payload never forced to compare); the wire format stays schema v5 — the JSON fields remain strings, only their computation moved off the hot path; `()` traces as `Elide` ("…").
+- **Escalations**: none.
+
 ## 2026-11-21 - D1-2: register events of trace v5 (issue #156)
 
 - **Issue**: #156 (D1-2, trace register events); labels debug-outillage, trace-v3, tests-pbt.

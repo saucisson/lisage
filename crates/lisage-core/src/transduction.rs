@@ -51,8 +51,8 @@ fn classifier_structure(
 use crate::error::CoreError;
 use crate::memory::{EffetMemory, MemoryLevel};
 use crate::observer::{
-    ChannelAttr, Observer, SpanKind, StructureChangeKind, TraceEvent, contextualiser, next_span_id,
-    pop_span, push_span,
+    ChannelAttr, Observer, SpanKind, StructureChangeKind, TraceEvent, Traceable, contextualiser,
+    next_span_id, pop_span, push_span,
 };
 
 /// Memo key: (operation fingerprint, node, inherited attribute,
@@ -82,14 +82,14 @@ pub struct ContextePhiOut<'a, H, S, M: Clone + Eq + Hash + Debug> {
 /// output: pool with payload `Out`.
 pub trait Transduction: Send + Sync {
     /// Inherited attribute (downward).
-    type H: Clone + PartialEq + Eq + Hash + Debug + Send + Sync;
+    type H: Clone + PartialEq + Eq + Hash + Debug + Send + Sync + Traceable;
     /// Synthesized attribute (upward).
-    type S: Clone + Debug + Send + Sync;
+    type S: Clone + Debug + Send + Sync + Traceable;
     /// Payload of the terminals of the output diagram (`Δ_out`, spec § 3.2).
     type Out: Clone + Eq + Hash + Debug + Send + Sync;
     /// Value stored in the level memory `M : (id(node), ℓ) ⇀ M`
     /// (M2-3). `()` for transductions without memory (M1).
-    type M: Clone + Eq + Hash + Debug + Send + Sync;
+    type M: Clone + Eq + Hash + Debug + Send + Sync + Traceable;
 
     /// Fingerprint of the operation (parameters included): enters the
     /// memo key `(op, node, h, version(M))` (L1/L3).
@@ -321,12 +321,13 @@ impl<T: Transduction> Transducteur<T> {
         );
         let fingerprint = self.transduction.fingerprint();
         let version = self.memory.version();
-        let h_debug = format!("{h:?}");
+        // D1-3: the attribute is a lazy TraceVal — no format! on the hot path.
+        let h_val = h.trace_val();
         if let Some((result, s)) = self.memo.get(&key) {
             self.notifier(TraceEvent::MemoConsult {
                 fingerprint,
                 node,
-                h: h_debug.clone(),
+                h: h_val.clone(),
                 version,
                 hit: true,
                 span: None,
@@ -337,7 +338,7 @@ impl<T: Transduction> Transducteur<T> {
         self.notifier(TraceEvent::MemoConsult {
             fingerprint,
             node,
-            h: h_debug.clone(),
+            h: h_val.clone(),
             version,
             hit: false,
             span: None,
@@ -356,7 +357,7 @@ impl<T: Transduction> Transducteur<T> {
                     self.notifier(TraceEvent::Attr {
                         channel: ChannelAttr::Inherited,
                         node,
-                        value: format!("{h_arc:?}"),
+                        value: h_arc.trace_val(),
                         span: None,
                     });
                     let (target_result, s_arc) =
@@ -373,7 +374,7 @@ impl<T: Transduction> Transducteur<T> {
                 self.notifier(TraceEvent::Attr {
                     channel: ChannelAttr::Synthesized,
                     node,
-                    value: format!("{s:?}"),
+                    value: s.trace_val(),
                     span: None,
                 });
                 let ctx = ContextePhiOut {
@@ -392,7 +393,7 @@ impl<T: Transduction> Transducteur<T> {
                     self.notifier(TraceEvent::Attr {
                         channel: ChannelAttr::Memory,
                         node,
-                        value: format!("{:?}", effet.ecritures),
+                        value: effet.ecritures.trace_val(),
                         span: None,
                     });
                     // D1-2: the memory write bumps the version.
@@ -414,7 +415,7 @@ impl<T: Transduction> Transducteur<T> {
         self.notifier(TraceEvent::MemoInsert {
             fingerprint,
             node,
-            h: h_debug,
+            h: h_val,
             version,
             resultat: result,
             span: None,
@@ -496,12 +497,13 @@ impl<T: Transduction> Transducteur<T> {
         );
         let fingerprint = self.transduction.fingerprint();
         let version = self.memory.version();
-        let h_debug = format!("{h:?}");
+        // D1-3: the attribute is a lazy TraceVal — no format! on the hot path.
+        let h_val = h.trace_val();
         if let Some((result, s)) = self.memo.get(&key) {
             self.notifier(TraceEvent::MemoConsult {
                 fingerprint,
                 node,
-                h: h_debug.clone(),
+                h: h_val.clone(),
                 version,
                 hit: true,
                 span: None,
@@ -512,7 +514,7 @@ impl<T: Transduction> Transducteur<T> {
         self.notifier(TraceEvent::MemoConsult {
             fingerprint,
             node,
-            h: h_debug.clone(),
+            h: h_val.clone(),
             version,
             hit: false,
             span: None,
@@ -531,7 +533,7 @@ impl<T: Transduction> Transducteur<T> {
                     self.notifier(TraceEvent::Attr {
                         channel: ChannelAttr::Inherited,
                         node,
-                        value: format!("{h_arc:?}"),
+                        value: h_arc.trace_val(),
                         span: None,
                     });
                     let (target_result, s_arc) =
@@ -548,7 +550,7 @@ impl<T: Transduction> Transducteur<T> {
                 self.notifier(TraceEvent::Attr {
                     channel: ChannelAttr::Synthesized,
                     node,
-                    value: format!("{s:?}"),
+                    value: s.trace_val(),
                     span: None,
                 });
                 let ctx = ContextePhiOut {
@@ -567,7 +569,7 @@ impl<T: Transduction> Transducteur<T> {
                     self.notifier(TraceEvent::Attr {
                         channel: ChannelAttr::Memory,
                         node,
-                        value: format!("{:?}", effet.ecritures),
+                        value: effet.ecritures.trace_val(),
                         span: None,
                     });
                     // D1-2: the memory write bumps the version.
@@ -589,7 +591,7 @@ impl<T: Transduction> Transducteur<T> {
         self.notifier(TraceEvent::MemoInsert {
             fingerprint,
             node,
-            h: h_debug,
+            h: h_val,
             version,
             resultat: result,
             span: None,

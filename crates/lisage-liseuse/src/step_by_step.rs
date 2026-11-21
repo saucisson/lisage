@@ -10,7 +10,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lisage_core::observer::{ChannelAttr, TraceEvent};
+use lisage_core::observer::{ChannelAttr, TraceEvent, TraceVal};
 use lisage_core::{Form, NodeId, Pool};
 
 use crate::svg::{
@@ -53,7 +53,7 @@ pub struct EtatTrace {
     /// Nodes seen (created or shared) up to the position.
     pub nodes: BTreeSet<NodeId>,
     /// Attributes seen `(channel, node, value)`, in emission order.
-    pub attributes: Vec<(ChannelAttr, NodeId, String)>,
+    pub attributes: Vec<(ChannelAttr, NodeId, TraceVal)>,
     /// Number of `MemoHit` up to the position.
     pub memo_hits: usize,
     /// Number of `MemoMiss` up to the position.
