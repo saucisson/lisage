@@ -420,7 +420,7 @@ mod tests {
     #[test]
     fn test_json_escape() {
         assert_eq!(json_escape("a\"b\\c\n"), "a\\\"b\\\\c\\n");
-        assert_eq!(json_escape("</script>"), "\\u003c/\\u003escript\\u003e");
+        assert_eq!(json_escape("</script>"), "\\u003c/script\\u003e");
     }
 
     #[test]
