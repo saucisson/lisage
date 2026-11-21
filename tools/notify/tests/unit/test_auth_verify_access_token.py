@@ -66,15 +66,21 @@ class FakeIdp:
     def __init__(self, keys: list[RSAKey]) -> None:
         self.keys = keys
         self.scripted_jwks: list[dict[str, object]] = []
+        self.raw_jwks_responses: list[httpx.Response] = []
+        self.raw_discovery_response: httpx.Response | None = None
         self.discovery_requests = 0
         self.jwks_requests = 0
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         if request.url.path == "/.well-known/openid-configuration":
             self.discovery_requests += 1
+            if self.raw_discovery_response is not None:
+                return self.raw_discovery_response
             return httpx.Response(200, json={"issuer": ISSUER, "jwks_uri": f"{ISSUER}/jwks"})
         if request.url.path == "/jwks":
             self.jwks_requests += 1
+            if self.raw_jwks_responses:
+                return self.raw_jwks_responses.pop(0)
             if self.scripted_jwks:
                 return httpx.Response(200, json=self.scripted_jwks.pop(0))
             return httpx.Response(200, json={"keys": [key.as_dict() for key in self.keys]})
@@ -263,6 +269,65 @@ def test_accepted_audiences_default_to_client_id() -> None:
         }
     )
     assert explicit.accepted_audiences == ["app-a", "app-b"]
+
+
+def test_non_json_jwks_body_rejected_as_unavailable(
+    settings: AuthSettings, idp: FakeIdp, signing_key: RSAKey
+) -> None:
+    idp.raw_jwks_responses = [httpx.Response(200, text="<html>not json</html>")]
+    token = _sign(_valid_claims(), signing_key, kid="test-key-1")
+    with pytest.raises(TokenValidationError) as excinfo:
+        _make_verifier(settings, idp).verify_access_token(token=token)
+    assert excinfo.value.reason == "jwks_unavailable"
+
+
+def test_jwks_without_keys_list_rejected_as_unavailable(
+    settings: AuthSettings, idp: FakeIdp, signing_key: RSAKey
+) -> None:
+    idp.raw_jwks_responses = [httpx.Response(200, json={"unexpected": "shape"})]
+    token = _sign(_valid_claims(), signing_key, kid="test-key-1")
+    with pytest.raises(TokenValidationError) as excinfo:
+        _make_verifier(settings, idp).verify_access_token(token=token)
+    assert excinfo.value.reason == "jwks_unavailable"
+
+
+def test_jwks_with_unimportable_key_rejected_as_unavailable(
+    settings: AuthSettings, idp: FakeIdp, signing_key: RSAKey
+) -> None:
+    # A key object missing its RSA parameters cannot be imported by joserfc.
+    idp.raw_jwks_responses = [httpx.Response(200, json={"keys": [{"kty": "RSA", "kid": "x"}]})]
+    token = _sign(_valid_claims(), signing_key, kid="test-key-1")
+    with pytest.raises(TokenValidationError) as excinfo:
+        _make_verifier(settings, idp).verify_access_token(token=token)
+    assert excinfo.value.reason == "jwks_unavailable"
+
+
+def test_non_json_discovery_body_rejected_as_unavailable(
+    settings: AuthSettings, idp: FakeIdp, signing_key: RSAKey
+) -> None:
+    idp.raw_discovery_response = httpx.Response(200, text="not json at all")
+    token = _sign(_valid_claims(), signing_key, kid="test-key-1")
+    with pytest.raises(TokenValidationError) as excinfo:
+        _make_verifier(settings, idp).verify_access_token(token=token)
+    assert excinfo.value.reason == "jwks_unavailable"
+
+
+def test_jwks_unavailable_rejection_is_logged(
+    settings: AuthSettings,
+    idp: FakeIdp,
+    signing_key: RSAKey,
+    capture_logs: list[EventDict],
+) -> None:
+    idp.raw_jwks_responses = [httpx.Response(200, text="<html>not json</html>")]
+    token = _sign(_valid_claims(), signing_key, kid="test-key-1")
+    with pytest.raises(TokenValidationError):
+        _make_verifier(settings, idp).verify_access_token(token=token)
+    rejection_events = [
+        event for event in capture_logs if event["event"] == "access_token_rejected"
+    ]
+    assert len(rejection_events) == 1
+    assert rejection_events[0]["reason"] == "jwks_unavailable"
+    assert token not in json.dumps(rejection_events)
 
 
 def test_explicit_allowed_audiences_accepts_listed_token(idp: FakeIdp, signing_key: RSAKey) -> None:
