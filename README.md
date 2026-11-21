@@ -32,6 +32,38 @@ cp .env.example .env
 uv run notify send --severity question --message "Need a decision on X." --issue-identifier "PR-42"
 ```
 
+## Authentication (OIDC)
+
+The `notify` tool ships an OIDC authentication brick (LS-1/LS-2, milestone
+Auth v1): access tokens are RS256 JWTs validated locally against the IdP's
+JWKS, and a pure ASGI middleware enforces a valid Bearer token on HTTP routes.
+
+Configuration lives in `.env` (git-ignored, never commit secrets):
+
+| Variable                 | Required | Description                                                              |
+| ------------------------ | -------- | ------------------------------------------------------------------------ |
+| `AUTH_ISSUER`            | yes      | Base URL of the OIDC issuer (drives discovery + JWKS, no URL in code)   |
+| `AUTH_CLIENT_ID`         | no       | Client id; also the default accepted audience                            |
+| `AUTH_CLIENT_SECRET`     | no       | Client secret (only if the IdP requires it)                             |
+| `AUTH_ALLOWED_AUDIENCES` | no       | Comma-separated accepted audiences; empty = client id only               |
+| `AUTH_DISABLED`          | no       | `1` = pass-through (local dev only); **unset in production**             |
+
+Authentication is **active by default**: leave `AUTH_DISABLED` unset in any
+deployed environment. `AUTH_DISABLED=1` is a local-development escape hatch
+only.
+
+Example calls with a Bearer token (once an HTTP surface mounts the middleware):
+
+```console
+# Valid token → request proceeds, claims available to the handler
+curl -H "Authorization: Bearer $ACCESS_TOKEN" https://app.example/api/resource
+
+# Missing or invalid token → 401 with a typed JSON error
+curl -i https://app.example/api/resource
+# HTTP/1.1 401 Unauthorized
+# {"error": {"code": "unauthorized", "reason": "malformed"}}
+```
+
 ## What is in the box
 
 | Area              | Where                                                     |
