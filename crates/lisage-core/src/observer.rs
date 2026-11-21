@@ -2,6 +2,9 @@
 //! default; JSONL serializer in `lisage-liseuse`.
 
 use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use lisage_algebra::interface::{Handle, Level, NodeId};
@@ -112,6 +115,256 @@ pub struct ClassHistogram {
     pub slack: u64,
 }
 
+/// Maximum number of elements in an `Ensemble`/`Carte` trace value
+/// (D1-3): the value is bounded, the excess is elided.
+pub const TRACE_VAL_MAX_JETONS: usize = 64;
+
+/// Maximum length (in chars) of a `Texte` trace value (D1-3).
+pub const TRACE_VAL_MAX_TEXTE: usize = 256;
+
+/// Maximum depth of `Fragment` resolution when forcing a trace value
+/// (D1-3): beyond it, the value elides.
+pub const TRACE_VAL_MAX_PROFONDEUR: usize = 16;
+
+/// Bounded mini-ADT of a trace value (D1-3). Small values are eager
+/// (`Entier`/`Texte`/`Ensemble`/`Carte`); expensive values are lazy
+/// (`Fragment`: computed only when forced, e.g. by the serializer or by
+/// an observer whose filter passes); `Elide` marks an elided value. The
+/// ADT is bounded: collections are capped at `TRACE_VAL_MAX_JETONS`
+/// elements and texts at `TRACE_VAL_MAX_TEXTE` chars (enforced by the
+/// constructors).
+#[derive(Clone)]
+pub enum TraceVal {
+    /// Integer value.
+    Entier(i64),
+    /// Text value (bounded by the constructor).
+    Texte(String),
+    /// Set of values (bounded by the constructor).
+    Ensemble(Vec<TraceVal>),
+    /// Map of key → value pairs (bounded by the constructor).
+    Carte(Vec<(TraceVal, TraceVal)>),
+    /// Lazy fragment: the value is computed only when forced.
+    Fragment(Arc<dyn Fn() -> TraceVal + Send + Sync>),
+    /// Elided value (bound reached or filter rejected).
+    Elide,
+}
+
+impl TraceVal {
+    /// Integer value.
+    pub fn entier(valeur: i64) -> Self {
+        TraceVal::Entier(valeur)
+    }
+
+    /// Text value, truncated to `TRACE_VAL_MAX_TEXTE` chars.
+    pub fn texte(texte: impl Into<String>) -> Self {
+        let texte = texte.into();
+        let tronque: String = texte.chars().take(TRACE_VAL_MAX_TEXTE).collect();
+        if tronque.chars().count() < texte.chars().count() {
+            TraceVal::Texte(format!("{tronque}…"))
+        } else {
+            TraceVal::Texte(tronque)
+        }
+    }
+
+    /// Set value, capped at `TRACE_VAL_MAX_JETONS` elements (the cap
+    /// appends an `Elide` marker).
+    pub fn ensemble(valeurs: Vec<TraceVal>) -> Self {
+        let mut valeurs = valeurs;
+        if valeurs.len() > TRACE_VAL_MAX_JETONS {
+            valeurs.truncate(TRACE_VAL_MAX_JETONS);
+            valeurs.push(TraceVal::Elide);
+        }
+        TraceVal::Ensemble(valeurs)
+    }
+
+    /// Map value, capped at `TRACE_VAL_MAX_JETONS` pairs (the cap
+    /// appends an `Elide` marker).
+    pub fn carte(paires: Vec<(TraceVal, TraceVal)>) -> Self {
+        let mut paires = paires;
+        if paires.len() > TRACE_VAL_MAX_JETONS {
+            paires.truncate(TRACE_VAL_MAX_JETONS);
+            paires.push((TraceVal::Elide, TraceVal::Elide));
+        }
+        TraceVal::Carte(paires)
+    }
+
+    /// Lazy fragment: `valeur` is formatted with `Debug` **only when the
+    /// fragment is forced** — never on the emission hot path.
+    pub fn fragment<T: fmt::Debug + Send + Sync + 'static>(valeur: T) -> Self {
+        TraceVal::Fragment(Arc::new(move || TraceVal::texte(format!("{valeur:?}"))))
+    }
+
+    /// Lazy formatted text: the `format!` runs **only when the fragment
+    /// is forced** — never on the emission hot path.
+    pub fn fragment_format(f: impl Fn() -> String + Send + Sync + 'static) -> Self {
+        TraceVal::Fragment(Arc::new(move || TraceVal::texte(f())))
+    }
+
+    /// Forces the value: resolves the `Fragment` chain (bounded by
+    /// `TRACE_VAL_MAX_PROFONDEUR`) and returns an eager value.
+    pub fn force(&self) -> TraceVal {
+        self.force_profondeur(0)
+    }
+
+    fn force_profondeur(&self, profondeur: usize) -> TraceVal {
+        match self {
+            TraceVal::Fragment(fragment) if profondeur < TRACE_VAL_MAX_PROFONDEUR => {
+                fragment().force_profondeur(profondeur + 1)
+            }
+            TraceVal::Fragment(_) => TraceVal::Elide,
+            TraceVal::Ensemble(valeurs) => TraceVal::Ensemble(
+                valeurs
+                    .iter()
+                    .map(|v| v.force_profondeur(profondeur))
+                    .collect(),
+            ),
+            TraceVal::Carte(paires) => TraceVal::Carte(
+                paires
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            k.force_profondeur(profondeur),
+                            v.force_profondeur(profondeur),
+                        )
+                    })
+                    .collect(),
+            ),
+            autre => autre.clone(),
+        }
+    }
+
+    /// Renders the value as a display string (forcing lazy fragments):
+    /// `Entier` → `42`, `Texte` → as-is, `Ensemble` → `{a, b}`,
+    /// `Carte` → `{k: v}`, `Elide` → `…`.
+    pub fn rendre(&self) -> String {
+        match self.force() {
+            TraceVal::Entier(valeur) => format!("{valeur}"),
+            TraceVal::Texte(texte) => texte,
+            TraceVal::Ensemble(valeurs) => format!(
+                "{{{}}}",
+                valeurs
+                    .iter()
+                    .map(|v| v.rendre())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            TraceVal::Carte(paires) => format!(
+                "{{{}}}",
+                paires
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k.rendre(), v.rendre()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            TraceVal::Elide => "…".to_string(),
+            TraceVal::Fragment(_) => "…".to_string(),
+        }
+    }
+}
+
+impl PartialEq for TraceVal {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TraceVal::Entier(a), TraceVal::Entier(b)) => a == b,
+            (TraceVal::Texte(a), TraceVal::Texte(b)) => a == b,
+            (TraceVal::Ensemble(a), TraceVal::Ensemble(b)) => a == b,
+            (TraceVal::Carte(a), TraceVal::Carte(b)) => a == b,
+            (TraceVal::Elide, TraceVal::Elide) => true,
+            // Two lazy fragments are equal iff they share the same
+            // allocation (the payload is not forced to compare).
+            (TraceVal::Fragment(a), TraceVal::Fragment(b)) => Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for TraceVal {}
+
+impl fmt::Debug for TraceVal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TraceVal::Entier(valeur) => write!(f, "Entier({valeur})"),
+            TraceVal::Texte(texte) => write!(f, "Texte({texte:?})"),
+            TraceVal::Ensemble(valeurs) => write!(f, "Ensemble({valeurs:?})"),
+            TraceVal::Carte(paires) => write!(f, "Carte({paires:?})"),
+            TraceVal::Fragment(_) => write!(f, "Fragment(<lazy>)"),
+            TraceVal::Elide => write!(f, "Elide"),
+        }
+    }
+}
+
+/// Conversion of a value into a trace value (D1-3). The default
+/// implementation is the **Debug fallback**: a lazy fragment, formatted
+/// only if forced. Types with a meaningful structure override it with
+/// eager `Entier`/`Texte`/`Ensemble`/`Carte` values.
+pub trait Traceable: fmt::Debug + Clone + Send + Sync + 'static {
+    /// Trace value of `self`.
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::fragment(self.clone())
+    }
+}
+
+impl Traceable for () {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::Elide
+    }
+}
+
+impl Traceable for bool {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::Entier(i64::from(*self))
+    }
+}
+
+impl Traceable for u64 {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::Entier(*self as i64)
+    }
+}
+
+impl Traceable for NodeId {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::Entier(self.0 as i64)
+    }
+}
+
+impl Traceable for Level {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::Entier(i64::from(self.0))
+    }
+}
+
+impl Traceable for BTreeSet<u64> {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::ensemble(self.iter().map(|cle| cle.trace_val()).collect())
+    }
+}
+
+impl Traceable for BTreeMap<u64, NodeId> {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::carte(
+            self.iter()
+                .map(|(cle, cible)| (cle.trace_val(), cible.trace_val()))
+                .collect(),
+        )
+    }
+}
+
+impl<M: Traceable> Traceable for Vec<(NodeId, Level, M)> {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::ensemble(
+            self.iter()
+                .map(|(node, level, valeur)| {
+                    TraceVal::carte(vec![
+                        (node.trace_val(), level.trace_val()),
+                        (TraceVal::Elide, valeur.trace_val()),
+                    ])
+                })
+                .collect(),
+        )
+    }
+}
+
 /// Typed events emitted by the pool during diagram construction and by the
 /// transduction runner during execution (M2-6). This is the trace that
 /// Liseuse serializes and renders.
@@ -139,8 +392,8 @@ pub enum TraceEvent {
         node: NodeId,
         /// Level of the node, `None` for terminals.
         level: Option<Level>,
-        /// Full form of the node (`Debug` format).
-        forme: String,
+        /// Full form of the node (lazy `TraceVal`, D1-3).
+        forme: TraceVal,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -175,8 +428,8 @@ pub enum TraceEvent {
         channel: ChannelAttr,
         /// Node concerned.
         node: NodeId,
-        /// Value (`Debug` format), displayed as-is.
-        value: String,
+        /// Value (lazy `TraceVal`, D1-3), displayed as-is.
+        value: TraceVal,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -272,8 +525,8 @@ pub enum TraceEvent {
         fingerprint: u64,
         /// Node of the key.
         node: NodeId,
-        /// Inherited attribute of the key (`Debug` format).
-        h: String,
+        /// Inherited attribute of the key (lazy `TraceVal`, D1-3).
+        h: TraceVal,
         /// Memory version of the key.
         version: u64,
         /// Whether the consultation hit.
@@ -287,8 +540,8 @@ pub enum TraceEvent {
         fingerprint: u64,
         /// Node of the key.
         node: NodeId,
-        /// Inherited attribute of the key (`Debug` format).
-        h: String,
+        /// Inherited attribute of the key (lazy `TraceVal`, D1-3).
+        h: TraceVal,
         /// Memory version of the key.
         version: u64,
         /// Result stored under the key.

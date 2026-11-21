@@ -47,7 +47,8 @@ use lisage_algebra::interface::{
 use lisage_algebra::relatif::{AnchorComposee, CycleGroup, Fragment};
 
 use crate::observer::{
-    ChannelAttr, Observer, SpanKind, TraceEvent, contextualiser, next_span_id, pop_span, push_span,
+    ChannelAttr, Observer, SpanKind, TraceEvent, TraceVal, contextualiser, next_span_id, pop_span,
+    push_span,
 };
 
 /// Controller-side reduction switches (R-share excluded: measured).
@@ -200,10 +201,20 @@ fn measure_inner<P: Pool>(
         obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
-            value: format!(
-                "nodes_partages={} paths={} size_depliee={}",
-                report.nodes_partages, report.paths, report.size_depliee
-            ),
+            value: TraceVal::carte(vec![
+                (
+                    TraceVal::texte("nodes_partages"),
+                    TraceVal::entier(report.nodes_partages as i64),
+                ),
+                (
+                    TraceVal::texte("paths"),
+                    TraceVal::entier(report.paths as i64),
+                ),
+                (
+                    TraceVal::texte("size_depliee"),
+                    TraceVal::entier(report.size_depliee as i64),
+                ),
+            ]),
             span: None,
         }));
     }
@@ -411,10 +422,20 @@ pub fn comparer_encodages_window<P: Pool<Key = u64, Payload = bool>>(
         obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root_relative,
-            value: format!(
-                "encodage=relatif_vs_absolu nodes={} contre {}",
-                relatif.nodes_partages, absolu.nodes_partages
-            ),
+            value: TraceVal::carte(vec![
+                (
+                    TraceVal::texte("encodage"),
+                    TraceVal::texte("relatif_vs_absolu"),
+                ),
+                (
+                    TraceVal::texte("nodes"),
+                    TraceVal::entier(relatif.nodes_partages as i64),
+                ),
+                (
+                    TraceVal::texte("contre"),
+                    TraceVal::entier(absolu.nodes_partages as i64),
+                ),
+            ]),
             span: None,
         }));
     }
@@ -569,13 +590,23 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
         obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root_second,
-            value: format!(
-                "order={}_vs_{} nodes={} contre {}",
-                order_first.label(),
-                order_second.label(),
-                first.nodes_partages,
-                second.nodes_partages
-            ),
+            value: {
+                let order_label = format!("{}_vs_{}", order_first.label(), order_second.label());
+                TraceVal::carte(vec![
+                    (
+                        TraceVal::texte("order"),
+                        TraceVal::fragment_format(move || order_label.clone()),
+                    ),
+                    (
+                        TraceVal::texte("nodes"),
+                        TraceVal::entier(first.nodes_partages as i64),
+                    ),
+                    (
+                        TraceVal::texte("contre"),
+                        TraceVal::entier(second.nodes_partages as i64),
+                    ),
+                ])
+            },
             span: None,
         }));
     }
@@ -721,18 +752,32 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
         obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root_apres,
-            value: format!(
-                "anchor={}_vs_{} nodes={} contre {} lecture=[{}..{}) contre [{}..{}) pool={}",
-                anchor_avant.label(),
-                anchor_apres.label(),
-                avant.nodes_partages,
-                apres.nodes_partages,
-                debut_avant,
-                fin_avant,
-                debut_apres,
-                fin_apres,
-                nodes_pool,
-            ),
+            value: {
+                let anchor_label = format!("{}_vs_{}", anchor_avant.label(), anchor_apres.label());
+                let lecture_label = format!(
+                    "[{}..{}) contre [{}..{})",
+                    debut_avant, fin_avant, debut_apres, fin_apres
+                );
+                TraceVal::carte(vec![
+                    (
+                        TraceVal::texte("anchor"),
+                        TraceVal::fragment_format(move || anchor_label.clone()),
+                    ),
+                    (
+                        TraceVal::texte("nodes"),
+                        TraceVal::entier(avant.nodes_partages as i64),
+                    ),
+                    (
+                        TraceVal::texte("contre"),
+                        TraceVal::entier(apres.nodes_partages as i64),
+                    ),
+                    (
+                        TraceVal::texte("lecture"),
+                        TraceVal::fragment_format(move || lecture_label.clone()),
+                    ),
+                    (TraceVal::texte("pool"), TraceVal::entier(nodes_pool as i64)),
+                ])
+            },
             span: None,
         }));
     }

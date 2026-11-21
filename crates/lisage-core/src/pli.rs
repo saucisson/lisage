@@ -26,12 +26,13 @@ use std::marker::PhantomData;
 use lisage_algebra::interface::{Anchor, ArcRun, Form, KeyAlgebra, Level, NodeId, Pool};
 
 use crate::error::CoreError;
+use crate::observer::{TraceVal, Traceable};
 use crate::schema::{Schema, SchemaKeys};
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
 
 /// Query semiring of a fold (spec § 5): `(S, ⊕, ×)` with zeros and units.
 /// `depuis_cardinality` translates `|Val(ℓ)|` into `S` (A4).
-pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
+pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync + Traceable {
     /// Fingerprint of the semiring: enters the memo fingerprint.
     const FINGERPRINT: u64;
 
@@ -50,6 +51,12 @@ pub trait SemiAnneau: Clone + PartialEq + Eq + Hash + Debug + Send + Sync {
 /// `(ℕ, +, ×)`: the semiring of cardinality counting (spec § 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Naturel(pub u64);
+
+impl Traceable for Naturel {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::entier(self.0 as i64)
+    }
+}
 
 impl SemiAnneau for Naturel {
     const FINGERPRINT: u64 = 4001;
@@ -74,6 +81,12 @@ impl SemiAnneau for Naturel {
 /// `(Bool, ∨, ∧)`: the semiring of ∃-summaries (`exists`, spec § 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BoolOu(pub bool);
+
+impl Traceable for BoolOu {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::entier(i64::from(self.0))
+    }
+}
 
 impl SemiAnneau for BoolOu {
     const FINGERPRINT: u64 = 4002;

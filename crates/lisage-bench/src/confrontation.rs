@@ -26,7 +26,9 @@ use lisage_algebra::interface::{Anchor, Form, Pool, PoolError};
 use lisage_core::arena::Arena;
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, count_nodes as count_nodes_bdd};
 use lisage_core::error::CoreError;
-use lisage_core::observer::{ChannelAttr, NoOpObserver, Observer, TraceEvent, contextualiser};
+use lisage_core::observer::{
+    ChannelAttr, NoOpObserver, Observer, TraceEvent, TraceVal, contextualiser,
+};
 use lisage_core::pli::{count as count_pli, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_core::workshop::{
@@ -550,12 +552,14 @@ fn mesurer_table(
         observer.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
-            value: format!(
-                "workload={} nodes={} check={}",
-                workload.label(),
-                nodes,
-                expected_satisfactions
-            ),
+            value: TraceVal::fragment_format(move || {
+                format!(
+                    "workload={} nodes={} check={}",
+                    workload.label(),
+                    nodes,
+                    expected_satisfactions
+                )
+            }),
             span: None,
         }));
     }
@@ -765,12 +769,14 @@ fn workload_alea_lcg(
         observer.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
-            value: format!(
-                "workload={} nodes={} check={}",
-                Workload::AleaLcg.label(),
-                nodes,
-                expected_satisfactions
-            ),
+            value: TraceVal::fragment_format(move || {
+                format!(
+                    "workload={} nodes={} check={}",
+                    Workload::AleaLcg.label(),
+                    nodes,
+                    expected_satisfactions
+                )
+            }),
             span: None,
         }));
     }
@@ -855,12 +861,14 @@ fn workload_philosophers(
         observer.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
-            value: format!(
-                "workload={} nodes={} check={}",
-                Workload::Philosophers.label(),
-                nodes,
-                verifie
-            ),
+            value: TraceVal::fragment_format(move || {
+                format!(
+                    "workload={} nodes={} check={}",
+                    Workload::Philosophers.label(),
+                    nodes,
+                    verifie
+                )
+            }),
             span: None,
         }));
     }
@@ -978,13 +986,15 @@ fn workload_window(
         observer.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
-            value: format!(
-                "workload={} encoding={} nodes={} check={}",
-                Workload::Window.label(),
-                label_encodage(&encodage),
-                nodes,
-                verifie
-            ),
+            value: TraceVal::fragment_format(move || {
+                format!(
+                    "workload={} encoding={} nodes={} check={}",
+                    Workload::Window.label(),
+                    label_encodage(&encodage),
+                    nodes,
+                    verifie
+                )
+            }),
             span: None,
         }));
     }

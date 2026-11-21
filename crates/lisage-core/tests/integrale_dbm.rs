@@ -185,9 +185,9 @@ fn test_narration_evenements_attr_synthesized() {
         .collect();
     assert!(!attrs.is_empty(), "at least one Attr/Synthesized event");
     assert!(
-        attrs
-            .iter()
-            .any(|e| matches!(e, TraceEvent::Attr { value, .. } if value == "measure=19")),
+        attrs.iter().any(
+            |e| matches!(e, TraceEvent::Attr { value, .. } if value.rendre() == "{measure: 19}")
+        ),
         "the final event carries the total measure 19"
     );
 }

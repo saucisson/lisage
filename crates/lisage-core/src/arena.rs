@@ -24,7 +24,9 @@ use crate::classes::{ClassArenaDyn, ClassMap, ClassMetrics, mark_of, new_arena, 
 /// `NodeEntry` with the full form.
 type Arenas<C> =
     Vec<Option<Box<dyn ClassArenaDyn<<C as Controller>::Keys, <C as Controller>::Payload>>>>;
-use crate::observer::{ClassHistogram, Observer, ReductionRule, TraceEvent, contextualiser};
+use crate::observer::{
+    ClassHistogram, Observer, ReductionRule, TraceEvent, TraceVal, contextualiser,
+};
 use crate::unique::{TableUnique, hash_cle};
 
 /// Arena: canonical, content-addressed storage of forms. Holds the
@@ -536,7 +538,7 @@ where
                 .on_event(&contextualiser(TraceEvent::NodeCreated {
                     node,
                     level: None,
-                    forme: format!("{form:?}"),
+                    forme: TraceVal::fragment(form.clone()),
                     span: None,
                 }));
             return node;
@@ -637,7 +639,8 @@ where
             .get_mut(class as usize)
             .expect("class within the frozen map")
             .get_or_insert_with(|| new_arena(class, &map));
-        let forme_debug = format!("{form:?}");
+        // D1-3: lazy form — no format! on the intern hot path.
+        let forme_val = TraceVal::fragment(form.clone());
         let index = arena
             .push_form(Plan::Principal, form, keys)
             .expect("form representable in its class");
@@ -651,7 +654,7 @@ where
             .on_event(&contextualiser(TraceEvent::NodeCreated {
                 node,
                 level,
-                forme: forme_debug,
+                forme: forme_val,
                 span: None,
             }));
         node

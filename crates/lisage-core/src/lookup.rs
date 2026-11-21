@@ -14,6 +14,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::observer::{TraceVal, Traceable};
 use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, ControllerId, Form, Level, NodeId, Pool,
 };
@@ -34,6 +35,19 @@ pub enum Mode {
     Extrait,
     /// Value `v` extracted at level `val(k)`: the terminal is `Some(v)`.
     Stop(u64),
+}
+
+impl Traceable for Mode {
+    fn trace_val(&self) -> TraceVal {
+        match self {
+            Mode::Cherche => TraceVal::texte("Cherche"),
+            Mode::Extrait => TraceVal::texte("Extrait"),
+            Mode::Stop(valeur) => TraceVal::carte(vec![(
+                TraceVal::texte("Stop"),
+                TraceVal::entier(*valeur as i64),
+            )]),
+        }
+    }
 }
 
 /// Controller of the `lookup` output pool: payload `Option<u64>` (`None` =
