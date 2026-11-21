@@ -229,7 +229,10 @@ def test_wrong_algorithm_rejected(settings: AuthSettings, idp: FakeIdp) -> None:
 
 
 def test_debug_narration_events_are_pinned(
-    settings: AuthSettings, idp: FakeIdp, signing_key: RSAKey, other_key: RSAKey,
+    settings: AuthSettings,
+    idp: FakeIdp,
+    signing_key: RSAKey,
+    other_key: RSAKey,
     capture_logs: list[EventDict],
 ) -> None:
     """ADR-0005: the DEBUG narration events are pinned by this test —
