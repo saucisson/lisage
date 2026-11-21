@@ -5,6 +5,7 @@ pub mod index;
 pub mod inspection;
 pub mod json;
 pub mod mirror;
+pub mod page;
 pub mod philosophers;
 pub mod predicates;
 pub mod publication;
