@@ -17,7 +17,8 @@ use lisage_core::{Anchor, Form, Level, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::index::IndexTrace;
 use lisage_liseuse::spans::{
-    Balances, SpanTree, convergence_round, diff_rounds, render_balance_lines, round_lines,
+    Balances, SpanTree, convergence_round, diff_rounds, render_balance_lines, round_intervals,
+    round_lines,
 };
 
 /// Observer that collects the typed events in memory.
@@ -250,9 +251,9 @@ fn test_balances_prefix_sums() {
         growth: 0,
     };
     let tree = SpanTree::build(&events);
+    let intervals = round_intervals(&events, &index, &tree);
     for number in 1..=4u32 {
-        let range = lisage_liseuse::spans::round_interval(&events, &index, &tree, number)
-            .expect("round present");
+        let range = intervals.get(&number).cloned().expect("round present");
         let balance = balances.balance(range.clone());
         // Cross-check against a linear scan of the interval (test-side).
         let slice = &events[range.clone()];
@@ -293,7 +294,8 @@ fn test_balance_lines_saturation_n4() {
     let index = IndexTrace::build(&events);
     let balances = Balances::build(&events);
     let tree = SpanTree::build(&events);
-    let lines = round_lines(&events, &index, &balances, &tree);
+    let intervals = round_intervals(&events, &index, &tree);
+    let lines = round_lines(&events, &balances, &intervals);
     assert_eq!(lines.len(), 4, "N balance lines for the n=4 saturation");
     assert_eq!(
         lines.iter().map(|line| line.number).collect::<Vec<_>>(),
@@ -322,16 +324,16 @@ fn test_diff_rounds_11_vs_12() {
     assert_eq!(convergence_round(&events), Some(13));
 
     let tree = SpanTree::build(&events);
-    let delta =
-        diff_rounds(11, 12, &events, &index, &balances, &tree).expect("rounds 11 and 12 exist");
-    let range_11 = lisage_liseuse::spans::round_interval(&events, &index, &tree, 11).unwrap();
-    let range_12 = lisage_liseuse::spans::round_interval(&events, &index, &tree, 12).unwrap();
+    let intervals = round_intervals(&events, &index, &tree);
+    let delta = diff_rounds(11, 12, &balances, &intervals).expect("rounds 11 and 12 exist");
+    let range_11 = intervals.get(&11).unwrap().clone();
+    let range_12 = intervals.get(&12).unwrap().clone();
     let expected = balances
         .balance(range_12.clone())
         .delta(&balances.balance(range_11));
     assert_eq!(delta, expected);
     // The growth delta equals the difference of the two Round growths.
-    let croissance = |number: u32| {
+    let growth_of = |number: u32| {
         events
             .iter()
             .find_map(|e| match e {
@@ -342,15 +344,18 @@ fn test_diff_rounds_11_vs_12() {
             })
             .unwrap()
     };
-    assert_eq!(delta.growth, croissance(12) - croissance(11));
-    // Sanity: the chain grows at every round before the fixpoint.
-    assert!(delta.growth > 0, "round 12 grows more than round 11");
+    // Pinned on the deterministic chain: round k grows by k+1 nodes
+    // (measured on the trace), so round 12 grows more than round 11.
+    assert_eq!(growth_of(11), 12);
+    assert_eq!(growth_of(12), 13);
+    assert_eq!(delta.growth, growth_of(12) - growth_of(11));
+    assert_eq!(delta.growth, 1, "round 12 grows more than round 11");
 
     // A round diffed with itself is zero; an absent round is None.
-    let zero = diff_rounds(11, 11, &events, &index, &balances, &tree).unwrap();
+    let zero = diff_rounds(11, 11, &balances, &intervals).unwrap();
     assert_eq!(zero.events, 0);
     assert_eq!(zero.growth, 0);
-    assert!(diff_rounds(11, 14, &events, &index, &balances, &tree).is_none());
+    assert!(diff_rounds(11, 14, &balances, &intervals).is_none());
 
     // Display renders the signed components.
     assert!(format!("{delta}").contains("growth=+"));
