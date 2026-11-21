@@ -49,6 +49,7 @@ JWKS_REFRESH_THROTTLE_SECONDS = 60
 CLOCK_SKEW_LEEWAY_SECONDS = 60
 HTTP_TIMEOUT_SECONDS = 10.0
 REQUIRED_SIGNING_ALGORITHM = "RS256"
+OIDC_DISCOVERY_PATH = "/.well-known/openid-configuration"
 COMPACT_JWS_SEGMENT_COUNT = 3
 
 _CLAIM_REASONS: dict[str, TokenRejectionReason] = {
@@ -217,7 +218,7 @@ class AccessTokenVerifier:
         return jwks_uri
 
     def _fetch_discovery(self) -> dict[str, object]:
-        url = self._settings.auth_issuer.rstrip("/") + "/.well-known/openid-configuration"
+        url = self._settings.auth_issuer.rstrip("/") + OIDC_DISCOVERY_PATH
         try:
             response = self._http_client.get(url, timeout=HTTP_TIMEOUT_SECONDS)
             response.raise_for_status()
