@@ -46,6 +46,15 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - ALIGN-3: observer dispatch share on the build path (measurement only, no code change)
+
+- **Issue**: none — ALIGN-i issues cannot be opened on GitHub (POST /issues → 403); drafts in the session scratchpad, work driven by the human directive of 2026-11-20. ALIGN-3 = measure the observer share, conclude in writing.
+- **Done**: new runner `crates/lisage-bench/src/bin/observer_share.rs` (`observer_share <noop|counting> [n]`, one process per run, counting allocator): `noop` = `NoOpObserver` (the default), `counting` = wired observer tallying every event with atomic counters (no allocation, no I/O — the lightest real trace consumer). New structural test `crates/lisage-bench/tests/observer_share.rs` pins C1 across modes (identical nodes/internements/allocs/octets, one NodeCreated per node, events ≥ internements); times are published, never pinned. Publication `bench-results/align3-observer-share.md`.
+- **Measured verdict (written)**: 5 direct release runs per mode, median — alea-lcg-20 build 78.364 ms (noop) vs 84.348 ms (counting) = **7.64 %**; alea-lcg-22 355.203 vs 379.075 ms = **6.72 %**. Per-event cost constant: ~2.85 ns/event at n=20, ~2.84 ns/event at n=22 (2 097 151 events at n=20 = 106 760 creations + 1 654 959 shares + 335 432 reductions). Allocs/octets/RSS identical across modes; nodes identical (C1). **Conclusion: the observer share is weak (~7 % of build), not the driver of the residual vs OxiDD — note and close; the structural answer stays D4-1 (issue #168), already planned. No follow-up increment drafted.**
+- **Evidence**: `make check` green on this commit (371 passed, 11 skipped); raw runs and reproduction command in `bench-results/align3-observer-share.md`. Not run: campaign-4 (ALIGN-5).
+- **Judgement calls**: the `counting` observer uses atomic counters (no allocation) so the measured delta is the pure dispatch cost (virtual call + match + increment), not an artifact of the observer's own allocations; a serializer with I/O would pay more, but that cost is opt-in instrumentation.
+- **Escalations**: none.
+
 ## 2026-11-21 - D3-3: inspection views of lisage-debug (issue #166)
 
 - **Issue**: #166 (D3-3, vues d'inspection); labels debug-outillage, loupe.
