@@ -1,5 +1,5 @@
 //! D3-3 tests — inspection views of the debugger: node, memo (L1
-//! invalidation), memoire, diff, eval, display, ops, and the current SVG
+//! invalidation), memory, diff, eval, display, ops, and the current SVG
 //! rendering. DoD: an L1 invalidation (version bump → dead memo entries)
 //! visible in one `memo` command.
 
@@ -38,9 +38,9 @@ impl Observer for Collector {
 /// Transduction that writes into the level memory at each node visit
 /// (`M[id(n), ℓ] ← h`): each write bumps the L1 version, so memo entries
 /// inserted at an older version die (DoD).
-struct EcritMemory;
+struct WriteMemory;
 
-impl Transduction for EcritMemory {
+impl Transduction for WriteMemory {
     type H = u64;
     type S = u64;
     type Out = bool;
@@ -100,25 +100,25 @@ fn memory_scenario() -> Vec<TraceEvent> {
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let anchor = Anchor(0);
-    let vrai = input.intern(anchor, Form::Terminal(true));
-    let faux = input.intern(anchor, Form::Terminal(false));
+    let true_node = input.intern(anchor, Form::Terminal(true));
+    let false_node = input.intern(anchor, Form::Terminal(false));
     let a = input.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: BTreeMap::from([(0, vrai), (1, faux)]).into(),
+            arcs: BTreeMap::from([(0, true_node), (1, false_node)]).into(),
         },
     );
     let b = input.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: BTreeMap::from([(0, a), (1, vrai)]).into(),
+            arcs: BTreeMap::from([(0, a), (1, true_node)]).into(),
         },
     );
     let collector = Collector::default();
     let mut runner = Transducteur::with_observer(
-        EcritMemory,
+        WriteMemory,
         MemoryPolicy::PerLevel,
         Arc::new(collector.clone()),
     );
@@ -194,7 +194,7 @@ fn test_memo_table_live_dead_split() {
     );
 }
 
-/// `memoire`: version history.
+/// `memory`: version history.
 #[test]
 fn test_memory_view() {
     let events = vec![
@@ -325,7 +325,7 @@ fn test_eval() {
 fn test_parse_command_inspection() {
     assert_eq!(parse_command("node 7"), Some(Command::Node(NodeId(7))));
     assert_eq!(parse_command("memo"), Some(Command::Memo));
-    assert_eq!(parse_command("memoire"), Some(Command::Memoire));
+    assert_eq!(parse_command("memory"), Some(Command::Memory));
     assert_eq!(parse_command("diff"), Some(Command::Diff));
     assert_eq!(parse_command("display"), Some(Command::Display));
     assert_eq!(parse_command("ops"), Some(Command::Ops));
