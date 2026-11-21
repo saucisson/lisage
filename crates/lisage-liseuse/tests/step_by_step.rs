@@ -60,47 +60,59 @@ fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> N
     .unwrap()
 }
 
-/// M2-6: the trace schema is versioned v2 and serializes the new
-/// step-by-step events.
+/// M2-6 / D1-1: the trace schema is versioned v4 and serializes the
+/// step-by-step events, each carrying its `"span"` field.
 #[test]
-fn test_serialisation_v2_evenements_step_by_step() {
-    assert_eq!(TRACE_VERSION, 3);
+fn test_serialisation_v4_evenements_step_by_step() {
+    assert_eq!(TRACE_VERSION, 4);
     let attr = serialiser_evenement(&TraceEvent::Attr {
         channel: ChannelAttr::Inherited,
         node: NodeId(3),
         value: "Transfert(1)".to_string(),
+        span: None,
     });
     assert_eq!(
         attr,
-        "{\"v\":3,\"type\":\"Attr\",\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
+        "{\"v\":4,\"type\":\"Attr\",\"span\":null,\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::MemoHit { node: NodeId(7) }),
-        "{\"v\":3,\"type\":\"MemoHit\",\"noeud\":7}"
+        serialiser_evenement(&TraceEvent::MemoHit {
+            node: NodeId(7),
+            span: None
+        }),
+        "{\"v\":4,\"type\":\"MemoHit\",\"span\":null,\"noeud\":7}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::MemoMiss { node: NodeId(8) }),
-        "{\"v\":3,\"type\":\"MemoMiss\",\"noeud\":8}"
+        serialiser_evenement(&TraceEvent::MemoMiss {
+            node: NodeId(8),
+            span: None
+        }),
+        "{\"v\":4,\"type\":\"MemoMiss\",\"span\":null,\"noeud\":8}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::Round { numero: 2 }),
-        "{\"v\":3,\"type\":\"Round\",\"numero\":2}"
+        serialiser_evenement(&TraceEvent::Round {
+            numero: 2,
+            span: None
+        }),
+        "{\"v\":4,\"type\":\"Round\",\"span\":null,\"numero\":2}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Gc {
             live: 12,
             collected: 5,
             compaction: true,
+            span: None,
         }),
-        "{\"v\":3,\"type\":\"Gc\",\"vivants\":12,\"collectes\":5,\"compaction\":true}"
+        "{\"v\":4,\"type\":\"Gc\",\"span\":null,\"vivants\":12,\"collectes\":5,\"compaction\":true}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Attr {
             channel: ChannelAttr::Memory,
             node: NodeId(1),
             value: "true".to_string(),
+            span: None,
         }),
-        "{\"v\":3,\"type\":\"Attr\",\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
+        "{\"v\":4,\"type\":\"Attr\",\"span\":null,\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
     );
 }
 
@@ -251,7 +263,7 @@ fn test_saturate_emet_rounds() {
         .prendre()
         .iter()
         .filter_map(|e| match e {
-            TraceEvent::Round { numero } => Some(*numero),
+            TraceEvent::Round { numero, .. } => Some(*numero),
             _ => None,
         })
         .collect();
@@ -267,20 +279,35 @@ fn test_scrubber_replay_and_diff() {
         TraceEvent::NodeCreated {
             node: NodeId(1),
             level: Some(lisage_core::Level(0)),
+            span: None,
         },
         TraceEvent::Attr {
             channel: ChannelAttr::Inherited,
             node: NodeId(1),
             value: "0".to_string(),
+            span: None,
         },
-        TraceEvent::MemoMiss { node: NodeId(1) },
-        TraceEvent::Round { numero: 1 },
+        TraceEvent::MemoMiss {
+            node: NodeId(1),
+            span: None,
+        },
+        TraceEvent::Round {
+            numero: 1,
+            span: None,
+        },
         TraceEvent::NodeCreated {
             node: NodeId(2),
             level: Some(lisage_core::Level(1)),
+            span: None,
         },
-        TraceEvent::MemoHit { node: NodeId(1) },
-        TraceEvent::Round { numero: 2 },
+        TraceEvent::MemoHit {
+            node: NodeId(1),
+            span: None,
+        },
+        TraceEvent::Round {
+            numero: 2,
+            span: None,
+        },
     ];
     let mut scrubber = Scrubber::new(evenements);
     assert_eq!(scrubber.longueur(), 7);
@@ -312,10 +339,12 @@ fn test_scrubber_replay_and_diff() {
         TraceEvent::NodeCreated {
             node: NodeId(1),
             level: None,
+            span: None,
         },
         TraceEvent::NodeCreated {
             node: NodeId(2),
             level: None,
+            span: None,
         },
     ]);
     retour.aller_a(2);
@@ -348,7 +377,13 @@ fn test_rendu_svg_step_by_step_channels_and_ghosts() {
     );
     let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
     let mut evenements = collector.prendre();
-    evenements.insert(0, TraceEvent::Round { numero: 1 });
+    evenements.insert(
+        0,
+        TraceEvent::Round {
+            numero: 1,
+            span: None,
+        },
+    );
     // The runner does not observe the pool: we add the NodeCreated of the
     // input diagram so that the state has nodes.
     let mut stack = vec![root];
@@ -360,6 +395,7 @@ fn test_rendu_svg_step_by_step_channels_and_ghosts() {
         evenements.push(TraceEvent::NodeCreated {
             node: n,
             level: None,
+            span: None,
         });
         if let Ok(lisage_core::Form::Node { arcs, .. }) = pool.resolve(n) {
             for target in arcs.values() {
@@ -428,16 +464,22 @@ fn test_scrubber_proprietes_prefixe_monotone_and_diff_antisymetrique() {
             .map(|_| {
                 let node = NodeId(1 + (next() % 6) as u32);
                 match next() % 5 {
-                    0 => TraceEvent::NodeCreated { node, level: None },
+                    0 => TraceEvent::NodeCreated {
+                        node,
+                        level: None,
+                        span: None,
+                    },
                     1 => TraceEvent::Attr {
                         channel: ChannelAttr::Inherited,
                         node,
                         value: "x".to_string(),
+                        span: None,
                     },
-                    2 => TraceEvent::MemoHit { node },
-                    3 => TraceEvent::MemoMiss { node },
+                    2 => TraceEvent::MemoHit { node, span: None },
+                    3 => TraceEvent::MemoMiss { node, span: None },
                     _ => TraceEvent::Round {
                         numero: 1 + (next() % 3) as u32,
+                        span: None,
                     },
                 }
             })
@@ -463,4 +505,174 @@ fn test_scrubber_proprietes_prefixe_monotone_and_diff_antisymetrique() {
             precedent = etat;
         }
     }
+}
+
+/// D1-1: an observed transduction run is wrapped in an Op span, each node
+/// visit opens a Visite span, and every event carries its span with a
+/// stack-disciplined nesting.
+#[test]
+fn test_spans_run_transduction_op_visite_et_contexte() {
+    use lisage_core::observer::SpanKind;
+
+    let schema = schema_set();
+    let mut pool = Arena::new(
+        ReferenceController::new(schema.clone()),
+        Box::new(lisage_core::observer::NoOpObserver),
+    );
+    let anchor = Anchor(0);
+    let root = set(&mut pool, anchor, &schema, &[0, 1]);
+
+    let collector = Collector::new();
+    let mut runner = Transducteur::with_observer(
+        Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
+        MemoryPolicy::NoMemory,
+        Arc::new(collector.clone()),
+    );
+    let mut output = Arena::new(
+        ReferenceController::new(schema.clone()),
+        Box::new(lisage_core::observer::NoOpObserver),
+    );
+    let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
+
+    let evenements = collector.prendre();
+    // The run opens with an Op span and closes with its SpanClose.
+    let (premier_span, kind_premier) = match &evenements[0] {
+        TraceEvent::SpanOpen { span, kind, lane } => {
+            assert_eq!(*lane, 0);
+            (*span, *kind)
+        }
+        autre => panic!("first event must be SpanOpen, got {autre:?}"),
+    };
+    assert_eq!(kind_premier, SpanKind::Op);
+    match evenements.last() {
+        Some(TraceEvent::SpanClose { span }) => assert_eq!(*span, premier_span),
+        autre => panic!("last event must be SpanClose, got {autre:?}"),
+    }
+    // At least one Visite span was opened.
+    assert!(
+        evenements.iter().any(|e| matches!(
+            e,
+            TraceEvent::SpanOpen {
+                kind: SpanKind::Visite,
+                ..
+            }
+        )),
+        "at least one Visite span"
+    );
+    // Stack discipline: SpanOpen pushes, SpanClose pops the matching id,
+    // and every other event carries the innermost open span.
+    let mut pile: Vec<lisage_core::observer::SpanId> = Vec::new();
+    for evenement in &evenements {
+        match evenement {
+            TraceEvent::SpanOpen { span, .. } => pile.push(*span),
+            TraceEvent::SpanClose { span } => {
+                assert_eq!(
+                    pile.pop(),
+                    Some(*span),
+                    "SpanClose must close the innermost span"
+                )
+            }
+            autre => assert_eq!(
+                autre.span(),
+                pile.last().copied(),
+                "every event carries the innermost open span: {autre:?}"
+            ),
+        }
+    }
+    assert!(pile.is_empty(), "all spans closed at the end of the run");
+}
+
+/// D1-1: each saturation round opens a Round span and the `Round` event
+/// carries it.
+#[test]
+fn test_spans_saturation_round() {
+    use lisage_core::observer::SpanKind;
+
+    let schema = schema_set();
+    let keys = SchemaKeys::new(schema.clone());
+    let mut pool = Arena::new(
+        ReferenceController::new(schema.clone()),
+        Box::new(lisage_core::observer::NoOpObserver),
+    );
+    let anchor = Anchor(0);
+    let initial = set(&mut pool, anchor, &schema, &[0]);
+
+    let collector = Collector::new();
+    let levels: Vec<lisage_core::Level> = (0..schema.number_levels())
+        .map(lisage_core::Level)
+        .collect();
+    let policy = PolicySaturation::Statique(levels);
+    let mut params = ParametresSaturation {
+        transduction: &Identite,
+        policy: &policy,
+        pool: &mut pool,
+        keys: &keys,
+        anchor,
+        initial,
+        number_levels: schema.number_levels(),
+        observer: Some(Arc::new(collector.clone())),
+    };
+    let _ = saturer(&mut params).unwrap();
+
+    let evenements = collector.prendre();
+    let span_round = evenements
+        .iter()
+        .find_map(|e| match e {
+            TraceEvent::SpanOpen {
+                kind: SpanKind::Round,
+                span,
+                ..
+            } => Some(*span),
+            _ => None,
+        })
+        .expect("one Round span per iteration");
+    assert!(
+        evenements.iter().any(|e| matches!(
+            e,
+            TraceEvent::Round { numero: 1, span } if *span == Some(span_round)
+        )),
+        "the Round event carries the Round span"
+    );
+    // The Round span is closed by a matching SpanClose.
+    assert!(
+        evenements
+            .iter()
+            .any(|e| matches!(e, TraceEvent::SpanClose { span } if *span == span_round)),
+        "the Round span is closed"
+    );
+}
+
+/// D1-1: golden serialization of the span boundary events (schema v4).
+#[test]
+fn test_serialisation_span_open_close_v4() {
+    use lisage_core::observer::{SpanId, SpanKind};
+
+    assert_eq!(
+        serialiser_evenement(&TraceEvent::SpanOpen {
+            span: SpanId(9),
+            kind: SpanKind::Op,
+            lane: 0,
+        }),
+        "{\"v\":4,\"type\":\"SpanOpen\",\"span\":9,\"kind\":\"op\",\"lane\":0}"
+    );
+    assert_eq!(
+        serialiser_evenement(&TraceEvent::SpanOpen {
+            span: SpanId(10),
+            kind: SpanKind::Visite,
+            lane: 2,
+        }),
+        "{\"v\":4,\"type\":\"SpanOpen\",\"span\":10,\"kind\":\"visite\",\"lane\":2}"
+    );
+    assert_eq!(
+        serialiser_evenement(&TraceEvent::SpanClose { span: SpanId(9) }),
+        "{\"v\":4,\"type\":\"SpanClose\",\"span\":9}"
+    );
+    // A spanned event renders its span id.
+    assert_eq!(
+        serialiser_evenement(&TraceEvent::MemoHit {
+            node: NodeId(7),
+            span: Some(SpanId(10)),
+        }),
+        "{\"v\":4,\"type\":\"MemoHit\",\"span\":10,\"noeud\":7}"
+    );
 }

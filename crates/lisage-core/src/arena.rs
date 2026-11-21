@@ -24,7 +24,7 @@ use crate::classes::{ClassArenaDyn, ClassMap, ClassMetrics, mark_of, new_arena, 
 /// `NodeEntry` with the full form.
 type Arenas<C> =
     Vec<Option<Box<dyn ClassArenaDyn<<C as Controller>::Keys, <C as Controller>::Payload>>>>;
-use crate::observer::{ClassHistogram, Observer, ReductionRule, TraceEvent};
+use crate::observer::{ClassHistogram, Observer, ReductionRule, TraceEvent, contextualiser};
 use crate::unique::{TableUnique, hash_cle};
 
 /// Arena: canonical, content-addressed storage of forms. Holds the
@@ -344,15 +344,18 @@ where
             compaction,
             mark_bytes,
         };
-        self.observer.on_event(&TraceEvent::Gc {
+        self.observer.on_event(&contextualiser(TraceEvent::Gc {
             live,
             collected,
             compaction,
-        });
+            span: None,
+        }));
         // MEM-17: the degree histogram per class rides the GC event.
-        self.observer.on_event(&TraceEvent::Histogram {
-            classes: self.histogram(),
-        });
+        self.observer
+            .on_event(&contextualiser(TraceEvent::Histogram {
+                classes: self.histogram(),
+                span: None,
+            }));
         stats
     }
 
@@ -495,7 +498,10 @@ where
             if let Some(node) = self.unique_terminals.get(payload) {
                 self.metriques.partages += 1;
                 self.observer
-                    .on_event(&TraceEvent::NodeShared { node: *node });
+                    .on_event(&contextualiser(TraceEvent::NodeShared {
+                        node: *node,
+                        span: None,
+                    }));
                 return *node;
             }
             let map = self.class_map;
@@ -513,7 +519,11 @@ where
             self.metriques.terminaux += 1;
             self.metriques.creations += 1;
             self.observer
-                .on_event(&TraceEvent::NodeCreated { node, level: None });
+                .on_event(&contextualiser(TraceEvent::NodeCreated {
+                    node,
+                    level: None,
+                    span: None,
+                }));
             return node;
         }
         // P0-1 (issue #136): per-level intern counter — every node-form
@@ -536,18 +546,22 @@ where
                 let size_avant = arcs.len();
                 match self.reduced(anchor, level, arcs) {
                     Err(target) => {
-                        self.observer.on_event(&TraceEvent::ReductionApplied {
-                            rule: ReductionRule::Collapse,
-                            level,
-                        });
+                        self.observer
+                            .on_event(&contextualiser(TraceEvent::ReductionApplied {
+                                rule: ReductionRule::Collapse,
+                                level,
+                                span: None,
+                            }));
                         return target;
                     }
                     Ok(Form::Node { arcs, .. }) => {
                         if arcs.len() < size_avant {
-                            self.observer.on_event(&TraceEvent::ReductionApplied {
-                                rule: ReductionRule::Default,
-                                level,
-                            });
+                            self.observer
+                                .on_event(&contextualiser(TraceEvent::ReductionApplied {
+                                    rule: ReductionRule::Default,
+                                    level,
+                                    span: None,
+                                }));
                         }
                         let degree = arcs.len() as u32;
                         exact_inline = self.layout_inline
@@ -582,7 +596,8 @@ where
         };
         if let Some(node) = self.unique.get(hash, anchor, meme_forme) {
             self.metriques.partages += 1;
-            self.observer.on_event(&TraceEvent::NodeShared { node });
+            self.observer
+                .on_event(&contextualiser(TraceEvent::NodeShared { node, span: None }));
             return node;
         }
         // MEM-9: the node is routed to the arena of its class (degree),
@@ -617,7 +632,11 @@ where
         self.unique.insert(hash, anchor, node);
         self.metriques.creations += 1;
         self.observer
-            .on_event(&TraceEvent::NodeCreated { node, level });
+            .on_event(&contextualiser(TraceEvent::NodeCreated {
+                node,
+                level,
+                span: None,
+            }));
         node
     }
 

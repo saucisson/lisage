@@ -26,7 +26,7 @@ use lisage_algebra::interface::{Anchor, Form, Pool, PoolError};
 use lisage_core::arena::Arena;
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, count_nodes as count_nodes_bdd};
 use lisage_core::error::CoreError;
-use lisage_core::observer::{ChannelAttr, NoOpObserver, Observer, TraceEvent};
+use lisage_core::observer::{ChannelAttr, NoOpObserver, Observer, TraceEvent, contextualiser};
 use lisage_core::pli::{count as count_pli, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_core::workshop::{
@@ -547,7 +547,7 @@ fn mesurer_table(
         });
     }
     if let Some(observer) = observer {
-        observer.on_event(&TraceEvent::Attr {
+        observer.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
             value: format!(
@@ -556,7 +556,8 @@ fn mesurer_table(
                 nodes,
                 expected_satisfactions
             ),
-        });
+            span: None,
+        }));
     }
     Ok(MeasureConfrontation {
         variant: Variant::Bdd,
@@ -761,7 +762,7 @@ fn workload_alea_lcg(
         });
     }
     if let Some(observer) = observer {
-        observer.on_event(&TraceEvent::Attr {
+        observer.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
             value: format!(
@@ -770,7 +771,8 @@ fn workload_alea_lcg(
                 nodes,
                 expected_satisfactions
             ),
-        });
+            span: None,
+        }));
     }
     Ok(MeasureConfrontation {
         variant: Variant::Bdd,
@@ -850,7 +852,7 @@ fn workload_philosophers(
         });
     }
     if let Some(observer) = observer {
-        observer.on_event(&TraceEvent::Attr {
+        observer.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
             value: format!(
@@ -859,7 +861,8 @@ fn workload_philosophers(
                 nodes,
                 verifie
             ),
-        });
+            span: None,
+        }));
     }
     Ok(MeasureConfrontation {
         variant: Variant::Mdd,
@@ -972,7 +975,7 @@ fn workload_window(
         });
     }
     if let Some(observer) = observer {
-        observer.on_event(&TraceEvent::Attr {
+        observer.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
             value: format!(
@@ -982,7 +985,8 @@ fn workload_window(
                 nodes,
                 verifie
             ),
-        });
+            span: None,
+        }));
     }
     Ok(MeasureConfrontation {
         variant: Variant::Mdd,
