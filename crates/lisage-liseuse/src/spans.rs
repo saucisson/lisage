@@ -7,10 +7,11 @@
 //!   interval answers in O(1), never by linear scan.
 //! - [`round_lines`] / [`render_balance_lines`] present a saturation as
 //!   one balance line per round, with the convergence marker (a round
-//!   of zero growth = fixpoint).
+//!   that changed nothing, `apres == avant` = fixpoint).
 //! - [`diff_rounds`] compares two rounds (DoD: diff round 11 vs 12) by
-//!   index lookup + prefix sums, in O(log n).
+//!   span-range lookup + prefix sums, in O(1).
 
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::Range;
 
@@ -38,6 +39,7 @@ pub struct SpanNode {
 #[derive(Clone, Debug)]
 pub struct SpanTree {
     roots: Vec<SpanNode>,
+    by_id: HashMap<SpanId, Range<usize>>,
 }
 
 impl SpanTree {
@@ -47,6 +49,19 @@ impl SpanTree {
     pub fn build(events: &[TraceEvent]) -> Self {
         let mut stack: Vec<SpanNode> = Vec::new();
         let mut roots: Vec<SpanNode> = Vec::new();
+        let mut by_id: HashMap<SpanId, Range<usize>> = HashMap::new();
+        let close = |stack: &mut Vec<SpanNode>,
+                     roots: &mut Vec<SpanNode>,
+                     by_id: &mut HashMap<SpanId, Range<usize>>,
+                     mut node: SpanNode,
+                     end: usize| {
+            node.range.end = end;
+            by_id.insert(node.span, node.range.clone());
+            match stack.last_mut() {
+                Some(parent) => parent.children.push(node),
+                None => roots.push(node),
+            }
+        };
         for (position, event) in events.iter().enumerate() {
             match event {
                 TraceEvent::SpanOpen { span, kind, lane } => stack.push(SpanNode {
@@ -57,28 +72,20 @@ impl SpanTree {
                     children: Vec::new(),
                 }),
                 TraceEvent::SpanClose { span } => {
-                    if let Some(mut node) = stack.pop()
+                    if let Some(node) = stack.pop()
                         && node.span == *span
                     {
-                        node.range.end = position + 1;
-                        match stack.last_mut() {
-                            Some(parent) => parent.children.push(node),
-                            None => roots.push(node),
-                        }
+                        close(&mut stack, &mut roots, &mut by_id, node, position + 1);
                     }
                 }
                 _ => {}
             }
         }
         // Defensive: close the spans still open at the end of the trace.
-        while let Some(mut node) = stack.pop() {
-            node.range.end = events.len();
-            match stack.last_mut() {
-                Some(parent) => parent.children.push(node),
-                None => roots.push(node),
-            }
+        while let Some(node) = stack.pop() {
+            close(&mut stack, &mut roots, &mut by_id, node, events.len());
         }
-        SpanTree { roots }
+        SpanTree { roots, by_id }
     }
 
     /// Top-level spans, in opening order.
@@ -86,7 +93,12 @@ impl SpanTree {
         &self.roots
     }
 
-    /// Finds a span by identifier — DFS over the tree.
+    /// Event interval of a span by identifier — O(1) hash lookup.
+    pub fn span_range(&self, span: SpanId) -> Option<Range<usize>> {
+        self.by_id.get(&span).cloned()
+    }
+
+    /// Finds a span node by identifier — DFS over the tree, O(n).
     pub fn find(&self, span: SpanId) -> Option<&SpanNode> {
         fn search(node: &SpanNode, span: SpanId) -> Option<&SpanNode> {
             if node.span == span {
@@ -197,10 +209,12 @@ impl Balances {
         self.length
     }
 
-    /// Folded balance of the interval `range` — O(1).
+    /// Folded balance of the interval `range` — O(1). The bounds are
+    /// clamped to the trace length; an inverted range answers an empty
+    /// balance instead of underflowing.
     pub fn balance(&self, range: Range<usize>) -> Balance {
         let start = range.start.min(self.length);
-        let end = range.end.min(self.length);
+        let end = range.end.min(self.length).max(start);
         Balance {
             events: end - start,
             nodes_created: self.nodes_created[end] - self.nodes_created[start],
@@ -237,9 +251,9 @@ pub fn round_interval(
         _ => None,
     });
     if let Some(span) = span
-        && let Some(node) = tree.find(span)
+        && let Some(range) = tree.span_range(span)
     {
-        return Some(node.range.clone());
+        return Some(range);
     }
     index.round_range(number)
 }
@@ -259,8 +273,8 @@ pub fn convergence_round(events: &[TraceEvent]) -> Option<u32> {
 }
 
 /// Balance lines of every round of the trace, in round order. The round
-/// intervals come from the span tree (O(depth) each), the balances from
-/// the prefix sums (O(1) each).
+/// intervals come from the span tree (O(1) hash lookup each), the
+/// balances from the prefix sums (O(1) each).
 pub fn round_lines(
     events: &[TraceEvent],
     index: &IndexTrace,
@@ -314,7 +328,7 @@ pub fn render_balance_lines(lines: &[RoundLine]) -> Vec<String> {
 }
 
 /// Diff of two rounds by number: `balance(second) - balance(first)`
-/// over their span intervals — O(depth) by span-tree lookup, O(1) by
+/// over their span intervals — O(1) by span-range lookup, O(1) by
 /// prefix sums. `None` when either round is absent from the trace.
 pub fn diff_rounds(
     first: u32,

@@ -27,7 +27,7 @@ struct Collector {
 }
 
 impl Collector {
-    fn prendre(&self) -> Vec<TraceEvent> {
+    fn take(&self) -> Vec<TraceEvent> {
         self.events.lock().expect("mutex poisoned").clone()
     }
 }
@@ -49,12 +49,12 @@ impl Observer for Collector {
 /// The synthesized attribute carries `max atom present + 1` (`0` =
 /// none); the root's `phi_out` interns the singleton chain `{m}`.
 #[derive(Clone)]
-struct Successeur {
+struct Successor {
     /// Number of levels of the `Set` schema (domain size).
     number_levels: u32,
 }
 
-impl Transduction for Successeur {
+impl Transduction for Successor {
     type H = ();
     type S = u64;
     type Out = bool;
@@ -148,11 +148,11 @@ fn saturation_trace(n: u64) -> Vec<TraceEvent> {
     let collector = Collector::default();
     let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
     let policy = PolicySaturation::Statique(levels);
-    let etape = Successeur {
+    let step = Successor {
         number_levels: schema.number_levels(),
     };
     let mut params = ParametresSaturation {
-        transduction: &etape,
+        transduction: &step,
         policy: &policy,
         pool: &mut pool,
         keys: &keys,
@@ -166,7 +166,7 @@ fn saturation_trace(n: u64) -> Vec<TraceEvent> {
         result.iterations, n as u32,
         "the chain saturates in n rounds"
     );
-    collector.prendre()
+    collector.take()
 }
 
 /// D2-4: the span tree of a saturation — one `Round` root per round,
@@ -276,6 +276,13 @@ fn test_balances_prefix_sums() {
         sum.growth += balance.growth;
     }
     assert_eq!(sum, whole, "the round intervals partition the trace");
+
+    // Inverted or out-of-trace ranges answer empty, never underflow.
+    let (high, low) = (5, 2);
+    let inverted = balances.balance(high..low);
+    assert_eq!(inverted.events, 0);
+    assert_eq!(inverted.growth, 0);
+    assert_eq!(balances.balance(events.len()..events.len() + 10).events, 0);
 }
 
 /// DoD: saturation n=4 presented as N balance lines — one line per
