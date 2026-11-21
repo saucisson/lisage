@@ -11,6 +11,8 @@ from typing import Literal
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from notify.models.types import IssuerUrl
+
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
@@ -42,10 +44,10 @@ class ApplicationSettings(BaseSettings):
 class AuthSettings(BaseSettings):
     """OIDC configuration of this app, loaded from the environment (issue #309).
 
-    No endpoint URL is hard-coded: the issuer (``AUTH_ISSUER``) drives the
-    discovery document, and the JWKS URI comes from it. ``AUTH_DISABLED=1``
-    is a local-development escape hatch only - production deployments leave
-    it unset so authentication stays active.
+    No endpoint URL is hard-coded: the issuer (``AUTH_ISSUER``, required)
+    drives the discovery document, and the JWKS URI comes from it.
+    ``AUTH_DISABLED=1`` is a local-development escape hatch only -
+    production deployments leave it unset so authentication stays active.
     """
 
     model_config = SettingsConfigDict(
@@ -56,7 +58,7 @@ class AuthSettings(BaseSettings):
         frozen=True,
     )
 
-    auth_issuer: str = "https://auth.linard.fr"
+    auth_issuer: IssuerUrl
     auth_client_id: str | None = None
     auth_client_secret: SecretStr | None = None
     auth_allowed_audiences: list[str] = []

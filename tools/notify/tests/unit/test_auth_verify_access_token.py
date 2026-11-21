@@ -20,11 +20,12 @@ from joserfc.jwk import RSAKey
 from notify.infrastructure.auth import AccessTokenVerifier, verify_access_token
 from notify.models.auth import TokenValidationError
 from notify.models.settings import AuthSettings
+from notify.models.types import AccessToken, IssuerUrl
 
 if TYPE_CHECKING:
     from structlog.typing import EventDict
 
-ISSUER = "https://auth.test.example"
+ISSUER = IssuerUrl("https://auth.test.example")
 CLIENT_ID = "lisage-client"
 NOW = 1_800_000_000
 
@@ -33,14 +34,18 @@ def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
-def _forge_token(header: dict[str, object], payload: dict[str, object]) -> str:
+def _forge_token(header: dict[str, object], payload: dict[str, object]) -> AccessToken:
     """Build a compact JWS-looking string without a valid signature."""
-    return f"{_b64url(json.dumps(header).encode())}.{_b64url(json.dumps(payload).encode())}.fakesig"
+    return AccessToken(
+        f"{_b64url(json.dumps(header).encode())}.{_b64url(json.dumps(payload).encode())}.fakesig"
+    )
 
 
-def _sign(claims: dict[str, object], key: RSAKey, *, kid: str) -> str:
-    return jose_jwt.encode(
-        {"alg": "RS256", "kid": kid, "typ": "JWT"}, claims, key, algorithms=["RS256"]
+def _sign(claims: dict[str, object], key: RSAKey, *, kid: str) -> AccessToken:
+    return AccessToken(
+        jose_jwt.encode(
+            {"alg": "RS256", "kid": kid, "typ": "JWT"}, claims, key, algorithms=["RS256"]
+        )
     )
 
 
@@ -179,6 +184,19 @@ def test_unknown_kid_rejected_after_refetch(
     assert idp.jwks_requests == 2  # initial fetch + one forced refresh
 
 
+def test_unknown_kid_refresh_is_throttled(
+    settings: AuthSettings, idp: FakeIdp, signing_key: RSAKey
+) -> None:
+    verifier = _make_verifier(settings, idp)
+    for kid in ("no-such-key", "another-missing-key"):
+        token = _sign(_valid_claims(), signing_key, kid=kid)
+        with pytest.raises(TokenValidationError) as excinfo:
+            verifier.verify_access_token(token=token)
+        assert excinfo.value.reason == "unknown_key"
+    # Two unknown kids, but only one forced refresh (60 s throttle).
+    assert idp.jwks_requests == 2
+
+
 def test_not_before_in_future_rejected(
     settings: AuthSettings, idp: FakeIdp, signing_key: RSAKey
 ) -> None:
@@ -191,7 +209,7 @@ def test_not_before_in_future_rejected(
 
 
 def test_malformed_token_rejected(settings: AuthSettings, idp: FakeIdp) -> None:
-    malformed = "not-a-jwt"
+    malformed = AccessToken("not-a-jwt")
     with pytest.raises(TokenValidationError) as excinfo:
         _make_verifier(settings, idp).verify_access_token(token=malformed)
     assert excinfo.value.reason == "malformed"
