@@ -53,9 +53,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test -p lisage-liseuse --all-targets` green (all test files pass, incl. 5 DoD tests + 5 unit tests); `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all` clean; `make english-only` green. Not run: full `make check`, property tier, mutation testing.
 - **Judgement calls**: the oracle is trace-driven (works on any `Vec<TraceEvent>`), with the denotation evaluator / semantics / node-size injected as closures so the oracle stays decoupled from the engine; the DoD tests use the real `standard_scenario_with_pool(4)` trace and pool — the actual output denotation is evaluated on the real output node, and the expected value comes from an independent naive form-walk model of τ, so a faulty predicate is caught at the offending `OpEnd`, not tautologically.
 
-
-
-
 ## 2026-11-21 - D6-1: offline HTML page (issue #174); D6-2/D6-3 deferred
 
 - **Issue**: #174 (D6-1, index WASM + page offline). D6-2 (#175, gateway loopback/live) and D6-3 (#176, DAP) are larger infrastructure items deferred to follow-up issues.
@@ -63,10 +60,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test -p lisage-liseuse --test page_dod` 4 passed; `cargo test -p lisage-liseuse --all-targets` all green (19 suites); `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all` clean; `make english-only` green. Not run: full `make check`, property tier, browser rendering test.
 - **Judgement calls**: D6-1 delivers the offline page as a generated HTML file (no WASM compilation in this increment — the Rust index/trace logic is reused directly at generation time; a true WASM runtime in the browser is D6-2 follow-up). D6-2 (WebSocket loopback gateway) and D6-3 (DAP adapter) need a running debug server and a DAP client; deferred as separate issues.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-20 - ALIGN-3: observer dispatch share on the build path (measurement only, no code change)
 
@@ -76,20 +69,12 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (371 passed, 11 skipped). Not run: campaign-4 (ALIGN-5).
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-21 - D3-3: inspection views of lisage-debug (issue #166)
 
 - **Issue**: #166 (D3-3, vues d'inspection); labels debug-outillage, loupe.
 - **Done**: new module `crates/lisage-liseuse/src/inspection.rs` — `Inspector` query engine over the trace with views: node/memo/memory/diff/eval/display/ops/svg. New tests `crates/lisage-liseuse/tests/inspection.rs` (12 tests).
 - **Evidence**: `make check` green (417 passed / 11 skipped, english-only); binary smoke-tested.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-21 - D1-4: trace deserializer (JSONL, v5) (issue #158)
 
@@ -99,10 +84,6 @@ One entry per commit or pull request:
 - **Judgement calls**: round-trip pinned at line level because `TraceVal::Fragment` is not comparable to `Texte` (Arc identity); the JSON parser lives in its own `json.rs` module so the D3-2 predicate scripts can share it.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-21 - D2-2: snapshots and O(log n) seek (issue #161)
 
 - **Issue**: #161 (D2-2, snapshots, seek O(log n), sommes préfixes); labels debug-outillage, index-miroir.
@@ -110,10 +91,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo nextest run -p lisage-liseuse` 63 passed; `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
 - **Judgement calls**: snapshots store the full `EtatTrace` (nodes set + attributes + counters) at each budget boundary; the binary search uses `partition_point` on the sorted snapshot positions; the seek tail replay is bounded by the budget so it stays O(1) amortized.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-21 - D2-1: pool/memo/memory mirror from the trace (issue #160)
 
@@ -123,10 +100,6 @@ One entry per commit or pull request:
 - **Judgement calls**: visited nodes (VisiteEntree) count as live because a visit implies the node is in the pool; the philosophers trace emits no NodeCreated for input nodes (built before the trace starts), so VisiteEntree is the reliable liveness signal on that trace.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-21 - LS-4: auth brick present in the notify template (issue #312)
 
 - **Issue**: #312 (LS-4, milestone Auth v1); labels auth, type/feat. Depends on LS-1 to LS-3.
@@ -134,10 +107,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green on the branch (ruff, ruff format, mypy strict, import-linter, pytest 64 passed / coverage 92.11%, english-only). 29 auth tests: 21 in test_auth_verify_access_token.py + 8 in test_auth_middleware.py.
 - **Judgement calls**: LS-4 required no additional code because LS-1/LS-2/LS-3 were implemented directly in `tools/notify/` (the template's reference application), so the generated projects inherit the brick natively.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-21 - LS-3: Authentication documentation and configuration (issue #311)
 
@@ -147,10 +116,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the README section sits right after the Discord-notification quick start, since both are `.env`-driven configuration of the `notify` tool.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-21 - LS-2: ASGI authentication middleware (issue #310)
 
 - **Issue**: #310 (LS-2, milestone Auth v1); labels auth, type/feat. Depends on LS-1 (#309).
@@ -158,10 +123,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green on the branch (ruff, ruff format, mypy strict 48 files, import-linter 1 contract kept, pytest 64 passed / coverage 92.11% >= 90%, english-only). No network in tests.
 - **Judgement calls**: pure ASGI middleware instead of a FastAPI dependency because no HTTP surface exists yet — the brick stays framework-agnostic and mounts on any ASGI app at route-creation time; ASGI types use `MutableMapping[str, object]` instead of `dict[str, Any]` to satisfy the no-explicit-Any rule (ADR-0006).
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-21 - LS-1: OIDC access-token validation brick (issue #309)
 
@@ -171,10 +132,6 @@ One entry per commit or pull request:
 - **Judgement calls**: JOSE library `joserfc` 1.8.0 chosen over `authlib` (both recommended by the cadrage; joserfc is the more actively maintained, strictly-typed JOSE implementation) — new runtime dependency added to pyproject.toml/uv.lock per the issue's recommendation; flagged here because new dependencies sit on the escalation list. `nbf` validated only when present (OIDC access tokens may omit it); `exp`/`iss`/`aud` essential. Module-level `verify_access_token` is one-shot; long-lived callers reuse `AccessTokenVerifier` for the caches. Review #314 TO-FIX fixes (two rounds): `auth_issuer` is now a required `IssuerUrl` (no hard-coded default, per "no endpoint URL in code"), `AccessToken` NewType at the token boundary, and forced JWKS refreshes are throttled (60 s) so unknown-kid spraying cannot amplify into one IdP request per token. Second round: `response.json()` on the discovery and JWKS fetches and `KeySet.import_key_set` are guarded — a 200 with a non-JSON body, a JWKS without a list-of-objects `keys` member, or unimportable keys now raise `TokenValidationError(reason="jwks_unavailable")` with the `access_token_rejected` log instead of leaking raw `JSONDecodeError`/`JoseError`; the `cast` to `KeySetSerialization` is preceded by a runtime shape check with an inline justification; `AccessTokenClaims.issuer` is typed `IssuerUrl` end to end; new unit tests pin every `jwks_unavailable` path, and `tests/property/test_auth_invariants.py` (hypothesis, ADR-0012) covers the comma-separated audience parsing and the foreign-audience → `audience` rejection mapping for arbitrary inputs.
 - **Escalations**: one `needs-human` raised on issue #309 for the new runtime dependency `joserfc>=1.8.0` (ADR-0008/ADR-0010 escalation list); **answered by the human owner on 2026-11-21** (issue #309, comment 7059933137): joserfc approved ("joserfc ou authlib, celle qui est la plus maintenue et utilisée par la communauté"); label `needs-human` removed.
 
-
-
-
-
 ## 2026-11-21 - D3-1: command bus and REPL of lisage-debug (issue #164)
 
 - **Issue**: #164 (D3-1, bus de commandes et REPL); labels debug-outillage, loupe.
@@ -182,10 +139,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green on the branch (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy -D warnings, cargo nextest, english-only); binary smoke-tested with piped stdin (`where`/`next-round`/`frame`/`quit`).
 - **Judgement calls**: the binary runs the built-in n=4 scenario because the JSONL trace deserializer is D1-4 (issue #158, not yet done) — no trace file loading yet; `until` takes a fixed event-kind vocabulary (the predicate AST is D3-2, issue #165).
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-21 - D2-4: span tree and folded balances (issue #163)
 
@@ -195,10 +148,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the convergence marker is `apres == avant` (the round changed nothing), not `croissance == 0` — the step transduction interns nodes even on the fixpoint round, so growth alone is not a reliable marker; round intervals use the `Round` span range (SpanOpen..=SpanClose), which partitions the trace, rather than the bare `Round` event position.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-21 - D2-3: inverse indexes over the trace (issue #162)
 
 - **Issue**: #162 (D2-3, index-miroir); labels debug-outillage, index-miroir.
@@ -206,10 +155,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green on the branch (ruff, mypy strict, import-linter, pytest 61 passed / coverage 94.76%, cargo fmt --check, clippy -D warnings, cargo nextest 382 passed / 11 skipped, english-only).
 - **Judgement calls**: "n42" is the 42nd distinct node of the trace, not the raw `NodeId(42)` — node ids are class-encoded (`NodeId::encode(class, index, class_bits)`), so raw 42 is not a node of the R_5 trace; round intervals run from one `Round` event to the next (last round to the trace end).
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-21 - D1-3: TraceVal / Traceable — lazy bounded trace values (issue #157)
 
@@ -219,10 +164,6 @@ One entry per commit or pull request:
 - **Judgement calls**: `Fragment` equality is by `Arc::ptr_eq` (payload never forced to compare); the wire format stays schema v5 — the JSON fields remain strings, only their computation moved off the hot path; `()` traces as `Elide` ("…").
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-21 - D1-2: register events of trace v5 (issue #156)
 
 - **Issue**: #156 (D1-2, trace register events); labels debug-outillage, trace-v3, tests-pbt.
@@ -230,10 +171,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green on the branch (ruff, mypy strict, import-linter, pytest 61 passed / coverage 94.76%, cargo fmt --check, clippy -D warnings, cargo nextest 376 passed / 11 skipped, english-only).
 - **Judgement calls**: StructureChange is emitted for every visit (terminals included, via psi) so the register is complete; classification compares (level, arcs) pairs — same arcs at a different level is Reetiquetage, node→terminal is Collapse, terminal→node is Expansion; the T-EXPAND of lookup classifies as Restructuration on the presence node (its present arc changes target) since both forms are nodes.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-21 - D1-1: span model of trace v4 (issue #155)
 
@@ -243,10 +180,6 @@ One entry per commit or pull request:
 - **Judgement calls**: thread-local span stack chosen so nested components (round -> op -> visite, pool events inside a workshop op) share one context without plumbing a stack through every signature; span ids from a process-global counter to avoid collisions across components; `lane` is always 0 today (reserved for the future parallelism of P3/P4).
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-21 - ALIGN-7f: campaign-4 full confrontation with the Sylvan witness (issue #301)
 
 - **Issue**: #301 (ALIGN-7f, parent #300); labels area/bench, align.
@@ -254,10 +187,6 @@ One entry per commit or pull request:
 - **Evidence**: `uv run python -m scripts bench-confrontation --crossover --tools lisage,oxidd,cudd,libddd,sylvan --repetitions 5 --run-id 20261121-campaign-4` exit 0 (125 measurements, divergences empty); `make check` green on the branch (see PR). Machine note: the issue title says "on M2" but the register was corrected on 2026-11-20 evening (switch back to M1) — campaign-4 ran on M1, the same machine as campaign-3, so absolute times are also comparable and are reported stable (lisage alea-lcg-24: 4105.6 -> 4218.3 ms, within noise; no lisage code changed between the campaigns).
 - **Judgement calls**: ratio-only comparison presented as the issue mandates even though both campaigns are on M1; the machine discrepancy (issue title vs corrected register) is documented in README/REPORT rather than silently resolved.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-20 - Sylvan witness dockerized, 4th external tool of the confrontation (issue #308, closes SP-2 #154)
 
@@ -267,10 +196,6 @@ One entry per commit or pull request:
 - **Judgement calls**: pin Sylvan at the latest release tag v1.12.8 by commit SHA, same pattern as the other witnesses; Sylvan's parallelism (Lace workers on all cores) is included in its wall-clock, documented in the protocol doc.
 - **Escalations**: none (ADR-0102 pattern: local Docker only, never in CI; no project dependency added).
 
-
-
-
-
 ## 2026-11-20 - CI speedup: pinned install-action + gate set (ADR-0106 accepted by the human owner)
 
 - **Issue**: needs-human escalation from the ALIGN-7 review (#304): new third-party dependency + constitutional CI file.
@@ -278,9 +203,6 @@ One entry per commit or pull request:
 - **Evidence**: YAML validated locally; the quality gates (lint, typecheck, tests, coverage, deny, audit) were **not** run locally — CI on this PR is the gate evidence (run 44832282672, all jobs pass). Expected effect is several minutes saved per PR (no more `cargo install` of four tools, no duplicated audit, no criterion bench).
 - **Judgement calls**: SHA pinning instead of the mutable `v2` tag, per the review's BLOCKING on unpinned actions.
 - **Escalations**: this PR *was* the needs-human escalation for the CI dependency/gate change; the human owner accepted ADR-0106 on 2026-11-20, so the PR is cleared for review and merge.
-
-
-
 
 ## 2026-11-20 - ALIGN-7 register correction: switch back to M1 on 2026-11-20 evening
 
@@ -290,10 +212,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the first register version attributed `febd14ed` to M2 — wrong; corrected per the human answer, with the contradiction documented here.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-20 - ALIGN-7: review #302 rework (5 BLOCKING fixed)
 
 - **Issue**: #300 (ALIGN-7), PR #302 review report (5 BLOCKING, 1 SUGGESTION).
@@ -301,10 +219,6 @@ One entry per commit or pull request:
 - **Evidence**: `make lint typecheck imports test english-only` green (incl. the 9 new fingerprint tests); `python -m scripts machine-fingerprint --register bench-results/machines.md` returns `machine_id: M2`, hash `febd14ed`.
 - **Judgement calls**: the CI speedup patch is not lost — it is escalated as needs-human (new dependency + constitutional file) rather than merged silently.
 - **Escalations**: needs-human — approve the CI patch (`.github/workflows/ci.yml`: concurrency cancel-in-progress, `taiki-e/install-action@v2` pinned by SHA, criterion benches out of CI, `cargo llvm-cov nextest`) as a separate PR.
-
-
-
-
 
 ## 2026-11-20 - ALIGN-7: escalation notes (push and issue creation denied)
 
@@ -314,10 +228,6 @@ One entry per commit or pull request:
 - **Judgement calls**: none.
 - **Escalations**: needs-human — push rights (`workflow` scope) for the CI patch, and issue/milestone/label creation rights for ALIGN-7 tracking.
 
-
-
-
-
 ## 2026-11-20 - ALIGN-7: machine protocol and fingerprint (ALIGN-7a..7e)
 
 - **Issue**: ALIGN-7 (machine change M1 -> M2 on the evening of 2026-11-19; deposits before/after the switch are not comparable in absolute time).
@@ -325,10 +235,6 @@ One entry per commit or pull request:
 - **Evidence**: `uv run python scripts/machine_fingerprint.py --register bench-results/machines.md` returns `machine_id: M2`, hardware hash `febd14ed`, in 0.4 s; `git diff bench-results/` shows 32 insertions / 0 deletions (Machine headers only). Not run yet: full `make check` (run before the PR).
 - **Judgement calls**: p11 (19:00) and p12 (19:56) of 2026-11-19 fall inside the switch window; annotated as "M1 or M2" with the uncertainty documented rather than forced. M1 fingerprint fields are marked unverified and requested from the human, never invented.
 - **Escalations**: none (M1 hardware fields requested from the human in `bench-results/machines.md`, non-blocking).
-
-
-
-
 
 ## 2026-11-20 - ALIGN-2: key elided from the dense-family slots (Option<(Key, NodeId)> -> Option<NodeId>)
 
@@ -341,10 +247,6 @@ One entry per commit or pull request:
 - **Escalations**: none.
 - **Pre-existing latent issue found (not caused by ALIGN-2, not fixed here)**: the `dense` PBT can generate arc targets in 0..8 that collide with the pool's own NodeId space; a node interned as `NodeId(4)` whose arcs target `NodeId(4)` fails `resolve` with `UnknownNode` — reproduced identically on origin/daily @ 53c86f2. The appended proptest regression seed was reverted (it pinned a failure that exists on daily too); PBT re-run green on this branch with 3 seeds x 128 cases.
 
-
-
-
-
 ## 2026-11-20 - fix: ALIGN-1 publication arithmetic (review #296 TO-FIX)
 
 - **Issue**: none — review finding on PR #296 (TO-FIX, non-blocking, merged with the PR per ADR-0009 since only BLOCKING gates the merge); fixed here.
@@ -352,10 +254,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green on this commit (369 passed, 11 skipped). The corrected figures are cross-checked against the measured octets_build drop (-2 097 120 B ~ 2 x 1 048 576 over the doubling growths) and the RSS drop (13 432 -> 12 296 KiB).
 - **Judgement calls**: none.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-20 - ALIGN-1: NonZero<u32> hash tag in the unique-table slot (Option<Slot> 16 -> 12 bytes)
 
@@ -366,10 +264,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the MEM-19 publication is republished through its own `MEM19_PUBLISH` gate rather than hand-edited, because the layout test pins the committed structural cells; the verdict text of the file is unchanged.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-20 - ALIGN-0: static size witnesses for the ALIGN track (no functional change)
 
 - **Issue**: none — the ALIGN-i issues could not be opened on GitHub (issue creation is denied to the integration: POST /issues → 403 on saucisson/lisage, probed 2026-11-20); drafts written in the session scratchpad, work driven by the human directive of 2026-11-20. ALIGN-0 = premise witnesses for ALIGN-1/2.
@@ -377,10 +271,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green on this commit (ruff, mypy 2.4.0 pure-python, lint-imports, pytest, cargo fmt/clippy/nextest: 368 passed, 11 skipped, english-only). Environment note: rustup stable 1.100.0 installed in-session; mypy/hypothesis installed `--no-binary` because their compiled wheels segfault in this sandbox — CI is the authoritative gate.
 - **Judgement calls**: witnesses live in the existing `#[cfg(test)]` modules of the touched files so the runner collects them; premises confirmed on rustc 1.100.0 (16/12/8 bytes as expected).
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-19 - P1-2: parallel merge of the output pools (issue #140)
 
@@ -391,10 +281,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the merge bench uses copies of one random Map diagram (the philosophers R_n root is too compact — ~100 reachable nodes — to show scaling); wall times published, not pinned; the sharing bound allows one union-root node per pool.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-19 - P1-1: independent operations, separate pools (issue #139)
 
 - **Issue**: #139 (P1-1, PAR-1): module `parallel_ops.rs` — parallel execution (rayon) of independent transductions reading the same input pool read-shared, each in its own output pool (INV10). DoD: PBT PAR-1 on n concurrent operations; bench showing the gain on multi-query workloads.
@@ -403,10 +289,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo nextest run -p lisage-bench --test parallel_ops --test par_equivalence` green; `cargo nextest run -p lisage-core` green (187 passed); clippy `-D warnings`, import-linter (1 contract kept), `make english-only` green. Known pre-existing failure, not from this change: `lisage-bench::dense test_c1_famille_dense` (latent proptest seed, fails on base too). Not run: full-workspace `make check` in this session; GitHub CI before the PR.
 - **Judgement calls**: rayon used as named by the issue (already in the lockfile, so no new version decision); ops in the bench alternate the union root (heavy query) and member roots; wall times published, not pinned.
 - **Escalations**: none (the rayon dependency was specified by issue #139 itself).
-
-
-
-
 
 ## 2026-11-19 - P0-3: ADR blind routing to structure (issue #138)
 
@@ -417,10 +299,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the ADR is drafted as **draft** per the ADR convention (0100+ range drafted in a PR, accepted by the human only); INV7/INV9 were not yet referenced by any issue and are defined here (round barrier / no dynamic reordering) to complete INV1-INV10.
 - **Escalations**: none (ADR drafting in the 0100+ range is explicitly allowed by ADR-0010; acceptance stays with the human).
 
-
-
-
-
 ## 2026-11-19 - P0-2: mono vs multi equivalence harness (issue #137)
 
 - **Issue**: #137 (P0-2, PAR-1): PBT mono vs multi on the same inputs (node counts, semantics), written red before any implementation; survey of existing tests comparing NodeId (to requalify as form comparisons). DoD: harness green on the current mono-thread, ready to falsify PAR-1 to PAR-4.
@@ -429,10 +307,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo nextest run -p lisage-bench` green (101 passed, 11 skipped incl. the red marker); clippy `-D warnings` and `make english-only` green on the touched crates. Not run: full-workspace `make check` in this session (per-crate gates run instead); GitHub CI before the PR.
 - **Judgement calls**: the multi leg is a documented placeholder (DoD asks for a green harness on the current mono-thread, ready to falsify PAR-1..PAR-4); cross-pool NodeId equality was requalified only where it was actually cross-pool (`handles.rs`), same-pool C1 assertions left untouched.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-19 - P0-1: contention bench anchored on philosophers saturation n=5 (issue #136)
 
@@ -443,10 +317,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the saturation step is synthetic (contention), not the philosophers transition relation — stated in the runner doc and the publication; the time ceiling is deliberately ~10 000x the local median so CI refuses only gross (algorithmic) regressions, consistent with the repo convention that wall time is published, not tightly pinned.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-19 - PERF-5: shadow-plane index as Vec per level (issue #288, milestone PERF #279)
 
 - **Issue**: #288 (PERF-5, fifth increment of milestone PERF #279): the campaign-3 residual gap vs OxiDD grows with n (1.39x at n=20, 2.04x at n=24) — a per-created-node cost, not per-intern. Suspect: the shadow index `BTreeSet` per level (one tree-node allocation per created node).
@@ -455,10 +325,6 @@ One entry per commit or pull request:
 - **Evidence**: nextest per crate all green (algebra+core 187 passed, bench 98 passed / 10 skipped FFI, plan+lang+liseuse+backend 72 passed, 0 failed — including the MEM-18 threshold gates); `make check` green before the PR; runner output reproduced 3x (allocation counters identical). Not run: GitHub CI before the PR.
 - **Judgement calls**: the `bytes_per_node` counter keeps `len` semantics (the frozen 66.0 threshold was calibrated on it); counting `capacity` instead made the gate read 72.74 and fail — the real footprint is lower (RSS), so the `len` semantics is kept for comparability, noted in the code.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-19 - PERF-4: post-PERF confrontation campaign + golden hash test (issue #286, milestone PERF #279)
 
@@ -469,10 +335,6 @@ One entry per commit or pull request:
 - **Judgement calls**: campaign-3 numbers are compared against the published campaign-2 medians (same machine class, same protocol); the per-charge ratios are computed from medians, not per-repetition pairs.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-19 - PERF-3: fast deterministic hash + no dense box for inline classes (issue #284, milestone PERF #279)
 
 - **Issue**: #284 (PERF-3, third increment of milestone PERF #279): after PERF-2 (1.70 allocs/intern, 214 ms build on alea-lcg-20), attack the remaining time (SipHash on every interned form) and the remaining allocations (dense-family box dropped for inline classes).
@@ -481,10 +343,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo nextest run` per crate, all green (lisage-algebra+lisage-core 186 passed, lisage-bench 98 passed / 10 skipped FFI, plan+lang+liseuse+backend 72 passed, 0 failed); clippy `-D warnings` clean, `cargo fmt --check` green; runner output reproduced 3x (allocation counters identical). Not run yet at entry time: full `make check` (run before the PR), GitHub CI.
 - **Judgement calls**: the inline-skip of the dense family is keyed on the exact-inline routing decision computed before the family choice — deterministic per pool, so two interns of the same semantic form always take the same path (C1); the dense family is still chosen for the catch-all class and re-applied by `resolve`, so MEM-12 observable behavior is unchanged (dense PBT green).
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-19 - PERF-2: cut the allocations per intern on the alea-lcg path (issue #282, milestone PERF #279)
 
@@ -495,10 +353,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the `form_normalisee` fast path requires the run to be already canonical (sorted family + strictly increasing keys + normal keys), not merely identity-normal keys — otherwise a dense or unsorted input would hash differently from its canonical rebuild and break C1. A latent proptest case of `dense.rs` (`paires = [(1,6),(0,6),(3,6),(2,6)]`, collapse to an uninterned target) fails on the base commit too — pre-existing, out of scope, the regression file was restored untouched.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-18 - PERF-1: phase-level profile of the alea-lcg intern path (issue #280, milestone PERF #279)
 
 - **Issue**: #280 (PERF-1, first increment of milestone PERF #279 chosen after BENCH-1: close the constant ~4x OxiDD time gap by attacking the per-intern cost). Pure profiling, no core change.
@@ -508,10 +362,6 @@ One entry per commit or pull request:
 - **Judgement calls**: internements counted as 2^n-1 (the exact number of intern calls of the bottom-up Shannon expansion), not as created nodes — the allocation gate is per intern *call*, matching the MEM-18 convention. Times are machine-dependent and only published, never pinned.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-18 - BENCH-1: time/memory vs CUDD and libDDD, OxiDD 4x gap analysis, memory crossover (issue #277)
 
 - **Issue**: #277 (BENCH-1) — extend the confrontation campaigns beyond node counts: full time+RSS measurement against CUDD and libDDD (LIP6), a multi-n campaign for the memory crossover, and an analysis of the constant ~4x OxiDD time gap.
@@ -520,10 +370,6 @@ One entry per commit or pull request:
 - **Evidence**: local differentials green (`cargo nextest run -p lisage-bench --test libddd_local --test cudd_local --test oxidd_local --run-ignored all`: 7/7 PASS); campaign EXIT=0 with empty `divergences`; `uv run pytest scripts/tests/test_bench_confrontation.py` 12 passed; `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session).
 - **Judgement calls**: the CUDD witness keeps the (node, complement-bit) pair convention of `cudd_count` (C6); libDDD's missing null terminal is added back explicitly (`size()+1` unless constant true) — both pinned by the asymmetric-table order test and the PBT differentials. The OxiDD 2^23 capacity for alea-lcg-24 is a per-charge environment override, documented in the campaign README; the default image stays the reference.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-18 - MEM-19: layout on/off confrontation, published measurement (issue #135)
 
@@ -535,10 +381,6 @@ One entry per commit or pull request:
 - **Judgement calls**: RSS/time are measured per layout in separate runner processes (VmHWM is process-wide); the committed publication pins only the structural lines (nodes, bytes/node, arena bytes/node, factors) — RSS/time are recorded as measured, machine-dependent. The verdict uses the arena-slots counter for the "node memory" factor and notes that the off layout's boxed runs are not in the slot counter, so the true node-memory factor is higher ((40+24)/24 ≈ 2.7×) — the conservative 1.67× is the pinned one.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-18 - MEM-18: counting allocator and frozen CI thresholds (issue #134)
 
 - **Issue**: #134 (MEM-18, milestone MEM-B) — end-to-end bytes per node (arena + tables) and allocations per interning as non-regression thresholds, per ADR-0012 (anti-complacency); reproducible randomized IDs so a layout on/off comparison never captures a hash-function artifact. Criteria: gate red on a threshold regression (verified by a deliberately regressive witness, then reverted); thresholds frozen after MEM-C.
@@ -546,10 +388,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test -p lisage-bench --test thresholds` green (3 tests); `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session); the witness commit was run locally, not pushed.
 - **Judgement calls**: thresholds frozen at measured + ~9% headroom (66.0 / 10.0) rather than exactly at the measurement, so the gate catches regressions without flapping on platform noise; the workload uses one distinct level per node with randomized arc keys — randomizing levels too collapsed the distinct-node count via hash-consing shares (128 instead of 2000), which would have measured the share path instead of the creation path.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-18 - MEM-16: declared key width per level, inline exact-class entries, owned resolve (issue #132)
 
@@ -559,10 +397,6 @@ One entry per commit or pull request:
 - **Judgement calls**: owned `Form` from `resolve` (drop-in for the call sites) rather than a borrowed `NodeView` (would rewrite every pattern), with borrowed accessors for the internal hot paths — the owner delegated the shape ("go with what you recommend"). The resolved form reapplies the canonical dense-family choice (MEM-12), so `resolve` returns exactly what a boxed storage would have. Class routing now depends on key narrowability, not only degree — recorded in ADR-0104.
 - **Escalations**: the needs-human question on #132 was answered by the owner (comment 6987435213): voie (a), architecture change, ADR from 0100.
 
-
-
-
-
 ## 2026-11-18 - MEM-17: degree histogram per class, slack traced, JSONL v3 (issue #133)
 
 - **Issue**: #133 (MEM-17, milestone MEM-B) — histogram of degrees and `MetriquesPool` per class. Criteria: the histogram is visible in the Observer AND in the JSON line; MEM-9's C boundary justified by measurement; the expected mass at 1-4 arcs on the reference instance confronted with reality.
@@ -570,10 +404,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test --workspace` green (79 suites, 0 failed); `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session).
 - **Judgement calls**: the histogram rides the existing GC event stream (one Histogram line per GC) rather than a new throttled snapshot — the GC is already the natural per-class accounting point and the volume stays bounded by the GC frequency. Slack is reported per class in the same event instead of a separate counter event, keeping the JSONL schema to one new event type.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-18 - MEM-15: co-located memories in dense per-class arrays (issue #131)
 
@@ -583,10 +413,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the dense slot holds one entry per node (the common case: a node's memory lives at its own level); the rare multi-level node goes to a per-class overflow list rather than a 2D dense array, which would be sized by `index × levels` and mostly empty. `Pool::class_bits()` defaults to 0 so pool-agnostic mocks (raw ids) keep working unchanged.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-18 - MEM-14: unique table without form clone, open addressing (issue #130)
 
 - **Issue**: #130 (MEM-14, milestone MEM-B) — remove the `form.clone()` from the unique-table key: open addressing of `(hash, NodeId)` (~8 B/node at load factor 0.5) or CUDD-style chaining; drop `ControllerId` from the key at minimum. Criteria: end-to-end bytes/node counter with factor ≥ 5 on the BDD instance vs the ~420 B current; zero additional allocation at interning (counter); hash-consing key still the semantic form.
@@ -594,10 +420,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test --workspace` green (79 suites, 0 failed); `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session).
 - **Judgement calls**: open addressing chosen over CUDD-style chaining in the entry — chaining would need a `next` pointer per node entry (same bytes) plus a head table, while open addressing keeps one flat slot array and reuses the entry for the semantic comparison. The hash-consing key remains the semantic form (ADR-0103 invariant 1): the table stores only a hash, and equality is decided by comparing the stored form, so C1 is unchanged. The 32-bit stored hash is safe because the form comparison is authoritative. The terminal singleton map (`unique_terminals`, MEM-11) is left as a `HashMap<Payload, NodeId>` — payloads are small (bool for BDD) and out of this issue's scope.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-18 - MEM-13: tag bits arbitrated in the tripartite NodeId budget (issue #129)
 
@@ -607,10 +429,6 @@ One entry per commit or pull request:
 - **Judgement calls**: fixed 4-bit tag reservation over borrowing key bits on small domains — the deciding factor is identifier-layout stability across pools (the decoder stays parameterized by `b` alone); the index cost at b=8 (16 bits ≈ 65k/class) is accepted and recorded in the ADR. M4-2 remains closed until it consumes `TAG_SHIFT_MASK`.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-18 - MEM-12: dense ordinal arc family, chosen in normalization (issue #128)
 
 - **Issue**: #128 (MEM-12, milestone MEM-B) — third family of the `ArcStore` port: arcs indexed by rank, holes = default not stored; chosen in normalization when the rank exists and the fill is at least one third (threshold `4·|Val(ℓ)| ≤ 12·arcs`); composes with the class tier by arc count. Criteria: C1 PBTs green with the dense family; threshold documented and tested; no per-controller code (rank derived from `KeyAlgebra`).
@@ -618,10 +436,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test --workspace` green (78 suites, 0 failed); `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session).
 - **Judgement calls**: the dense family lives inside the `ArcRun` type as a second variant rather than changing `Form::Node.arcs` to a new enum — invariant 1 of ADR-0103 (hash-consing key = semantic form) is preserved because the family choice is deterministic; keeping one type avoids touching ~100 construction sites. The choice is applied after the reductions (not in `form_normalisee`) because the reductions rebuild the run sorted — placing it after keeps the dense family on the stored form. The PBT initially flagged reversed duplicate-key constructions; that is MEM-5 last-write-wins semantics, not a C1 break — the PBT now deduplicates by key first.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-18 - MEM-11: dedicated terminal class, pool-wide terminal singletons (issue #127)
 
@@ -631,10 +445,6 @@ One entry per commit or pull request:
 - **Judgement calls**: terminals are pool-wide singletons in the class-0 arena rather than a payload-stride slab storage — `Pool::resolve` returns `&Form` (93 call sites), so owning payload storage per terminal would be too invasive; the singleton map keeps the borrow-based API. Deferral noted for a future stride-based terminal store if payload sizes grow. Internal nodes remain keyed by (controller, anchor, form): the issue's "canonicity by handle only for internal nodes" is read as terminals being the exception, not internal nodes becoming anchor-independent.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-18 - MEM-10: GC and multi-arena remap, bitmap marking (issue #126)
 
 - **Issue**: #126 (MEM-10, milestone MEM-B) — bitmap marking (1 bit per node), shadow index per level; tombstone + remap protocol per class, generalized `last_remap()`; page rendering when a class empties. Criteria: existing GC and PBTs green; marking memory peak under the old `BTreeSet` (measured threshold); no index reused outside the protocol (test).
@@ -642,10 +452,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test -p lisage-core --test classes` 7 passed; `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session).
 - **Judgement calls**: the marking bitmap is per class arena (1 bit per node, no global dense numbering needed); `mark_bytes` is exposed on `StatsGc` rather than a new observer event to avoid touching the exhaustive `TraceEvent` matches in liseuse. Page release keeps the slot high-water mark — freeing and resetting would silently recycle indices, violating invariant 3.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-18 - MEM-9: exact classes and catch-all class, per-class arenas (issue #125)
 
@@ -655,10 +461,6 @@ One entry per commit or pull request:
 - **Judgement calls**: "PBT C1 inter-classes" is pinned by a deterministic sweep over degrees 1/2/3/10 (exact + catch-all tiers) rather than a proptest — adding proptest to `lisage-core` would be a new dependency (escalation list). The catch-all "pointer to sorted run" is the entry's `Form::Node.arcs` (`ArcRun`) — the deep inline-arcs layout is a later MEM-B item. Per-class compaction keeps a live node's id stable when it already heads its class (remap may be identity) — the biplan test was updated accordingly. Multi-arena GC remap polish is MEM-10 (#126). The committed figure `bench-results/philosophers-n5.svg` was regenerated: its node labels embed the raw `NodeId`, which now carries class+index bits (same diagram, same node count, relabeled ids).
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-18 - MEM-8: NodeId split into class bits + index bits, runtime b (issue #124)
 
 - **Issue**: #124 (MEM-8, milestone MEM-B) — `NodeId(u32)` = class bits + index bits; `b` = smallest integer with `2^b − 2 ≥ max_ℓ C(ℓ)`, derived from `cardinality()` at runtime; compile-time window `b_max` (default 8); decoder parameterized by the effective `b`; degree beyond the window → catch-all class without loss of correctness. Criteria: tested derivation (BDD → b = 2, 30 index bits; philosophers → b = 3 or 4; open domain → low default with declarative overload); invalid identifiers rejected by assertion.
@@ -666,10 +468,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test -p lisage-core --test class_bits` 8 passed; `make check` green (ruff, mypy strict, import-linter, pytest, `cargo fmt --check`, clippy `-D warnings`, nextest, english-only). Not run: GitHub CI (merged on local gates only, per owner instruction this session).
 - **Judgement calls**: the identifier machinery lands in `lisage-algebra` next to `NodeId` (the pool stays blind, ADR-0103 invariant 4); the arena rewiring to per-class assignment is deferred to MEM-9, so MEM-8 is behavior-preserving. The low default for open domains is `b = 1` (every non-terminal degree in the catch-all class — correct, no exact class), chosen as the most conservative "low default"; the declarative overload is the escape hatch.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-18 - MEM-7: pilot measurement and generalization gate (issue #123)
 
@@ -679,20 +477,12 @@ One entry per commit or pull request:
 - **Decision (written)**: gap = constant factor on every pilot line (node counts identical or pinned, time ~4x, memory ~1.6x better) — no complexity gap → the layout is validated and **MEM-B opens**; no stop-and-escalate. The decision is also in `bench-results/20261118-pilot-1/REPORT.md` and in the body of the closed issue.
 - **Judgement calls**: the pilot's external witness is OxiDD only (CUDD/Sylvan not in the campaigns, ADR-0102; the DDD/MDD pilot workloads have no stdin-protocol witness, so they are published as lisage-only lines with pinned semantic values — the falsification there is the pinned |R_n| / window node counts, not a cross-tool count).
 
-
-
-
-
 ## 2026-11-18 - MEM-6: published binary node of the BDD witness (issue #122)
 
 - **Issue**: #122 (MEM-6, milestone MEM-A) — binary node of the BDD witness (C6): const-generics instance `{level, low, high}` plus the CUDD complement bit; the binary family is the `Val(level) = 2` case of the port. Criteria: static `size_of` of the published binary node; C6 verified by cross-count against the CUDD witness; differential green.
 - **Done**: `crates/lisage-bench/src/temoin_bdd.rs` publishes `BinaryNode<const LEVEL: u32, const LOW: u32, const HIGH: u32>` — the three classic BDD node fields as const generics, the only runtime state being the CUDD-style complement bit (`new`, `level`/`low`/`high`, `is_complemented`, `negate`). Static size published as `BinaryNode::SIZE` and pinned by a const assertion (`size_of == 1` byte). `MiniBdd::binary_node::<LEVEL, LOW, HIGH>(index)` materializes a stored node as the published type when the runtime fields match the const generics. CI test `test_published_binary_node` (tests/temoins.rs) pins the size, the typed view and the C6 count on XOR-2 (3 internal + 2 terminals = 5). CUDD witness made cross-countable: `docker/cudd/cudd_count.c` now counts distinct (node, complement-bit) pairs, terminals included (the lisage convention — raw `Cudd_DagSize` shares nodes through complement edges and counts a single constant, so it is not comparable), and builds with variable l = bit l of the table index, variable 0 at the root, matching lisage; `docker/cudd/Dockerfile` fixed to install autotools/perl and run `autoreconf -fi` (the git checkout has no generated `configure`; the image previously did not build). New local differential `test_c6_local_witness_vs_cudd` (tests/cudd_local.rs, `#[ignore]` outside CI per ADR-0102) cross-counts the witness against real CUDD.
 - **Evidence**: `cargo test -p lisage-bench --test temoins` (2 passed: new pin + C6 arena-vs-witness PBT green), `cargo test -p lisage-bench --test cudd_local -- --ignored` against `lisage-cudd:latest` rebuilt from the fixed Dockerfile: 3 passed, 40/40 proptest cases + the asymmetric order pin — arena-vs-CUDD (previously failing on terminal counting), witness-vs-CUDD identical node counts, and the variable-order pin (asymmetric table [1,0,0,1,1,0,0,0] over n=3: 6 nodes, the reversed order would give 7 — verified by exhaustive enumeration over all 2^8 tables). `cargo test --workspace` 0 failures, `make test` (45 passed), `make lint`, `make typecheck`, `make imports`, `make english-only`, `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` all pass. Not run in CI: the Docker-based CUDD differential (`cudd_local` is `#[ignore]`d outside CI per ADR-0102) — it was run locally against the rebuilt image instead, as recorded above.
 - **Judgement calls**: the CUDD cross-count uses the lisage counting convention implemented in the witness binary (documented in `cudd_count.c`), because C6 "identical reproduction" in node count is only meaningful under one convention; the variable order was aligned (variable l = bit l, root = variable 0) since BDD size depends on the order. The Dockerfile fix (autotools + `autoreconf`) was required to build the witness image at all; it is included in this PR and called out in the PR body.
-
-
-
-
 
 ## 2026-11-18 - MEM-5: sorted run as arc storage (issue #121)
 
@@ -701,20 +491,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo test --workspace` (74 binaries, 0 failures), `make rust-check` (308 passed, 5 skipped), `make test` (45 passed), `make lint`, `make typecheck`, `make imports`, `make english-only` all pass. Not run: a counting-allocator test for the "one allocation per interning" criterion — a global counting allocator in a multi-threaded test binary is flaky; the single-allocation property holds by construction (one `collect` into the `Box` per interned form, plus at most one rebuild when R-default removes an arc).
 - **Judgement calls**: `ArcRun` keeps inherent `get`/`contains_key`/`values`/`keys` so read-only consumers (liseuse, tests) needed no trait import; the BTreeMap remains only as the builder-side accumulator, per the issue.
 
-
-
-
-
 ## 2026-11-18 - MEM-4: rank/unrank in KeyAlgebra (issue #120)
 
 - **Issue**: #120 (MEM-4, milestone MEM-A) — rank/unrank derived from the region enumeration required by the key contract; rank availability exposed to normalization; dense ordinal storage writes no code per controller.
 - **Done**: `KeyAlgebra` gains `rank(level, key) -> Option<u64>` and `unrank(level, rang) -> Option<Key>`, both defaulting to `None` — the absence of rank is properly declared for unbounded domains (DDD path unchanged), and the dense ordinal storage (MEM-B) needs no per-controller code. `SchemaKeys` (reference instance) and `BddKeys` implement them: on bounded domains the key IS the ordinal (`rank`/`unrank` bounded by `cardinality`). Doc note: rank availability is exposed to `normal_form`, which may encode keys by rank when it exists. PBT `crates/lisage-bench/tests/rank_unrank.rs`: round-trip `rank ∘ unrank` on bounded atom domains of the reference instance and on the BDD algebra, out-of-range `None` both directions, and declared absence on an unbounded algebra. Cites ADR-0103 (draft, #117).
 - **Evidence**: `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `make rust-check` (307 passed, 5 skipped, incl. the 3 new PBT cases), `make test` (45 passed), `make lint`, `make typecheck`, `make imports`, `make english-only`, `cargo doc -p lisage-algebra --no-deps` all pass.
 - **Judgement calls**: rank/unrank are implemented only for the bounded u64-domain algebras (reference instance, BDD); region/CDD/DBM keys keep the default `None` (their "regions" are not simple ordinals) — the criterion only demands the reference instance's bounded domains plus declared absence elsewhere.
-
-
-
-
 
 ## 2026-11-18 - MEM-3: ArcStore port in the lisage-algebra interface (issue #119)
 
@@ -723,19 +505,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo check --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `cargo test --workspace` (73 binaries, 0 failures), `make rust-check` (304 passed, 5 skipped), `make test` (45 passed), `make lint`, `make typecheck`, `make imports`, `make english-only`, `cargo doc -p lisage-algebra --no-deps` all pass. No behavior change: the differential A/B/C suite is part of the 304 passing tests. `core` still does not inspect `Val(ℓ)`, `δ` or `⊕` (untouched).
 - **Judgement calls**: the port is introduced with the BTreeMap as default instance and the collapse path already generic over the port; making `Form` itself generic over the store is deferred to MEM-5 (it would touch ~180 construction sites, over the ADR-0101 PR budget) — recorded here so the deferral is conscious.
 
-
-
-
-
 ## 2026-11-18 - MEM-2: English-only charter in AGENTS.md and the review checklist (issue #118)
 
 - **Issue**: #118 (MEM-2, milestone MEM-A) — amend AGENTS.md and the review checklist: new modules in English, French identifiers renamed incrementally (no big-bang, ADR-0101), review case "no new French identifier introduced".
 - **Done**: `AGENTS.md` style section gains the English-only charter line (new modules/identifiers in English, incremental renaming of remaining French identifiers, enforced by `make english-only`); `docs/review-checklist.md` section 2 gains the binary case "No new French identifier introduced (issues #110/#118); `make english-only` passes". The AGENTS.md/checklist edits are the explicit object of issue #118 (human directive), an authorized exception to the "no constitutional file" checklist rule.
 - **Evidence**: docs-only change. `make lint`, `make english-only` pass. `make typecheck`/`imports`/`test`/`rust-check` not re-run (no Python or Rust file in the diff).
 - **Judgement calls**: the issue text's carve-out "docs/ADRs/discussions stay in French" is superseded by M6 (issue #110): the repository is English-only everywhere, enforced by the `make english-only` lint over `docs/`, root Markdown and `crates/` — the charter states the post-M6 rule instead of the pre-M6 one.
-
-
-
 
 ## 2026-11-18 - MEM-1: ADR-0103 draft — arc storage port and per-controller-instance layouts (issue #117)
 
@@ -744,20 +519,12 @@ One entry per commit or pull request:
 - **Evidence**: docs-only change. `make lint`, `make english-only` pass; `make typecheck`/`imports`/`test`/`rust-check` not re-run (no Python or Rust file in the diff — docs only). Acceptance of the ADR itself is a human decision (draft status), not part of this PR's gates.
 - **Judgement calls**: the default bit split (4/8/20) is proposed as the sizing that MEM-13 (#129) will arbitrate — the ADR fixes the tripartition and the known sizing figures, not the final widths; the ADR is drafted in this PR per the escalation-list rule (ADR-worthy decisions are drafted in a PR, accepted by the human).
 
-
-
-
-
 ## 2026-11-18 - review bundle: elide data files from the reviewer's diff (no issue; human directive)
 
 - **Issue**: none — human directive ("if these files are not real application code, the reviewer should not see them; make sure this never happens again").
 - **Done**: `scripts/review.py` now elides data files from the DIFF section of the review bundle: any file whose extension is in `DATA_FILE_EXTENSIONS` (.pnml .cnf .jsonl .svg .png .jpg .jpeg .gif .pdf .zip .bin) is replaced by an explicit `### ELIDED FROM REVIEW ...` marker plus a `## ELIDED FILES` summary at the top of the section — elision is never silent. Code files are kept in full whatever their size (ADR-0010: the reviewer must see the whole diff of application code; the first version also elided oversized code files and the reviewer rejected it as BLOCKING). New `split_diff_sections` / `section_file_path` / `elide_data_files`; `render_bundle` applies it to the diff. Tests in `scripts/tests/test_review_bundle.py` (5 tests, incl. a `render_bundle` integration test and an oversized-code-file-kept test).
 - **Evidence**: verified on the real M7-4 diff (`git diff e7d732b~1..8c9c4d2`, 48 901 bytes): the three model files (`SwimmingPool-1.pnml` 148 lines, `erk-000001.pnml` 223 lines, `uf20-01.cnf` 105 lines) are elided with markers, code files untouched; and on the M7-5/M7-6 diff (`git diff 8c9c4d2..6aede65`, 52 845 bytes): the 6 campaign JSONL files elided. Gates: `make lint`, `make typecheck`, `make imports`, `make test` (44 passed, 94.76%), `make english-only`, `make rust-check` (302 passed, 5 skipped) all pass. No Rust file in the diff, so `cargo fmt`/`clippy` not re-run.
 - **Judgement calls**: elision is by data extension ONLY — the review finding showed that size-based elision of code files breaks ADR-0010 (the reviewer must judge the whole diff of application code); the marker names the file and the omitted line count so the reviewer knows what was skipped and can ask for it.
-
-
-
-
 
 ## 2026-11-17 - M7-6: comparative results report lisage vs OxiDD (issue #116)
 
@@ -766,20 +533,12 @@ One entry per commit or pull request:
 - **Evidence**: `make lint`, `make typecheck`, `make imports`, `make test` (40 passed, 94.76%), `make rust-check` (302 passed, 5 skipped), `make english-only` all pass. No Rust code changed in this PR (docs + deposited report only), so `cargo fmt`/`clippy` were not re-run — no Rust file in the diff.
 - **Judgement calls**: the report lives in `bench-results/20261117-campaign-1/` (next to the data it cites) rather than `docs/`, and is linked from both docs; CUDD/Sylvan are explicitly marked as not measured rather than silently omitted.
 
-
-
-
-
 ## 2026-11-17 - M7-5: benchmark campaign runner + deposited results lisage vs OxiDD (issue #115)
 
 - **Issue**: #115 (M7-5, milestone M7) — run the comparative campaign on the M7-4 charges, time AND memory, per the ADR-0102 protocol.
 - **Done**: new orchestrator `scripts/bench_confrontation.py` (`python -m scripts bench-confrontation`, `make bench-confrontation`, ADR-0021 wiring): each charge x tool x repetition runs as a **fresh process** (fresh Docker container for OxiDD), raw JSONL deposited in `bench-results/<run-id>/`, aggregates (median/min/max) in `aggregats.json`, cross-tool divergence check on `noeuds`/`verifie` (exit 1 on divergence). The witnesses receive the exact charge serialized by lisage (`confrontation dump-charge <workload> <path>`, new binary mode backed by the new pub `serialiser_charge_depuis_fichier`). `oxidd_count` now emits the full protocol JSONL line (`temps_ms`, `rss_max_ko`, `noeuds`, `verifie`) with manager init outside the measured block (variables pre-declared up to 24). In `confrontation.rs` the measured block of the `cnf`/`pnml` workloads now includes input reading (protocol alignment). Protocol documented in `docs/bench-confrontation-witnesses-and-measures.md`. Campaign `20261117-campaign-1` deposited in `bench-results/` (5 repetitions, 3 charges x 2 tools, zero divergences; cross-checks identical across tools: 51/8, 1859/1408, 9721/8672), reproduction command in its README.
 - **Evidence**: campaign run locally, exit 0, `divergences: []`; medians — cnf-uf20-01: lisage 355.4 ms / 5 388 ko vs OxiDD 88.7 ms / 52 692 ko; pnml-swimmingpool-1: 85.6 ms / 4 204 ko vs 24.5 ms / 32 060 ko; pnml-erk-000001: 1 348.6 ms / 19 768 ko vs 353.9 ms / 135 720 ko. Gates: `make lint`, `make typecheck`, `make imports`, `make test` (39 passed, 94.76%), `make english-only`, `make rust-check` (301 passed, 5 skipped), `cargo fmt --check`, `cargo clippy -p lisage-bench --all-targets -- -D warnings` all pass. Not run in CI by design (ADR-0102: Docker witnesses are local only).
 - **Judgement calls**: the campaign normalizes the `charge` field to the charge label uniformly across tools (the binary reports the workload label) — the cross-check caught this inconsistency on the first run and it was fixed before depositing. The `philosophers` workload is not part of the campaign (toy-scale states file, documented in #114).
-
-
-
-
 
 ## 2026-11-17 - M7-4: real non-toy benchmark charges for all witnesses (issue #114)
 
@@ -788,20 +547,12 @@ One entry per commit or pull request:
 - **Evidence**: cross-checked against the real OxiDD container on the serialized charges: `oxidd_count` returns 51 (uf20-01) and 1859 (SwimmingPool-1), identical to lisage `count_nodes`. `cargo test --workspace`: 72 test binaries, 0 failures (300 tests in `make rust-check`, 5 skipped); `make lint`, `make typecheck`, `make imports`, `make test` (34 passed, 94.76%), `make english-only`, `cargo fmt --check`, `cargo clippy -p lisage-bench --all-targets -- -D warnings` all pass. Not run: the `#[ignore]`d ERK pin in CI (by design, heavy); the CUDD witness on the new charges (pre-existing terminal-counting divergence, out of scope).
 - **Judgement calls**: all charges serialize as truth tables in the existing stdin protocol, so `cudd_count`/`oxidd_count` needed no protocol change — only the capacity bump. The MCC `Philosophers-2.pnml` file was rejected (it references undeclared nodes 3..5 — dangling arcs, invalid PNML); ERK-PT-000001 replaced it as the heavy third charge. The `philosophers` workload stays toy-scale (explicit states file); realistic n=50–200 needs a symbolic transducer, not available — documented limitation.
 
-
-
-
-
 ## 2026-11-17 - M7-3: three-way differential harness lisage / mini-BDD / OxiDD (issue #113)
 
 - **Issue**: #113 (M7-3, milestone M7) — extend the local OxiDD differential harness.
 - **Done**: `crates/lisage-bench/tests/oxidd_local.rs` (created in #112) now asserts three-way equality on random truth tables: lisage arena `count_nodes` == internal mini-BDD `temoin_bdd::MiniBdd::count_nodes` == `oxidd_count` in the `lisage-oxidd` container. Still `#[ignore]`d, outside `make check`; run manually with `cargo test -p lisage-bench --test oxidd_local -- --ignored`.
 - **Evidence**: the ignored test passes 20/20 proptest cases with Docker available (arena == mini-BDD == OxiDD, zero discrepancy); `cargo test -p lisage-bench` without `--ignored` does not run it (0 tests in that target); `make lint`, `make typecheck`, `make imports`, `make test` (34 passed, 94.76%), `make english-only`, `cargo fmt --check`, `cargo clippy -p lisage-bench --all-targets -- -D warnings` all pass.
 - **Judgement calls**: no change needed in the `confrontation.rs` harness — the `alea-lcg` workload already serializes the same truth-table charge and checks C6 internally against the mini-BDD; the OxiDD container consumes the same stdin format.
-
-
-
-
 
 ## 2026-11-17 - M7-2: local Docker witness for OxiDD (issue #112)
 
@@ -810,20 +561,12 @@ One entry per commit or pull request:
 - **Evidence**: `docker build -t lisage-oxidd:latest docker/oxidd` succeeds; `docker run --rm -i lisage-oxidd:latest oxidd_count` returns 5 (XOR n=2), 1 (constant), 6 (n=3 sample) — identical to lisage `count_nodes`. The paired `#[ignore]`d differential `crates/lisage-bench/tests/oxidd_local.rs` (ADR-0102 pattern, outside CI) passes against the real container: `cargo test -p lisage-bench --test oxidd_local -- --ignored` 20/20 proptest cases, lisage == OxiDD. `make lint`, `make typecheck`, `make imports`, `make test`, `make english-only`, `cargo fmt --check`, `cargo clippy -p lisage-bench --all-targets -- -D warnings` pass. Note: the pre-existing `cudd_local` differential (lisage vs CUDD) currently fails on terminal counting (lisage counts terminals, CUDD DagSize does not) — pre-existing, out of scope here; oxidd_count follows the lisage convention.
 - **Judgement calls**: OxiDD API at the pinned SHA uses `ManagerRef` + shared/exclusive locks (building inside `with_manager_exclusive` deadlocks — operations take the shared lock); constants are `BDDFunction::t/f`.
 
-
-
-
-
 ## 2026-11-17 - M7-1: OxiDD added to the state of the art (issue #111)
 
 - **Issue**: #111 (M7-1, milestone M7) — integrate OxiDD into the state-of-the-art document.
 - **Done**: `docs/state-of-the-art-decision-diagrams.md` (the file was renamed from its French name during M6): new dedicated subsection under §2 (libraries axis, next to CUDD/BuDDy/Sylvan/Meddly/libDDD), new row in the §7 comparison table, updated open-niche synthesis (parallelism axis now also covered by OxiDD in Rust), and two §11 references — the TACAS 2024 paper (DOI 10.1007/978-3-031-57256-2_13, verified on the authors' publication page) and the GitHub repo (MIT OR Apache-2.0, verified on the repo/PyPI). All factual claims sourced; no invented DOI. Author name transliterated `Köhl`→`Koehl` to satisfy the English-only lint.
 - **Evidence**: `make english-only` passes; `make lint`, `make typecheck`, `make imports`, `make test` pass. Rust gates not run on this branch — the diff touches no Rust file.
 - **Judgement calls**: the issue text references the old French filename; the current English filename was used.
-
-
-
-
 
 ## 2026-11-17 - M6-7: English-only lint in make check (issue #110)
 
@@ -833,19 +576,12 @@ One entry per commit or pull request:
 - **Judgement calls**: WORKLOG.md exempted from the lint rather than translated — its header forbids rewriting past entries (honesty rule); the lint enforces English-only for all new content.
 - **Escalations**: lint/CI configuration and constitutional docs are on the ADR-0010 escalation list — the human authorized both in the session directive ("Termine la M6 et merge daily; traduis tous les documents et ajoute le lint English-only").
 
-
-
-
-
 ## 2026-11-14 - M6-6 part 31 (final): articles `un`/`une`/`deux`/`la`/`et` renamed to `one`/`two`/`level_a`/`_and_`, remaining French prose comments translated (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6) — final identifier batch.
 - **Done**: renames `un`→`one` (incl. `Pli::un()`), `une`→`one` (incl. `EffetMemory::one()`), `deux`→`two`, pattern bindings `la`/`lb`→`level_a`/`level_b`, `_et_`→`_and_` in test names (32 occurrences), workspace-wide (31 files). The last French prose comments translated to English (lib.rs crate doc, confrontation bin usage, bdd.rs/region.rs/schema.rs/cdd.rs comments). Accent grep over crates/**/*.rs now returns 0.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
 - **Judgement calls**: `la`/`lb` level bindings mapped to `level_a`/`level_b`.
-
-
-
 
 ## 2026-11-14 - M6-6 part 30: `nom`/`piste`/`fiche`/`royaume`/`contenu`/`taux`/`predit`/`ancien`/`lire`/`ecrire`/`boite`/`atelier`/`fantome`/`dossier`/`cellule` renamed to `name`/`track`/`card`/`kingdom`/`content`/`rate`/`predicted`/`old`/`read`/`write`/`box`/`workshop`/`ghost`/`directory`/`cell` (issue #108)
 
@@ -854,18 +590,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
 - **Judgement calls**: `ancien`/`ancienne`→`old`; `boite`→`box` with the `full_box` helper rename.
 
-
-
-
 ## 2026-11-14 - M6-6 part 29: `cible` renamed to `target` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: rename `cible(s)`→`target(s)` (all cases, compounds included), workspace-wide (29 files), per glossary.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stem returns 0.
 - **Judgement calls**: none beyond the glossary mapping.
-
-
-
 
 ## 2026-11-14 - M6-6 part 28: `collecte`/`collecteur`/`collecter`/`variante`/`outil` renamed to `collect`/`collected`/`collector`/`variant`/`tool`, wire keys protected (issue #108)
 
@@ -874,18 +604,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns only the protected wire literals.
 - **Judgement calls**: `collectes` (GC collected count) mapped to `collected`.
 
-
-
-
 ## 2026-11-14 - M6-6 part 27: `poids`/`profondeur`/`morts`/`orphelin`/`marqueur`/`seuil`/`fusion`/`garde`/`philosophes` renamed to `weight`/`depth`/`dead`/`orphan`/`marker`/`threshold`/`merge`/`guardrail`/`philosophers` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames `poids`→`weight`, `profondeur`→`depth`, `morts`→`dead`, `orphelin(s)`→`orphan(s)`, `marqueur`→`marker`, `seuil`→`threshold`, `fusion`→`merge`, `garde_fou`→`guardrail`, `garde`→`guard`, `philosophes`→`philosophers` (all cases, compounds included), workspace-wide (31 files), per glossary. Module/test files git-mv'd: `philosophes.rs`→`philosophers.rs` (src+tests), `philosophes_bench.rs`→`philosophers_bench.rs`, `atelier_philosophes.rs`→`atelier_philosophers.rs`; the committed figure `bench-results/philosophes-n5.svg`→`philosophers-n5.svg` to match the renamed path string. `test_filtre_garde`→`test_filter_guard` and `VerdictGardeFou`→`VerdictGuardrail` completed after the first pass (underscore-less compounds).
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
 - **Judgement calls**: `fusion`→`merge` per glossary (local `let merge = ...` shadowing is legal Rust); `garde_fou`→`guardrail`.
-
-
-
 
 ## 2026-11-14 - M6-6 part 26: `canal`/`canaux` renamed to `channel`/`channels`, wire key `canal` protected (issue #108)
 
@@ -894,18 +618,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stem returns only the 3 protected wire literals.
 - **Judgement calls**: none beyond the glossary mapping.
 
-
-
-
 ## 2026-11-14 - M6-6 part 25: `enfant`/`attribut`/`vue`/`classe`/`voie`/`pas` renamed to `child`/`attribute`/`view`/`class`/`lane`/`step`, module files renamed (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames `enfant(s)`→`child(ren)`, `attribut(s)`→`attribute(s)`, `vue(s)`→`view(s)`, `classe`→`class`, `voie(s)`→`lane(s)`, `pas`→`step` (all cases, compounds included), workspace-wide (28 files), per glossary. Module files git-mv'd: `vue_memory.rs`/`vue_order.rs`→`view_memory.rs`/`view_order.rs`, `pas_a_pas.rs`→`step_by_step.rs` (src + tests). Collision guards: `attribute`/`attribution`/`classes` protected with negative lookaheads; `pas_a_pas`→`step_by_step` before the word-boundary `pas`→`step` so `pass`/`passes`/`passage` are untouched.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
 - **Judgement calls**: `voie` mapped to `lane` per glossary.
-
-
-
 
 ## 2026-11-14 - M6-6 part 24: `politique`/`groupe`/`somme`/`chemin`/`liste`/`intervalle`/`espace` renamed to `policy`/`group`/`sum`/`path`/`list`/`interval`/`space` (issue #108)
 
@@ -914,18 +632,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns only `grouped`/`listed`.
 - **Judgement calls**: none beyond the glossary mapping.
 
-
-
-
 ## 2026-11-14 - M6-6 part 23: `forme`/`pile`/`largeur`/`charge`/`hauteur` renamed to `form`/`stack`/`width`/`workload`/`height`, wire key `charge` protected (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames `forme`→`form`, `pile`→`stack`, `largeur`→`width`, `charge`→`workload`, `hauteur`→`height` (all cases, compounds included), workspace-wide (44 files), per glossary. Collision guards: `conforme`→`conforming` first (so `est_conforme` is not corrupted), `pile` renamed with a negative lookbehind `(?<!m)` so `compiler`/`compiled`/`decompiler` are untouched, and the bench JSON wire key `\"charge\"` restored in `lisage-bench/src/confrontation.rs` and its test pins. After review: `forme` inside English `malformed`/`performed` repaired (`malformd`→`malformed`, `performd`→`performed`, `XmlMalForm`→`XmlMalformed`), and the pinned-key doc comment restored to `charge`.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns only English words containing them (compiler, performed) and the protected wire key.
 - **Judgement calls**: `charge` mapped to `workload` per the glossary bench entry.
-
-
-
 
 ## 2026-11-14 - M6-6 part 22: `rapport`/`erreur` renamed to `report`/`error` (issue #108)
 
@@ -934,18 +646,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
 - **Judgement calls**: none beyond the glossary mapping.
 
-
-
-
 ## 2026-11-14 - M6-6 part 21: `ensemble` renamed to `set` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: rename `ensemble`→`set` (all cases, compounds included), workspace-wide (25 files), per glossary.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stem returns 0.
 - **Judgement calls**: none beyond the glossary mapping.
-
-
-
 
 ## 2026-11-14 - M6-6 part 20: `avec`/`vide`/`sans` renamed to `with`/`empty`/`without` (issue #108)
 
@@ -954,18 +660,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0 (excluding English words containing `vide`).
 - **Judgement calls**: none beyond the glossary mapping.
 
-
-
-
 ## 2026-11-14 - M6-6 part 19: `vivants`/`contient`/`etiquette` renamed to `live`/`contains`/`label`, wire key `vivants` protected (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames `vivants`→`live`, `contient`→`contains`, `etiquette`→`label` (all cases, compounds included), workspace-wide (31 files), per glossary. The JSONL v2 wire key `\"vivants\"` is contract and was restored after the blanket pass in `lisage-liseuse/src/trace.rs` (format string now `\"vivants\":{live}`) and the test pin in `lisage-liseuse/tests/pas_a_pas.rs`.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns only the two protected wire literals (`vivantes_avant`→`live_before` fixed after review).
 - **Judgement calls**: `etiquette` mapped to `label` (no git-tag usage found in crates/); feminine `vivante(s)` also mapped to `live`.
-
-
-
 
 ## 2026-11-14 - M6-6 part 18: `compter`/`compte`/`reduire`/`couverture`/`evaluer` renamed to `count`/`reduce`/`coverage`/`evaluate` (issue #108)
 
@@ -974,18 +674,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
 - **Judgement calls**: `count_pli` alias to disambiguate from the pre-existing English `interpreter::count`.
 
-
-
-
 ## 2026-11-14 - M6-6 part 17: `fenetre`/`construire`/`borne` renamed to `window`/`build`/`bound` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames `fenetre`→`window`, `construire`→`build`, `borne`→`bound` (all cases, compounds included), workspace-wide (27 files), per glossary. `bornee`→`bounded` handled first so no `boundee` artifact; `construction` is already English and untouched.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
 - **Judgement calls**: `borne_sup`/`borne_inf` become `bound_sup`/`bound_inf` (mechanical; sup/inf are separate stems).
-
-
-
 
 ## 2026-11-14 - M6-6 part 16: `nombre` renamed to `number` (issue #108)
 
@@ -994,18 +688,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stem returns 0.
 - **Judgement calls**: none beyond the glossary mapping.
 
-
-
-
 ## 2026-11-14 - M6-6 part 15: `ordre` renamed to `order`, module files renamed (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: rename `ordre`→`order` (all cases, compounds included), workspace-wide (16 files), per glossary; module files git-mv'd: `lisage-plan/src/ordre.rs`→`order.rs`, `lisage-plan/tests/ordre.rs`→`order.rs`, `lisage-liseuse/src/vue_ordre.rs`→`vue_order.rs`, `lisage-liseuse/tests/vue_ordre.rs`→`vue_order.rs`; `mod` declarations updated by the same pass.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stem returns 0.
 - **Judgement calls**: none beyond the glossary mapping.
-
-
-
 
 ## 2026-11-14 - M6-6 part 14: `cardinal`/`cardinalite`/`premier`/`dernier`/`meme` renamed to `cardinality`/`first`/`last`/`same` (issue #108)
 
@@ -1014,18 +702,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; residual grep for the stems returns 0.
 - **Judgement calls**: `meme` is not in the glossary; mapped to `same` as the direct translation.
 
-
-
-
 ## 2026-11-14 - M6-6 part 13: `ancre`/`graine`/`autre` renamed to `anchor`/`seed`/`other` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames `ancre`→`anchor`, `graine`→`seed`, `autre`→`other` (all cases, compounds included), workspace-wide (42 files), per glossary. One parameter collision fixed by hand (`construire_fenetre_ancree` had both `anchor: Anchor` and `ancre: &AnchorFenetre`; the latter is now `window_anchor`). Split from the larger part-13 batch to stay under the PR size budget.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; word-boundary grep for the stems returns 0.
 - **Judgement calls**: none beyond the glossary mapping.
-
-
-
 
 ## 2026-11-14 - M6-6 part 12: `resultat`/`attendu`/`suivant` renamed to `result`/`expected`/`next` (issue #108)
 
@@ -1034,18 +716,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for the three stems returns 0.
 - **Judgement calls**: French plural forms `attendus`/`attendues` mapped to `expected_list`/`expected_f` to keep distinct bindings distinct.
 
-
-
-
 ## 2026-11-14 - M6-6 part 11: `memoire`/`observateur`/`reseau` renamed to `memory`/`observer`/`network` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames every `memoire`/`observateur`/`reseau` stem (lowercase, CamelCase, UPPER_CASE, plurals) to `memory`/`observer`/`network`, workspace-wide (33 files), per glossary, including module file renames (`src/memoire.rs` → `src/memory.rs`, `src/vue_memoire.rs` → `src/vue_memory.rs`, plus the three test files) and the `mod` declarations. The JSONL v2 wire value `"memoire"` (canal name in trace.rs and its pinned test copy) is protected and stays French (contract).
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for the three stems outside the wire literal returns 0.
 - **Judgement calls**: wire canal value `"memoire"` kept (contract); module files renamed with `git mv` so history follows.
-
-
-
 
 ## 2026-11-14 - M6-6 part 10: `niveau`/`mesure` identifiers renamed to `level`/`measure` (issue #108)
 
@@ -1054,18 +730,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for niveau|mesure|mesurer returns 0.
 - **Judgement calls**: `mesurer` → `measure` (glossary: mesurer → measure); no wire literals involved.
 
-
-
-
 ## 2026-11-14 - M6-6 part 9: `domaine`/`taille` identifiers renamed to `domain`/`size` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames every `domaine`/`Domaine`/`DOMAINE` and `taille`/`Taille`/`TAILLE` stem and compound (domaines, taille_domaine, TAILLE_DOMAINE, DomaineA…) to `domain`/`Domain`/`DOMAIN` and `size`/`Size`/`SIZE`, workspace-wide (60 files), per glossary (domaine → domain, taille → size). The bench JSON wire key `"taille"` (plain and escaped literals in confrontation.rs src+tests) is protected and stays French (contract).
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for domaine|taille outside the wire literal returns 0.
 - **Judgement calls**: wire key `"taille"` restored in both the serializer and the pinned test after the blanket rename hit plain string literals too.
-
-
-
 
 ## 2026-11-14 - M6-6 part 8: `cle`/`cles`/`clef` identifiers renamed to `key`/`keys` (issue #108)
 
@@ -1074,18 +744,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; grep for the cle stems returns 0.
 - **Judgement calls**: `clef` → `key` (not `keyf`); compounds renamed in a second pass after the first missed `cles_*` files.
 
-
-
-
 ## 2026-11-14 - M6-6 part 7: `valeur` identifiers renamed to `value` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames every `valeur`/`Valeur`/`VALEUR` stem and compound (valeurs, domaine_valeurs, node_valeur, niveau_valeur…) to `value`/`Value`/`VALUE`, workspace-wide (49 files), per glossary (valeur → value). The JSONL v2 wire literals `\"valeur\"`/`\"valeurs\"` in trace.rs and their pinned test copies are protected and stay French (contract).
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for `valeur` outside wire literals returns 0.
 - **Judgement calls**: wire literals protected via placeholder before the blanket rename, restored after.
-
-
-
 
 ## 2026-11-14 - M6-6 part 6: `noeud` identifiers renamed to `node` (issue #108)
 
@@ -1094,18 +758,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for `noeud` returns 0.
 - **Judgement calls**: blanket stem rename, collisions resolved by renaming the shadowing binding (`node2`) rather than reverting.
 
-
-
-
 ## 2026-11-14 - M6-6 part 5: `entree`/`sortie` identifiers renamed to `input`/`output` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames every `entree`/`sortie` stem (bare words, `entrees`, `entree_*`/`sortie_*` compounds, `*_entree`/`*_sortie` suffixes, plus `PoolSortie` → `PoolOutput`, `EntreeInvalide` → `InvalidInput`, `EntreeNoeud` → `NodeEntry`, `noeud_entree` → `node_input`) to `input`/`output`, workspace-wide (38 files), per glossary (entrée/sortie → input/output).
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; case-insensitive grep for `entree|sortie` returns 0.
 - **Judgement calls**: `EntreeNoeud` → `NodeEntry` (node table entry), `EntreeInvalide` → `InvalidInput` (typed error variant).
-
-
-
 
 ## 2026-11-14 - M6-6 part 4: `racine` identifiers renamed to `root` (issue #108)
 
@@ -1114,18 +772,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
 - **Judgement calls**: prefix/suffix compounds renamed in the same pass so no `racine` stem survives a grep.
 
-
-
-
 ## 2026-11-14 - M6-6 part 3: `nouveau` constructors renamed to `new` (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames every `nouveau` identifier (public constructors `Domaine::nouveau`, `Cdd::nouveau`, `CddController::nouveau`, `Region::nouveau`, `Dbm::nouveau`, `Atelier…::nouveau`, plus local variables) to `new`, workspace-wide (53 files). No type had both `new` and `nouveau`, so no collision.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
 - **Judgement calls**: `nouveau` → `new` per glossary (construire → build/constructor); `nouvelle` was already renamed in part 2.
-
-
-
 
 ## 2026-11-14 - M6-6 part 2: lisage-algebra public API renamed to English (issue #108)
 
@@ -1134,18 +786,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
 - **Judgement calls**: `Aucune` → `NoMemory` (not `None`, to avoid clashing with `Option::None`); `ArcEntree` → `InputArc` per glossary "arc d'entrée → input edge".
 
-
-
-
 ## 2026-11-14 - M6-6 part 1: CanalAttr variants renamed to English (issue #108)
 
 - **Issue**: #108 (M6-6, milestone M6).
 - **Done**: renames the public enum variants `CanalAttr::Herite` → `CanalAttr::Inherited`, `CanalAttr::Synthétise` → `CanalAttr::Synthesized`, `CanalAttr::Memoire` → `CanalAttr::Memory` (glossary M6-1), with all 42 `CanalAttr::…` use sites and the doc comments updated workspace-wide (14 files across lisage-core, lisage-liseuse, lisage-bench). The JSONL v2 wire strings `herite`/`synthetise`/`memoire` are contract and stay French.
 - **Evidence**: `cargo build --workspace` passes; `cargo test --workspace` 293 passed, 0 failed; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
 - **Judgement calls**: variant names follow the glossary adjectives already used in the doc comments (Inherited/Synthesized) and `Memory` for level memory; wire strings untouched.
-
-
-
 
 ## 2026-11-14 - M6-5 part 4a-5: lisage-core relatif tests translated to English (PR #205, issue #108)
 
@@ -1154,18 +800,12 @@ One entry per commit or pull request:
 - **Evidence**: `cargo fmt -p lisage-core -- --check` clean; `cargo test -p lisage-core` 146 passed, 0 failed. Full-workspace `make check` not run on this branch (crate-scoped gates only); it runs on `daily` after all M6-5 pull requests merge.
 - **Judgement calls**: comments/strings translated now, identifier renames deferred to M6-6.
 
-
-
-
 ## 2026-11-14 - M6-5 part 4a-4: lisage-core cdd+dabs translated to English (PR #204, issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
 - **Done**: translates comments, doc-comments and string literals in `crates/lisage-core/src/cdd.rs`, `crates/lisage-core/tests/cdd.rs` and `crates/lisage-core/tests/dabs.rs` to English. Public French identifiers are kept until dependent crates are translated (M6-6).
 - **Evidence**: `cargo fmt -p lisage-core -- --check` clean; `cargo test -p lisage-core` 146 passed, 0 failed. Full-workspace `make check` not run on this branch (crate-scoped gates only); it runs on `daily` after all M6-5 pull requests merge.
 - **Judgement calls**: comments/strings translated now, identifier renames deferred to M6-6.
-
-
-
 
 ## 2026-11-14 - M6-5 part 4a-3: lisage-core transduction+transfert translated to English (PR #203, issue #108)
 
@@ -1174,9 +814,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo check -p lisage-core --tests` passes; `cargo test -p lisage-core` 146 passed, 0 failed; CI green on PR #203; review 0 BLOCKING after this WORKLOG entry was added.
 - **Judgement calls**: split of the original part 4a into five sub-parts (4a-1..4a-5) because the reviewer session hits its turn limit on diffs over ~500 lines.
 
-
-
-
 ## 2026-11-14 - M6-5 misc: last accents outside the open PRs (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
@@ -1184,18 +821,12 @@ One entry per commit or pull request:
 - **Evidence**: accent grep over `crates/` shows only PR-covered files + `Synthétise`; `cargo test -p lisage-core --test integrale --test integrale_dbm` ok (14 passed); `cargo fmt -- --check` clean on the touched crates.
 - **Judgement calls**: test function names are local, renamed; public identifiers still deferred.
 
-
-
-
 ## 2026-11-14 - M6-5 liseuse part 1: lisage-liseuse src+tests translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
 - **Done**: translates comments, doc-comments and string literals in all of `crates/lisage-liseuse/` — src (vue_ordre, pas_a_pas, vue_memoire, publication, philosophes, trace, svg) and tests (vue_ordre, pas_a_pas, philosophes, vue_memoire, liseuse_v0, publication, atelier_philosophes). SVG label literals translated in src and pinned copies updated in tests in sync (`D^def`, `convert … (cost …)`, `step by step — position …`, `memory and quotient view`, `alive=/dead=`, legend keys `inherited`/`synthesized`/`memory`/`ghost`, `inherited (φ_disp)` etc.); JSONL v2 wire field names (`canal`, `noeud`, `valeur`, `vivants`…) kept as contract. `bench-results/philosophes-n5.svg` regenerated for the new SVG title `diagram (levels = keys)`.
 - **Evidence**: accent grep returns 0 across `crates/lisage-liseuse/` except the kept `Synthétise` identifier; `cargo check -p lisage-liseuse --tests` passes; `cargo test -p lisage-liseuse` all 8 suites ok (29 passed, 0 failed); `cargo fmt -p lisage-liseuse -- --check` clean. Full-workspace `make check` not run at this stage (crate-scoped gates only); it is run after all M6-5 pull requests merge into `daily`.
 - **Judgement calls**: comments/strings translated now, public identifiers deferred; JSONL wire contract untouched.
-
-
-
 
 ## 2026-11-14 - M6-5 bench part 2: lisage-bench tests+benches translated to English (issue #108)
 
@@ -1205,10 +836,6 @@ One entry per commit or pull request:
 - **Judgement calls**: comments/strings translated now, public identifiers deferred.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-14 - M6-5 bench part 1: lisage-bench src translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
@@ -1216,10 +843,6 @@ One entry per commit or pull request:
 - **Evidence**: accent grep returns 0 across `crates/lisage-bench/src/` except the kept `Synthétise` identifier; `cargo check -p lisage-bench --tests` passes; `cargo test -p lisage-bench` all 24 test suites pass; `cargo fmt -p lisage-bench -- --check` clean. Remaining French in `tests/` and `benches/` is the next part.
 - **Judgement calls**: comments/strings translated now, public identifiers deferred; the CLI usage line was translated as a string literal, pinned test updated accordingly.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-14 - M6-5 backend: lisage-backend translated to English (issue #108)
 
@@ -1229,10 +852,6 @@ One entry per commit or pull request:
 - **Judgement calls**: none.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-14 - M6-5 part 4a-11: lisage-core atelier leftover translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
@@ -1241,19 +860,12 @@ One entry per commit or pull request:
 - **Judgement calls**: none.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-14 - M6-5 part 4a-10 review fix: revert local variable renames in tests/biplan.rs (issue #108)
 
 - **Issue**: #108 (M6-5). Review of PR #212 reported 1 BLOCKING: local identifiers (`partage`, `metriques`, `meme`, `partages`, `taux`, `attendu`, `premier`, `vivantes_avant`) were renamed in `tests/biplan.rs`, outside the comments/strings-only scope.
 - **Done**: reverts those local variable renames to their French names; comments and string literals stay translated. Identifiers are M6-6 scope.
 - **Evidence**: `cargo test -p lisage-core --test biplan` ok (7 passed); `cargo fmt -p lisage-core -- --check` clean.
 - **Judgement calls**: none.
-
-
-
 
 ## 2026-11-14 - M6-5 part 4a-10: lisage-core biplan+bdd+error+lib+interface tests translated to English (issue #108)
 
@@ -1263,10 +875,6 @@ One entry per commit or pull request:
 - **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-14 - M6-5 part 4a-9: lisage-core memoire+region+add+ddd translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
@@ -1274,10 +882,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo check -p lisage-core --tests` passes; `cargo test -p lisage-core` all 25 test suites pass; `cargo fmt -p lisage-core -- --check` clean after fmt. Full `make check` deferred to the last part.
 - **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-14 - M6-5 part 4a-8: lisage-core arena+observer+lookup translated to English (issue #108)
 
@@ -1287,19 +891,12 @@ One entry per commit or pull request:
 - **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-14 - M6-5 part 4a-6 review fix: revert local renames + translate mesure= strings (issue #108)
 
 - **Issue**: #108 (M6-5). Review of PR #208 reported 2 BLOCKING findings.
 - **Done**: reverts the local identifier renames in `saturate.rs` (`input_node`/`node` → `noeud_entree`/`noeud`, comments stay translated — identifiers are M6-6 scope); translates the unaccented French string literals `mesure={total}` / `mesure_memo={total}` in `src/integrale.rs` to `measure=` / `measure_memo=` and updates the pinned copies in `tests/integrale.rs` / `tests/integrale_dbm.rs`.
 - **Evidence**: `cargo test -p lisage-core --test integrale --test integrale_dbm --test saturate` ok (18 passed); `cargo fmt -p lisage-core -- --check` clean; grep `mesure=` returns nothing outside kept identifiers.
 - **Judgement calls**: unaccented French strings are invisible to the accent grep — the reviewer catches them; JSONL wire fields (`noeud`, `valeur`…) stay French as contract.
-
-
-
 
 ## 2026-11-14 - M6-5 part 4a-7: lisage-core operations+pli translated to English (issue #108)
 
@@ -1309,10 +906,6 @@ One entry per commit or pull request:
 - **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-14 - M6-5 part 4a-6: lisage-core saturate+integrale translated to English (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
@@ -1320,10 +913,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo check -p lisage-core --tests` passes; `cargo test -p lisage-core` all tests pass; `cargo fmt -p lisage-core -- --check` clean after fmt. Full `make check` deferred to the last part.
 - **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-14 - M6-3 docs part 1/8: specification translated to English (issue #106)
 
@@ -1333,12 +922,6 @@ One entry per commit or pull request:
 - **Judgement calls**: none beyond the split itself.
 - **Escalations**: none.
 
-
-
-
-
-
-
 ## 2026-11-14 - M6-3 docs part 2/8: proposal translated to English (issue #106)
 
 - **Issue**: #106 (M6-3, milestone M6).
@@ -1346,13 +929,6 @@ One entry per commit or pull request:
 - **Evidence**: accent grep returns 0 on every added file; old-filename grep returns nothing outside `docs/audit-french-inventory.md`, `docs/glossary.md` and `WORKLOG.md` (intentional). `make check` not run: docs-only change, no code touched.
 - **Judgement calls**: none beyond the split itself.
 - **Escalations**: none.
-
-
-
-
-
-
-
 
 ## 2026-11-14 - M6-3 docs part 3/8: state of the art translated to English (issue #106)
 
@@ -1362,12 +938,6 @@ One entry per commit or pull request:
 - **Judgement calls**: none beyond the split itself.
 - **Escalations**: none.
 
-
-
-
-
-
-
 ## 2026-11-14 - M6-3 docs part 4/8: golden-thread example (philosophers) translated (issue #106)
 
 - **Issue**: #106 (M6-3, milestone M6).
@@ -1375,11 +945,6 @@ One entry per commit or pull request:
 - **Evidence**: accent grep returns 0 on every added file; old-filename grep returns nothing outside `docs/audit-french-inventory.md`, `docs/glossary.md` and `WORKLOG.md` (intentional). `make check` not run: docs-only change, no code touched.
 - **Judgement calls**: none beyond the split itself.
 - **Escalations**: none.
-
-
-
-
-
 
 ## 2026-11-14 - M6-3 docs part 5/8: two critical analyses translated (issue #106)
 
@@ -1389,13 +954,6 @@ One entry per commit or pull request:
 - **Judgement calls**: none beyond the split itself.
 - **Escalations**: none.
 
-
-
-
-
-
-
-
 ## 2026-11-14 - M6-3 docs part 6/8: sliding-window example + reader translated (issue #106)
 
 - **Issue**: #106 (M6-3, milestone M6).
@@ -1403,11 +961,6 @@ One entry per commit or pull request:
 - **Evidence**: accent grep returns 0 on every added file; old-filename grep returns nothing outside `docs/audit-french-inventory.md`, `docs/glossary.md` and `WORKLOG.md` (intentional). `make check` not run: docs-only change, no code touched.
 - **Judgement calls**: none beyond the split itself.
 - **Escalations**: none.
-
-
-
-
-
 
 ## 2026-11-14 - M6-3 docs part 8/8: roadmap translated + doc paths in crates comments (issue #106)
 
@@ -1417,11 +970,6 @@ One entry per commit or pull request:
 - **Judgement calls**: none beyond the split itself.
 - **Escalations**: none.
 
-
-
-
-
-
 ## 2026-11-14 - M6-3 docs part 7/8: spike translated + philosophers SVG in English (issue #106)
 
 - **Issue**: #106 (M6-3, milestone M6).
@@ -1429,10 +977,6 @@ One entry per commit or pull request:
 - **Evidence**: accent grep returns 0 on every added file; old-filename grep returns nothing outside `docs/audit-french-inventory.md`, `docs/glossary.md` and `WORKLOG.md` (intentional). `make check` not run: docs-only change, no code touched.
 - **Judgement calls**: none beyond the split itself.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-14 - M6-5 crates/ translated to English, part 3: lisage-plan (issue #108)
 
@@ -1442,10 +986,6 @@ One entry per commit or pull request:
 - **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-14 - M6-5 crates/ translated to English, part 2: lisage-algebra (issue #108)
 
 - **Issue**: #108 (M6-5, milestone M6).
@@ -1453,10 +993,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo check --workspace` green on this branch; `cargo test -p lisage-algebra` green (0 tests in this crate). Full `make check` deferred to the last part.
 - **Judgement calls**: comments/strings translated now, public identifiers deferred to avoid breaking dependent crates mid-series.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-14 - M6-5 crates/ translated to English, part 1: lisage-lang (issue #108)
 
@@ -1466,10 +1002,6 @@ One entry per commit or pull request:
 - **Judgement calls**: per-crate split in topological order (lang first) so every part compiles standalone.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-13 - M6-0 audit: machine-checkable inventory of French-language content (issue #103)
 
 - **Issue**: #103 (M6-0, milestone M6 "English-only documentation and code").
@@ -1477,10 +1009,6 @@ One entry per commit or pull request:
 - **Evidence**: report generated by running the documented grep/regex pipeline over the working tree at commit e49f048 (origin/daily); counts in the report are the actual command output. `make check` not run: docs-only change, no code touched.
 - **Judgement calls**: deliverable is a docs/ file (the issue allows "issue comment or docs/ file"); the report keeps accented French file names as-is because it is a point-in-time snapshot — the M6-7 anti-French lint must exclude this file (noted for M6-7).
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-13 - M6-2 root documentation in English (issue #105)
 
@@ -1490,10 +1018,6 @@ One entry per commit or pull request:
 - **Judgement calls**: AGENTS.md needed no translation (already English), so no needs-human escalation was required for this issue despite AGENTS.md being on the escalation list — the diff does not touch it.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-13 - M6-1 glossary review fix: missing contract terms + duplicate rows (PR #178)
 
 - **Issue**: #104 (M6-1, milestone M6).
@@ -1501,10 +1025,6 @@ One entry per commit or pull request:
 - **Evidence**: `grep -c 'seuil | threshold' docs/glossary.md` = 1; new rows present at docs/glossary.md:44-48. `make check` not run: docs-only change.
 - **Judgement calls**: none.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-13 - M6-1 glossary: FR→EN terminology mapping (issue #104)
 
@@ -1514,10 +1034,6 @@ One entry per commit or pull request:
 - **Judgement calls**: word-level mapping (not per-identifier) so the glossary stays maintainable; acronyms that are proper names (BDD, CUDD, DAG, GCD) stay uppercase, others follow surrounding case.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-13 - M6-4 docs/agents + docs/decisions in English (issue #107)
 
 - **Issue**: #107 (M6-4, milestone M6).
@@ -1525,10 +1041,6 @@ One entry per commit or pull request:
 - **Evidence**: `grep -rnP '[àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇœæ]' docs/agents docs/decisions` returns nothing. `make check` not run: docs-only change. No references to the old ADR filename existed outside the M6-0 audit inventory.
 - **Judgement calls**: this PR touches constitutional files (`docs/decisions/`), so it is labeled `needs-human` and is NOT merged by the agent — the merge driver refuses it; the human merges.
 - **Escalations**: `needs-human` label on the PR (constitutional files on the escalation list, ADR-0010).
-
-
-
-
 
 ## 2026-11-13 - Confrontation — horloge alea-lcg avant la génération de la table (fix/confrontation-alea-horloge)
 
@@ -1538,10 +1050,6 @@ One entry per commit or pull request:
 - **Judgement calls**: aucun.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-12 - Confrontation lisage/témoins 1/3 — runner lisage `confrontation` : une charge, un processus, une ligne JSON (bench/confrontation-1-socle)
 
 - **Issue**: aucune (demande humaine : mesurer lisage en temps/mémoire face aux autres outils de diagrammes de décision, BDD/ZDD/MDD/DDD/SDD ; l'app GitHub ne peut pas créer d'issue — 403).
@@ -1549,11 +1057,6 @@ One entry per commit or pull request:
 - **Evidence**: épingles recalculées par simulation Python indépendante (génération de R_n et pins des fragments 1-2 du WORKLOG) ; API `lisage-core::atelier` re-vérifiée sur le `daily` du jour (`construire_fenetre` prend l'encodage depuis la review PR #92). **Non exécuté ici** : `cargo fmt/clippy/nextest` et `make check` (pas de toolchain Rust ni uv dans l'environnement d'écriture) — attendus sur la CI de la PR.
 - **Judgement calls**: le socle complet (runner + témoin CUDD + orchestrateur + doc ≈ 2 300 lignes) dépasse le budget ~1 000 lignes/PR (ADR-0101) : la pile est scindée en trois PR empilées (1 socle Rust, 2 témoin CUDD + protocole, 3 orchestrateur Python), une entrée WORKLOG chacune ; pas d'issue (403) — branche descriptive `bench/confrontation-1-socle`.
 - **Escalations**: aucune (ADR-0102 : témoins externes en Docker local — décision humaine du 10 nov. 2026).
-
-
-
-
-
 
 ## 2026-11-12 - Review PR #94 — ancre composée réellement appliquée au pool (les deux ancres entrent par l'arc d'entrée) (feat/atelier-ancre)
 
@@ -1563,10 +1066,6 @@ One entry per commit or pull request:
 - **Judgement calls**: la base de l'ancre composée est passée au pool comme clé de l'arc d'entrée (et non comme ancre d'interning) — c'est le modèle M4-2 (section min = 0, l'argument vit sur l'arc, le pool reste aveugle à l'ancre composée) ; `construire_fenetre_ancree` retourne le couple `(racine, fenêtre)` pour rendre `meme_forme` vérifiable sans résoudre la racine.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-12 - Atelier didactique, fragment 4 — paramètre ancre composée sur la fenêtre glissante (backlog § 9) (feat/atelier-ancre)
 
 - **Issue**: aucune (quatrième fragment de l'atelier didactique, choisi par instruction directe « Continue » ; l'app GitHub ne peut pas créer d'issue — 403).
@@ -1574,10 +1073,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest : 285 tests, 3 ignorés — 4 nouveaux). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
 - **Judgement calls**: pas d'issue créée (403, directive humaine) — branche descriptive `feat/atelier-ancre` ; `AncreFenetre` posé dans `atelier.rs` (fragment autonome, comme les fragments 1-3) plutôt que dans `relatif.rs`, le type M4-2 `AncreComposee` restant le cœur inchangé — l'atelier n'enveloppe que la lecture didactique ; la comparaison se fait dans un même pool (les deux ancres sont des lectures de la même forme, pas des contrôleurs différents — cohérent avec C1 : l'ancre vit dans le handle, le pool reste aveugle) ; `fenetre_absolue` rendue en `(i64, i64)` (intervalle `[début, fin)`) plutôt qu'un `Vec` — la fenêtre se lit, elle ne s'énumère pas.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-12 - Atelier didactique, fragment 3 — paramètre d'ordre sur la compilation BDD (backlog § 9) (feat/atelier-ordre)
 
@@ -1587,10 +1082,6 @@ One entry per commit or pull request:
 - **Judgement calls**: pas d'issue créée (403, directive humaine) — branche descriptive `feat/atelier-ordre` ; `Ordre` et la compilation vivent dans `atelier.rs` (fragment autonome, comme les fragments 1-2) plutôt que dans `bdd.rs`, la compilation sous ordre n'étant pour l'instant qu'un banc didactique ; la comparaison se fait dans un même pool (les deux ordres sont des lectures de la même table, pas des contrôleurs différents).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-12 - Atelier didactique, fragment 2 — paramètre encodage absolu/relatif sur la fenêtre glissante (backlog § 9) (feat/atelier-encodage)
 
 - **Issue**: aucune (deuxième fragment de l'atelier didactique, choisi par instruction directe « Continue » ; l'app GitHub ne peut pas créer d'issue — 403).
@@ -1598,10 +1089,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest : 277 tests, 3 ignorés — 2 nouveaux). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
 - **Judgement calls**: pas d'issue créée (403, directive humaine) — branche descriptive `feat/atelier-encodage` ; la comparaison se fait dans un même pool (les deux encodages sont des écritures de clés, pas des contrôleurs différents — cohérent avec M4-2 où le pool est aveugle au groupe) ; `Encodage` posé comme enum mais la comparaison porte sur la fenêtre glissante (instance vérifiée M4-2), les autres paramètres du contrôleur (ordre, royaume, ancre composée) restent des fragments ultérieurs.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-12 - Atelier didactique, fragment 1 — tableau de bord des réductions (backlog § 9, demande du 10 nov. 2026) (feat/atelier-reductions)
 
@@ -1611,10 +1098,6 @@ One entry per commit or pull request:
 - **Judgement calls**: pas d'issue créée (403, directive humaine) — branche descriptive `feat/atelier-reductions` ; R-share mesuré (taille dépliée) plutôt que commuté — commuter le hash-consing exigerait un pool dégradé, hors fragment ; hooks à défaut `true` sur le trait (rétrocompatible, aucun contrôleur existant touché) ; taille dépliée préférée au nombre de chemins comme métrique « sans R-share » (c'est le nombre de nœuds du DAG déplié) ; `construire_r_n` généralisée plutôt que dupliquée.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-12 - Backlog δ continu, intégrale sur régions polyédriques DBM 2D — aire de la bande ∩ boîte (Q9) (feat/integrale-dbm)
 
 - **Issue**: aucune (fragment « régions polyédriques » du candidat Q9 (ii) de la spec § 10 — « régions polyédriques + densités polynomiales » ; la veine δ continu est otherwise complète : intervalles, DBM, DDD-différence, intégrale 1D, CDD ; l'app GitHub ne peut pas créer d'issue — 403 — et la directive du matin appartient à l'humain). Repris sur instruction directe « Continue ».
@@ -1622,10 +1105,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest : 267 tests, 3 ignorés — 7 nouveaux). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
 - **Judgement calls**: pas d'issue créée (403, directive humaine) — branche descriptive `feat/integrale-dbm` ; mesure **doublée** en `i128` plutôt qu'un rationnel (l'aire d'une bande à bornes entières est demi-entière au pire) ; dimension 2 uniquement (assert) — le volume d'une DBM en n > 2 hors fragment, documenté ; densités polynomiales (intégration symbolique) hors fragment, la densité reste constante 1 comme en 1D ; la formule d'aire a été corrigée en cours de route (f(−b) − f(a), pas N² − f(a) − f(−b)) — les tests analytiques l'épinglent.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-12 - Backlog δ continu, instance-test CDD — unions non convexes de zones DBM (Q9) (feat/cdd)
 
@@ -1635,10 +1114,6 @@ One entry per commit or pull request:
 - **Judgement calls**: pas d'issue créée (403 de l'intégration, directive humaine) — branche descriptive `feat/cdd` ; pas de nouveau variant de narration (pas d'observateur, comme l'instance-test DDD) ; idempotence du meet testée sémantiquement et non syntaxiquement, conséquence documentée de la non-canonicité assumée ; contrôleur distinct (fp 6) plutôt que réutilisation de `DbmController`, la clé n'étant pas une `Dbm` ; le `compter_noeuds` du fragment DDD (PR #87) a le même `if let Ok(..)`, hors périmètre de cette PR.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-12 - Backlog δ continu, intégrale au pli — mesure de Lebesgue sur DDD intervalles 1D (Q9) (feat/integrale-pli, PR #88)
 
 - **Issue**: aucune (quatrième fragment de la veine δ continu, précondition M5-4 levée ; la directive du matin appartient à l'humain).
@@ -1646,10 +1121,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%, cargo fmt --check, clippy `-D warnings`, cargo nextest : 250 tests, 3 ignorés — 6 nouveaux). CI GitHub verte sur la PR #88 (run 43171883782, 2m52s). Revue headless ADR-0010 : 2 BLOCKING corrigés (narration DEBUG + entrée WORKLOG), 1 SUGGESTION traitée (debug_assert disjoints). **Non exécuté** : revue de suivi formelle après correction.
 - **Judgement calls**: narration via le variant `Attr`/`Synthétise` existant plutôt qu'un nouveau variant `TraceEvent` (évite de toucher à la sérialisation liseuse) ; observateur passé en `Option<&dyn Observer>` (None = pas de narration, comme le runner de transductions) ; mesure en `u64` saturé (pas de rationnel — les longueurs d'intervalles sont entières).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - Backlog δ continu, instance-test DDD-différence : contrat de clés (couverture, intersection) et bande sur deux horloges (Q9) (feat/ddd-difference)
 
@@ -1659,10 +1130,6 @@ One entry per commit or pull request:
 - **Judgement calls**: pas d'issue créée (403 de l'intégration, et la liste d'issues est posée par l'humain) — branche descriptive `feat/ddd-difference` au lieu de `feat/<n>` ; pas de nouveau contrôleur (fingerprint) : l'instance-test réutilise `DbmController` (fp 5), le contrat vit sur `Dbm`/`DbmKeys` ; la couverture est calculée par balayage sur boîte bornée uniquement, conformément à la réserve de la spec Q9.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - Backlog δ continu, fragment DBM : régions convexes à clôture canonique (Q9) (feat/85)
 
 - **Issue**: #85 (backlog § 9, spec Q9, veine #83 — deuxième fragment « DBM » après les intervalles).
@@ -1670,10 +1137,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 238 tests, 3 ignorés — 7 nouveaux). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
 - **Judgement calls**: bornes `i128` en interne (la clôture somme des `i64` ne déborde pas) plutôt qu'un `checked_add` qui perdrait la canonicité ; domaine borné par variable (`cardinality(ℓ)` fini) — le « royaume libre DDD » non borné reste hors fragment ; module dans `lisage-core` comme `region.rs`, aucune dépendance, aucune frontière modifiée.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - Backlog δ continu, fragment intervalles : algèbre de clés-régions 1D (Q9) (feat/83)
 
@@ -1683,10 +1146,6 @@ One entry per commit or pull request:
 - **Judgement calls**: le fragment « intervalles » seul (pas les DBM ni l'intégrale) pour tenir dans un PR ; le module vit dans `lisage-core` comme `bdd.rs`/`schema.rs` (les algèbres de clés de référence y vivent), aucune dépendance ajoutée, aucun changement de frontière (test de frontières vert inchangé).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - M5-2 : voie C du triptyque câblée au planner — graphe ADR-0002 étendu `lisage-bench → lisage-plan` (décision humaine A) (feat/33c)
 
 - **Issue**: #33 (M5-2 — Corpus MCC ; triptyque A/B/C complet, énoncés C3/C4). Suite de la décision needs-human du 2026-11-11 (option A) : extension du graphe de dépendances pour autoriser `lisage-bench → lisage-plan`.
@@ -1694,10 +1153,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 225 tests, 3 ignorés, dont le test de frontières qui valide le nouveau graphe). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow), conteneurisation des modèles MCC et publication des chiffres (reste de #33).
 - **Judgement calls**: la décision A a été prise par l'humain en session needs-human (2026-11-11) — le changement de fichier constitutionnel (test de frontières) est couvert par cette autorisation ; π runtime est traduit en `CleMap` présence-puis-valeur par clé, ce qui satisfait la contrainte du type tant que π est une permutation des clés de places.
 - **Escalations**: consommée (frontière bench→plan, option A). Restent ouvertes : conteneurisation du corpus MCC 2011-2018, publication des chiffres, surface du langage.
-
-
-
-
 
 ## 2026-11-11 - needs-human consommés : ADR-0021 accepté, ADR-0100 accepté (logging = événements DEBUG), semi-anneau probabiliste = rationnels exacts (fix/needs-human-adr-0021-0100)
 
@@ -1707,10 +1162,6 @@ One entry per commit or pull request:
 - **Judgement calls**: les deux ADR sont des fichiers constitutionnels — modifiés uniquement sur la réponse explicite de l'humain à la question needs-human posée en session ; la décision logging est enregistrée telle que répondue, sans ajouter de dépendance de log (qui resterait une escalation séparée).
 - **Escalations**: consommées : ADR-0021, ADR-0100 (décision 6), semi-anneau probabiliste. Restent ouvertes : frontière bench→plan (exposé fourni, décision en attente), conteneurisation du corpus MCC 2011-2018, surface du langage (API Rust vs DSL textuel).
 
-
-
-
-
 ## 2026-11-11 - M5-5 : Liseuse — mode publication (SVG autonome + PGF/TikZ, thème serif, légende auto des canaux) (feat/36)
 
 - **Issue**: #36 (M5-5 — Liseuse : export figures ; mode publication : SVG/PGF propre à la mise en page article, thème serif, légendes auto depuis la légende des canaux, doc liseuse § 5).
@@ -1718,10 +1169,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 224 tests, 3 ignorés). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow), rendu visuel réel dans un navigateur/LaTeX.
 - **Judgement calls**: SVG autonome + PGF/TikZ livrés tous deux (l'issue dit « SVG/PGF ») ; la légende des canaux vit dans `publication.rs` (`LEGENDE_CANAUX`) plutôt que dans `core::observer` pour ne pas toucher au cœur — à rapprocher si le pas-à-pas se met à colorer depuis la même source ; le rendu de débogage `rendre_svg` garde ses couleurs d'origine (aucun changement de comportement existant).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - M5-4 : ADD/MTBDD — merge non idempotent, table indexée par les poids, garde-fou de compatibilité (feat/35)
 
@@ -1731,10 +1178,6 @@ One entry per commit or pull request:
 - **Judgement calls**: poids `u64` (semi-anneau `(ℕ,+,×)`) comme instance ADD de cette PR — la décision « rationnels exacts par défaut, `f64` en option de bench » de la feuille de route § 10 reste à prendre pour la lecture pondérée probabiliste ; `somme_poids` est un pli direct (mémo sur les nœuds) plutôt qu'une `Transduction` car le moteur de transductions lit son entrée en payload `bool` (M1-5) — la lecture pondérée est propre à la construction levée ; aucun changement à `union` (construction Bool) ni au moteur.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - fix: review PR #77 — propriété vtree générée par LCG (non auto-référentielle), WORKLOG : comptage de tests corrigé (13 tests nouveaux, 214 au total) (fix/review-77)
 
 - **Issue**: #34 (M5-3 — SDD sententiels, C6).
@@ -1742,10 +1185,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (cargo nextest : 214 tests, 3 ignorés, clippy `-D warnings`, fmt OK). **Non exécuté** : CI GitHub, revue headless et merge (étapes suivantes du workflow).
 - **Judgement calls**: générateur LCG déterministe plutôt que proptest dans `lisage-plan` — proptest n'est pas une dev-dependency de cette crate et ajouter une dépendance relève de la liste d'escalation ; les constantes LCG sont celles déjà utilisées par les tests de propriété du workspace.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - M5-3 : SDD sententiels installés sans extension ad hoc — vtree comme ordre, tour de contrôleurs par ancres locales (feat/34)
 
@@ -1755,10 +1194,6 @@ One entry per commit or pull request:
 - **Judgement calls**: le vtree placé dans `lisage-algebra` (couche interface, seule couche visible de plan et bench) plutôt que dans `lisage-plan` — un type de paramètre, pas un mécanisme ; le pool de l'installation porte le schéma racine car les réductions R-default à l'internement sont pilotées par le schéma du contrôleur (domaine partagé par tous les niveaux pour garder les cardinalités cohérentes) ; un vtree induit un ordre total (contrainte à chaque nœud interne), donc la seule π valide est l'ordre plat — testé explicitement.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - M5-2 : Triptyque A/B/C sur modèles PNML — voies B (DD ordre fixe) et C (DD ordre runtime) (feat/33b)
 
 - **Issue**: #33 (M5-2 — Corpus MCC ; triptyque A/B/C, énoncés C3/C4). Suite de la PR #75 (voie A livrée) : voies B et C du triptyque sur les modèles PNML. Restent pour les PR suivantes : le câblage de π au planner `lisage-plan` (frontière ADR-0002 : `lisage-bench → lisage-plan` non autorisé aujourd'hui), la conteneurisation des modèles MCC 2011-2018 et la publication des chiffres.
@@ -1766,10 +1201,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy `-D warnings`, cargo nextest : 201 tests, 3 ignorés). **Non exécuté** : CI GitHub (verte attendue sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow), conteneurisation Docker des modèles MCC.
 - **Judgement calls**: aucune dépendance ajoutée — `lisage-plan` reste hors du graphe autorisé depuis `lisage-bench` (test `frontieres.rs`, ADR-0002), donc la voie C prend π en paramètre sans appeler le planner (câblage ultérieur, ou extension du graphe par le humain) ; le domaine des valeurs est borné par le max de jetons observé dans l'espace atteignable (les marquages de `pnml` couvrent toujours toutes les places, donc les arcs de présence sont tous présents).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - M5-2 : Parseur PNML + conversion vers lang/ (voie A du triptyque) (feat/33)
 
@@ -1779,10 +1210,6 @@ One entry per commit or pull request:
 - **Judgement calls**: aucun nouveau crate ni dépendance (le XML est parsé à la main — un parseur XML en dépendance serait une escalation « new dependencies ») ; le sous-ensemble PNML couvre place/transition/arc/initialMarking/name avec poids d'arc 1 uniquement (poids ≠ 1 rejeté explicitement plutôt que silencieusement ignoré) ; les entités XML ne sont pas décodées (acceptable pour les PT-nets MCC, noté en doc).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - M5-1 : Langage de niveau 1 complet + fonctions d'ordre supérieur, aval runtime du planner (feat/32)
 
 - **Issue**: #32 (M5-1 — Niveau 1 complet ; le planner admet un aval runtime avec reordering dégradé en fallback ; feuille de route § 7, énoncé C3).
@@ -1790,10 +1217,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy, import-linter, pytest 34 passed + coverage 94.76%, cargo fmt --check, clippy -D warnings, cargo nextest). **Non exécuté**: CI GitHub (sera verte sur la PR), revue headless ADR-0010 et merge (étapes suivantes du workflow).
 - **Judgement calls**: l'aval runtime ne propage pas l'erreur typée `ErreurOrdre` au caller — il retourne la `StrategieAval` (le repli est un fallback prévu, pas une erreur) ; la cause reste disponible via `Order::nouveau` pour qui veut diagnostiquer.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - M4-5 : Liseuse — vue mémoire et quotient (pools/GC, badges de multiplicité, classes du quotient, comparaison naïf/DD/Lisage) (feat/31)
 
@@ -1803,10 +1226,6 @@ One entry per commit or pull request:
 - **Judgement calls**: la vue consomme directement les métriques de `lisage-core` (lisée → core autorisé par `frontieres.rs`), contrairement à la vue ordre qui consomme une description neutre de `lisage-plan` ; le zoom sémantique est rendu statique (classes du quotient avec multiplicités), la molette étant hors périmètre d'un rendu SVG statique.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - M4-4 : Benchmark philosophes — |R_n| fil rouge, ratio gaucher 1,2887 constant, 7 formes O(1) + bord, pic vivant, firings (feat/30)
 
 - **Issue**: #30 (M4-4 — Benchmark philosophes, énoncé C8 ; docs/exemple-fil-rouge § 6-9).
@@ -1814,10 +1233,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (168 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK, couverture 90% atteinte. **Non exécuté** : mutation testing (ADR-0012, tournant sur `daily` en fin de journée), témoin CUDD local (ADR-0102, manuel uniquement), mesure contre SDD/HSDD externe (hors périmètre de la CI).
 - **Judgement calls**: le comptage gaucher est vérifié par pli DD == énumération == fil rouge § 9.2 ; la tolérance du ratio (0,01) est une constante nommée, calibrée sur les valeurs mesurées 1,2857..1,2895 ; le bord 4n − 4 du fil rouge vise le prototype plat de l'automate encodé — ce banc épingle les valeurs mesurées du prototype union-de-maps.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - M4-3 : D-abs / D-trans — défaut généralisé (absorption sur tout sous-domaine, nœud transparent) (feat/29)
 
@@ -1827,10 +1242,6 @@ One entry per commit or pull request:
 - **Judgement calls**: la règle de couverture du collapse (présence) est conservée telle quelle de § 2.3 pour préserver la confluence — D-trans ne collapse « toutes cibles ≡ D » que sous cette couverture ; D-abs est gardé inactif quand le niveau n'a pas de clé de défaut (les arcs absents ne vaudraient pas D^déf).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - M4-2 : Formes relatives — shift (ancre relative), ancres composées, groupe de transformations de clés (section min = 0), arc d'entrée (feat/28)
 
 - **Issue**: #28 (M4-2 — Formes relatives, énoncé C8 ; spec § 2.4.5).
@@ -1838,10 +1249,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (158 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK, couverture 90% atteinte. **Non exécuté** : mutation testing (ADR-0012, tournant sur `daily` en fin de journée), témoin CUDD local (ADR-0102, manuel uniquement).
 - **Judgement calls**: le terme de transformation vit sur l'arc d'entrée (`ArcEntree`) porté par l'appelant, conformément à la spec (« le couple (terme, handle) est porté par l'appelant, le pool reste inchangé ») — `Form` et le pool ne sont pas modifiés ; l'argument du groupe est fixé à `i64` dans la signature par défaut de `Controller::groupe_cles` (l'instance canonique shift est (ℤ,+)) ; la lecture effective est saturée dans ℕ (`saturating_add_signed`) pour rester totale, testé aux deux bornes (clamp 0 / u64::MAX).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - M4-1 : Pool bi-plan — plans principal/ombre, index niveau → formes, GC mark-and-sweep, compaction profilée, métriques cache (feat/27)
 
@@ -1851,10 +1258,6 @@ One entry per commit or pull request:
 - **Judgement calls**: la compaction invalide les anciens `NodeId` — la table de remapping est exposée (`dernier_remap()`) plutôt que de rendre les handles stables, car la compaction est le mécanisme même de récupération mémoire ; le seuil 1/4 est une constante nommée, profilable plus tard ; `taux_hit()` retourne un pourcentage entier (u64) pour rester dans l'arithmétique exacte du projet.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - M3-4 : Liseuse vue ordre — fiche contrôleur (8 champs), piste linéaire / vtree, royaumes côte à côte, conversions fléchées avec coût (feat/26)
 
 - **Issue**: #26 (M3-4 — Liseuse : vue ordre, doc liseuse § 4 « Vue 1 »).
@@ -1862,10 +1265,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (141 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
 - **Judgement calls**: la vue ordre consomme une description neutre (`RoyaumeVue`/`ConversionVue`) plutôt que les types de `lisage-plan`, pour respecter la frontière de dépendances liseuse → {core, lang} ; le vtree est rendu par un layout récursif simple (répartition en largeur), le Sugiyama n'étant pas nécessaire puisque l'ordre est donné, pas calculé (doc § 5).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - M3-3 : Oracle de rentabilité analytique — modèle prédictif (domaine, densité, coût d'encodage, requêtes aval) + garde-fou différentiel (C4) (feat/25)
 
@@ -1875,10 +1274,6 @@ One entry per commit or pull request:
 - **Judgement calls**: le modèle prédit la taille d'un set aléatoire en balayage d'univers (chaîne de n·d nœuds) — c'est le premier modèle, volontairement simple et falsifiable par le garde-fou différentiel plutôt que précis ; la densité est un rationnel exact (pas de f64) conformément à la décision « exact par défaut » ; le facteur de conformité [1/2, 2] est une constante nommée, calibrée arbitrairement à ce stade (à mesurer sur le corpus MCC en M5-2).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - M3-2 : Conversions — réordonner = convertir en transpositions adjacentes à coût prévisible, contrat typé étendu aux encodages (royaumes) (C3) (feat/24)
 
 - **Issue**: #24 (M3-2 — Conversions, énoncé C3, spec § 2.4.3 / § 10 Q1).
@@ -1886,10 +1281,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (133 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
 - **Judgement calls**: le coût prévisible est la distance de Kendall tau entre les deux π (nombre d'inversions = nombre de transpositions adjacentes), un coût déclarable depuis les ordres seuls, avant exécution — la transduction de réordonnancement n'est pas encore exécutée sur des diagrammes (c'est M3-3/M4) ; les conversions entre encodages (balayage ↔ énumération) sont déclarées comme marques de royaume, leur transduction de compilation arrivant avec le planner.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - M3-1 : `Order<T>` valeur de première classe — π vérifiée, contraintes par type embarquées, alignement comme typage (C3) (feat/23)
 
@@ -1899,10 +1290,6 @@ One entry per commit or pull request:
 - **Judgement calls**: `Order<T>` vit dans `lisage-plan` (frontière : plan → lang + algebra, test `frontieres.rs`) et est générique sur un descripteur de type (`TypeOrdre`) plutôt que sur le schéma de `core` — le plan ne dépend pas du cœur ; les contraintes sont des paires (avant, après) déclarées par le type, vérifiées à la construction de π ; l'alignement « comme typage » est matérialisé par le paramètre de marque `O` sur `Aligne`, complété d'une vérification en valeur (`Order::alignement`) pour les ordres manipulés comme valeurs.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-11 - M2-6 : Liseuse v1 — vue pas à pas, canaux colorés, MemoHit/MemoMiss, rounds, différentiel à fantômes (feat/22)
 
 - **Issue**: #22 (M2-6 — Liseuse v1 pas à pas, vue 3 du doc liseuse § 6).
@@ -1910,10 +1297,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (120 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
 - **Judgement calls**: le rendu pas à pas est un SVG statique embarqué (frise + canaux + fantômes) — le doc liseuse § 7 impose l'absence de JS/serveur, donc le « scrubber » est matérialisé par une position sur la frise rejouée côté Rust, pas par un widget interactif ; le runner n'observe pas le pool (les `NodeCreated` viennent de l'observer du pool, canal à part).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-11 - M2-5 : Événements non locaux — transfert m(a)-=1; m(b)+=1 compilé en transduction à mémoire de niveau, surcoût poly(w) (T3) (feat/21)
 
@@ -1923,10 +1306,6 @@ One entry per commit or pull request:
 - **Judgement calls**: destination absente et collapsée = explicitation d'axe (T-EXPAND), hors périmètre, documenté ; transfert restreint à source < destination (jeton descendant).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M2-4 fix : review PR #62 — policies réelles par niveaux, record mono-pool, PBT point fixe (feat/20)
 
 - **Issue**: #20 (M2-4 — saturate, deux policies, énoncé T3) ; correctifs du rapport de revue de la PR #62 (2 BLOCKING, 2 TO-FIX, 1 SUGGESTION).
@@ -1934,10 +1313,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (106 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
 - **Judgement calls**: les diagrammes dénotent des familles d'ensembles (style ZDD) — le point fixe de `X ⊕ {{a}}` est la famille `{X, {a}}` ; les tests comparent donc nœuds et cardinaux (`compter`), pas les valeurs décompilées (`decompiler` ne lit que les chaînes mono-arc du compilateur).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M2-4 : saturate, deux policies — point fixe croissant, Statique (Ciardo) / AutoDetectee (Hamez) (T2/T3) (feat/20)
 
@@ -1947,10 +1322,6 @@ One entry per commit or pull request:
 - **Judgement calls**: les deux politiques partagent la boucle de point fixe (la politique ne filtre pas encore les niveaux dans la boucle — même sémantique, seul le résultat est livré) ; comparaison des points fixes via `decompiler` (les NodeId de l'union sont nouveaux).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M2-3 : Mémoire de niveau — MemoireNiveau versionnée, politique contrôleur, φ_out à effet mémoire (T3) (feat/19)
 
 - **Issue**: #19 (M2-3 — Mémoire de niveau, énoncé T3).
@@ -1958,10 +1329,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (100 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK. Review PR #61 : 1 BLOCKING + 1 TO-FIX corrigés — la lecture mémoire est désormais assertée (compteur de valeurs lues > 0 en seconde passe) et la politique `Aucune` rejette les effets mémoire (`CoreError::MemoireNonAutorisee`, test dédié).
 - **Judgement calls**: `ContextePhiOut` plutôt que 8 paramètres (clippy `too_many_arguments`) ; `M = ()` pour les transductions M1 sans mémoire ; la version de la mémoire entre dans la clé de mémo (L1) ; la politique est appliquée par le runner (`Transducteur::avec_politique`), pas seulement déclarative.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M2-2 : Tag — union typée, niveau discriminant (C2) (feat/18)
 
@@ -1971,10 +1338,6 @@ One entry per commit or pull request:
 - **Judgement calls**: payload restreint à un atome (domaine borné) — les variants à payload structuré sont M5.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M2-1 : Seq et compilation par positions (T5) (feat/17)
 
 - **Issue**: #17 (M2-1 — Seq et ses deux compilations, énoncé T5).
@@ -1982,10 +1345,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (91 tests, 3 ignorés), clippy `-D warnings` OK, fmt OK.
 - **Judgement calls**: une seule compilation (par positions) livrée dans ce commit ; la compilation par énumération fera l'objet d'un commit séparé sur la même branche. Le marqueur de fin est modélisé comme valeur `cle_fin = |D|` sur le niveau de position, pas comme niveau séparé — plus compact et conforme à « clé requise ».
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - Corrections review PR #57 (2 BLOCKING, 4 TO-FIX) — ADR-0102, PR body #14, assertions 7 formes + SVG, pin SHA CUDD
 
@@ -1995,10 +1354,6 @@ One entry per commit or pull request:
 - **Judgement calls**: les 2 SUGGESTION (eprintln! dans cudd_local, test #[ignore] actuellement rouge) laissées en l'état — non bloquantes.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - Décision M1-8 : CUDD en conteneur Docker local, hors CI (réponse à #14)
 
 - **Issue**: #14 (M1-8 — Témoins BDD, énoncé C6), question escaladée `needs-human`.
@@ -2006,10 +1361,6 @@ One entry per commit or pull request:
 - **Evidence**: `docker build -t lisage-cudd:latest docker/cudd` OK, `cudd_count` vérifié sur XOR(2)=3, XOR(3)=4, constantes=1. `cargo check -p lisage-bench --tests` OK. Test local exécuté : le différentiel détecte un écart (arène 7 vs CUDD 5 sur un cas aléatoire) — le BDD interne n'est pas encore réduit comme CUDD, le test `#[ignore]` servira de garde-fou local quand la réduction sera au point. `make check` non re-exécuté (aucun changement dans le code CI).
 - **Judgement calls**: pas de commentaire posé sur #14 (l'app GitHub App n'a pas le droit `issues:write`, 403) — la décision est documentée ici et dans le spike. Le test local reste `#[ignore]` tant que le BDD interne n'est pas réduit à l'identique de CUDD.
 - **Escalations**: question #14 consommée (réponse humaine).
-
-
-
-
 
 ## 2026-11-10 - M1-10 : démo philosophes n=3,4,5 — R_n, comptage par pli, filter/exists, figure SVG (feat/16)
 
@@ -2019,10 +1370,6 @@ One entry per commit or pull request:
 - **Judgement calls**: les « 7 formes » sont vérifiées au niveau automate (5 cellules légales + 2 terminaux) — la version « 7 nœuds du DD » exige l'encodage relatif (formes relatives, jalon M4-2), hors périmètre M1 ; `filter`/`exists` (prédicats de présence) appliqués à la projection « mangeurs » de R_n, la présence des clés de l'encodage intercalé ne discriminant pas ; la figure est écrite par le test dans `bench-results/` (déterministe, donc sans diff en CI).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M1-9 : Liseuse v0 — trace JSONL versionnée + rendu SVG statique (feat/15)
 
 - **Issue**: #15 (M1-9 — Port d'instrumentation, énoncé Liseuse).
@@ -2030,10 +1377,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (80 tests, 2 ignorés), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : rendu HTML autonome + scrubber JS (v1, M2-6).
 - **Judgement calls**: JSONL hand-rollé (pas de serde — nouvelle dépendance escaladée) ; `JsonlObserver` clonable via `Arc<Mutex>` pour lire la trace après l'avoir donné au pool ; le SVG v0 rend le sous-diagramme atteignable depuis une racine (pas le pool entier).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - Budget PR relevé à ~1 000 lignes (fix/budget-pr-1000, ADR-0101)
 
@@ -2043,10 +1386,6 @@ One entry per commit or pull request:
 - **Judgement calls**: la décision émane directement de l'humain (prioritaire sur AGENTS.md dans la hiérarchie des instructions) ; un ADR (0101) est inclus plutôt qu'un simple commentaire, la décision valant ADR.
 - **Escalations**: aucune (la décision humaine elle-même est l'autorisation).
 
-
-
-
-
 ## 2026-11-10 - M1-8 : témoins BDD — BDD classique + mini-BDD témoin + PBT C6 + baseline (feat/14)
 
 - **Issue**: #14 (M1-8 — Témoins BDD, énoncé C6), partie pur Rust (mode dégradé).
@@ -2054,10 +1393,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (76 tests, 2 ignorés), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : différentiel contre CUDD/Sylvan réels (dépendance non ajoutée).
 - **Judgement calls**: pas de dépendance FFI (liste d'escalation) — différentiel C6 livré contre le mini-BDD interne, vraie question escaladée en commentaire structuré sur #14 (label `question`, le label `needs-human` n'existe pas dans ce repo) ; comptage des nœuds = atteignables depuis la racine, terminaux compris, même convention des deux côtés.
 - **Escalations**: commentaire structuré posé sur #14 pour la dépendance cudd-sys (options in-process / hors-processus / mode dégradé) ; aucune réponse consommée.
-
-
-
-
 
 ## 2026-11-10 - M1-6 (2/2) : corrections de review PR #53 — erreurs typées aux frontières (feat/13b, 572edb5)
 
@@ -2067,10 +1402,6 @@ One entry per commit or pull request:
 - **Judgement calls**: les 2 SUGGESTION restantes (validation de `image`, `assert!` interne dans `disperser_chemin`) laissées en l'état — non bloquantes.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M1-6 (2/2) : opérations à canal hérité seul — `exists`, `filter`, `map` (feat/13b)
 
 - **Issue**: #13 (M1-6 — Pli et semi-anneaux, énoncés A5/C7, partie opérations spec § 4).
@@ -2078,10 +1409,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (69 tests, 2 ignorés rouges M1-7), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : `cargo audit`, CI réelle avant push.
 - **Judgement calls**: prédicats restreints à la présence (bien définis sur le DD réduit) plutôt que T-EXPAND dans φ_disp ; règle A2 ajoutée à `Filtre::phi_out` pour réduire les sous-arbres tout-rejetés.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M1-6 (1/2) : pli et semi-anneaux — `Pli<S>`, comptage A4, `union` (merge Bool), correction R-collapse (feat/13)
 
@@ -2091,10 +1418,6 @@ One entry per commit or pull request:
 - **Judgement calls**: correction de `reduire` (comportement M1-2) rendue nécessaire par l'exactitude du comptage A4 — documentée, tests de confluence M1-2 toujours verts ; facteur A4 « on-path » (le niveau valeur d'une clé absente est hors chemin) ; `union` énumère toutes les valeurs d'un niveau sans défaut.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M1-5 (2/2) : `lookup(k)` — modes cherche/extrait/stop, fragment de DD, T-EXPAND + greffe (feat/12b)
 
 - **Issue**: #12 (M1-5 — lookup, spec § 6).
@@ -2102,10 +1425,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (56 tests, 2 ignorés rouges M1-7), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : `cargo audit`, CI réelle avant push.
 - **Judgement calls**: dans le cas collapsé, aucun `Stop` n'est émis — la valeur vit dans le DD ré-explicité (T-EXPAND), le fragment synthétisé reste vide (testé) ; la greffe a une mémo par valeur `v` (les terminaux greffés dépendent de `v`).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M1-5 (1/2) : moteur de transductions généralisé — deux pools, payload de sortie `Out` (feat/12)
 
@@ -2115,10 +1434,6 @@ One entry per commit or pull request:
 - **Judgement calls**: deux pools plutôt qu'un payload enum fourre-tout (types distincts pour domaines distincts) ; la comparaison identité en PBT est structurelle (les NodeId sont propres à chaque pool).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M1-4 : moteur de transductions — canaux hérité/synthétisé, φ_aggr, mémo (op, nœud, h) (feat/11)
 
 - **Issue**: #11 (M1-4 — Transductions hérité/synthétisé, énoncé L3).
@@ -2126,10 +1441,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` OK (52 tests, 2 ignorés rouges M1-7), `cargo clippy --all-targets -- -D warnings` OK, `cargo fmt --all` OK. Non exécuté : `cargo audit`, CI réelle avant push.
 - **Judgement calls**: φ_out rend une `Form` (le runner intern) plutôt que d'interner lui-même — garde le trait indépendant du pool ; la mémoire de niveau M (tampons) est absente, non utilisée par les opérations de M1 ; le payload reste `bool` (lookup à payload Option(V) en M1-5, #12).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M1-3 (3/3) : décompileur (round-trip) + PBT des schémas, clôture de l'issue (feat/10c)
 
@@ -2139,10 +1450,6 @@ One entry per commit or pull request:
 - **Judgement calls**: le décompileur gère le cas terminal(true) pour un domaine atomique à un seul élément (R-collapse réduit le nœud au terminal).
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M1-3 (2/3) : module schéma — Atom/Set/Map bornés, compilation balayage d'univers (feat/10b)
 
 - **Issue**: #10 (M1-3 — Schémas de référence, énoncé Σ).
@@ -2150,10 +1457,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo nextest run --all-targets` OK (40 tests, 2 ignorés rouges M1-7). Non exécuté : `make check` complet, `cargo audit`, CI réelle avant push.
 - **Judgement calls**: `Set(Map(...))` (ensemble de maps, ex. S de la spec) nécessite l'union — reporté à M1-6 (#13) ; M1-3 compile les valeurs simples. Le décompileur (round-trip) et les PBT suivent en PR 3/3.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M1-3 (1/3) : algèbre de clés en méthodes d'instance — le schéma est une donnée runtime (feat/10)
 
@@ -2163,10 +1466,6 @@ One entry per commit or pull request:
 - **Judgement calls**: méthodes d'instance plutôt qu'encodage du schéma dans le type `Level` (évite un échappement dynamique non justifié) ; le refactor est découpé en PR séparée car le diff total de M1-3 dépasse la limite ~500 lignes par PR.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M1-2 : réductions R-collapse / R-default, confluence prouvée par PBT (feat/9)
 
 - **Issue**: #9 (M1-2 — Réductions, spec § 2.3).
@@ -2174,10 +1473,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo nextest run --all-targets` OK (34 tests, 2 ignorés rouges M1-7). Non exécuté : `make check` complet (partie Python inchangée), `cargo audit`, CI réelle avant push.
 - **Judgement calls**: sémantique de couverture de la spec § 2.2 (tout arc absent vaut δ(ℓ)) : avec un défaut, le collapse vaut si δ est explicite ou si la cible est D_δ ; sans défaut, toutes les valeurs doivent être explicites. `reduire_inverse` traite le cas « arcs vides après retrait » comme `Collapse(cible retirée)` pour préserver la commutation.
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M1-1 : arena + handles, hash-consing à clé (contrôleur, ancre, forme) (feat/8)
 
@@ -2187,10 +1482,6 @@ One entry per commit or pull request:
 - **Judgement calls**: R-share seul à l'internement en M1-1 ; R-collapse/R-default s'insèrent à la création du handle en M1-2 (#9), conformément au séquencement interface → réductions.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M1-7 : interprète de référence (voie A) + différentiel A/B/C branché (feat/7)
 
 - **Issue**: #7 (M1-7 — Interprète de référence, phase 2 : tests).
@@ -2198,10 +1489,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, `cargo nextest run --all-targets` OK (19 tests, 2 ignorés rouges vérifiés rouges), `cargo doc --no-deps` OK. Non exécuté : `make check` complet (partie Python inchangée), `cargo audit`, CI réelle avant push.
 - **Judgement calls**: les PBT vivent dans lisage-bench (seule crate à posséder proptest, M0-4) — ajouter proptest à lang aurait été une nouvelle dépendance sans escalation (revue PR #42). Les PBT par énoncé C1/L3/A5/C6 sont écrits dans l'issue qui livre la voie concernée, pas ici (ils ne compileraient pas sans l'API visée).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M1-0 : interface du cœur, traits + bornes Send/Sync (feat/6)
 
@@ -2211,10 +1498,6 @@ One entry per commit or pull request:
 - **Judgement calls**: contrats dans `lisage-algebra` car le graphe du workspace interdit `algebra → core` (ADR-0100 draft) ; pas de crate de log (liste d'escalation), narration en doc-comments + tests.
 - **Escalations**: ADR-0100 draft `needs-human` ; commentaire structuré posé sur #14 pour la future dépendance `cudd-sys`.
 
-
-
-
-
 ## 2026-11-10 - M0-5 : socle de bench, criterion + micro-bench factice (feat/5)
 
 - **Issue**: #5 (M0-5 — Socle de bench).
@@ -2222,10 +1505,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo fmt --all -- --check` OK, `cargo clippy --all-targets -- -D warnings` OK, `cargo test --all-targets` OK (5 tests), `cargo bench -p lisage-bench --bench micro` OK (300 ps). Non exécuté : CI GitHub réelle, cargo nextest.
 - **Judgement calls**: le bench factice porte sur voie_a (référence) ; le seuil de régression sera calibré quand les vrais benches arriveront (M1+).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M0-4 : charte de test, triptyque A/B/C + proptest (feat/4)
 
@@ -2235,10 +1514,6 @@ One entry per commit or pull request:
 - **Judgement calls**: les trois voies sont des stubs factices (x+1) en attendant l'implémentation réelle M1.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-10 - M0-2 : squelette du workspace, 7 crates + test de frontières (feat/2)
 
 - **Issue**: #2 (M0-2 — Squelette du workspace).
@@ -2246,10 +1521,6 @@ One entry per commit or pull request:
 - **Evidence**: `cargo fmt --all -- --check` OK, `cargo clippy --all-targets -- -D warnings` OK, `cargo test --all-targets` OK (3 tests passés : socle factice + 2 frontières). Non exécuté : cargo nextest, CI GitHub réelle.
 - **Judgement calls**: le test de frontières parse les Cargo.toml plutôt que d'utiliser cargo-metadata (évite une dépendance dev supplémentaire).
 - **Escalations**: aucune.
-
-
-
-
 
 ## 2026-11-10 - M0-1 : socle Rust ajouté au template Python (feat/1)
 
@@ -2259,10 +1530,6 @@ One entry per commit or pull request:
 - **Judgement calls**: le Python n'est pas purgé (instruction du owner en session, dérogation à l'issue M0-1) ; les deux écosystèmes coexistent, la CI valide les deux.
 - **Escalations**: aucune.
 
-
-
-
-
 ## 2026-11-09 - night session live trace
 
 - **Issue**: none (human request: the night loop goes silent while a session runs).
@@ -2270,10 +1537,6 @@ One entry per commit or pull request:
 - **Evidence**: ruff check and ruff format green, py_compile green; simulation under Python 3.12 with fake httpx/git/vibe backends: 27/27 assertions (auto-discovery with recovery PRs and claimed suffixes on stdout, heartbeat on/off, anti-spin stop on a claimless session, explicit mode with claim-note trace). Not run: mypy strict, the real Vibe Code CLI, the real GitHub API.
 - **Judgement calls**: prompts persist under `.night/` (already gitignored) rather than a temp dir - the morning audit needs them and they cost nothing; the heartbeat wakes once per second to detect a finished session promptly instead of sleeping the whole heartbeat period, so a short session is not padded to 60s.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-08 - driver commands as one CLI package
 
@@ -2283,10 +1546,6 @@ One entry per commit or pull request:
 - **Judgement calls**: editing accepted ADRs departs from the "never edited" rule - done under explicit human instruction in this session; the flat scripts total 3826 lines, the package 3324.
 - **Escalations**: ADR-0021 is a draft awaiting the human owner's acceptance.
 
-
-
-
-
 ## 2026-11-08 - milestone filter for the night loop
 
 - **Issue**: none (human request).
@@ -2294,10 +1553,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 33 passed, coverage 94.76%); helper functions exercised directly (parse/match/error path). Not run: a live night loop against the GitHub API.
 - **Judgement calls**: milestone identifiers are milestone numbers (the GitHub API identifier), not titles; ADR-0017 (docs/decisions/) left untouched - constitutional file, needs human sign-off.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-08 - night autonomy trace and PR body updates
 
@@ -2307,10 +1562,6 @@ One entry per commit or pull request:
 - **Judgement calls**: the change touches constitutional files (docs/decisions/, docs/agents/, docs/review-checklist.md) - done under explicit human instruction in this session.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-08 - type fixes for the subcommand refactor
 
 - **Issue**: none (human request: PR + merge the two commits).
@@ -2318,10 +1569,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green after the fix (ruff, mypy strict 34 files, import-linter, pytest 33 passed, coverage 94.76%).
 - **Judgement calls**: fixes committed as a separate commit on the branch rather than rewriting the human's commits.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-09 - more output during night session (type fix on top)
 
@@ -2331,10 +1578,6 @@ One entry per commit or pull request:
 - **Judgement calls**: fix committed separately, the human's commit untouched.
 - **Escalations**: none.
 
-
-
-
-
 ## 2026-11-09 - night session prints text, not a JSON dump
 
 - **Issue**: none (human relayed the petrichor fix; same one-liner applies here).
@@ -2342,10 +1585,6 @@ One entry per commit or pull request:
 - **Evidence**: `make check` green (ruff, mypy strict, import-linter, pytest 34 passed, coverage 94.76%). Not run: a live vibe session.
 - **Judgement calls**: ADR-0017 still mentions `--output json` in its decision text - left untouched (constitutional file, human sign-off); the decision itself (process boundary = context reset) is unchanged.
 - **Escalations**: none.
-
-
-
-
 
 ## 2026-11-09 - PR template asks for Closes #n
 
