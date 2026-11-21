@@ -221,11 +221,8 @@ where
                 kind: SpanKind::Round,
                 lane: 0,
             });
-            observer.on_event(&contextualiser(TraceEvent::Round {
-                numero: iterations,
-                span: None,
-            }));
         }
+        let pool_avant = params.pool.node_count() as i64;
         let etape = RestreintAuxLevels::new(params.transduction.clone(), levels_actifs.clone());
         // Spec § 7: saturate steps can produce a memory effect
         // (T3, M2-5) — PerLevel policy. The memory lives for one pass:
@@ -256,6 +253,26 @@ where
                 return Err(erreur);
             }
         };
+        // D1-2: the Round event carries the active/modified levels, the
+        // before/image/after handles and the growth of the pool.
+        if let Some(observer) = &params.observer {
+            let niveaux_modifies: Vec<u32> = runner
+                .transduction()
+                .levels_modifies()
+                .iter()
+                .map(|level| level.0)
+                .collect();
+            observer.on_event(&contextualiser(TraceEvent::Round {
+                numero: iterations,
+                niveaux_actifs: levels_actifs.iter().map(|level| level.0).collect(),
+                niveaux_modifies,
+                avant: courant,
+                image,
+                apres: next,
+                croissance: params.pool.node_count() as i64 - pool_avant,
+                span: None,
+            }));
+        }
         if next == courant {
             fermer_span(&params.observer, span);
             return Ok(ResultSaturation {

@@ -293,6 +293,19 @@ where
             .map(|words| words.len() as u64 * 8)
             .sum();
         let total = self.node_count() as u64;
+        // D1-2: the collected nodes are listed (live but unmarked slots),
+        // before the sweep tombstones them.
+        let mut liste_collectes: Vec<NodeId> = Vec::new();
+        for class in 0..self.class_map.number_classes() {
+            if let Some(arena) = self.arenas.get(class as usize).and_then(|a| a.as_ref()) {
+                let words = marks[class as usize].as_ref().expect("marks allocated");
+                for index in 0..arena.slot_count() as u32 {
+                    if arena.is_live(index) && !mark_of(words, index) {
+                        liste_collectes.push(NodeId::encode(class, index, class_bits));
+                    }
+                }
+            }
+        }
         let mut collected = 0u64;
         for class in 0..self.class_map.number_classes() {
             if let Some(arena) = self.arenas.get_mut(class as usize).and_then(|a| a.as_mut()) {
@@ -348,6 +361,7 @@ where
             live,
             collected,
             compaction,
+            liste_collectes,
             span: None,
         }));
         // MEM-17: the degree histogram per class rides the GC event.
@@ -522,6 +536,7 @@ where
                 .on_event(&contextualiser(TraceEvent::NodeCreated {
                     node,
                     level: None,
+                    forme: format!("{form:?}"),
                     span: None,
                 }));
             return node;
@@ -622,6 +637,7 @@ where
             .get_mut(class as usize)
             .expect("class within the frozen map")
             .get_or_insert_with(|| new_arena(class, &map));
+        let forme_debug = format!("{form:?}");
         let index = arena
             .push_form(Plan::Principal, form, keys)
             .expect("form representable in its class");
@@ -635,6 +651,7 @@ where
             .on_event(&contextualiser(TraceEvent::NodeCreated {
                 node,
                 level,
+                forme: forme_debug,
                 span: None,
             }));
         node

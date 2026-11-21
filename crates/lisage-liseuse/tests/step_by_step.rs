@@ -60,11 +60,11 @@ fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> N
     .unwrap()
 }
 
-/// M2-6 / D1-1: the trace schema is versioned v4 and serializes the
+/// M2-6 / D1-1 / D1-2: the trace schema is versioned v5 and serializes the
 /// step-by-step events, each carrying its `"span"` field.
 #[test]
-fn test_serialisation_v4_evenements_step_by_step() {
-    assert_eq!(TRACE_VERSION, 4);
+fn test_serialisation_v5_evenements_step_by_step() {
+    assert_eq!(TRACE_VERSION, 5);
     let attr = serialiser_evenement(&TraceEvent::Attr {
         channel: ChannelAttr::Inherited,
         node: NodeId(3),
@@ -73,37 +73,44 @@ fn test_serialisation_v4_evenements_step_by_step() {
     });
     assert_eq!(
         attr,
-        "{\"v\":4,\"type\":\"Attr\",\"span\":null,\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
+        "{\"v\":5,\"type\":\"Attr\",\"span\":null,\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::MemoHit {
             node: NodeId(7),
             span: None
         }),
-        "{\"v\":4,\"type\":\"MemoHit\",\"span\":null,\"noeud\":7}"
+        "{\"v\":5,\"type\":\"MemoHit\",\"span\":null,\"noeud\":7}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::MemoMiss {
             node: NodeId(8),
             span: None
         }),
-        "{\"v\":4,\"type\":\"MemoMiss\",\"span\":null,\"noeud\":8}"
+        "{\"v\":5,\"type\":\"MemoMiss\",\"span\":null,\"noeud\":8}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Round {
             numero: 2,
+            niveaux_actifs: vec![0, 1],
+            niveaux_modifies: vec![1],
+            avant: NodeId(4),
+            image: NodeId(5),
+            apres: NodeId(6),
+            croissance: 2,
             span: None
         }),
-        "{\"v\":4,\"type\":\"Round\",\"span\":null,\"numero\":2}"
+        "{\"v\":5,\"type\":\"Round\",\"span\":null,\"numero\":2,\"niveaux_actifs\":[0,1],\"niveaux_modifies\":[1],\"avant\":4,\"image\":5,\"apres\":6,\"croissance\":2}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Gc {
             live: 12,
             collected: 5,
             compaction: true,
+            liste_collectes: vec![NodeId(3), NodeId(4)],
             span: None,
         }),
-        "{\"v\":4,\"type\":\"Gc\",\"span\":null,\"vivants\":12,\"collectes\":5,\"compaction\":true}"
+        "{\"v\":5,\"type\":\"Gc\",\"span\":null,\"vivants\":12,\"collectes\":5,\"compaction\":true,\"liste_collectes\":[3,4]}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::Attr {
@@ -112,7 +119,7 @@ fn test_serialisation_v4_evenements_step_by_step() {
             value: "true".to_string(),
             span: None,
         }),
-        "{\"v\":4,\"type\":\"Attr\",\"span\":null,\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
+        "{\"v\":5,\"type\":\"Attr\",\"span\":null,\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
     );
 }
 
@@ -279,6 +286,7 @@ fn test_scrubber_replay_and_diff() {
         TraceEvent::NodeCreated {
             node: NodeId(1),
             level: Some(lisage_core::Level(0)),
+            forme: "Noeud".to_string(),
             span: None,
         },
         TraceEvent::Attr {
@@ -293,11 +301,18 @@ fn test_scrubber_replay_and_diff() {
         },
         TraceEvent::Round {
             numero: 1,
+            niveaux_actifs: Vec::new(),
+            niveaux_modifies: Vec::new(),
+            avant: NodeId(0),
+            image: NodeId(0),
+            apres: NodeId(0),
+            croissance: 0,
             span: None,
         },
         TraceEvent::NodeCreated {
             node: NodeId(2),
             level: Some(lisage_core::Level(1)),
+            forme: "Noeud".to_string(),
             span: None,
         },
         TraceEvent::MemoHit {
@@ -306,6 +321,12 @@ fn test_scrubber_replay_and_diff() {
         },
         TraceEvent::Round {
             numero: 2,
+            niveaux_actifs: Vec::new(),
+            niveaux_modifies: Vec::new(),
+            avant: NodeId(0),
+            image: NodeId(0),
+            apres: NodeId(0),
+            croissance: 0,
             span: None,
         },
     ];
@@ -339,11 +360,13 @@ fn test_scrubber_replay_and_diff() {
         TraceEvent::NodeCreated {
             node: NodeId(1),
             level: None,
+            forme: "Noeud".to_string(),
             span: None,
         },
         TraceEvent::NodeCreated {
             node: NodeId(2),
             level: None,
+            forme: "Noeud".to_string(),
             span: None,
         },
     ]);
@@ -381,6 +404,12 @@ fn test_rendu_svg_step_by_step_channels_and_ghosts() {
         0,
         TraceEvent::Round {
             numero: 1,
+            niveaux_actifs: Vec::new(),
+            niveaux_modifies: Vec::new(),
+            avant: NodeId(0),
+            image: NodeId(0),
+            apres: NodeId(0),
+            croissance: 0,
             span: None,
         },
     );
@@ -395,6 +424,7 @@ fn test_rendu_svg_step_by_step_channels_and_ghosts() {
         evenements.push(TraceEvent::NodeCreated {
             node: n,
             level: None,
+            forme: "Noeud".to_string(),
             span: None,
         });
         if let Ok(lisage_core::Form::Node { arcs, .. }) = pool.resolve(n) {
@@ -467,6 +497,7 @@ fn test_scrubber_proprietes_prefixe_monotone_and_diff_antisymetrique() {
                     0 => TraceEvent::NodeCreated {
                         node,
                         level: None,
+                        forme: "Noeud".to_string(),
                         span: None,
                     },
                     1 => TraceEvent::Attr {
@@ -479,6 +510,12 @@ fn test_scrubber_proprietes_prefixe_monotone_and_diff_antisymetrique() {
                     3 => TraceEvent::MemoMiss { node, span: None },
                     _ => TraceEvent::Round {
                         numero: 1 + (next() % 3) as u32,
+                        niveaux_actifs: Vec::new(),
+                        niveaux_modifies: Vec::new(),
+                        avant: NodeId(0),
+                        image: NodeId(0),
+                        apres: NodeId(0),
+                        croissance: 0,
                         span: None,
                     },
                 }
@@ -629,7 +666,7 @@ fn test_spans_saturation_round() {
     assert!(
         evenements.iter().any(|e| matches!(
             e,
-            TraceEvent::Round { numero: 1, span } if *span == Some(span_round)
+            TraceEvent::Round { numero: 1, span, .. } if *span == Some(span_round)
         )),
         "the Round event carries the Round span"
     );
@@ -642,9 +679,9 @@ fn test_spans_saturation_round() {
     );
 }
 
-/// D1-1: golden serialization of the span boundary events (schema v4).
+/// D1-1: golden serialization of the span boundary events (schema v5).
 #[test]
-fn test_serialisation_span_open_close_v4() {
+fn test_serialisation_span_open_close_v5() {
     use lisage_core::observer::{SpanId, SpanKind};
 
     assert_eq!(
@@ -653,7 +690,7 @@ fn test_serialisation_span_open_close_v4() {
             kind: SpanKind::Op,
             lane: 0,
         }),
-        "{\"v\":4,\"type\":\"SpanOpen\",\"span\":9,\"kind\":\"op\",\"lane\":0}"
+        "{\"v\":5,\"type\":\"SpanOpen\",\"span\":9,\"kind\":\"op\",\"lane\":0}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::SpanOpen {
@@ -661,11 +698,11 @@ fn test_serialisation_span_open_close_v4() {
             kind: SpanKind::Visite,
             lane: 2,
         }),
-        "{\"v\":4,\"type\":\"SpanOpen\",\"span\":10,\"kind\":\"visite\",\"lane\":2}"
+        "{\"v\":5,\"type\":\"SpanOpen\",\"span\":10,\"kind\":\"visite\",\"lane\":2}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::SpanClose { span: SpanId(9) }),
-        "{\"v\":4,\"type\":\"SpanClose\",\"span\":9}"
+        "{\"v\":5,\"type\":\"SpanClose\",\"span\":9}"
     );
     // A spanned event renders its span id.
     assert_eq!(
@@ -673,6 +710,6 @@ fn test_serialisation_span_open_close_v4() {
             node: NodeId(7),
             span: Some(SpanId(10)),
         }),
-        "{\"v\":4,\"type\":\"MemoHit\",\"span\":10,\"noeud\":7}"
+        "{\"v\":5,\"type\":\"MemoHit\",\"span\":10,\"noeud\":7}"
     );
 }

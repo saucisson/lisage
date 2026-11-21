@@ -16,10 +16,43 @@ use std::sync::Arc;
 
 use lisage_algebra::interface::{Anchor, Form, Level, MemoryPolicy, NodeId, Pool};
 
+/// Structural summary of a form (D1-2): level and arcs `(key, target)`.
+fn extraire_structure<P>(forme: &Form<u64, P>) -> (Option<Level>, Vec<(u64, NodeId)>) {
+    match forme {
+        Form::Terminal(_) => (None, Vec::new()),
+        Form::Node { level, arcs } => (
+            Some(*level),
+            arcs.iter().map(|(cle, cible)| (*cle, *cible)).collect(),
+        ),
+    }
+}
+
+/// Classifies the structure change between the input and output forms of
+/// one node visit (D1-2): identity, relabelling, collapse, expansion or
+/// restructuring.
+fn classifier_structure(
+    avant: (Option<Level>, Vec<(u64, NodeId)>),
+    apres: (Option<Level>, Vec<(u64, NodeId)>),
+) -> StructureChangeKind {
+    match (avant.0, apres.0) {
+        (None, None) => StructureChangeKind::Identite,
+        (Some(level_avant), Some(level_apres))
+            if avant.1 == apres.1 && level_avant == level_apres =>
+        {
+            StructureChangeKind::Identite
+        }
+        (Some(_), Some(_)) if avant.1 == apres.1 => StructureChangeKind::Reetiquetage,
+        (Some(_), None) => StructureChangeKind::Collapse,
+        (None, Some(_)) => StructureChangeKind::Expansion,
+        (Some(_), Some(_)) => StructureChangeKind::Restructuration,
+    }
+}
+
 use crate::error::CoreError;
 use crate::memory::{EffetMemory, MemoryLevel};
 use crate::observer::{
-    ChannelAttr, Observer, SpanKind, TraceEvent, contextualiser, next_span_id, pop_span, push_span,
+    ChannelAttr, Observer, SpanKind, StructureChangeKind, TraceEvent, contextualiser, next_span_id,
+    pop_span, push_span,
 };
 
 /// Memo key: (operation fingerprint, node, inherited attribute,
@@ -203,7 +236,12 @@ impl<T: Transduction> Transducteur<T> {
     {
         let h = self.transduction.h0();
         let span = self.ouvrir_span(SpanKind::Op, 0);
+        self.notifier(TraceEvent::OpStart {
+            fingerprint: self.transduction.fingerprint(),
+            span: None,
+        });
         let resultat = self.run_with(pool_input, pool_output, anchor, node, h);
+        self.notifier(TraceEvent::OpEnd { span: None });
         self.fermer_span(span);
         resultat
     }
@@ -223,7 +261,12 @@ impl<T: Transduction> Transducteur<T> {
     {
         let h = self.transduction.h0();
         let span = self.ouvrir_span(SpanKind::Op, 0);
+        self.notifier(TraceEvent::OpStart {
+            fingerprint: self.transduction.fingerprint(),
+            span: None,
+        });
         let resultat = self.run_with_same_pool(pool, anchor, node, h);
+        self.notifier(TraceEvent::OpEnd { span: None });
         self.fermer_span(span);
         resultat
     }
@@ -240,9 +283,17 @@ impl<T: Transduction> Transducteur<T> {
         PIn: Pool<Key = u64, Payload = bool>,
         POut: Pool<Key = u64, Payload = T::Out>,
     {
-        // D1-1: one Visite span per node visit, closed on every exit path.
+        // D1-1/D1-2: one Visite span per node visit, closed on every exit path.
         let span = self.ouvrir_span(SpanKind::Visite, 0);
+        self.notifier(TraceEvent::VisiteEntree { node, span: None });
         let resultat = self.run_with_inner(pool_input, pool_output, anchor, node, h);
+        if let Ok((resultat_node, _)) = &resultat {
+            self.notifier(TraceEvent::VisiteSortie {
+                node,
+                resultat: *resultat_node,
+                span: None,
+            });
+        }
         self.fermer_span(span);
         resultat
     }
@@ -268,12 +319,33 @@ impl<T: Transduction> Transducteur<T> {
             h.clone(),
             self.memory.version(),
         );
+        let fingerprint = self.transduction.fingerprint();
+        let version = self.memory.version();
+        let h_debug = format!("{h:?}");
         if let Some((result, s)) = self.memo.get(&key) {
+            self.notifier(TraceEvent::MemoConsult {
+                fingerprint,
+                node,
+                h: h_debug.clone(),
+                version,
+                hit: true,
+                span: None,
+            });
             self.notifier(TraceEvent::MemoHit { node, span: None });
             return Ok((*result, s.clone()));
         }
+        self.notifier(TraceEvent::MemoConsult {
+            fingerprint,
+            node,
+            h: h_debug.clone(),
+            version,
+            hit: false,
+            span: None,
+        });
         self.notifier(TraceEvent::MemoMiss { node, span: None });
         let form = pool_input.resolve(node)?.clone();
+        // D1-2: structural summary of the input form, for the StructureChange.
+        let structure_avant = extraire_structure(&form);
         let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
             Form::Node { level, arcs } => {
@@ -323,13 +395,57 @@ impl<T: Transduction> Transducteur<T> {
                         value: format!("{:?}", effet.ecritures),
                         span: None,
                     });
+                    // D1-2: the memory write bumps the version.
+                    let version_avant = self.memory.version();
+                    effet.apply(&mut self.memory);
+                    self.notifier(TraceEvent::EcritureMemoire {
+                        version_avant,
+                        version_apres: self.memory.version(),
+                        span: None,
+                    });
+                } else {
+                    effet.apply(&mut self.memory);
                 }
-                effet.apply(&mut self.memory);
                 (node_result, s)
             }
         };
+        // D1-2: generic structure change, by comparison of the forms.
+        self.notifier_structure_change(pool_output, node, &structure_avant, result);
+        self.notifier(TraceEvent::MemoInsert {
+            fingerprint,
+            node,
+            h: h_debug,
+            version,
+            resultat: result,
+            span: None,
+        });
         self.memo.insert(key, (result, s.clone()));
         Ok((result, s))
+    }
+
+    /// Emits the `StructureChange` of one visit (D1-2): the output form is
+    /// resolved in the output pool and compared with the input form.
+    fn notifier_structure_change<POut>(
+        &self,
+        pool_output: &POut,
+        node: NodeId,
+        structure_avant: &(Option<Level>, Vec<(u64, NodeId)>),
+        resultat: NodeId,
+    ) where
+        POut: Pool<Key = u64>,
+    {
+        let Ok(forme_apres) = pool_output.resolve(resultat) else {
+            return;
+        };
+        let structure_apres = extraire_structure(&forme_apres);
+        let classification = classifier_structure(structure_avant.clone(), structure_apres.clone());
+        self.notifier(TraceEvent::StructureChange {
+            node,
+            classification,
+            arcs_avant: structure_avant.1.clone(),
+            arcs_apres: structure_apres.1,
+            span: None,
+        });
     }
 
     fn run_with_same_pool<P>(
@@ -343,9 +459,17 @@ impl<T: Transduction> Transducteur<T> {
         P: Pool<Key = u64, Payload = bool>,
         T: Transduction<Out = bool>,
     {
-        // D1-1: one Visite span per node visit, closed on every exit path.
+        // D1-1/D1-2: one Visite span per node visit, closed on every exit path.
         let span = self.ouvrir_span(SpanKind::Visite, 0);
+        self.notifier(TraceEvent::VisiteEntree { node, span: None });
         let resultat = self.run_with_same_pool_inner(pool, anchor, node, h);
+        if let Ok((resultat_node, _)) = &resultat {
+            self.notifier(TraceEvent::VisiteSortie {
+                node,
+                resultat: *resultat_node,
+                span: None,
+            });
+        }
         self.fermer_span(span);
         resultat
     }
@@ -370,12 +494,33 @@ impl<T: Transduction> Transducteur<T> {
             h.clone(),
             self.memory.version(),
         );
+        let fingerprint = self.transduction.fingerprint();
+        let version = self.memory.version();
+        let h_debug = format!("{h:?}");
         if let Some((result, s)) = self.memo.get(&key) {
+            self.notifier(TraceEvent::MemoConsult {
+                fingerprint,
+                node,
+                h: h_debug.clone(),
+                version,
+                hit: true,
+                span: None,
+            });
             self.notifier(TraceEvent::MemoHit { node, span: None });
             return Ok((*result, s.clone()));
         }
+        self.notifier(TraceEvent::MemoConsult {
+            fingerprint,
+            node,
+            h: h_debug.clone(),
+            version,
+            hit: false,
+            span: None,
+        });
         self.notifier(TraceEvent::MemoMiss { node, span: None });
         let form = pool.resolve(node)?.clone();
+        // D1-2: structural summary of the input form, for the StructureChange.
+        let structure_avant = extraire_structure(&form);
         let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
             Form::Node { level, arcs } => {
@@ -425,11 +570,30 @@ impl<T: Transduction> Transducteur<T> {
                         value: format!("{:?}", effet.ecritures),
                         span: None,
                     });
+                    // D1-2: the memory write bumps the version.
+                    let version_avant = self.memory.version();
+                    effet.apply(&mut self.memory);
+                    self.notifier(TraceEvent::EcritureMemoire {
+                        version_avant,
+                        version_apres: self.memory.version(),
+                        span: None,
+                    });
+                } else {
+                    effet.apply(&mut self.memory);
                 }
-                effet.apply(&mut self.memory);
                 (node_result, s)
             }
         };
+        // D1-2: generic structure change, by comparison of the forms.
+        self.notifier_structure_change(pool, node, &structure_avant, result);
+        self.notifier(TraceEvent::MemoInsert {
+            fingerprint,
+            node,
+            h: h_debug,
+            version,
+            resultat: result,
+            span: None,
+        });
         self.memo.insert(key, (result, s.clone()));
         Ok((result, s))
     }

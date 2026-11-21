@@ -135,7 +135,15 @@ impl Scrubber {
                 | TraceEvent::Gc { .. }
                 | TraceEvent::Histogram { .. }
                 | TraceEvent::SpanOpen { .. }
-                | TraceEvent::SpanClose { .. } => {}
+                | TraceEvent::SpanClose { .. }
+                | TraceEvent::OpStart { .. }
+                | TraceEvent::OpEnd { .. }
+                | TraceEvent::VisiteEntree { .. }
+                | TraceEvent::VisiteSortie { .. }
+                | TraceEvent::MemoConsult { .. }
+                | TraceEvent::MemoInsert { .. }
+                | TraceEvent::EcritureMemoire { .. }
+                | TraceEvent::StructureChange { .. } => {}
             }
         }
         etat
