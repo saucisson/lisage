@@ -5,6 +5,7 @@ pub mod index;
 pub mod mirror;
 pub mod philosophers;
 pub mod publication;
+pub mod snapshots;
 pub mod spans;
 pub mod step_by_step;
 pub mod svg;
