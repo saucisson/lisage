@@ -9,9 +9,9 @@
 //!   one balance line per round, with the convergence marker (a round
 //!   that changed nothing, `apres == avant` = fixpoint).
 //! - [`diff_rounds`] compares two rounds (DoD: diff round 11 vs 12) by
-//!   span-range lookup + prefix sums, in O(1).
+//!   round-interval lookup + prefix sums, in O(1) after one O(n) pass.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::ops::Range;
 
@@ -45,7 +45,8 @@ pub struct SpanTree {
 impl SpanTree {
     /// Builds the tree in one O(n) pass with a stack. Unclosed spans at
     /// the end of the trace are closed at the last position; a
-    /// `SpanClose` without matching `SpanOpen` is ignored.
+    /// `SpanClose` that does not match the innermost open span is
+    /// ignored (the span stays open).
     pub fn build(events: &[TraceEvent]) -> Self {
         let mut stack: Vec<SpanNode> = Vec::new();
         let mut roots: Vec<SpanNode> = Vec::new();
@@ -72,9 +73,10 @@ impl SpanTree {
                     children: Vec::new(),
                 }),
                 TraceEvent::SpanClose { span } => {
-                    if let Some(node) = stack.pop()
-                        && node.span == *span
-                    {
+                    // Only the innermost open span may be closed; a
+                    // mismatched `SpanClose` is ignored and the span
+                    // stays open.
+                    if let Some(node) = stack.pop_if(|node| node.span == *span) {
                         close(&mut stack, &mut roots, &mut by_id, node, position + 1);
                     }
                 }
@@ -237,25 +239,27 @@ pub struct RoundLine {
     pub converged: bool,
 }
 
-/// Event interval of one round: the range of its `Round` span in the
-/// span tree (the span covers the whole round, `SpanOpen..=SpanClose`);
-/// falls back to the index's round interval when the span is absent.
-pub fn round_interval(
+/// Round number → event interval, built in one O(n) pass: the range of
+/// the round's `Round` span in the span tree (the span covers the whole
+/// round, `SpanOpen..=SpanClose`); falls back to the index's round
+/// interval when the span is absent. Lookups in the returned map are
+/// O(1).
+pub fn round_intervals(
     events: &[TraceEvent],
     index: &IndexTrace,
     tree: &SpanTree,
-    number: u32,
-) -> Option<Range<usize>> {
-    let span = events.iter().find_map(|event| match event {
-        TraceEvent::Round { numero, span, .. } if *numero == number => *span,
-        _ => None,
-    });
-    if let Some(span) = span
-        && let Some(range) = tree.span_range(span)
-    {
-        return Some(range);
+) -> BTreeMap<u32, Range<usize>> {
+    let mut intervals: BTreeMap<u32, Range<usize>> = BTreeMap::new();
+    for event in events {
+        if let TraceEvent::Round { numero, span, .. } = event {
+            let range = span
+                .and_then(|span| tree.span_range(span))
+                .or_else(|| index.round_range(*numero))
+                .unwrap_or(0..0);
+            intervals.insert(*numero, range);
+        }
     }
-    index.round_range(number)
+    intervals
 }
 
 /// First round that changed nothing (`apres == avant`) — the
@@ -273,13 +277,12 @@ pub fn convergence_round(events: &[TraceEvent]) -> Option<u32> {
 }
 
 /// Balance lines of every round of the trace, in round order. The round
-/// intervals come from the span tree (O(1) hash lookup each), the
-/// balances from the prefix sums (O(1) each).
+/// intervals come from the prebuilt map (O(1) each), the balances from
+/// the prefix sums (O(1) each).
 pub fn round_lines(
     events: &[TraceEvent],
-    index: &IndexTrace,
     balances: &Balances,
-    tree: &SpanTree,
+    intervals: &BTreeMap<u32, Range<usize>>,
 ) -> Vec<RoundLine> {
     let mut rounds: Vec<(u32, bool)> = events
         .iter()
@@ -298,7 +301,7 @@ pub fn round_lines(
     rounds
         .iter()
         .map(|&(number, converged)| {
-            let range = round_interval(events, index, tree, number).unwrap_or(0..0);
+            let range = intervals.get(&number).cloned().unwrap_or(0..0);
             RoundLine {
                 number,
                 balance: balances.balance(range),
@@ -328,21 +331,19 @@ pub fn render_balance_lines(lines: &[RoundLine]) -> Vec<String> {
 }
 
 /// Diff of two rounds by number: `balance(second) - balance(first)`
-/// over their span intervals — O(1) by span-range lookup, O(1) by
-/// prefix sums. `None` when either round is absent from the trace.
+/// over their span intervals — O(1) by map lookup, O(1) by prefix sums.
+/// `None` when either round is absent from the trace.
 pub fn diff_rounds(
     first: u32,
     second: u32,
-    events: &[TraceEvent],
-    index: &IndexTrace,
     balances: &Balances,
-    tree: &SpanTree,
+    intervals: &BTreeMap<u32, Range<usize>>,
 ) -> Option<BalanceDelta> {
-    let range_first = round_interval(events, index, tree, first)?;
-    let range_second = round_interval(events, index, tree, second)?;
+    let range_first = intervals.get(&first)?;
+    let range_second = intervals.get(&second)?;
     Some(
         balances
-            .balance(range_second)
-            .delta(&balances.balance(range_first)),
+            .balance(range_second.clone())
+            .delta(&balances.balance(range_first.clone())),
     )
 }
