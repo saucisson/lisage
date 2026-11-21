@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - LS-3: Authentication documentation and configuration (issue #311)
+
+- **Issue**: #311 (LS-3, milestone Auth v1); labels auth, type/doc. Depends on LS-1 (#309).
+- **Done**: README gains an "Authentication (OIDC)" section documenting the five `AUTH_*` variables in a table (AUTH_ISSUER required, AUTH_CLIENT_ID, AUTH_CLIENT_SECRET, AUTH_ALLOWED_AUDIENCES, AUTH_DISABLED), the "active by default / AUTH_DISABLED=1 local only" rule, and curl examples with a Bearer token (valid → proceeds, missing/invalid → 401 typed JSON). `.env.example` already documents the AUTH_* variables (added by LS-1); `.env` is git-ignored (line 16 of `.gitignore`), no real secret committed.
+- **Evidence**: `make check` green on the branch (ruff, ruff format, mypy strict, import-linter, pytest 64 passed / coverage 92.11%, english-only). No code change, docs only.
+- **Judgement calls**: the README section sits right after the Discord-notification quick start, since both are `.env`-driven configuration of the `notify` tool.
+- **Escalations**: none.
+
 ## 2026-11-21 - LS-2: ASGI authentication middleware (issue #310)
 
 - **Issue**: #310 (LS-2, milestone Auth v1); labels auth, type/feat. Depends on LS-1 (#309).
