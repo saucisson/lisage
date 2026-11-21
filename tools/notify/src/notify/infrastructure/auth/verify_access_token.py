@@ -36,11 +36,15 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from notify.models.settings import AuthSettings
+    from notify.models.types import AccessToken
 
 logger = structlog.get_logger(__name__)
 
 DISCOVERY_CACHE_TTL_SECONDS = 24 * 60 * 60
 JWKS_CACHE_TTL_SECONDS = 60 * 60
+# Minimum delay between two forced JWKS refreshes: an attacker spraying
+# unknown kids must not turn each token into one IdP HTTP request.
+JWKS_REFRESH_THROTTLE_SECONDS = 60
 CLOCK_SKEW_LEEWAY_SECONDS = 60
 HTTP_TIMEOUT_SECONDS = 10.0
 REQUIRED_SIGNING_ALGORITHM = "RS256"
@@ -83,8 +87,9 @@ class AccessTokenVerifier:
         self._now = now
         self._discovery: tuple[int, dict[str, object]] | None = None
         self._jwks: tuple[int, KeySet] | None = None
+        self._last_forced_refresh: int | None = None
 
-    def verify_access_token(self, *, token: str) -> AccessTokenClaims:
+    def verify_access_token(self, *, token: AccessToken) -> AccessTokenClaims:
         """Verify one access token and return its validated claims.
 
         :raises TokenValidationError: with the exact rejection reason.
@@ -113,7 +118,7 @@ class AccessTokenVerifier:
             reason=reason, message=f"access token rejected: {reason} ({detail})"
         )
 
-    def _decode_header(self, *, token: str) -> dict[str, object]:
+    def _decode_header(self, *, token: AccessToken) -> dict[str, object]:
         parts = token.split(".")
         if len(parts) != COMPACT_JWS_SEGMENT_COUNT:
             self._reject(reason="malformed", detail="not a compact JWS")
@@ -130,7 +135,17 @@ class AccessTokenVerifier:
         key_set = self._cached_jwks()
         if self._has_kid(key_set=key_set, kid=kid):
             return key_set
+        now = self._now()
+        if (
+            self._last_forced_refresh is not None
+            and now - self._last_forced_refresh < JWKS_REFRESH_THROTTLE_SECONDS
+        ):
+            self._reject(
+                reason="unknown_key",
+                detail=f"kid={kid!r} unknown, refresh throttled",
+            )
         logger.debug("jwks_refresh_unknown_kid", kid=kid)
+        self._last_forced_refresh = now
         refreshed = self._fetch_jwks(force=True)
         if not self._has_kid(key_set=refreshed, kid=kid):
             self._reject(reason="unknown_key", detail=f"kid={kid!r} absent from JWKS")
@@ -250,7 +265,7 @@ class AccessTokenVerifier:
 
 
 def verify_access_token(
-    *, token: str, settings: AuthSettings, http_client: httpx.Client
+    *, token: AccessToken, settings: AuthSettings, http_client: httpx.Client
 ) -> AccessTokenClaims:
     """One-shot access-token validation.
 

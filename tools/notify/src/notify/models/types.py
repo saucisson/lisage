@@ -15,5 +15,11 @@ MessageText = NewType("MessageText", str)
 WebhookUrl = NewType("WebhookUrl", str)
 """A full https URL of an incoming webhook."""
 
+IssuerUrl = NewType("IssuerUrl", str)
+"""The base URL of the OIDC issuer, e.g. ``https://auth.linard.fr``."""
+
+AccessToken = NewType("AccessToken", str)
+"""A compact-serialized JWT access token (three base64url segments)."""
+
 type JsonValue = bool | int | float | str | list[JsonValue] | dict[str, JsonValue] | None
 """Any JSON-compatible value (PEP 695 recursive alias)."""
