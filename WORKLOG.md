@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - D2-1: pool/memo/memory mirror from the trace (issue #160)
+
+- **Issue**: #160 (D2-1, miroir du pool, de la mémo et de la mémoire de niveau); labels ci-gates, debug-outillage, index-miroir.
+- **Done**: new module `crates/lisage-liseuse/src/mirror.rs` — `PoolMirror` rebuilds the full engine state from the trace events alone in one O(n) pass: live nodes (NodeCreated + NodeShared + VisiteEntree minus Gc liste_collectes), created nodes, collected nodes, memo keys (MemoInsert fingerprint/node/version), memory version (EcritureMemoire version_apres), last pool size (DiagramBuilt), GC count. `is_consistent()` checks the live-count vs pool-size invariant. New tests `crates/lisage-liseuse/tests/mirror.rs` (6 tests): live nodes rebuilt from the real philosophers trace (R_5 fold, 879 events), memo inserts tracked (73 inserts), memory version tracked, consistency on the real trace, hand-built GC trace (2 created, 1 collected → 1 live), empty trace.
+- **Evidence**: `cargo nextest run -p lisage-liseuse` 57 passed; `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
+- **Judgement calls**: visited nodes (VisiteEntree) count as live because a visit implies the node is in the pool; the philosophers trace emits no NodeCreated for input nodes (built before the trace starts), so VisiteEntree is the reliable liveness signal on that trace.
+- **Escalations**: none.
+
 ## 2026-11-21 - LS-4: auth brick present in the notify template (issue #312)
 
 - **Issue**: #312 (LS-4, milestone Auth v1); labels auth, type/feat. Depends on LS-1 to LS-3.

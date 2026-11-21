@@ -2,6 +2,7 @@
 
 pub mod debugger;
 pub mod index;
+pub mod mirror;
 pub mod philosophers;
 pub mod publication;
 pub mod spans;
