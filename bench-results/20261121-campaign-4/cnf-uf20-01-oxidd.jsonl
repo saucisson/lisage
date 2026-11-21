@@ -1,0 +1,5 @@
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 52636, "temps_ms": 85.692, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 52508, "temps_ms": 87.174, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 52632, "temps_ms": 87.42, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 52540, "temps_ms": 87.867, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 52724, "temps_ms": 87.834, "variante": "bdd", "verifie": 8}

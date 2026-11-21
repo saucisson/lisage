@@ -1,0 +1,5 @@
+{"charge": "alea-lcg-24", "noeuds": 1071698, "outil": "sylvan", "parametres": {"n": "24"}, "rss_max_ko": 362852, "temps_ms": 5718.022, "variante": "bdd", "verifie": 8386976}
+{"charge": "alea-lcg-24", "noeuds": 1071698, "outil": "sylvan", "parametres": {"n": "24"}, "rss_max_ko": 362816, "temps_ms": 5809.237, "variante": "bdd", "verifie": 8386976}
+{"charge": "alea-lcg-24", "noeuds": 1071698, "outil": "sylvan", "parametres": {"n": "24"}, "rss_max_ko": 362768, "temps_ms": 5679.375, "variante": "bdd", "verifie": 8386976}
+{"charge": "alea-lcg-24", "noeuds": 1071698, "outil": "sylvan", "parametres": {"n": "24"}, "rss_max_ko": 362992, "temps_ms": 5769.9, "variante": "bdd", "verifie": 8386976}
+{"charge": "alea-lcg-24", "noeuds": 1071698, "outil": "sylvan", "parametres": {"n": "24"}, "rss_max_ko": 362760, "temps_ms": 5740.418, "variante": "bdd", "verifie": 8386976}

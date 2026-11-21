@@ -1,0 +1,431 @@
+{
+  "run": "20261121-campaign-4",
+  "aggregats": [
+    {
+      "outil": "lisage",
+      "charge": "alea-lcg-20",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 172.359,
+        "min": 170.367,
+        "max": 195.127
+      },
+      "rss_max_ko": {
+        "mediane": 18300,
+        "min": 18252,
+        "max": 18320
+      },
+      "noeuds": 106760,
+      "verifie": 523228
+    },
+    {
+      "outil": "oxidd",
+      "charge": "alea-lcg-20",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 126.06,
+        "min": 122.491,
+        "max": 225.922
+      },
+      "rss_max_ko": {
+        "mediane": 52444,
+        "min": 52376,
+        "max": 52568
+      },
+      "noeuds": 106760,
+      "verifie": 523228
+    },
+    {
+      "outil": "cudd",
+      "charge": "alea-lcg-20",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 973.422,
+        "min": 959.205,
+        "max": 977.923
+      },
+      "rss_max_ko": {
+        "mediane": 96268,
+        "min": 96124,
+        "max": 96320
+      },
+      "noeuds": 106760,
+      "verifie": 523228
+    },
+    {
+      "outil": "libddd",
+      "charge": "alea-lcg-20",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 896.527,
+        "min": 893.427,
+        "max": 908.319
+      },
+      "rss_max_ko": {
+        "mediane": 42848,
+        "min": 42840,
+        "max": 43004
+      },
+      "noeuds": 106760,
+      "verifie": 523228
+    },
+    {
+      "outil": "sylvan",
+      "charge": "alea-lcg-20",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 336.34,
+        "min": 330.664,
+        "max": 338.438
+      },
+      "rss_max_ko": {
+        "mediane": 31536,
+        "min": 31500,
+        "max": 31608
+      },
+      "noeuds": 106760,
+      "verifie": 523228
+    },
+    {
+      "outil": "lisage",
+      "charge": "alea-lcg-22",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 1013.138,
+        "min": 987.303,
+        "max": 1029.433
+      },
+      "rss_max_ko": {
+        "mediane": 57256,
+        "min": 57224,
+        "max": 57280
+      },
+      "noeuds": 325824,
+      "verifie": 2096246
+    },
+    {
+      "outil": "oxidd",
+      "charge": "alea-lcg-22",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 492.459,
+        "min": 483.672,
+        "max": 515.06
+      },
+      "rss_max_ko": {
+        "mediane": 135432,
+        "min": 135336,
+        "max": 135560
+      },
+      "noeuds": 325824,
+      "verifie": 2096246
+    },
+    {
+      "outil": "cudd",
+      "charge": "alea-lcg-22",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 4792.077,
+        "min": 4729.37,
+        "max": 4834.667
+      },
+      "rss_max_ko": {
+        "mediane": 274840,
+        "min": 274680,
+        "max": 275028
+      },
+      "noeuds": 325824,
+      "verifie": 2096246
+    },
+    {
+      "outil": "libddd",
+      "charge": "alea-lcg-22",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 3358.773,
+        "min": 3349.719,
+        "max": 3399.663
+      },
+      "rss_max_ko": {
+        "mediane": 127252,
+        "min": 127252,
+        "max": 127344
+      },
+      "noeuds": 325824,
+      "verifie": 2096246
+    },
+    {
+      "outil": "sylvan",
+      "charge": "alea-lcg-22",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 1355.724,
+        "min": 1334.191,
+        "max": 1387.709
+      },
+      "rss_max_ko": {
+        "mediane": 92528,
+        "min": 92444,
+        "max": 92632
+      },
+      "noeuds": 325824,
+      "verifie": 2096246
+    },
+    {
+      "outil": "lisage",
+      "charge": "alea-lcg-24",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 4218.328,
+        "min": 4205.43,
+        "max": 4345.535
+      },
+      "rss_max_ko": {
+        "mediane": 221272,
+        "min": 221244,
+        "max": 221296
+      },
+      "noeuds": 1071698,
+      "verifie": 8386976
+    },
+    {
+      "outil": "oxidd",
+      "charge": "alea-lcg-24",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 2016.49,
+        "min": 2007.315,
+        "max": 2043.161
+      },
+      "rss_max_ko": {
+        "mediane": 610596,
+        "min": 610572,
+        "max": 610760
+      },
+      "noeuds": 1071698,
+      "verifie": 8386976
+    },
+    {
+      "outil": "cudd",
+      "charge": "alea-lcg-24",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 22769.717,
+        "min": 22295.675,
+        "max": 22869.556
+      },
+      "rss_max_ko": {
+        "mediane": 898600,
+        "min": 898512,
+        "max": 898696
+      },
+      "noeuds": 1071698,
+      "verifie": 8386976
+    },
+    {
+      "outil": "libddd",
+      "charge": "alea-lcg-24",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 13555.822,
+        "min": 13344.192,
+        "max": 13681.336
+      },
+      "rss_max_ko": {
+        "mediane": 462368,
+        "min": 462344,
+        "max": 462412
+      },
+      "noeuds": 1071698,
+      "verifie": 8386976
+    },
+    {
+      "outil": "sylvan",
+      "charge": "alea-lcg-24",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 5740.418,
+        "min": 5679.375,
+        "max": 5809.237
+      },
+      "rss_max_ko": {
+        "mediane": 362816,
+        "min": 362760,
+        "max": 362992
+      },
+      "noeuds": 1071698,
+      "verifie": 8386976
+    },
+    {
+      "outil": "lisage",
+      "charge": "cnf-uf20-01",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 129.875,
+        "min": 129.564,
+        "max": 130.902
+      },
+      "rss_max_ko": {
+        "mediane": 6408,
+        "min": 6328,
+        "max": 6444
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "oxidd",
+      "charge": "cnf-uf20-01",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 87.42,
+        "min": 85.692,
+        "max": 87.867
+      },
+      "rss_max_ko": {
+        "mediane": 52632,
+        "min": 52508,
+        "max": 52724
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "cudd",
+      "charge": "cnf-uf20-01",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 108.948,
+        "min": 106.98,
+        "max": 114.915
+      },
+      "rss_max_ko": {
+        "mediane": 18860,
+        "min": 18816,
+        "max": 18884
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "libddd",
+      "charge": "cnf-uf20-01",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 296.666,
+        "min": 295.404,
+        "max": 298.699
+      },
+      "rss_max_ko": {
+        "mediane": 32280,
+        "min": 32224,
+        "max": 32412
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "sylvan",
+      "charge": "cnf-uf20-01",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 136.108,
+        "min": 133.197,
+        "max": 138.084
+      },
+      "rss_max_ko": {
+        "mediane": 18644,
+        "min": 18592,
+        "max": 18820
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "lisage",
+      "charge": "pnml-swimmingpool-1",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 25.442,
+        "min": 25.193,
+        "max": 26.096
+      },
+      "rss_max_ko": {
+        "mediane": 4184,
+        "min": 4140,
+        "max": 4276
+      },
+      "noeuds": 1859,
+      "verifie": 1408
+    },
+    {
+      "outil": "oxidd",
+      "charge": "pnml-swimmingpool-1",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 24.452,
+        "min": 24.008,
+        "max": 30.431
+      },
+      "rss_max_ko": {
+        "mediane": 31788,
+        "min": 31748,
+        "max": 31856
+      },
+      "noeuds": 1859,
+      "verifie": 1408
+    },
+    {
+      "outil": "cudd",
+      "charge": "pnml-swimmingpool-1",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 30.298,
+        "min": 30.2,
+        "max": 30.57
+      },
+      "rss_max_ko": {
+        "mediane": 16320,
+        "min": 16300,
+        "max": 16452
+      },
+      "noeuds": 1859,
+      "verifie": 1408
+    },
+    {
+      "outil": "libddd",
+      "charge": "pnml-swimmingpool-1",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 77.829,
+        "min": 76.968,
+        "max": 93.329
+      },
+      "rss_max_ko": {
+        "mediane": 10752,
+        "min": 10744,
+        "max": 10896
+      },
+      "noeuds": 1859,
+      "verifie": 1408
+    },
+    {
+      "outil": "sylvan",
+      "charge": "pnml-swimmingpool-1",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 49.101,
+        "min": 48.627,
+        "max": 49.369
+      },
+      "rss_max_ko": {
+        "mediane": 13516,
+        "min": 13412,
+        "max": 13556
+      },
+      "noeuds": 1859,
+      "verifie": 1408
+    }
+  ],
+  "divergences": []
+}
