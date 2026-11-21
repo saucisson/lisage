@@ -12,8 +12,12 @@ fn test_d6_1_offline_page_self_contained() {
     // No external resources: no http:// or https:// in src/href attributes.
     assert!(!html.contains(r#"src="http"#), "no external script");
     assert!(!html.contains(r#"href="http"#), "no external stylesheet");
-    // Trace data is embedded inline.
+    // Trace data is embedded inline, with full payload (not kind-only).
     assert!(html.contains("const TRACE = ["), "trace embedded");
+    assert!(html.contains(r#""type":"Round""#), "round events embedded");
+    assert!(html.contains(r#""round":1"#), "round payload embedded");
+    assert!(html.contains(r#""fingerprint":"#), "op payload embedded");
+    assert!(html.contains(r#""length":"#), "real index embedded");
     assert!(html.contains("const INDEX ="), "index embedded");
     assert!(html.contains("const SPANS ="), "spans embedded");
     // Navigation controls present.

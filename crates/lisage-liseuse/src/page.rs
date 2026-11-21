@@ -1,17 +1,20 @@
-//! D6-1 — Offline HTML page generation: embeds the trace, the index and
-//! SVG renders into a single self-contained HTML file, navigable offline
-//! with no infrastructure. Buttons map to the REPL command bus verbs.
+//! D6-1 — Offline HTML page generation: embeds the full trace (every event
+//! with its payload, as JSON), the index summary and the span-tree summary
+//! into a single self-contained HTML file, navigable offline with no
+//! infrastructure. Buttons map to the REPL command bus verbs.
 
-use crate::debugger::{event_kind_name, standard_scenario};
+use crate::debugger::standard_scenario;
 use crate::index::IndexTrace;
 use crate::spans::SpanTree;
-use lisage_core::observer::TraceEvent;
+use lisage_core::NodeId;
+use lisage_core::observer::{SpanId, TraceEvent};
 
 /// Render a self-contained HTML page for the given trace.
 ///
-/// The page embeds the trace events as a JSON array, a pre-built index
-/// summary, and navigation controls (step / back / goto / ops / display).
-/// All data is inline; no network request is needed.
+/// The page embeds the trace events as a JSON array (one object per event,
+/// with all payload fields), the pre-built index summary, and navigation
+/// controls (step / back / goto / dashboard / ops). All data is inline;
+/// no network request is needed.
 pub fn render_offline_page(events: &[TraceEvent], title: &str) -> String {
     let index = IndexTrace::build(events);
     let spans = SpanTree::build(events);
@@ -25,7 +28,6 @@ pub fn render_offline_page(events: &[TraceEvent], title: &str) -> String {
         .filter(|event| matches!(event, TraceEvent::OpStart { .. }))
         .count();
 
-    // Serialize events to a compact JSON-like array for the JS frontend.
     let events_json = render_events_json(events);
     let index_json = render_index_json(&index);
     let spans_json = render_spans_json(&spans);
@@ -77,15 +79,15 @@ function render() {{
 function step(delta) {{ position = Math.max(0, Math.min(TRACE.length - 1, position + delta)); render(); }}
 function goto(pos) {{ position = Math.max(0, Math.min(TRACE.length - 1, pos)); render(); }}
 function showDashboard() {{
-  const rounds = TRACE.filter(e => e.Round).map(e => e.Round);
+  const rounds = TRACE.filter(e => e.type === 'Round');
   document.getElementById('dashboard').textContent = rounds.map(r =>
-    'round ' + r.numero + ' | active: ' + JSON.stringify(r.niveaux_actifs) +
-    ' | modified: ' + JSON.stringify(r.niveaux_modifies) +
-    ' | growth: ' + r.croissance + (r.avant === r.apres ? ' | FIXPOINT' : '')
+    'round ' + r.round + ' | active: ' + JSON.stringify(r.active_levels) +
+    ' | modified: ' + JSON.stringify(r.modified_levels) +
+    ' | growth: ' + r.growth + (r.before === r.after ? ' | FIXPOINT' : '')
   ).join('\n');
 }}
 function showOps() {{
-  const ops = TRACE.filter(e => e.OpStart).map(e => e.OpStart.fingerprint);
+  const ops = TRACE.filter(e => e.type === 'OpStart').map(e => e.fingerprint);
   document.getElementById('dashboard').textContent = 'ops: ' + ops.join(', ');
 }}
 render();
@@ -110,19 +112,275 @@ fn html_escape(text: &str) -> String {
         .replace('"', "&quot;")
 }
 
-/// Render trace events as a JSON array (one object per event, kind-tagged).
-fn render_events_json(events: &[TraceEvent]) -> String {
-    let items: Vec<String> = events
+/// Escape a string for inclusion in a JSON string literal.
+fn json_escape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    for character in text.chars() {
+        match character {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            control if (control as u32) < 0x20 => {
+                out.push_str(&format!("\\u{:04x}", control as u32));
+            }
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// JSON for an optional span: `null` or the span identifier.
+fn span_json(span: Option<SpanId>) -> String {
+    match span {
+        Some(span) => span.0.to_string(),
+        None => "null".to_string(),
+    }
+}
+
+/// JSON array of u32 values.
+fn u32_array(values: &[u32]) -> String {
+    let items: Vec<String> = values.iter().map(u32::to_string).collect();
+    format!("[{}]", items.join(","))
+}
+
+/// JSON array of node identifiers.
+fn node_array(nodes: &[NodeId]) -> String {
+    let items: Vec<String> = nodes.iter().map(|node| node.0.to_string()).collect();
+    format!("[{}]", items.join(","))
+}
+
+/// JSON array of arcs as `[arc, target]` pairs.
+fn arcs_json(arcs: &[(u64, NodeId)]) -> String {
+    let items: Vec<String> = arcs
         .iter()
-        .map(|event| format!(r#"{{"kind":"{}"}}"#, event_kind_name(event)))
+        .map(|(arc, target)| format!("[{},{}]", arc, target.0))
         .collect();
     format!("[{}]", items.join(","))
 }
 
-/// Render the index summary as a JSON object.
+/// Render trace events as a JSON array — one object per event, with the
+/// `"type"` tag and every payload field (English names).
+fn render_events_json(events: &[TraceEvent]) -> String {
+    let items: Vec<String> = events.iter().map(event_json).collect();
+    format!("[{}]", items.join(","))
+}
+
+/// Serialize one event as a JSON object with its full payload.
+fn event_json(event: &TraceEvent) -> String {
+    match event {
+        TraceEvent::SpanOpen { span, kind, lane } => format!(
+            r#"{{"type":"SpanOpen","span":{},"kind":"{:?}","lane":{}}}"#,
+            span.0, kind, lane
+        ),
+        TraceEvent::SpanClose { span } => {
+            format!(r#"{{"type":"SpanClose","span":{}}}"#, span.0)
+        }
+        TraceEvent::NodeCreated {
+            node,
+            level,
+            forme,
+            span,
+        } => {
+            let level_json = match level {
+                Some(level) => level.0.to_string(),
+                None => "null".to_string(),
+            };
+            format!(
+                r#"{{"type":"NodeCreated","node":{},"level":{},"form":"{}","span":{}}}"#,
+                node.0,
+                level_json,
+                json_escape(&forme.rendre()),
+                span_json(*span)
+            )
+        }
+        TraceEvent::NodeShared { node, span } => format!(
+            r#"{{"type":"NodeShared","node":{},"span":{}}}"#,
+            node.0,
+            span_json(*span)
+        ),
+        TraceEvent::ReductionApplied { rule, level, span } => format!(
+            r#"{{"type":"ReductionApplied","rule":"{:?}","level":{},"span":{}}}"#,
+            rule,
+            level.0,
+            span_json(*span)
+        ),
+        TraceEvent::DiagramBuilt {
+            handle,
+            nodes,
+            span,
+        } => format!(
+            r#"{{"type":"DiagramBuilt","controller":{},"anchor":{},"node":{},"nodes":{},"span":{}}}"#,
+            handle.controller.0,
+            handle.anchor.0,
+            handle.node.0,
+            nodes,
+            span_json(*span)
+        ),
+        TraceEvent::Attr {
+            channel,
+            node,
+            value,
+            span,
+        } => format!(
+            r#"{{"type":"Attr","channel":"{:?}","node":{},"value":"{}","span":{}}}"#,
+            channel,
+            node.0,
+            json_escape(&value.rendre()),
+            span_json(*span)
+        ),
+        TraceEvent::MemoHit { node, span } => format!(
+            r#"{{"type":"MemoHit","node":{},"span":{}}}"#,
+            node.0,
+            span_json(*span)
+        ),
+        TraceEvent::MemoMiss { node, span } => format!(
+            r#"{{"type":"MemoMiss","node":{},"span":{}}}"#,
+            node.0,
+            span_json(*span)
+        ),
+        TraceEvent::Gc {
+            live,
+            collected,
+            compaction,
+            liste_collectes,
+            span,
+        } => format!(
+            r#"{{"type":"Gc","live":{},"collected":{},"compaction":{},"collected_nodes":{},"span":{}}}"#,
+            live,
+            collected,
+            compaction,
+            node_array(liste_collectes),
+            span_json(*span)
+        ),
+        TraceEvent::Round {
+            numero,
+            niveaux_actifs,
+            niveaux_modifies,
+            avant,
+            image,
+            apres,
+            croissance,
+            span,
+        } => format!(
+            r#"{{"type":"Round","round":{},"active_levels":{},"modified_levels":{},"before":{},"image":{},"after":{},"growth":{},"span":{}}}"#,
+            numero,
+            u32_array(niveaux_actifs),
+            u32_array(niveaux_modifies),
+            avant.0,
+            image.0,
+            apres.0,
+            croissance,
+            span_json(*span)
+        ),
+        TraceEvent::Histogram { classes, span } => {
+            let items: Vec<String> = classes
+                .iter()
+                .map(|entry| {
+                    format!(
+                        r#"{{"class":{},"live":{},"peak":{},"slack":{}}}"#,
+                        entry.class, entry.live, entry.peak, entry.slack
+                    )
+                })
+                .collect();
+            format!(
+                r#"{{"type":"Histogram","classes":[{}],"span":{}}}"#,
+                items.join(","),
+                span_json(*span)
+            )
+        }
+        TraceEvent::OpStart { fingerprint, span } => format!(
+            r#"{{"type":"OpStart","fingerprint":{},"span":{}}}"#,
+            fingerprint,
+            span_json(*span)
+        ),
+        TraceEvent::OpEnd { span } => {
+            format!(r#"{{"type":"OpEnd","span":{}}}"#, span_json(*span))
+        }
+        TraceEvent::VisiteEntree { node, span } => format!(
+            r#"{{"type":"VisitEnter","node":{},"span":{}}}"#,
+            node.0,
+            span_json(*span)
+        ),
+        TraceEvent::VisiteSortie {
+            node,
+            resultat,
+            span,
+        } => format!(
+            r#"{{"type":"VisitExit","node":{},"result":{},"span":{}}}"#,
+            node.0,
+            resultat.0,
+            span_json(*span)
+        ),
+        TraceEvent::MemoConsult {
+            fingerprint,
+            node,
+            h,
+            version,
+            hit,
+            span,
+        } => format!(
+            r#"{{"type":"MemoConsult","fingerprint":{},"node":{},"h":"{}","version":{},"hit":{},"span":{}}}"#,
+            fingerprint,
+            node.0,
+            json_escape(&h.rendre()),
+            version,
+            hit,
+            span_json(*span)
+        ),
+        TraceEvent::MemoInsert {
+            fingerprint,
+            node,
+            h,
+            version,
+            resultat,
+            span,
+        } => format!(
+            r#"{{"type":"MemoInsert","fingerprint":{},"node":{},"h":"{}","version":{},"result":{},"span":{}}}"#,
+            fingerprint,
+            node.0,
+            json_escape(&h.rendre()),
+            version,
+            resultat.0,
+            span_json(*span)
+        ),
+        TraceEvent::EcritureMemoire {
+            version_avant,
+            version_apres,
+            span,
+        } => format!(
+            r#"{{"type":"MemoryWrite","version_before":{},"version_after":{},"span":{}}}"#,
+            version_avant,
+            version_apres,
+            span_json(*span)
+        ),
+        TraceEvent::StructureChange {
+            node,
+            classification,
+            arcs_avant,
+            arcs_apres,
+            span,
+        } => format!(
+            r#"{{"type":"StructureChange","node":{},"classification":"{:?}","arcs_before":{},"arcs_after":{},"span":{}}}"#,
+            node.0,
+            classification,
+            arcs_json(arcs_avant),
+            arcs_json(arcs_apres),
+            span_json(*span)
+        ),
+    }
+}
+
+/// Render the index summary as a JSON object, from the real built index.
 fn render_index_json(index: &IndexTrace) -> String {
-    let _ = index;
-    r#"{"built":true}"#.to_string()
+    format!(
+        r#"{{"length":{},"nodes":{},"rounds":{},"ops":{}}}"#,
+        index.length(),
+        index.node_count(),
+        index.round_count(),
+        index.op_count()
+    )
 }
 
 /// Render the span tree summary as a JSON object.
@@ -158,6 +416,11 @@ mod tests {
     }
 
     #[test]
+    fn test_json_escape() {
+        assert_eq!(json_escape("a\"b\\c\n"), "a\\\"b\\\\c\\n");
+    }
+
+    #[test]
     fn test_standard_offline_page() {
         let html = standard_offline_page(3);
         assert!(html.contains("philosophers"));
@@ -165,10 +428,34 @@ mod tests {
     }
 
     #[test]
-    fn test_events_json_round_count() {
+    fn test_events_json_carries_payload() {
         let events = standard_scenario(4);
         let json = render_events_json(&events);
-        let round_count = json.matches(r#""kind":"Round""#).count();
+        let round_count = json.matches(r#""type":"Round""#).count();
         assert_eq!(round_count, 4, "n=4 saturates in 4 rounds");
+        // Events are not kind-only stubs: payload fields are present.
+        assert!(json.contains(r#""round":1"#), "round payload present");
+        assert!(json.contains(r#""active_levels":"#), "round levels present");
+        assert!(json.contains(r#""fingerprint":"#), "op payload present");
+        assert!(json.contains(r#""growth":"#), "growth present");
+    }
+
+    #[test]
+    fn test_index_json_uses_real_index() {
+        let events = standard_scenario(4);
+        let index = IndexTrace::build(&events);
+        let json = render_index_json(&index);
+        assert_eq!(
+            json,
+            format!(
+                r#"{{"length":{},"nodes":{},"rounds":{},"ops":{}}}"#,
+                events.len(),
+                index.node_count(),
+                index.round_count(),
+                index.op_count()
+            )
+        );
+        assert!(json.contains(r#""rounds":4"#));
+        assert!(json.contains(r#""ops":4"#));
     }
 }
