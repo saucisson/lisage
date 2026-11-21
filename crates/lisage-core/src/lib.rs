@@ -31,8 +31,8 @@ mod unique;
 pub mod workshop;
 
 pub use lisage_algebra::interface::{
-    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, MemoryPolicy, NodeId, Pool,
-    PoolError,
+    Anchor, Controller, ControllerId, Form, Handle, KeyAlgebra, Level, MemoryPolicy, NodeId,
+    PathPredicate, Pool, PoolError,
 };
 
 /// Dummy placeholder to validate CI (M0-1).

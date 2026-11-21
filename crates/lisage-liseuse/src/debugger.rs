@@ -116,11 +116,15 @@ impl Observer for Collector {
     }
 }
 
-/// The standard scenario (DoD): a saturation of the chain
+/// Runs the standard scenario (DoD) with the given observer plugged into
+/// the pool, and returns the pool: a saturation of the chain
 /// `{{0}} → {{0},{1}} → …` over a `Set` domain of size `n`, traced —
 /// exactly `n` rounds, one `Round` span each. `n = 4` is the reference
-/// scenario.
-pub fn standard_scenario(n: u64) -> Vec<TraceEvent> {
+/// scenario. D3-2: the gate test plugs a `PredicateGate` here.
+pub fn run_standard_scenario(
+    n: u64,
+    observer: std::sync::Arc<dyn Observer>,
+) -> Arena<ReferenceController> {
     let schema = Schema::Set(Domain::new((0..n).map(Atom).collect()));
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = Arena::new(
@@ -136,7 +140,6 @@ pub fn standard_scenario(n: u64) -> Vec<TraceEvent> {
     )
     .expect("scenario initial compilable");
 
-    let collector = Collector::default();
     let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
     let policy = PolicySaturation::Statique(levels);
     let step = ChainStep {
@@ -150,14 +153,30 @@ pub fn standard_scenario(n: u64) -> Vec<TraceEvent> {
         anchor,
         initial,
         number_levels: schema.number_levels(),
-        observer: Some(std::sync::Arc::new(collector.clone())),
+        observer: Some(observer),
     };
     let result = saturer(&mut params).expect("scenario saturation terminates");
     assert_eq!(
         result.iterations, n as u32,
         "the chain saturates in n rounds"
     );
+    pool
+}
+
+/// The standard scenario (DoD), traced: returns the collected events.
+pub fn standard_scenario(n: u64) -> Vec<TraceEvent> {
+    let collector = Collector::default();
+    run_standard_scenario(n, std::sync::Arc::new(collector.clone()));
     collector.events.lock().expect("mutex poisoned").clone()
+}
+
+/// The standard scenario, traced, with the pool kept (D3-2: the test
+/// builds the arc resolver from the pool's forms).
+pub fn standard_scenario_with_pool(n: u64) -> (Vec<TraceEvent>, Arena<ReferenceController>) {
+    let collector = Collector::default();
+    let pool = run_standard_scenario(n, std::sync::Arc::new(collector.clone()));
+    let events = collector.events.lock().expect("mutex poisoned").clone();
+    (events, pool)
 }
 
 /// One debugger command (the bus vocabulary of D3-1).
@@ -238,7 +257,9 @@ impl EventKind {
         }
     }
 
-    fn matches(&self, event: &TraceEvent) -> bool {
+    /// Does the event belong to this kind? (D3-2: reused by the
+    /// predicate evaluator's `event` condition.)
+    pub fn matches(&self, event: &TraceEvent) -> bool {
         matches!(
             (self, event),
             (EventKind::Round, TraceEvent::Round { .. })

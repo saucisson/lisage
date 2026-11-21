@@ -581,6 +581,20 @@ pub trait KeyAlgebra: Send + Sync {
     }
 }
 
+/// Path-predicate port (D3-2, issue #165): membership of one diagram arc
+/// in a path region, implemented controller-side. The reference instance
+/// (`SchemaKeys`) uses **arc equality**; `DbmKeys` uses **region
+/// inclusion** (`arc ⊆ region`). The liseuse evaluator drives its
+/// incremental path automaton through this port, identically in replay
+/// and at the gate.
+pub trait PathPredicate {
+    /// Arc key type (the key algebra's key).
+    type Key: Clone + Ord + Hash + Debug + Send + Sync;
+
+    /// Does the arc `arc` at `level` belong to the path region `region`?
+    fn arc_in_region(&self, level: Level, region: &Self::Key, arc: &Self::Key) -> bool;
+}
+
 /// Declared key width of a level (MEM-16), derived from the level's
 /// cardinality: the narrowest lossless storage width.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

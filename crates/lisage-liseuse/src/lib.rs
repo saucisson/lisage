@@ -5,6 +5,7 @@ pub mod index;
 pub mod inspection;
 pub mod mirror;
 pub mod philosophers;
+pub mod predicates;
 pub mod publication;
 pub mod snapshots;
 pub mod spans;
