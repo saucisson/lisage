@@ -1,0 +1,3 @@
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 52468, "temps_ms": 86.372, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 52480, "temps_ms": 91.519, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 52584, "temps_ms": 90.62, "variante": "bdd", "verifie": 8}

@@ -1,0 +1,5 @@
+{"charge": "philosophers-n5", "noeuds": 73, "outil": "lisage", "parametres": {"n": "5"}, "rss_max_ko": 2864, "temps_ms": 3.08, "variante": "mdd", "verifie": 152}
+{"charge": "philosophers-n5", "noeuds": 73, "outil": "lisage", "parametres": {"n": "5"}, "rss_max_ko": 2876, "temps_ms": 2.984, "variante": "mdd", "verifie": 152}
+{"charge": "philosophers-n5", "noeuds": 73, "outil": "lisage", "parametres": {"n": "5"}, "rss_max_ko": 2832, "temps_ms": 3.12, "variante": "mdd", "verifie": 152}
+{"charge": "philosophers-n5", "noeuds": 73, "outil": "lisage", "parametres": {"n": "5"}, "rss_max_ko": 2848, "temps_ms": 2.942, "variante": "mdd", "verifie": 152}
+{"charge": "philosophers-n5", "noeuds": 73, "outil": "lisage", "parametres": {"n": "5"}, "rss_max_ko": 2852, "temps_ms": 2.875, "variante": "mdd", "verifie": 152}

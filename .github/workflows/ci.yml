@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# Cancel obsolete runs of the same branch/PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     name: quality gate
@@ -41,6 +46,52 @@ jobs:
       - name: pytest with coverage floor
         run: uv run pytest
 
+  rust-check:
+    name: rust quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: rustfmt check
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      # Performance benchmarks (criterion) run locally only, not in CI (ADR-0102).
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        with:
+          tool: cargo-nextest
+
+      - name: nextest
+        run: cargo nextest run --all-targets
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        with:
+          tool: cargo-llvm-cov
+
+      - name: coverage
+        run: cargo llvm-cov nextest --all-targets --lcov --output-path lcov.info
+
+      # The Rust audit lives in the "security gates" job; do not duplicate it here.
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        with:
+          tool: cargo-deny
+
+      - name: deny
+        run: cargo deny check
+
   security:
     name: security gates
     runs-on: ubuntu-latest
@@ -63,3 +114,11 @@ jobs:
           uv export --locked --no-emit-project --format requirements-txt \
             --output-file requirements.txt
           uvx pip-audit --requirement requirements.txt --strict
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        with:
+          tool: cargo-audit
+
+      - name: cargo audit
+        run: cargo audit

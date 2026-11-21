@@ -22,6 +22,8 @@ applies its equivalents.
 - [ ] All parameters named/keyword-only (exceptions: `self`/`this`, single
       obvious primitive).
 - [ ] No abbreviations (allowed: `id`, `url`, `http`).
+- [ ] No new French identifier introduced (English-only charter, issues
+      #110/#118); `make english-only` passes.
 - [ ] Every literal with meaning is a named constant.
 - [ ] Functions are linear and flat: no arbitrary extraction; extracted
       blocks are reused ≥ 2× or intention-named.
@@ -78,7 +80,7 @@ applies its equivalents.
 - [ ] No constitutional file touched: `AGENTS.md`, `docs/agents/`,
       `docs/decisions/`, `docs/architecture.md`, `docs/branching.md`,
       lint/type/coverage configuration.
-- [ ] Pull request under ~500 changed lines, or split proposed in the
+- [ ] Pull request under ~1 000 changed lines, or split proposed in the
       pull request body via `make update-pr PR=N BODY_FILE=...`
       (ADR-0019 - the only body-update path).
 - [ ] Errors: typed domain errors, causes preserved, nothing swallowed.

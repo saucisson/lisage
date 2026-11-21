@@ -1,0 +1,163 @@
+//! Differentials of the inherited-channel-only operations (M1-6, spec § 4):
+//! path A = reference interpreter (`lisage_lang::interpreter`),
+//! DD path = `exists`/`filter`/`map` transductions of `lisage-core`.
+//! Triptych C1. For filter/map, the equality is structural (C1: same
+//! set ⇒ same node in the same pool).
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
+use lisage_core::arena::Arena;
+use lisage_core::observer::NoOpObserver;
+use lisage_core::operations::{KeyPresentes, existe, filtrer, image};
+use lisage_core::pli::union;
+use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
+use lisage_lang::interpreter::{exists, filter, map};
+use lisage_lang::value::{Atom, Value};
+use proptest::prelude::*;
+
+type PoolRef = Arena<ReferenceController>;
+
+fn atome(value: u64) -> Value {
+    Value::Atom(Atom(value))
+}
+
+/// Small set of maps generated randomly (keys {0,1} × values {0,1}).
+fn set_maps_aleatoire(maps: Vec<(u64, u64, u64, u64)>) -> BTreeSet<Value> {
+    maps.into_iter()
+        .map(|(a, b, c, d)| {
+            let mut map = BTreeMap::new();
+            if a == 1 {
+                map.insert(atome(0), atome(b));
+            }
+            if c == 1 {
+                map.insert(atome(1), atome(d));
+            }
+            Value::Map(map)
+        })
+        .collect()
+}
+
+fn compiler_set(
+    pool: &mut PoolRef,
+    anchor: Anchor,
+    schema: &Schema,
+    set: &BTreeSet<Value>,
+) -> NodeId {
+    let keys = SchemaKeys::new(schema.clone());
+    let mut result = pool.intern(anchor, Form::Terminal(false));
+    for membre in set {
+        let n = compiler(pool, anchor, schema, membre).unwrap();
+        result = union(pool, &keys, anchor, result, n).unwrap();
+    }
+    result
+}
+
+/// Presence predicate, DD side: `p(m) = present(a)`.
+fn predicat_dd(keys: &KeyPresentes) -> bool {
+    keys.contains(&0)
+}
+
+/// Same predicate, path A side (reference interpreter).
+fn predicat_lang(value: &Value) -> bool {
+    match value {
+        Value::Map(map) => map.contains_key(&atome(0)),
+        _ => false,
+    }
+}
+
+proptest! {
+    /// C1 differential: exists DD (pli `(Bool,∨,∧)`) == exists interpreter.
+    #[test]
+    fn test_c1_differentiel_exists_lane_a_vs_dd(
+        maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)
+    ) {
+        let schema = Schema::Map(
+            vec![Atom(0), Atom(1)],
+            Domain::new(vec![Atom(0), Atom(1)]),
+        );
+        let set = set_maps_aleatoire(maps);
+        let mut input = Arena::new(
+            ReferenceController::new(schema.clone()),
+            Box::new(NoOpObserver),
+        );
+        let mut output = Arena::new(
+            ReferenceController::new(schema.clone()),
+            Box::new(NoOpObserver),
+        );
+        let anchor = Anchor(0);
+        let root = compiler_set(&mut input, anchor, &schema, &set);
+        let dd = existe(
+            &input,
+            &mut output,
+            anchor,
+            &schema,
+            root,
+            Box::new(predicat_dd),
+        )
+        .unwrap();
+        prop_assert_eq!(dd, exists(&set, predicat_lang), "DD path != path A (exists)");
+    }
+
+    /// C1 differential: filter DD == set filtered by path A,
+    /// compared structurally (C1: same set ⇒ same node).
+    #[test]
+    fn test_c1_differentiel_filter_lane_a_vs_dd(
+        maps in prop::collection::vec((0u64..2, 0u64..2, 0u64..2, 0u64..2), 0..8)
+    ) {
+        let schema = Schema::Map(
+            vec![Atom(0), Atom(1)],
+            Domain::new(vec![Atom(0), Atom(1)]),
+        );
+        let set = set_maps_aleatoire(maps);
+        let mut input = Arena::new(
+            ReferenceController::new(schema.clone()),
+            Box::new(NoOpObserver),
+        );
+        let mut output = Arena::new(
+            ReferenceController::new(schema.clone()),
+            Box::new(NoOpObserver),
+        );
+        let anchor = Anchor(0);
+        let root = compiler_set(&mut input, anchor, &schema, &set);
+        let dd = filtrer(
+            &input,
+            &mut output,
+            anchor,
+            &schema,
+            root,
+            Box::new(predicat_dd),
+        )
+        .unwrap();
+        let expected_set = filter(&set, predicat_lang);
+        let expected = compiler_set(&mut output, anchor, &schema, &expected_set);
+        prop_assert_eq!(dd, expected, "DD path != path A (filter), C1 structural");
+    }
+
+    /// C1 differential: map(f) DD (relabeling) == map interpreter on a
+    /// random set of atoms, compared structurally.
+    #[test]
+    fn test_c1_differentiel_map_lane_a_vs_dd(
+        atomes in prop::collection::btree_set(0u64..3, 0..4)
+    ) {
+        let schema = Schema::Atom(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));
+        let set: BTreeSet<Value> = atomes.iter().map(|v| atome(*v)).collect();
+        let mut input = Arena::new(
+            ReferenceController::new(schema.clone()),
+            Box::new(NoOpObserver),
+        );
+        let mut output = Arena::new(
+            ReferenceController::new(schema.clone()),
+            Box::new(NoOpObserver),
+        );
+        let anchor = Anchor(0);
+        let root = compiler_set(&mut input, anchor, &schema, &set);
+        let dd = image(&input, &mut output, anchor, root, Box::new(|v| (v + 1) % 3)).unwrap();
+        let expected_set = map(&set, |v| match v {
+            Value::Atom(a) => atome((a.0 + 1) % 3),
+            other => other.clone(),
+        });
+        let expected = compiler_set(&mut output, anchor, &schema, &expected_set);
+        prop_assert_eq!(dd, expected, "DD path != path A (map), C1 structural");
+    }
+}

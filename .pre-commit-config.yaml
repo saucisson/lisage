@@ -32,3 +32,16 @@ repos:
         entry: uv run lint-imports
         language: system
         pass_filenames: false
+
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: cargo_fmt
+
+  - repo: local
+    hooks:
+      - id: cargo-clippy
+        name: clippy -D warnings
+        entry: cargo clippy --all-targets -- -D warnings
+        language: system
+        pass_filenames: false

@@ -1,0 +1,3 @@
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "lisage", "parametres": {"clauses": "91", "path": "crates/lisage-bench/models/uf20-01.cnf"}, "rss_max_ko": 6280, "temps_ms": 130.701, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "lisage", "parametres": {"clauses": "91", "path": "crates/lisage-bench/models/uf20-01.cnf"}, "rss_max_ko": 6444, "temps_ms": 167.972, "variante": "bdd", "verifie": 8}
+{"charge": "cnf-uf20-01", "noeuds": 51, "outil": "lisage", "parametres": {"clauses": "91", "path": "crates/lisage-bench/models/uf20-01.cnf"}, "rss_max_ko": 6328, "temps_ms": 187.482, "variante": "bdd", "verifie": 8}

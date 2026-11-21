@@ -19,6 +19,17 @@ quality-gate:
     - uv run lint-imports
     - uv run pytest
 
+rust-quality-gate:
+  stage: check
+  image: rust:stable-bookworm
+  script:
+    - cargo fmt --all -- --check
+    - cargo clippy --all-targets -- -D warnings
+    - cargo install cargo-nextest --locked && cargo nextest run --all-targets
+    - cargo install cargo-llvm-cov --locked && cargo llvm-cov --all-targets --lcov --output-path lcov.info
+    - cargo install cargo-audit --locked && cargo audit
+    - cargo install cargo-deny --locked && cargo deny check
+
 # The reviewer agent runs LOCALLY on the developer machine as a headless
 # Vibe Code session (ADR-0010), spending the plan's included usage
 # instead of pay-per-token API calls - there is no reviewer job here.
@@ -36,3 +47,9 @@ dependency-audit:
   script:
     - uv export --locked --format requirements-txt --output-file requirements.txt
     - uvx pip-audit --requirement requirements.txt --strict
+
+cargo-audit:
+  stage: security
+  image: rust:stable-bookworm
+  script:
+    - cargo install cargo-audit --locked && cargo audit

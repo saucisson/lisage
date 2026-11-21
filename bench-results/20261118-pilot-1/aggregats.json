@@ -1,0 +1,91 @@
+{
+  "run": "20261118-pilot-1",
+  "aggregats": [
+    {
+      "outil": "lisage",
+      "charge": "alea-lcg-20",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 537.881,
+        "min": 532.187,
+        "max": 550.793
+      },
+      "rss_max_ko": {
+        "mediane": 31000,
+        "min": 30972,
+        "max": 31016
+      },
+      "noeuds": 106760,
+      "verifie": 523228
+    },
+    {
+      "outil": "oxidd",
+      "charge": "alea-lcg-20",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 129.831,
+        "min": 128.93,
+        "max": 132.029
+      },
+      "rss_max_ko": {
+        "mediane": 50328,
+        "min": 50172,
+        "max": 50424
+      },
+      "noeuds": 106760,
+      "verifie": 523228
+    },
+    {
+      "outil": "lisage",
+      "charge": "philosophers-n5",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 2.984,
+        "min": 2.875,
+        "max": 3.12
+      },
+      "rss_max_ko": {
+        "mediane": 2852,
+        "min": 2832,
+        "max": 2876
+      },
+      "noeuds": 73,
+      "verifie": 152
+    },
+    {
+      "outil": "lisage",
+      "charge": "window-4x10-absolu",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 0.026,
+        "min": 0.025,
+        "max": 0.028
+      },
+      "rss_max_ko": {
+        "mediane": 2296,
+        "min": 2292,
+        "max": 2312
+      },
+      "noeuds": 12,
+      "verifie": 40
+    },
+    {
+      "outil": "lisage",
+      "charge": "window-4x10-relatif",
+      "repetitions": 5,
+      "temps_ms": {
+        "mediane": 0.015,
+        "min": 0.013,
+        "max": 0.017
+      },
+      "rss_max_ko": {
+        "mediane": 2300,
+        "min": 2268,
+        "max": 2312
+      },
+      "noeuds": 3,
+      "verifie": 40
+    }
+  ],
+  "divergences": []
+}

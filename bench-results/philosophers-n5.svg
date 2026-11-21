@@ -1,0 +1,335 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="576" height="1950" viewBox="0 0 576 1950">
+<text x="40" y="24" font-family="serif" font-size="14">diagram (levels = keys)</text>
+<line x1="68" y1="99" x2="68" y2="161" stroke="#555"/>
+<text x="68" y="130" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="189" x2="68" y2="251" stroke="#555"/>
+<text x="68" y="220" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="189" x2="68" y2="251" stroke="#555"/>
+<text x="68" y="220" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="189" x2="148" y2="251" stroke="#555"/>
+<text x="108" y="220" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="148" y1="279" x2="148" y2="341" stroke="#555"/>
+<text x="148" y="310" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="369" x2="228" y2="431" stroke="#555"/>
+<text x="188" y="400" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="459" x2="228" y2="521" stroke="#555"/>
+<text x="228" y="490" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="549" x2="388" y2="611" stroke="#555"/>
+<text x="308" y="580" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="228" y1="549" x2="388" y2="611" stroke="#555"/>
+<text x="308" y="580" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="388" y1="639" x2="388" y2="701" stroke="#555"/>
+<text x="388" y="670" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="388" y1="729" x2="68" y2="791" stroke="#555"/>
+<text x="228" y="760" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="68" y1="819" x2="68" y2="881" stroke="#555"/>
+<text x="68" y="850" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="909" x2="68" y2="971" stroke="#555"/>
+<text x="68" y="940" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="909" x2="68" y2="971" stroke="#555"/>
+<text x="68" y="940" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="909" x2="148" y2="971" stroke="#555"/>
+<text x="108" y="940" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="148" y1="999" x2="148" y2="1061" stroke="#555"/>
+<text x="148" y="1030" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="1089" x2="148" y2="1151" stroke="#555"/>
+<text x="148" y="1120" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="1179" x2="148" y2="1241" stroke="#555"/>
+<text x="148" y="1210" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="1269" x2="228" y2="1331" stroke="#555"/>
+<text x="188" y="1300" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="148" y1="1269" x2="228" y2="1331" stroke="#555"/>
+<text x="188" y="1300" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="1359" x2="228" y2="1421" stroke="#555"/>
+<text x="228" y="1390" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="1449" x2="68" y2="1511" stroke="#555"/>
+<text x="148" y="1480" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="68" y1="1539" x2="68" y2="1601" stroke="#555"/>
+<text x="68" y="1570" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="1629" x2="68" y2="1691" stroke="#555"/>
+<text x="68" y="1660" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="1629" x2="68" y2="1691" stroke="#555"/>
+<text x="68" y="1660" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="1719" x2="68" y2="1781" stroke="#555"/>
+<text x="68" y="1750" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="1809" x2="68" y2="1871" stroke="#555"/>
+<text x="68" y="1840" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="999" x2="68" y2="1061" stroke="#555"/>
+<text x="68" y="1030" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="1089" x2="68" y2="1151" stroke="#555"/>
+<text x="68" y="1120" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="1179" x2="68" y2="1241" stroke="#555"/>
+<text x="68" y="1210" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="1269" x2="68" y2="1331" stroke="#555"/>
+<text x="68" y="1300" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="1269" x2="68" y2="1331" stroke="#555"/>
+<text x="68" y="1300" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="1269" x2="148" y2="1331" stroke="#555"/>
+<text x="108" y="1300" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="148" y1="1359" x2="148" y2="1421" stroke="#555"/>
+<text x="148" y="1390" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="1449" x2="148" y2="1511" stroke="#555"/>
+<text x="148" y="1480" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="1539" x2="148" y2="1601" stroke="#555"/>
+<text x="148" y="1570" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="1629" x2="148" y2="1691" stroke="#555"/>
+<text x="148" y="1660" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="148" y1="1629" x2="148" y2="1691" stroke="#555"/>
+<text x="148" y="1660" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="1719" x2="148" y2="1781" stroke="#555"/>
+<text x="148" y="1750" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="1809" x2="68" y2="1871" stroke="#555"/>
+<text x="108" y="1840" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="68" y1="1359" x2="68" y2="1421" stroke="#555"/>
+<text x="68" y="1390" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="1449" x2="68" y2="1511" stroke="#555"/>
+<text x="68" y="1480" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="279" x2="68" y2="341" stroke="#555"/>
+<text x="68" y="310" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="369" x2="68" y2="431" stroke="#555"/>
+<text x="68" y="400" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="369" x2="148" y2="431" stroke="#555"/>
+<text x="108" y="400" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="148" y1="459" x2="148" y2="521" stroke="#555"/>
+<text x="148" y="490" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="549" x2="228" y2="611" stroke="#555"/>
+<text x="188" y="580" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="148" y1="549" x2="228" y2="611" stroke="#555"/>
+<text x="188" y="580" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="549" x2="308" y2="611" stroke="#555"/>
+<text x="228" y="580" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="308" y1="639" x2="308" y2="701" stroke="#555"/>
+<text x="308" y="670" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="308" y1="729" x2="308" y2="791" stroke="#555"/>
+<text x="308" y="760" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="308" y1="819" x2="308" y2="881" stroke="#555"/>
+<text x="308" y="850" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="308" y1="909" x2="468" y2="971" stroke="#555"/>
+<text x="388" y="940" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="308" y1="909" x2="468" y2="971" stroke="#555"/>
+<text x="388" y="940" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="468" y1="999" x2="468" y2="1061" stroke="#555"/>
+<text x="468" y="1030" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="468" y1="1089" x2="228" y2="1151" stroke="#555"/>
+<text x="348" y="1120" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="228" y1="1179" x2="228" y2="1241" stroke="#555"/>
+<text x="228" y="1210" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="1269" x2="308" y2="1331" stroke="#555"/>
+<text x="268" y="1300" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="228" y1="1269" x2="308" y2="1331" stroke="#555"/>
+<text x="268" y="1300" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="308" y1="1359" x2="308" y2="1421" stroke="#555"/>
+<text x="308" y="1390" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="308" y1="1449" x2="228" y2="1511" stroke="#555"/>
+<text x="268" y="1480" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="228" y1="1539" x2="228" y2="1601" stroke="#555"/>
+<text x="228" y="1570" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="1629" x2="228" y2="1691" stroke="#555"/>
+<text x="228" y="1660" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="228" y1="1719" x2="228" y2="1781" stroke="#555"/>
+<text x="228" y="1750" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="1809" x2="68" y2="1871" stroke="#555"/>
+<text x="148" y="1840" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="639" x2="228" y2="701" stroke="#555"/>
+<text x="228" y="670" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="729" x2="228" y2="791" stroke="#555"/>
+<text x="228" y="760" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="228" y1="819" x2="228" y2="881" stroke="#555"/>
+<text x="228" y="850" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="909" x2="308" y2="971" stroke="#555"/>
+<text x="268" y="940" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="228" y1="909" x2="308" y2="971" stroke="#555"/>
+<text x="268" y="940" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="909" x2="388" y2="971" stroke="#555"/>
+<text x="308" y="940" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="388" y1="999" x2="388" y2="1061" stroke="#555"/>
+<text x="388" y="1030" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="388" y1="1089" x2="308" y2="1151" stroke="#555"/>
+<text x="348" y="1120" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="308" y1="1179" x2="308" y2="1241" stroke="#555"/>
+<text x="308" y="1210" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="308" y1="1269" x2="388" y2="1331" stroke="#555"/>
+<text x="348" y="1300" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="308" y1="1269" x2="388" y2="1331" stroke="#555"/>
+<text x="348" y="1300" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="388" y1="1359" x2="388" y2="1421" stroke="#555"/>
+<text x="388" y="1390" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="388" y1="1449" x2="228" y2="1511" stroke="#555"/>
+<text x="308" y="1480" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="308" y1="999" x2="308" y2="1061" stroke="#555"/>
+<text x="308" y="1030" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="308" y1="1089" x2="228" y2="1151" stroke="#555"/>
+<text x="268" y="1120" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="459" x2="68" y2="521" stroke="#555"/>
+<text x="68" y="490" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="549" x2="68" y2="611" stroke="#555"/>
+<text x="68" y="580" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="68" y1="549" x2="68" y2="611" stroke="#555"/>
+<text x="68" y="580" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="549" x2="148" y2="611" stroke="#555"/>
+<text x="108" y="580" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="148" y1="639" x2="148" y2="701" stroke="#555"/>
+<text x="148" y="670" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="729" x2="148" y2="791" stroke="#555"/>
+<text x="148" y="760" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="819" x2="148" y2="881" stroke="#555"/>
+<text x="148" y="850" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="148" y1="909" x2="228" y2="971" stroke="#555"/>
+<text x="188" y="940" font-family="serif" font-size="11" fill="#777">0</text>
+<line x1="148" y1="909" x2="228" y2="971" stroke="#555"/>
+<text x="188" y="940" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="999" x2="228" y2="1061" stroke="#555"/>
+<text x="228" y="1030" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="228" y1="1089" x2="68" y2="1151" stroke="#555"/>
+<text x="148" y="1120" font-family="serif" font-size="11" fill="#777">2</text>
+<line x1="68" y1="639" x2="68" y2="701" stroke="#555"/>
+<text x="68" y="670" font-family="serif" font-size="11" fill="#777">1</text>
+<line x1="68" y1="729" x2="68" y2="791" stroke="#555"/>
+<text x="68" y="760" font-family="serif" font-size="11" fill="#777">0</text>
+<rect x="40" y="1871" width="56" height="28" fill="#eee" stroke="#333"/>
+<text x="68" y="1889" font-family="serif" font-size="12" text-anchor="middle">⊤</text>
+<rect x="40" y="1781" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="1799" font-family="serif" font-size="12" text-anchor="middle">ℓ19 n33554432</text>
+<rect x="40" y="1691" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="1709" font-family="serif" font-size="12" text-anchor="middle">ℓ18 n33554433</text>
+<rect x="40" y="1511" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="1529" font-family="serif" font-size="12" text-anchor="middle">ℓ16 n33554470</text>
+<rect x="40" y="1421" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="1439" font-family="serif" font-size="12" text-anchor="middle">ℓ15 n33554471</text>
+<rect x="40" y="1331" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="1349" font-family="serif" font-size="12" text-anchor="middle">ℓ14 n33554472</text>
+<rect x="200" y="1781" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="1799" font-family="serif" font-size="12" text-anchor="middle">ℓ19 n33554487</text>
+<rect x="200" y="1691" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="1709" font-family="serif" font-size="12" text-anchor="middle">ℓ18 n33554488</text>
+<rect x="200" y="1601" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="1619" font-family="serif" font-size="12" text-anchor="middle">ℓ17 n33554489</text>
+<rect x="200" y="1511" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="1529" font-family="serif" font-size="12" text-anchor="middle">ℓ16 n33554490</text>
+<rect x="280" y="1421" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="1439" font-family="serif" font-size="12" text-anchor="middle">ℓ15 n33554491</text>
+<rect x="280" y="1331" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="1349" font-family="serif" font-size="12" text-anchor="middle">ℓ14 n33554492</text>
+<rect x="200" y="1151" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="1169" font-family="serif" font-size="12" text-anchor="middle">ℓ12 n33554576</text>
+<rect x="280" y="1061" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="1079" font-family="serif" font-size="12" text-anchor="middle">ℓ11 n33554577</text>
+<rect x="280" y="971" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="989" font-family="serif" font-size="12" text-anchor="middle">ℓ10 n33554578</text>
+<rect x="120" y="1781" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="1799" font-family="serif" font-size="12" text-anchor="middle">ℓ19 n33554588</text>
+<rect x="120" y="1691" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="1709" font-family="serif" font-size="12" text-anchor="middle">ℓ18 n33554589</text>
+<rect x="120" y="1511" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="1529" font-family="serif" font-size="12" text-anchor="middle">ℓ16 n33554638</text>
+<rect x="120" y="1421" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="1439" font-family="serif" font-size="12" text-anchor="middle">ℓ15 n33554639</text>
+<rect x="120" y="1331" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="1349" font-family="serif" font-size="12" text-anchor="middle">ℓ14 n33554640</text>
+<rect x="40" y="1151" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="1169" font-family="serif" font-size="12" text-anchor="middle">ℓ12 n33554641</text>
+<rect x="40" y="1061" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="1079" font-family="serif" font-size="12" text-anchor="middle">ℓ11 n33554642</text>
+<rect x="40" y="971" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="989" font-family="serif" font-size="12" text-anchor="middle">ℓ10 n33554643</text>
+<rect x="200" y="1421" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="1439" font-family="serif" font-size="12" text-anchor="middle">ℓ15 n33554837</text>
+<rect x="200" y="1331" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="1349" font-family="serif" font-size="12" text-anchor="middle">ℓ14 n33554838</text>
+<rect x="360" y="1421" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="388" y="1439" font-family="serif" font-size="12" text-anchor="middle">ℓ15 n33554851</text>
+<rect x="360" y="1331" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="388" y="1349" font-family="serif" font-size="12" text-anchor="middle">ℓ14 n33554852</text>
+<rect x="120" y="1151" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="1169" font-family="serif" font-size="12" text-anchor="middle">ℓ12 n33554914</text>
+<rect x="120" y="1061" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="1079" font-family="serif" font-size="12" text-anchor="middle">ℓ11 n33554915</text>
+<rect x="120" y="971" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="989" font-family="serif" font-size="12" text-anchor="middle">ℓ10 n33554916</text>
+<rect x="40" y="791" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="809" font-family="serif" font-size="12" text-anchor="middle">ℓ8 n33554917</text>
+<rect x="40" y="701" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="719" font-family="serif" font-size="12" text-anchor="middle">ℓ7 n33554918</text>
+<rect x="40" y="611" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="629" font-family="serif" font-size="12" text-anchor="middle">ℓ6 n33554919</text>
+<rect x="280" y="1151" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="1169" font-family="serif" font-size="12" text-anchor="middle">ℓ12 n33554939</text>
+<rect x="360" y="1061" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="388" y="1079" font-family="serif" font-size="12" text-anchor="middle">ℓ11 n33554940</text>
+<rect x="360" y="971" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="388" y="989" font-family="serif" font-size="12" text-anchor="middle">ℓ10 n33554941</text>
+<rect x="200" y="791" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="809" font-family="serif" font-size="12" text-anchor="middle">ℓ8 n33554942</text>
+<rect x="200" y="701" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="719" font-family="serif" font-size="12" text-anchor="middle">ℓ7 n33554943</text>
+<rect x="200" y="611" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="629" font-family="serif" font-size="12" text-anchor="middle">ℓ6 n33554944</text>
+<rect x="440" y="1061" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="468" y="1079" font-family="serif" font-size="12" text-anchor="middle">ℓ11 n33555280</text>
+<rect x="440" y="971" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="468" y="989" font-family="serif" font-size="12" text-anchor="middle">ℓ10 n33555281</text>
+<rect x="200" y="1061" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="1079" font-family="serif" font-size="12" text-anchor="middle">ℓ11 n33555324</text>
+<rect x="200" y="971" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="989" font-family="serif" font-size="12" text-anchor="middle">ℓ10 n33555325</text>
+<rect x="280" y="791" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="809" font-family="serif" font-size="12" text-anchor="middle">ℓ8 n33555429</text>
+<rect x="280" y="701" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="719" font-family="serif" font-size="12" text-anchor="middle">ℓ7 n33555430</text>
+<rect x="280" y="611" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="629" font-family="serif" font-size="12" text-anchor="middle">ℓ6 n33555431</text>
+<rect x="120" y="431" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="449" font-family="serif" font-size="12" text-anchor="middle">ℓ4 n33555432</text>
+<rect x="120" y="791" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="809" font-family="serif" font-size="12" text-anchor="middle">ℓ8 n33555463</text>
+<rect x="120" y="701" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="719" font-family="serif" font-size="12" text-anchor="middle">ℓ7 n33555464</text>
+<rect x="120" y="611" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="629" font-family="serif" font-size="12" text-anchor="middle">ℓ6 n33555465</text>
+<rect x="40" y="431" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="449" font-family="serif" font-size="12" text-anchor="middle">ℓ4 n33555466</text>
+<rect x="40" y="251" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="269" font-family="serif" font-size="12" text-anchor="middle">ℓ2 n33555467</text>
+<rect x="360" y="701" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="388" y="719" font-family="serif" font-size="12" text-anchor="middle">ℓ7 n33555877</text>
+<rect x="360" y="611" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="388" y="629" font-family="serif" font-size="12" text-anchor="middle">ℓ6 n33555878</text>
+<rect x="200" y="431" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="449" font-family="serif" font-size="12" text-anchor="middle">ℓ4 n33556040</text>
+<rect x="120" y="341" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="359" font-family="serif" font-size="12" text-anchor="middle">ℓ3 n33556041</text>
+<rect x="120" y="251" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="269" font-family="serif" font-size="12" text-anchor="middle">ℓ2 n33556042</text>
+<rect x="40" y="71" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="89" font-family="serif" font-size="12" text-anchor="middle">ℓ0 n33556043</text>
+<rect x="40" y="1601" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="1619" font-family="serif" font-size="12" text-anchor="middle">ℓ17 n67108864</text>
+<rect x="200" y="1241" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="1259" font-family="serif" font-size="12" text-anchor="middle">ℓ13 n67108870</text>
+<rect x="120" y="1601" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="1619" font-family="serif" font-size="12" text-anchor="middle">ℓ17 n67108873</text>
+<rect x="120" y="1241" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="1259" font-family="serif" font-size="12" text-anchor="middle">ℓ13 n67108896</text>
+<rect x="280" y="1241" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="1259" font-family="serif" font-size="12" text-anchor="middle">ℓ13 n67108898</text>
+<rect x="280" y="881" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="308" y="899" font-family="serif" font-size="12" text-anchor="middle">ℓ9 n67108962</text>
+<rect x="120" y="881" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="899" font-family="serif" font-size="12" text-anchor="middle">ℓ9 n67108966</text>
+<rect x="40" y="341" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="359" font-family="serif" font-size="12" text-anchor="middle">ℓ3 n67108967</text>
+<rect x="200" y="521" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="539" font-family="serif" font-size="12" text-anchor="middle">ℓ5 n67109043</text>
+<rect x="40" y="1241" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="1259" font-family="serif" font-size="12" text-anchor="middle">ℓ13 n100663297</text>
+<rect x="40" y="881" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="899" font-family="serif" font-size="12" text-anchor="middle">ℓ9 n100663302</text>
+<rect x="200" y="881" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="228" y="899" font-family="serif" font-size="12" text-anchor="middle">ℓ9 n100663303</text>
+<rect x="120" y="521" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="148" y="539" font-family="serif" font-size="12" text-anchor="middle">ℓ5 n100663317</text>
+<rect x="40" y="521" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="539" font-family="serif" font-size="12" text-anchor="middle">ℓ5 n100663319</text>
+<rect x="40" y="161" width="56" height="28" fill="#fff" stroke="#333"/>
+<text x="68" y="179" font-family="serif" font-size="12" text-anchor="middle">ℓ1 n100663351</text>
+</svg>

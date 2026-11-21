@@ -1,0 +1,5 @@
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "cudd", "parametres": {"n": "18"}, "rss_max_ko": 16248, "temps_ms": 31.544, "variante": "bdd", "verifie": 1408}
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "cudd", "parametres": {"n": "18"}, "rss_max_ko": 16404, "temps_ms": 29.442, "variante": "bdd", "verifie": 1408}
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "cudd", "parametres": {"n": "18"}, "rss_max_ko": 16384, "temps_ms": 29.839, "variante": "bdd", "verifie": 1408}
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "cudd", "parametres": {"n": "18"}, "rss_max_ko": 16468, "temps_ms": 30.336, "variante": "bdd", "verifie": 1408}
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "cudd", "parametres": {"n": "18"}, "rss_max_ko": 16476, "temps_ms": 32.474, "variante": "bdd", "verifie": 1408}

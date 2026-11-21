@@ -1,0 +1,442 @@
+"""Confrontation benchmark orchestrator (M7-5, issue #115, ADR-0102 protocol).
+
+Runs the M7-4 real charges against each witness — the lisage
+``confrontation`` binary and the OxiDD container — with **one fresh
+process per measurement** (the peak RSS is a whole-process measurement,
+it does not divide into in-process repetitions). Raw JSONL lines are
+deposited in ``bench-results/<run-id>/<charge>-<outil>.jsonl`` and the
+aggregates (median, min, max) in ``bench-results/<run-id>/aggregats.json``.
+
+The MEM-7 pilot charges (``--pilot``, issue #123) run the
+``alea-lcg`` / ``philosophers`` / ``window`` workloads: the generalization
+gate of the MEM-A port — ``alea-lcg`` against the OxiDD witness, the
+DDD/MDD workloads as lisage-only lines with pinned node counts.
+
+Fairness (protocol): same input, same object built, same cross-check
+value. The witnesses receive the exact charge serialized by lisage
+itself (``confrontation dump-charge``), and ``noeuds``/``verifie`` must
+be identical across tools for the same charge — any divergence
+invalidates the campaign (exit 1).
+
+Local only: never run in CI (ADR-0102), Docker required for the OxiDD
+witness.
+"""
+
+import json
+import statistics
+import subprocess
+import sys
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+from scripts._shared import (
+    EXIT_CODE_CRITERIA_UNMET,
+    EXIT_CODE_PROTOCOL_FAILURE,
+    EXIT_CODE_SUCCESS,
+)
+
+if TYPE_CHECKING:
+    import argparse
+    from collections.abc import Sequence
+
+DEFAULT_REPETITIONS = 5
+DEFAULT_OUTPUT_DIRECTORY = Path("bench-results")
+DEFAULT_BINARY = Path("target/release/confrontation")
+DEFAULT_TOOLS = ("lisage", "oxidd")
+
+# Docker witnesses (ADR-0102, local only): image and stdin command of each
+# external tool. `oxidd_env` carries per-charge environment overrides for
+# the OxiDD witness (capacities of the unique table / apply cache).
+WITNESS_IMAGES = {
+    "oxidd": "lisage-oxidd:latest",
+    "cudd": "lisage-cudd:latest",
+    "libddd": "lisage-libddd:latest",
+    "sylvan": "lisage-sylvan:latest",
+}
+WITNESS_COMMANDS = {
+    "oxidd": ["oxidd_count"],
+    "cudd": ["cudd_measure"],
+    "libddd": ["libddd_measure"],
+    "sylvan": ["sylvan_measure"],
+}
+
+MEASURE_KEYS = (
+    "outil",
+    "variante",
+    "charge",
+    "parametres",
+    "temps_ms",
+    "rss_max_ko",
+    "noeuds",
+    "verifie",
+)
+
+
+@dataclass(frozen=True)
+class Charge:
+    """One benchmark charge: label, workload, parameters, optional versioned input.
+
+    `parameters` are the workload arguments after the workload name
+    (`alea-lcg <n>`, `philosophers <n> <path>`, `window <size> <nb_bases>
+    [absolu|relatif]`, `cnf <path>`, `pnml <path>`); when empty, the
+    charge is file-based and the single parameter is the input path.
+    `tools` restricts the witnesses measured for this charge (the pilot
+    DDD/MDD workloads have no external witness in the stdin protocol:
+    lisage only). `oxidd_env` overrides the environment of the OxiDD
+    witness for this charge (unique-table / apply-cache capacities).
+    """
+
+    label: str
+    workload: str
+    path: Path | None = None
+    parameters: tuple[str, ...] = ()
+    tools: tuple[str, ...] = DEFAULT_TOOLS
+    oxidd_env: tuple[tuple[str, str], ...] = ()
+
+
+def charge_parameters(*, charge: Charge) -> tuple[str, ...]:
+    """Workload arguments of a charge (default: the input path alone)."""
+    if charge.parameters:
+        return charge.parameters
+    if charge.path is not None:
+        return (str(charge.path),)
+    return ()
+
+
+CHARGES: tuple[Charge, ...] = (
+    Charge("cnf-uf20-01", "cnf", Path("crates/lisage-bench/models/uf20-01.cnf")),
+    Charge("pnml-swimmingpool-1", "pnml", Path("crates/lisage-bench/models/SwimmingPool-1.pnml")),
+    Charge("pnml-erk-000001", "pnml", Path("crates/lisage-bench/models/erk-000001.pnml")),
+)
+
+# Pilot charges (MEM-7, issue #123): the generalization gate of the
+# MEM-A port. `alea-lcg` is cross-checked against the OxiDD witness (the
+# deterministic LCG table is the charge, reproducible from SEED_LCG);
+# `philosophers` and `window` are lisage-only lines (no external witness
+# for DDD/MDD in the stdin protocol), their node counts pinned in
+# `tests/confrontation.rs`.
+PILOT_CHARGES: tuple[Charge, ...] = (
+    Charge("alea-lcg-20", "alea-lcg", parameters=("20",)),
+    Charge(
+        "philosophers-n5",
+        "philosophers",
+        Path("crates/lisage-bench/models/philosophers-n5-states.txt"),
+        parameters=("5", "crates/lisage-bench/models/philosophers-n5-states.txt"),
+        tools=("lisage",),
+    ),
+    Charge("window-4x10-absolu", "window", parameters=("4", "10", "absolu"), tools=("lisage",)),
+    Charge("window-4x10-relatif", "window", parameters=("4", "10", "relatif"), tools=("lisage",)),
+)
+
+# Crossover charges (BENCH-1, issue #277): alea-lcg at several n to track
+# time and RSS against the node count, plus two real charges — all measured
+# against every witness. alea-lcg-24 reaches ~1.4M nodes, beyond the default
+# 2^20 unique-table capacity of the OxiDD witness: its capacities are raised
+# via the environment (documented in the campaign report; the default image
+# stays the reference).
+ALL_WITNESS_TOOLS = ("lisage", "oxidd", "cudd", "libddd", "sylvan")
+CROSSOVER_CHARGES: tuple[Charge, ...] = (
+    Charge("alea-lcg-20", "alea-lcg", parameters=("20",), tools=ALL_WITNESS_TOOLS),
+    Charge("alea-lcg-22", "alea-lcg", parameters=("22",), tools=ALL_WITNESS_TOOLS),
+    Charge(
+        "alea-lcg-24",
+        "alea-lcg",
+        parameters=("24",),
+        tools=ALL_WITNESS_TOOLS,
+        oxidd_env=(
+            ("OXIDD_INNER_CAPACITY", str(1 << 23)),
+            ("OXIDD_APPLY_CACHE_CAPACITY", str(1 << 23)),
+        ),
+    ),
+    Charge(
+        "cnf-uf20-01",
+        "cnf",
+        Path("crates/lisage-bench/models/uf20-01.cnf"),
+        tools=ALL_WITNESS_TOOLS,
+    ),
+    Charge(
+        "pnml-swimmingpool-1",
+        "pnml",
+        Path("crates/lisage-bench/models/SwimmingPool-1.pnml"),
+        tools=ALL_WITNESS_TOOLS,
+    ),
+)
+
+
+def parse_measure_line(*, line: str) -> dict[str, object]:
+    """Parse one JSONL measurement line and validate the protocol keys."""
+    measure = json.loads(line)
+    if not isinstance(measure, dict):
+        raise ValueError(f"measurement line is not an object: {line!r}")
+    missing = [key for key in MEASURE_KEYS if key not in measure]
+    if missing:
+        raise ValueError(f"measurement line misses keys {missing}: {line!r}")
+    return measure
+
+
+def aggregate_measures(*, measures: Sequence[dict[str, object]]) -> dict[str, object]:
+    """Aggregate one charge x one tool.
+
+    Median/min/max of the time and memory, plus the constant cross-check
+    values (``noeuds``, ``verifie``).
+    """
+    if not measures:
+        raise ValueError("no measurement to aggregate")
+    for key in ("noeuds", "verifie"):
+        values = {measure[key] for measure in measures}
+        if len(values) != 1:
+            raise ValueError(f"non-constant {key} across repetitions: {values}")
+    temps = [float(cast("float", measure["temps_ms"])) for measure in measures]
+    rss = [int(cast("int", measure["rss_max_ko"])) for measure in measures]
+    return {
+        "outil": measures[0]["outil"],
+        "charge": measures[0]["charge"],
+        "repetitions": len(measures),
+        "temps_ms": {
+            "mediane": statistics.median(temps),
+            "min": min(temps),
+            "max": max(temps),
+        },
+        "rss_max_ko": {
+            "mediane": statistics.median(rss),
+            "min": min(rss),
+            "max": max(rss),
+        },
+        "noeuds": measures[0]["noeuds"],
+        "verifie": measures[0]["verifie"],
+    }
+
+
+def cross_check_aggregates(*, aggregates: Sequence[dict[str, object]]) -> list[str]:
+    """Cross-tool check: for one charge, ``noeuds`` and ``verifie`` must be identical across tools.
+
+    Returns the list of divergences.
+    """
+    by_charge: dict[str, list[dict[str, object]]] = {}
+    for aggregate in aggregates:
+        by_charge.setdefault(str(aggregate["charge"]), []).append(aggregate)
+    divergences: list[str] = []
+    for charge, group in sorted(by_charge.items()):
+        for key in ("noeuds", "verifie"):
+            values = {(str(aggregate["outil"]), aggregate[key]) for aggregate in group}
+            distinct = {value for _, value in values}
+            if len(distinct) != 1:
+                divergences.append(
+                    f"charge {charge}: {key} diverges across tools: {sorted(values)}"
+                )
+    return divergences
+
+
+def run_lisage_measurement(*, binary: Path, charge: Charge) -> dict[str, object]:
+    """One lisage measurement: a fresh process running the workload once."""
+    completed = subprocess.run(
+        [str(binary), charge.workload, *charge_parameters(charge=charge)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != EXIT_CODE_SUCCESS:
+        raise RuntimeError(f"lisage measurement failed: {completed.stderr.strip()}")
+    return parse_measure_line(line=completed.stdout.strip())
+
+
+def dump_charge(*, binary: Path, charge: Charge) -> str:
+    """Serialize the charge in the standard stdin protocol of the witnesses.
+
+    The witnesses receive the exact input lisage measured.
+    """
+    completed = subprocess.run(
+        [str(binary), "dump-charge", charge.workload, *charge_parameters(charge=charge)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != EXIT_CODE_SUCCESS:
+        raise RuntimeError(f"dump-charge failed: {completed.stderr.strip()}")
+    return completed.stdout
+
+
+def run_witness_measurement(
+    *,
+    tool: str,
+    charge_stdin: str,
+    label: str,
+    oxidd_env: tuple[tuple[str, str], ...] = (),
+) -> dict[str, object]:
+    """One external-witness measurement: a fresh container, charge on stdin."""
+    command = ["docker", "run", "--rm", "-i"]
+    for key, value in oxidd_env:
+        command += ["-e", f"{key}={value}"]
+    command += [WITNESS_IMAGES[tool], *WITNESS_COMMANDS[tool], label]
+    completed = subprocess.run(
+        command,
+        input=charge_stdin,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != EXIT_CODE_SUCCESS:
+        raise RuntimeError(f"{tool} measurement failed: {completed.stderr.strip()}")
+    return parse_measure_line(line=completed.stdout.strip())
+
+
+def run_campaign(
+    *,
+    charges: Sequence[Charge],
+    tools: Sequence[str],
+    repetitions: int,
+    binary: Path,
+    output_directory: Path,
+    run_identifier: str,
+) -> int:
+    """Run the whole campaign and deposit raw lines + aggregates."""
+    run_directory = output_directory / run_identifier
+    run_directory.mkdir(parents=True, exist_ok=True)
+    aggregates: list[dict[str, object]] = []
+    for charge in charges:
+        charge_stdin: str | None = None
+        for tool in [tool for tool in tools if tool in charge.tools]:
+            measures: list[dict[str, object]] = []
+            for _ in range(repetitions):
+                if tool == "lisage":
+                    measure = run_lisage_measurement(binary=binary, charge=charge)
+                elif tool in WITNESS_IMAGES:
+                    if charge_stdin is None:
+                        charge_stdin = dump_charge(binary=binary, charge=charge)
+                    measure = run_witness_measurement(
+                        tool=tool,
+                        charge_stdin=charge_stdin,
+                        label=charge.label,
+                        oxidd_env=charge.oxidd_env if tool == "oxidd" else (),
+                    )
+                else:
+                    raise ValueError(f"unknown tool: {tool}")
+                # The binary reports the workload as `charge`; the campaign
+                # identifies the charge by its label, uniformly across tools.
+                measure["charge"] = charge.label
+                measures.append(measure)
+                line = json.dumps(measure, sort_keys=True)
+                print(f"[{run_identifier}] {charge.label} / {tool}: {line}")
+            raw_path = run_directory / f"{charge.label}-{tool}.jsonl"
+            raw_path.write_text(
+                "".join(json.dumps(measure, sort_keys=True) + "\n" for measure in measures),
+                encoding="utf-8",
+            )
+            aggregates.append(aggregate_measures(measures=measures))
+    divergences = cross_check_aggregates(aggregates=aggregates)
+    aggregates_path = run_directory / "aggregats.json"
+    aggregates_path.write_text(
+        json.dumps(
+            {"run": run_identifier, "aggregats": aggregates, "divergences": divergences},
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    print(f"[{run_identifier}] raw lines + aggregates deposited in {run_directory}")
+    if divergences:
+        for divergence in divergences:
+            print(f"DIVERGENCE: {divergence}", file=sys.stderr)
+        return EXIT_CODE_CRITERIA_UNMET
+    return EXIT_CODE_SUCCESS
+
+
+def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    """Register the bench-confrontation subcommand."""
+    subparser = subparsers.add_parser(
+        "bench-confrontation",
+        help="Run the confrontation benchmark campaign (local, ADR-0102; never in CI).",
+        description=(
+            "Run the M7-4 charges against lisage and the OxiDD witness, "
+            "one fresh process per measurement (M7-5)."
+        ),
+    )
+    subparser.add_argument(
+        "--repetitions",
+        type=int,
+        default=DEFAULT_REPETITIONS,
+        help="Measurements per charge x tool.",
+    )
+    subparser.add_argument(
+        "--tools",
+        type=str,
+        default=",".join(DEFAULT_TOOLS),
+        help="Comma-separated tools: lisage,oxidd,cudd,libddd,sylvan.",
+    )
+    subparser.add_argument(
+        "--charges",
+        type=str,
+        default="",
+        help="Comma-separated charge labels (real + pilot; default: all real charges).",
+    )
+    subparser.add_argument(
+        "--pilot",
+        action="store_true",
+        help="Run the MEM-7 pilot charges (alea-lcg, philosophers, window).",
+    )
+    subparser.add_argument(
+        "--crossover",
+        action="store_true",
+        help="Run the BENCH-1 crossover charges (alea-lcg 20/22/24, cnf, pnml; issue #277).",
+    )
+    subparser.add_argument(
+        "--binary",
+        type=Path,
+        default=DEFAULT_BINARY,
+        help="Path of the release confrontation binary.",
+    )
+    subparser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=DEFAULT_OUTPUT_DIRECTORY,
+        help="Directory of the deposited results.",
+    )
+    subparser.add_argument(
+        "--run-id",
+        type=str,
+        default="",
+        help="Run identifier (default: UTC timestamp).",
+    )
+    subparser.set_defaults(runner=run)
+
+
+def run(*, arguments: argparse.Namespace) -> int:
+    """Entry point: run the campaign, deposit results, report divergences."""
+    all_charges = CHARGES + PILOT_CHARGES + CROSSOVER_CHARGES
+    if arguments.pilot:
+        charges = list(PILOT_CHARGES)
+    elif arguments.crossover:
+        charges = list(CROSSOVER_CHARGES)
+    else:
+        labels = [label.strip() for label in arguments.charges.split(",") if label.strip()]
+        charges = [charge for charge in all_charges if not labels or charge.label in labels]
+        if not labels:
+            charges = list(CHARGES)
+    if not charges:
+        print("Error: no charge selected", file=sys.stderr)
+        return EXIT_CODE_PROTOCOL_FAILURE
+    for charge in charges:
+        if charge.path is not None and not charge.path.is_file():
+            print(f"Error: charge input missing: {charge.path}", file=sys.stderr)
+            return EXIT_CODE_PROTOCOL_FAILURE
+    tools = [tool.strip() for tool in arguments.tools.split(",") if tool.strip()]
+    run_identifier = arguments.run_id or datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    try:
+        return run_campaign(
+            charges=charges,
+            tools=tools,
+            repetitions=arguments.repetitions,
+            binary=arguments.binary,
+            output_directory=arguments.output_dir,
+            run_identifier=run_identifier,
+        )
+    except RuntimeError as error:
+        # A measurement failed: the campaign criteria are unmet (exit 1).
+        print(f"Error: {error}", file=sys.stderr)
+        return EXIT_CODE_CRITERIA_UNMET
+    except ValueError as error:
+        # Usage/config error: protocol failure (exit 2).
+        print(f"Error: {error}", file=sys.stderr)
+        return EXIT_CODE_PROTOCOL_FAILURE

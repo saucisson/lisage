@@ -1,7 +1,6 @@
 # ADR-0021: Driver commands as one CLI package
 
-- **Status**: draft (proposed by the agent, awaiting the human owner's
-  acceptance)
+- **Status**: accepted (2026-11-11, human owner, session needs-human)
 - **Date**: 2026-11-08
 - **Deciders**: template owner
 

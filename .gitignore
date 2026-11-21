@@ -1,3 +1,7 @@
+# Rust
+target/
+Cargo.lock
+
 # Python
 __pycache__/
 *.py[cod]
@@ -32,3 +36,9 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+
+# Proptest regressions for #[ignore] local-only tests (hors CI)
+crates/lisage-bench/tests/cudd_local.proptest-regressions
+
+# Résultats du bench de confrontation (ADR-0102)
+.confrontation/
