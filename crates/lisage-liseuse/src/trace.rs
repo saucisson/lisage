@@ -7,16 +7,20 @@
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
+use lisage_core::NodeId;
 use lisage_core::observer::{
-    ChannelAttr, ClassHistogram, Observer, ReductionRule, SpanKind, TraceEvent,
+    ChannelAttr, ClassHistogram, Observer, ReductionRule, SpanKind, StructureChangeKind, TraceEvent,
 };
 
-/// Trace schema version (`{"v":4, ...}`): v2 adds the
+/// Trace schema version (`{"v":5, ...}`): v2 adds the
 /// `Attr`/`MemoHit`/`MemoMiss`/`Round` events of the step-by-step view (M2-6);
 /// v3 adds the `Histogram` event (MEM-17: degree histogram per class);
 /// v4 adds the spans of D1-1 — `SpanOpen`/`SpanClose` events and a `"span"`
-/// field on every other event.
-pub const TRACE_VERSION: u32 = 4;
+/// field on every other event; v5 adds the register events of D1-2 —
+/// `OpStart`/`OpEnd`/`VisiteEntree`/`VisiteSortie`/`MemoConsult`/`MemoInsert`/
+/// `EcritureMemoire`/`StructureChange`, plus the extended `NodeCreated`
+/// (`forme`), `Gc` (`liste_collectes`) and `Round` (levels, handles, growth).
+pub const TRACE_VERSION: u32 = 5;
 
 /// Minimal JSON escaping of a string (events carry no dynamic
 /// ones, but the contract stays correct).
@@ -52,6 +56,39 @@ fn name_span_kind(kind: SpanKind) -> &'static str {
         SpanKind::Round => "round",
         SpanKind::Visite => "visite",
     }
+}
+
+/// JSON name of a structure change classification (D1-2).
+fn name_structure_change(kind: StructureChangeKind) -> &'static str {
+    match kind {
+        StructureChangeKind::Identite => "identite",
+        StructureChangeKind::Reetiquetage => "reetiquetage",
+        StructureChangeKind::Collapse => "collapse",
+        StructureChangeKind::Expansion => "expansion",
+        StructureChangeKind::Restructuration => "restructuration",
+    }
+}
+
+/// JSON rendering of an arc list `(key, target)` (D1-2):
+/// `"arcs":[[0,12],[1,7]]`.
+fn serialiser_arcs(arcs: &[(u64, NodeId)]) -> String {
+    let entries: Vec<String> = arcs
+        .iter()
+        .map(|(key, target)| format!("[{},{}]", key, target.0))
+        .collect();
+    format!("[{}]", entries.join(","))
+}
+
+/// JSON rendering of a node id list (D1-2): `"liste":[3,7,12]`.
+fn serialiser_liste_noeuds(liste: &[NodeId]) -> String {
+    let entries: Vec<String> = liste.iter().map(|node| format!("{}", node.0)).collect();
+    format!("[{}]", entries.join(","))
+}
+
+/// JSON rendering of a u32 list (D1-2): `"niveaux":[0,2]`.
+fn serialiser_liste_niveaux(liste: &[u32]) -> String {
+    let entries: Vec<String> = liste.iter().map(|niveau| format!("{niveau}")).collect();
+    format!("[{}]", entries.join(","))
 }
 
 /// JSON rendering of an optional span id (D1-1): `"span":3` or `"span":null`.
@@ -104,11 +141,22 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                 span.0
             );
         }
-        TraceEvent::NodeCreated { node, level, .. } => (
+        TraceEvent::NodeCreated {
+            node, level, forme, ..
+        } => (
             "NodeCreated",
             match level {
-                Some(level) => format!("\"noeud\":{},\"level\":{}", node.0, level.0),
-                None => format!("\"noeud\":{},\"level\":null", node.0),
+                Some(level) => format!(
+                    "\"noeud\":{},\"level\":{},\"forme\":\"{}\"",
+                    node.0,
+                    level.0,
+                    echapper_json(forme)
+                ),
+                None => format!(
+                    "\"noeud\":{},\"level\":null,\"forme\":\"{}\"",
+                    node.0,
+                    echapper_json(forme)
+                ),
             },
         ),
         TraceEvent::NodeShared { node, .. } => ("NodeShared", format!("\"noeud\":{}", node.0)),
@@ -147,18 +195,107 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             live,
             collected,
             compaction,
+            liste_collectes,
             ..
         } => (
             "Gc",
-            format!("\"vivants\":{live},\"collectes\":{collected},\"compaction\":{compaction}"),
+            format!(
+                "\"vivants\":{live},\"collectes\":{collected},\"compaction\":{compaction},\"liste_collectes\":{}",
+                serialiser_liste_noeuds(liste_collectes)
+            ),
         ),
-        TraceEvent::Round { numero, .. } => ("Round", format!("\"numero\":{numero}")),
+        TraceEvent::Round {
+            numero,
+            niveaux_actifs,
+            niveaux_modifies,
+            avant,
+            image,
+            apres,
+            croissance,
+            ..
+        } => (
+            "Round",
+            format!(
+                "\"numero\":{numero},\"niveaux_actifs\":{},\"niveaux_modifies\":{},\"avant\":{},\"image\":{},\"apres\":{},\"croissance\":{croissance}",
+                serialiser_liste_niveaux(niveaux_actifs),
+                serialiser_liste_niveaux(niveaux_modifies),
+                avant.0,
+                image.0,
+                apres.0
+            ),
+        ),
         TraceEvent::Histogram { classes, .. } => ("Histogram", serialiser_histogramme(classes)),
+        TraceEvent::OpStart { fingerprint, .. } => {
+            ("OpStart", format!("\"empreinte\":{fingerprint}"))
+        }
+        TraceEvent::OpEnd { .. } => ("OpEnd", String::new()),
+        TraceEvent::VisiteEntree { node, .. } => ("VisiteEntree", format!("\"noeud\":{}", node.0)),
+        TraceEvent::VisiteSortie { node, resultat, .. } => (
+            "VisiteSortie",
+            format!("\"noeud\":{},\"resultat\":{}", node.0, resultat.0),
+        ),
+        TraceEvent::MemoConsult {
+            fingerprint,
+            node,
+            h,
+            version,
+            hit,
+            ..
+        } => (
+            "MemoConsult",
+            format!(
+                "\"empreinte\":{fingerprint},\"noeud\":{},\"h\":\"{}\",\"version\":{version},\"touche\":{hit}",
+                node.0,
+                echapper_json(h)
+            ),
+        ),
+        TraceEvent::MemoInsert {
+            fingerprint,
+            node,
+            h,
+            version,
+            resultat,
+            ..
+        } => (
+            "MemoInsert",
+            format!(
+                "\"empreinte\":{fingerprint},\"noeud\":{},\"h\":\"{}\",\"version\":{version},\"resultat\":{}",
+                node.0,
+                echapper_json(h),
+                resultat.0
+            ),
+        ),
+        TraceEvent::EcritureMemoire {
+            version_avant,
+            version_apres,
+            ..
+        } => (
+            "EcritureMemoire",
+            format!("\"version_avant\":{version_avant},\"version_apres\":{version_apres}"),
+        ),
+        TraceEvent::StructureChange {
+            node,
+            classification,
+            arcs_avant,
+            arcs_apres,
+            ..
+        } => (
+            "StructureChange",
+            format!(
+                "\"noeud\":{},\"classification\":\"{}\",\"arcs_avant\":{},\"arcs_apres\":{}",
+                node.0,
+                name_structure_change(*classification),
+                serialiser_arcs(arcs_avant),
+                serialiser_arcs(arcs_apres)
+            ),
+        ),
     };
-    format!(
-        "{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{},{champs}}}",
-        serialiser_span(evenement.span())
-    )
+    let span = serialiser_span(evenement.span());
+    if champs.is_empty() {
+        format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{span}}}")
+    } else {
+        format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{span},{champs}}}")
+    }
 }
 
 /// Observer that collects the trace in memory, serialized JSONL.

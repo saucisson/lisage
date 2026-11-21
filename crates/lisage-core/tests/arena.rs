@@ -201,12 +201,20 @@ fn test_events_trace_narration() {
             TraceEvent::NodeCreated {
                 node,
                 level: None,
+                forme: format!("{:?}", Form::<u64, bool>::Terminal(true)),
                 span: None
             },
             TraceEvent::NodeShared { node, span: None },
             TraceEvent::NodeCreated {
                 node: node2,
                 level: Some(Level(5)),
+                forme: format!(
+                    "{:?}",
+                    Form::<u64, bool>::Node {
+                        level: Level(5),
+                        arcs: ArcRun::from_pairs([(1, node)]),
+                    }
+                ),
                 span: None,
             },
         ]

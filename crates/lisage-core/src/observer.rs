@@ -23,6 +23,23 @@ pub enum SpanKind {
     Visite,
 }
 
+/// Classification of the structure change between the input form and the
+/// output form of one node visit (D1-2), computed generically by the
+/// runner — never by the operations themselves.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum StructureChangeKind {
+    /// Output form identical to the input form.
+    Identite,
+    /// Same arcs, different level (relabelling).
+    Reetiquetage,
+    /// Node collapsed to a terminal.
+    Collapse,
+    /// Terminal expanded to a node (T-EXPAND).
+    Expansion,
+    /// Arcs restructured (keys or targets changed).
+    Restructuration,
+}
+
 static NEXT_SPAN_ID: AtomicU64 = AtomicU64::new(1);
 
 thread_local! {
@@ -115,12 +132,15 @@ pub enum TraceEvent {
         /// Identifier of the closed span.
         span: SpanId,
     },
-    /// Node created in the pool (after reductions).
+    /// Node created in the pool (after reductions). D1-2: carries the
+    /// full form of the created node.
     NodeCreated {
         /// Node created.
         node: NodeId,
         /// Level of the node, `None` for terminals.
         level: Option<Level>,
+        /// Full form of the node (`Debug` format).
+        forme: String,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -175,6 +195,7 @@ pub enum TraceEvent {
         span: Option<SpanId>,
     },
     /// GC of the two-plane pool (M4-1): live, collected, profiled compaction.
+    /// D1-2: carries the list of the collected nodes.
     Gc {
         /// Live nodes after collection.
         live: u64,
@@ -182,13 +203,28 @@ pub enum TraceEvent {
         collected: u64,
         /// Compaction performed (dead threshold reached).
         compaction: bool,
+        /// Identifiers of the collected nodes (D1-2).
+        liste_collectes: Vec<NodeId>,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
-    /// Start of a saturation round (M2-6): iteration number.
+    /// Saturation round (M2-6, extended D1-2): iteration number, active
+    /// and modified levels, handles before/image/after, growth.
     Round {
         /// Round number (1-based).
         numero: u32,
+        /// Active levels of the round.
+        niveaux_actifs: Vec<u32>,
+        /// Levels modified by the round.
+        niveaux_modifies: Vec<u32>,
+        /// Handle before the round.
+        avant: NodeId,
+        /// Handle of the image computed by the round.
+        image: NodeId,
+        /// Handle after the union.
+        apres: NodeId,
+        /// Growth of the pool in nodes during the round.
+        croissance: i64,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -198,6 +234,88 @@ pub enum TraceEvent {
     Histogram {
         /// Per-class entries.
         classes: Vec<ClassHistogram>,
+        /// Span in which the event occurs (D1-1).
+        span: Option<SpanId>,
+    },
+    /// Start of an operation (D1-2): emitted right after the `Op` span opens.
+    OpStart {
+        /// Fingerprint of the transduction run.
+        fingerprint: u64,
+        /// Span in which the event occurs (D1-1).
+        span: Option<SpanId>,
+    },
+    /// End of an operation (D1-2): emitted right before the `Op` span closes.
+    OpEnd {
+        /// Span in which the event occurs (D1-1).
+        span: Option<SpanId>,
+    },
+    /// Entry into a node visit (D1-2), right after the `Visite` span opens.
+    VisiteEntree {
+        /// Node visited.
+        node: NodeId,
+        /// Span in which the event occurs (D1-1).
+        span: Option<SpanId>,
+    },
+    /// Exit of a node visit (D1-2), right before the `Visite` span closes.
+    VisiteSortie {
+        /// Node visited.
+        node: NodeId,
+        /// Resulting node of the visit.
+        resultat: NodeId,
+        /// Span in which the event occurs (D1-1).
+        span: Option<SpanId>,
+    },
+    /// Consultation of the memo table (D1-2) with the full key:
+    /// (op fingerprint, node, h, version).
+    MemoConsult {
+        /// Fingerprint of the operation.
+        fingerprint: u64,
+        /// Node of the key.
+        node: NodeId,
+        /// Inherited attribute of the key (`Debug` format).
+        h: String,
+        /// Memory version of the key.
+        version: u64,
+        /// Whether the consultation hit.
+        hit: bool,
+        /// Span in which the event occurs (D1-1).
+        span: Option<SpanId>,
+    },
+    /// Insertion into the memo table (D1-2) with the full key.
+    MemoInsert {
+        /// Fingerprint of the operation.
+        fingerprint: u64,
+        /// Node of the key.
+        node: NodeId,
+        /// Inherited attribute of the key (`Debug` format).
+        h: String,
+        /// Memory version of the key.
+        version: u64,
+        /// Result stored under the key.
+        resultat: NodeId,
+        /// Span in which the event occurs (D1-1).
+        span: Option<SpanId>,
+    },
+    /// Memory write (D1-2): level-memory version before -> after.
+    EcritureMemoire {
+        /// Version before the write.
+        version_avant: u64,
+        /// Version after the write.
+        version_apres: u64,
+        /// Span in which the event occurs (D1-1).
+        span: Option<SpanId>,
+    },
+    /// Structure change of one node visit (D1-2): classification and arc
+    /// correspondence between the input form and the output form.
+    StructureChange {
+        /// Node visited.
+        node: NodeId,
+        /// Classification of the change.
+        classification: StructureChangeKind,
+        /// Arcs of the input form `(key, target)`.
+        arcs_avant: Vec<(u64, NodeId)>,
+        /// Arcs of the output form `(key, target)`.
+        arcs_apres: Vec<(u64, NodeId)>,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -218,7 +336,15 @@ impl TraceEvent {
             | TraceEvent::MemoMiss { span: s, .. }
             | TraceEvent::Gc { span: s, .. }
             | TraceEvent::Round { span: s, .. }
-            | TraceEvent::Histogram { span: s, .. } => *s = span,
+            | TraceEvent::Histogram { span: s, .. }
+            | TraceEvent::OpStart { span: s, .. }
+            | TraceEvent::OpEnd { span: s, .. }
+            | TraceEvent::VisiteEntree { span: s, .. }
+            | TraceEvent::VisiteSortie { span: s, .. }
+            | TraceEvent::MemoConsult { span: s, .. }
+            | TraceEvent::MemoInsert { span: s, .. }
+            | TraceEvent::EcritureMemoire { span: s, .. }
+            | TraceEvent::StructureChange { span: s, .. } => *s = span,
         }
     }
 
@@ -236,7 +362,15 @@ impl TraceEvent {
             | TraceEvent::MemoMiss { span, .. }
             | TraceEvent::Gc { span, .. }
             | TraceEvent::Round { span, .. }
-            | TraceEvent::Histogram { span, .. } => *span,
+            | TraceEvent::Histogram { span, .. }
+            | TraceEvent::OpStart { span, .. }
+            | TraceEvent::OpEnd { span, .. }
+            | TraceEvent::VisiteEntree { span, .. }
+            | TraceEvent::VisiteSortie { span, .. }
+            | TraceEvent::MemoConsult { span, .. }
+            | TraceEvent::MemoInsert { span, .. }
+            | TraceEvent::EcritureMemoire { span, .. }
+            | TraceEvent::StructureChange { span, .. } => *span,
         }
     }
 }
