@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - D2-2: snapshots and O(log n) seek (issue #161)
+
+- **Issue**: #161 (D2-2, snapshots, seek O(log n), sommes préfixes); labels debug-outillage, index-miroir.
+- **Done**: new module `crates/lisage-liseuse/src/snapshots.rs` — `SnapshotScrubber` extends the step-by-step scrubber with periodic snapshots of the replayed state (throttled by a budget, default 1000 events between snapshots). `seek(k)` finds the last snapshot ≤ k by binary search (O(log n)) and replays only the tail. The legacy `Scrubber` is untouched (re-exported as `LegacyScrubber`). New tests `crates/lisage-liseuse/tests/snapshots.rs` (6 tests): snapshots built at budget boundaries, seek state matches legacy replay at multiple positions, seek < 50 ms on a synthetic 100k-event trace, seek clamps to trace length, empty trace safe, legacy Scrubber behavior unchanged.
+- **Evidence**: `cargo nextest run -p lisage-liseuse` 63 passed; `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean.
+- **Judgement calls**: snapshots store the full `EtatTrace` (nodes set + attributes + counters) at each budget boundary; the binary search uses `partition_point` on the sorted snapshot positions; the seek tail replay is bounded by the budget so it stays O(1) amortized.
+- **Escalations**: none.
+
 ## 2026-11-21 - D2-1: pool/memo/memory mirror from the trace (issue #160)
 
 - **Issue**: #160 (D2-1, miroir du pool, de la mémo et de la mémoire de niveau); labels ci-gates, debug-outillage, index-miroir.
