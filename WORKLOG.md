@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - LS-2: ASGI authentication middleware (issue #310)
+
+- **Issue**: #310 (LS-2, milestone Auth v1); labels auth, type/feat. Depends on LS-1 (#309).
+- **Done**: new brick `tools/notify/src/notify/infrastructure/auth/middleware.py` — `AuthenticationMiddleware`, a pure ASGI middleware (no web framework dependency, compatible with Starlette/FastAPI/raw ASGI) that extracts the `Authorization: Bearer <token>` header, validates the token with the LS-1 `AccessTokenVerifier`, and exposes the validated `AccessTokenClaims` to downstream handlers via `scope["auth_claims"]`. Rejections answer `401 Unauthorized` with a typed JSON error payload (ADR-0016): `{"error": {"code": "unauthorized", "reason": <reason>}}`; no token material is logged or returned. Non-HTTP scopes (websocket, lifespan) pass through untouched. `AUTH_DISABLED=1` is a pass-through escape hatch for local development. `build_middleware(app, settings, http_client)` wires the middleware from `AuthSettings`. No HTTP surface exists yet in `notify` (CLI only), so per the issue's instruction the brick is delivered with its tests and ready to be mounted at route creation — no web server was created just for auth. Tests: `tools/notify/tests/unit/test_auth_middleware.py` — 8 tests, level L1 (httpx MockTransport fake IdP, RSA keys in fixtures, injected clock, `asyncio.run` driving the ASGI callable): missing header → 401 malformed, non-Bearer scheme → 401, expired token → 401 expiration, valid token → claims in scope + downstream runs, auth_disabled → pass-through, non-HTTP scope → pass-through, `build_middleware` from settings (enabled and disabled).
+- **Evidence**: `make check` green on the branch (ruff, ruff format, mypy strict 48 files, import-linter 1 contract kept, pytest 64 passed / coverage 92.11% >= 90%, english-only). No network in tests.
+- **Judgement calls**: pure ASGI middleware instead of a FastAPI dependency because no HTTP surface exists yet — the brick stays framework-agnostic and mounts on any ASGI app at route-creation time; ASGI types use `MutableMapping[str, object]` instead of `dict[str, Any]` to satisfy the no-explicit-Any rule (ADR-0006).
+- **Escalations**: none.
+
 ## 2026-11-21 - LS-1: OIDC access-token validation brick (issue #309)
 
 - **Issue**: #309 (LS-1, milestone Auth v1); labels auth, type/feat.
