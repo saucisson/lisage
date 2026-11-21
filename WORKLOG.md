@@ -46,6 +46,21 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-20 - ALIGN-3: observer dispatch share on the build path (measurement only, no code change)
+
+- **Issue**: none — ALIGN-i issues cannot be opened on GitHub; ALIGN-3 = measure the observer share, conclude in writing.
+- **Done**: new runner `crates/lisage-bench/src/bin/observer_share.rs`, structural test, publication `bench-results/align3-observer-share.md`.
+- **Measured verdict (written)**: observer share ~7% of build (7.64% at n=20, 6.72% at n=22), ~2.85 ns/event. Not the driver of the residual vs OxiDD — note and close.
+- **Evidence**: `make check` green (371 passed, 11 skipped). Not run: campaign-4 (ALIGN-5).
+- **Escalations**: none.
+
+## 2026-11-21 - D3-3: inspection views of lisage-debug (issue #166)
+
+- **Issue**: #166 (D3-3, vues d'inspection); labels debug-outillage, loupe.
+- **Done**: new module `crates/lisage-liseuse/src/inspection.rs` — `Inspector` query engine over the trace with views: node/memo/memory/diff/eval/display/ops/svg. New tests `crates/lisage-liseuse/tests/inspection.rs` (12 tests).
+- **Evidence**: `make check` green (417 passed / 11 skipped, english-only); binary smoke-tested.
+- **Escalations**: none.
+
 ## 2026-11-21 - D1-4: trace deserializer (JSONL, v5) (issue #158)
 
 - **Issue**: #158 (D1-4, sérialiseur + désérialiseur v3); labels debug-outillage, trace-v3.
