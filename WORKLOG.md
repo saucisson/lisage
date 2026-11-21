@@ -1601,3 +1601,21 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test -p lisage-liseuse --all-targets` all green (19 suites, incl. 6 gateway DoD tests — token 403 enforcement over real TCP, break at round 12, goto clamping — and 7 gateway unit tests); `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all` clean; `make english-only` green. Not run: full `make check`, property tier, mutation testing, browser E2E.
 - **Judgement calls**: page is an inline minimal HTML (full page.rs renderer lands when D6-1 PR #343 merges); gateway replays a .jsonl file (per human decision) rather than attaching to a live process; token is a non-crypto PRNG hex (sufficient for loopback threat model); bind is 127.0.0.1:0 strict, never 0.0.0.0.
 - **Escalations**: needs-human on issue #175 for tokio + tokio-tungstenite dependencies (ADR-0010).
+
+## feat/175 D6-2 gateway — review #344 fixes
+
+- BLOCKING: `futures-util` dependency removed (not covered by the approved
+  needs-human escalation on #175). The WebSocket framing now uses the sync
+  `tungstenite` API (re-exported by tokio-tungstenite 0.24) on a blocking
+  thread (`spawn_blocking`), no extra crate.
+- TO-FIX: DEBUG narration events emitted through the `Observer` channel
+  (ADR-0100 decision 6) in `run_gateway` / `handle_connection` /
+  `serve_stream` / `handle_command`; pinned by `test_handle_command_narration_pinned`.
+  The token is never narrated.
+- TO-FIX: `ConnectionToken` distinct type at the boundary (ADR-0006), redacted
+  `Debug` impl (no secret logged).
+- SUGGESTION: token check is an exact query-parameter comparison
+  (`query_param` + equality), no substring match; `test_query_param_exact`
+  pins the suffix-extension bypass.
+- SUGGESTION: token generated from `/dev/urandom` (16 bytes) instead of a
+  xorshift PRNG — no new dependency.

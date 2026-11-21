@@ -11,4 +11,3 @@ lisage-core = { path = "../lisage-core" }
 lisage-lang = { path = "../lisage-lang" }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "sync", "macros", "time"] }
 tokio-tungstenite = "0.24"
-futures-util = "0.3"

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use lisage_core::NodeId;
-use lisage_core::observer::TraceEvent;
+use lisage_core::observer::{NoOpObserver, TraceEvent};
 use lisage_liseuse::gateway::{GatewayState, generate_token, handle_command, render_live_page};
 
 fn sample_trace() -> Vec<TraceEvent> {
@@ -28,10 +28,10 @@ fn sample_trace() -> Vec<TraceEvent> {
 fn test_d6_2_break_round_12_caught() {
     let state = Arc::new(GatewayState::new(sample_trace()));
     // Set break at round 12.
-    let resp = handle_command(r#"{"cmd":"break","round":12}"#, &state).unwrap();
+    let resp = handle_command(r#"{"cmd":"break","round":12}"#, &state, &NoOpObserver).unwrap();
     assert!(resp.contains(r#""event":"break_set""#));
     // Continue from position 0 → should stop at round 12 (position 11, 0-based).
-    let resp = handle_command(r#"{"cmd":"continue"}"#, &state).unwrap();
+    let resp = handle_command(r#"{"cmd":"continue"}"#, &state, &NoOpObserver).unwrap();
     assert!(
         resp.contains(r#""event":"break""#),
         "continue must hit the round-12 break: {resp}"
@@ -48,17 +48,17 @@ fn test_d6_2_break_round_12_caught() {
 fn test_d6_2_step_pause_back_status() {
     let state = Arc::new(GatewayState::new(sample_trace()));
     // step
-    let resp = handle_command(r#"{"cmd":"step"}"#, &state).unwrap();
+    let resp = handle_command(r#"{"cmd":"step"}"#, &state, &NoOpObserver).unwrap();
     assert!(resp.contains(r#""position":1"#));
     // pause
-    let resp = handle_command(r#"{"cmd":"pause"}"#, &state).unwrap();
+    let resp = handle_command(r#"{"cmd":"pause"}"#, &state, &NoOpObserver).unwrap();
     assert!(resp.contains(r#""event":"paused""#));
     assert_eq!(state.paused.load(Ordering::SeqCst), 1);
     // back
-    let resp = handle_command(r#"{"cmd":"back"}"#, &state).unwrap();
+    let resp = handle_command(r#"{"cmd":"back"}"#, &state, &NoOpObserver).unwrap();
     assert!(resp.contains(r#""position":0"#));
     // status
-    let resp = handle_command(r#"{"cmd":"status"}"#, &state).unwrap();
+    let resp = handle_command(r#"{"cmd":"status"}"#, &state, &NoOpObserver).unwrap();
     assert!(resp.contains(r#""event":"status""#));
     assert!(resp.contains(r#""length":15"#));
     assert!(resp.contains(r#""paused":1"#));
@@ -85,6 +85,8 @@ fn test_d6_2_live_page_self_contained() {
 fn test_d6_2_token() {
     let t1 = generate_token();
     let t2 = generate_token();
+    let t1 = t1.to_string();
+    let t2 = t2.to_string();
     assert_eq!(t1.len(), 32);
     assert_ne!(t1, t2);
     assert!(t1.chars().all(|c| c.is_ascii_hexdigit()));
@@ -94,7 +96,7 @@ fn test_d6_2_token() {
 #[test]
 fn test_d6_2_goto_clamps() {
     let state = Arc::new(GatewayState::new(sample_trace()));
-    handle_command(r#"{"cmd":"goto","position":999}"#, &state).unwrap();
+    handle_command(r#"{"cmd":"goto","position":999}"#, &state, &NoOpObserver).unwrap();
     assert_eq!(state.position(), 15, "clamped to length");
 }
 
@@ -131,7 +133,13 @@ async fn test_d6_2_token_enforced_403() {
             }),
             connection_error: Box::new(|_message| {}),
         };
-        let _ = run_gateway(&path_string, "dod", events).await;
+        let _ = run_gateway(
+            &path_string,
+            "dod",
+            std::sync::Arc::new(NoOpObserver),
+            events,
+        )
+        .await;
     });
     let (port, token) = announce_receiver
         .recv_timeout(std::time::Duration::from_secs(10))

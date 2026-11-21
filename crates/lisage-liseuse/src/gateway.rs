@@ -11,19 +11,20 @@
 //!
 //! The library never writes to stdout/stderr: the entry point receives the
 //! bound address and the token through [`GatewayEvents`] and does the
-//! printing itself.
+//! printing itself. Narration goes through the `Observer` channel
+//! (ADR-0100 decision 6); the token is a secret and is never narrated.
 
+use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::debugger::event_kind_name;
 use crate::trace::{ErreurDeserialisation, deserialiser_trace};
-use lisage_core::observer::TraceEvent;
+use lisage_core::NodeId;
+use lisage_core::observer::{ChannelAttr, Observer, TraceEvent, TraceVal};
 
 /// Loopback bind address — the gateway is never exposed on 0.0.0.0.
 const LOOPBACK_ADDRESS: &str = "127.0.0.1:0";
@@ -31,8 +32,6 @@ const LOOPBACK_ADDRESS: &str = "127.0.0.1:0";
 const TOKEN_BYTES: usize = 16;
 /// Read buffer size for the initial HTTP request.
 const READ_BUFFER_SIZE: usize = 4096;
-/// Capacity of the channel forwarding responses to the WebSocket.
-const CHANNEL_CAPACITY: usize = 64;
 
 /// Typed gateway errors; the cause chain is preserved.
 #[derive(Debug)]
@@ -43,8 +42,8 @@ pub enum GatewayError {
     Trace(ErreurDeserialisation),
 }
 
-impl std::fmt::Display for GatewayError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for GatewayError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GatewayError::Io(error) => write!(formatter, "I/O error: {error}"),
             GatewayError::Trace(error) => write!(formatter, "trace error: {error}"),
@@ -67,9 +66,35 @@ impl From<std::io::Error> for GatewayError {
     }
 }
 
+/// Connection token — the sole credential authenticating every HTTP and
+/// WebSocket connection. A distinct type at the boundary (ADR-0006): the
+/// token never crosses the public API as a bare `String`/`&str`. Its
+/// `Debug` is redacted: a secret is never logged (ADR-0005).
+#[derive(Clone, PartialEq, Eq)]
+pub struct ConnectionToken(String);
+
+impl fmt::Debug for ConnectionToken {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ConnectionToken(<redacted>)")
+    }
+}
+
+impl ConnectionToken {
+    /// Exact comparison against a candidate token from the query string.
+    fn matches(&self, candidate: Option<&str>) -> bool {
+        candidate == Some(self.0.as_str())
+    }
+}
+
+impl fmt::Display for ConnectionToken {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
 /// Announcement callback: called once with (port, token, event count) when
 /// the gateway is bound.
-pub type Announce = Box<dyn FnOnce(u16, &str, usize) + Send>;
+pub type Announce = Box<dyn FnOnce(u16, &ConnectionToken, usize) + Send>;
 /// Connection-error callback: called with the error message of each failed
 /// connection.
 pub type ConnectionError = Box<dyn Fn(String) + Send + Sync>;
@@ -126,42 +151,73 @@ impl GatewayState {
     }
 }
 
-/// Generate a random hex token (16 bytes → 32 hex chars).
-pub fn generate_token() -> String {
+/// Narrate one DEBUG event through the observer channel (ADR-0100 decision
+/// 6). Named fields only; secrets (the token) are never narrated.
+fn narrate(observer: &dyn Observer, message: String) {
+    observer.on_event(&TraceEvent::Attr {
+        channel: ChannelAttr::Synthesized,
+        node: NodeId(0),
+        value: TraceVal::texte(message),
+        span: None,
+    });
+}
+
+/// Generate a random token (16 bytes → 32 hex chars) from the OS
+/// cryptographic source (`/dev/urandom`, no extra dependency).
+pub fn generate_token() -> ConnectionToken {
+    use std::io::Read;
     let mut bytes = [0u8; TOKEN_BYTES];
-    // Simple xorshift PRNG seeded from system time — sufficient for a
-    // loopback token (not cryptographic, the threat model is local).
-    let seed = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_nanos() as u64)
-        .unwrap_or(0x9e3779b97f4a7c15);
-    let mut state = seed | 1;
-    for byte in &mut bytes {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        *byte = (state >> 32) as u8;
+    std::fs::File::open("/dev/urandom")
+        .and_then(|mut file| file.read_exact(&mut bytes))
+        .expect("reading 16 bytes from /dev/urandom");
+    ConnectionToken(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+/// Extract one query parameter from the HTTP request line. Exact key match;
+/// the returned value is compared for equality by the caller.
+fn query_param(request: &str, name: &str) -> Option<String> {
+    let request_line = request.lines().next()?;
+    let target = request_line.split_whitespace().nth(1)?;
+    let query = target.split_once('?')?.1;
+    for pair in query.split('&') {
+        if let Some((key, value)) = pair.split_once('=')
+            && key == name
+        {
+            return Some(value.to_string());
+        }
     }
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+    None
 }
 
 /// Run the gateway: serve HTTP page + WebSocket on 127.0.0.1.
 ///
 /// `trace_path` is the `.jsonl` file to replay. The bound port, token and
-/// event count are reported through `events.announce`. This future never
-/// resolves while the gateway is up.
+/// event count are reported through `events.announce`; narration goes
+/// through `observer`. This future never resolves while the gateway is up.
 pub async fn run_gateway(
     trace_path: &str,
     title: &str,
+    observer: Arc<dyn Observer>,
     events: GatewayEvents,
 ) -> Result<(), GatewayError> {
     let trace_events = load_trace(trace_path)?;
+    narrate(
+        observer.as_ref(),
+        format!(
+            "gateway: trace loaded path={trace_path} events={}",
+            trace_events.len()
+        ),
+    );
     let token = generate_token();
     let state = Arc::new(GatewayState::new(trace_events));
     let page = render_live_page(title, state.events.len());
 
     let listener = TcpListener::bind(LOOPBACK_ADDRESS).await?;
     let port = listener.local_addr()?.port();
+    narrate(
+        observer.as_ref(),
+        format!("gateway: bound address=127.0.0.1 port={port}"),
+    );
     let GatewayEvents {
         announce,
         connection_error,
@@ -174,9 +230,10 @@ pub async fn run_gateway(
         let token = token.clone();
         let page = page.clone();
         let state = Arc::clone(&state);
+        let observer = Arc::clone(&observer);
         let connection_error = Arc::clone(&connection_error);
         tokio::spawn(async move {
-            if let Err(error) = handle_connection(stream, token, page, state).await {
+            if let Err(error) = handle_connection(stream, token, page, state, observer).await {
                 connection_error(error.to_string());
             }
         });
@@ -190,67 +247,110 @@ fn load_trace(path: &str) -> Result<Vec<TraceEvent>, GatewayError> {
 }
 
 /// Handle one TCP connection: HTTP GET → page, WebSocket upgrade → stream.
-/// Requests without the valid `token` query parameter get a 403.
+/// Requests whose `token` query parameter is not exactly the valid token
+/// get a 403. The request line is read asynchronously; the rest of the
+/// exchange runs on a blocking thread (tungstenite's sync API).
 async fn handle_connection(
     mut stream: TcpStream,
-    token: String,
+    token: ConnectionToken,
     page: String,
     state: Arc<GatewayState>,
+    observer: Arc<dyn Observer>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut buffer = vec![0u8; READ_BUFFER_SIZE];
     let count = stream.read(&mut buffer).await?;
-    let request = String::from_utf8_lossy(&buffer[..count]);
-    if !request.contains(&format!("token={token}")) {
+    let request = String::from_utf8_lossy(&buffer[..count]).into_owned();
+    if !token.matches(query_param(&request, "token").as_deref()) {
+        narrate(
+            observer.as_ref(),
+            "gateway: connection rejected status=403".to_string(),
+        );
         let response = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n";
         stream.write_all(response.as_bytes()).await?;
         return Ok(());
     }
-    if request.contains("GET /ws") {
-        let socket = tokio_tungstenite::accept_async(stream).await?;
-        handle_websocket(socket, state).await?;
-    } else {
+    let is_websocket = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .map(|target| target.starts_with("/ws"))
+        .unwrap_or(false);
+    let std_stream = stream.into_std()?;
+    let part = buffer[..count].to_vec();
+    tokio::task::spawn_blocking(move || {
+        serve_stream(std_stream, part, is_websocket, page, state, observer)
+    })
+    .await??;
+    Ok(())
+}
+
+/// Serve one connection on a blocking thread: page for plain GET, WebSocket
+/// session (sync tungstenite framing, no extra dependency) for `GET /ws`.
+fn serve_stream(
+    mut stream: std::net::TcpStream,
+    part: Vec<u8>,
+    is_websocket: bool,
+    page: String,
+    state: Arc<GatewayState>,
+    observer: Arc<dyn Observer>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use std::io::Write;
+    stream.set_nonblocking(false)?;
+    if !is_websocket {
+        narrate(
+            observer.as_ref(),
+            "gateway: page served status=200".to_string(),
+        );
         let response = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\n\r\n{}",
             page.len(),
             page
         );
-        stream.write_all(response.as_bytes()).await?;
+        stream.write_all(response.as_bytes())?;
+        return Ok(());
     }
-    Ok(())
-}
-
-/// WebSocket session: replay the trace on demand, handle commands.
-async fn handle_websocket(
-    socket: tokio_tungstenite::WebSocketStream<TcpStream>,
-    state: Arc<GatewayState>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let (sender, mut receiver) = mpsc::channel::<String>(CHANNEL_CAPACITY);
-    let (mut socket_sender, mut socket_receiver) = socket.split();
-    let forward = tokio::spawn(async move {
-        while let Some(message) = receiver.recv().await {
-            if socket_sender.send(Message::Text(message)).await.is_err() {
-                break;
+    let mut socket = tokio_tungstenite::tungstenite::WebSocket::from_partially_read(
+        stream,
+        part,
+        tokio_tungstenite::tungstenite::protocol::Role::Server,
+        None,
+    );
+    narrate(
+        observer.as_ref(),
+        "gateway: websocket session open".to_string(),
+    );
+    loop {
+        match socket.read() {
+            Ok(Message::Text(text)) => {
+                if let Some(response) = handle_command(&text, &state, observer.as_ref())
+                    && socket.write(Message::Text(response)).is_err()
+                {
+                    break;
+                }
             }
-        }
-    });
-
-    while let Some(message) = socket_receiver.next().await {
-        let message = message?;
-        if let Message::Text(text) = message
-            && let Some(response) = handle_command(&text, &state)
-        {
-            let _ = sender.send(response).await;
+            Ok(Message::Close(_)) => break,
+            Ok(_) => {}
+            Err(_) => break,
         }
     }
-    forward.abort();
+    narrate(
+        observer.as_ref(),
+        "gateway: websocket session closed".to_string(),
+    );
     Ok(())
 }
 
-/// Parse a JSON command and produce a JSON response.
-pub fn handle_command(text: &str, state: &Arc<GatewayState>) -> Option<String> {
+/// Parse a JSON command and produce a JSON response. The command name is
+/// narrated (never the token, which commands do not carry).
+pub fn handle_command(
+    text: &str,
+    state: &Arc<GatewayState>,
+    observer: &dyn Observer,
+) -> Option<String> {
     let parsed = crate::json::parse(text).ok()?;
     let cmd = parsed.get("cmd")?.as_str()?;
+    narrate(observer, format!("gateway: command received cmd={cmd}"));
     let length = state.events.len();
     let response = match cmd {
         "step" | "next" => {
@@ -374,12 +474,19 @@ function sendBreak() {{ ws.send(JSON.stringify({{cmd: 'break', round: 12}})); }}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lisage_core::observer::NoOpObserver;
+    use std::sync::Mutex;
 
     #[test]
     fn test_generate_token_length() {
         let token = generate_token();
-        assert_eq!(token.len(), 32, "16 bytes → 32 hex chars");
-        assert!(token.chars().all(|character| character.is_ascii_hexdigit()));
+        assert_eq!(token.to_string().len(), 32, "16 bytes → 32 hex chars");
+        assert!(
+            token
+                .to_string()
+                .chars()
+                .all(|character| character.is_ascii_hexdigit())
+        );
     }
 
     #[test]
@@ -390,8 +497,27 @@ mod tests {
     }
 
     #[test]
+    fn test_query_param_exact() {
+        let request = "GET /?token=abc123&x=1 HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
+        assert_eq!(query_param(request, "token").as_deref(), Some("abc123"));
+        assert_eq!(query_param(request, "x").as_deref(), Some("1"));
+        assert_eq!(query_param(request, "missing"), None);
+        // A suffix extension must NOT match: exact value comparison only.
+        let token = ConnectionToken("abc123".to_string());
+        assert!(
+            !token.matches(
+                query_param(request, "token")
+                    .map(|t| format!("{t}AAAA"))
+                    .as_deref()
+            )
+        );
+        assert!(token.matches(Some("abc123")));
+        assert!(!token.matches(Some("abc123AAAA")));
+        assert!(!token.matches(None));
+    }
+
+    #[test]
     fn test_gateway_state_step() {
-        use lisage_core::NodeId;
         let events = vec![
             TraceEvent::Round {
                 numero: 1,
@@ -433,14 +559,13 @@ mod tests {
             TraceEvent::OpEnd { span: None },
         ];
         let state = Arc::new(GatewayState::new(events));
-        let response = handle_command(r#"{"cmd":"step"}"#, &state).unwrap();
+        let response = handle_command(r#"{"cmd":"step"}"#, &state, &NoOpObserver).unwrap();
         assert!(response.contains(r#""event":"position""#));
         assert!(response.contains(r#""position":1"#));
     }
 
     #[test]
     fn test_handle_command_break() {
-        use lisage_core::NodeId;
         let events = vec![TraceEvent::Round {
             numero: 12,
             niveaux_actifs: vec![],
@@ -452,10 +577,11 @@ mod tests {
             span: None,
         }];
         let state = Arc::new(GatewayState::new(events));
-        let response = handle_command(r#"{"cmd":"break","round":12}"#, &state).unwrap();
+        let response =
+            handle_command(r#"{"cmd":"break","round":12}"#, &state, &NoOpObserver).unwrap();
         assert!(response.contains(r#""event":"break_set""#));
         assert!(response.contains(r#""round":12"#));
-        let response = handle_command(r#"{"cmd":"continue"}"#, &state).unwrap();
+        let response = handle_command(r#"{"cmd":"continue"}"#, &state, &NoOpObserver).unwrap();
         assert!(
             response.contains(r#""event":"break""#),
             "continue hits round 12 break: {response}"
@@ -470,9 +596,9 @@ mod tests {
             TraceEvent::OpEnd { span: None },
         ];
         let state = Arc::new(GatewayState::new(events));
-        handle_command(r#"{"cmd":"goto","position":2}"#, &state).unwrap();
+        handle_command(r#"{"cmd":"goto","position":2}"#, &state, &NoOpObserver).unwrap();
         assert_eq!(state.position(), 2);
-        let response = handle_command(r#"{"cmd":"back"}"#, &state).unwrap();
+        let response = handle_command(r#"{"cmd":"back"}"#, &state, &NoOpObserver).unwrap();
         assert_eq!(state.position(), 1);
         assert!(response.contains(r#""position":1"#));
     }
@@ -480,6 +606,33 @@ mod tests {
     #[test]
     fn test_handle_command_unknown() {
         let state = Arc::new(GatewayState::new(vec![]));
-        assert!(handle_command(r#"{"cmd":"fly"}"#, &state).is_none());
+        assert!(handle_command(r#"{"cmd":"fly"}"#, &state, &NoOpObserver).is_none());
+    }
+
+    /// Narration contract: the command narration event is pinned by a test
+    /// (ADR-0005, checklist §4) — and never carries the token.
+    #[test]
+    fn test_handle_command_narration_pinned() {
+        struct Collector {
+            evenements: Mutex<Vec<TraceEvent>>,
+        }
+        impl Observer for Collector {
+            fn on_event(&self, event: &TraceEvent) {
+                self.evenements.lock().expect("mutex").push(event.clone());
+            }
+        }
+        let collector = Arc::new(Collector {
+            evenements: Mutex::new(Vec::new()),
+        });
+        let state = Arc::new(GatewayState::new(vec![TraceEvent::OpEnd { span: None }]));
+        let _ = handle_command(r#"{"cmd":"step"}"#, &state, collector.as_ref()).unwrap();
+        let events = collector.evenements.lock().expect("mutex").clone();
+        assert!(
+            events.iter().any(|event| matches!(
+                event,
+                TraceEvent::Attr { value, .. } if value.rendre() == "gateway: command received cmd=step"
+            )),
+            "the command narration event must be emitted: {events:?}"
+        );
     }
 }

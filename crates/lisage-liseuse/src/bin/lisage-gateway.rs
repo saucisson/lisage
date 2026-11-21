@@ -6,6 +6,9 @@
 //!
 //! Prints the HTTP and WebSocket URLs (with token) to stderr.
 
+use std::sync::Arc;
+
+use lisage_core::observer::NoOpObserver;
 use lisage_liseuse::gateway::{GatewayEvents, run_gateway};
 
 #[tokio::main]
@@ -25,7 +28,7 @@ async fn main() {
         }),
         connection_error: Box::new(|message| eprintln!("connection error: {message}")),
     };
-    if let Err(error) = run_gateway(&trace_path, &title, events).await {
+    if let Err(error) = run_gateway(&trace_path, &title, Arc::new(NoOpObserver), events).await {
         eprintln!("gateway error: {error}");
         std::process::exit(1);
     }
