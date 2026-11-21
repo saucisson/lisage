@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - LS-4: auth brick present in the notify template (issue #312)
+
+- **Issue**: #312 (LS-4, milestone Auth v1); labels auth, type/feat. Depends on LS-1 to LS-3.
+- **Done**: verification that the stabilized auth brick is natively present in the `tools/notify/` template: `infrastructure/auth/verify_access_token.py` (LS-1, 21 tests) + `infrastructure/auth/middleware.py` (LS-2, 8 tests) + `models/auth.py` + `AuthSettings` in `models/settings.py` + `.env.example` AUTH_* docs (LS-3) + README authentication section (LS-3). A project generated from this template contains the brick and its 29 auth tests out of the box. No code change needed — the brick was built directly in the template.
+- **Evidence**: `make check` green on the branch (ruff, ruff format, mypy strict, import-linter, pytest 64 passed / coverage 92.11%, english-only). 29 auth tests: 21 in test_auth_verify_access_token.py + 8 in test_auth_middleware.py.
+- **Judgement calls**: LS-4 required no additional code because LS-1/LS-2/LS-3 were implemented directly in `tools/notify/` (the template's reference application), so the generated projects inherit the brick natively.
+- **Escalations**: none.
+
 ## 2026-11-21 - LS-3: Authentication documentation and configuration (issue #311)
 
 - **Issue**: #311 (LS-3, milestone Auth v1); labels auth, type/doc. Depends on LS-1 (#309).
