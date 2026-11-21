@@ -88,6 +88,23 @@ fn chain_semantics(
     }
 }
 
+/// Synthetic family model for the D5-2 traces below: each `NodeId` maps to
+/// a bitmask of witness valuations (bit ℓ = valuation {ℓ}). Inclusion is
+/// bitmask inclusion.
+fn family_of(node: NodeId) -> u8 {
+    match node {
+        NodeId(0) => 0b0000,
+        NodeId(1) => 0b0001,
+        NodeId(2) => 0b0011,
+        NodeId(3) => 0b0001,
+        _ => 0,
+    }
+}
+
+fn family_included(avant: NodeId, apres: NodeId) -> bool {
+    family_of(avant) & !family_of(apres) == 0
+}
+
 /// D5-1 DoD: the semantic oracle over a real standard scenario trace
 /// (saturer chain τ(X) = {{max(X)+1}}) reports no divergence when the
 /// semantics model is the correct τ — the actual output denotations come
@@ -178,7 +195,7 @@ fn test_d5_2_non_monotonic_tau_caught_at_faulty_round() {
             croissance: 2,
             span: None,
         },
-        // Faulty round: size shrinks from 5 to 2.
+        // Faulty round: the family shrinks from {{0},{1}} back to {{0}}.
         TraceEvent::Round {
             numero: 3,
             niveaux_actifs: vec![0, 1],
@@ -200,14 +217,9 @@ fn test_d5_2_non_monotonic_tau_caught_at_faulty_round() {
             span: None,
         },
     ];
-    // node_size: NodeId(0)=1, NodeId(1)=4, NodeId(2)=5, NodeId(3)=2
-    let oracle = FixpointOracle::run(&events, |node| match node {
-        NodeId(0) => 1,
-        NodeId(1) => 4,
-        NodeId(2) => 5,
-        NodeId(3) => 2,
-        _ => 0,
-    });
+    // Rounds 1-2 grow by inclusion (∅ ⊆ {{0}} ⊆ {{0},{1}}), round 3
+    // shrinks back to {{0}} — caught at round 3.
+    let oracle = FixpointOracle::run(&events, family_included);
     assert_eq!(oracle.violations().len(), 1, "exactly one violation");
     assert_eq!(
         oracle.violations()[0].round,
@@ -247,11 +259,7 @@ fn test_d5_2_clean_monotonic() {
             span: None,
         },
     ];
-    let oracle = FixpointOracle::run(&events, |node| match node {
-        NodeId(0) => 1,
-        NodeId(1) => 3,
-        _ => 0,
-    });
+    let oracle = FixpointOracle::run(&events, family_included);
     assert!(oracle.is_clean());
     assert!(oracle.dashboard()[1].converged);
 }
@@ -269,7 +277,7 @@ fn test_d5_2_dashboard_format() {
         croissance: 0,
         span: None,
     }];
-    let oracle = FixpointOracle::run(&events, |_| 1);
+    let oracle = FixpointOracle::run(&events, family_included);
     let lines = oracle.render_dashboard();
     assert_eq!(lines.len(), 1);
     assert!(lines[0].contains("round   7"));

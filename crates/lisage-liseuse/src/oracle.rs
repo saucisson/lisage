@@ -121,10 +121,15 @@ impl SemanticOracle {
     }
 
     /// Bitmask of a witness valuation: bit ℓ set iff atom ℓ is in the set.
+    /// Atoms beyond the 64-bit mask width cannot be represented and are
+    /// skipped (witness sampling is meaningful up to a 64-atom domain).
     fn witness_mask(witness: &BTreeSet<u64>) -> u64 {
-        witness
-            .iter()
-            .fold(0u64, |mask, atom| mask | (1u64 << atom))
+        witness.iter().fold(0u64, |mask, atom| {
+            match 1u64.checked_shl(u32::try_from(*atom).unwrap_or(u32::MAX)) {
+                Some(bit) => mask | bit,
+                None => mask,
+            }
+        })
     }
 
     /// Generate witness valuations for a domain of the given size: the
@@ -155,14 +160,10 @@ impl SemanticOracle {
 /// D5-2: a fixpoint monotonicity violation at a round boundary.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MonotonicityViolation {
-    /// Round number (1-based) where the decrease was detected.
+    /// Round number (1-based) where the non-inclusion was detected.
     pub round: u32,
     /// Position in the trace of the offending `Round` event.
     pub position: usize,
-    /// Size before the round (node count of `avant`).
-    pub size_before: u64,
-    /// Size after the round (node count of `apres`).
-    pub size_after: u64,
 }
 
 /// D5-2: one round's dashboard entry.
@@ -190,11 +191,14 @@ pub struct FixpointOracle {
 }
 
 impl FixpointOracle {
-    /// Run the oracle over a trace. `node_size` maps a `NodeId` to its
-    /// denotation size (number of atoms in the represented set).
-    pub fn run<F>(events: &[TraceEvent], mut node_size: F) -> Self
+    /// Run the oracle over a trace. `included(avant, apres)` is true iff
+    /// the denotation of `avant` is included in the denotation of `apres`
+    /// (X_k ⊆ X_{k+1}); the DoD tests plug a witness-sampled inclusion over
+    /// the real pool. Any non-inclusion at a non-converged round is a bug
+    /// in τ or ⊕.
+    pub fn run<F>(events: &[TraceEvent], mut included: F) -> Self
     where
-        F: FnMut(NodeId) -> u64,
+        F: FnMut(NodeId, NodeId) -> bool,
     {
         let mut oracle = FixpointOracle::default();
         for (position, event) in events.iter().enumerate() {
@@ -208,15 +212,11 @@ impl FixpointOracle {
                 ..
             } = event
             {
-                let size_before = node_size(*avant);
-                let size_after = node_size(*apres);
                 let converged = avant == apres;
-                if !converged && size_after < size_before {
+                if !converged && !included(*avant, *apres) {
                     oracle.violations.push(MonotonicityViolation {
                         round: *numero,
                         position,
-                        size_before,
-                        size_after,
                     });
                 }
                 oracle.dashboard.push(RoundDashboard {
@@ -363,10 +363,16 @@ mod tests {
                 span: None,
             },
         ];
-        let oracle = FixpointOracle::run(&events, |node| match node {
-            NodeId(0) => 3,
-            NodeId(1) => 5,
-            _ => 0,
+        // Families: NodeId(0) = ∅, NodeId(1) = {∅, {0}} — growing by inclusion.
+        let oracle = FixpointOracle::run(&events, |avant, apres| {
+            let family = |node: NodeId| -> u8 {
+                match node {
+                    NodeId(0) => 0b00,
+                    NodeId(1) => 0b11,
+                    _ => 0,
+                }
+            };
+            family(avant) & !family(apres) == 0
         });
         assert!(oracle.is_clean());
         assert_eq!(oracle.dashboard().len(), 2);
@@ -388,15 +394,19 @@ mod tests {
             croissance: -2,
             span: None,
         }];
-        let oracle = FixpointOracle::run(&events, |node| match node {
-            NodeId(1) => 5,
-            NodeId(2) => 3,
-            _ => 0,
+        // Families: NodeId(1) = {∅, {0}}, NodeId(2) = {∅} — shrinking.
+        let oracle = FixpointOracle::run(&events, |avant, apres| {
+            let family = |node: NodeId| -> u8 {
+                match node {
+                    NodeId(1) => 0b11,
+                    NodeId(2) => 0b01,
+                    _ => 0,
+                }
+            };
+            family(avant) & !family(apres) == 0
         });
         assert!(!oracle.is_clean());
         assert_eq!(oracle.violations().len(), 1);
         assert_eq!(oracle.violations()[0].round, 2);
-        assert_eq!(oracle.violations()[0].size_before, 5);
-        assert_eq!(oracle.violations()[0].size_after, 3);
     }
 }
