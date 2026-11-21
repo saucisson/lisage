@@ -1,5 +1,5 @@
 //! D3-3: inspection views of the debugger (issue #166) — `node`, `memo`,
-//! `memoire`, `diff`, `eval <valuation>`, `display`, `ops`, and the
+//! `memory`, `diff`, `eval <valuation>`, `display`, `ops`, and the
 //! current SVG rendering (reusing `svg.rs` / `step_by_step.rs`).
 //!
 //! The [`Inspector`] is a pure query engine over the trace (plus the
@@ -31,7 +31,7 @@ pub struct MemoEntry {
     /// Memory version at insertion time.
     pub version: u64,
     /// Result stored under the key.
-    pub resultat: NodeId,
+    pub result: NodeId,
 }
 
 /// Memo table replayed up to a position: entries with their insertion
@@ -60,7 +60,7 @@ impl MemoTable {
                     fingerprint: *fingerprint,
                     node: *node,
                     version: *version,
-                    resultat: *resultat,
+                    result: *resultat,
                 }),
                 TraceEvent::EcritureMemoire { version_apres, .. } => {
                     table.version = *version_apres;
@@ -202,19 +202,19 @@ impl Inspector {
         for entry in memo.live() {
             out.push_str(&format!(
                 "\nlive: op {} node {:?} v{} -> {:?}",
-                entry.fingerprint, entry.node, entry.version, entry.resultat
+                entry.fingerprint, entry.node, entry.version, entry.result
             ));
         }
         for entry in memo.dead() {
             out.push_str(&format!(
                 "\ndead: op {} node {:?} v{} -> {:?}",
-                entry.fingerprint, entry.node, entry.version, entry.resultat
+                entry.fingerprint, entry.node, entry.version, entry.result
             ));
         }
         out
     }
 
-    /// `memoire`: the level-memory version history up to the cursor.
+    /// `memory`: the level-memory version history up to the cursor.
     pub fn memory_view(&self, position: usize) -> String {
         let position = position.min(self.events.len());
         let mut version = 0u64;
@@ -267,7 +267,7 @@ impl Inspector {
                     arcs_apres,
                     ..
                 } => {
-                    let rendre_arcs = |arcs: &[(u64, NodeId)]| -> String {
+                    let render_arcs = |arcs: &[(u64, NodeId)]| -> String {
                         arcs.iter()
                             .map(|(k, t)| format!("{k}->{t:?}"))
                             .collect::<Vec<_>>()
@@ -277,8 +277,8 @@ impl Inspector {
                         "diff @ pos {at}/{}: node {node:?} {:?}\n  avant: [{}]\n  apres: [{}]",
                         self.events.len(),
                         classification,
-                        rendre_arcs(arcs_avant),
-                        rendre_arcs(arcs_apres)
+                        render_arcs(arcs_avant),
+                        render_arcs(arcs_apres)
                     )
                 }
                 _ => unreachable!("target is a StructureChange"),

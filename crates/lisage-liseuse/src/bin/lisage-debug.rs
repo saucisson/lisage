@@ -3,7 +3,7 @@
 //! Runs the standard scenario (saturation n=4, DoD) and reads commands
 //! from stdin: navigation (step / step-over / step-out / next-op /
 //! next-round / back / goto / until / where / frame / continue),
-//! inspection (node <id> / memo / memoire / diff / eval <valuation> /
+//! inspection (node <id> / memo / memory / diff / eval <valuation> /
 //! display / ops), svg (current diagram rendering), quit.
 
 use std::io::{BufRead, Write};
@@ -23,7 +23,7 @@ fn main() {
     println!(
         "navigation: step back goto <n> step-over step-out next-op next-round until <kind> where frame continue"
     );
-    println!("inspection: node <id> memo memoire diff eval <valuation> display ops svg");
+    println!("inspection: node <id> memo memory diff eval <valuation> display ops svg");
     println!("{}", debugger.run(lisage_liseuse::debugger::Command::Where));
     let stdin = std::io::stdin();
     loop {

@@ -190,7 +190,7 @@ pub enum Command {
     /// D3-3: memo table at the cursor (live/dead entries, L1).
     Memo,
     /// D3-3: level-memory version history at the cursor.
-    Memoire,
+    Memory,
     /// D3-3: structure-change diff (input/output fragments) at the cursor.
     Diff,
     /// D3-3: evaluate a valuation over the counters at the cursor.
@@ -278,7 +278,7 @@ pub fn parse_command(line: &str) -> Option<Command> {
             .ok()
             .map(|id: u32| Command::Node(NodeId(id))),
         "memo" => Some(Command::Memo),
-        "memoire" => Some(Command::Memoire),
+        "memory" => Some(Command::Memory),
         "diff" => Some(Command::Diff),
         "display" => Some(Command::Display),
         "ops" => Some(Command::Ops),
@@ -435,7 +435,7 @@ impl Debugger {
             Command::Frame => self.frame_output(),
             Command::Node(node) => self.inspector.node_view(self.position, node),
             Command::Memo => self.inspector.memo_view(self.position),
-            Command::Memoire => self.inspector.memory_view(self.position),
+            Command::Memory => self.inspector.memory_view(self.position),
             Command::Diff => self.inspector.diff_view(self.position),
             Command::Eval(expression) => match self.inspector.eval(self.position, &expression) {
                 Ok(value) => format!("{value}"),
