@@ -9,10 +9,13 @@ use std::io::Write;
 
 use lisage_liseuse::page::standard_offline_page;
 
+/// Default scenario size: the philosophers n=4 saturation.
+const DEFAULT_SCENARIO_SIZE: u64 = 4;
+
 fn main() {
     let n: u64 = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "4".to_string())
+        .unwrap_or_else(|| DEFAULT_SCENARIO_SIZE.to_string())
         .parse()
         .expect("n is an integer");
     let output = std::env::args().nth(2);

@@ -100,6 +100,21 @@ impl IndexTrace {
         self.length
     }
 
+    /// Number of distinct indexed nodes.
+    pub fn node_count(&self) -> usize {
+        self.by_node.len()
+    }
+
+    /// Number of indexed rounds.
+    pub fn round_count(&self) -> usize {
+        self.by_round.len()
+    }
+
+    /// Number of indexed operations.
+    pub fn op_count(&self) -> usize {
+        self.by_op.len()
+    }
+
     /// `explain(node)`: positions of the events mentioning `node`, by
     /// index lookup — O(log n + k), no linear scan.
     pub fn explain(&self, node: NodeId) -> Vec<usize> {
