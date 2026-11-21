@@ -18,7 +18,9 @@ use lisage_algebra::interface::{Anchor, Form, Level, MemoryPolicy, NodeId, Pool}
 
 use crate::error::CoreError;
 use crate::memory::{EffetMemory, MemoryLevel};
-use crate::observer::{ChannelAttr, Observer, TraceEvent};
+use crate::observer::{
+    ChannelAttr, Observer, SpanKind, TraceEvent, contextualiser, next_span_id, pop_span, push_span,
+};
 
 /// Memo key: (operation fingerprint, node, inherited attribute,
 /// level-memory version) — lemma L1.
@@ -142,11 +144,26 @@ impl<T: Transduction> Transducteur<T> {
         }
     }
 
-    /// Emits an event on the observer, if there is one.
+    /// Emits an event on the observer, if there is one. D1-1: the event
+    /// is contextualized by the innermost open span.
     fn notifier(&self, evenement: TraceEvent) {
         if let Some(observer) = &self.observer {
-            observer.on_event(&evenement);
+            observer.on_event(&contextualiser(evenement));
         }
+    }
+
+    /// Opens a span of the given kind and emits its `SpanOpen` event (D1-1).
+    fn ouvrir_span(&self, kind: SpanKind, lane: u32) -> crate::observer::SpanId {
+        let span = next_span_id();
+        push_span(span);
+        self.notifier(TraceEvent::SpanOpen { span, kind, lane });
+        span
+    }
+
+    /// Closes a span and emits its `SpanClose` event (D1-1).
+    fn fermer_span(&self, span: crate::observer::SpanId) {
+        self.notifier(TraceEvent::SpanClose { span });
+        pop_span();
     }
 
     /// Access to the embedded transduction (to inspect the state of a
@@ -185,7 +202,10 @@ impl<T: Transduction> Transducteur<T> {
         POut: Pool<Key = u64, Payload = T::Out>,
     {
         let h = self.transduction.h0();
-        self.run_with(pool_input, pool_output, anchor, node, h)
+        let span = self.ouvrir_span(SpanKind::Op, 0);
+        let resultat = self.run_with(pool_input, pool_output, anchor, node, h);
+        self.fermer_span(span);
+        resultat
     }
 
     /// Single-pool variant: reads and writes in the same pool (payload `Out`
@@ -202,10 +222,32 @@ impl<T: Transduction> Transducteur<T> {
         T: Transduction<Out = bool>,
     {
         let h = self.transduction.h0();
-        self.run_with_same_pool(pool, anchor, node, h)
+        let span = self.ouvrir_span(SpanKind::Op, 0);
+        let resultat = self.run_with_same_pool(pool, anchor, node, h);
+        self.fermer_span(span);
+        resultat
     }
 
     fn run_with<PIn, POut>(
+        &mut self,
+        pool_input: &PIn,
+        pool_output: &mut POut,
+        anchor: Anchor,
+        node: NodeId,
+        h: T::H,
+    ) -> Result<(NodeId, T::S), CoreError>
+    where
+        PIn: Pool<Key = u64, Payload = bool>,
+        POut: Pool<Key = u64, Payload = T::Out>,
+    {
+        // D1-1: one Visite span per node visit, closed on every exit path.
+        let span = self.ouvrir_span(SpanKind::Visite, 0);
+        let resultat = self.run_with_inner(pool_input, pool_output, anchor, node, h);
+        self.fermer_span(span);
+        resultat
+    }
+
+    fn run_with_inner<PIn, POut>(
         &mut self,
         pool_input: &PIn,
         pool_output: &mut POut,
@@ -227,10 +269,10 @@ impl<T: Transduction> Transducteur<T> {
             self.memory.version(),
         );
         if let Some((result, s)) = self.memo.get(&key) {
-            self.notifier(TraceEvent::MemoHit { node });
+            self.notifier(TraceEvent::MemoHit { node, span: None });
             return Ok((*result, s.clone()));
         }
-        self.notifier(TraceEvent::MemoMiss { node });
+        self.notifier(TraceEvent::MemoMiss { node, span: None });
         let form = pool_input.resolve(node)?.clone();
         let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
@@ -243,6 +285,7 @@ impl<T: Transduction> Transducteur<T> {
                         channel: ChannelAttr::Inherited,
                         node,
                         value: format!("{h_arc:?}"),
+                        span: None,
                     });
                     let (target_result, s_arc) =
                         self.run_with(pool_input, pool_output, anchor, target, h_arc)?;
@@ -259,6 +302,7 @@ impl<T: Transduction> Transducteur<T> {
                     channel: ChannelAttr::Synthesized,
                     node,
                     value: format!("{s:?}"),
+                    span: None,
                 });
                 let ctx = ContextePhiOut {
                     anchor,
@@ -277,6 +321,7 @@ impl<T: Transduction> Transducteur<T> {
                         channel: ChannelAttr::Memory,
                         node,
                         value: format!("{:?}", effet.ecritures),
+                        span: None,
                     });
                 }
                 effet.apply(&mut self.memory);
@@ -298,6 +343,24 @@ impl<T: Transduction> Transducteur<T> {
         P: Pool<Key = u64, Payload = bool>,
         T: Transduction<Out = bool>,
     {
+        // D1-1: one Visite span per node visit, closed on every exit path.
+        let span = self.ouvrir_span(SpanKind::Visite, 0);
+        let resultat = self.run_with_same_pool_inner(pool, anchor, node, h);
+        self.fermer_span(span);
+        resultat
+    }
+
+    fn run_with_same_pool_inner<P>(
+        &mut self,
+        pool: &mut P,
+        anchor: Anchor,
+        node: NodeId,
+        h: T::H,
+    ) -> Result<(NodeId, T::S), CoreError>
+    where
+        P: Pool<Key = u64, Payload = bool>,
+        T: Transduction<Out = bool>,
+    {
         // MEM-15: the co-located memory decodes NodeIds with the pool's
         // class width.
         self.memory.set_class_bits(pool.class_bits());
@@ -308,10 +371,10 @@ impl<T: Transduction> Transducteur<T> {
             self.memory.version(),
         );
         if let Some((result, s)) = self.memo.get(&key) {
-            self.notifier(TraceEvent::MemoHit { node });
+            self.notifier(TraceEvent::MemoHit { node, span: None });
             return Ok((*result, s.clone()));
         }
-        self.notifier(TraceEvent::MemoMiss { node });
+        self.notifier(TraceEvent::MemoMiss { node, span: None });
         let form = pool.resolve(node)?.clone();
         let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
@@ -324,6 +387,7 @@ impl<T: Transduction> Transducteur<T> {
                         channel: ChannelAttr::Inherited,
                         node,
                         value: format!("{h_arc:?}"),
+                        span: None,
                     });
                     let (target_result, s_arc) =
                         self.run_with_same_pool(pool, anchor, target, h_arc)?;
@@ -340,6 +404,7 @@ impl<T: Transduction> Transducteur<T> {
                     channel: ChannelAttr::Synthesized,
                     node,
                     value: format!("{s:?}"),
+                    span: None,
                 });
                 let ctx = ContextePhiOut {
                     anchor,
@@ -358,6 +423,7 @@ impl<T: Transduction> Transducteur<T> {
                         channel: ChannelAttr::Memory,
                         node,
                         value: format!("{:?}", effet.ecritures),
+                        span: None,
                     });
                 }
                 effet.apply(&mut self.memory);

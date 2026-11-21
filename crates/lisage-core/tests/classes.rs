@@ -540,7 +540,10 @@ fn test_slack_trace_et_histogramme_sur_observer() {
     let histograms: Vec<&Vec<ClassHistogram>> = events
         .iter()
         .filter_map(|e| match e {
-            TraceEvent::Histogram { classes } => Some(classes),
+            TraceEvent::Histogram {
+                classes,
+                span: None,
+            } => Some(classes),
             _ => None,
         })
         .collect();

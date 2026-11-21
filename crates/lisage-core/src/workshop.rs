@@ -46,7 +46,9 @@ use lisage_algebra::interface::{
 };
 use lisage_algebra::relatif::{AnchorComposee, CycleGroup, Fragment};
 
-use crate::observer::{ChannelAttr, Observer, TraceEvent};
+use crate::observer::{
+    ChannelAttr, Observer, SpanKind, TraceEvent, contextualiser, next_span_id, pop_span, push_span,
+};
 
 /// Controller-side reduction switches (R-share excluded: measured).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -166,20 +168,44 @@ pub fn measure<P: Pool>(
     root: NodeId,
     observer: Option<&dyn Observer>,
 ) -> Result<ReportWorkshop, PoolError> {
+    // D1-1: one Op span around the whole workshop measure.
+    let span = next_span_id();
+    push_span(span);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanOpen {
+            span,
+            kind: SpanKind::Op,
+            lane: 0,
+        });
+    }
+    let resultat = measure_inner(pool, root, observer);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanClose { span });
+    }
+    pop_span();
+    resultat
+}
+
+fn measure_inner<P: Pool>(
+    pool: &P,
+    root: NodeId,
+    observer: Option<&dyn Observer>,
+) -> Result<ReportWorkshop, PoolError> {
     let report = ReportWorkshop {
         nodes_partages: count_nodes(pool, root)?,
         paths: count_paths(pool, root)?,
         size_depliee: count_size_depliee(pool, root)?,
     };
     if let Some(obs) = observer {
-        obs.on_event(&TraceEvent::Attr {
+        obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
             value: format!(
                 "nodes_partages={} paths={} size_depliee={}",
                 report.nodes_partages, report.paths, report.size_depliee
             ),
-        });
+            span: None,
+        }));
     }
     Ok(report)
 }
@@ -382,14 +408,15 @@ pub fn comparer_encodages_window<P: Pool<Key = u64, Payload = bool>>(
     let absolu = measure(pool, root_absolue, observer)?;
     let relatif = measure(pool, root_relative, observer)?;
     if let Some(obs) = observer {
-        obs.on_event(&TraceEvent::Attr {
+        obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root_relative,
             value: format!(
                 "encodage=relatif_vs_absolu nodes={} contre {}",
                 relatif.nodes_partages, absolu.nodes_partages
             ),
-        });
+            span: None,
+        }));
     }
     Ok(ReportComparaison { absolu, relatif })
 }
@@ -539,7 +566,7 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
     let first = measure(pool, root_first, observer)?;
     let second = measure(pool, root_second, observer)?;
     if let Some(obs) = observer {
-        obs.on_event(&TraceEvent::Attr {
+        obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root_second,
             value: format!(
@@ -549,7 +576,8 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
                 first.nodes_partages,
                 second.nodes_partages
             ),
-        });
+            span: None,
+        }));
     }
     Ok(ReportComparaisonOrders { first, second })
 }
@@ -690,7 +718,7 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
     if let Some(obs) = observer {
         let (debut_avant, fin_avant) = anchor_avant.window_absolue();
         let (debut_apres, fin_apres) = anchor_apres.window_absolue();
-        obs.on_event(&TraceEvent::Attr {
+        obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root_apres,
             value: format!(
@@ -705,7 +733,8 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
                 fin_apres,
                 nodes_pool,
             ),
-        });
+            span: None,
+        }));
     }
     Ok(ReportComparaisonAnchors {
         avant,

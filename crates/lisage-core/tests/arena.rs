@@ -198,11 +198,16 @@ fn test_events_trace_narration() {
     assert_eq!(
         events.as_slice(),
         &[
-            TraceEvent::NodeCreated { node, level: None },
-            TraceEvent::NodeShared { node },
+            TraceEvent::NodeCreated {
+                node,
+                level: None,
+                span: None
+            },
+            TraceEvent::NodeShared { node, span: None },
             TraceEvent::NodeCreated {
                 node: node2,
-                level: Some(Level(5))
+                level: Some(Level(5)),
+                span: None,
             },
         ]
     );
@@ -238,6 +243,7 @@ fn test_events_reduction_applied() {
         events.contains(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Collapse,
             level,
+            span: None,
         }),
         "the ReductionApplied{{Collapse}} event must be emitted (pinned trace)"
     );
@@ -245,6 +251,7 @@ fn test_events_reduction_applied() {
         events.contains(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Default,
             level,
+            span: None,
         }),
         "the ReductionApplied{{Default}} event must be emitted (pinned trace)"
     );

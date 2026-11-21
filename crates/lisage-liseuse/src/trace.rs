@@ -7,12 +7,16 @@
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
-use lisage_core::observer::{ChannelAttr, ClassHistogram, Observer, ReductionRule, TraceEvent};
+use lisage_core::observer::{
+    ChannelAttr, ClassHistogram, Observer, ReductionRule, SpanKind, TraceEvent,
+};
 
-/// Trace schema version (`{"v":3, ...}`): v2 adds the
+/// Trace schema version (`{"v":4, ...}`): v2 adds the
 /// `Attr`/`MemoHit`/`MemoMiss`/`Round` events of the step-by-step view (M2-6);
-/// v3 adds the `Histogram` event (MEM-17: degree histogram per class).
-pub const TRACE_VERSION: u32 = 3;
+/// v3 adds the `Histogram` event (MEM-17: degree histogram per class);
+/// v4 adds the spans of D1-1 — `SpanOpen`/`SpanClose` events and a `"span"`
+/// field on every other event.
+pub const TRACE_VERSION: u32 = 4;
 
 /// Minimal JSON escaping of a string (events carry no dynamic
 /// ones, but the contract stays correct).
@@ -41,6 +45,23 @@ fn name_regle(regle: ReductionRule) -> &'static str {
     }
 }
 
+/// JSON name of a span kind (D1-1).
+fn name_span_kind(kind: SpanKind) -> &'static str {
+    match kind {
+        SpanKind::Op => "op",
+        SpanKind::Round => "round",
+        SpanKind::Visite => "visite",
+    }
+}
+
+/// JSON rendering of an optional span id (D1-1): `"span":3` or `"span":null`.
+fn serialiser_span(span: Option<lisage_core::observer::SpanId>) -> String {
+    match span {
+        Some(span) => format!("\"span\":{}", span.0),
+        None => "\"span\":null".to_string(),
+    }
+}
+
 /// JSON name of an attribute channel (M2-6).
 fn name_channel(channel: ChannelAttr) -> &'static str {
     match channel {
@@ -65,17 +86,33 @@ fn serialiser_histogramme(classes: &[ClassHistogram]) -> String {
 }
 
 /// Serializes a trace event as one JSONL line (without the trailing `\n`).
+/// D1-1 (v4): every event line carries its `"span"` field; `SpanOpen` and
+/// `SpanClose` carry the span they define instead.
 pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
     let (type_evenement, champs) = match evenement {
-        TraceEvent::NodeCreated { node, level } => (
+        TraceEvent::SpanOpen { span, kind, lane } => {
+            return format!(
+                "{{\"v\":{TRACE_VERSION},\"type\":\"SpanOpen\",\"span\":{},\"kind\":\"{}\",\"lane\":{}}}",
+                span.0,
+                name_span_kind(*kind),
+                lane
+            );
+        }
+        TraceEvent::SpanClose { span } => {
+            return format!(
+                "{{\"v\":{TRACE_VERSION},\"type\":\"SpanClose\",\"span\":{}}}",
+                span.0
+            );
+        }
+        TraceEvent::NodeCreated { node, level, .. } => (
             "NodeCreated",
             match level {
                 Some(level) => format!("\"noeud\":{},\"level\":{}", node.0, level.0),
                 None => format!("\"noeud\":{},\"level\":null", node.0),
             },
         ),
-        TraceEvent::NodeShared { node } => ("NodeShared", format!("\"noeud\":{}", node.0)),
-        TraceEvent::ReductionApplied { rule, level } => (
+        TraceEvent::NodeShared { node, .. } => ("NodeShared", format!("\"noeud\":{}", node.0)),
+        TraceEvent::ReductionApplied { rule, level, .. } => (
             "Reduction",
             format!(
                 "\"rule\":\"{}\",\"level\":{}",
@@ -83,7 +120,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                 level.0
             ),
         ),
-        TraceEvent::DiagramBuilt { handle, nodes } => (
+        TraceEvent::DiagramBuilt { handle, nodes, .. } => (
             "DiagramBuilt",
             format!(
                 "\"controller\":{},\"anchor\":{},\"noeud\":{},\"noeuds\":{}",
@@ -94,6 +131,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             channel,
             node,
             value,
+            ..
         } => (
             "Attr",
             format!(
@@ -103,20 +141,24 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                 echapper_json(value)
             ),
         ),
-        TraceEvent::MemoHit { node } => ("MemoHit", format!("\"noeud\":{}", node.0)),
-        TraceEvent::MemoMiss { node } => ("MemoMiss", format!("\"noeud\":{}", node.0)),
+        TraceEvent::MemoHit { node, .. } => ("MemoHit", format!("\"noeud\":{}", node.0)),
+        TraceEvent::MemoMiss { node, .. } => ("MemoMiss", format!("\"noeud\":{}", node.0)),
         TraceEvent::Gc {
             live,
             collected,
             compaction,
+            ..
         } => (
             "Gc",
             format!("\"vivants\":{live},\"collectes\":{collected},\"compaction\":{compaction}"),
         ),
-        TraceEvent::Round { numero } => ("Round", format!("\"numero\":{numero}")),
-        TraceEvent::Histogram { classes } => ("Histogram", serialiser_histogramme(classes)),
+        TraceEvent::Round { numero, .. } => ("Round", format!("\"numero\":{numero}")),
+        TraceEvent::Histogram { classes, .. } => ("Histogram", serialiser_histogramme(classes)),
     };
-    format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{champs}}}")
+    format!(
+        "{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{},{champs}}}",
+        serialiser_span(evenement.span())
+    )
 }
 
 /// Observer that collects the trace in memory, serialized JSONL.

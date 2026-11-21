@@ -17,7 +17,9 @@ use std::sync::{Arc, Mutex};
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::error::CoreError;
-use crate::observer::{Observer, TraceEvent};
+use crate::observer::{
+    Observer, SpanKind, TraceEvent, contextualiser, next_span_id, pop_span, push_span,
+};
 use crate::pli::union;
 use crate::schema::SchemaKeys;
 use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
@@ -204,13 +206,25 @@ where
     let mut iterations = 0u32;
     loop {
         iterations += 1;
+        // D1-1: one Round span per iteration, closed on every exit path.
+        let span = next_span_id();
+        push_span(span);
         if iterations > BOUND_ITERATIONS {
+            fermer_span(&params.observer, span);
             return Err(CoreError::NonTerminaison {
                 bound: BOUND_ITERATIONS,
             });
         }
         if let Some(observer) = &params.observer {
-            observer.on_event(&TraceEvent::Round { numero: iterations });
+            observer.on_event(&TraceEvent::SpanOpen {
+                span,
+                kind: SpanKind::Round,
+                lane: 0,
+            });
+            observer.on_event(&contextualiser(TraceEvent::Round {
+                numero: iterations,
+                span: None,
+            }));
         }
         let etape = RestreintAuxLevels::new(params.transduction.clone(), levels_actifs.clone());
         // Spec § 7: saturate steps can produce a memory effect
@@ -226,9 +240,24 @@ where
                 Transducteur::with_policy(etape, lisage_algebra::interface::MemoryPolicy::PerLevel)
             }
         };
-        let (image, _) = runner.run_same_pool(params.pool, params.anchor, courant)?;
-        let next = union(params.pool, params.keys, params.anchor, courant, image)?;
+        let resultat = runner.run_same_pool(params.pool, params.anchor, courant);
+        let resultat = match resultat {
+            Ok(valeur) => valeur,
+            Err(erreur) => {
+                fermer_span(&params.observer, span);
+                return Err(erreur);
+            }
+        };
+        let (image, _) = resultat;
+        let next = match union(params.pool, params.keys, params.anchor, courant, image) {
+            Ok(valeur) => valeur,
+            Err(erreur) => {
+                fermer_span(&params.observer, span);
+                return Err(erreur);
+            }
+        };
         if next == courant {
+            fermer_span(&params.observer, span);
             return Ok(ResultSaturation {
                 node: courant,
                 iterations,
@@ -240,12 +269,22 @@ where
             let modifies = runner.transduction().levels_modifies();
             levels_actifs.retain(|level| modifies.contains(level));
             if levels_actifs.is_empty() {
+                fermer_span(&params.observer, span);
                 return Ok(ResultSaturation {
                     node: next,
                     iterations,
                 });
             }
         }
+        fermer_span(&params.observer, span);
         courant = next;
     }
+}
+
+/// Closes a span and emits its `SpanClose` event on the optional observer (D1-1).
+fn fermer_span(observer: &Option<Arc<dyn Observer>>, span: crate::observer::SpanId) {
+    if let Some(observer) = observer {
+        observer.on_event(&TraceEvent::SpanClose { span });
+    }
+    pop_span();
 }

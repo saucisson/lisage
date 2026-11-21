@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - D1-1: span model of trace v4 (issue #155)
+
+- **Issue**: #155 (D1-1, trace v3 model); labels debug-outillage, trace-v3, tests-pbt.
+- **Done**: `crates/lisage-core/src/observer.rs` gains `SpanId` (process-global atomic counter, so spans opened by different components never collide), `SpanKind` (`Op`/`Round`/`Visite`), the `SpanOpen { span, kind, lane }` / `SpanClose { span }` events, a `span: Option<SpanId>` field on **every** existing event variant with `set_span`/`span()` accessors, and a thread-local span stack (`next_span_id`/`push_span`/`pop_span`/`current_span`) plus the `contextualiser` helper that attaches the innermost open span to an event. Emission at the boundaries: `transduction.rs` wraps each public run in an `Op` span and each node visit in a `Visite` span (wrapper fns, so spans close on every exit path incl. errors); `saturate.rs` opens one `Round` span per iteration (closed on all exits); `integrale.rs` (interval + DBM) wraps the measure in an `Op` span and each node in a `Visite` span; `workshop.rs` (`measure`) wraps in an `Op` span; `arena.rs` and the bench `confrontation.rs` route all events through `contextualiser`. Serializer `crates/lisage-liseuse/src/trace.rs`: schema **v4** — every line carries `"span":<id|null>`, `SpanOpen`/`SpanClose` lines carry the span they define plus `kind`/`lane`; `step_by_step.rs` handles the new variants. Tests migrated v3 -> v4 (golden lines, TRACE_VERSION) and 3 new tests pin the D1-1 invariants: Op/Visite nesting with stack discipline and every event carrying the innermost span, Round span carried by the `Round` event and closed, golden SpanOpen/SpanClose serialization. No engine behavior change (spans are pure observation; all 373 rust tests pass, incl. the pre-existing ones unchanged in behavior).
+- **Evidence**: `make check` green on the branch (ruff/mypy/import-linter/pytest, cargo fmt --check, clippy -D warnings, cargo nextest 373 passed / 11 skipped, english-only). `cargo fmt --all` applied (CI checks fmt).
+- **Judgement calls**: thread-local span stack chosen so nested components (round -> op -> visite, pool events inside a workshop op) share one context without plumbing a stack through every signature; span ids from a process-global counter to avoid collisions across components; `lane` is always 0 today (reserved for the future parallelism of P3/P4).
+- **Escalations**: none.
+
 ## 2026-11-21 - ALIGN-7f: campaign-4 full confrontation with the Sylvan witness (issue #301)
 
 - **Issue**: #301 (ALIGN-7f, parent #300); labels area/bench, align.

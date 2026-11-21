@@ -80,20 +80,25 @@ fn test_serialiser_evenement_golden() {
     assert_eq!(
         serialiser_evenement(&TraceEvent::NodeCreated {
             node: NodeId(3),
-            level: Some(Level(2))
+            level: Some(Level(2)),
+            span: None,
         }),
-        "{\"v\":3,\"type\":\"NodeCreated\",\"noeud\":3,\"level\":2}"
+        "{\"v\":4,\"type\":\"NodeCreated\",\"span\":null,\"noeud\":3,\"level\":2}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::NodeShared { node: NodeId(7) }),
-        "{\"v\":3,\"type\":\"NodeShared\",\"noeud\":7}"
+        serialiser_evenement(&TraceEvent::NodeShared {
+            node: NodeId(7),
+            span: None
+        }),
+        "{\"v\":4,\"type\":\"NodeShared\",\"span\":null,\"noeud\":7}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::ReductionApplied {
             rule: ReductionRule::Collapse,
-            level: Level(1)
+            level: Level(1),
+            span: None,
         }),
-        "{\"v\":3,\"type\":\"Reduction\",\"rule\":\"R-collapse\",\"level\":1}"
+        "{\"v\":4,\"type\":\"Reduction\",\"span\":null,\"rule\":\"R-collapse\",\"level\":1}"
     );
     assert_eq!(
         serialiser_evenement(&TraceEvent::DiagramBuilt {
@@ -102,9 +107,10 @@ fn test_serialiser_evenement_golden() {
                 anchor: Anchor(0),
                 node: NodeId(4)
             },
-            nodes: 5
+            nodes: 5,
+            span: None,
         }),
-        "{\"v\":3,\"type\":\"DiagramBuilt\",\"controller\":1,\"anchor\":0,\"noeud\":4,\"noeuds\":5}"
+        "{\"v\":4,\"type\":\"DiagramBuilt\",\"span\":null,\"controller\":1,\"anchor\":0,\"noeud\":4,\"noeuds\":5}"
     );
     // MEM-17: the degree histogram per class serializes as a JSON array.
     use lisage_core::observer::ClassHistogram;
@@ -123,9 +129,10 @@ fn test_serialiser_evenement_golden() {
                     peak: 7,
                     slack: 3
                 },
-            ]
+            ],
+            span: None,
         }),
-        "{\"v\":3,\"type\":\"Histogram\",\"classes\":[{\"class\":0,\"live\":2,\"peak\":2,\"slack\":0},{\"class\":2,\"live\":5,\"peak\":7,\"slack\":3}]}"
+        "{\"v\":4,\"type\":\"Histogram\",\"span\":null,\"classes\":[{\"class\":0,\"live\":2,\"peak\":2,\"slack\":0},{\"class\":2,\"live\":5,\"peak\":7,\"slack\":3}]}"
     );
 }
 

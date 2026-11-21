@@ -116,23 +116,26 @@ impl Scrubber {
         let mut etat = EtatTrace::default();
         for evenement in &self.evenements[..self.position] {
             match evenement {
-                TraceEvent::NodeCreated { node, .. } | TraceEvent::NodeShared { node } => {
+                TraceEvent::NodeCreated { node, .. } | TraceEvent::NodeShared { node, .. } => {
                     etat.nodes.insert(*node);
                 }
                 TraceEvent::Attr {
                     channel,
                     node,
                     value,
+                    ..
                 } => {
                     etat.attributes.push((*channel, *node, value.clone()));
                 }
                 TraceEvent::MemoHit { .. } => etat.memo_hits += 1,
                 TraceEvent::MemoMiss { .. } => etat.memo_misses += 1,
-                TraceEvent::Round { numero } => etat.rounds = etat.rounds.max(*numero),
+                TraceEvent::Round { numero, .. } => etat.rounds = etat.rounds.max(*numero),
                 TraceEvent::ReductionApplied { .. }
                 | TraceEvent::DiagramBuilt { .. }
                 | TraceEvent::Gc { .. }
-                | TraceEvent::Histogram { .. } => {}
+                | TraceEvent::Histogram { .. }
+                | TraceEvent::SpanOpen { .. }
+                | TraceEvent::SpanClose { .. } => {}
             }
         }
         etat

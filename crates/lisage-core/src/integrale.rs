@@ -28,7 +28,9 @@ use std::collections::HashMap;
 use lisage_algebra::interface::{ArcRun, Form, NodeId, Pool, PoolError};
 
 use crate::dbm::{Dbm, DbmKeys};
-use crate::observer::{ChannelAttr, Observer, TraceEvent};
+use crate::observer::{
+    ChannelAttr, Observer, SpanKind, TraceEvent, contextualiser, next_span_id, pop_span, push_span,
+};
 use crate::region::Interval;
 
 /// Lebesgue measure of an interval in the continuous interpretation:
@@ -67,7 +69,22 @@ pub fn integrale_constante<P: Pool<Key = Interval, Payload = bool>>(
     observer: Option<&dyn Observer>,
 ) -> Result<u64, PoolError> {
     let mut memo: HashMap<(NodeId, Interval), u64> = HashMap::new();
-    integrale(pool, root, region, observer, &mut memo)
+    // D1-1: one Op span around the whole measure.
+    let span = next_span_id();
+    push_span(span);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanOpen {
+            span,
+            kind: SpanKind::Op,
+            lane: 0,
+        });
+    }
+    let resultat = integrale(pool, root, region, observer, &mut memo);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanClose { span });
+    }
+    pop_span();
+    resultat
 }
 
 fn integrale<P: Pool<Key = Interval, Payload = bool>>(
@@ -77,13 +94,39 @@ fn integrale<P: Pool<Key = Interval, Payload = bool>>(
     observer: Option<&dyn Observer>,
     memo: &mut HashMap<(NodeId, Interval), u64>,
 ) -> Result<u64, PoolError> {
+    // D1-1: one Visite span per node visit, closed on every exit path.
+    let span = next_span_id();
+    push_span(span);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanOpen {
+            span,
+            kind: SpanKind::Visite,
+            lane: 0,
+        });
+    }
+    let resultat = integrale_inner(pool, node, region, observer, memo);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanClose { span });
+    }
+    pop_span();
+    resultat
+}
+
+fn integrale_inner<P: Pool<Key = Interval, Payload = bool>>(
+    pool: &P,
+    node: NodeId,
+    region: &Interval,
+    observer: Option<&dyn Observer>,
+    memo: &mut HashMap<(NodeId, Interval), u64>,
+) -> Result<u64, PoolError> {
     if let Some(total) = memo.get(&(node, *region)) {
         if let Some(obs) = observer {
-            obs.on_event(&TraceEvent::Attr {
+            obs.on_event(&contextualiser(TraceEvent::Attr {
                 channel: ChannelAttr::Synthesized,
                 node,
                 value: format!("measure_memo={total}"),
-            });
+                span: None,
+            }));
         }
         return Ok(*total);
     }
@@ -104,11 +147,12 @@ fn integrale<P: Pool<Key = Interval, Payload = bool>>(
         }
     };
     if let Some(obs) = observer {
-        obs.on_event(&TraceEvent::Attr {
+        obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node,
             value: format!("measure={total}"),
-        });
+            span: None,
+        }));
     }
     memo.insert((node, *region), total);
     Ok(total)
@@ -129,7 +173,22 @@ pub fn integrale_dbm_constante<P: Pool<Key = Dbm, Payload = bool>>(
     observer: Option<&dyn Observer>,
 ) -> Result<i128, PoolError> {
     let mut memo: HashMap<(NodeId, Dbm), i128> = HashMap::new();
-    integrale_dbm(pool, root, region, keys, observer, &mut memo)
+    // D1-1: one Op span around the whole measure.
+    let span = next_span_id();
+    push_span(span);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanOpen {
+            span,
+            kind: SpanKind::Op,
+            lane: 0,
+        });
+    }
+    let resultat = integrale_dbm(pool, root, region, keys, observer, &mut memo);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanClose { span });
+    }
+    pop_span();
+    resultat
 }
 
 fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
@@ -140,13 +199,40 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
     observer: Option<&dyn Observer>,
     memo: &mut HashMap<(NodeId, Dbm), i128>,
 ) -> Result<i128, PoolError> {
+    // D1-1: one Visite span per node visit, closed on every exit path.
+    let span = next_span_id();
+    push_span(span);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanOpen {
+            span,
+            kind: SpanKind::Visite,
+            lane: 0,
+        });
+    }
+    let resultat = integrale_dbm_inner(pool, node, region, keys, observer, memo);
+    if let Some(obs) = observer {
+        obs.on_event(&TraceEvent::SpanClose { span });
+    }
+    pop_span();
+    resultat
+}
+
+fn integrale_dbm_inner<P: Pool<Key = Dbm, Payload = bool>>(
+    pool: &P,
+    node: NodeId,
+    region: &Dbm,
+    keys: &DbmKeys,
+    observer: Option<&dyn Observer>,
+    memo: &mut HashMap<(NodeId, Dbm), i128>,
+) -> Result<i128, PoolError> {
     if let Some(total) = memo.get(&(node, region.clone())) {
         if let Some(obs) = observer {
-            obs.on_event(&TraceEvent::Attr {
+            obs.on_event(&contextualiser(TraceEvent::Attr {
                 channel: ChannelAttr::Synthesized,
                 node,
                 value: format!("measure_memo={total}"),
-            });
+                span: None,
+            }));
         }
         return Ok(*total);
     }
@@ -168,11 +254,12 @@ fn integrale_dbm<P: Pool<Key = Dbm, Payload = bool>>(
         }
     };
     if let Some(obs) = observer {
-        obs.on_event(&TraceEvent::Attr {
+        obs.on_event(&contextualiser(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node,
             value: format!("measure={total}"),
-        });
+            span: None,
+        }));
     }
     memo.insert((node, region.clone()), total);
     Ok(total)
