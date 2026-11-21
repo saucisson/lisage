@@ -31,6 +31,7 @@ from joserfc.jwk import KeySet, KeySetSerialization
 from joserfc.jwt import Claims, JWTClaimsRegistry
 
 from notify.models.auth import AccessTokenClaims, TokenRejectionReason, TokenValidationError
+from notify.models.types import IssuerUrl
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -178,10 +179,28 @@ class AccessTokenVerifier:
                 reason="jwks_unavailable",
                 detail=f"JWKS fetch failed: {type(error).__name__}",
             )
-        payload: object = response.json()
+        try:
+            payload: object = response.json()
+        except ValueError as error:  # json.JSONDecodeError: IdP answered 200 with non-JSON
+            self._reject(
+                reason="jwks_unavailable", detail=f"JWKS is not JSON: {type(error).__name__}"
+            )
         if not isinstance(payload, dict):
             self._reject(reason="jwks_unavailable", detail="JWKS is not a JSON object")
-        key_set = KeySet.import_key_set(cast("KeySetSerialization", payload))
+        keys = payload.get("keys")
+        if not isinstance(keys, list) or not all(isinstance(key, dict) for key in keys):
+            self._reject(
+                reason="jwks_unavailable", detail="JWKS has no list-of-objects keys member"
+            )
+        try:
+            # Runtime-verified above: a dict whose "keys" is a list of objects is
+            # exactly the KeySetSerialization shape joserfc expects (RFC 7517).
+            key_set = KeySet.import_key_set(cast("KeySetSerialization", payload))
+        except JoseError as error:
+            self._reject(
+                reason="jwks_unavailable",
+                detail=f"JWKS keys not importable: {type(error).__name__}",
+            )
         self._jwks = (now, key_set)
         logger.debug("jwks_fetched", jwks_uri=jwks_uri, key_count=len(key_set.keys))
         return key_set
@@ -207,7 +226,13 @@ class AccessTokenVerifier:
                 reason="jwks_unavailable",
                 detail=f"discovery fetch failed: {type(error).__name__}",
             )
-        document: object = response.json()
+        try:
+            document: object = response.json()
+        except ValueError as error:  # json.JSONDecodeError: IdP answered 200 with a non-JSON body
+            self._reject(
+                reason="jwks_unavailable",
+                detail=f"discovery document is not JSON: {type(error).__name__}",
+            )
         if not isinstance(document, dict):
             self._reject(
                 reason="jwks_unavailable", detail="discovery document is not a JSON object"
@@ -256,7 +281,7 @@ class AccessTokenVerifier:
         issued_at = claims.get("iat")
         return AccessTokenClaims(
             subject=subject,
-            issuer=issuer,
+            issuer=IssuerUrl(issuer),
             audiences=audiences,
             expires_at=expires_at,
             not_before=not_before if isinstance(not_before, int) else None,

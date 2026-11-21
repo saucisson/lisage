@@ -11,6 +11,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from notify.models.errors import NotifyError
+from notify.models.types import IssuerUrl
 
 #: Machine-checkable cause of a token rejection (logged, never secret).
 TokenRejectionReason = Literal[
@@ -39,7 +40,7 @@ class AccessTokenClaims(BaseModel):
     """The validated claims of an OIDC access token."""
 
     subject: str
-    issuer: str
+    issuer: IssuerUrl
     audiences: list[str]
     expires_at: int
     not_before: int | None = None
