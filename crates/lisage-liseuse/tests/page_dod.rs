@@ -69,4 +69,6 @@ fn test_d6_1_committed_page_artifact() {
     assert!(html.contains(r#""type":"Round""#), "round events embedded");
     // The n=4 philosophers saturation embeds exactly 4 rounds.
     assert_eq!(html.matches(r#""type":"Round""#).count(), 4);
+    // The committed artifact is exactly what the generator produces.
+    assert_eq!(html, standard_offline_page(4), "artifact is up to date");
 }
