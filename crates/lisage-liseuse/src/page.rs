@@ -119,6 +119,8 @@ fn json_escape(text: &str) -> String {
         match character {
             '"' => out.push_str("\\\""),
             '\\' => out.push_str("\\\\"),
+            '<' => out.push_str("\\u003c"),
+            '>' => out.push_str("\\u003e"),
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
@@ -418,6 +420,7 @@ mod tests {
     #[test]
     fn test_json_escape() {
         assert_eq!(json_escape("a\"b\\c\n"), "a\\\"b\\\\c\\n");
+        assert_eq!(json_escape("</script>"), "\\u003c/\\u003escript\\u003e");
     }
 
     #[test]
