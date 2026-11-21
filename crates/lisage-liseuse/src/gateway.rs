@@ -163,14 +163,17 @@ fn narrate(observer: &dyn Observer, message: String) {
 }
 
 /// Generate a random token (16 bytes → 32 hex chars) from the OS
-/// cryptographic source (`/dev/urandom`, no extra dependency).
-pub fn generate_token() -> ConnectionToken {
+/// cryptographic source (`/dev/urandom`, no extra dependency). A failure to
+/// read the entropy source is a typed `GatewayError::Io`, never a panic.
+pub fn generate_token() -> Result<ConnectionToken, GatewayError> {
     use std::io::Read;
     let mut bytes = [0u8; TOKEN_BYTES];
     std::fs::File::open("/dev/urandom")
         .and_then(|mut file| file.read_exact(&mut bytes))
-        .expect("reading 16 bytes from /dev/urandom");
-    ConnectionToken(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+        .map_err(GatewayError::Io)?;
+    Ok(ConnectionToken(
+        bytes.iter().map(|byte| format!("{byte:02x}")).collect(),
+    ))
 }
 
 /// Extract one query parameter from the HTTP request line. Exact key match;
@@ -208,7 +211,7 @@ pub async fn run_gateway(
             trace_events.len()
         ),
     );
-    let token = generate_token();
+    let token = generate_token()?;
     let state = Arc::new(GatewayState::new(trace_events));
     let page = render_live_page(title, state.events.len());
 
@@ -349,10 +352,10 @@ pub fn handle_command(
     observer: &dyn Observer,
 ) -> Option<String> {
     let parsed = crate::json::parse(text).ok()?;
-    let cmd = parsed.get("cmd")?.as_str()?;
-    narrate(observer, format!("gateway: command received cmd={cmd}"));
+    let command = parsed.get("cmd")?.as_str()?;
+    narrate(observer, format!("gateway: command received cmd={command}"));
     let length = state.events.len();
-    let response = match cmd {
+    let response = match command {
         "step" | "next" => {
             state.paused.store(0, Ordering::SeqCst);
             match state.step() {
@@ -479,7 +482,7 @@ mod tests {
 
     #[test]
     fn test_generate_token_length() {
-        let token = generate_token();
+        let token = generate_token().expect("entropy source available");
         assert_eq!(token.to_string().len(), 32, "16 bytes → 32 hex chars");
         assert!(
             token
@@ -491,8 +494,8 @@ mod tests {
 
     #[test]
     fn test_generate_token_unique() {
-        let first = generate_token();
-        let second = generate_token();
+        let first = generate_token().expect("entropy source available");
+        let second = generate_token().expect("entropy source available");
         assert_ne!(first, second, "two tokens should differ");
     }
 
@@ -614,19 +617,19 @@ mod tests {
     #[test]
     fn test_handle_command_narration_pinned() {
         struct Collector {
-            evenements: Mutex<Vec<TraceEvent>>,
+            events: Mutex<Vec<TraceEvent>>,
         }
         impl Observer for Collector {
             fn on_event(&self, event: &TraceEvent) {
-                self.evenements.lock().expect("mutex").push(event.clone());
+                self.events.lock().expect("mutex").push(event.clone());
             }
         }
         let collector = Arc::new(Collector {
-            evenements: Mutex::new(Vec::new()),
+            events: Mutex::new(Vec::new()),
         });
         let state = Arc::new(GatewayState::new(vec![TraceEvent::OpEnd { span: None }]));
         let _ = handle_command(r#"{"cmd":"step"}"#, &state, collector.as_ref()).unwrap();
-        let events = collector.evenements.lock().expect("mutex").clone();
+        let events = collector.events.lock().expect("mutex").clone();
         assert!(
             events.iter().any(|event| matches!(
                 event,
@@ -634,5 +637,27 @@ mod tests {
             )),
             "the command narration event must be emitted: {events:?}"
         );
+    }
+
+    /// Invariants over the whole position range (deterministic sweep, no
+    /// property crate): `goto` clamps into `[0, length]` and stepping to the
+    /// end lands exactly on `length`.
+    #[test]
+    fn test_position_invariants_sweep() {
+        let events: Vec<TraceEvent> = (0..10).map(|_| TraceEvent::OpEnd { span: None }).collect();
+        let state = Arc::new(GatewayState::new(events));
+        for target in 0..=12 {
+            handle_command(
+                &format!(r#"{{"cmd":"goto","position":{target}}}"#),
+                &state,
+                &NoOpObserver,
+            )
+            .unwrap();
+            assert!(state.position() <= 10, "goto clamps to trace length");
+        }
+        handle_command(r#"{"cmd":"goto","position":0}"#, &state, &NoOpObserver).unwrap();
+        while state.step().is_some() {}
+        assert_eq!(state.position(), 10, "stepping to the end lands on length");
+        assert!(state.step().is_none(), "no step past the end");
     }
 }

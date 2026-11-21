@@ -28,16 +28,16 @@ fn sample_trace() -> Vec<TraceEvent> {
 fn test_d6_2_break_round_12_caught() {
     let state = Arc::new(GatewayState::new(sample_trace()));
     // Set break at round 12.
-    let resp = handle_command(r#"{"cmd":"break","round":12}"#, &state, &NoOpObserver).unwrap();
-    assert!(resp.contains(r#""event":"break_set""#));
+    let response = handle_command(r#"{"cmd":"break","round":12}"#, &state, &NoOpObserver).unwrap();
+    assert!(response.contains(r#""event":"break_set""#));
     // Continue from position 0 → should stop at round 12 (position 11, 0-based).
-    let resp = handle_command(r#"{"cmd":"continue"}"#, &state, &NoOpObserver).unwrap();
+    let response = handle_command(r#"{"cmd":"continue"}"#, &state, &NoOpObserver).unwrap();
     assert!(
-        resp.contains(r#""event":"break""#),
-        "continue must hit the round-12 break: {resp}"
+        response.contains(r#""event":"break""#),
+        "continue must hit the round-12 break: {response}"
     );
     assert!(
-        resp.contains(r#""position":12"#),
+        response.contains(r#""position":12"#),
         "break after round 12 (position 12)"
     );
     assert_eq!(state.position(), 12);
@@ -48,20 +48,20 @@ fn test_d6_2_break_round_12_caught() {
 fn test_d6_2_step_pause_back_status() {
     let state = Arc::new(GatewayState::new(sample_trace()));
     // step
-    let resp = handle_command(r#"{"cmd":"step"}"#, &state, &NoOpObserver).unwrap();
-    assert!(resp.contains(r#""position":1"#));
+    let response = handle_command(r#"{"cmd":"step"}"#, &state, &NoOpObserver).unwrap();
+    assert!(response.contains(r#""position":1"#));
     // pause
-    let resp = handle_command(r#"{"cmd":"pause"}"#, &state, &NoOpObserver).unwrap();
-    assert!(resp.contains(r#""event":"paused""#));
+    let response = handle_command(r#"{"cmd":"pause"}"#, &state, &NoOpObserver).unwrap();
+    assert!(response.contains(r#""event":"paused""#));
     assert_eq!(state.paused.load(Ordering::SeqCst), 1);
     // back
-    let resp = handle_command(r#"{"cmd":"back"}"#, &state, &NoOpObserver).unwrap();
-    assert!(resp.contains(r#""position":0"#));
+    let response = handle_command(r#"{"cmd":"back"}"#, &state, &NoOpObserver).unwrap();
+    assert!(response.contains(r#""position":0"#));
     // status
-    let resp = handle_command(r#"{"cmd":"status"}"#, &state, &NoOpObserver).unwrap();
-    assert!(resp.contains(r#""event":"status""#));
-    assert!(resp.contains(r#""length":15"#));
-    assert!(resp.contains(r#""paused":1"#));
+    let response = handle_command(r#"{"cmd":"status"}"#, &state, &NoOpObserver).unwrap();
+    assert!(response.contains(r#""event":"status""#));
+    assert!(response.contains(r#""length":15"#));
+    assert!(response.contains(r#""paused":1"#));
 }
 
 /// The live page is self-contained and connects with the token.
@@ -83,8 +83,8 @@ fn test_d6_2_live_page_self_contained() {
 /// Token generation: 32 hex chars, unique across calls.
 #[test]
 fn test_d6_2_token() {
-    let t1 = generate_token();
-    let t2 = generate_token();
+    let t1 = generate_token().expect("entropy source available");
+    let t2 = generate_token().expect("entropy source available");
     let t1 = t1.to_string();
     let t2 = t2.to_string();
     assert_eq!(t1.len(), 32);
@@ -120,7 +120,7 @@ async fn test_d6_2_token_enforced_403() {
     let path = std::env::temp_dir().join(format!(
         "lisage-gateway-dod-{}-{}.jsonl",
         std::process::id(),
-        generate_token()
+        generate_token().expect("entropy source available")
     ));
     std::fs::write(&path, &content).expect("writing temp trace");
 
