@@ -54,3 +54,22 @@ fn test_d6_1_valid_html_structure() {
     assert!(html.contains("<body>"));
     assert!(html.contains("</html>"));
 }
+
+/// DoD (issue #174): the page is COMMITTED as a self-contained artifact,
+/// openable offline on the philosophers trace — `pages/philosophers-n4.html`
+/// at the repository root.
+#[test]
+fn test_d6_1_committed_page_artifact() {
+    let artifact = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../pages/philosophers-n4.html"
+    );
+    let html = std::fs::read_to_string(artifact).expect("committed page artifact exists");
+    assert!(html.starts_with("<!DOCTYPE html>"));
+    assert!(!html.contains(r#"src="http"#), "no external script");
+    assert!(!html.contains(r#"href="http"#), "no external stylesheet");
+    assert!(html.contains("const TRACE = ["), "trace embedded");
+    assert!(html.contains(r#""type":"Round""#), "round events embedded");
+    // The n=4 philosophers saturation embeds exactly 4 rounds.
+    assert_eq!(html.matches(r#""type":"Round""#).count(), 4);
+}
