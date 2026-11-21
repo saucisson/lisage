@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - D6-1: offline HTML page (issue #174); D6-2/D6-3 deferred
+
+- **Issue**: #174 (D6-1, index WASM + page offline). D6-2 (#175, gateway loopback/live) and D6-3 (#176, DAP) are larger infrastructure items deferred to follow-up issues.
+- **Done**: new module `crates/lisage-liseuse/src/page.rs` — `render_offline_page(events, title)` produces a single self-contained HTML file embedding the trace as an inline JSON array, the pre-built index and span-tree summaries, and navigation controls (step/back/goto/dashboard/ops) mapped to the REPL command bus verbs. New binary `crates/lisage-liseuse/src/bin/lisage-page.rs`: `lisage-page [n] [output.html]` generates the page for the standard philosophers scenario (default n=4). New tests `crates/lisage-liseuse/tests/page_dod.rs` (3 DoD tests): self-contained (no external src/href), philosophers page substantial with 4 rounds, valid HTML structure.
+- **Evidence**: `cargo test -p lisage-liseuse --test page_dod` 3 passed; `cargo test -p lisage-liseuse --all-targets` all green; `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; `make english-only` green; binary smoke-tested (`lisage-page 4 /tmp/test-page.html` → 6691 bytes).
+- **Judgement calls**: D6-1 delivers the offline page as a generated HTML file (no WASM compilation in this increment — the Rust index/trace logic is reused directly at generation time; a true WASM runtime in the browser is D6-2 follow-up). D6-2 (WebSocket loopback gateway) and D6-3 (DAP adapter) need a running debug server and a DAP client; deferred as separate issues.
+- **Escalations**: none.
+
 ## 2026-11-20 - ALIGN-3: observer dispatch share on the build path (measurement only, no code change)
 
 - **Issue**: none — ALIGN-i issues cannot be opened on GitHub; ALIGN-3 = measure the observer share, conclude in writing.
