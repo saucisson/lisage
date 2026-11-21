@@ -228,6 +228,33 @@ def test_wrong_algorithm_rejected(settings: AuthSettings, idp: FakeIdp) -> None:
     assert excinfo.value.reason == "algorithm"
 
 
+def test_debug_narration_events_are_pinned(
+    settings: AuthSettings, idp: FakeIdp, signing_key: RSAKey, other_key: RSAKey,
+    capture_logs: list[EventDict],
+) -> None:
+    """ADR-0005: the DEBUG narration events are pinned by this test —
+    a rename or removal of one of them fails here."""
+    idp.scripted_jwks = [
+        {"keys": [signing_key.as_dict()]},
+        {"keys": [signing_key.as_dict(), other_key.as_dict()]},
+    ]
+    verifier = _make_verifier(settings, idp)
+    token = _sign(_valid_claims(), signing_key, kid="test-key-1")
+    verifier.verify_access_token(token=token)
+    # An unknown kid forces a JWKS refresh (rotation), then succeeds.
+    rotated = _sign(_valid_claims(), other_key, kid="test-key-2")
+    verifier.verify_access_token(token=rotated)
+
+    events = [event["event"] for event in capture_logs]
+    assert "oidc_discovery_fetched" in events
+    assert events.count("jwks_fetched") == 2  # initial fetch + forced refresh
+    assert "jwks_refresh_unknown_kid" in events
+    discovery = next(e for e in capture_logs if e["event"] == "oidc_discovery_fetched")
+    assert discovery["issuer"] == ISSUER
+    refresh = next(e for e in capture_logs if e["event"] == "jwks_refresh_unknown_kid")
+    assert refresh["kid"] == "test-key-2"
+
+
 def test_rejection_is_logged_with_exact_reason(
     settings: AuthSettings, idp: FakeIdp, signing_key: RSAKey, capture_logs: list[EventDict]
 ) -> None:
