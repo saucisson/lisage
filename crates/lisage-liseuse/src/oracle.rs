@@ -71,30 +71,53 @@ impl SemanticOracle {
                 }
                 TraceEvent::OpEnd { .. } => {
                     if let Some((fingerprint, pairs)) = open_ops.pop() {
-                        for (input_node, output_node) in pairs {
-                            for witness in Self::sample_witnesses(domain_size) {
-                                let mask = Self::witness_mask(&witness);
-                                let input_value = denotation(input_node, mask);
-                                let actual = denotation(output_node, mask);
-                                let expected =
-                                    semantics(fingerprint, input_node, input_value, &witness);
-                                if actual != expected {
-                                    oracle.divergences.push(DenotationDivergence {
-                                        position,
-                                        fingerprint,
-                                        witness: witness.clone(),
-                                        input_value,
-                                        output_value: actual,
-                                    });
-                                }
-                            }
-                        }
+                        oracle.check_op(
+                            position,
+                            fingerprint,
+                            &pairs,
+                            domain_size,
+                            &mut denotation,
+                            &mut semantics,
+                        );
                     }
                 }
                 _ => {}
             }
         }
         oracle
+    }
+
+    /// Check every `(input, output)` pair of one closed operation against
+    /// the sampled witnesses and record a divergence per mismatch.
+    fn check_op<D, S>(
+        &mut self,
+        position: usize,
+        fingerprint: u64,
+        pairs: &[(NodeId, NodeId)],
+        domain_size: u64,
+        denotation: &mut D,
+        semantics: &mut S,
+    ) where
+        D: FnMut(NodeId, u64) -> bool,
+        S: FnMut(u64, NodeId, bool, &BTreeSet<u64>) -> bool,
+    {
+        for (input_node, output_node) in pairs {
+            for witness in Self::sample_witnesses(domain_size) {
+                let mask = Self::witness_mask(&witness);
+                let input_value = denotation(*input_node, mask);
+                let actual = denotation(*output_node, mask);
+                let expected = semantics(fingerprint, *input_node, input_value, &witness);
+                if actual != expected {
+                    self.divergences.push(DenotationDivergence {
+                        position,
+                        fingerprint,
+                        witness: witness.clone(),
+                        input_value,
+                        output_value: actual,
+                    });
+                }
+            }
+        }
     }
 
     /// Bitmask of a witness valuation: bit ℓ set iff atom ℓ is in the set.
