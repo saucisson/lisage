@@ -57,13 +57,10 @@ fn test_d6_1_valid_html_structure() {
 
 /// DoD (issue #174): the page is COMMITTED as a self-contained artifact,
 /// openable offline on the philosophers trace — `crates/lisage-liseuse/offline/philosophers-n4.html`
-/// at the repository root.
+/// inside the liseuse crate.
 #[test]
 fn test_d6_1_committed_page_artifact() {
-    let artifact = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../pages/philosophers-n4.html"
-    );
+    let artifact = concat!(env!("CARGO_MANIFEST_DIR"), "/offline/philosophers-n4.html");
     let html = std::fs::read_to_string(artifact).expect("committed page artifact exists");
     assert!(html.starts_with("<!DOCTYPE html>"));
     assert!(!html.contains(r#"src="http"#), "no external script");
