@@ -28,10 +28,11 @@ const CHAIN_STEP_FINGERPRINT: u64 = 4164;
 /// Step transduction of the standard scenario: `τ(X) = {{m}}` where
 /// `m = max atom of X + 1` — an increasing chain of singletons, so a
 /// `Set` domain of size `D` saturates in exactly `D` rounds.
+/// Public for D3-3 (`standard_scenario_full` in `inspection.rs`).
 #[derive(Clone)]
-struct ChainStep {
+pub struct ChainStep {
     /// Number of levels of the `Set` schema (domain size).
-    number_levels: u32,
+    pub number_levels: u32,
 }
 
 impl Transduction for ChainStep {
@@ -184,6 +185,20 @@ pub enum Command {
     Where,
     /// Current frame: innermost span with its folded balance.
     Frame,
+    /// D3-3: inspect a node (creation, level, form, index ranges).
+    Node(NodeId),
+    /// D3-3: memo table at the cursor (live/dead entries, L1).
+    Memo,
+    /// D3-3: level-memory version history at the cursor.
+    Memoire,
+    /// D3-3: structure-change diff (input/output fragments) at the cursor.
+    Diff,
+    /// D3-3: evaluate a valuation over the counters at the cursor.
+    Eval(String),
+    /// D3-3: dashboard at the cursor.
+    Display,
+    /// D3-3: list the operations of the trace.
+    Ops,
 }
 
 /// Event kinds accepted by `until`.
@@ -240,6 +255,10 @@ impl EventKind {
 
 /// Parses one REPL line into a command. `None` on unknown input.
 pub fn parse_command(line: &str) -> Option<Command> {
+    // `eval` takes the rest of the line as its valuation.
+    if let Some(rest) = line.strip_prefix("eval ") {
+        return Some(Command::Eval(rest.trim().to_string()));
+    }
     let mut words = line.split_whitespace();
     match words.next()? {
         "step" | "s" => Some(Command::Step),
@@ -253,12 +272,23 @@ pub fn parse_command(line: &str) -> Option<Command> {
         "frame" | "f" => Some(Command::Frame),
         "goto" => words.next()?.parse().ok().map(Command::Goto),
         "until" => EventKind::parse(words.next()?).map(Command::Until),
+        "node" => words
+            .next()?
+            .parse()
+            .ok()
+            .map(|id: u32| Command::Node(NodeId(id))),
+        "memo" => Some(Command::Memo),
+        "memoire" => Some(Command::Memoire),
+        "diff" => Some(Command::Diff),
+        "display" => Some(Command::Display),
+        "ops" => Some(Command::Ops),
         _ => None,
     }
 }
 
-/// Name of an event's kind, for `where` output.
-fn event_kind_name(event: &TraceEvent) -> &'static str {
+/// Name of an event's kind, for `where` output (public for D3-3
+/// `display`).
+pub fn event_kind_name(event: &TraceEvent) -> &'static str {
     match event {
         TraceEvent::SpanOpen { .. } => "SpanOpen",
         TraceEvent::SpanClose { .. } => "SpanClose",
@@ -284,11 +314,12 @@ fn event_kind_name(event: &TraceEvent) -> &'static str {
 }
 
 /// The debugger: a position cursor over a trace, with the D2-3 index,
-/// the D2-4 span tree and prefix sums.
+/// the D2-4 span tree and prefix sums, and the D3-3 inspection views.
 pub struct Debugger {
     events: Vec<TraceEvent>,
     tree: SpanTree,
     balances: Balances,
+    inspector: crate::inspection::Inspector,
     position: usize,
 }
 
@@ -297,10 +328,12 @@ impl Debugger {
     pub fn new(events: Vec<TraceEvent>) -> Self {
         let tree = SpanTree::build(&events);
         let balances = Balances::build(&events);
+        let inspector = crate::inspection::Inspector::new(events.clone());
         Debugger {
             events,
             tree,
             balances,
+            inspector,
             position: 0,
         }
     }
@@ -400,6 +433,20 @@ impl Debugger {
             }
             Command::Where => self.where_output(),
             Command::Frame => self.frame_output(),
+            Command::Node(node) => self.inspector.node_view(self.position, node),
+            Command::Memo => self.inspector.memo_view(self.position),
+            Command::Memoire => self.inspector.memory_view(self.position),
+            Command::Diff => self.inspector.diff_view(self.position),
+            Command::Eval(expression) => match self.inspector.eval(self.position, &expression) {
+                Ok(value) => format!("{value}"),
+                Err(error) => format!("eval error: {error}"),
+            },
+            Command::Display => self.inspector.display(
+                self.position,
+                self.enclosing_spans().len(),
+                self.visit_stack().len(),
+            ),
+            Command::Ops => self.inspector.ops_view(self.position),
         }
     }
 
