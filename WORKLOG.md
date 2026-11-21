@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - D3-1: command bus and REPL of lisage-debug (issue #164)
+
+- **Issue**: #164 (D3-1, bus de commandes et REPL); labels debug-outillage, loupe.
+- **Done**: new module `crates/lisage-liseuse/src/debugger.rs` — a `Debugger` state machine over a trace (position cursor + D2-4 span tree + prefix sums) with the full D3-1 command vocabulary: `step`/`back`/`goto <n>`/`step-over`/`step-out`/`next-op`/`next-round`/`until <kind>`/`continue`/`where`/`frame`, plus `parse_command` for the REPL and `visit_stack()` (the `Visite` spans enclosing the cursor). Granularity parity with the span tree: step-over stops at the end of the innermost enclosing span, step-out at the end of its parent. `standard_scenario(n)` runs a real `saturer` chain (`τ(X) = {{max(X)+1}}`, D rounds for a domain of size D) as the built-in trace. New binary `crates/lisage-liseuse/src/bin/lisage-debug.rs`: runs the standard scenario n=4 and reads commands from stdin. New tests `crates/lisage-liseuse/tests/debugger.rs` (7 tests): cursor movement and clamping, span-boundary navigation on a hand-built nested-span trace, next-op/next-round/until on the real scenario, where/frame/visit-stack output, command parsing, and the DoD scripted session on n=4 end-to-end (runs in milliseconds, well under 5 min).
+- **Evidence**: `make check` green on the branch (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy -D warnings, cargo nextest, english-only); binary smoke-tested with piped stdin (`where`/`next-round`/`frame`/`quit`).
+- **Judgement calls**: the binary runs the built-in n=4 scenario because the JSONL trace deserializer is D1-4 (issue #158, not yet done) — no trace file loading yet; `until` takes a fixed event-kind vocabulary (the predicate AST is D3-2, issue #165).
+- **Escalations**: none.
+
 ## 2026-11-21 - D2-4: span tree and folded balances (issue #163)
 
 - **Issue**: #163 (D2-4, arbre des spans et bilans repliés); labels debug-outillage, index-miroir.
