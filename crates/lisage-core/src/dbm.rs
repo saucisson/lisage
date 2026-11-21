@@ -17,7 +17,9 @@
 //! on the measure side; the semiring with polynomial densities remains
 //! outside the fragment.
 
-use lisage_algebra::interface::{ArcRun, Controller, ControllerId, KeyAlgebra, Level};
+use lisage_algebra::interface::{
+    ArcRun, Controller, ControllerId, KeyAlgebra, Level, PathPredicate,
+};
 
 /// Number of variables of a null DBM (canonical empty region without variable).
 pub const INCOHERENT: Dbm = Dbm {
@@ -300,6 +302,18 @@ impl KeyAlgebra for DbmKeys {
 
     fn default(&self, _level: Level) -> Option<Self::Key> {
         Some(INCOHERENT)
+    }
+}
+
+impl PathPredicate for DbmKeys {
+    type Key = Dbm;
+
+    /// DBM instance (D3-2): **region inclusion** — the arc belongs to the
+    /// path region iff `arc ⊆ region`, decided exactly as
+    /// `arc ∩ region == arc` (both sides normalized: the derived equality
+    /// of `Dbm` is the equality of regions).
+    fn arc_in_region(&self, _level: Level, region: &Self::Key, arc: &Self::Key) -> bool {
+        !arc.est_empty() && arc.intersection(region) == *arc
     }
 }
 

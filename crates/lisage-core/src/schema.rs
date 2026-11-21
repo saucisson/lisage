@@ -13,7 +13,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{
-    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool, PoolError,
+    Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, PathPredicate, Pool,
+    PoolError,
 };
 use lisage_lang::value::{Atom, Value};
 
@@ -252,6 +253,16 @@ impl KeyAlgebra for SchemaKeys {
 
     fn sweep_levels(&self) -> u32 {
         self.schema.number_levels()
+    }
+}
+
+impl PathPredicate for SchemaKeys {
+    type Key = u64;
+
+    /// Reference instance (D3-2): **arc equality** — the path region is a
+    /// single arc key, and the arc belongs to it iff they are equal.
+    fn arc_in_region(&self, _level: Level, region: &Self::Key, arc: &Self::Key) -> bool {
+        region == arc
     }
 }
 
