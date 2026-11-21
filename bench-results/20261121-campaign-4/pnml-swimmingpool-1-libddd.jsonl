@@ -1,0 +1,5 @@
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "libddd", "parametres": {"n": "18"}, "rss_max_ko": 10752, "temps_ms": 77.829, "variante": "bdd", "verifie": 1408}
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "libddd", "parametres": {"n": "18"}, "rss_max_ko": 10744, "temps_ms": 78.233, "variante": "bdd", "verifie": 1408}
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "libddd", "parametres": {"n": "18"}, "rss_max_ko": 10760, "temps_ms": 76.968, "variante": "bdd", "verifie": 1408}
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "libddd", "parametres": {"n": "18"}, "rss_max_ko": 10896, "temps_ms": 77.62, "variante": "bdd", "verifie": 1408}
+{"charge": "pnml-swimmingpool-1", "noeuds": 1859, "outil": "libddd", "parametres": {"n": "18"}, "rss_max_ko": 10744, "temps_ms": 93.329, "variante": "bdd", "verifie": 1408}

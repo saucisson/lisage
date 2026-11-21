@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - ALIGN-7f: campaign-4 full confrontation with the Sylvan witness (issue #301)
+
+- **Issue**: #301 (ALIGN-7f, parent #300); labels area/bench, align.
+- **Done**: full crossover campaign deposited in `bench-results/20261121-campaign-4/` — same 5 charges as campaign-3 (alea-lcg-20/22/24, cnf-uf20-01, pnml-swimmingpool-1), same pinned witnesses (OxiDD `c7a458d`, CUDD `cudd-3.0.0`, libDDD `b775aed`) plus the new Sylvan witness (`v1.12.8` = `fe8f9463`), 5 repetitions, 5 tools, one fresh process/container per measurement. `aggregats.json` has `divergences: []` — `noeuds`/`verifie` identical across all five tools, Sylvan included. REPORT.md carries the mandatory Machine header (M1, hardware hash `febd14ed`, fingerprint captured 2026-11-21T01:04:43Z), the ratio-only comparison to campaign-3 as the issue requires, and the explicit n=24 residue analysis: the lisage/OxiDD ratio at n=24 is 2.09x vs 2.04x in campaign-3 (did not move, within noise); per-node cost at n=24 is 3.94 us/node (lisage) vs 1.88 (OxiDD), the excess (~52% of lisage's per-node cost) growing with table size — the residue is unique-table dominated, not a per-intern constant. Sylvan slots between OxiDD and CUDD on time (2.67-2.85x OxiDD), mid-range memory.
+- **Evidence**: `uv run python -m scripts bench-confrontation --crossover --tools lisage,oxidd,cudd,libddd,sylvan --repetitions 5 --run-id 20261121-campaign-4` exit 0 (125 measurements, divergences empty); `make check` green on the branch (see PR). Machine note: the issue title says "on M2" but the register was corrected on 2026-11-20 evening (switch back to M1) — campaign-4 ran on M1, the same machine as campaign-3, so absolute times are also comparable and are reported stable (lisage alea-lcg-24: 4105.6 -> 4218.3 ms, within noise; no lisage code changed between the campaigns).
+- **Judgement calls**: ratio-only comparison presented as the issue mandates even though both campaigns are on M1; the machine discrepancy (issue title vs corrected register) is documented in README/REPORT rather than silently resolved.
+- **Escalations**: none.
+
 ## 2026-11-20 - Sylvan witness dockerized, 4th external tool of the confrontation (issue #308, closes SP-2 #154)
 
 - **Issue**: #308 (closes #154, spike SP-2); labels area/bench, area/infra.
