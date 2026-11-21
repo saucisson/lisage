@@ -69,6 +69,30 @@ fn test_d6_1_committed_page_artifact() {
     assert!(html.contains(r#""type":"Round""#), "round events embedded");
     // The n=4 philosophers saturation embeds exactly 4 rounds.
     assert_eq!(html.matches(r#""type":"Round""#).count(), 4);
-    // The committed artifact is exactly what the generator produces.
-    assert_eq!(html, standard_offline_page(4), "artifact is up to date");
+    // The committed artifact matches the generator output. Span ids come
+    // from a process-global counter (NEXT_SPAN_ID), so they legitimately
+    // differ between the fresh process that produced the artifact and this
+    // test process — normalize them, everything else must be identical.
+    let committed = normalize_spans(&html);
+    let generated = normalize_spans(&standard_offline_page(4));
+    assert_eq!(
+        committed, generated,
+        "artifact is up to date with the generator"
+    );
+}
+
+/// Replace every `"span":N` value by a constant so the comparison is
+/// independent of the process-global span counter.
+fn normalize_spans(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(index) = rest.find("\"span\":") {
+        out.push_str(&rest[..index + 7]);
+        rest = &rest[index + 7..];
+        let digits: usize = rest.bytes().take_while(|b| b.is_ascii_digit()).count();
+        out.push('N');
+        rest = &rest[digits..];
+    }
+    out.push_str(rest);
+    out
 }
