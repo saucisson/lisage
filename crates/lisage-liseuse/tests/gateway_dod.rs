@@ -97,3 +97,78 @@ fn test_d6_2_goto_clamps() {
     handle_command(r#"{"cmd":"goto","position":999}"#, &state).unwrap();
     assert_eq!(state.position(), 15, "clamped to length");
 }
+
+/// DoD: the token is enforced on every connection — a request without the
+/// token (or with a wrong one) is rejected with 403, the valid token gets
+/// the page with 200. Exercises the real TCP path of `run_gateway`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_d6_2_token_enforced_403() {
+    use lisage_liseuse::debugger::standard_scenario;
+    use lisage_liseuse::gateway::{GatewayEvents, run_gateway};
+    use lisage_liseuse::trace::serialiser_evenement;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    // Write a real .jsonl trace to a temp file.
+    let events = standard_scenario(2);
+    let mut content = String::new();
+    for event in &events {
+        content.push_str(&serialiser_evenement(event));
+        content.push('\n');
+    }
+    let path = std::env::temp_dir().join(format!(
+        "lisage-gateway-dod-{}-{}.jsonl",
+        std::process::id(),
+        generate_token()
+    ));
+    std::fs::write(&path, &content).expect("writing temp trace");
+
+    let (announce_sender, announce_receiver) = std::sync::mpsc::channel();
+    let path_string = path.to_str().expect("temp path is UTF-8").to_string();
+    tokio::spawn(async move {
+        let events = GatewayEvents {
+            announce: Box::new(move |port, token, _event_count| {
+                let _ = announce_sender.send((port, token.to_string()));
+            }),
+            connection_error: Box::new(|_message| {}),
+        };
+        let _ = run_gateway(&path_string, "dod", events).await;
+    });
+    let (port, token) = announce_receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("gateway announces its port");
+
+    async fn request(port: u16, target: &str) -> String {
+        let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .expect("connecting to the loopback gateway");
+        stream
+            .write_all(format!("GET {target} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n").as_bytes())
+            .await
+            .expect("sending request");
+        let mut buffer = vec![0u8; 4096];
+        let count = stream.read(&mut buffer).await.expect("reading response");
+        String::from_utf8_lossy(&buffer[..count]).into_owned()
+    }
+
+    // No token → 403.
+    let response = request(port, "/").await;
+    assert!(
+        response.starts_with("HTTP/1.1 403"),
+        "missing token must be rejected with 403, got: {response}"
+    );
+    // Wrong token → 403.
+    let response = request(port, "/?token=deadbeef").await;
+    assert!(
+        response.starts_with("HTTP/1.1 403"),
+        "wrong token must be rejected with 403, got: {response}"
+    );
+    // Valid token → 200 with the HTML page.
+    let response = request(port, &format!("/?token={token}")).await;
+    assert!(
+        response.starts_with("HTTP/1.1 200"),
+        "valid token must get 200, got: {response}"
+    );
+    assert!(response.contains("<!DOCTYPE html>"), "the page is served");
+
+    let _ = std::fs::remove_file(&path);
+}
