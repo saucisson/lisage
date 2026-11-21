@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - D5-1/D5-2: semantic oracle and fixpoint oracle (issues #172, #173)
+
+- **Issue**: #172 (D5-1, différentiel sémantique échantillonné) + #173 (D5-2, croissance du fixpoint et tableau de bord).
+- **Done**: new module `crates/lisage-liseuse/src/oracle.rs` — `SemanticOracle` (D5-1) walks the trace and at each `OpEnd` samples witness valuations (empty, singletons, full set) and compares input/output denotation via an injected evaluator; any mismatch is a `DenotationDivergence` with position, fingerprint and witness. `FixpointOracle` (D5-2) walks the trace and at each `Round` checks X_k ⊆ X_{k+1} monotonicity via an injected node-size function; any decrease is a `MonotonicityViolation` with round number and sizes. `RoundDashboard` renders the saturation dashboard (active/modified levels, growth, convergence marker). New tests `crates/lisage-liseuse/tests/oracle_dod.rs` (6 DoD tests): clean standard scenario, faulty predicate caught at the offending OpEnd, non-monotonic τ caught at the faulty round (not at the end), witness sampling coverage, dashboard format.
+- **Evidence**: `cargo test -p lisage-liseuse --all-targets` green (all test files pass, incl. 6 new DoD tests + 4 unit tests); `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean; `make english-only` green.
+- **Judgement calls**: the oracle is trace-driven (works on any `Vec<TraceEvent>`), with the evaluator/node-size injected as closures so the oracle stays decoupled from the engine; the DoD tests use both the real `standard_scenario(4)` trace and synthetic traces for the faulty cases.
+- **Escalations**: none.
+
 ## 2026-11-20 - ALIGN-3: observer dispatch share on the build path (measurement only, no code change)
 
 - **Issue**: none — ALIGN-i issues cannot be opened on GitHub; ALIGN-3 = measure the observer share, conclude in writing.
