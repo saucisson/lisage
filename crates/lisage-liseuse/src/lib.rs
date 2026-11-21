@@ -1,5 +1,6 @@
 //! Lisage liseuse — the viewer (trace, index, SVG/HTML rendering).
 
+pub mod debugger;
 pub mod index;
 pub mod philosophers;
 pub mod publication;
