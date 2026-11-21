@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - D2-3: inverse indexes over the trace (issue #162)
+
+- **Issue**: #162 (D2-3, index-miroir); labels debug-outillage, index-miroir.
+- **Done**: new module `crates/lisage-liseuse/src/index.rs` — `IndexTrace::construire` builds in one O(n) pass: node → merged event ranges (`BTreeMap<NodeId, Vec<Range<usize>>>`, contiguous positions merged), round number → event interval, op index → interval (OpStart..=OpEnd via a stack). Queries are index lookups only: `explain(node)` O(log n + k), `plages_noeud`, `plage_round`/`position_round` O(log n), `plage_op`/`position_op` O(1) — no linear scan on the query path. New tests `crates/lisage-liseuse/tests/index.rs`: the DoD `explain n42` on a real philosophers trace (fold `(ℕ,+,×)` on R_5 with a collector, 73 distinct nodes; n42 = the 42nd distinct node since ids are class-encoded) returns exactly the events mentioning the node, cross-checked against a test-side linear scan for completeness, plus an absent node answering empty; a second test pins the round/op intervals and goto positions on a hand-built trace.
+- **Evidence**: `make check` green on the branch (ruff, mypy strict, import-linter, pytest 61 passed / coverage 94.76%, cargo fmt --check, clippy -D warnings, cargo nextest 382 passed / 11 skipped, english-only).
+- **Judgement calls**: "n42" is the 42nd distinct node of the trace, not the raw `NodeId(42)` — node ids are class-encoded (`NodeId::encode(class, index, class_bits)`), so raw 42 is not a node of the R_5 trace; round intervals run from one `Round` event to the next (last round to the trace end).
+- **Escalations**: none.
+
 ## 2026-11-21 - D1-3: TraceVal / Traceable — lazy bounded trace values (issue #157)
 
 - **Issue**: #157 (D1-3, trace v5 values); labels debug-outillage, trace-v3, perf.
