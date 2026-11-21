@@ -56,7 +56,7 @@ fn test_d6_1_valid_html_structure() {
 }
 
 /// DoD (issue #174): the page is COMMITTED as a self-contained artifact,
-/// openable offline on the philosophers trace — `pages/philosophers-n4.html`
+/// openable offline on the philosophers trace — `crates/lisage-liseuse/offline/philosophers-n4.html`
 /// at the repository root.
 #[test]
 fn test_d6_1_committed_page_artifact() {
