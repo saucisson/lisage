@@ -22,6 +22,9 @@ use lisage_lang::value::{Atom, Value};
 
 use crate::spans::{Balances, SpanNode, SpanTree};
 
+/// Fingerprint of the [`ChainStep`] scenario transduction.
+const CHAIN_STEP_FINGERPRINT: u64 = 4164;
+
 /// Step transduction of the standard scenario: `τ(X) = {{m}}` where
 /// `m = max atom of X + 1` — an increasing chain of singletons, so a
 /// `Set` domain of size `D` saturates in exactly `D` rounds.
@@ -38,7 +41,7 @@ impl Transduction for ChainStep {
     type M = ();
 
     fn fingerprint(&self) -> u64 {
-        4164
+        CHAIN_STEP_FINGERPRINT
     }
     fn h0(&self) {}
     fn phi_disp(&self, _level: Level, _h: &(), _arc: u64) {}
