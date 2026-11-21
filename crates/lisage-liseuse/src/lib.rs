@@ -3,6 +3,7 @@
 pub mod index;
 pub mod philosophers;
 pub mod publication;
+pub mod spans;
 pub mod step_by_step;
 pub mod svg;
 pub mod trace;

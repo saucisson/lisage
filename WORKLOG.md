@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-21 - D2-4: span tree and folded balances (issue #163)
+
+- **Issue**: #163 (D2-4, arbre des spans et bilans repliés); labels debug-outillage, index-miroir.
+- **Done**: new module `crates/lisage-liseuse/src/spans.rs`. `SpanTree::build` reconstructs the nested span intervals (`SpanOpen`/`SpanClose`) in one O(n) pass with a stack — `roots()`, `find(span)` (DFS), `depth()`; unclosed spans are closed defensively at the trace end. `Balances::build` keeps prefix sums over the event vector (nodes created, memo hits, pool growth) so `balance(range)` answers in O(1) as `prefix[b] - prefix[a]` — no linear scan on the query path. `round_interval` resolves a round to its `Round` span range in the tree (fallback: the D2-3 index interval); `round_lines` + `render_balance_lines` present a saturation as one balance line per round with the convergence marker (`apres == avant`, fixpoint); `convergence_round` finds the first such round; `diff_rounds(a, b)` compares two rounds by span lookup + prefix sums. New tests `crates/lisage-liseuse/tests/spans.rs` drive a real `saturer` run with a chain step transduction `τ(X) = {{max(X)+1}}` (synthesized attribute carries max atom + 1; the root interns the singleton chain), which saturates a `Set` domain of size D in exactly D rounds: n=4 → 4 Round-span roots each holding one Op span with nested Visite spans, balances cross-checked against test-side linear scans and partitioning the trace, 4 rendered balance lines with the last one converged; n=13 → diff round 11 vs 12 operational (delta matches the per-round balances and the Round growths, self-diff is zero, absent round is `None`).
+- **Evidence**: `make check` green on the branch (ruff, mypy strict, import-linter, pytest, cargo fmt --check, clippy -D warnings, cargo nextest, english-only).
+- **Judgement calls**: the convergence marker is `apres == avant` (the round changed nothing), not `croissance == 0` — the step transduction interns nodes even on the fixpoint round, so growth alone is not a reliable marker; round intervals use the `Round` span range (SpanOpen..=SpanClose), which partitions the trace, rather than the bare `Round` event position.
+- **Escalations**: none.
+
 ## 2026-11-21 - D2-3: inverse indexes over the trace (issue #162)
 
 - **Issue**: #162 (D2-3, index-miroir); labels debug-outillage, index-miroir.
