@@ -1602,41 +1602,22 @@ One entry per commit or pull request:
 - **Judgement calls**: page is an inline minimal HTML (full page.rs renderer lands when D6-1 PR #343 merges); gateway replays a .jsonl file (per human decision) rather than attaching to a live process; token is a non-crypto PRNG hex (sufficient for loopback threat model); bind is 127.0.0.1:0 strict, never 0.0.0.0.
 - **Escalations**: needs-human on issue #175 for tokio + tokio-tungstenite dependencies (ADR-0010).
 
-## feat/175 D6-2 gateway — review #344 fixes
+## feat/175 D6-2 gateway — review #344 rounds 1-3 fixes
 
-- BLOCKING: `futures-util` dependency removed (not covered by the approved
-  needs-human escalation on #175). The WebSocket framing now uses the sync
-  `tungstenite` API (re-exported by tokio-tungstenite 0.24) on a blocking
-  thread (`spawn_blocking`), no extra crate.
-- TO-FIX: DEBUG narration events emitted through the `Observer` channel
-  (ADR-0100 decision 6) in `run_gateway` / `handle_connection` /
-  `serve_stream` / `handle_command`; pinned by `test_handle_command_narration_pinned`.
-  The token is never narrated.
-- TO-FIX: `ConnectionToken` distinct type at the boundary (ADR-0006), redacted
-  `Debug` impl (no secret logged).
-- SUGGESTION: token check is an exact query-parameter comparison
-  (`query_param` + equality), no substring match; `test_query_param_exact`
-  pins the suffix-extension bypass.
-- SUGGESTION: token generated from `/dev/urandom` (16 bytes) instead of a
-  xorshift PRNG — no new dependency.
-
-## feat/175 D6-2 gateway — review #344 round 3 fixes
-
-- BLOCKING: the credential no longer travels in URLs (ADR-0016). HTTP page
-  requires `Authorization: Bearer <token>` (exact equality, header parsed
-  case-insensitively); the WebSocket upgrade at `/ws` carries no secret and
-  the FIRST text frame must be `{"cmd":"auth","token":"..."}` (auth_ok /
-  auth_failed, then the session closes on failure). The token is embedded
-  in the page server-side (the page is only served to the bearer holder).
-  `test_d6_2_token_enforced_403` now also pins that `?token=...` in the URL
-  is REJECTED; `test_d6_2_websocket_drives_replay` drives step/pause/status
-  over a real WebSocket (sync tungstenite client) incl. wrong-token refusal.
-- BLOCKING: dependency approval recorded as a human needs-human answer on
-  issue #175 (tokio + tokio-tungstenite only; futures-util removed).
-  Versions pinned exactly in Cargo.toml (`=1.54.1`, `=0.24.0`) since
-  Cargo.lock is gitignored.
-- ConnectionToken: `Display`/`Debug` redacted; raw value only via
-  `as_secret_str()` (entry point + authenticated page rendering).
-- Sync handshake written by hand (101 + `derive_accept_key`) because
-  tungstenite's `accept_hdr` rejects non-upgrade requests before the
-  callback; `send` (write+flush) used for WS frames.
+- `futures-util` removed (not covered by the needs-human approval, now
+  recorded on issue #175: tokio + tokio-tungstenite only, versions pinned
+  exactly in Cargo.toml since Cargo.lock is gitignored). WS framing uses the
+  sync tungstenite API (re-exported) on a blocking thread.
+- Credential never in URLs (ADR-0016): HTTP page requires
+  `Authorization: Bearer <token>` (exact match); `/ws` upgrade carries no
+  secret, the first WS frame `{"cmd":"auth","token":...}` authenticates
+  (auth_ok/auth_failed). Token embedded in the page server-side only;
+  `ConnectionToken` with redacted Display/Debug, raw value via
+  `as_secret_str()`; token from `/dev/urandom`, typed error not panic.
+- DEBUG narration via the Observer channel (ADR-0100 decision 6), pinned by
+  `test_handle_command_narration_pinned`; token never narrated.
+- DoD over real TCP/WS: `test_d6_2_token_enforced_403` (403 without/wrong
+  bearer, 403 for `?token=` in URL, 200 with bearer) and
+  `test_d6_2_websocket_drives_replay` (auth frame + step/pause/status over a
+  real WebSocket, wrong token refused). 7 DoD tests in gateway_dod.rs, 11
+  unit tests in gateway.rs. API contract: docs/gateway-protocol.md.

@@ -1,18 +1,10 @@
-//! D6-2 — Loopback WebSocket gateway: serves the offline page over HTTP
-//! and streams a `.jsonl` trace over a WebSocket, both bound to `127.0.0.1`
-//! only, with a random token required on every connection.
-//!
-//! Protocol (JSON text frames):
-//! - client → server: `{"cmd":"step"}`, `{"cmd":"back"}`, `{"cmd":"goto","position":N}`,
-//!   `{"cmd":"break","round":N}`, `{"cmd":"continue"}`, `{"cmd":"pause"}`
-//! - server → client: `{"event":"position","position":N,"length":L}`,
-//!   `{"event":"event","position":N,"kind":"OpEnd",...}`,
-//!   `{"event":"break","round":N,"position":P}`, `{"event":"done"}`
-//!
-//! The library never writes to stdout/stderr: the entry point receives the
-//! bound address and the token through [`GatewayEvents`] and does the
-//! printing itself. Narration goes through the `Observer` channel
-//! (ADR-0100 decision 6); the token is a secret and is never narrated.
+//! D6-2 — Loopback WebSocket gateway: serves the live page over HTTP and
+//! replays a `.jsonl` trace over a WebSocket, bound to `127.0.0.1` only,
+//! with a random token required on every connection. Protocol contract:
+//! `docs/gateway-protocol.md` (ADR-0016). The library never writes to
+//! stdout/stderr (the entry point does, via [`GatewayEvents`]); narration
+//! goes through the `Observer` channel (ADR-0100 decision 6); the token is
+//! a secret and is never narrated.
 
 use std::fmt;
 use std::sync::Arc;
@@ -354,54 +346,41 @@ fn serve_stream(
         "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
     );
     stream.write_all(handshake.as_bytes())?;
-    let mut socket = tokio_tungstenite::tungstenite::WebSocket::from_raw_socket(
+    let socket = tokio_tungstenite::tungstenite::WebSocket::from_raw_socket(
         stream,
         tokio_tungstenite::tungstenite::protocol::Role::Server,
         None,
     );
+    websocket_session(socket, token, state, observer)
+}
+
+/// One authenticated WebSocket session: the first text frame must carry
+/// the token (no secret in the URL), then commands are answered until the
+/// peer disconnects.
+fn websocket_session(
+    mut socket: tokio_tungstenite::tungstenite::WebSocket<std::net::TcpStream>,
+    token: ConnectionToken,
+    state: Arc<GatewayState>,
+    observer: Arc<dyn Observer>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     narrate(
         observer.as_ref(),
         "gateway: websocket session open".to_string(),
     );
-    let mut authenticated = false;
-    loop {
-        match socket.read() {
-            Ok(Message::Text(text)) => {
-                if !authenticated {
-                    let parsed = crate::json::parse(&text).ok();
-                    let is_auth_frame = parsed
-                        .as_ref()
-                        .and_then(|value| value.get("cmd"))
-                        .and_then(|command| command.as_str())
-                        == Some("auth");
-                    let candidate = parsed
-                        .as_ref()
-                        .and_then(|value| value.get("token"))
-                        .and_then(|value| value.as_str());
-                    authenticated = is_auth_frame && token.matches(candidate);
-                    let reply = if authenticated {
-                        r#"{"event":"auth_ok"}"#.to_string()
-                    } else {
-                        narrate(
-                            observer.as_ref(),
-                            "gateway: websocket auth failed".to_string(),
-                        );
-                        r#"{"event":"auth_failed"}"#.to_string()
-                    };
-                    if socket.send(Message::Text(reply)).is_err() || !authenticated {
-                        break;
-                    }
-                    continue;
-                }
-                if let Some(response) = handle_command(&text, &state, observer.as_ref())
-                    && socket.send(Message::Text(response)).is_err()
-                {
-                    break;
-                }
+    if !authenticate_frame(&mut socket, &token, observer.as_ref())? {
+        return Ok(());
+    }
+    while let Ok(message) = socket.read() {
+        let Message::Text(text) = message else {
+            if matches!(message, Message::Close(_)) {
+                break;
             }
-            Ok(Message::Close(_)) => break,
-            Ok(_) => {}
-            Err(_) => break,
+            continue;
+        };
+        if let Some(response) = handle_command(&text, &state, observer.as_ref())
+            && socket.send(Message::Text(response)).is_err()
+        {
+            break;
         }
     }
     narrate(
@@ -409,6 +388,37 @@ fn serve_stream(
         "gateway: websocket session closed".to_string(),
     );
     Ok(())
+}
+
+/// First-frame authentication: returns Ok(true) when the frame is a valid
+/// auth frame, Ok(false) after answering auth_failed (session over).
+fn authenticate_frame(
+    socket: &mut tokio_tungstenite::tungstenite::WebSocket<std::net::TcpStream>,
+    token: &ConnectionToken,
+    observer: &dyn Observer,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    let Ok(Message::Text(text)) = socket.read() else {
+        return Ok(false);
+    };
+    let parsed = crate::json::parse(&text).ok();
+    let is_auth_frame = parsed
+        .as_ref()
+        .and_then(|value| value.get("cmd"))
+        .and_then(|command| command.as_str())
+        == Some("auth");
+    let candidate = parsed
+        .as_ref()
+        .and_then(|value| value.get("token"))
+        .and_then(|value| value.as_str());
+    let authenticated = is_auth_frame && token.matches(candidate);
+    let reply = if authenticated {
+        r#"{"event":"auth_ok"}"#.to_string()
+    } else {
+        narrate(observer, "gateway: websocket auth failed".to_string());
+        r#"{"event":"auth_failed"}"#.to_string()
+    };
+    socket.send(Message::Text(reply))?;
+    Ok(authenticated)
 }
 
 /// Parse a JSON command and produce a JSON response. The command name is
@@ -510,7 +520,6 @@ pub fn render_live_page(title: &str, event_count: usize, token: &ConnectionToken
 <style>
 body {{ font-family: monospace; margin: 1em; background: #1e1e1e; color: #d4d4d4; }}
 button {{ background: #0e639c; color: white; border: none; padding: 4px 12px; margin: 2px; cursor: pointer; }}
-#status {{ color: #9cdcfe; }}
 #log {{ background: #252526; padding: 0.5em; max-height: 20em; overflow-y: auto; white-space: pre-wrap; }}
 </style></head>
 <body>
@@ -562,7 +571,6 @@ mod tests {
                 .chars()
                 .all(|character| character.is_ascii_hexdigit())
         );
-        // Display/Debug are redacted: no secret in logs.
         assert_eq!(format!("{token}"), "<redacted>");
         assert_eq!(format!("{token:?}"), "ConnectionToken(<redacted>)");
     }
@@ -578,9 +586,7 @@ mod tests {
     fn test_bearer_check_exact() {
         let token = ConnectionToken("abc123".to_string());
         assert!(bearer_matches(&token, Some("Bearer abc123")));
-        // Suffix extension must NOT match: exact value comparison only.
         assert!(!bearer_matches(&token, Some("Bearer abc123AAAA")));
-        // No header / wrong scheme → rejected.
         assert!(!bearer_matches(&token, None));
         assert!(!bearer_matches(&token, Some("Basic abc123")));
         assert!(!bearer_matches(&token, Some("bearer abc123")));
