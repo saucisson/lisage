@@ -20,6 +20,8 @@ use lisage_core::observer::{ChannelAttr, Observer, TraceEvent, TraceVal};
 
 /// Loopback bind address — the gateway is never exposed on 0.0.0.0.
 const LOOPBACK_ADDRESS: &str = "127.0.0.1:0";
+/// Default round targeted by the live page's break button.
+const DEFAULT_BREAK_ROUND: u64 = 12;
 /// Token size in bytes (16 bytes → 32 hex chars).
 const TOKEN_BYTES: usize = 16;
 /// Cap on the HTTP request head read from a connection.
@@ -565,6 +567,8 @@ fn html_escape(text: &str) -> String {
         .replace('"', "&quot;")
 }
 
+/// Render the live page HTML: static layout plus the WebSocket hookup
+/// carrying the bearer token in the first `auth` frame (never in the URL).
 pub fn render_live_page(title: &str, event_count: usize, token: &ConnectionToken) -> String {
     // The token is 32 hex chars: JSON-safe without escaping.
     let token_json = format!(r#""{}""#, token.as_secret_str());
@@ -586,7 +590,7 @@ button {{ background: #0e639c; color: white; border: none; padding: 4px 12px; ma
   <button onclick="send('back')">back</button>
   <button onclick="send('pause')">pause</button>
   <button onclick="send('continue')">continue</button>
-  <button onclick="sendBreak()">break round 12</button>
+  <button onclick="sendBreak()">break round {DEFAULT_BREAK_ROUND}</button>
   <button onclick="send('status')">status</button>
 </div>
 <div id="status">connecting…</div>
@@ -605,7 +609,7 @@ ws.onmessage = (e) => {{
 }};
 ws.onclose = () => document.getElementById('status').textContent = 'disconnected';
 function send(cmd) {{ ws.send(JSON.stringify({{cmd: cmd}})); }}
-function sendBreak() {{ ws.send(JSON.stringify({{cmd: 'break', round: 12}})); }}
+function sendBreak() {{ ws.send(JSON.stringify({{cmd: 'break', round: {DEFAULT_BREAK_ROUND}}})); }}
 </script>
 </body></html>"#
     )
