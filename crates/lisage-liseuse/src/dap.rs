@@ -1,8 +1,7 @@
-//! D6-3 -- DAP (Debug Adapter Protocol) server over stdio (or TCP with
-//! `--port`). Maps the lisage trace debugger to DAP concepts:
-//! - `stackTrace` -> `Debugger::visit_stack()` (pile de visites)
-//! - `variables` -> counters h/s par frame (position/length/live/round)
-//! - `setBreakpoints` -> AST serialized: breakpoint "round 12" sur la source
+//! D6-3 -- DAP (Debug Adapter Protocol) server over stdio. Maps the lisage trace debugger to DAP concepts:
+//! - `stackTrace` -> `Debugger::visit_stack()` (visit stack)
+//! - `variables` -> counters per frame (position/length/live/round)
+//! - `setBreakpoints` -> AST serialized: breakpoint "round 12" on the source
 //!   `philosophers`
 //!
 //! DoD: VS Code -- breakpoint " round 12 " operational on philosophers.
@@ -29,49 +28,7 @@ pub struct DapMessage {
     pub body: Json,
 }
 
-impl DapMessage {
-    /// Serialize with the DAP Content-Length header.
-    pub fn to_frame(&self) -> String {
-        let body = json_to_string(&self.body);
-        let mut frame = format!("Content-Length: {}\r\n\r\n", body.len());
-        // Rebuild the full JSON message.
-        let mut msg = Json::Obj(vec![]);
-        if let Json::Obj(entries) = &mut msg {
-            entries.push(("seq".to_string(), Json::Num(self.seq)));
-            entries.push(("type".to_string(), Json::Str(self.kind.clone())));
-            if !self.command.is_empty() {
-                if self.kind == "request" {
-                    entries.push(("command".to_string(), Json::Str(self.command.clone())));
-                } else if self.kind == "event" {
-                    entries.push(("event".to_string(), Json::Str(self.command.clone())));
-                }
-            }
-            entries.push(("body".to_string(), self.body.clone()));
-        }
-        // Actually serialize the whole message properly:
-        let full = format!(
-            r#"{{"seq":{},"type":"{}"{}{}}}"#,
-            self.seq,
-            self.kind,
-            if !self.command.is_empty() {
-                if self.kind == "request" {
-                    format!(r#","command":"{}""#, self.command)
-                } else {
-                    format!(r#","event":"{}""#, self.command)
-                }
-            } else {
-                String::new()
-            },
-            if self.body != Json::Null {
-                format!(",\"body\":{}", json_to_string(&self.body))
-            } else {
-                String::new()
-            }
-        );
-        frame.push_str(&full);
-        frame
-    }
-}
+impl DapMessage {}
 
 /// Serialize a Json value to a compact string.
 pub fn json_to_string(value: &Json) -> String {
@@ -136,8 +93,6 @@ pub struct DapServer {
     debugger: Debugger,
     /// Breakpoints: source name → set of line numbers (round numbers).
     breakpoints: BTreeMap<String, Vec<i64>>,
-    /// Stopped flag.
-    stopped: Arc<AtomicBool>,
     /// Program running.
     running: Arc<AtomicBool>,
 }
@@ -161,7 +116,6 @@ impl DapServer {
             seq: 0,
             debugger: Debugger::new(standard_scenario(n)),
             breakpoints: BTreeMap::new(),
-            stopped: Arc::new(AtomicBool::new(true)),
             running: Arc::new(AtomicBool::new(true)),
         }
     }
@@ -249,12 +203,13 @@ impl DapServer {
                     })
                     .unwrap_or_default();
                 self.breakpoints.insert(source, lines.clone());
+                let length = self.debugger.length() as i64;
                 let verified: Vec<Json> = lines
                     .iter()
                     .map(|l| {
                         Json::Obj(vec![
                             ("line".to_string(), Json::Num(*l)),
-                            ("verified".to_string(), Json::Bool(true)),
+                            ("verified".to_string(), Json::Bool((1..=length).contains(l))),
                         ])
                     })
                     .collect();
@@ -334,13 +289,14 @@ impl DapServer {
                 } else {
                     frames
                 };
+                let total_frames = frames.len() as i64;
                 vec![self.response(
                     request_seq,
                     "stackTrace",
                     true,
                     Json::Obj(vec![
                         ("stackFrames".to_string(), Json::Arr(frames)),
-                        ("totalFrames".to_string(), Json::Num(1)),
+                        ("totalFrames".to_string(), Json::Num(total_frames)),
                     ]),
                 )]
             }
@@ -427,7 +383,6 @@ impl DapServer {
                     }
                     self.debugger.run(Command::Step);
                 }
-                self.stopped.store(true, Ordering::SeqCst);
                 let pos = self.debugger.position();
                 vec![
                     self.response(
@@ -468,7 +423,6 @@ impl DapServer {
                 ]
             }
             "pause" => {
-                self.stopped.store(true, Ordering::SeqCst);
                 vec![
                     self.response(request_seq, "pause", true, Json::Null),
                     self.event(
@@ -589,6 +543,34 @@ mod tests {
             crate::json::parse(r#"{"seq":1,"type":"request","command":"stackTrace"}"#).unwrap();
         let frames = server.handle(&req);
         assert!(frames[0].contains("stackFrames"));
+        let body = frames[0].split("\r\n\r\n").nth(1).unwrap();
+        let parsed = crate::json::parse(body).unwrap();
+        let entries = match &parsed {
+            Json::Obj(entries) => match entries.iter().find(|(k, _)| k == "body") {
+                Some((_, Json::Obj(body))) => body.clone(),
+                _ => entries.clone(),
+            },
+            _ => Vec::new(),
+        };
+        {
+            let get = |key: &str| {
+                entries
+                    .iter()
+                    .find(|(k, _)| k == key)
+                    .map(|(_, v)| v.clone())
+            };
+            if let (Some(Json::Arr(stack_frames)), Some(Json::Num(total))) =
+                (get("stackFrames"), get("totalFrames"))
+            {
+                assert_eq!(
+                    total as usize,
+                    stack_frames.len(),
+                    "totalFrames must equal the number of stackFrames sent"
+                );
+            } else {
+                panic!("stackTrace response must carry stackFrames and totalFrames");
+            }
+        }
         let req = crate::json::parse(
             r#"{"seq":2,"type":"request","command":"variables","arguments":{"variablesReference":1}}"#,
         )

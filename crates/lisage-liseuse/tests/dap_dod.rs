@@ -1,5 +1,5 @@
 //! D6-3 DoD: VS Code -- breakpoint " round 12 " operational on
-//! philosophes. We simulate the DAP message exchange that VS Code would
+//! philosophers. We simulate the DAP message exchange that VS Code would
 //! send and assert the breakpoint at round 12 is hit.
 
 use lisage_liseuse::dap::{DapServer, json_to_string, read_frame};
