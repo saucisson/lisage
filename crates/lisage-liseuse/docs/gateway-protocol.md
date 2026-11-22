@@ -36,3 +36,8 @@ Server → client events: `position`, `event` (with `kind`), `break`,
 Typed `GatewayError::{Io, Trace}` at the library boundary (entry point prints
 to stderr, exit 1); per-connection failures go through
 `GatewayEvents::connection_error`.
+
+## Versioning
+
+This contract is versioned with the crate: any change to frame shapes,
+commands or events is a breaking change of `lisage-liseuse` (ADR-0016).
