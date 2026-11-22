@@ -1596,6 +1596,6 @@ One entry per commit or pull request:
 
 ## 2026-11-21 - D6-2: loopback WebSocket gateway (issue #175)
 
-- **Issue**: #175 (D6-2, passerelle loopback et page live). needs-human escalation posted on the issue for the new dependencies tokio + tokio-tungstenite + futures-util (ADR-0010); the human approved tokio + tungstenite for D6 in the working session (futures-util is the companion stream/sink combinator crate of the same stack). Cargo.lock is deliberately untracked (.gitignore), so no lockfile update belongs in the diff.
-- **Done**: `gateway.rs` (D6-2 loopback gateway: `GatewayState`, bearer-auth page, first-frame-auth WebSocket replaying a `.jsonl` trace; protocol in `docs/gateway-protocol.md`), bin `lisage-gateway.rs`, tests `gateway_dod.rs` (7 DoD) + `gateway_property.rs` (proptest) + 6 unit tests. needs-human approvals on #175 (tokio/tokio-tungstenite, proptest dev-dep).
+- **Issue**: #175 (D6-2, passerelle loopback et page live). needs-human escalation posted on the issue for the new dependencies tokio + tokio-tungstenite (ADR-0010), plus proptest as a dev-dependency; the human approved both in the working session. Cargo.lock is deliberately untracked (.gitignore), so no lockfile update belongs in the diff.
+- **Done**: `gateway.rs` (D6-2 loopback gateway: `GatewayState`, bearer-auth page, first-frame-auth WebSocket replaying a `.jsonl` trace; protocol in `docs/gateway-protocol.md`), bin `lisage-gateway.rs`, tests `gateway_dod.rs` (7 DoD) + `gateway_property.rs` (proptest) + 6 unit tests. needs-human approvals recorded on #175 (tokio + tokio-tungstenite runtime deps; proptest dev-dep).
 - **Evidence**: `cargo test -p lisage-liseuse --all-targets` green (23 suites); clippy/fmt clean.

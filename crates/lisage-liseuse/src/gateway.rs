@@ -72,9 +72,13 @@ impl fmt::Debug for ConnectionToken {
 }
 
 impl ConnectionToken {
-    /// Exact equality check against a candidate token value (header or first WS frame).
+    /// Exact, constant-time equality check against a candidate token value
+    /// (header or first WS frame).
     fn matches(&self, candidate: Option<&str>) -> bool {
-        candidate == Some(self.0.as_str())
+        match candidate {
+            Some(value) => constant_time_eq(value.as_bytes(), self.0.as_bytes()),
+            None => false,
+        }
     }
 }
 
@@ -179,8 +183,28 @@ pub fn generate_token() -> Result<ConnectionToken, GatewayError> {
     ))
 }
 
+/// Constant-time comparison of two byte strings.
+fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    left.iter()
+        .zip(right)
+        .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+        == 0
+}
+
+/// Exact `Authorization: Bearer <token>` check on the header value —
+/// constant-time equality, not a substring or timing-observable compare.
+/// The credential travels in the header (ADR-0016: no secret in URLs).
 fn bearer_matches(token: &ConnectionToken, authorization: Option<&str>) -> bool {
-    authorization == Some(format!("Bearer {}", token.as_secret_str()).as_str())
+    match authorization {
+        Some(value) => constant_time_eq(
+            value.as_bytes(),
+            format!("Bearer {}", token.as_secret_str()).as_bytes(),
+        ),
+        None => false,
+    }
 }
 
 /// Run the gateway on 127.0.0.1: port/token/event count via `events.announce`,
@@ -425,7 +449,7 @@ pub fn handle_command(
         "pause" => command_pause(state),
         "continue" | "resume" => command_continue(state),
         "status" => vec![command_status(state)],
-        _ => return None,
+        _ => return Some(r#"[{"event":"error","message":"unknown command"}]"#.to_string()),
     };
     Some(format!("[{}]", events.join(",")))
 }
@@ -534,9 +558,17 @@ fn command_status(state: &Arc<GatewayState>) -> String {
 /// Minimal inline HTML page for the live gateway (static navigation is
 /// provided by the D6-1 `page.rs` renderer; this live page adds the
 /// WebSocket hookup carrying the token).
+fn html_escape(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
 pub fn render_live_page(title: &str, event_count: usize, token: &ConnectionToken) -> String {
     // The token is 32 hex chars: JSON-safe without escaping.
     let token_json = format!(r#""{}""#, token.as_secret_str());
+    let title = html_escape(title);
     format!(
         r#"<!DOCTYPE html>
 <html lang="en">
