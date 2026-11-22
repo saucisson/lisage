@@ -130,9 +130,9 @@ pub fn read_frame<R: BufRead>(reader: &mut R) -> Result<Option<Json>, DapError> 
         }
     }
     let length = content_length.expect("header loop breaks only with a length");
-    let mut buf = vec![0u8; length];
-    reader.read_exact(&mut buf).map_err(DapError::Io)?;
-    let text = String::from_utf8_lossy(&buf);
+    let mut buffer = vec![0u8; length];
+    reader.read_exact(&mut buffer).map_err(DapError::Io)?;
+    let text = String::from_utf8_lossy(&buffer);
     crate::json::parse(&text)
         .map(Some)
         .map_err(DapError::MalformedBody)
@@ -142,6 +142,10 @@ pub fn read_frame<R: BufRead>(reader: &mut R) -> Result<Option<Json>, DapError> 
 const DEFAULT_SCENARIO_SIZE: u64 = 13;
 /// Source name reported in stack frames and breakpoint requests.
 const SOURCE_NAME: &str = "philosophers";
+/// The single thread of the trace debugger.
+const MAIN_THREAD_ID: i64 = 1;
+/// DAP frames carry no column information: always column 1.
+const DEFAULT_COLUMN: i64 = 1;
 
 /// The DAP server state: one debugger + breakpoints.
 pub struct DapServer {
@@ -229,7 +233,7 @@ impl DapServer {
             .get("command")
             .and_then(|c| c.as_str())
             .unwrap_or("");
-        let args = request.get("arguments").cloned().unwrap_or(Json::Null);
+        let arguments = request.get("arguments").cloned().unwrap_or(Json::Null);
         narrate(
             self.observer.as_ref(),
             format!("dap dispatch command={command} seq={request_seq}"),
@@ -257,13 +261,13 @@ impl DapServer {
                 ]
             }
             "setBreakpoints" => {
-                let source = args
+                let source = arguments
                     .get("source")
                     .and_then(|s| s.get("name"))
                     .and_then(|n| n.as_str())
                     .unwrap_or("philosophers")
                     .to_string();
-                let lines: Vec<i64> = args
+                let lines: Vec<i64> = arguments
                     .get("breakpoints")
                     .and_then(|b| b.as_arr())
                     .map(|requested| {
@@ -300,7 +304,7 @@ impl DapServer {
                         "stopped",
                         Json::Obj(vec![
                             ("reason".to_string(), Json::Str("entry".to_string())),
-                            ("threadId".to_string(), Json::Num(1)),
+                            ("threadId".to_string(), Json::Num(MAIN_THREAD_ID)),
                         ]),
                     ),
                 ]
@@ -337,7 +341,7 @@ impl DapServer {
                                 "line".to_string(),
                                 Json::Num(self.debugger.position() as i64),
                             ),
-                            ("column".to_string(), Json::Num(1)),
+                            ("column".to_string(), Json::Num(DEFAULT_COLUMN)),
                         ])
                     })
                     .collect();
@@ -357,7 +361,7 @@ impl DapServer {
                             "line".to_string(),
                             Json::Num(self.debugger.position() as i64),
                         ),
-                        ("column".to_string(), Json::Num(1)),
+                        ("column".to_string(), Json::Num(DEFAULT_COLUMN)),
                     ])]
                 } else {
                     frames
@@ -397,7 +401,7 @@ impl DapServer {
                         _ => None,
                     })
                     .unwrap_or(0);
-                let vars = vec![
+                let variables = vec![
                     Json::Obj(vec![
                         ("name".to_string(), Json::Str("position".to_string())),
                         ("value".to_string(), Json::Num(position as i64)),
@@ -430,7 +434,7 @@ impl DapServer {
                     request_seq,
                     "variables",
                     true,
-                    Json::Obj(vec![("variables".to_string(), Json::Arr(vars))]),
+                    Json::Obj(vec![("variables".to_string(), Json::Arr(variables))]),
                 )]
             }
             "continue" => {
@@ -475,7 +479,7 @@ impl DapServer {
                         "stopped",
                         Json::Obj(vec![
                             ("reason".to_string(), Json::Str(stopped_reason.to_string())),
-                            ("threadId".to_string(), Json::Num(1)),
+                            ("threadId".to_string(), Json::Num(MAIN_THREAD_ID)),
                             (
                                 "description".to_string(),
                                 Json::Str(match stopped_round {
@@ -498,7 +502,7 @@ impl DapServer {
                         "stopped",
                         Json::Obj(vec![
                             ("reason".to_string(), Json::Str("step".to_string())),
-                            ("threadId".to_string(), Json::Num(1)),
+                            ("threadId".to_string(), Json::Num(MAIN_THREAD_ID)),
                             (
                                 "description".to_string(),
                                 Json::Str(format!("position {position}")),
@@ -514,7 +518,7 @@ impl DapServer {
                         "stopped",
                         Json::Obj(vec![
                             ("reason".to_string(), Json::Str("pause".to_string())),
-                            ("threadId".to_string(), Json::Num(1)),
+                            ("threadId".to_string(), Json::Num(MAIN_THREAD_ID)),
                         ]),
                     ),
                 ]
@@ -550,8 +554,8 @@ pub fn run_stdio() -> Result<(), DapError> {
     let mut writer = stdout.lock();
     let mut server = DapServer::new();
     loop {
-        let msg = match read_frame(&mut reader) {
-            Ok(Some(msg)) => msg,
+        let message = match read_frame(&mut reader) {
+            Ok(Some(message)) => message,
             Ok(None) => break,
             Err(error) => {
                 // Tell the client before tearing down the session.
@@ -566,8 +570,8 @@ pub fn run_stdio() -> Result<(), DapError> {
                 return Err(error);
             }
         };
-        if msg.get("type").and_then(|t| t.as_str()) == Some("request") {
-            for frame in server.handle(&msg) {
+        if message.get("type").and_then(|t| t.as_str()) == Some("request") {
+            for frame in server.handle(&message) {
                 writer.write_all(frame.as_bytes()).map_err(DapError::Io)?;
                 writer.flush().map_err(DapError::Io)?;
             }
@@ -610,9 +614,9 @@ mod tests {
     #[test]
     fn test_dap_initialize() {
         let mut server = DapServer::new();
-        let req =
+        let request =
             crate::json::parse(r#"{"seq":1,"type":"request","command":"initialize"}"#).unwrap();
-        let frames = server.handle(&req);
+        let frames = server.handle(&request);
         assert_eq!(frames.len(), 1);
         assert!(frames[0].contains("Content-Length:"));
         assert!(frames[0].contains(r#""command":"initialize""#));
@@ -622,17 +626,21 @@ mod tests {
 
     #[test]
     fn test_dap_breakpoint_round_12() {
-        let mut server = DapServer::new();
+        let observer = Arc::new(CapturingObserver {
+            events: std::sync::Mutex::new(Vec::new()),
+        });
+        let mut server = DapServer::with_observer(DEFAULT_SCENARIO_SIZE, observer.clone());
         // setBreakpoints: round 12 on philosophers.
-        let req = crate::json::parse(
+        let request = crate::json::parse(
             r#"{"seq":2,"type":"request","command":"setBreakpoints","arguments":{"source":{"name":"philosophers"},"breakpoints":[{"line":12}]}}"#,
         )
         .unwrap();
-        let frames = server.handle(&req);
+        let frames = server.handle(&request);
         assert!(frames[0].contains(r#""verified":true"#));
         // continue → should stop at round 12.
-        let req = crate::json::parse(r#"{"seq":3,"type":"request","command":"continue"}"#).unwrap();
-        let frames = server.handle(&req);
+        let request =
+            crate::json::parse(r#"{"seq":3,"type":"request","command":"continue"}"#).unwrap();
+        let frames = server.handle(&request);
         let all = frames.join("");
         assert!(
             all.contains(r#""event":"stopped""#),
@@ -649,6 +657,13 @@ mod tests {
             }
             other => panic!("expected a Round event at the breakpoint, got {other:?}"),
         }
+        let events = observer.events.lock().unwrap();
+        assert!(
+            events
+                .iter()
+                .any(|event| event.contains("dap stopped at breakpoint round=12")),
+            "breakpoint narration missing: {events:?}"
+        );
     }
 
     /// Collects every narrated event so tests can pin the narration contract.
@@ -670,8 +685,9 @@ mod tests {
             events: std::sync::Mutex::new(Vec::new()),
         });
         let mut server = DapServer::with_observer(DEFAULT_SCENARIO_SIZE, observer.clone());
-        let req = crate::json::parse(r#"{"seq":1,"type":"request","command":"status"}"#).unwrap();
-        let _ = server.handle(&req);
+        let request =
+            crate::json::parse(r#"{"seq":1,"type":"request","command":"status"}"#).unwrap();
+        let _ = server.handle(&request);
         let events = observer.events.lock().unwrap();
         assert!(
             events
@@ -684,9 +700,9 @@ mod tests {
     #[test]
     fn test_dap_stack_trace_and_variables() {
         let mut server = DapServer::new();
-        let req =
+        let request =
             crate::json::parse(r#"{"seq":1,"type":"request","command":"stackTrace"}"#).unwrap();
-        let frames = server.handle(&req);
+        let frames = server.handle(&request);
         assert!(frames[0].contains("stackFrames"));
         let body = frames[0].split("\r\n\r\n").nth(1).unwrap();
         let parsed = crate::json::parse(body).unwrap();
@@ -716,11 +732,11 @@ mod tests {
                 panic!("stackTrace response must carry stackFrames and totalFrames");
             }
         }
-        let req = crate::json::parse(
+        let request = crate::json::parse(
             r#"{"seq":2,"type":"request","command":"variables","arguments":{"variablesReference":1}}"#,
         )
         .unwrap();
-        let frames = server.handle(&req);
+        let frames = server.handle(&request);
         assert!(frames[0].contains("position"));
         assert!(frames[0].contains("length"));
         assert!(frames[0].contains("round"));
@@ -729,8 +745,8 @@ mod tests {
     #[test]
     fn test_dap_next_step() {
         let mut server = DapServer::new();
-        let req = crate::json::parse(r#"{"seq":1,"type":"request","command":"next"}"#).unwrap();
-        let frames = server.handle(&req);
+        let request = crate::json::parse(r#"{"seq":1,"type":"request","command":"next"}"#).unwrap();
+        let frames = server.handle(&request);
         let all = frames.join("");
         assert!(all.contains(r#""reason":"step""#));
         assert_eq!(server.debugger.position(), 1);
@@ -739,8 +755,8 @@ mod tests {
     #[test]
     fn test_dap_unknown_command() {
         let mut server = DapServer::new();
-        let req = crate::json::parse(r#"{"seq":1,"type":"request","command":"fly"}"#).unwrap();
-        let frames = server.handle(&req);
+        let request = crate::json::parse(r#"{"seq":1,"type":"request","command":"fly"}"#).unwrap();
+        let frames = server.handle(&request);
         assert!(frames[0].contains(r#""success":false"#));
     }
 
