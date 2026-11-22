@@ -81,7 +81,7 @@ fn test_d6_3_frame_roundtrip() {
     let body = r#"{"seq":1,"type":"request","command":"initialize"}"#;
     let frame = format!("Content-Length: {}\r\n\r\n{}", body.len(), body);
     let mut reader = std::io::BufReader::new(frame.as_bytes());
-    let msg = read_frame(&mut reader).unwrap();
+    let msg = read_frame(&mut reader).unwrap().unwrap();
     assert_eq!(
         msg.get("command").and_then(|c| c.as_str()),
         Some("initialize")
