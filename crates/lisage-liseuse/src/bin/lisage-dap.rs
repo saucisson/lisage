@@ -15,5 +15,8 @@ fn main() {
             "lisage-dap: TCP socket mode not yet implemented in this increment; falling back to stdio"
         );
     }
-    run_stdio();
+    if let Err(error) = run_stdio() {
+        eprintln!("lisage-dap: {error}");
+        std::process::exit(1);
+    }
 }

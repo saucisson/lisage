@@ -8,12 +8,14 @@
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Write};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::debugger::{Command, Debugger, standard_scenario};
 use crate::json::Json;
-use lisage_core::observer::TraceEvent;
+use lisage_core::NodeId;
+use lisage_core::observer::{ChannelAttr, NoOpObserver, Observer, TraceEvent, TraceVal};
+use std::fmt;
+use std::sync::Arc;
 
 /// Serialize a Json value to a compact string.
 pub fn json_to_string(value: &Json) -> String {
@@ -57,16 +59,56 @@ pub fn json_to_string(value: &Json) -> String {
     }
 }
 
-/// Parse one DAP frame from a reader. Returns None on EOF.
-pub fn read_frame<R: BufRead>(reader: &mut R) -> Option<Json> {
+/// Typed DAP transport/parse error — causes preserved, nothing swallowed.
+#[derive(Debug)]
+pub enum DapError {
+    /// Underlying I/O failure (stdin/stdout).
+    Io(std::io::Error),
+    /// A header line could not be parsed (bad Content-Length).
+    MalformedHeader(String),
+    /// The frame body is not valid JSON.
+    MalformedBody(String),
+}
+
+impl fmt::Display for DapError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DapError::Io(error) => write!(formatter, "I/O error: {error}"),
+            DapError::MalformedHeader(line) => write!(formatter, "malformed DAP header: {line:?}"),
+            DapError::MalformedBody(cause) => write!(formatter, "malformed DAP body: {cause}"),
+        }
+    }
+}
+
+impl std::error::Error for DapError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            DapError::Io(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+/// Narrate one DEBUG event through the Observer channel (ADR-0005/ADR-0100).
+fn narrate(observer: &dyn Observer, message: String) {
+    observer.on_event(&TraceEvent::Attr {
+        channel: ChannelAttr::Synthesized,
+        node: NodeId(0),
+        value: TraceVal::texte(message),
+        span: None,
+    });
+}
+
+/// Parse one DAP frame from a reader. `Ok(None)` on clean EOF.
+pub fn read_frame<R: BufRead>(reader: &mut R) -> Result<Option<Json>, DapError> {
     let mut content_length: Option<usize> = None;
     let mut line = String::new();
     loop {
         line.clear();
         match reader.read_line(&mut line) {
-            Ok(0) => return None,
+            Ok(0) => return Ok(None),
             Ok(_) => {}
-            Err(_) => return None,
+            Err(error) => return Err(DapError::Io(error)),
         }
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -76,15 +118,24 @@ pub fn read_frame<R: BufRead>(reader: &mut R) -> Option<Json> {
             continue;
         }
         if let Some(rest) = trimmed.strip_prefix("Content-Length:") {
-            content_length = rest.trim().parse().ok();
+            content_length = Some(
+                rest.trim()
+                    .parse()
+                    .map_err(|_| DapError::MalformedHeader(trimmed.to_string()))?,
+            );
         }
     }
-    let length = content_length?;
+    let length = content_length.expect("header loop breaks only with a length");
     let mut buf = vec![0u8; length];
-    reader.read_exact(&mut buf).ok()?;
+    reader.read_exact(&mut buf).map_err(DapError::Io)?;
     let text = String::from_utf8_lossy(&buf);
-    crate::json::parse(&text).ok()
+    crate::json::parse(&text)
+        .map(Some)
+        .map_err(DapError::MalformedBody)
 }
+
+/// Default scenario size: n=13 so that round 12 exists for the DoD breakpoint.
+const DEFAULT_SCENARIO_SIZE: u64 = 13;
 
 /// The DAP server state: one debugger + breakpoints.
 pub struct DapServer {
@@ -96,6 +147,8 @@ pub struct DapServer {
     breakpoints: BTreeMap<String, Vec<i64>>,
     /// Program running.
     running: Arc<AtomicBool>,
+    /// Narration channel (DEBUG events).
+    observer: Arc<dyn Observer>,
 }
 
 impl Default for DapServer {
@@ -108,16 +161,22 @@ impl DapServer {
     /// New server over the standard philosophers scenario (n=13 so that
     /// round 12 exists for the DoD breakpoint).
     pub fn new() -> Self {
-        Self::with_scenario(13)
+        Self::with_scenario(DEFAULT_SCENARIO_SIZE)
     }
 
     /// New server over the standard scenario of the given size.
     pub fn with_scenario(n: u64) -> Self {
+        Self::with_observer(n, Arc::new(NoOpObserver))
+    }
+
+    /// New server with an explicit narration observer.
+    pub fn with_observer(n: u64, observer: Arc<dyn Observer>) -> Self {
         DapServer {
             seq: 0,
             debugger: Debugger::new(standard_scenario(n)),
             breakpoints: BTreeMap::new(),
             running: Arc::new(AtomicBool::new(true)),
+            observer,
         }
     }
 
@@ -165,6 +224,10 @@ impl DapServer {
             .and_then(|c| c.as_str())
             .unwrap_or("");
         let args = request.get("arguments").cloned().unwrap_or(Json::Null);
+        narrate(
+            self.observer.as_ref(),
+            format!("dap dispatch command={command} seq={request_seq}"),
+        );
         match command {
             "initialize" => vec![self.response(
                 request_seq,
@@ -365,7 +428,10 @@ impl DapServer {
                 )]
             }
             "continue" => {
-                // Run until the next breakpoint or end.
+                narrate(
+                    self.observer.as_ref(),
+                    "dap continue: run until breakpoint or end".to_string(),
+                );
                 let breakpoints = self
                     .breakpoints
                     .get("philosophers")
@@ -378,12 +444,15 @@ impl DapServer {
                     if position >= self.debugger.length() {
                         break;
                     }
-                    // Check if current event is a round matching a breakpoint.
                     if let Some(TraceEvent::Round { numero, .. }) = self.debugger.current_event()
                         && breakpoints.contains(&(*numero as i64))
                     {
                         stopped_reason = "breakpoint";
                         stopped_round = Some(*numero as i64);
+                        narrate(
+                            self.observer.as_ref(),
+                            format!("dap stopped at breakpoint round={numero}"),
+                        );
                         break;
                     }
                     self.debugger.run(Command::Step);
@@ -466,24 +535,42 @@ impl DapServer {
     }
 }
 
-/// Run the DAP server on stdio.
-pub fn run_stdio() {
+/// Run the DAP server on stdio. Errors are returned, never swallowed;
+/// the entry point prints them and exits non-zero.
+pub fn run_stdio() -> Result<(), DapError> {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let mut reader = BufReader::new(stdin.lock());
     let mut writer = stdout.lock();
     let mut server = DapServer::new();
-    while let Some(msg) = read_frame(&mut reader) {
+    loop {
+        let msg = match read_frame(&mut reader) {
+            Ok(Some(msg)) => msg,
+            Ok(None) => break,
+            Err(error) => {
+                // Tell the client before tearing down the session.
+                let frame = format!(
+                    "Content-Length: {}\r\n\r\n{}",
+                    r#"{"seq":0,"type":"response","success":false,"message":"malformed frame"}"#
+                        .len(),
+                    r#"{"seq":0,"type":"response","success":false,"message":"malformed frame"}"#
+                );
+                writer.write_all(frame.as_bytes()).map_err(DapError::Io)?;
+                writer.flush().map_err(DapError::Io)?;
+                return Err(error);
+            }
+        };
         if msg.get("type").and_then(|t| t.as_str()) == Some("request") {
             for frame in server.handle(&msg) {
-                let _ = writer.write_all(frame.as_bytes());
-                let _ = writer.flush();
+                writer.write_all(frame.as_bytes()).map_err(DapError::Io)?;
+                writer.flush().map_err(DapError::Io)?;
             }
             if !server.is_running() {
                 break;
             }
         }
     }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -618,7 +705,7 @@ mod tests {
         let body = r#"{"seq":1,"type":"request","command":"initialize"}"#;
         let frame = format!("Content-Length: {}\r\n\r\n{}", body.len(), body);
         let mut reader = std::io::BufReader::new(frame.as_bytes());
-        let msg = read_frame(&mut reader).unwrap();
+        let msg = read_frame(&mut reader).unwrap().unwrap();
         assert_eq!(msg.get("seq").and_then(|s| s.as_num()), Some(1));
         assert_eq!(
             msg.get("command").and_then(|c| c.as_str()),
