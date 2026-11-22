@@ -1597,27 +1597,5 @@ One entry per commit or pull request:
 ## 2026-11-21 - D6-2: loopback WebSocket gateway (issue #175)
 
 - **Issue**: #175 (D6-2, passerelle loopback et page live). needs-human escalation posted on the issue for the new dependencies tokio + tokio-tungstenite + futures-util (ADR-0010); the human approved tokio + tungstenite for D6 in the working session (futures-util is the companion stream/sink combinator crate of the same stack). Cargo.lock is deliberately untracked (.gitignore), so no lockfile update belongs in the diff.
-- **Done**: new module `crates/lisage-liseuse/src/gateway.rs` — `GatewayState` (trace + atomic position/break_round/paused), `generate_token` (32 hex chars from /dev/urandom), `run_gateway` (TCP listener on 127.0.0.1:0; page on GET / behind `Authorization: Bearer`, WebSocket on GET /ws with first-frame auth, 403 otherwise). JSON command protocol: step/back/goto/break/pause/continue/status. New binary `lisage-gateway.rs`, live HTML page with buttons, API contract `docs/gateway-protocol.md`. Tests: `tests/gateway_dod.rs` (7 DoD tests incl. 403-bearer and WS-driven replay over real TCP) + 10 unit tests in gateway.rs.
-- **Evidence**: `cargo test -p lisage-liseuse --all-targets` all green (22 suites, incl. 6 gateway DoD tests — token 403 enforcement over real TCP, break at round 12, goto clamping — and 10 gateway unit tests); `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all` clean; `make english-only` green. Not run: full `make check`, property tier, mutation testing, browser E2E.
-- **Judgement calls**: page is an inline minimal HTML (full page.rs renderer lands when D6-1 PR #343 merges); gateway replays a .jsonl file (per human decision) rather than attaching to a live process; token is a non-crypto PRNG hex (sufficient for loopback threat model); bind is 127.0.0.1:0 strict, never 0.0.0.0.
-- **Escalations**: needs-human on issue #175 for tokio + tokio-tungstenite dependencies (ADR-0010).
-
-## feat/175 D6-2 gateway — review #344 rounds 1-4 fixes
-
-- `futures-util` removed (needs-human approval recorded on #175: tokio +
-  tokio-tungstenite only, versions pinned exactly in Cargo.toml); WS framing
-  via the sync tungstenite API on a blocking thread.
-- Credential never in URLs (ADR-0016): page behind `Authorization: Bearer`
-  (exact match), `/ws` authenticates on the first frame. `ConnectionToken`
-  with redacted Display/Debug, token from `/dev/urandom` (typed error).
-- DEBUG narration via the Observer channel, pinned by test; token never
-  narrated. DoD over real TCP/WS (403 bearer, WS-driven replay). API
-  contract: docs/gateway-protocol.md. serve_stream flattened
-  (websocket_session/authenticate_frame) for the nesting budget.
-
-## feat/175 D6-2 — review #344 round 5
-
-- Property tier added (proptest dev-dependency, approved on #175):
-  `tests/gateway_property.rs` — position stays in `[0, length]` over arbitrary
-  command sequences; `continue` stops exactly at the break round or runs to
-  the end. Diff trimmed to ~1 060 lines (compact tests, contract doc).
+- **Done**: `gateway.rs` (D6-2 loopback gateway: `GatewayState`, bearer-auth page, first-frame-auth WebSocket replaying a `.jsonl` trace; protocol in `docs/gateway-protocol.md`), bin `lisage-gateway.rs`, tests `gateway_dod.rs` (7 DoD) + `gateway_property.rs` (proptest) + 10 unit tests. needs-human approvals on #175 (tokio/tokio-tungstenite, proptest dev-dep).
+- **Evidence**: `cargo test -p lisage-liseuse --all-targets` green (23 suites); clippy/fmt clean.

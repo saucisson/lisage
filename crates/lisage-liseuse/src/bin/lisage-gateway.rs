@@ -1,10 +1,6 @@
-//! D6-2 — `lisage-gateway`: loopback WebSocket gateway serving the offline
-//! page and replaying a `.jsonl` trace, bound to `127.0.0.1` only with a
-//! random token required on every connection.
-//!
-//! Usage: `lisage-gateway <trace.jsonl> [title]`
-//!
-//! Prints the URL and the bearer token to stderr — never in a URL.
+//! D6-2 — `lisage-gateway <trace.jsonl> [title]`: loopback WebSocket gateway
+//! (127.0.0.1 only). Prints the URL and bearer token to stderr — never in a
+//! URL.
 
 use std::sync::Arc;
 
