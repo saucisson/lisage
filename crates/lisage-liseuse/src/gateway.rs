@@ -99,7 +99,9 @@ impl ConnectionToken {
     }
 }
 
+/// Called once with (port, token, event count) when the gateway is bound.
 pub type Announce = Box<dyn FnOnce(u16, &ConnectionToken, usize) + Send>;
+/// Called with the error message of each failed connection.
 pub type ConnectionError = Box<dyn Fn(String) + Send + Sync>;
 
 /// Side-channel events consumed by the entry point (the only place allowed
@@ -111,6 +113,7 @@ pub struct GatewayEvents {
     pub connection_error: ConnectionError,
 }
 
+/// Shared gateway state: the trace, the current position, the break round.
 pub struct GatewayState {
     /// All trace events.
     pub events: Vec<TraceEvent>,
@@ -180,6 +183,8 @@ fn bearer_matches(token: &ConnectionToken, authorization: Option<&str>) -> bool 
     authorization == Some(format!("Bearer {}", token.as_secret_str()).as_str())
 }
 
+/// Run the gateway on 127.0.0.1: port/token/event count via `events.announce`,
+/// narration via `observer`; never resolves while the gateway is up.
 pub async fn run_gateway(
     trace_path: &str,
     title: &str,
