@@ -1,10 +1,9 @@
 # D6-2 loopback gateway — API contract (ADR-0016)
 
 The gateway (`lisage-gateway <trace.jsonl> [title]`) binds **127.0.0.1 only**
-(never 0.0.0.0) on an ephemeral port. One random 32-hex-char token per run
-is the sole credential. **No secret ever appears in a URL**: HTTP uses the
-`Authorization: Bearer <token>` header, the WebSocket authenticates on its
-first text frame.
+(never 0.0.0.0) on an ephemeral port with one random 32-hex-char token per
+run. **No secret ever appears in a URL**: HTTP uses `Authorization: Bearer`,
+the WebSocket authenticates on its first text frame.
 
 ## Endpoints
 

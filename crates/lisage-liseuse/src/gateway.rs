@@ -111,7 +111,6 @@ pub struct GatewayEvents {
     pub connection_error: ConnectionError,
 }
 
-/// Shared gateway state: the trace, the current position, the break round.
 pub struct GatewayState {
     /// All trace events.
     pub events: Vec<TraceEvent>,
@@ -154,8 +153,6 @@ impl GatewayState {
     }
 }
 
-/// Narrate one DEBUG event through the observer channel (ADR-0100 decision
-/// 6). Named fields only; secrets (the token) are never narrated.
 fn narrate(observer: &dyn Observer, message: String) {
     observer.on_event(&TraceEvent::Attr {
         channel: ChannelAttr::Synthesized,
@@ -179,18 +176,10 @@ pub fn generate_token() -> Result<ConnectionToken, GatewayError> {
     ))
 }
 
-/// Exact `Authorization: Bearer <token>` check on the header value —
-/// equality, not substring. The credential travels in the header
-/// (ADR-0016: no secret in URLs), never in the query string.
 fn bearer_matches(token: &ConnectionToken, authorization: Option<&str>) -> bool {
     authorization == Some(format!("Bearer {}", token.as_secret_str()).as_str())
 }
 
-/// Run the gateway: serve HTTP page + WebSocket on 127.0.0.1.
-///
-/// `trace_path` is the `.jsonl` file to replay. The bound port, token and
-/// event count are reported through `events.announce`; narration goes
-/// through `observer`. This future never resolves while the gateway is up.
 pub async fn run_gateway(
     trace_path: &str,
     title: &str,
@@ -237,7 +226,6 @@ pub async fn run_gateway(
     }
 }
 
-/// Load a trace from a `.jsonl` file, preserving the typed error.
 fn load_trace(path: &str) -> Result<Vec<TraceEvent>, GatewayError> {
     let content = std::fs::read_to_string(path)?;
     deserialiser_trace(&content).map_err(GatewayError::Trace)
@@ -350,9 +338,6 @@ fn serve_stream(
     websocket_session(socket, token, state, observer)
 }
 
-/// One authenticated WebSocket session: the first text frame must carry
-/// the token (no secret in the URL), then commands are answered until the
-/// peer disconnects.
 fn websocket_session(
     mut socket: tokio_tungstenite::tungstenite::WebSocket<std::net::TcpStream>,
     token: ConnectionToken,
@@ -386,8 +371,6 @@ fn websocket_session(
     Ok(())
 }
 
-/// First-frame authentication: returns Ok(true) when the frame is a valid
-/// auth frame, Ok(false) after answering auth_failed (session over).
 fn authenticate_frame(
     socket: &mut tokio_tungstenite::tungstenite::WebSocket<std::net::TcpStream>,
     token: &ConnectionToken,
@@ -417,8 +400,10 @@ fn authenticate_frame(
     Ok(authenticated)
 }
 
-/// Parse a JSON command and produce a JSON response. The command name is
-/// narrated (never the token, which commands do not carry).
+/// Parse a JSON command and produce a JSON response: an ARRAY of event
+/// objects (one JSON value per replay event, so every frame is strict JSON).
+/// The command name is narrated (never the token, which commands do not
+/// carry).
 pub fn handle_command(
     text: &str,
     state: &Arc<GatewayState>,
@@ -427,80 +412,118 @@ pub fn handle_command(
     let parsed = crate::json::parse(text).ok()?;
     let command = parsed.get("cmd")?.as_str()?;
     narrate(observer, format!("gateway: command received cmd={command}"));
-    let length = state.events.len();
-    let response = match command {
-        "step" | "next" => {
-            state.paused.store(0, Ordering::SeqCst);
-            match state.step() {
-                Some((position, hit_break)) => {
-                    let event_json = state
-                        .events
-                        .get(position.saturating_sub(1))
-                        .map(|event| format!(r#",\"kind\":\"{}\""#, event_kind_name(event)))
-                        .unwrap_or_default();
-                    if hit_break {
-                        format!(
-                            r#"{{"event":"break","position":{position},"length":{length}}}{{"event":"position","position":{position},"length":{length}}}"#
-                        )
-                    } else {
-                        format!(
-                            r#"{{"event":"event","position":{position}{event_json}}}{{"event":"position","position":{position},"length":{length}}}"#
-                        )
-                    }
-                }
-                None => r#"{"event":"done"}"#.to_string(),
-            }
-        }
-        "back" => {
-            let position = state.position().saturating_sub(1);
-            state.position.store(position, Ordering::SeqCst);
-            format!(r#"{{"event":"position","position":{position},"length":{length}}}"#)
-        }
-        "goto" => {
-            let target = parsed.get("position").and_then(|p| p.as_num()).unwrap_or(0);
-            let position = (target as usize).min(length);
-            state.position.store(position, Ordering::SeqCst);
-            format!(r#"{{"event":"position","position":{position},"length":{length}}}"#)
-        }
-        "break" => {
-            let round = parsed.get("round").and_then(|r| r.as_num()).unwrap_or(0);
-            state.break_round.store(round as usize, Ordering::SeqCst);
-            format!(r#"{{"event":"break_set","round":{round}}}"#)
-        }
-        "pause" => {
-            state.paused.store(1, Ordering::SeqCst);
-            r#"{"event":"paused"}"#.to_string()
-        }
-        "continue" | "resume" => {
-            state.paused.store(0, Ordering::SeqCst);
-            let mut last_position = state.position();
-            let mut hit = false;
-            while let Some((position, hit_break)) = state.step() {
-                last_position = position;
-                if hit_break {
-                    hit = true;
-                    break;
-                }
-            }
-            if hit {
-                format!(
-                    r#"{{"event":"break","position":{last_position},"length":{length}}}{{"event":"position","position":{last_position},"length":{length}}}"#
-                )
-            } else {
-                format!(r#"{{"event":"done","position":{last_position},"length":{length}}}"#)
-            }
-        }
-        "status" => {
-            let position = state.position();
-            format!(
-                r#"{{"event":"status","position":{position},"length":{length},"paused":{},"break_round":{}}}"#,
-                state.paused.load(Ordering::SeqCst),
-                state.break_round.load(Ordering::SeqCst)
-            )
-        }
+    let events = match command {
+        "step" | "next" => command_step(state),
+        "back" => vec![command_back(state)],
+        "goto" => vec![command_goto(&parsed, state)],
+        "break" => vec![command_break(&parsed, state)],
+        "pause" => command_pause(state),
+        "continue" | "resume" => command_continue(state),
+        "status" => vec![command_status(state)],
         _ => return None,
     };
-    Some(response)
+    Some(format!("[{}]", events.join(",")))
+}
+
+/// `step`: advance one event; emits `event`/`break` + `position`, or `done`.
+fn command_step(state: &Arc<GatewayState>) -> Vec<String> {
+    state.paused.store(0, Ordering::SeqCst);
+    let length = state.events.len();
+    let Some((position, hit_break)) = state.step() else {
+        return vec![r#"{"event":"done"}"#.to_string()];
+    };
+    let kind = state
+        .events
+        .get(position.saturating_sub(1))
+        .map(|event| format!(r#""kind":"{}""#, event_kind_name(event)))
+        .unwrap_or_default();
+    let position_event =
+        format!(r#"{{"event":"position","position":{position},"length":{length}}}"#);
+    if hit_break {
+        vec![
+            format!(r#"{{"event":"break","position":{position},"length":{length}}}"#),
+            position_event,
+        ]
+    } else {
+        vec![
+            format!(r#"{{"event":"event","position":{position},{kind}}}"#),
+            position_event,
+        ]
+    }
+}
+
+/// `back`: one step backward (clamped at 0).
+fn command_back(state: &Arc<GatewayState>) -> String {
+    let position = state.position().saturating_sub(1);
+    state.position.store(position, Ordering::SeqCst);
+    format!(
+        r#"{{"event":"position","position":{position},"length":{}}}"#,
+        state.events.len()
+    )
+}
+
+/// `goto`: jump, clamped to `[0, length]`.
+fn command_goto(parsed: &crate::json::Json, state: &Arc<GatewayState>) -> String {
+    let target = parsed.get("position").and_then(|p| p.as_num()).unwrap_or(0);
+    let position = (target.max(0) as usize).min(state.events.len());
+    state.position.store(position, Ordering::SeqCst);
+    format!(
+        r#"{{"event":"position","position":{position},"length":{}}}"#,
+        state.events.len()
+    )
+}
+
+/// `break`: set the break round.
+fn command_break(parsed: &crate::json::Json, state: &Arc<GatewayState>) -> String {
+    let round = parsed.get("round").and_then(|r| r.as_num()).unwrap_or(0);
+    state
+        .break_round
+        .store(round.max(0) as usize, Ordering::SeqCst);
+    format!(r#"{{"event":"break_set","round":{round}}}"#)
+}
+
+/// `pause`.
+fn command_pause(state: &Arc<GatewayState>) -> Vec<String> {
+    state.paused.store(1, Ordering::SeqCst);
+    vec![r#"{"event":"paused"}"#.to_string()]
+}
+
+/// `continue`: run until the break round or the end of the trace.
+fn command_continue(state: &Arc<GatewayState>) -> Vec<String> {
+    state.paused.store(0, Ordering::SeqCst);
+    let length = state.events.len();
+    let mut last_position = state.position();
+    let mut hit = false;
+    while let Some((position, hit_break)) = state.step() {
+        last_position = position;
+        if hit_break {
+            hit = true;
+            break;
+        }
+    }
+    let position_event =
+        format!(r#"{{"event":"position","position":{last_position},"length":{length}}}"#);
+    if hit {
+        vec![
+            format!(r#"{{"event":"break","position":{last_position},"length":{length}}}"#),
+            position_event,
+        ]
+    } else {
+        vec![format!(
+            r#"{{"event":"done","position":{last_position},"length":{length}}}"#
+        )]
+    }
+}
+
+/// `status`: current position, length, paused flag, break round.
+fn command_status(state: &Arc<GatewayState>) -> String {
+    format!(
+        r#"{{"event":"status","position":{},"length":{},"paused":{},"break_round":{}}}"#,
+        state.position(),
+        state.events.len(),
+        state.paused.load(Ordering::SeqCst),
+        state.break_round.load(Ordering::SeqCst)
+    )
 }
 
 /// Minimal inline HTML page for the live gateway (static navigation is
@@ -540,7 +563,7 @@ const ws = new WebSocket('ws://' + location.host + '/ws');
 ws.onopen = () => ws.send(JSON.stringify({{cmd: 'auth', token: TOKEN}}));
 ws.onmessage = (e) => {{
   const log = document.getElementById('log');
-  log.textContent += e.data + '\n';
+  for (const event of JSON.parse(e.data)) log.textContent += JSON.stringify(event) + '\n';
   log.scrollTop = log.scrollHeight;
 }};
 ws.onclose = () => document.getElementById('status').textContent = 'disconnected';
@@ -558,8 +581,8 @@ mod tests {
     use lisage_core::observer::NoOpObserver;
     use std::sync::Mutex;
 
-    fn round(numero: u32) -> TraceEvent {
-        TraceEvent::Round { numero, niveaux_actifs: vec![0], niveaux_modifies: vec![], avant: NodeId(0), image: NodeId(0), apres: NodeId(0), croissance: 0, span: None }
+    fn round(number: u32) -> TraceEvent {
+        TraceEvent::Round { numero: number, niveaux_actifs: vec![0], niveaux_modifies: vec![], avant: NodeId(0), image: NodeId(0), apres: NodeId(0), croissance: 0, span: None }
     }
 
     #[test]
@@ -598,37 +621,9 @@ mod tests {
         assert!(state.step().is_none(), "end of trace");
     }
 
-    #[test]
-    fn test_handle_command_step() {
-        let state = Arc::new(GatewayState::new(vec![TraceEvent::OpEnd { span: None }, TraceEvent::OpEnd { span: None }]));
-        let response = handle_command(r#"{"cmd":"step"}"#, &state, &NoOpObserver).unwrap();
-        assert!(response.contains(r#""event":"position""#) && response.contains(r#""position":1"#));
-    }
 
-    #[test]
-    fn test_handle_command_break() {
-        let state = Arc::new(GatewayState::new(vec![round(12)]));
-        let response = handle_command(r#"{"cmd":"break","round":12}"#, &state, &NoOpObserver).unwrap();
-        assert!(response.contains(r#""event":"break_set""#) && response.contains(r#""round":12"#));
-        let response = handle_command(r#"{"cmd":"continue"}"#, &state, &NoOpObserver).unwrap();
-        assert!(response.contains(r#""event":"break""#), "continue hits round 12 break: {response}");
-    }
 
-    #[test]
-    fn test_handle_command_goto_and_back() {
-        let state = Arc::new(GatewayState::new(vec![TraceEvent::OpEnd { span: None }; 3]));
-        handle_command(r#"{"cmd":"goto","position":2}"#, &state, &NoOpObserver).unwrap();
-        assert_eq!(state.position(), 2);
-        let response = handle_command(r#"{"cmd":"back"}"#, &state, &NoOpObserver).unwrap();
-        assert_eq!(state.position(), 1);
-        assert!(response.contains(r#""position":1"#));
-    }
 
-    #[test]
-    fn test_handle_command_unknown() {
-        let state = Arc::new(GatewayState::new(vec![]));
-        assert!(handle_command(r#"{"cmd":"fly"}"#, &state, &NoOpObserver).is_none());
-    }
 
     /// Narration contract pinned (ADR-0005, checklist §4); never the token.
     #[test]

@@ -10,22 +10,15 @@ use lisage_core::observer::{NoOpObserver, TraceEvent};
 use lisage_liseuse::gateway::{GatewayState, handle_command};
 use proptest::prelude::*;
 
+#[rustfmt::skip]
 fn trace_with_rounds(count: u32) -> Vec<TraceEvent> {
-    (1..=count)
-        .map(|numero| TraceEvent::Round {
-            numero,
-            niveaux_actifs: vec![0],
-            niveaux_modifies: vec![0],
-            avant: NodeId(numero),
-            image: NodeId(numero),
-            apres: NodeId(numero),
-            croissance: 1,
-            span: None,
-        })
-        .collect()
+    (1..=count).map(|number| TraceEvent::Round {
+        numero: number, niveaux_actifs: vec![0], niveaux_modifies: vec![0],
+        avant: NodeId(number), image: NodeId(number), apres: NodeId(number),
+        croissance: 1, span: None,
+    }).collect()
 }
 
-/// One random command: (json, description).
 fn command_strategy() -> impl Strategy<Value = String> {
     prop_oneof![
         Just(r#"{"cmd":"step"}"#.to_string()),
@@ -45,7 +38,7 @@ proptest! {
         let state = Arc::new(GatewayState::new(trace_with_rounds(length)));
         for command in &commands {
             let _ = handle_command(command, &state, &NoOpObserver);
-            prop_assert!(state.position() <= length as usize, "position {} exceeds length {length} after {command}", state.position());
+            prop_assert!(state.position() <= length as usize, "position out of bounds after {command}");
         }
         while state.step().is_some() {}
         prop_assert_eq!(state.position(), length as usize, "stepping to the end lands on length");
