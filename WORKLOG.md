@@ -1619,3 +1619,24 @@ One entry per commit or pull request:
   pins the suffix-extension bypass.
 - SUGGESTION: token generated from `/dev/urandom` (16 bytes) instead of a
   xorshift PRNG — no new dependency.
+
+## feat/175 D6-2 gateway — review #344 round 3 fixes
+
+- BLOCKING: the credential no longer travels in URLs (ADR-0016). HTTP page
+  requires `Authorization: Bearer <token>` (exact equality, header parsed
+  case-insensitively); the WebSocket upgrade at `/ws` carries no secret and
+  the FIRST text frame must be `{"cmd":"auth","token":"..."}` (auth_ok /
+  auth_failed, then the session closes on failure). The token is embedded
+  in the page server-side (the page is only served to the bearer holder).
+  `test_d6_2_token_enforced_403` now also pins that `?token=...` in the URL
+  is REJECTED; `test_d6_2_websocket_drives_replay` drives step/pause/status
+  over a real WebSocket (sync tungstenite client) incl. wrong-token refusal.
+- BLOCKING: dependency approval recorded as a human needs-human answer on
+  issue #175 (tokio + tokio-tungstenite only; futures-util removed).
+  Versions pinned exactly in Cargo.toml (`=1.54.1`, `=0.24.0`) since
+  Cargo.lock is gitignored.
+- ConnectionToken: `Display`/`Debug` redacted; raw value only via
+  `as_secret_str()` (entry point + authenticated page rendering).
+- Sync handshake written by hand (101 + `derive_accept_key`) because
+  tungstenite's `accept_hdr` rejects non-upgrade requests before the
+  callback; `send` (write+flush) used for WS frames.

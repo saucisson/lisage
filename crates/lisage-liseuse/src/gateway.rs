@@ -30,7 +30,7 @@ use lisage_core::observer::{ChannelAttr, Observer, TraceEvent, TraceVal};
 const LOOPBACK_ADDRESS: &str = "127.0.0.1:0";
 /// Token size in bytes (16 bytes → 32 hex chars).
 const TOKEN_BYTES: usize = 16;
-/// Read buffer size for the initial HTTP request.
+/// Cap on the HTTP request head read from a connection.
 const READ_BUFFER_SIZE: usize = 4096;
 
 /// Typed gateway errors; the cause chain is preserved.
@@ -88,7 +88,22 @@ impl ConnectionToken {
 
 impl fmt::Display for ConnectionToken {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
+        formatter.write_str("<redacted>")
+    }
+}
+
+impl ConnectionToken {
+    /// Raw token value — for the entry point printing and the authenticated
+    /// page rendering ONLY. Never log it (ADR-0005); `Display`/`Debug` are
+    /// redacted.
+    pub fn as_secret_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Build a token from a hex string — tests only.
+    #[doc(hidden)]
+    pub fn from_hex_for_test(hex: &str) -> Self {
+        ConnectionToken(hex.to_string())
     }
 }
 
@@ -176,20 +191,11 @@ pub fn generate_token() -> Result<ConnectionToken, GatewayError> {
     ))
 }
 
-/// Extract one query parameter from the HTTP request line. Exact key match;
-/// the returned value is compared for equality by the caller.
-fn query_param(request: &str, name: &str) -> Option<String> {
-    let request_line = request.lines().next()?;
-    let target = request_line.split_whitespace().nth(1)?;
-    let query = target.split_once('?')?.1;
-    for pair in query.split('&') {
-        if let Some((key, value)) = pair.split_once('=')
-            && key == name
-        {
-            return Some(value.to_string());
-        }
-    }
-    None
+/// Exact `Authorization: Bearer <token>` check on the header value —
+/// equality, not substring. The credential travels in the header
+/// (ADR-0016: no secret in URLs), never in the query string.
+fn bearer_matches(token: &ConnectionToken, authorization: Option<&str>) -> bool {
+    authorization == Some(format!("Bearer {}", token.as_secret_str()).as_str())
 }
 
 /// Run the gateway: serve HTTP page + WebSocket on 127.0.0.1.
@@ -213,7 +219,7 @@ pub async fn run_gateway(
     );
     let token = generate_token()?;
     let state = Arc::new(GatewayState::new(trace_events));
-    let page = render_live_page(title, state.events.len());
+    let page = render_live_page(title, state.events.len(), &token);
 
     let listener = TcpListener::bind(LOOPBACK_ADDRESS).await?;
     let port = listener.local_addr()?.port();
@@ -249,58 +255,82 @@ fn load_trace(path: &str) -> Result<Vec<TraceEvent>, GatewayError> {
     deserialiser_trace(&content).map_err(GatewayError::Trace)
 }
 
-/// Handle one TCP connection: HTTP GET → page, WebSocket upgrade → stream.
-/// Requests whose `token` query parameter is not exactly the valid token
-/// get a 403. The request line is read asynchronously; the rest of the
-/// exchange runs on a blocking thread (tungstenite's sync API).
+/// Handle one TCP connection on a blocking thread (sync tungstenite, no
+/// extra dependency): plain GET → page (bearer required, else 403),
+/// `GET /ws` → WebSocket upgrade (credential in the first frame).
 async fn handle_connection(
-    mut stream: TcpStream,
+    stream: TcpStream,
     token: ConnectionToken,
     page: String,
     state: Arc<GatewayState>,
     observer: Arc<dyn Observer>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    let mut buffer = vec![0u8; READ_BUFFER_SIZE];
-    let count = stream.read(&mut buffer).await?;
-    let request = String::from_utf8_lossy(&buffer[..count]).into_owned();
-    if !token.matches(query_param(&request, "token").as_deref()) {
-        narrate(
-            observer.as_ref(),
-            "gateway: connection rejected status=403".to_string(),
-        );
-        let response = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n";
-        stream.write_all(response.as_bytes()).await?;
-        return Ok(());
-    }
-    let is_websocket = request
-        .lines()
-        .next()
-        .and_then(|line| line.split_whitespace().nth(1))
-        .map(|target| target.starts_with("/ws"))
-        .unwrap_or(false);
     let std_stream = stream.into_std()?;
-    let part = buffer[..count].to_vec();
-    tokio::task::spawn_blocking(move || {
-        serve_stream(std_stream, part, is_websocket, page, state, observer)
-    })
-    .await??;
+    tokio::task::spawn_blocking(move || serve_stream(std_stream, token, page, state, observer))
+        .await??;
     Ok(())
 }
 
-/// Serve one connection on a blocking thread: page for plain GET, WebSocket
-/// session (sync tungstenite framing, no extra dependency) for `GET /ws`.
+/// Read the HTTP request head (up to the blank line) from a blocking stream.
+fn read_request_head(stream: &mut std::net::TcpStream) -> std::io::Result<String> {
+    use std::io::Read;
+    let mut bytes = Vec::with_capacity(READ_BUFFER_SIZE);
+    let mut byte = [0u8; 1];
+    while !bytes.ends_with(b"\r\n\r\n") {
+        match stream.read(&mut byte) {
+            Ok(0) => break,
+            Ok(_) => bytes.push(byte[0]),
+            Err(error) => return Err(error),
+        }
+        if bytes.len() > READ_BUFFER_SIZE {
+            break;
+        }
+    }
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Extract one header value from the request head (case-insensitive name).
+fn header_value<'a>(request: &'a str, name: &str) -> Option<&'a str> {
+    for line in request.lines().skip(1) {
+        if line.is_empty() {
+            break;
+        }
+        if let Some((key, value)) = line.split_once(':')
+            && key.trim().eq_ignore_ascii_case(name)
+        {
+            return Some(value.trim());
+        }
+    }
+    None
+}
+
+/// Serve one connection on a blocking thread.
 fn serve_stream(
     mut stream: std::net::TcpStream,
-    part: Vec<u8>,
-    is_websocket: bool,
+    token: ConnectionToken,
     page: String,
     state: Arc<GatewayState>,
     observer: Arc<dyn Observer>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use std::io::Write;
     stream.set_nonblocking(false)?;
-    if !is_websocket {
+    let request = read_request_head(&mut stream)?;
+    let target = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .unwrap_or("/");
+    if !target.starts_with("/ws") {
+        // Plain HTTP: the page requires `Authorization: Bearer <token>`
+        // (ADR-0016: no secret in URLs), otherwise 403.
+        if !bearer_matches(&token, header_value(&request, "authorization")) {
+            narrate(
+                observer.as_ref(),
+                "gateway: connection rejected status=403".to_string(),
+            );
+            stream.write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")?;
+            return Ok(());
+        }
         narrate(
             observer.as_ref(),
             "gateway: page served status=200".to_string(),
@@ -313,9 +343,19 @@ fn serve_stream(
         stream.write_all(response.as_bytes())?;
         return Ok(());
     }
-    let mut socket = tokio_tungstenite::tungstenite::WebSocket::from_partially_read(
+    // WebSocket upgrade at /ws: no credential in the URL. Complete the
+    // 101 handshake, then authenticate on the first text frame.
+    let Some(key) = header_value(&request, "sec-websocket-key") else {
+        stream.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n")?;
+        return Ok(());
+    };
+    let accept = tokio_tungstenite::tungstenite::handshake::derive_accept_key(key.as_bytes());
+    let handshake = format!(
+        "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
+    );
+    stream.write_all(handshake.as_bytes())?;
+    let mut socket = tokio_tungstenite::tungstenite::WebSocket::from_raw_socket(
         stream,
-        part,
         tokio_tungstenite::tungstenite::protocol::Role::Server,
         None,
     );
@@ -323,11 +363,38 @@ fn serve_stream(
         observer.as_ref(),
         "gateway: websocket session open".to_string(),
     );
+    let mut authenticated = false;
     loop {
         match socket.read() {
             Ok(Message::Text(text)) => {
+                if !authenticated {
+                    let parsed = crate::json::parse(&text).ok();
+                    let is_auth_frame = parsed
+                        .as_ref()
+                        .and_then(|value| value.get("cmd"))
+                        .and_then(|command| command.as_str())
+                        == Some("auth");
+                    let candidate = parsed
+                        .as_ref()
+                        .and_then(|value| value.get("token"))
+                        .and_then(|value| value.as_str());
+                    authenticated = is_auth_frame && token.matches(candidate);
+                    let reply = if authenticated {
+                        r#"{"event":"auth_ok"}"#.to_string()
+                    } else {
+                        narrate(
+                            observer.as_ref(),
+                            "gateway: websocket auth failed".to_string(),
+                        );
+                        r#"{"event":"auth_failed"}"#.to_string()
+                    };
+                    if socket.send(Message::Text(reply)).is_err() || !authenticated {
+                        break;
+                    }
+                    continue;
+                }
                 if let Some(response) = handle_command(&text, &state, observer.as_ref())
-                    && socket.write(Message::Text(response)).is_err()
+                    && socket.send(Message::Text(response)).is_err()
                 {
                     break;
                 }
@@ -433,7 +500,9 @@ pub fn handle_command(
 /// Minimal inline HTML page for the live gateway (static navigation is
 /// provided by the D6-1 `page.rs` renderer; this live page adds the
 /// WebSocket hookup carrying the token).
-pub fn render_live_page(title: &str, event_count: usize) -> String {
+pub fn render_live_page(title: &str, event_count: usize, token: &ConnectionToken) -> String {
+    // The token is 32 hex chars: JSON-safe without escaping.
+    let token_json = format!(r#""{}""#, token.as_secret_str());
     format!(
         r#"<!DOCTYPE html>
 <html lang="en">
@@ -458,9 +527,12 @@ button {{ background: #0e639c; color: white; border: none; padding: 4px 12px; ma
 <div id="status">connecting…</div>
 <div id="log"></div>
 <script>
-const TOKEN = new URLSearchParams(location.search).get('token');
-const ws = new WebSocket('ws://' + location.host + '/ws?token=' + TOKEN);
-ws.onopen = () => document.getElementById('status').textContent = 'connected';
+// The page is served only after `Authorization: Bearer` authentication, so
+// embedding the token here exposes it to the authenticated holder only. The
+// WebSocket URL itself carries no secret: auth is the first frame.
+const TOKEN = {token_json};
+const ws = new WebSocket('ws://' + location.host + '/ws');
+ws.onopen = () => ws.send(JSON.stringify({{cmd: 'auth', token: TOKEN}}));
 ws.onmessage = (e) => {{
   const log = document.getElementById('log');
   log.textContent += e.data + '\n';
@@ -483,13 +555,16 @@ mod tests {
     #[test]
     fn test_generate_token_length() {
         let token = generate_token().expect("entropy source available");
-        assert_eq!(token.to_string().len(), 32, "16 bytes → 32 hex chars");
+        assert_eq!(token.as_secret_str().len(), 32, "16 bytes → 32 hex chars");
         assert!(
             token
-                .to_string()
+                .as_secret_str()
                 .chars()
                 .all(|character| character.is_ascii_hexdigit())
         );
+        // Display/Debug are redacted: no secret in logs.
+        assert_eq!(format!("{token}"), "<redacted>");
+        assert_eq!(format!("{token:?}"), "ConnectionToken(<redacted>)");
     }
 
     #[test]
@@ -500,23 +575,15 @@ mod tests {
     }
 
     #[test]
-    fn test_query_param_exact() {
-        let request = "GET /?token=abc123&x=1 HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
-        assert_eq!(query_param(request, "token").as_deref(), Some("abc123"));
-        assert_eq!(query_param(request, "x").as_deref(), Some("1"));
-        assert_eq!(query_param(request, "missing"), None);
-        // A suffix extension must NOT match: exact value comparison only.
+    fn test_bearer_check_exact() {
         let token = ConnectionToken("abc123".to_string());
-        assert!(
-            !token.matches(
-                query_param(request, "token")
-                    .map(|t| format!("{t}AAAA"))
-                    .as_deref()
-            )
-        );
-        assert!(token.matches(Some("abc123")));
-        assert!(!token.matches(Some("abc123AAAA")));
-        assert!(!token.matches(None));
+        assert!(bearer_matches(&token, Some("Bearer abc123")));
+        // Suffix extension must NOT match: exact value comparison only.
+        assert!(!bearer_matches(&token, Some("Bearer abc123AAAA")));
+        // No header / wrong scheme → rejected.
+        assert!(!bearer_matches(&token, None));
+        assert!(!bearer_matches(&token, Some("Basic abc123")));
+        assert!(!bearer_matches(&token, Some("bearer abc123")));
     }
 
     #[test]
