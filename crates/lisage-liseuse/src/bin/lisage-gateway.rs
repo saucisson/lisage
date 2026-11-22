@@ -4,7 +4,9 @@
 //!
 //! Usage: `lisage-gateway <trace.jsonl> [title]`
 //!
-//! Prints the HTTP and WebSocket URLs (with token) to stderr.
+//! Prints the URL and the bearer token to stderr. The token is a secret: it
+//! travels in the `Authorization: Bearer` header (HTTP) and in the first
+//! WebSocket frame — never in a URL.
 
 use std::sync::Arc;
 
@@ -22,8 +24,16 @@ async fn main() {
     let trace_path_label = trace_path.clone();
     let events = GatewayEvents {
         announce: Box::new(move |port, token, event_count| {
-            eprintln!("lisage-gateway: http://127.0.0.1:{port}/?token={token}");
-            eprintln!("lisage-gateway: ws://127.0.0.1:{port}/ws?token={token}");
+            eprintln!("lisage-gateway: page at http://127.0.0.1:{port}/");
+            eprintln!("lisage-gateway: websocket at ws://127.0.0.1:{port}/ws");
+            eprintln!(
+                "lisage-gateway: Authorization: Bearer {}",
+                token.as_secret_str()
+            );
+            eprintln!(
+                "lisage-gateway: curl -H 'Authorization: Bearer {}' http://127.0.0.1:{port}/",
+                token.as_secret_str()
+            );
             eprintln!("lisage-gateway: {event_count} events loaded from {trace_path_label}");
         }),
         connection_error: Box::new(|message| eprintln!("connection error: {message}")),
