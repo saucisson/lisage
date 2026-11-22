@@ -17,29 +17,33 @@ use lisage_core::observer::{ChannelAttr, NoOpObserver, Observer, TraceEvent, Tra
 use std::fmt;
 use std::sync::Arc;
 
+/// Serialize a JSON string scalar (with quotes), escaping backslash,
+/// double-quote and all control characters — valid JSON for any input.
+fn escape_json_str(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for character in text.chars() {
+        match character {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
 /// Serialize a Json value to a compact string.
 pub fn json_to_string(value: &Json) -> String {
     match value {
         Json::Null => "null".to_string(),
         Json::Bool(b) => b.to_string(),
         Json::Num(n) => n.to_string(),
-        Json::Str(s) => {
-            let mut out = String::with_capacity(s.len() + 2);
-            out.push('"');
-            for character in s.chars() {
-                match character {
-                    '\\' => out.push_str("\\\\"),
-                    '"' => out.push_str("\\\""),
-                    '\n' => out.push_str("\\n"),
-                    '\r' => out.push_str("\\r"),
-                    '\t' => out.push_str("\\t"),
-                    c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-                    c => out.push(c),
-                }
-            }
-            out.push('"');
-            out
-        }
+        Json::Str(s) => escape_json_str(s),
         Json::Arr(items) => format!(
             "[{}]",
             items
@@ -52,7 +56,7 @@ pub fn json_to_string(value: &Json) -> String {
             "{{{}}}",
             entries
                 .iter()
-                .map(|(k, v)| format!(r#""{}":{}"#, k, json_to_string(v)))
+                .map(|(k, v)| format!("{}:{}", escape_json_str(k), json_to_string(v)))
                 .collect::<Vec<_>>()
                 .join(",")
         ),
@@ -136,6 +140,8 @@ pub fn read_frame<R: BufRead>(reader: &mut R) -> Result<Option<Json>, DapError> 
 
 /// Default scenario size: n=13 so that round 12 exists for the DoD breakpoint.
 const DEFAULT_SCENARIO_SIZE: u64 = 13;
+/// Source name reported in stack frames and breakpoint requests.
+const SOURCE_NAME: &str = "philosophers";
 
 /// The DAP server state: one debugger + breakpoints.
 pub struct DapServer {
@@ -324,7 +330,7 @@ impl DapServer {
                                 "source".to_string(),
                                 Json::Obj(vec![(
                                     "name".to_string(),
-                                    Json::Str("philosophers".to_string()),
+                                    Json::Str(SOURCE_NAME.to_string()),
                                 )]),
                             ),
                             (
@@ -344,7 +350,7 @@ impl DapServer {
                             "source".to_string(),
                             Json::Obj(vec![(
                                 "name".to_string(),
-                                Json::Str("philosophers".to_string()),
+                                Json::Str(SOURCE_NAME.to_string()),
                             )]),
                         ),
                         (
@@ -434,7 +440,7 @@ impl DapServer {
                 );
                 let breakpoints = self
                     .breakpoints
-                    .get("philosophers")
+                    .get(SOURCE_NAME)
                     .cloned()
                     .unwrap_or_default();
                 let mut stopped_reason = "completed";
@@ -578,6 +584,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_json_to_string_escapes_keys() {
+        let value = Json::Obj(vec![(r#"a"b"#.to_string(), Json::Num(1))]);
+        let text = json_to_string(&value);
+        let parsed = crate::json::parse(&text).unwrap();
+        assert_eq!(parsed, value, "keys with quotes must roundtrip: {text}");
+    }
+
+    #[test]
     fn test_json_to_string_roundtrip() {
         let obj = Json::Obj(vec![
             ("a".to_string(), Json::Num(1)),
@@ -635,6 +649,36 @@ mod tests {
             }
             other => panic!("expected a Round event at the breakpoint, got {other:?}"),
         }
+    }
+
+    /// Collects every narrated event so tests can pin the narration contract.
+    struct CapturingObserver {
+        events: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl Observer for CapturingObserver {
+        fn on_event(&self, event: &TraceEvent) {
+            if let TraceEvent::Attr { value, .. } = event {
+                self.events.lock().unwrap().push(format!("{value:?}"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_dap_narration_is_pinned() {
+        let observer = Arc::new(CapturingObserver {
+            events: std::sync::Mutex::new(Vec::new()),
+        });
+        let mut server = DapServer::with_observer(DEFAULT_SCENARIO_SIZE, observer.clone());
+        let req = crate::json::parse(r#"{"seq":1,"type":"request","command":"status"}"#).unwrap();
+        let _ = server.handle(&req);
+        let events = observer.events.lock().unwrap();
+        assert!(
+            events
+                .iter()
+                .any(|event| event.contains("dap dispatch command=status")),
+            "dispatch narration missing: {events:?}"
+        );
     }
 
     #[test]
