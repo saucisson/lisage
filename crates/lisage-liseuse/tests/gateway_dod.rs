@@ -101,7 +101,6 @@ fn test_d6_2_goto_clamps() {
 /// the page with 200. Exercises the real TCP path of `run_gateway`.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[rustfmt::skip]
-#[rustfmt::skip]
 async fn test_d6_2_token_enforced_403() {
     use lisage_liseuse::debugger::standard_scenario;
     use lisage_liseuse::gateway::{GatewayEvents, run_gateway};
@@ -186,7 +185,6 @@ async fn test_d6_2_token_enforced_403() {
 /// REAL WebSocket — auth as first frame (no secret in the URL), then
 /// step/pause/break/continue frames, asserting the server events.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[rustfmt::skip]
 #[rustfmt::skip]
 async fn test_d6_2_websocket_drives_replay() {
     use lisage_liseuse::debugger::standard_scenario;
