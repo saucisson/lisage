@@ -28,11 +28,9 @@ Client → server commands:
 | `continue` / `resume` | `{"cmd":"continue"}` | runs to the break round or the end: `break` + `position`, or `done` |
 | `status` | `{"cmd":"status"}` | `status` with `position`, `length`, `paused`, `break_round` |
 
-Server → client events: `{"event":"position","position":N,"length":L}`,
-`{"event":"event","position":N,"kind":"OpEnd",...}`,
-`{"event":"break","position":P,"length":L}`, `{"event":"break_set","round":N}`,
-`{"event":"paused"}`, `{"event":"done",...}`, `{"event":"status",...}`,
-`{"event":"auth_ok"}` / `{"event":"auth_failed"}`.
+Server → client events: `position`, `event` (with `kind`), `break`,
+`break_set`, `paused`, `done`, `status`, `auth_ok` / `auth_failed` — all as
+`{"event":"...", ...}` JSON objects with named fields.
 
 ## Errors
 

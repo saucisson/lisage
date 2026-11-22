@@ -1597,27 +1597,27 @@ One entry per commit or pull request:
 ## 2026-11-21 - D6-2: loopback WebSocket gateway (issue #175)
 
 - **Issue**: #175 (D6-2, passerelle loopback et page live). needs-human escalation posted on the issue for the new dependencies tokio + tokio-tungstenite + futures-util (ADR-0010); the human approved tokio + tungstenite for D6 in the working session (futures-util is the companion stream/sink combinator crate of the same stack). Cargo.lock is deliberately untracked (.gitignore), so no lockfile update belongs in the diff.
-- **Done**: new module `crates/lisage-liseuse/src/gateway.rs` — `GatewayState` (trace + atomic position/break_round/paused), `generate_token` (32 hex chars), `run_gateway` (TCP listener on 127.0.0.1:0, serves HTML page on GET / and WebSocket on GET /ws, token checked in query string on every connection, 403 otherwise). JSON command protocol: step/back/goto/break/pause/continue/status. New binary `crates/lisage-liseuse/src/bin/lisage-gateway.rs`: `lisage-gateway <trace.jsonl> [title]`. Inline live HTML page with buttons (step/back/pause/continue/break round 12/status) connecting via WebSocket with token. New tests `crates/lisage-liseuse/tests/gateway_dod.rs` (6 DoD tests): break round 12 caught by continue, step/pause/back/status protocol, self-contained page, token uniqueness/length, goto clamping, token 403 enforcement over real TCP. 10 unit tests in gateway.rs (incl. exact-token check and position-invariant sweep).
+- **Done**: new module `crates/lisage-liseuse/src/gateway.rs` — `GatewayState` (trace + atomic position/break_round/paused), `generate_token` (32 hex chars from /dev/urandom), `run_gateway` (TCP listener on 127.0.0.1:0; page on GET / behind `Authorization: Bearer`, WebSocket on GET /ws with first-frame auth, 403 otherwise). JSON command protocol: step/back/goto/break/pause/continue/status. New binary `lisage-gateway.rs`, live HTML page with buttons, API contract `docs/gateway-protocol.md`. Tests: `tests/gateway_dod.rs` (7 DoD tests incl. 403-bearer and WS-driven replay over real TCP) + 10 unit tests in gateway.rs.
 - **Evidence**: `cargo test -p lisage-liseuse --all-targets` all green (22 suites, incl. 6 gateway DoD tests — token 403 enforcement over real TCP, break at round 12, goto clamping — and 10 gateway unit tests); `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean; `cargo fmt --all` clean; `make english-only` green. Not run: full `make check`, property tier, mutation testing, browser E2E.
 - **Judgement calls**: page is an inline minimal HTML (full page.rs renderer lands when D6-1 PR #343 merges); gateway replays a .jsonl file (per human decision) rather than attaching to a live process; token is a non-crypto PRNG hex (sufficient for loopback threat model); bind is 127.0.0.1:0 strict, never 0.0.0.0.
 - **Escalations**: needs-human on issue #175 for tokio + tokio-tungstenite dependencies (ADR-0010).
 
-## feat/175 D6-2 gateway — review #344 rounds 1-3 fixes
+## feat/175 D6-2 gateway — review #344 rounds 1-4 fixes
 
-- `futures-util` removed (not covered by the needs-human approval, now
-  recorded on issue #175: tokio + tokio-tungstenite only, versions pinned
-  exactly in Cargo.toml since Cargo.lock is gitignored). WS framing uses the
-  sync tungstenite API (re-exported) on a blocking thread.
-- Credential never in URLs (ADR-0016): HTTP page requires
-  `Authorization: Bearer <token>` (exact match); `/ws` upgrade carries no
-  secret, the first WS frame `{"cmd":"auth","token":...}` authenticates
-  (auth_ok/auth_failed). Token embedded in the page server-side only;
-  `ConnectionToken` with redacted Display/Debug, raw value via
-  `as_secret_str()`; token from `/dev/urandom`, typed error not panic.
-- DEBUG narration via the Observer channel (ADR-0100 decision 6), pinned by
-  `test_handle_command_narration_pinned`; token never narrated.
-- DoD over real TCP/WS: `test_d6_2_token_enforced_403` (403 without/wrong
-  bearer, 403 for `?token=` in URL, 200 with bearer) and
-  `test_d6_2_websocket_drives_replay` (auth frame + step/pause/status over a
-  real WebSocket, wrong token refused). 7 DoD tests in gateway_dod.rs, 11
-  unit tests in gateway.rs. API contract: docs/gateway-protocol.md.
+- `futures-util` removed (needs-human approval recorded on #175: tokio +
+  tokio-tungstenite only, versions pinned exactly in Cargo.toml); WS framing
+  via the sync tungstenite API on a blocking thread.
+- Credential never in URLs (ADR-0016): page behind `Authorization: Bearer`
+  (exact match), `/ws` authenticates on the first frame. `ConnectionToken`
+  with redacted Display/Debug, token from `/dev/urandom` (typed error).
+- DEBUG narration via the Observer channel, pinned by test; token never
+  narrated. DoD over real TCP/WS (403 bearer, WS-driven replay). API
+  contract: docs/gateway-protocol.md. serve_stream flattened
+  (websocket_session/authenticate_frame) for the nesting budget.
+
+## feat/175 D6-2 — review #344 round 5
+
+- Property tier added (proptest dev-dependency, approved on #175):
+  `tests/gateway_property.rs` — position stays in `[0, length]` over arbitrary
+  command sequences; `continue` stops exactly at the break round or runs to
+  the end. Diff trimmed to ~1 060 lines (compact tests, contract doc).

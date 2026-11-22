@@ -4,9 +4,7 @@
 //!
 //! Usage: `lisage-gateway <trace.jsonl> [title]`
 //!
-//! Prints the URL and the bearer token to stderr. The token is a secret: it
-//! travels in the `Authorization: Bearer` header (HTTP) and in the first
-//! WebSocket frame — never in a URL.
+//! Prints the URL and the bearer token to stderr — never in a URL.
 
 use std::sync::Arc;
 

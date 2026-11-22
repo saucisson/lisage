@@ -27,24 +27,20 @@ fn sample_trace() -> Vec<TraceEvent> {
 
 /// DoD: break at round 12 is hit by `continue`, not at the end.
 #[test]
+#[rustfmt::skip]
 fn test_d6_2_break_round_12_caught() {
     let state = Arc::new(GatewayState::new(sample_trace()));
     let response = handle_command(r#"{"cmd":"break","round":12}"#, &state, &NoOpObserver).unwrap();
     assert!(response.contains(r#""event":"break_set""#));
     let response = handle_command(r#"{"cmd":"continue"}"#, &state, &NoOpObserver).unwrap();
-    assert!(
-        response.contains(r#""event":"break""#),
-        "continue must hit the round-12 break: {response}"
-    );
-    assert!(
-        response.contains(r#""position":12"#),
-        "break after round 12 (position 12)"
-    );
+    assert!(response.contains(r#""event":"break""#), "continue must hit the round-12 break: {response}");
+    assert!(response.contains(r#""position":12"#), "break after round 12 (position 12)");
     assert_eq!(state.position(), 12);
 }
 
 /// DoD: step/pause/back/status commands work over the JSON protocol.
 #[test]
+#[rustfmt::skip]
 fn test_d6_2_step_pause_back_status() {
     let state = Arc::new(GatewayState::new(sample_trace()));
     let response = handle_command(r#"{"cmd":"step"}"#, &state, &NoOpObserver).unwrap();
@@ -62,15 +58,13 @@ fn test_d6_2_step_pause_back_status() {
 
 /// The live page is self-contained and connects with the token.
 #[test]
+#[rustfmt::skip]
 fn test_d6_2_live_page_self_contained() {
     let token = ConnectionToken::from_hex_for_test("abc123");
     let html = render_live_page("test", 42, &token);
     assert!(html.starts_with("<!DOCTYPE html>"));
     assert!(html.contains("42 events"));
-    assert!(
-        html.contains("auth"),
-        "page authenticates the WebSocket as first frame"
-    );
+    assert!(html.contains("auth"), "page authenticates the WebSocket as first frame");
     assert!(!html.contains("?token="), "no secret in the WebSocket URL");
     assert!(html.contains("WebSocket"), "page opens a WebSocket");
     assert!(html.contains("step"), "step button");
@@ -82,6 +76,7 @@ fn test_d6_2_live_page_self_contained() {
 
 /// Token generation: 32 hex chars, unique across calls.
 #[test]
+#[rustfmt::skip]
 fn test_d6_2_token() {
     let t1 = generate_token().expect("entropy source available");
     let t2 = generate_token().expect("entropy source available");
@@ -94,6 +89,7 @@ fn test_d6_2_token() {
 
 /// Goto clamps to trace length.
 #[test]
+#[rustfmt::skip]
 fn test_d6_2_goto_clamps() {
     let state = Arc::new(GatewayState::new(sample_trace()));
     handle_command(r#"{"cmd":"goto","position":999}"#, &state, &NoOpObserver).unwrap();
@@ -104,6 +100,8 @@ fn test_d6_2_goto_clamps() {
 /// token (or with a wrong one) is rejected with 403, the valid token gets
 /// the page with 200. Exercises the real TCP path of `run_gateway`.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[rustfmt::skip]
+#[rustfmt::skip]
 async fn test_d6_2_token_enforced_403() {
     use lisage_liseuse::debugger::standard_scenario;
     use lisage_liseuse::gateway::{GatewayEvents, run_gateway};
@@ -161,15 +159,9 @@ async fn test_d6_2_token_enforced_403() {
     }
 
     let response = request(port, None).await;
-    assert!(
-        response.starts_with("HTTP/1.1 403"),
-        "missing bearer must be rejected with 403, got: {response}"
-    );
+    assert!(response.starts_with("HTTP/1.1 403"), "missing bearer must be rejected with 403, got: {response}");
     let response = request(port, Some("Bearer deadbeef")).await;
-    assert!(
-        response.starts_with("HTTP/1.1 403"),
-        "wrong token must be rejected with 403, got: {response}"
-    );
+    assert!(response.starts_with("HTTP/1.1 403"), "wrong token must be rejected with 403, got: {response}");
     // Token in the URL is NOT accepted (no secret in URLs, ADR-0016) — the
     // header is required even when the query string carries it.
     let mut stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
@@ -182,15 +174,9 @@ async fn test_d6_2_token_enforced_403() {
     let mut buffer = vec![0u8; 4096];
     let count = stream.read(&mut buffer).await.expect("reading response");
     let response = String::from_utf8_lossy(&buffer[..count]).into_owned();
-    assert!(
-        response.starts_with("HTTP/1.1 403"),
-        "token in URL without header must be rejected with 403, got: {response}"
-    );
+    assert!(response.starts_with("HTTP/1.1 403"), "token in URL without header must be rejected with 403, got: {response}");
     let response = request(port, Some(&format!("Bearer {token}"))).await;
-    assert!(
-        response.starts_with("HTTP/1.1 200"),
-        "valid bearer must get 200, got: {response}"
-    );
+    assert!(response.starts_with("HTTP/1.1 200"), "valid bearer must get 200, got: {response}");
     assert!(response.contains("<!DOCTYPE html>"), "the page is served");
 
     let _ = std::fs::remove_file(&path);
@@ -200,6 +186,8 @@ async fn test_d6_2_token_enforced_403() {
 /// REAL WebSocket — auth as first frame (no secret in the URL), then
 /// step/pause/break/continue frames, asserting the server events.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[rustfmt::skip]
+#[rustfmt::skip]
 async fn test_d6_2_websocket_drives_replay() {
     use lisage_liseuse::debugger::standard_scenario;
     use lisage_liseuse::gateway::{GatewayEvents, run_gateway};
@@ -258,40 +246,28 @@ async fn test_d6_2_websocket_drives_replay() {
             )))
             .expect("sending auth frame");
         let reply = socket.read().expect("reading auth reply");
-        assert!(
-            matches!(&reply, Message::Text(text) if text.contains(r#""event":"auth_ok""#)),
-            "auth frame must be acknowledged: {reply:?}"
-        );
+        assert!(matches!(&reply, Message::Text(text) if text.contains(r#""event":"auth_ok""#)), "auth frame must be acknowledged: {reply:?}");
 
         // step → position event.
         socket
             .send(Message::Text(r#"{"cmd":"step"}"#.to_string()))
             .expect("sending step");
         let reply = socket.read().expect("reading step reply");
-        assert!(
-            matches!(&reply, Message::Text(text) if text.contains(r#""event":"position""#)),
-            "step must produce a position event: {reply:?}"
-        );
+        assert!(matches!(&reply, Message::Text(text) if text.contains(r#""event":"position""#)), "step must produce a position event: {reply:?}");
 
         // pause → paused event.
         socket
             .send(Message::Text(r#"{"cmd":"pause"}"#.to_string()))
             .expect("sending pause");
         let reply = socket.read().expect("reading pause reply");
-        assert!(
-            matches!(&reply, Message::Text(text) if text.contains(r#""event":"paused""#)),
-            "pause must be acknowledged: {reply:?}"
-        );
+        assert!(matches!(&reply, Message::Text(text) if text.contains(r#""event":"paused""#)), "pause must be acknowledged: {reply:?}");
 
         // status over the wire reports paused=1.
         socket
             .send(Message::Text(r#"{"cmd":"status"}"#.to_string()))
             .expect("sending status");
         let reply = socket.read().expect("reading status reply");
-        assert!(
-            matches!(&reply, Message::Text(text) if text.contains(r#""paused":1"#)),
-            "status must report paused=1: {reply:?}"
-        );
+        assert!(matches!(&reply, Message::Text(text) if text.contains(r#""paused":1"#)), "status must report paused=1: {reply:?}");
 
         // Wrong auth on a fresh connection is refused.
         let stream = std::net::TcpStream::connect(("127.0.0.1", port)).expect("connecting");
@@ -306,10 +282,7 @@ async fn test_d6_2_websocket_drives_replay() {
             ))
             .expect("sending bad auth");
         let reply = bad_socket.read().expect("reading auth reply");
-        assert!(
-            matches!(&reply, Message::Text(text) if text.contains(r#""event":"auth_failed""#)),
-            "wrong token must be refused: {reply:?}"
-        );
+        assert!(matches!(&reply, Message::Text(text) if text.contains(r#""event":"auth_failed""#)), "wrong token must be refused: {reply:?}");
     })
     .await
     .expect("blocking client task");
