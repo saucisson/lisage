@@ -1604,4 +1604,4 @@ One entry per commit or pull request:
 
 - **Issue**: #176 — DAP adapter so VS Code / any DAP client can drive the liseuse debugger.
 - **Done**: new module `crates/lisage-liseuse/src/dap.rs` (DapServer: initialize/launch/setBreakpoints/configurationDone/threads/stackTrace/scopes/variables/continue/next/pause/disconnect, stdio transport with Content-Length framing, default scenario n=13 so round 12 exists for the breakpoint DoD), binary `crates/lisage-liseuse/src/bin/lisage-dap.rs` (stdio default, --port stub for future socket transport), `tests/dap_dod.rs` (4 DoD tests) + 7 unit tests.
-- **Evidence**: `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean, `cargo test -p lisage-liseuse --all-targets` 63 passed 0 failed, `cargo fmt --all`, `make english-only` green.
+- **Evidence**: `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean, `cargo test -p lisage-liseuse --all-targets` 63 passed 0 failed, `cargo fmt --all`, `make english-only` green. Not run: full `make check` / nextest / coverage / mutation gates.
