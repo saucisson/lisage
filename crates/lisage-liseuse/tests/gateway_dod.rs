@@ -29,10 +29,8 @@ fn sample_trace() -> Vec<TraceEvent> {
 #[test]
 fn test_d6_2_break_round_12_caught() {
     let state = Arc::new(GatewayState::new(sample_trace()));
-    // Set break at round 12.
     let response = handle_command(r#"{"cmd":"break","round":12}"#, &state, &NoOpObserver).unwrap();
     assert!(response.contains(r#""event":"break_set""#));
-    // Continue from position 0 → should stop at round 12 (position 11, 0-based).
     let response = handle_command(r#"{"cmd":"continue"}"#, &state, &NoOpObserver).unwrap();
     assert!(
         response.contains(r#""event":"break""#),
@@ -49,17 +47,13 @@ fn test_d6_2_break_round_12_caught() {
 #[test]
 fn test_d6_2_step_pause_back_status() {
     let state = Arc::new(GatewayState::new(sample_trace()));
-    // step
     let response = handle_command(r#"{"cmd":"step"}"#, &state, &NoOpObserver).unwrap();
     assert!(response.contains(r#""position":1"#));
-    // pause
     let response = handle_command(r#"{"cmd":"pause"}"#, &state, &NoOpObserver).unwrap();
     assert!(response.contains(r#""event":"paused""#));
     assert_eq!(state.paused.load(Ordering::SeqCst), 1);
-    // back
     let response = handle_command(r#"{"cmd":"back"}"#, &state, &NoOpObserver).unwrap();
     assert!(response.contains(r#""position":0"#));
-    // status
     let response = handle_command(r#"{"cmd":"status"}"#, &state, &NoOpObserver).unwrap();
     assert!(response.contains(r#""event":"status""#));
     assert!(response.contains(r#""length":15"#));
@@ -82,7 +76,6 @@ fn test_d6_2_live_page_self_contained() {
     assert!(html.contains("step"), "step button");
     assert!(html.contains("pause"), "pause button");
     assert!(html.contains("break round 12"), "break button");
-    // No external resources.
     assert!(!html.contains(r#"src="http"#));
     assert!(!html.contains(r#"href="http"#));
 }
@@ -117,7 +110,6 @@ async fn test_d6_2_token_enforced_403() {
     use lisage_liseuse::trace::serialiser_evenement;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    // Write a real .jsonl trace to a temp file.
     let events = standard_scenario(2);
     let mut content = String::new();
     for event in &events {
@@ -168,13 +160,11 @@ async fn test_d6_2_token_enforced_403() {
         String::from_utf8_lossy(&buffer[..count]).into_owned()
     }
 
-    // No Authorization header → 403.
     let response = request(port, None).await;
     assert!(
         response.starts_with("HTTP/1.1 403"),
         "missing bearer must be rejected with 403, got: {response}"
     );
-    // Wrong token → 403.
     let response = request(port, Some("Bearer deadbeef")).await;
     assert!(
         response.starts_with("HTTP/1.1 403"),
@@ -196,7 +186,6 @@ async fn test_d6_2_token_enforced_403() {
         response.starts_with("HTTP/1.1 403"),
         "token in URL without header must be rejected with 403, got: {response}"
     );
-    // Valid bearer → 200 with the HTML page.
     let response = request(port, Some(&format!("Bearer {token}"))).await;
     assert!(
         response.starts_with("HTTP/1.1 200"),
