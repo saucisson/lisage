@@ -24,10 +24,6 @@ async fn main() {
                 "lisage-gateway: Authorization: Bearer {}",
                 token.as_secret_str()
             );
-            eprintln!(
-                "lisage-gateway: curl -H 'Authorization: Bearer {}' http://127.0.0.1:{port}/",
-                token.as_secret_str()
-            );
             eprintln!("lisage-gateway: {event_count} events loaded from {trace_path_label}");
         }),
         connection_error: Box::new(|message| eprintln!("connection error: {message}")),

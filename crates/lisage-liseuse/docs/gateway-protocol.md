@@ -9,7 +9,7 @@ the WebSocket authenticates on its first text frame.
 
 | Method | Path | Auth | Success | Error |
 | ------ | ---- | ---- | ------- | ----- |
-| GET | `/` | `Authorization: Bearer <token>` | `200` `text/html` — self-contained live page (token embedded server-side) | `403` empty body |
+| GET | `/` | `Authorization: Bearer <token>` | `200` `text/html` live page (token embedded server-side) | `403` empty body |
 | GET | `/ws` | first WS frame `{"cmd":"auth","token":"<token>"}` | `101` upgrade, then `{"event":"auth_ok"}` | `{"event":"auth_failed"}` then close |
 
 ## WebSocket protocol (JSON text frames)
@@ -33,6 +33,6 @@ Server → client events: `position`, `event` (with `kind`), `break`,
 
 ## Errors
 
-Typed `GatewayError::{Io, Trace}` at the library boundary; the entry point
-prints them to stderr and exits 1. Connection-level failures are reported
-through the `GatewayEvents::connection_error` callback.
+Typed `GatewayError::{Io, Trace}` at the library boundary (entry point prints
+to stderr, exit 1); per-connection failures go through
+`GatewayEvents::connection_error`.
