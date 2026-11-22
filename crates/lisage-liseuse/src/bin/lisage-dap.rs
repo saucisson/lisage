@@ -1,6 +1,6 @@
 //! D6-3 -- `lisage-dap`: DAP (Debug Adapter Protocol) server for the
-//! lisage trace debugger. Runs on stdio by default; `--port N` listens
-//! on 127.0.0.1:N instead.
+//! lisage trace debugger. Runs on stdio. `--port N` is accepted but not
+//! yet implemented: the server warns on stderr and falls back to stdio.
 //!
 //! Usage: `lisage-dap [--port N]`
 //!
