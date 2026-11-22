@@ -72,7 +72,7 @@ impl fmt::Debug for ConnectionToken {
 }
 
 impl ConnectionToken {
-    /// Exact comparison against a candidate token from the query string.
+    /// Exact equality check against a candidate token value (header or first WS frame).
     fn matches(&self, candidate: Option<&str>) -> bool {
         candidate == Some(self.0.as_str())
     }
@@ -99,15 +99,11 @@ impl ConnectionToken {
     }
 }
 
-/// Announcement callback: called once with (port, token, event count) when
-/// the gateway is bound.
 pub type Announce = Box<dyn FnOnce(u16, &ConnectionToken, usize) + Send>;
-/// Connection-error callback: called with the error message of each failed
-/// connection.
 pub type ConnectionError = Box<dyn Fn(String) + Send + Sync>;
 
-/// Side-channel events of the gateway, consumed by the entry point (the only
-/// place allowed to write to stdout/stderr).
+/// Side-channel events consumed by the entry point (the only place allowed
+/// to write to stdout/stderr).
 pub struct GatewayEvents {
     /// Called once with (port, token, event count) when the gateway is bound.
     pub announce: Announce,
@@ -556,30 +552,28 @@ function sendBreak() {{ ws.send(JSON.stringify({{cmd: 'break', round: 12}})); }}
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
     use super::*;
     use lisage_core::observer::NoOpObserver;
     use std::sync::Mutex;
 
+    fn round(numero: u32) -> TraceEvent {
+        TraceEvent::Round { numero, niveaux_actifs: vec![0], niveaux_modifies: vec![], avant: NodeId(0), image: NodeId(0), apres: NodeId(0), croissance: 0, span: None }
+    }
+
     #[test]
     fn test_generate_token_length() {
         let token = generate_token().expect("entropy source available");
         assert_eq!(token.as_secret_str().len(), 32, "16 bytes → 32 hex chars");
-        assert!(
-            token
-                .as_secret_str()
-                .chars()
-                .all(|character| character.is_ascii_hexdigit())
-        );
+        assert!(token.as_secret_str().chars().all(|c| c.is_ascii_hexdigit()));
         assert_eq!(format!("{token}"), "<redacted>");
         assert_eq!(format!("{token:?}"), "ConnectionToken(<redacted>)");
     }
 
     #[test]
     fn test_generate_token_unique() {
-        let first = generate_token().expect("entropy source available");
-        let second = generate_token().expect("entropy source available");
-        assert_ne!(first, second, "two tokens should differ");
+        assert_ne!(generate_token().unwrap(), generate_token().unwrap());
     }
 
     #[test]
@@ -594,84 +588,35 @@ mod tests {
 
     #[test]
     fn test_gateway_state_step() {
-        let events = vec![
-            TraceEvent::Round {
-                numero: 1,
-                niveaux_actifs: vec![0],
-                niveaux_modifies: vec![0],
-                avant: NodeId(0),
-                image: NodeId(1),
-                apres: NodeId(1),
-                croissance: 1,
-                span: None,
-            },
-            TraceEvent::Round {
-                numero: 2,
-                niveaux_actifs: vec![0],
-                niveaux_modifies: vec![],
-                avant: NodeId(1),
-                image: NodeId(1),
-                apres: NodeId(1),
-                croissance: 0,
-                span: None,
-            },
-        ];
-        let state = GatewayState::new(events);
+        let state = GatewayState::new(vec![round(1), round(2)]);
         assert_eq!(state.position(), 0);
         let (position, hit) = state.step().unwrap();
-        assert_eq!(position, 1);
-        assert!(!hit);
+        assert_eq!((position, hit), (1, false));
         state.break_round.store(2, Ordering::SeqCst);
         let (position, hit) = state.step().unwrap();
-        assert_eq!(position, 2);
-        assert!(hit, "break at round 2 should trigger");
+        assert_eq!((position, hit), (2, true), "break at round 2 should trigger");
         assert!(state.step().is_none(), "end of trace");
     }
 
     #[test]
     fn test_handle_command_step() {
-        let events = vec![
-            TraceEvent::OpEnd { span: None },
-            TraceEvent::OpEnd { span: None },
-        ];
-        let state = Arc::new(GatewayState::new(events));
+        let state = Arc::new(GatewayState::new(vec![TraceEvent::OpEnd { span: None }, TraceEvent::OpEnd { span: None }]));
         let response = handle_command(r#"{"cmd":"step"}"#, &state, &NoOpObserver).unwrap();
-        assert!(response.contains(r#""event":"position""#));
-        assert!(response.contains(r#""position":1"#));
+        assert!(response.contains(r#""event":"position""#) && response.contains(r#""position":1"#));
     }
 
     #[test]
     fn test_handle_command_break() {
-        let events = vec![TraceEvent::Round {
-            numero: 12,
-            niveaux_actifs: vec![],
-            niveaux_modifies: vec![],
-            avant: NodeId(0),
-            image: NodeId(0),
-            apres: NodeId(0),
-            croissance: 0,
-            span: None,
-        }];
-        let state = Arc::new(GatewayState::new(events));
-        let response =
-            handle_command(r#"{"cmd":"break","round":12}"#, &state, &NoOpObserver).unwrap();
-        assert!(response.contains(r#""event":"break_set""#));
-        assert!(response.contains(r#""round":12"#));
+        let state = Arc::new(GatewayState::new(vec![round(12)]));
+        let response = handle_command(r#"{"cmd":"break","round":12}"#, &state, &NoOpObserver).unwrap();
+        assert!(response.contains(r#""event":"break_set""#) && response.contains(r#""round":12"#));
         let response = handle_command(r#"{"cmd":"continue"}"#, &state, &NoOpObserver).unwrap();
-        assert!(
-            response.contains(r#""event":"break""#),
-            "continue hits round 12 break: {response}"
-        );
+        assert!(response.contains(r#""event":"break""#), "continue hits round 12 break: {response}");
     }
 
     #[test]
     fn test_handle_command_goto_and_back() {
-        let events = vec![
-            TraceEvent::OpEnd { span: None },
-            TraceEvent::OpEnd { span: None },
-            TraceEvent::OpEnd { span: None },
-        ];
-        let state = Arc::new(GatewayState::new(events));
+        let state = Arc::new(GatewayState::new(vec![TraceEvent::OpEnd { span: None }; 3]));
         handle_command(r#"{"cmd":"goto","position":2}"#, &state, &NoOpObserver).unwrap();
         assert_eq!(state.position(), 2);
         let response = handle_command(r#"{"cmd":"back"}"#, &state, &NoOpObserver).unwrap();
@@ -685,47 +630,27 @@ mod tests {
         assert!(handle_command(r#"{"cmd":"fly"}"#, &state, &NoOpObserver).is_none());
     }
 
-    /// Narration contract: the command narration event is pinned by a test
-    /// (ADR-0005, checklist §4) — and never carries the token.
+    /// Narration contract pinned (ADR-0005, checklist §4); never the token.
     #[test]
     fn test_handle_command_narration_pinned() {
-        struct Collector {
-            events: Mutex<Vec<TraceEvent>>,
-        }
+        struct Collector { events: Mutex<Vec<TraceEvent>> }
         impl Observer for Collector {
-            fn on_event(&self, event: &TraceEvent) {
-                self.events.lock().expect("mutex").push(event.clone());
-            }
+            fn on_event(&self, event: &TraceEvent) { self.events.lock().expect("mutex").push(event.clone()); }
         }
-        let collector = Arc::new(Collector {
-            events: Mutex::new(Vec::new()),
-        });
+        let collector = Arc::new(Collector { events: Mutex::new(Vec::new()) });
         let state = Arc::new(GatewayState::new(vec![TraceEvent::OpEnd { span: None }]));
         let _ = handle_command(r#"{"cmd":"step"}"#, &state, collector.as_ref()).unwrap();
         let events = collector.events.lock().expect("mutex").clone();
-        assert!(
-            events.iter().any(|event| matches!(
-                event,
-                TraceEvent::Attr { value, .. } if value.rendre() == "gateway: command received cmd=step"
-            )),
-            "the command narration event must be emitted: {events:?}"
-        );
+        assert!(events.iter().any(|e| matches!(e, TraceEvent::Attr { value, .. } if value.rendre() == "gateway: command received cmd=step")), "narration event must be emitted: {events:?}");
     }
 
-    /// Invariants over the whole position range (deterministic sweep, no
-    /// property crate): `goto` clamps into `[0, length]` and stepping to the
-    /// end lands exactly on `length`.
+    /// Position invariants over the whole range: `goto` clamps into
+    /// `[0, length]`, stepping to the end lands exactly on `length`.
     #[test]
     fn test_position_invariants_sweep() {
-        let events: Vec<TraceEvent> = (0..10).map(|_| TraceEvent::OpEnd { span: None }).collect();
-        let state = Arc::new(GatewayState::new(events));
+        let state = Arc::new(GatewayState::new(vec![TraceEvent::OpEnd { span: None }; 10]));
         for target in 0..=12 {
-            handle_command(
-                &format!(r#"{{"cmd":"goto","position":{target}}}"#),
-                &state,
-                &NoOpObserver,
-            )
-            .unwrap();
+            handle_command(&format!(r#"{{"cmd":"goto","position":{target}}}"#), &state, &NoOpObserver).unwrap();
             assert!(state.position() <= 10, "goto clamps to trace length");
         }
         handle_command(r#"{"cmd":"goto","position":0}"#, &state, &NoOpObserver).unwrap();
