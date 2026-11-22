@@ -15,28 +15,29 @@ use crate::debugger::{Command, Debugger, standard_scenario};
 use crate::json::Json;
 use lisage_core::observer::TraceEvent;
 
-/// DAP message: a JSON body with a Content-Length header.
-#[derive(Debug, Clone)]
-pub struct DapMessage {
-    /// Sequence number.
-    pub seq: i64,
-    /// Message type: "request", "response" or "event".
-    pub kind: String,
-    /// Command (requests) or event name (events).
-    pub command: String,
-    /// Arguments / body.
-    pub body: Json,
-}
-
-impl DapMessage {}
-
 /// Serialize a Json value to a compact string.
 pub fn json_to_string(value: &Json) -> String {
     match value {
         Json::Null => "null".to_string(),
         Json::Bool(b) => b.to_string(),
         Json::Num(n) => n.to_string(),
-        Json::Str(s) => format!(r#""{}""#, s.replace('\\', "\\\\").replace('"', "\\\"")),
+        Json::Str(s) => {
+            let mut out = String::with_capacity(s.len() + 2);
+            out.push('"');
+            for character in s.chars() {
+                match character {
+                    '\\' => out.push_str("\\\\"),
+                    '"' => out.push_str("\\\""),
+                    '\n' => out.push_str("\\n"),
+                    '\r' => out.push_str("\\r"),
+                    '\t' => out.push_str("\\t"),
+                    c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+                    c => out.push(c),
+                }
+            }
+            out.push('"');
+            out
+        }
         Json::Arr(items) => format!(
             "[{}]",
             items
@@ -196,9 +197,12 @@ impl DapServer {
                 let lines: Vec<i64> = args
                     .get("breakpoints")
                     .and_then(|b| b.as_arr())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|bp| bp.get("line").and_then(|l| l.as_num()))
+                    .map(|requested| {
+                        requested
+                            .iter()
+                            .filter_map(|breakpoint| {
+                                breakpoint.get("line").and_then(|l| l.as_num())
+                            })
                             .collect()
                     })
                     .unwrap_or_default();
@@ -314,8 +318,8 @@ impl DapServer {
                 )]),
             )],
             "variables" => {
-                let pos = self.debugger.position();
-                let len = self.debugger.length();
+                let position = self.debugger.position();
+                let length = self.debugger.length();
                 let round = self
                     .debugger
                     .current_event()
@@ -327,13 +331,13 @@ impl DapServer {
                 let vars = vec![
                     Json::Obj(vec![
                         ("name".to_string(), Json::Str("position".to_string())),
-                        ("value".to_string(), Json::Num(pos as i64)),
+                        ("value".to_string(), Json::Num(position as i64)),
                         ("type".to_string(), Json::Str("usize".to_string())),
                         ("variablesReference".to_string(), Json::Num(0)),
                     ]),
                     Json::Obj(vec![
                         ("name".to_string(), Json::Str("length".to_string())),
-                        ("value".to_string(), Json::Num(len as i64)),
+                        ("value".to_string(), Json::Num(length as i64)),
                         ("type".to_string(), Json::Str("usize".to_string())),
                         ("variablesReference".to_string(), Json::Num(0)),
                     ]),
@@ -367,11 +371,11 @@ impl DapServer {
                     .get("philosophers")
                     .cloned()
                     .unwrap_or_default();
-                let stopped_reason;
+                let mut stopped_reason = "completed";
+                let mut stopped_round: Option<i64> = None;
                 loop {
-                    let pos = self.debugger.position();
-                    if pos >= self.debugger.length() {
-                        stopped_reason = "completed";
+                    let position = self.debugger.position();
+                    if position >= self.debugger.length() {
                         break;
                     }
                     // Check if current event is a round matching a breakpoint.
@@ -379,11 +383,12 @@ impl DapServer {
                         && breakpoints.contains(&(*numero as i64))
                     {
                         stopped_reason = "breakpoint";
+                        stopped_round = Some(*numero as i64);
                         break;
                     }
                     self.debugger.run(Command::Step);
                 }
-                let pos = self.debugger.position();
+                let position = self.debugger.position();
                 vec![
                     self.response(
                         request_seq,
@@ -398,7 +403,12 @@ impl DapServer {
                             ("threadId".to_string(), Json::Num(1)),
                             (
                                 "description".to_string(),
-                                Json::Str(format!("position {pos}")),
+                                Json::Str(match stopped_round {
+                                    Some(round) => {
+                                        format!("breakpoint at round {round} (position {position})")
+                                    }
+                                    None => format!("position {position}"),
+                                }),
                             ),
                         ]),
                     ),
@@ -406,7 +416,7 @@ impl DapServer {
             }
             "next" => {
                 self.debugger.run(Command::Step);
-                let pos = self.debugger.position();
+                let position = self.debugger.position();
                 vec![
                     self.response(request_seq, "next", true, Json::Null),
                     self.event(
@@ -416,7 +426,7 @@ impl DapServer {
                             ("threadId".to_string(), Json::Num(1)),
                             (
                                 "description".to_string(),
-                                Json::Str(format!("position {pos}")),
+                                Json::Str(format!("position {position}")),
                             ),
                         ]),
                     ),
@@ -531,9 +541,13 @@ mod tests {
             all.contains(r#""reason":"breakpoint""#),
             "breakpoint reason expected: {all}"
         );
-        // The position should be at or after round 12.
-        let pos = server.debugger.position();
-        assert!(pos > 0, "position advanced to {pos}");
+        // The stop must be exactly at round 12, not just any breakpoint hit.
+        match server.debugger.current_event() {
+            Some(TraceEvent::Round { numero, .. }) => {
+                assert_eq!(*numero, 12, "continue must stop at breakpoint round 12")
+            }
+            other => panic!("expected a Round event at the breakpoint, got {other:?}"),
+        }
     }
 
     #[test]

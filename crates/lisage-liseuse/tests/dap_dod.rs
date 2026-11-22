@@ -53,6 +53,10 @@ fn test_d6_3_dod_breakpoint_round_12() {
         all.contains(r#""reason":"breakpoint""#),
         "must stop at breakpoint: {all}"
     );
+    assert!(
+        all.contains("breakpoint at round 12"),
+        "must stop at round 12 specifically: {all}"
+    );
 
     // 6. stackTrace at the breakpoint
     let frames = server.handle(&request(6, "stackTrace", r#"{"threadId":1}"#));
