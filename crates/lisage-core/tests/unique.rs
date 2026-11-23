@@ -12,7 +12,7 @@ use lisage_core::observer::NoOpObserver;
 /// Baseline of the issue: ~420 bytes per node with the cloned-form
 /// `HashMap` key on a BDD instance. MEM-14 target: factor 5 at least.
 const BASELINE_BYTES_PER_NODE: f64 = 420.0;
-const FACTEUR_CIBLE: f64 = 5.0;
+const FACTOR_TARGET: f64 = 5.0;
 
 fn pool_bdd() -> Arena<BddController> {
     Arena::new(BddController::new(64), Box::new(NoOpObserver))
@@ -46,10 +46,10 @@ fn test_bytes_per_node_bdd_factor_5() {
     assert_eq!(pool.live(), nodes.len() + 2, "2000 nodes + 2 terminals");
     let bytes_per_node = pool.bytes_per_node();
     assert!(
-        bytes_per_node <= BASELINE_BYTES_PER_NODE / FACTEUR_CIBLE,
-        "bytes/node {bytes_per_node:.1} must be ≤ {}/{FACTEUR_CIBLE} = {:.1}",
+        bytes_per_node <= BASELINE_BYTES_PER_NODE / FACTOR_TARGET,
+        "bytes/node {bytes_per_node:.1} must be ≤ {}/{FACTOR_TARGET} = {:.1}",
         BASELINE_BYTES_PER_NODE,
-        BASELINE_BYTES_PER_NODE / FACTEUR_CIBLE
+        BASELINE_BYTES_PER_NODE / FACTOR_TARGET
     );
 }
 
@@ -64,7 +64,7 @@ fn test_zero_allocation_on_reinterning() {
     assert_eq!(again, nodes, "same forms: same NodeIds (C1)");
     assert_eq!(pool.unique_len(), bytes_before, "no new key inserted");
     assert!(
-        pool.metriques().partages >= 100,
+        pool.metrics().shared >= 100,
         "every re-interning counted as a share"
     );
 }

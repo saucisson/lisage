@@ -48,17 +48,17 @@ pub fn evaluate<P: Pool<Key = Dbm, Payload = bool>>(
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
 pub fn count_nodes<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
-    let mut visite = BTreeSet::new();
+    let mut visit = BTreeSet::new();
     let mut stack = vec![root];
     while let Some(node) = stack.pop() {
-        if !visite.insert(node) {
+        if !visit.insert(node) {
             continue;
         }
         if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
             stack.extend(arcs.values().copied());
         }
     }
-    visite.len() as u64
+    visit.len() as u64
 }
 
 /// Instance-test: the band `x − y ≤ 1 ∧ y − x ≤ 2` over two clocks,
@@ -69,14 +69,14 @@ pub fn count_nodes<P: Pool<Key = Dbm, Payload = bool>>(pool: &P, root: NodeId) -
 ///   leads to `false` (the two arcs cover the box);
 /// - level 1: `y − x ≤ 2` leads to `true`; outside this region, the absent
 ///   arc means δ(ℓ) → `false`.
-pub fn compiler_bande<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: Anchor) -> NodeId {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
-    let faux = pool.intern(anchor, Form::Terminal(false));
+pub fn compiler_band<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: Anchor) -> NodeId {
+    let true_node = pool.intern(anchor, Form::Terminal(true));
+    let false_node = pool.intern(anchor, Form::Terminal(false));
     let level_1 = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: ArcRun::from_pairs([(Dbm::new(2, &[(1, 0, 2)]), vrai)]),
+            arcs: ArcRun::from_pairs([(Dbm::new(2, &[(1, 0, 2)]), true_node)]),
         },
     );
     pool.intern(
@@ -85,7 +85,7 @@ pub fn compiler_bande<P: Pool<Key = Dbm, Payload = bool>>(pool: &mut P, anchor: 
             level: Level(0),
             arcs: ArcRun::from_pairs([
                 (Dbm::new(2, &[(0, 1, 1)]), level_1),
-                (Dbm::new(2, &[(1, 0, -2)]), faux),
+                (Dbm::new(2, &[(1, 0, -2)]), false_node),
             ]),
         },
     )

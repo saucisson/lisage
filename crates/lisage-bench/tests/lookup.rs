@@ -9,14 +9,14 @@ use lisage_core::arena::Arena;
 use lisage_core::lookup::{Lookup, LookupController};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{ABSENT, Domain, PRESENT, ReferenceController, Schema, compiler};
-use lisage_core::transduction::Transducteur;
+use lisage_core::transduction::Transducer;
 use lisage_lang::interpreter::lookup;
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
 type PoolOutput = Arena<LookupController>;
 
-fn atome(value: u64) -> Value {
+fn atom(value: u64) -> Value {
     Value::Atom(Atom(value))
 }
 
@@ -59,16 +59,16 @@ proptest! {
     /// C1 differential: DD lookup (path B) == interpreter lookup (path A)
     /// on a random map with keys {0,1} and values {0,1}.
     #[test]
-    fn test_c1_differentiel_lookup_lane_a_vs_dd(
-        paires in prop::collection::vec((0u64..2, 0u64..2), 0..5),
+    fn test_c1_differential_lookup_lane_a_vs_dd(
+        pairs in prop::collection::vec((0u64..2, 0u64..2), 0..5),
         key in 0u64..2,
     ) {
         let list_keys = vec![Atom(0), Atom(1)];
         let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
         let schema = Schema::Map(list_keys.clone(), domain_values.clone());
-        let map: BTreeMap<Value, Value> = paires
+        let map: BTreeMap<Value, Value> = pairs
             .iter()
-            .map(|(k, v)| (atome(*k), atome(*v)))
+            .map(|(k, v)| (atom(*k), atom(*v)))
             .collect();
         let value = Value::Map(map.clone());
 
@@ -82,9 +82,9 @@ proptest! {
         );
         let anchor = Anchor(0);
         let root = compiler(&mut input, anchor, &schema, &value).unwrap();
-        let key_atome = Atom(key);
-        let mut runner = Transducteur::new(Lookup::new(
-            key_atome,
+        let key_atom = Atom(key);
+        let mut runner = Transducer::new(Lookup::new(
+            key_atom,
             list_keys.clone(),
             domain_values.clone(),
         ));
@@ -93,7 +93,7 @@ proptest! {
 
         // Path A: reference interpreter on the set {map}.
         let set = BTreeSet::from([value.clone()]);
-        let expected = lookup(&set, &atome(key))[&value].clone();
+        let expected = lookup(&set, &atom(key))[&value].clone();
         let expected_opt = match expected {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,
@@ -106,16 +106,16 @@ proptest! {
     /// re-explicits it (T-EXPAND + graft). The DD path must still equal
     /// path A.
     #[test]
-    fn test_c1_differentiel_lookup_collapsed_lane_a_vs_dd(
-        paires in prop::collection::vec((0u64..2, 0u64..1), 0..5),
+    fn test_c1_differential_lookup_collapsed_lane_a_vs_dd(
+        pairs in prop::collection::vec((0u64..2, 0u64..1), 0..5),
         key in 0u64..2,
     ) {
         let list_keys = vec![Atom(0), Atom(1)];
         let domain_values = Domain::new(vec![Atom(0)]);
         let schema = Schema::Map(list_keys.clone(), domain_values.clone());
-        let map: BTreeMap<Value, Value> = paires
+        let map: BTreeMap<Value, Value> = pairs
             .iter()
-            .map(|(k, v)| (atome(*k), atome(*v)))
+            .map(|(k, v)| (atom(*k), atom(*v)))
             .collect();
         let value = Value::Map(map.clone());
 
@@ -129,9 +129,9 @@ proptest! {
         );
         let anchor = Anchor(0);
         let root = compiler(&mut input, anchor, &schema, &value).unwrap();
-        let key_atome = Atom(key);
-        let mut runner = Transducteur::new(Lookup::new(
-            key_atome,
+        let key_atom = Atom(key);
+        let mut runner = Transducer::new(Lookup::new(
+            key_atom,
             list_keys.clone(),
             domain_values.clone(),
         ));
@@ -139,7 +139,7 @@ proptest! {
         let dd = payload_terminal(&output, result, &list_keys, &map);
 
         let set = BTreeSet::from([value.clone()]);
-        let expected = lookup(&set, &atome(key))[&value].clone();
+        let expected = lookup(&set, &atom(key))[&value].clone();
         let expected_opt = match expected {
             Some(Value::Atom(a)) => Some(a.0),
             _ => None,

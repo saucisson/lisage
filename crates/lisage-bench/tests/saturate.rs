@@ -1,4 +1,4 @@
-//! PBT of `saturate` (M2-4, T2): fixpoint invariant — `saturer`
+//! PBT of `saturate` (M2-4, T2): fixpoint invariant — `saturate`
 //! applied to its own result terminates in **one** iteration with the
 //! same node (idempotence), and the cardinality of the fixpoint is greater or
 //! equal to that of the initial (increasing chain for the inclusion of the
@@ -8,36 +8,36 @@ use std::collections::BTreeMap;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
+use lisage_core::fold::count;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::count;
-use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
+use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
-use lisage_core::transduction::{ContextePhiOut, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transduction};
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
 /// Size of the atom domain of the random schemas.
 const SIZE_DOMAIN: u64 = 3;
 /// Fingerprint of the PBT step transduction.
-const FINGERPRINT_ETAPE: u64 = 4003;
+const FINGERPRINT_STEP: u64 = 4003;
 
 type PoolRef = Arena<ReferenceController>;
 
 /// Step transduction: always emits the singleton `{ajout}` whatever the
 /// input node (terminals → ⊥).
 #[derive(Clone)]
-struct EmetSingleton {
+struct EmitsSingleton {
     singleton: NodeId,
 }
 
-impl Transduction for EmetSingleton {
+impl Transduction for EmitsSingleton {
     type H = ();
     type S = ();
     type Out = bool;
     type M = ();
 
     fn fingerprint(&self) -> u64 {
-        FINGERPRINT_ETAPE
+        FINGERPRINT_STEP
     }
     fn h0(&self) {}
     fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
@@ -47,10 +47,10 @@ impl Transduction for EmetSingleton {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         _pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         let _ = ctx;
-        (self.singleton, lisage_core::memory::EffetMemory::new())
+        (self.singleton, lisage_core::memory::EffectMemory::new())
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
         &self,
@@ -77,12 +77,12 @@ fn new_pool(schema: &Schema) -> PoolRef {
 }
 
 /// Compiles a set of atoms into the pool.
-fn compiler_set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {
+fn compiler_set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atoms: &[u64]) -> NodeId {
     compiler(
         pool,
         anchor,
         schema,
-        &Value::Set(atomes.iter().map(|a| Value::Atom(Atom(*a))).collect()),
+        &Value::Set(atoms.iter().map(|a| Value::Atom(Atom(*a))).collect()),
     )
     .unwrap()
 }
@@ -94,12 +94,12 @@ fn cardinality(pool: &PoolRef, schema: &Schema, node: NodeId) -> u64 {
 }
 
 proptest! {
-    /// Fixpoint invariant (T2): let `R = saturer(τ, D)`; then
-    /// `saturer(τ, R)` terminates in 1 iteration with the same node `R`
+    /// Fixpoint invariant (T2): let `R = saturate(τ, D)`; then
+    /// `saturate(τ, R)` terminates in 1 iteration with the same node `R`
     /// (idempotence), and the cardinality of `R` is greater or equal to that
     /// of `D` (increasing chain).
     #[test]
-    fn test_saturate_point_fixe_idempotent(
+    fn test_saturate_point_fixed_idempotent(
         initial in prop::collection::vec(0u64..SIZE_DOMAIN, 0..SIZE_DOMAIN as usize),
         ajout in 0u64..SIZE_DOMAIN,
     ) {
@@ -107,15 +107,15 @@ proptest! {
         let keys = SchemaKeys::new(schema.clone());
         let anchor = Anchor(0);
         let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
-        let policy = PolicySaturation::Statique(levels);
+        let policy = PolicySaturation::Static(levels);
 
         let mut pool = new_pool(&schema);
         let node_initial = compiler_set(&mut pool, anchor, &schema, &initial);
         let singleton = compiler_set(&mut pool, anchor, &schema, &[ajout]);
-        let etape = EmetSingleton { singleton };
+        let step = EmitsSingleton { singleton };
 
-        let mut params = ParametresSaturation {
-            transduction: &etape,
+        let mut params = SaturationParameters {
+            transduction: &step,
             policy: &policy,
             pool: &mut pool,
             keys: &keys,
@@ -124,20 +124,20 @@ proptest! {
             number_levels: schema.number_levels(),
             observer: None,
         };
-        let first = saturer(&mut params).unwrap();
+        let first = saturate(&mut params).unwrap();
 
         // Increasing chain: the fixpoint contains the initial family.
         let cardinality_initial = cardinality(&pool, &schema, node_initial);
-        let cardinality_fixe = cardinality(&pool, &schema, first.node);
+        let cardinality_fixed = cardinality(&pool, &schema, first.node);
         prop_assert!(
-            cardinality_fixe >= cardinality_initial,
-            "fixpoint ⊇ initial: {cardinality_fixe} >= {cardinality_initial}"
+            cardinality_fixed >= cardinality_initial,
+            "fixpoint ⊇ initial: {cardinality_fixed} >= {cardinality_initial}"
         );
 
-        // Idempotence: saturer applied to the result terminates in 1 iteration
+        // Idempotence: saturate applied to the result terminates in 1 iteration
         // with the same node.
-        let mut params = ParametresSaturation {
-            transduction: &etape,
+        let mut params = SaturationParameters {
+            transduction: &step,
             policy: &policy,
             pool: &mut pool,
             keys: &keys,
@@ -146,7 +146,7 @@ proptest! {
             number_levels: schema.number_levels(),
             observer: None,
         };
-        let second = saturer(&mut params).unwrap();
+        let second = saturate(&mut params).unwrap();
         prop_assert_eq!(second.iterations, 1, "fixpoint: 1 iteration");
         prop_assert_eq!(second.node, first.node, "fixpoint idempotence");
     }

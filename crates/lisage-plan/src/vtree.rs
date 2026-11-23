@@ -13,11 +13,11 @@ use crate::order::TypeOrder;
 impl TypeOrder for Vtree {
     type Key = Atom;
 
-    fn keys_canoniques(&self) -> Vec<Atom> {
+    fn keys_canonical(&self) -> Vec<Atom> {
         self.order_plat()
     }
 
-    fn contraintes(&self) -> Vec<(Atom, Atom)> {
-        self.contraintes_order()
+    fn constraints(&self) -> Vec<(Atom, Atom)> {
+        self.constraints_order()
     }
 }

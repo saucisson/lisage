@@ -14,42 +14,42 @@ use lisage_core::observer::{ChannelAttr, TraceEvent, TraceVal};
 use lisage_core::{Form, NodeId, Pool};
 
 use crate::svg::{
-    DEMI_WIDTH, HEIGHT_LEVEL, MARGE_GAUCHE, MARGE_HAUT, Placement, WIDTH_NODE, echapper_xml, placer,
+    HALF_WIDTH, HEIGHT_LEVEL, MARGIN_HAUT, MARGIN_LEFT, Placement, WIDTH_NODE, escape_xml, placer,
 };
 
 /// Color of the inherited channel (blue).
-const COULEUR_HERITE: &str = "#2980b9";
+const COLOR_INHERITED: &str = "#2980b9";
 /// Color of the synthesized channel (orange).
-const COULEUR_SYNTHETISE: &str = "#e67e22";
+const COLOR_SYNTHESIZED: &str = "#e67e22";
 /// Color of the level memory (purple).
-const COULEUR_MEMORY: &str = "#8e44ad";
+const COLOR_MEMORY: &str = "#8e44ad";
 /// Color of ghosts (gray watermark).
-const COULEUR_GHOST: &str = "#bbb";
+const COLOR_GHOST: &str = "#bbb";
 /// Default color of nodes without attribute (M2-6).
-const COULEUR_DEFAUT: &str = "#333";
+const COLOR_DEFAULT: &str = "#333";
 /// Color of a `MemoHit` on the timeline (green).
-const COULEUR_MEMO_HIT: &str = "#27ae60";
+const COLOR_MEMO_HIT: &str = "#27ae60";
 /// Color of a `MemoMiss` on the timeline (red).
-const COULEUR_MEMO_MISS: &str = "#c0392b";
+const COLOR_MEMO_MISS: &str = "#c0392b";
 /// Color of the other events on the timeline (neutral gray).
-const COULEUR_AUTRE: &str = "#999";
+const COLOR_OTHER: &str = "#999";
 /// Color of the diagram arcs.
-const COULEUR_ARC: &str = "#555";
+const COLOR_ARC: &str = "#555";
 /// Color of the arc labels.
-const COULEUR_LABEL: &str = "#777";
+const COLOR_LABEL: &str = "#777";
 /// Color of the position cursor on the timeline (black).
-const COULEUR_CURSEUR: &str = "#000";
+const COLOR_CURSOR: &str = "#000";
 /// Background of terminals.
-const COULEUR_FOND_TERMINAL: &str = "#eee";
+const COLOR_BACKGROUND_TERMINAL: &str = "#eee";
 /// Background of internal nodes.
-const COULEUR_FOND_NODE: &str = "#fff";
+const COLOR_BACKGROUND_NODE: &str = "#fff";
 /// Height of the timeline in pixels.
-const HEIGHT_FRISE: u32 = 46;
+const HEIGHT_TIMELINE: u32 = 46;
 
 /// State of the trace at a scrubber position: replay of events
 /// `0..k`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct EtatTrace {
+pub struct StateTrace {
     /// Nodes seen (created or shared) up to the position.
     pub nodes: BTreeSet<NodeId>,
     /// Attributes seen `(channel, node, value)`, in emission order.
@@ -73,31 +73,31 @@ pub struct DiffTrace {
 }
 
 /// Differential between two states: additions and ghosts.
-pub fn diff(avant: &EtatTrace, apres: &EtatTrace) -> DiffTrace {
+pub fn diff(before: &StateTrace, after: &StateTrace) -> DiffTrace {
     DiffTrace {
-        ajoutes: apres.nodes.difference(&avant.nodes).copied().collect(),
-        ghosts: avant.nodes.difference(&apres.nodes).copied().collect(),
+        ajoutes: after.nodes.difference(&before.nodes).copied().collect(),
+        ghosts: before.nodes.difference(&after.nodes).copied().collect(),
     }
 }
 
 /// Scrubber: position on an event trace + state replay.
 pub struct Scrubber {
-    evenements: Vec<TraceEvent>,
+    events: Vec<TraceEvent>,
     position: usize,
 }
 
 impl Scrubber {
     /// New scrubber on the given trace, positioned at the start.
-    pub fn new(evenements: Vec<TraceEvent>) -> Self {
+    pub fn new(events: Vec<TraceEvent>) -> Self {
         Scrubber {
-            evenements,
+            events,
             position: 0,
         }
     }
 
     /// Number of events in the trace.
-    pub fn longueur(&self) -> usize {
-        self.evenements.len()
+    pub fn length(&self) -> usize {
+        self.events.len()
     }
 
     /// Current position of the scrubber.
@@ -106,18 +106,18 @@ impl Scrubber {
     }
 
     /// Moves the scrubber to `position` (clamped to the trace length).
-    pub fn aller_a(&mut self, position: usize) {
-        self.position = position.min(self.evenements.len());
+    pub fn round_a(&mut self, position: usize) {
+        self.position = position.min(self.events.len());
     }
 
     /// Replay of events `0..position`: state of the trace at the current
     /// position.
-    pub fn etat(&self) -> EtatTrace {
-        let mut etat = EtatTrace::default();
-        for evenement in &self.evenements[..self.position] {
-            match evenement {
+    pub fn state(&self) -> StateTrace {
+        let mut state = StateTrace::default();
+        for event in &self.events[..self.position] {
+            match event {
                 TraceEvent::NodeCreated { node, .. } | TraceEvent::NodeShared { node, .. } => {
-                    etat.nodes.insert(*node);
+                    state.nodes.insert(*node);
                 }
                 TraceEvent::Attr {
                     channel,
@@ -125,11 +125,11 @@ impl Scrubber {
                     value,
                     ..
                 } => {
-                    etat.attributes.push((*channel, *node, value.clone()));
+                    state.attributes.push((*channel, *node, value.clone()));
                 }
-                TraceEvent::MemoHit { .. } => etat.memo_hits += 1,
-                TraceEvent::MemoMiss { .. } => etat.memo_misses += 1,
-                TraceEvent::Round { numero, .. } => etat.rounds = etat.rounds.max(*numero),
+                TraceEvent::MemoHit { .. } => state.memo_hits += 1,
+                TraceEvent::MemoMiss { .. } => state.memo_misses += 1,
+                TraceEvent::Round { number, .. } => state.rounds = state.rounds.max(*number),
                 TraceEvent::ReductionApplied { .. }
                 | TraceEvent::DiagramBuilt { .. }
                 | TraceEvent::Gc { .. }
@@ -138,113 +138,113 @@ impl Scrubber {
                 | TraceEvent::SpanClose { .. }
                 | TraceEvent::OpStart { .. }
                 | TraceEvent::OpEnd { .. }
-                | TraceEvent::VisiteEntree { .. }
-                | TraceEvent::VisiteSortie { .. }
+                | TraceEvent::VisitEntry { .. }
+                | TraceEvent::VisitExit { .. }
                 | TraceEvent::MemoConsult { .. }
                 | TraceEvent::MemoInsert { .. }
-                | TraceEvent::EcritureMemoire { .. }
+                | TraceEvent::MemoryWrite { .. }
                 | TraceEvent::StructureChange { .. } => {}
             }
         }
-        etat
+        state
     }
 
     /// Differential between the current position and position `other`.
-    pub fn diff_vers(&self, other: usize) -> DiffTrace {
-        let mut other_scrubber = Scrubber::new(self.evenements.clone());
-        other_scrubber.aller_a(other);
-        diff(&self.etat(), &other_scrubber.etat())
+    pub fn diff_to(&self, other: usize) -> DiffTrace {
+        let mut other_scrubber = Scrubber::new(self.events.clone());
+        other_scrubber.round_a(other);
+        diff(&self.state(), &other_scrubber.state())
     }
 }
 
 /// Color of an attribute channel.
-fn couleur_channel(channel: ChannelAttr) -> &'static str {
+fn color_channel(channel: ChannelAttr) -> &'static str {
     match channel {
-        ChannelAttr::Inherited => COULEUR_HERITE,
-        ChannelAttr::Synthesized => COULEUR_SYNTHETISE,
-        ChannelAttr::Memory => COULEUR_MEMORY,
+        ChannelAttr::Inherited => COLOR_INHERITED,
+        ChannelAttr::Synthesized => COLOR_SYNTHESIZED,
+        ChannelAttr::Memory => COLOR_MEMORY,
     }
 }
 
 /// Border color of a node according to the **last** attribute channel seen
 /// on this node (memory > synthesized > inherited > default).
-fn couleur_node(etat: &EtatTrace, node: NodeId) -> &'static str {
-    let mut couleur = COULEUR_DEFAUT;
-    for (channel, n, _) in &etat.attributes {
+fn color_node(state: &StateTrace, node: NodeId) -> &'static str {
+    let mut color = COLOR_DEFAULT;
+    for (channel, n, _) in &state.attributes {
         if *n == node {
-            couleur = couleur_channel(*channel);
+            color = color_channel(*channel);
         }
     }
-    couleur
+    color
 }
 
 /// Height and color of a timeline tick according to the event type.
-fn tiret_frise(evenement: &TraceEvent) -> (u32, &'static str) {
-    match evenement {
-        TraceEvent::Round { .. } => (HEIGHT_FRISE - 16, COULEUR_MEMORY),
-        TraceEvent::MemoHit { .. } => (10, COULEUR_MEMO_HIT),
-        TraceEvent::MemoMiss { .. } => (10, COULEUR_MEMO_MISS),
-        TraceEvent::Attr { channel, .. } => (10, couleur_channel(*channel)),
-        _ => (6, COULEUR_AUTRE),
+fn tiret_timeline(event: &TraceEvent) -> (u32, &'static str) {
+    match event {
+        TraceEvent::Round { .. } => (HEIGHT_TIMELINE - 16, COLOR_MEMORY),
+        TraceEvent::MemoHit { .. } => (10, COLOR_MEMO_HIT),
+        TraceEvent::MemoMiss { .. } => (10, COLOR_MEMO_MISS),
+        TraceEvent::Attr { channel, .. } => (10, color_channel(*channel)),
+        _ => (6, COLOR_OTHER),
     }
 }
 
 /// Opens the SVG document and renders the title (position, rounds, memo counters).
-fn ouvrir_svg(svg: &mut String, width: u32, height: u32, scrubber: &Scrubber, etat: &EtatTrace) {
+fn open_svg(svg: &mut String, width: u32, height: u32, scrubber: &Scrubber, state: &StateTrace) {
     svg.push_str(&format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\">\n"
     ));
     svg.push_str(&format!(
-        "<text x=\"{MARGE_GAUCHE}\" y=\"20\" font-family=\"serif\" font-size=\"14\">step by step — position {}/{}, rounds {}, memo {}/{}</text>\n",
+        "<text x=\"{MARGIN_LEFT}\" y=\"20\" font-family=\"serif\" font-size=\"14\">step by step — position {}/{}, rounds {}, memo {}/{}</text>\n",
         scrubber.position(),
-        scrubber.longueur(),
-        etat.rounds,
-        etat.memo_hits,
-        etat.memo_misses
+        scrubber.length(),
+        state.rounds,
+        state.memo_hits,
+        state.memo_misses
     ));
 }
 
 /// Renders the timeline: one tick per event, and the cursor of the
 /// current position highlighted.
-fn rendre_frise(svg: &mut String, scrubber: &Scrubber, width: u32) {
-    let y_frise = MARGE_HAUT + 8;
-    let width_frise = width - 2 * MARGE_GAUCHE;
-    let step = if scrubber.longueur() == 0 {
+fn render_timeline(svg: &mut String, scrubber: &Scrubber, width: u32) {
+    let y_timeline = MARGIN_HAUT + 8;
+    let width_timeline = width - 2 * MARGIN_LEFT;
+    let step = if scrubber.length() == 0 {
         0
     } else {
-        width_frise / scrubber.longueur() as u32
+        width_timeline / scrubber.length() as u32
     };
-    for (index, evenement) in scrubber.evenements.iter().enumerate() {
-        let x = MARGE_GAUCHE + index as u32 * step;
-        let (height_tiret, couleur) = tiret_frise(evenement);
+    for (index, event) in scrubber.events.iter().enumerate() {
+        let x = MARGIN_LEFT + index as u32 * step;
+        let (height_tiret, color) = tiret_timeline(event);
         svg.push_str(&format!(
-            "<line x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" stroke=\"{couleur}\" stroke-width=\"2\"/>\n",
-            y_frise + HEIGHT_FRISE - 16 - height_tiret,
-            y_frise + HEIGHT_FRISE - 16
+            "<line x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" stroke=\"{color}\" stroke-width=\"2\"/>\n",
+            y_timeline + HEIGHT_TIMELINE - 16 - height_tiret,
+            y_timeline + HEIGHT_TIMELINE - 16
         ));
     }
-    if scrubber.position() > 0 && scrubber.position() <= scrubber.longueur() {
-        let x = MARGE_GAUCHE + scrubber.position() as u32 * step;
+    if scrubber.position() > 0 && scrubber.position() <= scrubber.length() {
+        let x = MARGIN_LEFT + scrubber.position() as u32 * step;
         svg.push_str(&format!(
-            "<line x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" stroke=\"{COULEUR_CURSEUR}\" stroke-width=\"2\"/>\n",
-            y_frise,
-            y_frise + HEIGHT_FRISE - 12
+            "<line x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" stroke=\"{COLOR_CURSOR}\" stroke-width=\"2\"/>\n",
+            y_timeline,
+            y_timeline + HEIGHT_TIMELINE - 12
         ));
     }
 }
 
 /// Renders the diagram arcs (under the nodes) with their labels.
-fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
+fn render_arcs<P: Pool<Key = u64, Payload = bool>>(
     svg: &mut String,
     pool: &P,
     root: NodeId,
     placement: &BTreeMap<NodeId, Placement>,
-    y_decalage: u32,
+    y_shift: u32,
 ) {
     let mut stack = vec![root];
-    let mut deja_vu = BTreeSet::new();
+    let mut already_seen = BTreeSet::new();
     while let Some(node) = stack.pop() {
-        if !deja_vu.insert(node) {
+        if !already_seen.insert(node) {
             continue;
         }
         if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
@@ -252,17 +252,17 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
             for (key, target) in arcs {
                 let arrivee = &placement[&target];
                 svg.push_str(&format!(
-                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{COULEUR_ARC}\"/>\n",
+                    "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"{COLOR_ARC}\"/>\n",
                     depart.x,
-                    depart.y + y_decalage + 14,
+                    depart.y + y_shift + 14,
                     arrivee.x,
-                    arrivee.y + y_decalage - 14
+                    arrivee.y + y_shift - 14
                 ));
                 svg.push_str(&format!(
-                    "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" fill=\"{COULEUR_LABEL}\">{}</text>\n",
+                    "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"11\" fill=\"{COLOR_LABEL}\">{}</text>\n",
                     (depart.x + arrivee.x) / 2,
-                    (depart.y + arrivee.y) / 2 + y_decalage,
-                    echapper_xml(&key.to_string())
+                    (depart.y + arrivee.y) / 2 + y_shift,
+                    escape_xml(&key.to_string())
                 ));
                 stack.push(target);
             }
@@ -271,47 +271,47 @@ fn rendre_arcs<P: Pool<Key = u64, Payload = bool>>(
 }
 
 /// Renders a node (terminal or internal); as a ghost (dashed) if requested.
-fn rendre_node<P: Pool<Key = u64, Payload = bool>>(
+fn render_node<P: Pool<Key = u64, Payload = bool>>(
     svg: &mut String,
     pool: &P,
     node: NodeId,
     position: &Placement,
     ghost: bool,
-    etat: &EtatTrace,
-    y_decalage: u32,
+    state: &StateTrace,
+    y_shift: u32,
 ) {
-    let couleur = if ghost {
-        COULEUR_GHOST
+    let color = if ghost {
+        COLOR_GHOST
     } else {
-        couleur_node(etat, node)
+        color_node(state, node)
     };
     let style = if ghost {
-        format!("stroke=\"{couleur}\" stroke-dasharray=\"4 3\"")
+        format!("stroke=\"{color}\" stroke-dasharray=\"4 3\"")
     } else {
-        format!("stroke=\"{couleur}\" stroke-width=\"2\"")
+        format!("stroke=\"{color}\" stroke-width=\"2\"")
     };
-    let x = position.x - DEMI_WIDTH;
-    let y = position.y + y_decalage - 14;
+    let x = position.x - HALF_WIDTH;
+    let y = position.y + y_shift - 14;
     match pool.resolve(node) {
         Ok(Form::Terminal(payload)) => {
             svg.push_str(&format!(
-                "<rect x=\"{x}\" y=\"{y}\" width=\"{WIDTH_NODE}\" height=\"28\" fill=\"{COULEUR_FOND_TERMINAL}\" {style}/>\n"
+                "<rect x=\"{x}\" y=\"{y}\" width=\"{WIDTH_NODE}\" height=\"28\" fill=\"{COLOR_BACKGROUND_TERMINAL}\" {style}/>\n"
             ));
             svg.push_str(&format!(
                 "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">{}</text>\n",
                 position.x,
-                position.y + y_decalage + 4,
+                position.y + y_shift + 4,
                 if payload { "⊤" } else { "⊥" }
             ));
         }
         Ok(Form::Node { level, .. }) => {
             svg.push_str(&format!(
-                "<rect x=\"{x}\" y=\"{y}\" width=\"{WIDTH_NODE}\" height=\"28\" fill=\"{COULEUR_FOND_NODE}\" {style}/>\n"
+                "<rect x=\"{x}\" y=\"{y}\" width=\"{WIDTH_NODE}\" height=\"28\" fill=\"{COLOR_BACKGROUND_NODE}\" {style}/>\n"
             ));
             svg.push_str(&format!(
                 "<text x=\"{}\" y=\"{}\" font-family=\"serif\" font-size=\"12\" text-anchor=\"middle\">ℓ{} n{}</text>\n",
                 position.x,
-                position.y + y_decalage + 4,
+                position.y + y_shift + 4,
                 level.0,
                 node.0
             ));
@@ -325,23 +325,23 @@ fn rendre_node<P: Pool<Key = u64, Payload = bool>>(
 }
 
 /// Renders all the nodes of the placement, ghosts as watermark.
-fn rendre_nodes<P: Pool<Key = u64, Payload = bool>>(
+fn render_nodes<P: Pool<Key = u64, Payload = bool>>(
     svg: &mut String,
     pool: &P,
     placement: &BTreeMap<NodeId, Placement>,
     diff: &DiffTrace,
-    etat: &EtatTrace,
-    y_decalage: u32,
+    state: &StateTrace,
+    y_shift: u32,
 ) {
     for (node, position) in placement {
-        rendre_node(
+        render_node(
             svg,
             pool,
             *node,
             position,
             diff.ghosts.contains(node),
-            etat,
-            y_decalage,
+            state,
+            y_shift,
         );
     }
 }
@@ -350,32 +350,32 @@ fn rendre_nodes<P: Pool<Key = u64, Payload = bool>>(
 /// event timeline (rounds as vertical bars, current position
 /// highlighted), diagram with colored channels, ghosts as watermark, and
 /// dashboard (hits/misses/rounds).
-pub fn rendre_svg_step_by_step<P: Pool<Key = u64, Payload = bool>>(
+pub fn render_svg_step_by_step<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     root: NodeId,
     scrubber: &Scrubber,
     diff: &DiffTrace,
 ) -> String {
-    let etat = scrubber.etat();
+    let state = scrubber.state();
     let (placement, number_levels) = placer(pool, root);
-    let width = MARGE_GAUCHE * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + DEMI_WIDTH;
-    let height = MARGE_HAUT + HEIGHT_FRISE + (number_levels + 1) * HEIGHT_LEVEL + 20;
+    let width = MARGIN_LEFT * 2 + placement.values().map(|p| p.x).max().unwrap_or(0) + HALF_WIDTH;
+    let height = MARGIN_HAUT + HEIGHT_TIMELINE + (number_levels + 1) * HEIGHT_LEVEL + 20;
     let mut svg = String::new();
-    ouvrir_svg(&mut svg, width, height, scrubber, &etat);
-    rendre_frise(&mut svg, scrubber, width);
-    let y_decalage = HEIGHT_FRISE + 8;
-    rendre_arcs(&mut svg, pool, root, &placement, y_decalage);
-    rendre_nodes(&mut svg, pool, &placement, diff, &etat, y_decalage);
+    open_svg(&mut svg, width, height, scrubber, &state);
+    render_timeline(&mut svg, scrubber, width);
+    let y_shift = HEIGHT_TIMELINE + 8;
+    render_arcs(&mut svg, pool, root, &placement, y_shift);
+    render_nodes(&mut svg, pool, &placement, diff, &state, y_shift);
     svg.push_str("</svg>\n");
     svg
 }
 
 /// Legend of the channels (colors) for the step-by-step rendering.
-pub fn legende_channels() -> BTreeMap<&'static str, &'static str> {
+pub fn legend_channels() -> BTreeMap<&'static str, &'static str> {
     BTreeMap::from([
-        ("inherited", COULEUR_HERITE),
-        ("synthesized", COULEUR_SYNTHETISE),
-        ("memory", COULEUR_MEMORY),
-        ("ghost", COULEUR_GHOST),
+        ("inherited", COLOR_INHERITED),
+        ("synthesized", COLOR_SYNTHESIZED),
+        ("memory", COLOR_MEMORY),
+        ("ghost", COLOR_GHOST),
     ])
 }

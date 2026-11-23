@@ -7,7 +7,7 @@
 //! = per key `k_i` a presence level `2i` (δ = absent) then a value level
 //! `2i+1` (`Val = V`, δ = ⊥). Compilation: only the chosen arc is interned,
 //! the other leads to the carrier default D_δ = terminal(false) on presences
-//! (R-collapse skips absents, ZDD style).
+//! (R-collapse skips absent, ZDD style).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
@@ -26,7 +26,7 @@ pub const PRESENT: u64 = 1;
 pub const CARDINALITY_PRESENCE: u64 = 2;
 /// Stride between the levels of a map: presence of key `i` at level `2i`,
 /// value at level `2i+1`.
-pub const PAS_LEVEL_MAP: u32 = 2;
+pub const STEP_LEVEL_MAP: u32 = 2;
 
 /// Bounded atom domain: finite enumeration, with optional default.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -34,7 +34,7 @@ pub struct Domain {
     /// Values of the domain, in canonical order.
     pub values: Vec<Atom>,
     /// Default δ of the domain, if declared.
-    pub defaut: Option<Atom>,
+    pub default: Option<Atom>,
 }
 
 impl Domain {
@@ -42,13 +42,13 @@ impl Domain {
     pub fn new(values: Vec<Atom>) -> Self {
         Domain {
             values,
-            defaut: None,
+            default: None,
         }
     }
 
     /// Does the domain contain this atom?
-    pub fn contains(&self, atome: Atom) -> bool {
-        self.values.contains(&atome)
+    pub fn contains(&self, atom: Atom) -> bool {
+        self.values.contains(&atom)
     }
 
     /// Number of values in the domain.
@@ -80,20 +80,20 @@ impl Schema {
         match self {
             Schema::Atom(_) => 1,
             Schema::Set(domain) => domain.size() as u32,
-            Schema::Map(list_keys, _) => PAS_LEVEL_MAP * list_keys.len() as u32,
-            Schema::Seq(_, longueur_max) => longueur_max + 1,
-            Schema::Tag(list, _) => PAS_LEVEL_MAP * list.len() as u32,
+            Schema::Map(list_keys, _) => STEP_LEVEL_MAP * list_keys.len() as u32,
+            Schema::Seq(_, length_max) => length_max + 1,
+            Schema::Tag(list, _) => STEP_LEVEL_MAP * list.len() as u32,
         }
     }
 
     /// Presence level of the i-th key of a map.
     pub fn level_presence(index: usize) -> Level {
-        Level(PAS_LEVEL_MAP * index as u32)
+        Level(STEP_LEVEL_MAP * index as u32)
     }
 
     /// Value level of the i-th key of a map.
     pub fn level_value(index: usize) -> Level {
-        Level(PAS_LEVEL_MAP * index as u32 + 1)
+        Level(STEP_LEVEL_MAP * index as u32 + 1)
     }
 }
 
@@ -105,10 +105,10 @@ pub enum SchemaError {
         /// Shape expected by the schema.
         expected: &'static str,
         /// Shape received.
-        recu: &'static str,
+        received: &'static str,
     },
     /// Atom outside the domain declared by the schema.
-    HorsDomain(Atom),
+    OutsideDomain(Atom),
     /// Diagram node incompatible with the schema (decompilation).
     NodeInexpected {
         /// Shape expected at this position.
@@ -123,10 +123,13 @@ pub enum SchemaError {
 impl std::fmt::Display for SchemaError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SchemaError::TypeMismatch { expected, recu } => {
-                write!(formatter, "type mismatch: expected {expected}, got {recu}")
+            SchemaError::TypeMismatch { expected, received } => {
+                write!(
+                    formatter,
+                    "type mismatch: expected {expected}, got {received}"
+                )
             }
-            SchemaError::HorsDomain(atome) => write!(formatter, "atom outside domain: {atome:?}"),
+            SchemaError::OutsideDomain(atom) => write!(formatter, "atom outside domain: {atom:?}"),
             SchemaError::NodeInexpected { expected, node } => {
                 write!(
                     formatter,
@@ -184,21 +187,21 @@ impl KeyAlgebra for SchemaKeys {
             Schema::Atom(domain) => domain.size() as u64,
             Schema::Set(_) => CARDINALITY_PRESENCE,
             Schema::Map(_, domain_values) => {
-                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
+                if level.0.is_multiple_of(STEP_LEVEL_MAP) {
                     CARDINALITY_PRESENCE
                 } else {
                     domain_values.size() as u64
                 }
             }
-            Schema::Seq(domain, longueur_max) => {
-                if level.0 < *longueur_max {
+            Schema::Seq(domain, length_max) => {
+                if level.0 < *length_max {
                     domain.size() as u64 + 1 // +1 for the end marker
                 } else {
                     CARDINALITY_PRESENCE
                 }
             }
             Schema::Tag(list, domain_values) => {
-                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
+                if level.0.is_multiple_of(STEP_LEVEL_MAP) {
                     list.len() as u64
                 } else {
                     domain_values.size() as u64
@@ -209,10 +212,10 @@ impl KeyAlgebra for SchemaKeys {
 
     fn default(&self, level: Level) -> Option<Self::Key> {
         match &self.schema {
-            Schema::Atom(domain) => domain.defaut.map(|atome| atome.0),
+            Schema::Atom(domain) => domain.default.map(|atom| atom.0),
             Schema::Set(_) => Some(ABSENT),
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
+                if level.0.is_multiple_of(STEP_LEVEL_MAP) {
                     Some(ABSENT)
                 } else {
                     None
@@ -233,9 +236,9 @@ impl KeyAlgebra for SchemaKeys {
         }
     }
 
-    fn unrank(&self, level: Level, rang: u64) -> Option<Self::Key> {
-        if rang < self.cardinality(level) {
-            Some(rang)
+    fn unrank(&self, level: Level, rank: u64) -> Option<Self::Key> {
+        if rank < self.cardinality(level) {
+            Some(rank)
         } else {
             None
         }
@@ -301,10 +304,10 @@ impl Controller for ReferenceController {
 
     fn default_payload(&self, level: Level) -> Option<Self::Payload> {
         match &self.schema {
-            Schema::Atom(domain) => domain.defaut.map(|_| false),
+            Schema::Atom(domain) => domain.default.map(|_| false),
             Schema::Set(_) => Some(false),
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
+                if level.0.is_multiple_of(STEP_LEVEL_MAP) {
                     Some(false)
                 } else {
                     None
@@ -325,28 +328,28 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
     value: &Value,
 ) -> Result<NodeId, SchemaError> {
     match (schema, value) {
-        (Schema::Atom(domain), Value::Atom(atome)) => {
-            if !domain.contains(*atome) {
-                return Err(SchemaError::HorsDomain(*atome));
+        (Schema::Atom(domain), Value::Atom(atom)) => {
+            if !domain.contains(*atom) {
+                return Err(SchemaError::OutsideDomain(*atom));
             }
             let terminal = pool.intern(anchor, Form::Terminal(true));
             Ok(pool.intern(
                 anchor,
                 Form::Node {
                     level: Level(0),
-                    arcs: ArcRun::from_pairs([(atome.0, terminal)]),
+                    arcs: ArcRun::from_pairs([(atom.0, terminal)]),
                 },
             ))
         }
         (Schema::Set(domain), Value::Set(elements)) => {
             for element in elements {
                 match element {
-                    Value::Atom(atome) if domain.contains(*atome) => {}
-                    Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
+                    Value::Atom(atom) if domain.contains(*atom) => {}
+                    Value::Atom(atom) => return Err(SchemaError::OutsideDomain(*atom)),
                     other => {
                         return Err(SchemaError::TypeMismatch {
                             expected: "set of atoms",
-                            recu: form_value(other),
+                            received: form_value(other),
                         });
                     }
                 }
@@ -354,49 +357,49 @@ pub fn compiler<P: Pool<Key = u64, Payload = bool>>(
             compiler_set(pool, anchor, domain, elements, 0)
         }
         (Schema::Map(list_keys, domain_values), Value::Map(map)) => {
-            valider_map(list_keys, domain_values, map)?;
+            validate_map(list_keys, domain_values, map)?;
             compiler_map(pool, anchor, list_keys, map, 0)
         }
-        (Schema::Seq(domain, longueur_max), Value::Seq(elements)) => {
-            valider_seq(domain, *longueur_max, elements)?;
-            compiler_seq(pool, anchor, domain, *longueur_max, elements)
+        (Schema::Seq(domain, length_max), Value::Seq(elements)) => {
+            validate_seq(domain, *length_max, elements)?;
+            compiler_seq(pool, anchor, domain, *length_max, elements)
         }
         (Schema::Tag(list, domain_values), Value::Tag(discriminant, payload)) => {
-            valider_tag(list, domain_values, *discriminant, payload)?;
+            validate_tag(list, domain_values, *discriminant, payload)?;
             compiler_tag(pool, anchor, list, domain_values, *discriminant, payload)
         }
         (schema, value) => Err(SchemaError::TypeMismatch {
             expected: form_schema(schema),
-            recu: form_value(value),
+            received: form_value(value),
         }),
     }
 }
 
 /// Validates the keys and values of a map against the schema (typed errors,
 /// the faulty atom is the one reported).
-fn valider_map(
+fn validate_map(
     list_keys: &[Atom],
     domain_values: &Domain,
     map: &BTreeMap<Value, Value>,
 ) -> Result<(), SchemaError> {
     for (key, value) in map {
-        let Value::Atom(atome_key) = key else {
+        let Value::Atom(atom_key) = key else {
             return Err(SchemaError::TypeMismatch {
                 expected: "atomic key",
-                recu: form_value(key),
+                received: form_value(key),
             });
         };
-        if !list_keys.contains(atome_key) {
-            return Err(SchemaError::HorsDomain(*atome_key));
+        if !list_keys.contains(atom_key) {
+            return Err(SchemaError::OutsideDomain(*atom_key));
         }
-        let Value::Atom(atome_value) = value else {
+        let Value::Atom(atom_value) = value else {
             return Err(SchemaError::TypeMismatch {
                 expected: "atomic value",
-                recu: form_value(value),
+                received: form_value(value),
             });
         };
-        if !domain_values.contains(*atome_value) {
-            return Err(SchemaError::HorsDomain(*atome_value));
+        if !domain_values.contains(*atom_value) {
+            return Err(SchemaError::OutsideDomain(*atom_value));
         }
     }
     Ok(())
@@ -470,7 +473,7 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
         Some(other) => {
             return Err(SchemaError::TypeMismatch {
                 expected: "atomic value",
-                recu: form_value(other),
+                received: form_value(other),
             });
         }
         None => ArcRun::from_pairs([(ABSENT, suite)]),
@@ -486,21 +489,21 @@ fn compiler_map<P: Pool<Key = u64, Payload = bool>>(
 
 /// Validates a sequence against the Seq schema (elements in the domain,
 /// bounded length).
-fn valider_seq(domain: &Domain, longueur_max: u32, elements: &[Value]) -> Result<(), SchemaError> {
-    if elements.len() > longueur_max as usize {
+fn validate_seq(domain: &Domain, length_max: u32, elements: &[Value]) -> Result<(), SchemaError> {
+    if elements.len() > length_max as usize {
         return Err(SchemaError::TypeMismatch {
             expected: "bounded-length sequence",
-            recu: "sequence too long",
+            received: "sequence too long",
         });
     }
     for element in elements {
         match element {
-            Value::Atom(atome) if domain.contains(*atome) => {}
-            Value::Atom(atome) => return Err(SchemaError::HorsDomain(*atome)),
+            Value::Atom(atom) if domain.contains(*atom) => {}
+            Value::Atom(atom) => return Err(SchemaError::OutsideDomain(*atom)),
             other => {
                 return Err(SchemaError::TypeMismatch {
                     expected: "atomic element",
-                    recu: form_value(other),
+                    received: form_value(other),
                 });
             }
         }
@@ -509,7 +512,7 @@ fn valider_seq(domain: &Domain, longueur_max: u32, elements: &[Value]) -> Result
 }
 
 /// Arc key of the end marker in a sequence (value = domain size).
-fn key_fin(domain: &Domain) -> u64 {
+fn key_end(domain: &Domain) -> u64 {
     domain.size() as u64
 }
 
@@ -520,39 +523,39 @@ fn compiler_seq<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     domain: &Domain,
-    longueur_max: u32,
+    length_max: u32,
     elements: &[Value],
 ) -> Result<NodeId, SchemaError> {
-    compiler_seq_position(pool, anchor, domain, longueur_max, elements, 0)
+    compiler_seq_position(pool, anchor, domain, length_max, elements, 0)
 }
 
 fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     domain: &Domain,
-    longueur_max: u32,
+    length_max: u32,
     elements: &[Value],
     position: u32,
 ) -> Result<NodeId, SchemaError> {
-    if position >= longueur_max {
+    if position >= length_max {
         // End-marker level: required key, present = end of sequence.
         let terminal = pool.intern(anchor, Form::Terminal(true));
         return Ok(pool.intern(
             anchor,
             Form::Node {
-                level: Level(longueur_max),
+                level: Level(length_max),
                 arcs: ArcRun::from_pairs([(PRESENT, terminal)]),
             },
         ));
     }
-    let suite = compiler_seq_position(pool, anchor, domain, longueur_max, elements, position + 1)?;
+    let suite = compiler_seq_position(pool, anchor, domain, length_max, elements, position + 1)?;
     let arc = if (position as usize) < elements.len() {
         match &elements[position as usize] {
-            Value::Atom(atome) => atome.0,
+            Value::Atom(atom) => atom.0,
             _ => unreachable!("validated by valider_seq"),
         }
     } else {
-        key_fin(domain) // end marker
+        key_end(domain) // end marker
     };
     Ok(pool.intern(
         anchor,
@@ -564,21 +567,21 @@ fn compiler_seq_position<P: Pool<Key = u64, Payload = bool>>(
 }
 
 /// Validates a tag against the schema (discriminant in the list, payload in the domain).
-fn valider_tag(
+fn validate_tag(
     list: &[Atom],
     domain_values: &Domain,
     discriminant: Atom,
     payload: &Value,
 ) -> Result<(), SchemaError> {
     if !list.contains(&discriminant) {
-        return Err(SchemaError::HorsDomain(discriminant));
+        return Err(SchemaError::OutsideDomain(discriminant));
     }
     match payload {
-        Value::Atom(atome) if domain_values.contains(*atome) => Ok(()),
-        Value::Atom(atome) => Err(SchemaError::HorsDomain(*atome)),
+        Value::Atom(atom) if domain_values.contains(*atom) => Ok(()),
+        Value::Atom(atom) => Err(SchemaError::OutsideDomain(*atom)),
         other => Err(SchemaError::TypeMismatch {
             expected: "atomic payload",
-            recu: form_value(other),
+            received: form_value(other),
         }),
     }
 }
@@ -594,17 +597,17 @@ fn compiler_tag<P: Pool<Key = u64, Payload = bool>>(
     payload: &Value,
 ) -> Result<NodeId, SchemaError> {
     let terminal = pool.intern(anchor, Form::Terminal(true));
-    let Value::Atom(atome_value) = payload else {
+    let Value::Atom(atom_value) = payload else {
         return Err(SchemaError::TypeMismatch {
             expected: "atomic payload",
-            recu: form_value(payload),
+            received: form_value(payload),
         });
     };
     let node_value = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: ArcRun::from_pairs([(atome_value.0, terminal)]),
+            arcs: ArcRun::from_pairs([(atom_value.0, terminal)]),
         },
     );
     let index = list.iter().position(|a| *a == discriminant).unwrap();
@@ -631,7 +634,7 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             // to the acceptance terminal.
             if matches!(pool.resolve(node), Ok(Form::Terminal(true))) {
                 return match domain.values.first() {
-                    Some(atome) if domain.size() == 1 => Ok(Value::Atom(*atome)),
+                    Some(atom) if domain.size() == 1 => Ok(Value::Atom(*atom)),
                     _ => Err(SchemaError::NodeInexpected {
                         expected: "atomic-level node",
                         node,
@@ -652,11 +655,11 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             }
             for (key, target) in arcs {
                 if matches!(pool.resolve(target), Ok(Form::Terminal(true))) {
-                    let atome = Atom(key);
-                    if domain.contains(atome) {
-                        return Ok(Value::Atom(atome));
+                    let atom = Atom(key);
+                    if domain.contains(atom) {
+                        return Ok(Value::Atom(atom));
                     }
-                    return Err(SchemaError::HorsDomain(atome));
+                    return Err(SchemaError::OutsideDomain(atom));
                 }
             }
             Err(SchemaError::NodeInexpected {
@@ -674,9 +677,9 @@ pub fn decompiler<P: Pool<Key = u64, Payload = bool>>(
             decompiler_map(pool, list_keys, node, &mut map)?;
             Ok(Value::Map(map))
         }
-        Schema::Seq(domain, longueur_max) => {
+        Schema::Seq(domain, length_max) => {
             let mut elements = Vec::new();
-            decompiler_seq(pool, domain, *longueur_max, node, &mut elements)?;
+            decompiler_seq(pool, domain, *length_max, node, &mut elements)?;
             Ok(Value::Seq(elements))
         }
         Schema::Tag(list, domain_values) => decompiler_tag(pool, list, domain_values, node),
@@ -735,17 +738,17 @@ fn decompiler_tag<P: Pool<Key = u64, Payload = bool>>(
             node: node_value,
         });
     };
-    let atome = Atom(value);
-    if !domain_values.contains(atome) {
-        return Err(SchemaError::HorsDomain(atome));
+    let atom = Atom(value);
+    if !domain_values.contains(atom) {
+        return Err(SchemaError::OutsideDomain(atom));
     }
-    Ok(Value::Tag(discriminant, Box::new(Value::Atom(atome))))
+    Ok(Value::Tag(discriminant, Box::new(Value::Atom(atom))))
 }
 
 fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     domain: &Domain,
-    longueur_max: u32,
+    length_max: u32,
     mut node: NodeId,
     elements: &mut Vec<Value>,
 ) -> Result<(), SchemaError> {
@@ -759,13 +762,13 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
                 });
             }
             Form::Node { level, arcs } => {
-                if level.0 > longueur_max {
+                if level.0 > length_max {
                     return Err(SchemaError::NodeInexpected {
                         expected: "position level or end marker",
                         node,
                     });
                 }
-                if level.0 == longueur_max {
+                if level.0 == length_max {
                     // End-marker level.
                     if arcs.contains_key(&PRESENT) {
                         return Ok(());
@@ -781,16 +784,16 @@ fn decompiler_seq<P: Pool<Key = u64, Payload = bool>>(
                         node,
                     });
                 };
-                if arc == key_fin(domain) {
+                if arc == key_end(domain) {
                     // Early end marker: the sequence stops here.
                     node = suite;
                     continue;
                 }
-                let atome = Atom(arc);
-                if !domain.contains(atome) {
-                    return Err(SchemaError::HorsDomain(atome));
+                let atom = Atom(arc);
+                if !domain.contains(atom) {
+                    return Err(SchemaError::OutsideDomain(atom));
                 }
-                elements.push(Value::Atom(atome));
+                elements.push(Value::Atom(atom));
                 node = suite;
             }
         }
@@ -852,13 +855,13 @@ fn decompiler_map<P: Pool<Key = u64, Payload = bool>>(
                 });
             }
             Form::Node { level, arcs } => {
-                if !level.0.is_multiple_of(PAS_LEVEL_MAP) {
+                if !level.0.is_multiple_of(STEP_LEVEL_MAP) {
                     return Err(SchemaError::NodeInexpected {
                         expected: "presence level",
                         node,
                     });
                 }
-                let index = (level.0 / PAS_LEVEL_MAP) as usize;
+                let index = (level.0 / STEP_LEVEL_MAP) as usize;
                 if index >= list_keys.len() {
                     return Err(SchemaError::NodeInexpected {
                         expected: "presence level of a key",

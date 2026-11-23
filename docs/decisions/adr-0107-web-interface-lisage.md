@@ -44,7 +44,7 @@ contract adds the common authentication, zone, and UI requirements on top.
    Environment variables: `AUTH_ISSUER`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`,
    `AUTH_ALLOWED_AUDIENCES`, `AUTH_DISABLED`.
 
-3. **Personal Mistral API token in preferences** — "Préférences" panel (account
+3. **Personal Mistral API token in preferences** — `Préférences` panel (account
    menu): `password`-type field, browser-side storage only, never in URL, never
    logged, never returned in a response. Transmitted via `x-mistral-api-token`
    header on generation-triggering calls only. No Mistral key server-side. No
@@ -52,7 +52,7 @@ contract adds the common authentication, zone, and UI requirements on top.
    consistency across the three sites, without a consuming endpoint.
 
 4. **Common interface** — identical header structure across the three sites:
-   logo+name, zones (Accueil/Découvrir/Atelier — FR; Home/Explore/Workshop —
+   logo+name, zones (`Accueil`/`Découvrir`/`Atelier` — FR; `Home`/`Explore`/`Workshop` —
    EN), FR/EN language selector, persistent light/dark theme selector, account
    menu. Common components (buttons, cards, badges, toasts, forms, tables;
    monochrome SVG icons, no emoji). Allowed variations: palette, logo, name.

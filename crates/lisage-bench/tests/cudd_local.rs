@@ -12,7 +12,7 @@
 //! ```
 
 use lisage_algebra::interface::Anchor;
-use lisage_bench::temoin_bdd::MiniBdd;
+use lisage_bench::witness_bdd::MiniBdd;
 use lisage_core::arena::Arena;
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, count_nodes};
 use lisage_core::observer::NoOpObserver;
@@ -72,7 +72,7 @@ proptest! {
     /// truth tables.
     #[test]
     #[ignore = "outside CI — requires the Docker image lisage-cudd:latest"]
-    fn test_c6_local_arene_vs_cudd(
+    fn test_c6_local_arena_vs_cudd(
         number_variables in 2u32..=8,
         table in prop::collection::vec(any::<bool>(), 4..=256),
     ) {
@@ -83,13 +83,13 @@ proptest! {
         let mut pool = Arena::new(BddController::new(number_variables), Box::new(NoOpObserver));
         let anchor = Anchor(0);
         let root = compiler_bdd(&mut pool, anchor, &keys, &table);
-        let nodes_arene = count_nodes(&pool, root);
+        let nodes_arena = count_nodes(&pool, root);
 
         let nodes_cudd = cudd_count_nodes(number_variables, &table)
             .expect("call to the lisage-cudd Docker container failed");
 
         prop_assert_eq!(
-            nodes_arene,
+            nodes_arena,
             nodes_cudd as u64,
             "local C6: identical reproduction of the node count against real CUDD"
         );

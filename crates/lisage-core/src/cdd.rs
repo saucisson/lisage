@@ -1,15 +1,15 @@
 //! **CDD** (*Clock Decision Diagrams*) test instance (UPPAAL school, Larsen and
 //! al.; backlog § 9 of the roadmap, open question 9 of the spec,
 //! vein #83 after the intervals, DBM fragments and the
-//! DDD-difference test instance): the **non-convex unions of DBM zones** as
+//! DDD-difference test instance): the **not-convex unions of DBM zones** as
 //! clock region-keys — the "δ = clock differences, non-convex sets" case of
 //! the state of the art.
 //!
 //! Spec Q9 (i): "non-convex unions with no known normal form" — the
-//! non-canonicity is **assumed** (DDD style): the normal form of the union
+//! not-canonicity is **assumed** (DDD style): the normal form of the union
 //! is the sort + dedup of the closed zones (syntactic equality of the
 //! normalized writings), not set-theoretic equality. Two writings of the same
-//! non-convex set (for example a zone included in another) can
+//! not-convex set (for example a zone included in another) can
 //! remain distinct keys: C1 holds relative to this
 //! normal form, not to the denoted set. Point membership, for its part, is
 //! semantically decidable (membership in one of the zones).
@@ -32,10 +32,10 @@ use crate::dbm::Dbm;
 /// Canonical empty union: zero zones — the continuous "absent" δ(ℓ).
 pub const EMPTY: Cdd = Cdd { zones: Vec::new() };
 
-/// Non-convex region-key: finite union of closed DBM zones over
+/// Not-convex region-key: finite union of closed DBM zones over
 /// `number_variables` clocks. Every construction goes through [`Cdd::new`],
 /// which normalizes: empty zones removed, sort, dedup — the
-/// *syntactic* normal form of the union (assumed non-canonicity, spec Q9 (i)).
+/// *syntactic* normal form of the union (assumed not-canonicity, spec Q9 (i)).
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Cdd {
     zones: Vec<Dbm>,
@@ -46,7 +46,7 @@ impl Cdd {
     pub fn new(zones: &[Dbm]) -> Self {
         let mut normalisees: Vec<Dbm> = zones
             .iter()
-            .filter(|zone| !zone.est_empty())
+            .filter(|zone| !zone.is_empty())
             .cloned()
             .collect();
         normalisees.sort();
@@ -60,7 +60,7 @@ impl Cdd {
     }
 
     /// Is the union empty (zero zones)?
-    pub fn est_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.zones.is_empty()
     }
 
@@ -79,7 +79,7 @@ impl Cdd {
         for a in &self.zones {
             for b in &other.zones {
                 let meet = a.intersection(b);
-                if !meet.est_empty() {
+                if !meet.is_empty() {
                     zones.push(meet);
                 }
             }
@@ -118,10 +118,10 @@ impl CddKeys {
     /// then declared by the explicit arcs of the diagram.
     pub fn coverage(&self, regions: &[Cdd]) -> bool {
         // The empty union covers nothing; the dimension is that of the zones
-        // of a non-empty union (a family of empty unions covers nothing).
+        // of a not-empty union (a family of empty unions covers nothing).
         let Some(n) = regions
             .iter()
-            .find(|region| !region.est_empty())
+            .find(|region| !region.is_empty())
             .and_then(|region| region.zones().first())
             .map(Dbm::number_variables)
         else {
@@ -234,48 +234,48 @@ pub fn evaluate<P: Pool<Key = Cdd, Payload = bool>>(
 }
 
 /// Counts the distinct nodes reachable from `root`, terminals
-/// included. Propagates the pool error: a non-interned `NodeId` is an
+/// included. Propagates the pool error: a not-interned `NodeId` is an
 /// error, not a silent leaf.
 pub fn count_nodes<P: Pool<Key = Cdd, Payload = bool>>(
     pool: &P,
     root: NodeId,
 ) -> Result<u64, PoolError> {
-    let mut visite = BTreeSet::new();
+    let mut visit = BTreeSet::new();
     let mut stack = vec![root];
     while let Some(node) = stack.pop() {
-        if !visite.insert(node) {
+        if !visit.insert(node) {
             continue;
         }
         if let Form::Node { arcs, .. } = pool.resolve(node)? {
             stack.extend(arcs.values().copied());
         }
     }
-    Ok(visite.len() as u64)
+    Ok(visit.len() as u64)
 }
 
-/// Test instance: the non-convex region `{x − y ≤ 0} ∪ {x − y ≥ 2}` over two
+/// Test instance: the not-convex region `{x − y ≤ 0} ∪ {x − y ≥ 2}` over two
 /// clocks — what no single DBM expresses — compiled in a single level
 /// by explicit regions (no universe sweep at construction):
 ///
-/// - the non-convex union arc leads to `true`;
+/// - the not-convex union arc leads to `true`;
 /// - the complementary arc `{x − y = 1}` (the open band `0 < x − y < 2`
 ///   over the bounded integer domain) leads to `false`; the two arcs cover
 ///   the box.
-pub fn compiler_union_horloges<P: Pool<Key = Cdd, Payload = bool>>(
+pub fn compiler_union_clocks<P: Pool<Key = Cdd, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
 ) -> NodeId {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
-    let faux = pool.intern(anchor, Form::Terminal(false));
+    let true_node = pool.intern(anchor, Form::Terminal(true));
+    let false_node = pool.intern(anchor, Form::Terminal(false));
     let zone_a = Dbm::new(2, &[(0, 1, 0)]);
     let zone_b = Dbm::new(2, &[(1, 0, -2)]);
     let union = Cdd::new(&[zone_a, zone_b]);
-    let complementaire = Cdd::new(&[Dbm::new(2, &[(1, 0, -1), (0, 1, 1)])]);
+    let complementary = Cdd::new(&[Dbm::new(2, &[(1, 0, -1), (0, 1, 1)])]);
     pool.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: ArcRun::from_pairs([(union, vrai), (complementaire, faux)]),
+            arcs: ArcRun::from_pairs([(union, true_node), (complementary, false_node)]),
         },
     )
 }

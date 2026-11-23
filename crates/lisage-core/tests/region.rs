@@ -25,11 +25,11 @@ fn pool(domains: Vec<u64>) -> PoolRegion {
 fn test_interval_empty_normalise() {
     let empty = Interval::new(5, 3);
     assert_eq!(empty, EMPTY);
-    assert!(empty.est_empty());
+    assert!(empty.is_empty());
     assert_eq!(empty.size(), 0);
     assert!(!empty.contains(3));
     let point = Interval::point(4);
-    assert!(!point.est_empty());
+    assert!(!point.is_empty());
     assert_eq!(point.size(), 1);
     assert!(point.contains(4));
     assert!(!point.contains(5));
@@ -37,18 +37,18 @@ fn test_interval_empty_normalise() {
 }
 
 #[test]
-fn test_normal_form_canonique_and_idempotente() {
+fn test_normal_form_canonical_and_idempotent() {
     let keys = RegionKeys::new(vec![8]);
     // Any writing of an empty interval has the same normal form.
     assert_eq!(keys.normal_form(&Interval::new(7, 2)), EMPTY);
     assert_eq!(keys.normal_form(&EMPTY), EMPTY);
-    // Idempotent normal form, stable on non-empty.
+    // Idempotent normal form, stable on not-empty.
     let interval = Interval::new(2, 5);
     assert_eq!(keys.normal_form(&keys.normal_form(&interval)), interval);
 }
 
 #[test]
-fn test_cardinality_and_defaut_par_level() {
+fn test_cardinality_and_default_per_level() {
     let keys = RegionKeys::new(vec![8, 3]);
     assert_eq!(keys.cardinality(Level(0)), 8);
     assert_eq!(keys.cardinality(Level(1)), 3);
@@ -60,7 +60,7 @@ fn test_cardinality_and_defaut_par_level() {
 /// Relative C1: two writings of the same region share the same node in the
 /// pool (R-share after normal form), two distinct regions do not.
 #[test]
-fn test_partage_pool_c1_relatif() {
+fn test_shared_pool_c1_relative() {
     let mut pool = pool(vec![8]);
     let terminal = pool.intern(ANCHOR, Form::Terminal(true));
     let level = Level(0);
@@ -101,21 +101,21 @@ fn test_partage_pool_c1_relatif() {
     );
 }
 
-/// Property (LCG): the normal form is idempotent, and size/est_empty/
+/// Property (LCG): the normal form is idempotent, and size/is_empty/
 /// contains are consistent with the normalized representation.
 #[test]
-fn test_propriete_normalisation_lcg() {
+fn test_property_normalisation_lcg() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
-    const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
-    const INCREMENT_LCG: u64 = 1442695040888963407;
+    const LCG_MULTIPLIER: u64 = 6364136223846793005;
+    const LCG_INCREMENT: u64 = 1442695040888963407;
     const NUMBER_CAS: u64 = 30;
     let keys = RegionKeys::new(vec![16]);
     let mut seed = SEED_LCG;
     for _ in 0..NUMBER_CAS {
         let mut next = || {
             seed = seed
-                .wrapping_mul(MULTIPLICATEUR_LCG)
-                .wrapping_add(INCREMENT_LCG);
+                .wrapping_mul(LCG_MULTIPLIER)
+                .wrapping_add(LCG_INCREMENT);
             seed
         };
         let inf = next() % 16;
@@ -123,12 +123,12 @@ fn test_propriete_normalisation_lcg() {
         let interval = Interval::new(inf, sup);
         let normalisee = keys.normal_form(&interval);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
-        assert_eq!(normalisee.est_empty(), inf > sup);
+        assert_eq!(normalisee.is_empty(), inf > sup);
         assert_eq!(normalisee.size(), if inf > sup { 0 } else { sup - inf + 1 });
         let point = next() % 16;
         assert_eq!(
             normalisee.contains(point),
-            !normalisee.est_empty() && inf <= point && point <= sup
+            !normalisee.is_empty() && inf <= point && point <= sup
         );
     }
 }
@@ -138,21 +138,21 @@ fn test_propriete_normalisation_lcg() {
 /// (its complement) represents S; the point count of the DD's true arcs
 /// equals |S|. The `EMPTY` arc to the default is removed by R-default.
 #[test]
-fn test_differentiel_union_intervals_contre_enumeration() {
+fn test_differential_union_intervals_against_enumeration() {
     const SEED_LCG: u64 = 0x2545_F491_4F6C_DD1D;
-    const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
-    const INCREMENT_LCG: u64 = 1442695040888963407;
+    const LCG_MULTIPLIER: u64 = 6364136223846793005;
+    const LCG_INCREMENT: u64 = 1442695040888963407;
     const NUMBER_CAS: u64 = 30;
     const SIZE_DOMAIN: u64 = 12;
     let mut pool = pool(vec![SIZE_DOMAIN]);
-    let vrai_terminal = pool.intern(ANCHOR, Form::Terminal(true));
-    let faux_terminal = pool.intern(ANCHOR, Form::Terminal(false));
+    let true_terminal = pool.intern(ANCHOR, Form::Terminal(true));
+    let false_terminal = pool.intern(ANCHOR, Form::Terminal(false));
     let mut seed = SEED_LCG;
     for _ in 0..NUMBER_CAS {
         let mut next = || {
             seed = seed
-                .wrapping_mul(MULTIPLICATEUR_LCG)
-                .wrapping_add(INCREMENT_LCG);
+                .wrapping_mul(LCG_MULTIPLIER)
+                .wrapping_add(LCG_INCREMENT);
             seed
         };
         // Subset S of [0, SIZE_DOMAIN) drawn with the LCG.
@@ -161,19 +161,19 @@ fn test_differentiel_union_intervals_contre_enumeration() {
         let mut arcs: BTreeMap<Interval, NodeId> = BTreeMap::new();
         let mut point = 0;
         while point < SIZE_DOMAIN {
-            let dans_s = set.contains(&point);
-            let mut fin = point;
-            while fin + 1 < SIZE_DOMAIN && set.contains(&(fin + 1)) == dans_s {
-                fin += 1;
+            let in_s = set.contains(&point);
+            let mut end = point;
+            while end + 1 < SIZE_DOMAIN && set.contains(&(end + 1)) == in_s {
+                end += 1;
             }
             arcs.insert(
-                Interval::new(point, fin),
-                if dans_s { vrai_terminal } else { faux_terminal },
+                Interval::new(point, end),
+                if in_s { true_terminal } else { false_terminal },
             );
-            point = fin + 1;
+            point = end + 1;
         }
         // The absent arc leads to the default D_δ = terminal(false): R-default.
-        arcs.insert(EMPTY, faux_terminal);
+        arcs.insert(EMPTY, false_terminal);
         let root = pool.intern(
             ANCHOR,
             Form::Node {
@@ -192,7 +192,7 @@ fn test_differentiel_union_intervals_contre_enumeration() {
                     "R-default removes the arc to the default"
                 );
                 arcs.iter()
-                    .filter(|(_, target)| **target == vrai_terminal)
+                    .filter(|(_, target)| **target == true_terminal)
                     .map(|(interval, _)| interval.size())
                     .sum()
             }

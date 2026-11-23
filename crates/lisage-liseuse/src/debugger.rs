@@ -12,11 +12,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_core::arena::Arena;
 use lisage_core::observer::{Observer, SpanId, SpanKind, TraceEvent};
-use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
+use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate};
 use lisage_core::schema::{
     ABSENT, Domain, PRESENT, ReferenceController, Schema, SchemaKeys, compiler,
 };
-use lisage_core::transduction::{ContextePhiOut, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transduction};
 use lisage_core::{Anchor, Form, Level, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
 
@@ -59,8 +59,8 @@ impl Transduction for ChainStep {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         let mut m = 0u64;
         for (arc, (_, seen_below)) in &ctx.arcs {
             m = m.max(*seen_below);
@@ -88,7 +88,7 @@ impl Transduction for ChainStep {
             }
             current
         };
-        (node, lisage_core::memory::EffetMemory::new())
+        (node, lisage_core::memory::EffectMemory::new())
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
         &self,
@@ -141,11 +141,11 @@ pub fn run_standard_scenario(
     .expect("scenario initial compilable");
 
     let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
-    let policy = PolicySaturation::Statique(levels);
+    let policy = PolicySaturation::Static(levels);
     let step = ChainStep {
         number_levels: schema.number_levels(),
     };
-    let mut params = ParametresSaturation {
+    let mut params = SaturationParameters {
         transduction: &step,
         policy: &policy,
         pool: &mut pool,
@@ -155,7 +155,7 @@ pub fn run_standard_scenario(
         number_levels: schema.number_levels(),
         observer: Some(observer),
     };
-    let result = saturer(&mut params).expect("scenario saturation terminates");
+    let result = saturate(&mut params).expect("scenario saturation terminates");
     assert_eq!(
         result.iterations, n as u32,
         "the chain saturates in n rounds"
@@ -325,11 +325,11 @@ pub fn event_kind_name(event: &TraceEvent) -> &'static str {
         TraceEvent::Histogram { .. } => "Histogram",
         TraceEvent::OpStart { .. } => "OpStart",
         TraceEvent::OpEnd { .. } => "OpEnd",
-        TraceEvent::VisiteEntree { .. } => "VisiteEntree",
-        TraceEvent::VisiteSortie { .. } => "VisiteSortie",
+        TraceEvent::VisitEntry { .. } => "VisiteEntree",
+        TraceEvent::VisitExit { .. } => "VisiteSortie",
         TraceEvent::MemoConsult { .. } => "MemoConsult",
         TraceEvent::MemoInsert { .. } => "MemoInsert",
-        TraceEvent::EcritureMemoire { .. } => "EcritureMemoire",
+        TraceEvent::MemoryWrite { .. } => "EcritureMemoire",
         TraceEvent::StructureChange { .. } => "StructureChange",
     }
 }
@@ -391,12 +391,12 @@ impl Debugger {
         out
     }
 
-    /// The visit stack: `Visite` spans enclosing the current position,
+    /// The visit stack: `Visit` spans enclosing the current position,
     /// outermost first (the innermost visit is last).
     pub fn visit_stack(&self) -> Vec<SpanId> {
         self.enclosing_spans()
             .iter()
-            .filter(|node| node.kind == SpanKind::Visite)
+            .filter(|node| node.kind == SpanKind::Visit)
             .map(|node| node.span)
             .collect()
     }
@@ -533,7 +533,7 @@ pub fn round_numbers(events: &[TraceEvent]) -> BTreeSet<u32> {
     events
         .iter()
         .filter_map(|e| match e {
-            TraceEvent::Round { numero, .. } => Some(*numero),
+            TraceEvent::Round { number, .. } => Some(*number),
             _ => None,
         })
         .collect()

@@ -10,19 +10,19 @@ use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::ReferenceController;
 use lisage_core::workshop::{Reductions, WorkshopController, measure};
 
-use lisage_liseuse::philosophers::{build_r_n, mots_atteignables, pool_neuf, schema_anneau};
+use lisage_liseuse::philosophers::{build_r_n, fresh_pool, schema_ring, words_reachable};
 
 const ANCHOR: Anchor = Anchor(0);
 
 fn measure_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
-    let schema = schema_anneau(n);
+    let schema = schema_ring(n);
     let mut pool: Arena<WorkshopController<ReferenceController>> = Arena::new(
         WorkshopController::new(ReferenceController::new(schema.clone()), reductions),
         Box::new(NoOpObserver),
     );
     let root = build_r_n(&mut pool, ANCHOR, n);
     let report = measure(&pool, root, None).expect("interned node");
-    (report.nodes_partages, report.paths, report.size_depliee)
+    (report.nodes_shared, report.paths, report.size_unfolded)
 }
 
 /// Golden thread: R₃ = 20 reachable states = 20 paths (one per state); the
@@ -30,15 +30,15 @@ fn measure_r_n(n: u64, reductions: Reductions) -> (u64, u64, u64) {
 /// (sum of path lengths, shortened by R-collapse) — the sharing
 /// is visible to the naked eye.
 #[test]
-fn test_r3_partage_contre_size_depliee() {
-    let (nodes, paths, size_depliee) = measure_r_n(3, Reductions::TOUTES);
+fn test_r3_shared_against_size_unfolded() {
+    let (nodes, paths, size_unfolded) = measure_r_n(3, Reductions::ALL);
     assert_eq!(paths, 20, "one path per reachable state of R₃");
-    assert_eq!(mots_atteignables(3).len() as u64, 20);
-    assert_eq!(size_depliee, 126, "sum of the lengths of the 20 paths");
+    assert_eq!(words_reachable(3).len() as u64, 20);
+    assert_eq!(size_unfolded, 126, "sum of the lengths of the 20 paths");
     assert_eq!(nodes, 33, "shared nodes of R₃ in flat encoding");
     assert!(
-        nodes < size_depliee,
-        "sharing (R-share) fits in {nodes} nodes against {size_depliee} unfolded"
+        nodes < size_unfolded,
+        "sharing (R-share) fits in {nodes} nodes against {size_unfolded} unfolded"
     );
 }
 
@@ -46,27 +46,27 @@ fn test_r3_partage_contre_size_depliee() {
 /// two metrics on the same construction.
 #[test]
 fn test_commutation_ne_reduced_jamais() {
-    let (nodes_toutes, paths_toutes, size_toutes) = measure_r_n(3, Reductions::TOUTES);
-    let (nodes_aucune, paths_aucune, size_aucune) = measure_r_n(3, Reductions::AUCUNE);
-    assert!(nodes_aucune >= nodes_toutes);
-    assert!(paths_aucune >= paths_toutes);
-    assert!(size_aucune >= size_toutes);
+    let (nodes_all, paths_all, size_all) = measure_r_n(3, Reductions::ALL);
+    let (nodes_none, paths_none, size_none) = measure_r_n(3, Reductions::NONE);
+    assert!(nodes_none >= nodes_all);
+    assert!(paths_none >= paths_all);
+    assert!(size_none >= size_all);
     let (nodes_without_collapse, _, _) = measure_r_n(3, Reductions::without_collapse());
-    assert!(nodes_without_collapse >= nodes_toutes);
-    let (nodes_without_defaut, _, _) = measure_r_n(3, Reductions::without_defaut());
-    assert!(nodes_without_defaut >= nodes_toutes);
+    assert!(nodes_without_collapse >= nodes_all);
+    let (nodes_without_default, _, _) = measure_r_n(3, Reductions::without_default());
+    assert!(nodes_without_default >= nodes_all);
 }
 
 /// The reference pool (without the workshop wrapper) gives the same diagram as
-/// `Reductions::TOUTES`: the wrapper changes nothing when everything is active.
+/// `Reductions::ALL`: the wrapper changes nothing when everything is active.
 #[test]
-fn test_enveloppe_transparente_quand_tout_actif() {
-    let schema = schema_anneau(3);
-    let mut reference = pool_neuf(&schema);
+fn test_envelope_transparent_when_all_active() {
+    let schema = schema_ring(3);
+    let mut reference = fresh_pool(&schema);
     let root_ref = build_r_n(&mut reference, ANCHOR, 3);
     let report_ref = measure(&reference, root_ref, None).expect("interned node");
-    let (nodes, paths, size) = measure_r_n(3, Reductions::TOUTES);
-    assert_eq!(report_ref.nodes_partages, nodes);
+    let (nodes, paths, size) = measure_r_n(3, Reductions::ALL);
+    assert_eq!(report_ref.nodes_shared, nodes);
     assert_eq!(report_ref.paths, paths);
-    assert_eq!(report_ref.size_depliee, size);
+    assert_eq!(report_ref.size_unfolded, size);
 }

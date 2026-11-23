@@ -1,5 +1,5 @@
 //! ADD/MTBDD (M5-4, statement C7, open question n° 8 of spec § 10):
-//! **lifted construction** — non-idempotent merge with weights on the
+//! **lifted construction** — not-idempotent merge with weights on the
 //! terminals, unique table indexed by the weights (the handle includes the
 //! weight, so two terminals of different weights are distinct handles), ⊕
 //! pointwise like ADD. Compatibility guard (A5): a weighted fold is exact
@@ -14,7 +14,7 @@ use lisage_algebra::interface::{
 };
 
 use crate::error::CoreError;
-use crate::schema::{ABSENT, PAS_LEVEL_MAP, PRESENT, Schema, SchemaError, SchemaKeys};
+use crate::schema::{ABSENT, PRESENT, STEP_LEVEL_MAP, Schema, SchemaError, SchemaKeys};
 use lisage_lang::value::{Atom, Value};
 
 /// Fingerprint of the ADD controller (distinct from `ReferenceController`).
@@ -55,7 +55,7 @@ impl Controller for AddController {
     fn default_payload(&self, level: Level) -> Option<Self::Payload> {
         match &self.schema {
             Schema::Map(_, _) => {
-                if level.0.is_multiple_of(PAS_LEVEL_MAP) {
+                if level.0.is_multiple_of(STEP_LEVEL_MAP) {
                     Some(0)
                 } else {
                     None
@@ -68,7 +68,7 @@ impl Controller for AddController {
 
 /// Compiles a `Value::Map` into a weighted diagram of the given weight
 /// (universe sweep, mirror of `schema::compiler` for payload `u64`).
-pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
+pub fn compiler_weighted<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     anchor: Anchor,
     schema: &Schema,
@@ -78,36 +78,36 @@ pub fn compiler_pondere<P: Pool<Key = u64, Payload = u64>>(
     let Schema::Map(list_keys, domain) = schema else {
         return Err(SchemaError::TypeMismatch {
             expected: "map",
-            recu: "other schema",
+            received: "other schema",
         });
     };
     let Value::Map(map) = value else {
         return Err(SchemaError::TypeMismatch {
             expected: "map",
-            recu: "other value",
+            received: "other value",
         });
     };
     for (key, value) in map {
-        let (Value::Atom(atome_key), Value::Atom(atome_value)) = (key, value) else {
+        let (Value::Atom(atom_key), Value::Atom(atom_value)) = (key, value) else {
             return Err(SchemaError::TypeMismatch {
                 expected: "atomic key and value",
-                recu: "non-atomic",
+                received: "non-atomic",
             });
         };
-        if !list_keys.contains(atome_key) {
-            return Err(SchemaError::HorsDomain(*atome_key));
+        if !list_keys.contains(atom_key) {
+            return Err(SchemaError::OutsideDomain(*atom_key));
         }
-        if !domain.contains(*atome_value) {
-            return Err(SchemaError::HorsDomain(*atome_value));
+        if !domain.contains(*atom_value) {
+            return Err(SchemaError::OutsideDomain(*atom_value));
         }
     }
-    Ok(compiler_map_pondere(
+    Ok(compiler_map_weighted(
         pool, anchor, list_keys, map, 0, weight,
     ))
 }
 
 /// Recursive compilation of a map into a weighted presence/value chain.
-fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
+fn compiler_map_weighted<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
     anchor: Anchor,
     list_keys: &[Atom],
@@ -118,7 +118,7 @@ fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
     if index == list_keys.len() {
         return pool.intern(anchor, Form::Terminal(weight));
     }
-    let suite = compiler_map_pondere(pool, anchor, list_keys, map, index + 1, weight);
+    let suite = compiler_map_weighted(pool, anchor, list_keys, map, index + 1, weight);
     let key = Value::Atom(list_keys[index]);
     let arcs = match map.get(&key) {
         Some(Value::Atom(value)) => {
@@ -143,7 +143,7 @@ fn compiler_map_pondere<P: Pool<Key = u64, Payload = u64>>(
 }
 
 /// ADD construction merge: ⊕ pointwise on the terminal weights,
-/// **non-idempotent** (`merge_add(a, a)` doubles the weights — the unique
+/// **not-idempotent** (`merge_add(a, a)` doubles the weights — the unique
 /// table is indexed by the weights, duplicate collapse is lost).
 pub fn merge_add<P: Pool<Key = u64, Payload = u64>>(
     pool: &mut P,
@@ -224,12 +224,12 @@ fn merge_with_other<P: Pool<Key = u64, Payload = u64>>(
 ) -> Result<NodeId, CoreError> {
     let mut accumulator: BTreeMap<u64, NodeId> = arcs.into_iter().collect();
     match keys.default(level) {
-        Some(defaut) => {
-            let target = match accumulator.remove(&defaut) {
+        Some(default) => {
+            let target = match accumulator.remove(&default) {
                 Some(target) => merge_add(pool, keys, anchor, target, other)?,
                 None => other,
             };
-            accumulator.insert(defaut, target);
+            accumulator.insert(default, target);
         }
         None => {
             let cardinality = keys.cardinality(level);
@@ -252,7 +252,7 @@ fn merge_with_other<P: Pool<Key = u64, Payload = u64>>(
 }
 
 /// Weighted fold: sum of the terminal weights over all accepting paths
-/// (A4 counting expansion like `Pli`). Exact **only** on a lifted ADD
+/// (A4 counting expansion like `Fold`). Exact **only** on a lifted ADD
 /// construction — this is the compatibility guard (Q8).
 pub fn sum_weight<P: Pool<Key = u64, Payload = u64>>(
     pool: &P,
@@ -286,8 +286,8 @@ fn sum<P: Pool<Key = u64, Payload = u64>>(
                     Form::Node { level, .. } => Some(level),
                     Form::Terminal(_) => None,
                 };
-                let multiplicateur = multiplicateur(keys, number_levels, level, *arc, level_target);
-                total += multiplicateur * sum(pool, keys, number_levels, *target, memo)?;
+                let multiplier = multiplier(keys, number_levels, level, *arc, level_target);
+                total += multiplier * sum(pool, keys, number_levels, *target, memo)?;
             }
             // Implicit default arc: D_δ = terminal(0), of zero weight.
             total
@@ -299,8 +299,8 @@ fn sum<P: Pool<Key = u64, Payload = u64>>(
 
 /// (A4) multiplier of arc `arc` from level `level` to a child of level
 /// `level_target` (`None` = terminal): product of the cardinalities of the
-/// value levels skipped on the path (mirror of `Pli::multiplicateur`).
-fn multiplicateur(
+/// value levels skipped on the path (mirror of `Fold::multiplier`).
+fn multiplier(
     keys: &SchemaKeys,
     number_levels: u32,
     level: Level,
@@ -312,17 +312,17 @@ fn multiplicateur(
         None => number_levels,
     };
     let mut n = match keys.default(level) {
-        Some(defaut) if arc == defaut => level.0 + PAS_LEVEL_MAP,
+        Some(default) if arc == default => level.0 + STEP_LEVEL_MAP,
         _ => level.0 + 1,
     };
-    let mut produit = 1u64;
+    let mut product = 1u64;
     while n < bound {
         if keys.default(Level(n)).is_some() {
-            n += PAS_LEVEL_MAP;
+            n += STEP_LEVEL_MAP;
         } else {
-            produit *= keys.cardinality(Level(n));
+            product *= keys.cardinality(Level(n));
             n += 1;
         }
     }
-    produit
+    product
 }

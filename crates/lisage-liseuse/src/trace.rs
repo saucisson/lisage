@@ -17,17 +17,17 @@ use lisage_core::observer::{
 /// v3 adds the `Histogram` event (MEM-17: degree histogram per class);
 /// v4 adds the spans of D1-1 — `SpanOpen`/`SpanClose` events and a `"span"`
 /// field on every other event; v5 adds the register events of D1-2 —
-/// `OpStart`/`OpEnd`/`VisiteEntree`/`VisiteSortie`/`MemoConsult`/`MemoInsert`/
-/// `EcritureMemoire`/`StructureChange`, plus the extended `NodeCreated`
-/// (`forme`), `Gc` (`liste_collectes`) and `Round` (levels, handles, growth).
+/// `OpStart`/`OpEnd`/`VisitEntry`/`VisitExit`/`MemoConsult`/`MemoInsert`/
+/// `MemoryWrite`/`StructureChange`, plus the extended `NodeCreated`
+/// (`form`), `Gc` (`collected_list`) and `Round` (levels, handles, growth).
 pub const TRACE_VERSION: u32 = 5;
 
 /// Minimal JSON escaping of a string (events carry no dynamic
 /// ones, but the contract stays correct).
-fn echapper_json(chaine: &str) -> String {
-    let mut output = String::with_capacity(chaine.len() + 2);
-    for caractere in chaine.chars() {
-        match caractere {
+fn escape_json(string: &str) -> String {
+    let mut output = String::with_capacity(string.len() + 2);
+    for character in string.chars() {
+        match character {
             '"' => output.push_str("\\\""),
             '\\' => output.push_str("\\\\"),
             '\n' => output.push_str("\\n"),
@@ -41,8 +41,8 @@ fn echapper_json(chaine: &str) -> String {
 }
 
 /// JSON name of a reduction rule.
-fn name_regle(regle: ReductionRule) -> &'static str {
-    match regle {
+fn name_rule(rule: ReductionRule) -> &'static str {
+    match rule {
         ReductionRule::Share => "R-share",
         ReductionRule::Collapse => "R-collapse",
         ReductionRule::Default => "R-default",
@@ -54,15 +54,15 @@ fn name_span_kind(kind: SpanKind) -> &'static str {
     match kind {
         SpanKind::Op => "op",
         SpanKind::Round => "round",
-        SpanKind::Visite => "visite",
+        SpanKind::Visit => "visite",
     }
 }
 
 /// JSON name of a structure change classification (D1-2).
 fn name_structure_change(kind: StructureChangeKind) -> &'static str {
     match kind {
-        StructureChangeKind::Identite => "identite",
-        StructureChangeKind::Reetiquetage => "reetiquetage",
+        StructureChangeKind::Identity => "identite",
+        StructureChangeKind::Relabeling => "reetiquetage",
         StructureChangeKind::Collapse => "collapse",
         StructureChangeKind::Expansion => "expansion",
         StructureChangeKind::Restructuration => "restructuration",
@@ -71,7 +71,7 @@ fn name_structure_change(kind: StructureChangeKind) -> &'static str {
 
 /// JSON rendering of an arc list `(key, target)` (D1-2):
 /// `"arcs":[[0,12],[1,7]]`.
-fn serialiser_arcs(arcs: &[(u64, NodeId)]) -> String {
+fn serialize_arcs(arcs: &[(u64, NodeId)]) -> String {
     let entries: Vec<String> = arcs
         .iter()
         .map(|(key, target)| format!("[{},{}]", key, target.0))
@@ -80,19 +80,19 @@ fn serialiser_arcs(arcs: &[(u64, NodeId)]) -> String {
 }
 
 /// JSON rendering of a node id list (D1-2): `"liste":[3,7,12]`.
-fn serialiser_liste_noeuds(liste: &[NodeId]) -> String {
-    let entries: Vec<String> = liste.iter().map(|node| format!("{}", node.0)).collect();
+fn serialize_list_nodes(list: &[NodeId]) -> String {
+    let entries: Vec<String> = list.iter().map(|node| format!("{}", node.0)).collect();
     format!("[{}]", entries.join(","))
 }
 
 /// JSON rendering of a u32 list (D1-2): `"niveaux":[0,2]`.
-fn serialiser_liste_niveaux(liste: &[u32]) -> String {
-    let entries: Vec<String> = liste.iter().map(|niveau| format!("{niveau}")).collect();
+fn serialize_list_levels(list: &[u32]) -> String {
+    let entries: Vec<String> = list.iter().map(|level| format!("{level}")).collect();
     format!("[{}]", entries.join(","))
 }
 
 /// JSON rendering of an optional span id (D1-1): `"span":3` or `"span":null`.
-fn serialiser_span(span: Option<lisage_core::observer::SpanId>) -> String {
+fn serialize_span(span: Option<lisage_core::observer::SpanId>) -> String {
     match span {
         Some(span) => format!("\"span\":{}", span.0),
         None => "\"span\":null".to_string(),
@@ -109,7 +109,7 @@ fn name_channel(channel: ChannelAttr) -> &'static str {
 }
 
 /// Serializes the per-class degree histogram (MEM-17) as a JSON array.
-fn serialiser_histogramme(classes: &[ClassHistogram]) -> String {
+fn serialize_histogramme(classes: &[ClassHistogram]) -> String {
     let entries: Vec<String> = classes
         .iter()
         .map(|c| {
@@ -125,8 +125,8 @@ fn serialiser_histogramme(classes: &[ClassHistogram]) -> String {
 /// Serializes a trace event as one JSONL line (without the trailing `\n`).
 /// D1-1 (v4): every event line carries its `"span"` field; `SpanOpen` and
 /// `SpanClose` carry the span they define instead.
-pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
-    let (type_evenement, champs) = match evenement {
+pub fn serialize_event(event: &TraceEvent) -> String {
+    let (type_event, fields) = match event {
         TraceEvent::SpanOpen { span, kind, lane } => {
             return format!(
                 "{{\"v\":{TRACE_VERSION},\"type\":\"SpanOpen\",\"span\":{},\"kind\":\"{}\",\"lane\":{}}}",
@@ -142,7 +142,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             );
         }
         TraceEvent::NodeCreated {
-            node, level, forme, ..
+            node, level, form, ..
         } => (
             "NodeCreated",
             match level {
@@ -150,12 +150,12 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                     "\"noeud\":{},\"level\":{},\"forme\":\"{}\"",
                     node.0,
                     level.0,
-                    echapper_json(&forme.rendre())
+                    escape_json(&form.render())
                 ),
                 None => format!(
                     "\"noeud\":{},\"level\":null,\"forme\":\"{}\"",
                     node.0,
-                    echapper_json(&forme.rendre())
+                    escape_json(&form.render())
                 ),
             },
         ),
@@ -164,7 +164,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             "Reduction",
             format!(
                 "\"rule\":\"{}\",\"level\":{}",
-                echapper_json(name_regle(*rule)),
+                escape_json(name_rule(*rule)),
                 level.0
             ),
         ),
@@ -186,7 +186,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                 "\"canal\":\"{}\",\"noeud\":{},\"valeur\":\"{}\"",
                 name_channel(*channel),
                 node.0,
-                echapper_json(&value.rendre())
+                escape_json(&value.render())
             ),
         ),
         TraceEvent::MemoHit { node, .. } => ("MemoHit", format!("\"noeud\":{}", node.0)),
@@ -195,44 +195,44 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             live,
             collected,
             compaction,
-            liste_collectes,
+            collected_list,
             ..
         } => (
             "Gc",
             format!(
                 "\"vivants\":{live},\"collectes\":{collected},\"compaction\":{compaction},\"liste_collectes\":{}",
-                serialiser_liste_noeuds(liste_collectes)
+                serialize_list_nodes(collected_list)
             ),
         ),
         TraceEvent::Round {
-            numero,
-            niveaux_actifs,
-            niveaux_modifies,
-            avant,
+            number,
+            active_levels,
+            modified_levels,
+            before,
             image,
-            apres,
-            croissance,
+            after,
+            growth,
             ..
         } => (
             "Round",
             format!(
-                "\"numero\":{numero},\"niveaux_actifs\":{},\"niveaux_modifies\":{},\"avant\":{},\"image\":{},\"apres\":{},\"croissance\":{croissance}",
-                serialiser_liste_niveaux(niveaux_actifs),
-                serialiser_liste_niveaux(niveaux_modifies),
-                avant.0,
+                "\"numero\":{number},\"niveaux_actifs\":{},\"niveaux_modifies\":{},\"avant\":{},\"image\":{},\"apres\":{},\"croissance\":{growth}",
+                serialize_list_levels(active_levels),
+                serialize_list_levels(modified_levels),
+                before.0,
                 image.0,
-                apres.0
+                after.0
             ),
         ),
-        TraceEvent::Histogram { classes, .. } => ("Histogram", serialiser_histogramme(classes)),
+        TraceEvent::Histogram { classes, .. } => ("Histogram", serialize_histogramme(classes)),
         TraceEvent::OpStart { fingerprint, .. } => {
             ("OpStart", format!("\"empreinte\":{fingerprint}"))
         }
         TraceEvent::OpEnd { .. } => ("OpEnd", String::new()),
-        TraceEvent::VisiteEntree { node, .. } => ("VisiteEntree", format!("\"noeud\":{}", node.0)),
-        TraceEvent::VisiteSortie { node, resultat, .. } => (
+        TraceEvent::VisitEntry { node, .. } => ("VisiteEntree", format!("\"noeud\":{}", node.0)),
+        TraceEvent::VisitExit { node, result, .. } => (
             "VisiteSortie",
-            format!("\"noeud\":{},\"resultat\":{}", node.0, resultat.0),
+            format!("\"noeud\":{},\"resultat\":{}", node.0, result.0),
         ),
         TraceEvent::MemoConsult {
             fingerprint,
@@ -246,7 +246,7 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             format!(
                 "\"empreinte\":{fingerprint},\"noeud\":{},\"h\":\"{}\",\"version\":{version},\"touche\":{hit}",
                 node.0,
-                echapper_json(&h.rendre())
+                escape_json(&h.render())
             ),
         ),
         TraceEvent::MemoInsert {
@@ -254,30 +254,30 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
             node,
             h,
             version,
-            resultat,
+            result,
             ..
         } => (
             "MemoInsert",
             format!(
                 "\"empreinte\":{fingerprint},\"noeud\":{},\"h\":\"{}\",\"version\":{version},\"resultat\":{}",
                 node.0,
-                echapper_json(&h.rendre()),
-                resultat.0
+                escape_json(&h.render()),
+                result.0
             ),
         ),
-        TraceEvent::EcritureMemoire {
-            version_avant,
-            version_apres,
+        TraceEvent::MemoryWrite {
+            version_before,
+            version_after,
             ..
         } => (
             "EcritureMemoire",
-            format!("\"version_avant\":{version_avant},\"version_apres\":{version_apres}"),
+            format!("\"version_avant\":{version_before},\"version_apres\":{version_after}"),
         ),
         TraceEvent::StructureChange {
             node,
             classification,
-            arcs_avant,
-            arcs_apres,
+            arcs_before,
+            arcs_after,
             ..
         } => (
             "StructureChange",
@@ -285,59 +285,59 @@ pub fn serialiser_evenement(evenement: &TraceEvent) -> String {
                 "\"noeud\":{},\"classification\":\"{}\",\"arcs_avant\":{},\"arcs_apres\":{}",
                 node.0,
                 name_structure_change(*classification),
-                serialiser_arcs(arcs_avant),
-                serialiser_arcs(arcs_apres)
+                serialize_arcs(arcs_before),
+                serialize_arcs(arcs_after)
             ),
         ),
     };
-    let span = serialiser_span(evenement.span());
-    if champs.is_empty() {
-        format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{span}}}")
+    let span = serialize_span(event.span());
+    if fields.is_empty() {
+        format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_event}\",{span}}}")
     } else {
-        format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_evenement}\",{span},{champs}}}")
+        format!("{{\"v\":{TRACE_VERSION},\"type\":\"{type_event}\",{span},{fields}}}")
     }
 }
 
 /// Observer that collects the trace in memory, serialized JSONL.
 /// Cloneable: a clone placed in the pool shares the same trace.
 /// Event filter of a `JsonlObserver` (D1-3).
-pub type FiltreTrace = Arc<dyn Fn(&TraceEvent) -> bool + Send + Sync>;
+pub type FilterTrace = Arc<dyn Fn(&TraceEvent) -> bool + Send + Sync>;
 
 #[derive(Clone)]
 pub struct JsonlObserver {
-    lignes: Arc<Mutex<Vec<String>>>,
+    lines: Arc<Mutex<Vec<String>>>,
     /// Optional event filter (D1-3): only events passing the filter are
     /// serialized — and only then are their lazy `TraceVal` values forced.
-    filtre: Option<FiltreTrace>,
+    filter: Option<FilterTrace>,
 }
 
 impl JsonlObserver {
     /// New observer, empty trace.
     pub fn new() -> Self {
         JsonlObserver {
-            lignes: Arc::new(Mutex::new(Vec::new())),
-            filtre: None,
+            lines: Arc::new(Mutex::new(Vec::new())),
+            filter: None,
         }
     }
 
-    /// New observer keeping only the events that pass `filtre` (D1-3):
+    /// New observer keeping only the events that pass `filter` (D1-3):
     /// the lazy values of the rejected events are never forced.
-    pub fn avec_filtre(filtre: FiltreTrace) -> Self {
+    pub fn with_filter(filter: FilterTrace) -> Self {
         JsonlObserver {
-            lignes: Arc::new(Mutex::new(Vec::new())),
-            filtre: Some(filtre),
+            lines: Arc::new(Mutex::new(Vec::new())),
+            filter: Some(filter),
         }
     }
 
     /// Collected JSONL lines (in emission order).
-    pub fn lignes(&self) -> Vec<String> {
-        self.lignes.lock().expect("mutex poisoned").clone()
+    pub fn lines(&self) -> Vec<String> {
+        self.lines.lock().expect("mutex poisoned").clone()
     }
 
     /// Writes the full trace (one line per event) to `output`.
     pub fn write<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
-        for ligne in self.lignes() {
-            writeln!(output, "{ligne}")?;
+        for line in self.lines() {
+            writeln!(output, "{line}")?;
         }
         Ok(())
     }
@@ -353,15 +353,15 @@ impl Observer for JsonlObserver {
     fn on_event(&self, event: &TraceEvent) {
         // D1-3: the filter runs on the cheap fields first; the lazy
         // values are forced (serialized) only if the filter passes.
-        if let Some(filtre) = &self.filtre
-            && !filtre(event)
+        if let Some(filter) = &self.filter
+            && !filter(event)
         {
             return;
         }
-        self.lignes
+        self.lines
             .lock()
             .expect("mutex poisoned")
-            .push(serialiser_evenement(event));
+            .push(serialize_event(event));
     }
 }
 
@@ -384,44 +384,44 @@ use lisage_core::{Anchor, ControllerId, Handle};
 /// Deserialization error of a trace: 1-based line number (0 = the whole
 /// document) and message.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ErreurDeserialisation {
+pub struct ErrorDeserialisation {
     /// 1-based line number, 0 for whole-document errors.
-    pub ligne: usize,
+    pub line: usize,
     /// Error message.
     pub message: String,
 }
 
-impl std::fmt::Display for ErreurDeserialisation {
+impl std::fmt::Display for ErrorDeserialisation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.ligne == 0 {
+        if self.line == 0 {
             write!(f, "{}", self.message)
         } else {
-            write!(f, "line {}: {}", self.ligne, self.message)
+            write!(f, "line {}: {}", self.line, self.message)
         }
     }
 }
 
-impl std::error::Error for ErreurDeserialisation {}
+impl std::error::Error for ErrorDeserialisation {}
 
 /// Required integer field.
-fn champ_num(obj: &Json, key: &str) -> Result<i64, String> {
+fn field_num(obj: &Json, key: &str) -> Result<i64, String> {
     obj.get(key)
         .and_then(Json::as_num)
         .ok_or_else(|| format!("missing or invalid integer field '{key}'"))
 }
 
 /// Required u64 field.
-fn champ_u64(obj: &Json, key: &str) -> Result<u64, String> {
-    u64::try_from(champ_num(obj, key)?).map_err(|_| format!("field '{key}' out of u64 range"))
+fn field_u64(obj: &Json, key: &str) -> Result<u64, String> {
+    u64::try_from(field_num(obj, key)?).map_err(|_| format!("field '{key}' out of u64 range"))
 }
 
 /// Required u32 field.
-fn champ_u32(obj: &Json, key: &str) -> Result<u32, String> {
-    u32::try_from(champ_num(obj, key)?).map_err(|_| format!("field '{key}' out of u32 range"))
+fn field_u32(obj: &Json, key: &str) -> Result<u32, String> {
+    u32::try_from(field_num(obj, key)?).map_err(|_| format!("field '{key}' out of u32 range"))
 }
 
 /// Required string field.
-fn champ_str(obj: &Json, key: &str) -> Result<String, String> {
+fn field_str(obj: &Json, key: &str) -> Result<String, String> {
     obj.get(key)
         .and_then(Json::as_str)
         .map(str::to_string)
@@ -429,21 +429,21 @@ fn champ_str(obj: &Json, key: &str) -> Result<String, String> {
 }
 
 /// Required boolean field.
-fn champ_bool(obj: &Json, key: &str) -> Result<bool, String> {
+fn field_bool(obj: &Json, key: &str) -> Result<bool, String> {
     obj.get(key)
         .and_then(Json::as_bool)
         .ok_or_else(|| format!("missing or invalid boolean field '{key}'"))
 }
 
 /// Required array field.
-fn champ_arr<'a>(obj: &'a Json, key: &str) -> Result<&'a [Json], String> {
+fn field_arr<'a>(obj: &'a Json, key: &str) -> Result<&'a [Json], String> {
     obj.get(key)
         .and_then(Json::as_arr)
         .ok_or_else(|| format!("missing or invalid array field '{key}'"))
 }
 
 /// Optional span field (`"span": N` or `"span": null`).
-fn champ_span(obj: &Json) -> Result<Option<SpanId>, String> {
+fn field_span(obj: &Json) -> Result<Option<SpanId>, String> {
     match obj.get("span") {
         None | Some(Json::Null) => Ok(None),
         Some(value) => value
@@ -455,8 +455,8 @@ fn champ_span(obj: &Json) -> Result<Option<SpanId>, String> {
 }
 
 /// u32 list field (`"niveaux":[0,2]`).
-fn champ_liste_u32(obj: &Json, key: &str) -> Result<Vec<u32>, String> {
-    champ_arr(obj, key)?
+fn field_list_u32(obj: &Json, key: &str) -> Result<Vec<u32>, String> {
+    field_arr(obj, key)?
         .iter()
         .map(|item| {
             item.as_num()
@@ -467,8 +467,8 @@ fn champ_liste_u32(obj: &Json, key: &str) -> Result<Vec<u32>, String> {
 }
 
 /// Node id list field (`"liste":[3,7,12]`).
-fn champ_liste_noeuds(obj: &Json, key: &str) -> Result<Vec<lisage_core::NodeId>, String> {
-    champ_arr(obj, key)?
+fn field_list_nodes(obj: &Json, key: &str) -> Result<Vec<lisage_core::NodeId>, String> {
+    field_arr(obj, key)?
         .iter()
         .map(|item| {
             item.as_num()
@@ -480,8 +480,8 @@ fn champ_liste_noeuds(obj: &Json, key: &str) -> Result<Vec<lisage_core::NodeId>,
 }
 
 /// Arc list field (`"arcs":[[0,12],[1,7]]`).
-fn champ_arcs(obj: &Json, key: &str) -> Result<Vec<(u64, lisage_core::NodeId)>, String> {
-    champ_arr(obj, key)?
+fn field_arcs(obj: &Json, key: &str) -> Result<Vec<(u64, lisage_core::NodeId)>, String> {
+    field_arr(obj, key)?
         .iter()
         .map(|entry| {
             let pair = entry
@@ -504,35 +504,35 @@ fn champ_arcs(obj: &Json, key: &str) -> Result<Vec<(u64, lisage_core::NodeId)>, 
 
 /// Parses one JSONL line into a trace event. The `"v"` field must equal
 /// [`TRACE_VERSION`]; unknown versions are rejected explicitly.
-pub fn deserialiser_evenement(ligne: &str) -> Result<TraceEvent, String> {
-    let obj = json::parse(ligne).map_err(|e| format!("invalid JSON: {e}"))?;
-    let version = champ_num(&obj, "v")?;
+pub fn deserialize_event(line: &str) -> Result<TraceEvent, String> {
+    let obj = json::parse(line).map_err(|e| format!("invalid JSON: {e}"))?;
+    let version = field_num(&obj, "v")?;
     if version != TRACE_VERSION as i64 {
         return Err(format!(
             "unsupported trace version {version} (expected {TRACE_VERSION})"
         ));
     }
-    let type_evenement = champ_str(&obj, "type")?;
-    let span = champ_span(&obj)?;
-    let noeud = |key: &str| -> Result<lisage_core::NodeId, String> {
-        champ_u32(&obj, key).map(lisage_core::NodeId)
+    let type_event = field_str(&obj, "type")?;
+    let span = field_span(&obj)?;
+    let node = |key: &str| -> Result<lisage_core::NodeId, String> {
+        field_u32(&obj, key).map(lisage_core::NodeId)
     };
-    let evenement = match type_evenement.as_str() {
+    let event = match type_event.as_str() {
         "SpanOpen" => {
-            let kind = match champ_str(&obj, "kind")?.as_str() {
+            let kind = match field_str(&obj, "kind")?.as_str() {
                 "op" => SpanKind::Op,
                 "round" => SpanKind::Round,
-                "visite" => SpanKind::Visite,
+                "visite" => SpanKind::Visit,
                 other => return Err(format!("unknown span kind '{other}'")),
             };
             TraceEvent::SpanOpen {
-                span: SpanId(champ_u64(&obj, "span")?),
+                span: SpanId(field_u64(&obj, "span")?),
                 kind,
-                lane: champ_u32(&obj, "lane")?,
+                lane: field_u32(&obj, "lane")?,
             }
         }
         "SpanClose" => TraceEvent::SpanClose {
-            span: SpanId(champ_u64(&obj, "span")?),
+            span: SpanId(field_u64(&obj, "span")?),
         },
         "NodeCreated" => {
             let level = match obj.get("level") {
@@ -545,18 +545,18 @@ pub fn deserialiser_evenement(ligne: &str) -> Result<TraceEvent, String> {
                 )),
             };
             TraceEvent::NodeCreated {
-                node: noeud("noeud")?,
+                node: node("noeud")?,
                 level,
-                forme: TraceVal::Texte(champ_str(&obj, "forme")?),
+                form: TraceVal::Text(field_str(&obj, "forme")?),
                 span,
             }
         }
         "NodeShared" => TraceEvent::NodeShared {
-            node: noeud("noeud")?,
+            node: node("noeud")?,
             span,
         },
         "Reduction" => {
-            let rule = match champ_str(&obj, "rule")?.as_str() {
+            let rule = match field_str(&obj, "rule")?.as_str() {
                 "R-share" => ReductionRule::Share,
                 "R-collapse" => ReductionRule::Collapse,
                 "R-default" => ReductionRule::Default,
@@ -564,22 +564,22 @@ pub fn deserialiser_evenement(ligne: &str) -> Result<TraceEvent, String> {
             };
             TraceEvent::ReductionApplied {
                 rule,
-                level: lisage_core::Level(champ_u32(&obj, "level")?),
+                level: lisage_core::Level(field_u32(&obj, "level")?),
                 span,
             }
         }
         "DiagramBuilt" => TraceEvent::DiagramBuilt {
             handle: Handle {
-                controller: ControllerId(champ_u64(&obj, "controller")?),
-                anchor: Anchor(champ_u32(&obj, "anchor")?),
-                node: noeud("noeud")?,
+                controller: ControllerId(field_u64(&obj, "controller")?),
+                anchor: Anchor(field_u32(&obj, "anchor")?),
+                node: node("noeud")?,
             },
-            nodes: usize::try_from(champ_num(&obj, "noeuds")?)
+            nodes: usize::try_from(field_num(&obj, "noeuds")?)
                 .map_err(|_| "field 'noeuds' out of range".to_string())?,
             span,
         },
         "Attr" => {
-            let channel = match champ_str(&obj, "canal")?.as_str() {
+            let channel = match field_str(&obj, "canal")?.as_str() {
                 "herite" => ChannelAttr::Inherited,
                 "synthetise" => ChannelAttr::Synthesized,
                 "memoire" => ChannelAttr::Memory,
@@ -587,119 +587,119 @@ pub fn deserialiser_evenement(ligne: &str) -> Result<TraceEvent, String> {
             };
             TraceEvent::Attr {
                 channel,
-                node: noeud("noeud")?,
-                value: TraceVal::Texte(champ_str(&obj, "valeur")?),
+                node: node("noeud")?,
+                value: TraceVal::Text(field_str(&obj, "valeur")?),
                 span,
             }
         }
         "MemoHit" => TraceEvent::MemoHit {
-            node: noeud("noeud")?,
+            node: node("noeud")?,
             span,
         },
         "MemoMiss" => TraceEvent::MemoMiss {
-            node: noeud("noeud")?,
+            node: node("noeud")?,
             span,
         },
         "Gc" => TraceEvent::Gc {
-            live: champ_u64(&obj, "vivants")?,
-            collected: champ_u64(&obj, "collectes")?,
-            compaction: champ_bool(&obj, "compaction")?,
-            liste_collectes: champ_liste_noeuds(&obj, "liste_collectes")?,
+            live: field_u64(&obj, "vivants")?,
+            collected: field_u64(&obj, "collectes")?,
+            compaction: field_bool(&obj, "compaction")?,
+            collected_list: field_list_nodes(&obj, "liste_collectes")?,
             span,
         },
         "Round" => TraceEvent::Round {
-            numero: champ_u32(&obj, "numero")?,
-            niveaux_actifs: champ_liste_u32(&obj, "niveaux_actifs")?,
-            niveaux_modifies: champ_liste_u32(&obj, "niveaux_modifies")?,
-            avant: noeud("avant")?,
-            image: noeud("image")?,
-            apres: noeud("apres")?,
-            croissance: champ_num(&obj, "croissance")?,
+            number: field_u32(&obj, "numero")?,
+            active_levels: field_list_u32(&obj, "niveaux_actifs")?,
+            modified_levels: field_list_u32(&obj, "niveaux_modifies")?,
+            before: node("avant")?,
+            image: node("image")?,
+            after: node("apres")?,
+            growth: field_num(&obj, "croissance")?,
             span,
         },
         "Histogram" => TraceEvent::Histogram {
-            classes: champ_arr(&obj, "classes")?
+            classes: field_arr(&obj, "classes")?
                 .iter()
                 .map(|entry| {
                     Ok(ClassHistogram {
-                        class: champ_u32(entry, "class")?,
-                        live: champ_u64(entry, "live")?,
-                        peak: champ_u64(entry, "peak")?,
-                        slack: champ_u64(entry, "slack")?,
+                        class: field_u32(entry, "class")?,
+                        live: field_u64(entry, "live")?,
+                        peak: field_u64(entry, "peak")?,
+                        slack: field_u64(entry, "slack")?,
                     })
                 })
                 .collect::<Result<Vec<_>, String>>()?,
             span,
         },
         "OpStart" => TraceEvent::OpStart {
-            fingerprint: champ_u64(&obj, "empreinte")?,
+            fingerprint: field_u64(&obj, "empreinte")?,
             span,
         },
         "OpEnd" => TraceEvent::OpEnd { span },
-        "VisiteEntree" => TraceEvent::VisiteEntree {
-            node: noeud("noeud")?,
+        "VisiteEntree" => TraceEvent::VisitEntry {
+            node: node("noeud")?,
             span,
         },
-        "VisiteSortie" => TraceEvent::VisiteSortie {
-            node: noeud("noeud")?,
-            resultat: noeud("resultat")?,
+        "VisiteSortie" => TraceEvent::VisitExit {
+            node: node("noeud")?,
+            result: node("resultat")?,
             span,
         },
         "MemoConsult" => TraceEvent::MemoConsult {
-            fingerprint: champ_u64(&obj, "empreinte")?,
-            node: noeud("noeud")?,
-            h: TraceVal::Texte(champ_str(&obj, "h")?),
-            version: champ_u64(&obj, "version")?,
-            hit: champ_bool(&obj, "touche")?,
+            fingerprint: field_u64(&obj, "empreinte")?,
+            node: node("noeud")?,
+            h: TraceVal::Text(field_str(&obj, "h")?),
+            version: field_u64(&obj, "version")?,
+            hit: field_bool(&obj, "touche")?,
             span,
         },
         "MemoInsert" => TraceEvent::MemoInsert {
-            fingerprint: champ_u64(&obj, "empreinte")?,
-            node: noeud("noeud")?,
-            h: TraceVal::Texte(champ_str(&obj, "h")?),
-            version: champ_u64(&obj, "version")?,
-            resultat: noeud("resultat")?,
+            fingerprint: field_u64(&obj, "empreinte")?,
+            node: node("noeud")?,
+            h: TraceVal::Text(field_str(&obj, "h")?),
+            version: field_u64(&obj, "version")?,
+            result: node("resultat")?,
             span,
         },
-        "EcritureMemoire" => TraceEvent::EcritureMemoire {
-            version_avant: champ_u64(&obj, "version_avant")?,
-            version_apres: champ_u64(&obj, "version_apres")?,
+        "EcritureMemoire" => TraceEvent::MemoryWrite {
+            version_before: field_u64(&obj, "version_avant")?,
+            version_after: field_u64(&obj, "version_apres")?,
             span,
         },
         "StructureChange" => TraceEvent::StructureChange {
-            node: noeud("noeud")?,
-            classification: match champ_str(&obj, "classification")?.as_str() {
-                "identite" => StructureChangeKind::Identite,
-                "reetiquetage" => StructureChangeKind::Reetiquetage,
+            node: node("noeud")?,
+            classification: match field_str(&obj, "classification")?.as_str() {
+                "identite" => StructureChangeKind::Identity,
+                "reetiquetage" => StructureChangeKind::Relabeling,
                 "collapse" => StructureChangeKind::Collapse,
                 "expansion" => StructureChangeKind::Expansion,
                 "restructuration" => StructureChangeKind::Restructuration,
                 other => return Err(format!("unknown structure change '{other}'")),
             },
-            arcs_avant: champ_arcs(&obj, "arcs_avant")?,
-            arcs_apres: champ_arcs(&obj, "arcs_apres")?,
+            arcs_before: field_arcs(&obj, "arcs_avant")?,
+            arcs_after: field_arcs(&obj, "arcs_apres")?,
             span,
         },
         other => return Err(format!("unknown event type '{other}'")),
     };
-    Ok(evenement)
+    Ok(event)
 }
 
 /// Deserializes a whole JSONL trace (one event per line, empty lines
 /// skipped). The first failing line stops the parse with its 1-based
 /// line number.
-pub fn deserialiser_trace(texte: &str) -> Result<Vec<TraceEvent>, ErreurDeserialisation> {
+pub fn deserialize_trace(text: &str) -> Result<Vec<TraceEvent>, ErrorDeserialisation> {
     let mut events = Vec::new();
-    for (index, ligne) in texte.lines().enumerate() {
-        let ligne = ligne.trim();
-        if ligne.is_empty() {
+    for (index, line) in text.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
             continue;
         }
-        match deserialiser_evenement(ligne) {
+        match deserialize_event(line) {
             Ok(event) => events.push(event),
             Err(message) => {
-                return Err(ErreurDeserialisation {
-                    ligne: index + 1,
+                return Err(ErrorDeserialisation {
+                    line: index + 1,
                     message,
                 });
             }

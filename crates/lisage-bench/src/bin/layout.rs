@@ -18,13 +18,13 @@ use lisage_core::observer::NoOpObserver;
 const SEED_IDS: u64 = 0x9E37_79B9_7F4A_7C15;
 
 /// xorshift64* — reproducible randomized arc keys.
-struct IdsAleatoires {
+struct RandomIds {
     state: u64,
 }
 
-impl IdsAleatoires {
+impl RandomIds {
     fn new(seed: u64) -> Self {
-        IdsAleatoires { state: seed }
+        RandomIds { state: seed }
     }
     fn next_u64(&mut self) -> u64 {
         let mut x = self.state;
@@ -42,8 +42,8 @@ fn rss_max_ko() -> u64 {
     status
         .lines()
         .find_map(|line| line.strip_prefix("VmHWM:"))
-        .and_then(|reste| reste.trim().strip_suffix("kB"))
-        .and_then(|nombre| nombre.trim().parse::<u64>().ok())
+        .and_then(|remaining| remaining.trim().strip_suffix("kB"))
+        .and_then(|count| count.trim().parse::<u64>().ok())
         .expect("VmHWM present")
 }
 
@@ -59,8 +59,8 @@ fn main() {
     let inline = match layout {
         "on" => true,
         "off" => false,
-        autre => {
-            eprintln!("layout must be on or off, got: {autre}");
+        other => {
+            eprintln!("layout must be on or off, got: {other}");
             std::process::exit(2);
         }
     };
@@ -68,8 +68,8 @@ fn main() {
     pool.set_layout_inline(inline);
     let t0 = pool.terminal(Anchor(0), false);
     let t1 = pool.terminal(Anchor(0), true);
-    let mut ids = IdsAleatoires::new(SEED_IDS);
-    let debut = Instant::now();
+    let mut ids = RandomIds::new(SEED_IDS);
+    let start = Instant::now();
     for i in 0..n {
         let k0 = ids.next_u64() % 2;
         pool.intern(
@@ -80,15 +80,15 @@ fn main() {
             },
         );
     }
-    let temps_ms = debut.elapsed().as_secs_f64() * 1000.0;
+    let temps_ms = start.elapsed().as_secs_f64() * 1000.0;
     let nodes = pool.live() as u64;
-    let bytes_par_noeud = pool.bytes_per_node();
-    let octets_arenas = pool.arenas_bytes() as f64;
+    let bytes_per_node = pool.bytes_per_node();
+    let bytes_arenas = pool.arenas_bytes() as f64;
     let rss = rss_max_ko();
     // One JSON line, stable field order.
     println!(
-        "{{\"layout\":\"{layout}\",\"n\":{n},\"nodes\":{nodes},\"bytes_par_noeud\":{bytes_par_noeud:.2},\"octets_arenas_par_noeud\":{:.2},\"temps_ms\":{temps_ms:.3},\"rss_max_ko\":{rss}}}",
-        octets_arenas / nodes as f64
+        "{{\"layout\":\"{layout}\",\"n\":{n},\"nodes\":{nodes},\"bytes_par_noeud\":{bytes_per_node:.2},\"octets_arenas_par_noeud\":{:.2},\"temps_ms\":{temps_ms:.3},\"rss_max_ko\":{rss}}}",
+        bytes_arenas / nodes as f64
     );
     let _ = NodeId(0);
 }

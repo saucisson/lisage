@@ -17,12 +17,12 @@ use std::sync::Arc;
 use lisage_algebra::interface::{Anchor, Form, Level, MemoryPolicy, NodeId, Pool};
 
 /// Structural summary of a form (D1-2): level and arcs `(key, target)`.
-fn extraire_structure<P>(forme: &Form<u64, P>) -> (Option<Level>, Vec<(u64, NodeId)>) {
-    match forme {
+fn extract_structure<P>(form: &Form<u64, P>) -> (Option<Level>, Vec<(u64, NodeId)>) {
+    match form {
         Form::Terminal(_) => (None, Vec::new()),
         Form::Node { level, arcs } => (
             Some(*level),
-            arcs.iter().map(|(cle, cible)| (*cle, *cible)).collect(),
+            arcs.iter().map(|(key, target)| (*key, *target)).collect(),
         ),
     }
 }
@@ -31,17 +31,17 @@ fn extraire_structure<P>(forme: &Form<u64, P>) -> (Option<Level>, Vec<(u64, Node
 /// one node visit (D1-2): identity, relabelling, collapse, expansion or
 /// restructuring.
 fn classifier_structure(
-    avant: (Option<Level>, Vec<(u64, NodeId)>),
-    apres: (Option<Level>, Vec<(u64, NodeId)>),
+    before: (Option<Level>, Vec<(u64, NodeId)>),
+    after: (Option<Level>, Vec<(u64, NodeId)>),
 ) -> StructureChangeKind {
-    match (avant.0, apres.0) {
-        (None, None) => StructureChangeKind::Identite,
-        (Some(level_avant), Some(level_apres))
-            if avant.1 == apres.1 && level_avant == level_apres =>
+    match (before.0, after.0) {
+        (None, None) => StructureChangeKind::Identity,
+        (Some(level_before), Some(level_after))
+            if before.1 == after.1 && level_before == level_after =>
         {
-            StructureChangeKind::Identite
+            StructureChangeKind::Identity
         }
-        (Some(_), Some(_)) if avant.1 == apres.1 => StructureChangeKind::Reetiquetage,
+        (Some(_), Some(_)) if before.1 == after.1 => StructureChangeKind::Relabeling,
         (Some(_), None) => StructureChangeKind::Collapse,
         (None, Some(_)) => StructureChangeKind::Expansion,
         (Some(_), Some(_)) => StructureChangeKind::Restructuration,
@@ -49,9 +49,9 @@ fn classifier_structure(
 }
 
 use crate::error::CoreError;
-use crate::memory::{EffetMemory, MemoryLevel};
+use crate::memory::{EffectMemory, MemoryLevel};
 use crate::observer::{
-    ChannelAttr, Observer, SpanKind, StructureChangeKind, TraceEvent, Traceable, contextualiser,
+    ChannelAttr, Observer, SpanKind, StructureChangeKind, TraceEvent, Traceable, contextualize,
     next_span_id, pop_span, push_span,
 };
 
@@ -61,7 +61,7 @@ type KeyMemo<H> = (u64, NodeId, H, u64);
 
 /// Context of `φ_out` (T-NODE): groups the restructuring parameters
 /// (spec § 3.1: `φ_out(ℓ, h, {v ↦ (D', s)}, M)`).
-pub struct ContextePhiOut<'a, H, S, M: Clone + Eq + Hash + Debug> {
+pub struct PhiOutContext<'a, H, S, M: Clone + Eq + Hash + Debug> {
     /// Anchor of the root.
     pub anchor: Anchor,
     /// Level of the node being restructured.
@@ -119,8 +119,8 @@ pub trait Transduction: Send + Sync {
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, EffetMemory<Self::M>);
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, EffectMemory<Self::M>);
 
     /// (T-TERM): interned result terminal node + synthesized attribute.
     fn psi<P: Pool<Key = u64, Payload = Self::Out>>(
@@ -134,7 +134,7 @@ pub trait Transduction: Send + Sync {
 
 /// Runner of a transduction with its computed table (memo L1/L3) and its
 /// level memory (M2-3).
-pub struct Transducteur<T: Transduction> {
+pub struct Transducer<T: Transduction> {
     transduction: T,
     memo: HashMap<KeyMemo<T::H>, (NodeId, T::S)>,
     memory: MemoryLevel<T::M>,
@@ -142,7 +142,7 @@ pub struct Transducteur<T: Transduction> {
     observer: Option<Arc<dyn Observer>>,
 }
 
-impl<T: Transduction> Transducteur<T> {
+impl<T: Transduction> Transducer<T> {
     /// New runner for the given transduction, empty memory (version 0),
     /// policy `NoMemory` (M1: no level memory), no observer.
     pub fn new(transduction: T) -> Self {
@@ -152,7 +152,7 @@ impl<T: Transduction> Transducteur<T> {
     /// Runner with a level-memory storage policy
     /// declared by the controller (M2-3, T3).
     pub fn with_policy(transduction: T, policy: MemoryPolicy) -> Self {
-        Transducteur {
+        Transducer {
             transduction,
             memo: HashMap::new(),
             memory: MemoryLevel::new(),
@@ -168,7 +168,7 @@ impl<T: Transduction> Transducteur<T> {
         policy: MemoryPolicy,
         observer: Arc<dyn Observer>,
     ) -> Self {
-        Transducteur {
+        Transducer {
             transduction,
             memo: HashMap::new(),
             memory: MemoryLevel::new(),
@@ -179,14 +179,14 @@ impl<T: Transduction> Transducteur<T> {
 
     /// Emits an event on the observer, if there is one. D1-1: the event
     /// is contextualized by the innermost open span.
-    fn notifier(&self, evenement: TraceEvent) {
+    fn notifier(&self, event: TraceEvent) {
         if let Some(observer) = &self.observer {
-            observer.on_event(&contextualiser(evenement));
+            observer.on_event(&contextualize(event));
         }
     }
 
     /// Opens a span of the given kind and emits its `SpanOpen` event (D1-1).
-    fn ouvrir_span(&self, kind: SpanKind, lane: u32) -> crate::observer::SpanId {
+    fn open_span(&self, kind: SpanKind, lane: u32) -> crate::observer::SpanId {
         let span = next_span_id();
         push_span(span);
         self.notifier(TraceEvent::SpanOpen { span, kind, lane });
@@ -194,13 +194,13 @@ impl<T: Transduction> Transducteur<T> {
     }
 
     /// Closes a span and emits its `SpanClose` event (D1-1).
-    fn fermer_span(&self, span: crate::observer::SpanId) {
+    fn close_span(&self, span: crate::observer::SpanId) {
         self.notifier(TraceEvent::SpanClose { span });
         pop_span();
     }
 
     /// Access to the embedded transduction (to inspect the state of a
-    /// wrapper, e.g. levels modified by `RestreintAuxLevels`).
+    /// wrapper, e.g. levels modified by `RestrictedToLevels`).
     pub fn transduction(&self) -> &T {
         &self.transduction
     }
@@ -235,15 +235,15 @@ impl<T: Transduction> Transducteur<T> {
         POut: Pool<Key = u64, Payload = T::Out>,
     {
         let h = self.transduction.h0();
-        let span = self.ouvrir_span(SpanKind::Op, 0);
+        let span = self.open_span(SpanKind::Op, 0);
         self.notifier(TraceEvent::OpStart {
             fingerprint: self.transduction.fingerprint(),
             span: None,
         });
-        let resultat = self.run_with(pool_input, pool_output, anchor, node, h);
+        let result = self.run_with(pool_input, pool_output, anchor, node, h);
         self.notifier(TraceEvent::OpEnd { span: None });
-        self.fermer_span(span);
-        resultat
+        self.close_span(span);
+        result
     }
 
     /// Single-pool variant: reads and writes in the same pool (payload `Out`
@@ -260,15 +260,15 @@ impl<T: Transduction> Transducteur<T> {
         T: Transduction<Out = bool>,
     {
         let h = self.transduction.h0();
-        let span = self.ouvrir_span(SpanKind::Op, 0);
+        let span = self.open_span(SpanKind::Op, 0);
         self.notifier(TraceEvent::OpStart {
             fingerprint: self.transduction.fingerprint(),
             span: None,
         });
-        let resultat = self.run_with_same_pool(pool, anchor, node, h);
+        let result = self.run_with_same_pool(pool, anchor, node, h);
         self.notifier(TraceEvent::OpEnd { span: None });
-        self.fermer_span(span);
-        resultat
+        self.close_span(span);
+        result
     }
 
     fn run_with<PIn, POut>(
@@ -283,19 +283,19 @@ impl<T: Transduction> Transducteur<T> {
         PIn: Pool<Key = u64, Payload = bool>,
         POut: Pool<Key = u64, Payload = T::Out>,
     {
-        // D1-1/D1-2: one Visite span per node visit, closed on every exit path.
-        let span = self.ouvrir_span(SpanKind::Visite, 0);
-        self.notifier(TraceEvent::VisiteEntree { node, span: None });
-        let resultat = self.run_with_inner(pool_input, pool_output, anchor, node, h);
-        if let Ok((resultat_node, _)) = &resultat {
-            self.notifier(TraceEvent::VisiteSortie {
+        // D1-1/D1-2: one Visit span per node visit, closed on every exit path.
+        let span = self.open_span(SpanKind::Visit, 0);
+        self.notifier(TraceEvent::VisitEntry { node, span: None });
+        let result = self.run_with_inner(pool_input, pool_output, anchor, node, h);
+        if let Ok((result_node, _)) = &result {
+            self.notifier(TraceEvent::VisitExit {
                 node,
-                resultat: *resultat_node,
+                result: *result_node,
                 span: None,
             });
         }
-        self.fermer_span(span);
-        resultat
+        self.close_span(span);
+        result
     }
 
     fn run_with_inner<PIn, POut>(
@@ -346,7 +346,7 @@ impl<T: Transduction> Transducteur<T> {
         self.notifier(TraceEvent::MemoMiss { node, span: None });
         let form = pool_input.resolve(node)?.clone();
         // D1-2: structural summary of the input form, for the StructureChange.
-        let structure_avant = extraire_structure(&form);
+        let structure_before = extract_structure(&form);
         let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
             Form::Node { level, arcs } => {
@@ -377,7 +377,7 @@ impl<T: Transduction> Transducteur<T> {
                     value: s.trace_val(),
                     span: None,
                 });
-                let ctx = ContextePhiOut {
+                let ctx = PhiOutContext {
                     anchor,
                     level,
                     h: &h,
@@ -385,39 +385,39 @@ impl<T: Transduction> Transducteur<T> {
                     memory: &self.memory,
                     node_input: node,
                 };
-                let (node_result, effet) = self.transduction.phi_out(pool_output, ctx);
-                if self.policy == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
-                    return Err(CoreError::MemoryNonAutorisee);
+                let (node_result, effect) = self.transduction.phi_out(pool_output, ctx);
+                if self.policy == MemoryPolicy::NoMemory && !effect.writes.is_empty() {
+                    return Err(CoreError::MemoryDisallowed);
                 }
-                if !effet.ecritures.is_empty() {
+                if !effect.writes.is_empty() {
                     self.notifier(TraceEvent::Attr {
                         channel: ChannelAttr::Memory,
                         node,
-                        value: effet.ecritures.trace_val(),
+                        value: effect.writes.trace_val(),
                         span: None,
                     });
                     // D1-2: the memory write bumps the version.
-                    let version_avant = self.memory.version();
-                    effet.apply(&mut self.memory);
-                    self.notifier(TraceEvent::EcritureMemoire {
-                        version_avant,
-                        version_apres: self.memory.version(),
+                    let version_before = self.memory.version();
+                    effect.apply(&mut self.memory);
+                    self.notifier(TraceEvent::MemoryWrite {
+                        version_before,
+                        version_after: self.memory.version(),
                         span: None,
                     });
                 } else {
-                    effet.apply(&mut self.memory);
+                    effect.apply(&mut self.memory);
                 }
                 (node_result, s)
             }
         };
         // D1-2: generic structure change, by comparison of the forms.
-        self.notifier_structure_change(pool_output, node, &structure_avant, result);
+        self.notifier_structure_change(pool_output, node, &structure_before, result);
         self.notifier(TraceEvent::MemoInsert {
             fingerprint,
             node,
             h: h_val,
             version,
-            resultat: result,
+            result,
             span: None,
         });
         self.memo.insert(key, (result, s.clone()));
@@ -430,21 +430,22 @@ impl<T: Transduction> Transducteur<T> {
         &self,
         pool_output: &POut,
         node: NodeId,
-        structure_avant: &(Option<Level>, Vec<(u64, NodeId)>),
-        resultat: NodeId,
+        structure_before: &(Option<Level>, Vec<(u64, NodeId)>),
+        result: NodeId,
     ) where
         POut: Pool<Key = u64>,
     {
-        let Ok(forme_apres) = pool_output.resolve(resultat) else {
+        let Ok(form_after) = pool_output.resolve(result) else {
             return;
         };
-        let structure_apres = extraire_structure(&forme_apres);
-        let classification = classifier_structure(structure_avant.clone(), structure_apres.clone());
+        let structure_after = extract_structure(&form_after);
+        let classification =
+            classifier_structure(structure_before.clone(), structure_after.clone());
         self.notifier(TraceEvent::StructureChange {
             node,
             classification,
-            arcs_avant: structure_avant.1.clone(),
-            arcs_apres: structure_apres.1,
+            arcs_before: structure_before.1.clone(),
+            arcs_after: structure_after.1,
             span: None,
         });
     }
@@ -460,19 +461,19 @@ impl<T: Transduction> Transducteur<T> {
         P: Pool<Key = u64, Payload = bool>,
         T: Transduction<Out = bool>,
     {
-        // D1-1/D1-2: one Visite span per node visit, closed on every exit path.
-        let span = self.ouvrir_span(SpanKind::Visite, 0);
-        self.notifier(TraceEvent::VisiteEntree { node, span: None });
-        let resultat = self.run_with_same_pool_inner(pool, anchor, node, h);
-        if let Ok((resultat_node, _)) = &resultat {
-            self.notifier(TraceEvent::VisiteSortie {
+        // D1-1/D1-2: one Visit span per node visit, closed on every exit path.
+        let span = self.open_span(SpanKind::Visit, 0);
+        self.notifier(TraceEvent::VisitEntry { node, span: None });
+        let result = self.run_with_same_pool_inner(pool, anchor, node, h);
+        if let Ok((result_node, _)) = &result {
+            self.notifier(TraceEvent::VisitExit {
                 node,
-                resultat: *resultat_node,
+                result: *result_node,
                 span: None,
             });
         }
-        self.fermer_span(span);
-        resultat
+        self.close_span(span);
+        result
     }
 
     fn run_with_same_pool_inner<P>(
@@ -522,7 +523,7 @@ impl<T: Transduction> Transducteur<T> {
         self.notifier(TraceEvent::MemoMiss { node, span: None });
         let form = pool.resolve(node)?.clone();
         // D1-2: structural summary of the input form, for the StructureChange.
-        let structure_avant = extraire_structure(&form);
+        let structure_before = extract_structure(&form);
         let (result, s) = match form {
             Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
             Form::Node { level, arcs } => {
@@ -553,7 +554,7 @@ impl<T: Transduction> Transducteur<T> {
                     value: s.trace_val(),
                     span: None,
                 });
-                let ctx = ContextePhiOut {
+                let ctx = PhiOutContext {
                     anchor,
                     level,
                     h: &h,
@@ -561,39 +562,39 @@ impl<T: Transduction> Transducteur<T> {
                     memory: &self.memory,
                     node_input: node,
                 };
-                let (node_result, effet) = self.transduction.phi_out(pool, ctx);
-                if self.policy == MemoryPolicy::NoMemory && !effet.ecritures.is_empty() {
-                    return Err(CoreError::MemoryNonAutorisee);
+                let (node_result, effect) = self.transduction.phi_out(pool, ctx);
+                if self.policy == MemoryPolicy::NoMemory && !effect.writes.is_empty() {
+                    return Err(CoreError::MemoryDisallowed);
                 }
-                if !effet.ecritures.is_empty() {
+                if !effect.writes.is_empty() {
                     self.notifier(TraceEvent::Attr {
                         channel: ChannelAttr::Memory,
                         node,
-                        value: effet.ecritures.trace_val(),
+                        value: effect.writes.trace_val(),
                         span: None,
                     });
                     // D1-2: the memory write bumps the version.
-                    let version_avant = self.memory.version();
-                    effet.apply(&mut self.memory);
-                    self.notifier(TraceEvent::EcritureMemoire {
-                        version_avant,
-                        version_apres: self.memory.version(),
+                    let version_before = self.memory.version();
+                    effect.apply(&mut self.memory);
+                    self.notifier(TraceEvent::MemoryWrite {
+                        version_before,
+                        version_after: self.memory.version(),
                         span: None,
                     });
                 } else {
-                    effet.apply(&mut self.memory);
+                    effect.apply(&mut self.memory);
                 }
                 (node_result, s)
             }
         };
         // D1-2: generic structure change, by comparison of the forms.
-        self.notifier_structure_change(pool, node, &structure_avant, result);
+        self.notifier_structure_change(pool, node, &structure_before, result);
         self.notifier(TraceEvent::MemoInsert {
             fingerprint,
             node,
             h: h_val,
             version,
-            resultat: result,
+            result,
             span: None,
         });
         self.memo.insert(key, (result, s.clone()));

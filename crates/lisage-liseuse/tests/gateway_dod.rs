@@ -13,13 +13,13 @@ use lisage_liseuse::gateway::{
 fn sample_trace() -> Vec<TraceEvent> {
     (1..=15)
         .map(|i| TraceEvent::Round {
-            numero: i,
-            niveaux_actifs: vec![0],
-            niveaux_modifies: if i < 15 { vec![0] } else { vec![] },
-            avant: NodeId(i),
+            number: i,
+            active_levels: vec![0],
+            modified_levels: if i < 15 { vec![0] } else { vec![] },
+            before: NodeId(i),
             image: NodeId(i),
-            apres: NodeId(i),
-            croissance: if i < 15 { 1 } else { 0 },
+            after: NodeId(i),
+            growth: if i < 15 { 1 } else { 0 },
             span: None,
         })
         .collect()
@@ -101,11 +101,11 @@ async fn start_gateway(name: &str, scenario_size: u64) -> (u16, String, std::pat
     let name = name.to_string();
     use lisage_liseuse::debugger::standard_scenario;
     use lisage_liseuse::gateway::{GatewayEvents, run_gateway};
-    use lisage_liseuse::trace::serialiser_evenement;
+    use lisage_liseuse::trace::serialize_event;
     let events = standard_scenario(scenario_size);
     let content = events
         .iter()
-        .map(serialiser_evenement)
+        .map(serialize_event)
         .collect::<Vec<_>>()
         .join("\n")
         + "\n";

@@ -1,75 +1,75 @@
 //! PERF-1 (issue #280): phase-level profile of the `alea-lcg` intern
 //! path through the `profile_intern` runner binary, one process per run.
-//! Pins the structural counters (node count, internement count,
-//! allocations per internement in a falsifiable range) and publishes the
+//! Pins the structural counters (node count, interning count,
+//! allocations per interning in a falsifiable range) and publishes the
 //! full measurement (times included) to
 //! `bench-results/perf1-profile-intern.md` when `PERF1_PUBLISH=1`.
 
 use std::process::Command;
 
-/// Reference charge of the BENCH-1 campaign: alea-lcg-20.
+/// Reference load of the BENCH-1 campaign: alea-lcg-20.
 const N: u32 = 20;
 
 /// One JSON line of the runner, parsed field by field (no dependency).
-struct Mesure {
+struct Measure {
     n: u32,
     nodes: u64,
-    verifie: u64,
-    internements: u64,
+    verifies: u64,
+    interning: u64,
     temps_table_ms: f64,
     temps_build_ms: f64,
     temps_count_ms: f64,
     allocs_table: u64,
     allocs_build: u64,
     allocs_count: u64,
-    octets_build: u64,
-    allocs_par_internement: f64,
+    bytes_build: u64,
+    allocs_per_interning: f64,
     rss_max_ko: u64,
 }
 
-fn champ(json: &str, cle: &str) -> String {
-    let marqueur = format!("\"{cle}\":");
-    let debut = json.find(&marqueur).expect("field present") + marqueur.len();
-    let reste = &json[debut..];
-    if let Some(stripped) = reste.strip_prefix('"') {
-        let fin = stripped.find('"').expect("closing quote");
-        stripped[..fin].to_string()
+fn field(json: &str, key: &str) -> String {
+    let marker = format!("\"{key}\":");
+    let start = json.find(&marker).expect("field present") + marker.len();
+    let remaining = &json[start..];
+    if let Some(stripped) = remaining.strip_prefix('"') {
+        let end = stripped.find('"').expect("closing quote");
+        stripped[..end].to_string()
     } else {
-        let fin = reste.find([',', '}']).expect("field terminator");
-        reste[..fin].to_string()
+        let end = remaining.find([',', '}']).expect("field terminator");
+        remaining[..end].to_string()
     }
 }
 
-fn mesurer(n: u32) -> Mesure {
-    let sortie = Command::new(env!("CARGO_BIN_EXE_profile_intern"))
+fn measure(n: u32) -> Measure {
+    let exit = Command::new(env!("CARGO_BIN_EXE_profile_intern"))
         .args([&n.to_string()])
         .output()
         .expect("running the profile_intern runner");
-    assert!(sortie.status.success(), "runner exit status");
-    let json = String::from_utf8(sortie.stdout).expect("utf-8 JSON line");
-    let ligne = json.lines().next().expect("one JSON line");
-    Mesure {
-        n: champ(ligne, "n").parse().expect("n"),
-        nodes: champ(ligne, "noeuds").parse().expect("noeuds"),
-        verifie: champ(ligne, "verifie").parse().expect("verifie"),
-        internements: champ(ligne, "internements").parse().expect("internements"),
-        temps_table_ms: champ(ligne, "temps_table_ms")
+    assert!(exit.status.success(), "runner exit status");
+    let json = String::from_utf8(exit.stdout).expect("utf-8 JSON line");
+    let line = json.lines().next().expect("one JSON line");
+    Measure {
+        n: field(line, "n").parse().expect("n"),
+        nodes: field(line, "noeuds").parse().expect("noeuds"),
+        verifies: field(line, "verifie").parse().expect("verifie"),
+        interning: field(line, "internements").parse().expect("internements"),
+        temps_table_ms: field(line, "temps_table_ms")
             .parse()
             .expect("temps_table_ms"),
-        temps_build_ms: champ(ligne, "temps_build_ms")
+        temps_build_ms: field(line, "temps_build_ms")
             .parse()
             .expect("temps_build_ms"),
-        temps_count_ms: champ(ligne, "temps_count_ms")
+        temps_count_ms: field(line, "temps_count_ms")
             .parse()
             .expect("temps_count_ms"),
-        allocs_table: champ(ligne, "allocs_table").parse().expect("allocs_table"),
-        allocs_build: champ(ligne, "allocs_build").parse().expect("allocs_build"),
-        allocs_count: champ(ligne, "allocs_count").parse().expect("allocs_count"),
-        octets_build: champ(ligne, "octets_build").parse().expect("octets_build"),
-        allocs_par_internement: champ(ligne, "allocs_par_internement")
+        allocs_table: field(line, "allocs_table").parse().expect("allocs_table"),
+        allocs_build: field(line, "allocs_build").parse().expect("allocs_build"),
+        allocs_count: field(line, "allocs_count").parse().expect("allocs_count"),
+        bytes_build: field(line, "octets_build").parse().expect("octets_build"),
+        allocs_per_interning: field(line, "allocs_par_internement")
             .parse()
             .expect("allocs_par_internement"),
-        rss_max_ko: champ(ligne, "rss_max_ko").parse().expect("rss_max_ko"),
+        rss_max_ko: field(line, "rss_max_ko").parse().expect("rss_max_ko"),
     }
 }
 
@@ -77,44 +77,44 @@ fn mesurer(n: u32) -> Mesure {
 /// published measurement.
 #[test]
 fn test_profile_intern_alea_lcg_20() {
-    let mesure = mesurer(N);
-    // Structural counters: the reference charge of the BENCH-1 campaign.
-    assert_eq!(mesure.n, 20);
+    let measure = measure(N);
+    // Structural counters: the reference load of the BENCH-1 campaign.
+    assert_eq!(measure.n, 20);
     assert_eq!(
-        mesure.nodes, 106_760,
+        measure.nodes, 106_760,
         "alea-lcg-20 node count (campaign cross-check)"
     );
     assert_eq!(
-        mesure.verifie, 523_228,
+        measure.verifies, 523_228,
         "alea-lcg-20 satisfying assignments"
     );
     assert_eq!(
-        mesure.internements,
+        measure.interning,
         (1u64 << 20) - 1,
         "bottom-up Shannon intern calls"
     );
-    assert_eq!(mesure.allocs_table, 1, "the table is one Vec allocation");
+    assert_eq!(measure.allocs_table, 1, "the table is one Vec allocation");
     assert!(
-        mesure.allocs_count > 0,
+        measure.allocs_count > 0,
         "the counting traversal allocates its visited set"
     );
-    // Falsifiable gate: allocations per internement, measured 8.48 at
+    // Falsifiable gate: allocations per interning, measured 8.48 at
     // PERF-1 and 1.70 at PERF-2 (issue #282: Vec-based `from_pairs`,
     // allocation-free `ArcRun::iter`, `form_normalisee` fast path,
     // copy-free `shannon`). The range is re-pinned on the new measured
     // baseline, as a frozen threshold may only be lowered: a regression
     // above 3.0 fails, a value below 1.0 means the measurement broke.
     assert!(
-        (1.0..=3.0).contains(&mesure.allocs_par_internement),
+        (1.0..=3.0).contains(&measure.allocs_per_interning),
         "allocations per internement regressed: {}",
-        mesure.allocs_par_internement
+        measure.allocs_per_interning
     );
     // The build phase dominates the measured block (93% at PERF-1); the
     // table generation is negligible. Time is machine-dependent: only the
     // structural share is pinned, loosely.
-    let total = mesure.temps_table_ms + mesure.temps_build_ms + mesure.temps_count_ms;
+    let total = measure.temps_table_ms + measure.temps_build_ms + measure.temps_count_ms;
     assert!(
-        mesure.temps_build_ms / total > 0.5,
+        measure.temps_build_ms / total > 0.5,
         "the BDD construction must dominate the profile"
     );
 
@@ -149,7 +149,7 @@ fn test_profile_intern_alea_lcg_20() {
              makes `Option<Slot>` 12 bytes instead of 16 (tag + padding before) — pinned by\n\
              `test_align1_option_slot_is_12_bytes`, plus `test_align1_slot_tag_remaps_zero` for the remap.\n\
              `TableUnique::bytes()` follows automatically (`capacity * size_of::<Option<Slot>>()`).\n\
-             `hash_cle` and its golden value are untouched.\n\n\
+             `hash_key` and its golden value are untouched.\n\n\
              ## Memory effect (the hypothesis, falsified or confirmed)\n\n\
              Hypothesis: ~-8 bytes/node on the unique table at load factor 1/2 (32 -> 24 bytes/node).\n\
              Measured:\n\n\
@@ -169,15 +169,15 @@ fn test_profile_intern_alea_lcg_20() {
              the skipped ones need the external witness binaries).\n\
              - MEM-18 thresholds: green (`make check`, 369 passed / 11 skipped on this commit).\n\
              - allocs/internement: 1.000 unchanged (the slot niche touches no allocation).\n",
-            mesure.nodes,
-            mesure.internements,
-            mesure.temps_table_ms,
-            mesure.temps_build_ms,
-            mesure.temps_count_ms,
-            mesure.allocs_build,
-            mesure.octets_build,
-            mesure.allocs_par_internement,
-            mesure.rss_max_ko,
+            measure.nodes,
+            measure.interning,
+            measure.temps_table_ms,
+            measure.temps_build_ms,
+            measure.temps_count_ms,
+            measure.allocs_build,
+            measure.bytes_build,
+            measure.allocs_per_interning,
+            measure.rss_max_ko,
         );
         let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
         std::fs::write(format!("{directory}/align1-unique-niche.md"), publication)
@@ -191,16 +191,16 @@ fn test_profile_intern_alea_lcg_20() {
              | n | noeuds | internements | temps table (ms) | temps build (ms) | temps count (ms) | allocs build | octets build | allocs/internement | rss_max_ko |\n\
              |---|---|---|---|---|---|---|---|---|---|\n\
              | {} | {} | {} | {:.3} | {:.3} | {:.3} | {} | {} | {:.3} | {} |\n",
-            mesure.n,
-            mesure.nodes,
-            mesure.internements,
-            mesure.temps_table_ms,
-            mesure.temps_build_ms,
-            mesure.temps_count_ms,
-            mesure.allocs_build,
-            mesure.octets_build,
-            mesure.allocs_par_internement,
-            mesure.rss_max_ko,
+            measure.n,
+            measure.nodes,
+            measure.interning,
+            measure.temps_table_ms,
+            measure.temps_build_ms,
+            measure.temps_count_ms,
+            measure.allocs_build,
+            measure.bytes_build,
+            measure.allocs_per_interning,
+            measure.rss_max_ko,
         );
         let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
         std::fs::write(format!("{directory}/perf1-profile-intern.md"), publication)

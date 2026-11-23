@@ -7,13 +7,13 @@
 //! (Floyd-Warshall): two writings of the same region have the same closure,
 //! equality is decidable, C1 holds relative to the region algebra.
 //! An inconsistent region (negative diagonal after closure) is normalized
-//! to the canonical [`INCOHERENT`], the empty region — the continuous
+//! to the canonical [`INCONSISTENT`], the empty region — the continuous
 //! "absent" δ(ℓ).
 //!
 //! Bounds are stored as `i128` internally: the closure sum of `i64`
 //! bounds cannot overflow. The 2D Lebesgue measure (area of the
 //! zone ∩ box, [`DbmKeys::measure_zone`]) and the fold integral over DBM
-//! keys (`crate::integrale::integrale_dbm_constante`) complete this fragment
+//! keys (`crate::integral::integral_dbm_constant`) complete this fragment
 //! on the measure side; the semiring with polynomial densities remains
 //! outside the fragment.
 
@@ -22,66 +22,66 @@ use lisage_algebra::interface::{
 };
 
 /// Number of variables of a null DBM (canonical empty region without variable).
-pub const INCOHERENT: Dbm = Dbm {
+pub const INCONSISTENT: Dbm = Dbm {
     number_variables: 0,
-    matrice: Vec::new(),
+    matrix: Vec::new(),
 };
 
-/// Convex region-key: DBM over `number_variables` variables, `matrice[i][j]`
+/// Convex region-key: DBM over `number_variables` variables, `matrix[i][j]`
 /// = bound `Some(c)` of the constraint `x_i − x_j ≤ c` (`None` = no
 /// constraint). Every construction goes through [`Dbm::new`], which sets
 /// the diagonal to `x_i − x_i ≤ 0` and normalizes: canonical closure, and
-/// inconsistent region → [`INCOHERENT`]. The derived equality is then the
+/// inconsistent region → [`INCONSISTENT`]. The derived equality is then the
 /// equality of regions.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Dbm {
     number_variables: usize,
-    matrice: Vec<Vec<Option<i128>>>,
+    matrix: Vec<Vec<Option<i128>>>,
 }
 
 impl Dbm {
     /// DBM over `number_variables` variables from constraints
     /// `(i, j, c)` meaning `x_i − x_j ≤ c`, then normalization (canonical
-    /// closure; inconsistency → [`INCOHERENT`]).
-    pub fn new(number_variables: usize, contraintes: &[(usize, usize, i64)]) -> Self {
+    /// closure; inconsistency → [`INCONSISTENT`]).
+    pub fn new(number_variables: usize, constraints: &[(usize, usize, i64)]) -> Self {
         let n = number_variables;
-        let mut matrice = vec![vec![None; n]; n];
-        for (i, ligne) in matrice.iter_mut().enumerate() {
-            ligne[i] = Some(0);
+        let mut matrix = vec![vec![None; n]; n];
+        for (i, line) in matrix.iter_mut().enumerate() {
+            line[i] = Some(0);
         }
-        for &(i, j, c) in contraintes {
+        for &(i, j, c) in constraints {
             assert!(
                 i < n && j < n,
                 "constraint outside domain (internal invariant)"
             );
             let bound = i128::from(c);
-            matrice[i][j] = Some(match matrice[i][j] {
+            matrix[i][j] = Some(match matrix[i][j] {
                 Some(old) => old.min(bound),
                 None => bound,
             });
         }
-        Self::fermer(n, matrice)
+        Self::close(n, matrix)
     }
 
     /// Normal form of the region: closure of the current matrix (fixed
-    /// point if already normalized), inconsistency → [`INCOHERENT`].
+    /// point if already normalized), inconsistency → [`INCONSISTENT`].
     fn normaliser(&self) -> Self {
-        if self.est_empty() {
-            return INCOHERENT;
+        if self.is_empty() {
+            return INCONSISTENT;
         }
-        Self::fermer(self.number_variables, self.matrice.clone())
+        Self::close(self.number_variables, self.matrix.clone())
     }
 
     /// Shortest-path closure (Floyd-Warshall); if a diagonal
-    /// becomes negative, the region is empty → [`INCOHERENT`].
-    fn fermer(number_variables: usize, mut matrice: Vec<Vec<Option<i128>>>) -> Self {
+    /// becomes negative, the region is empty → [`INCONSISTENT`].
+    fn close(number_variables: usize, mut matrix: Vec<Vec<Option<i128>>>) -> Self {
         let n = number_variables;
         for k in 0..n {
             for i in 0..n {
                 for j in 0..n {
-                    if let (Some(a), Some(b)) = (matrice[i][k], matrice[k][j]) {
+                    if let (Some(a), Some(b)) = (matrix[i][k], matrix[k][j]) {
                         let sum = a + b;
-                        matrice[i][j] = Some(match matrice[i][j] {
+                        matrix[i][j] = Some(match matrix[i][j] {
                             Some(old) => old.min(sum),
                             None => sum,
                         });
@@ -89,12 +89,12 @@ impl Dbm {
                 }
             }
         }
-        if (0..n).any(|i| matches!(matrice[i][i], Some(d) if d < 0)) {
-            return INCOHERENT;
+        if (0..n).any(|i| matches!(matrix[i][i], Some(d) if d < 0)) {
+            return INCONSISTENT;
         }
         Dbm {
             number_variables: n,
-            matrice,
+            matrix,
         }
     }
 
@@ -103,38 +103,38 @@ impl Dbm {
         self.number_variables
     }
 
-    /// Bound matrix `matrice[i][j]` = `Some(c)` for `x_i − x_j ≤ c`.
-    pub fn matrice(&self) -> &[Vec<Option<i128>>] {
-        &self.matrice
+    /// Bound matrix `matrix[i][j]` = `Some(c)` for `x_i − x_j ≤ c`.
+    pub fn matrix(&self) -> &[Vec<Option<i128>>] {
+        &self.matrix
     }
 
     /// Is the region empty (inconsistent)?
-    pub fn est_empty(&self) -> bool {
-        *self == INCOHERENT
+    pub fn is_empty(&self) -> bool {
+        *self == INCONSISTENT
     }
 
     /// Intersection (meet) of two regions: bound `x_i − x_j ≤ min(c, c')`
     /// point by point, then canonical closure. The intersection of two
     /// convex regions is convex: the meet of two closed DBMs is
     /// already closed, the closure is idempotent. Any empty region
-    /// gives [`INCOHERENT`].
+    /// gives [`INCONSISTENT`].
     pub fn intersection(&self, other: &Dbm) -> Dbm {
-        if self.est_empty() || other.est_empty() {
-            return INCOHERENT;
+        if self.is_empty() || other.is_empty() {
+            return INCONSISTENT;
         }
         assert_eq!(
             self.number_variables, other.number_variables,
             "intersection of regions of different dimensions (internal invariant)"
         );
         let n = self.number_variables;
-        let matrice: Vec<Vec<Option<i128>>> = self
-            .matrice
+        let matrix: Vec<Vec<Option<i128>>> = self
+            .matrix
             .iter()
-            .zip(&other.matrice)
-            .map(|(ligne_a, ligne_b)| {
-                ligne_a
+            .zip(&other.matrix)
+            .map(|(line_a, line_b)| {
+                line_a
                     .iter()
-                    .zip(ligne_b)
+                    .zip(line_b)
                     .map(|(a, b)| match (a, b) {
                         (Some(a), Some(b)) => Some((*a).min(*b)),
                         (Some(a), None) => Some(*a),
@@ -144,12 +144,12 @@ impl Dbm {
                     .collect()
             })
             .collect();
-        Self::fermer(n, matrice)
+        Self::close(n, matrix)
     }
 
     /// Does the point `point[i] = x_i` belong to the region?
     pub fn contains(&self, point: &[u64]) -> bool {
-        if self.est_empty() {
+        if self.is_empty() {
             return false;
         }
         assert_eq!(
@@ -158,7 +158,7 @@ impl Dbm {
             "point of wrong dimension (internal invariant)"
         );
         (0..self.number_variables).all(|i| {
-            (0..self.number_variables).all(|j| match self.matrice[i][j] {
+            (0..self.number_variables).all(|j| match self.matrix[i][j] {
                 Some(c) => i128::from(point[i]) - i128::from(point[j]) <= c,
                 None => true,
             })
@@ -168,7 +168,7 @@ impl Dbm {
 
 /// DBM region-key algebra over a per-variable bounded domain:
 /// `Val(ℓ) = [0, size_domain)`, a key = a convex region of the box,
-/// `δ(ℓ)` = the empty region [`INCOHERENT`].
+/// `δ(ℓ)` = the empty region [`INCONSISTENT`].
 #[derive(Clone)]
 pub struct DbmKeys {
     size_domain: u64,
@@ -199,14 +199,14 @@ impl DbmKeys {
     /// `[0, size_domain)²`, returned **doubled** (area × 2, exact in
     /// `i128`: the area can be half-integer). Reserved to **2D** zones:
     /// a 2-variable DBM is a band `−b ≤ x − y ≤ a` (the only
-    /// off-diagonal constraints are `matrice[0][1]` and `matrice[1][0]`),
+    /// off-diagonal constraints are `matrix[0][1]` and `matrix[1][0]`),
     /// and the area of the band ∩ square `[0, N]²` equals `f(−b) − f(a)` with
     /// `f(t)` = area of `{x − y > t}`: 0 if `t ≥ N`, `N²` if `t ≤ −N`,
     /// `(N − t)²/2` if `0 ≤ t < N`, `N² − (N + t)²/2` if `−N < t < 0`.
     /// Empty zone → 0. (Spec Q9 (ii):
     /// "polyhedral regions" — the exact 2D case; n > 2 outside fragment.)
     pub fn measure_zone(&self, zone: &Dbm) -> i128 {
-        if zone.est_empty() {
+        if zone.is_empty() {
             return 0;
         }
         assert_eq!(
@@ -229,10 +229,10 @@ impl DbmKeys {
                 2 * n * n - (n + t) * (n + t)
             }
         };
-        let a = zone.matrice()[0][1];
-        let b = zone.matrice()[1][0];
+        let a = zone.matrix()[0][1];
+        let b = zone.matrix()[1][0];
         // Area of the band −b ≤ x−y ≤ a = {x−y > −b} minus {x−y > a}.
-        let aire_doublee = match b {
+        let area_doubled = match b {
             None => 2 * n * n,
             Some(b) => au_dessus(-b),
         } - match a {
@@ -240,24 +240,24 @@ impl DbmKeys {
             Some(a) => au_dessus(a),
         };
         debug_assert!(
-            aire_doublee >= 0,
+            area_doubled >= 0,
             "negative area: zone not closed (internal invariant)"
         );
-        aire_doublee.max(0)
+        area_doubled.max(0)
     }
 
     pub fn coverage(&self, regions: &[Dbm]) -> bool {
         // The empty region covers nothing; the dimension is that of the
-        // non-empty regions (a family of empty regions covers nothing).
+        // not-empty regions (a family of empty regions covers nothing).
         let Some(n) = regions
             .iter()
-            .find(|region| !region.est_empty())
+            .find(|region| !region.is_empty())
             .map(Dbm::number_variables)
         else {
             return false;
         };
         for region in regions {
-            if !region.est_empty() {
+            if !region.is_empty() {
                 assert_eq!(
                     region.number_variables(),
                     n,
@@ -301,7 +301,7 @@ impl KeyAlgebra for DbmKeys {
     }
 
     fn default(&self, _level: Level) -> Option<Self::Key> {
-        Some(INCOHERENT)
+        Some(INCONSISTENT)
     }
 }
 
@@ -313,7 +313,7 @@ impl PathPredicate for DbmKeys {
     /// `arc ∩ region == arc` (both sides normalized: the derived equality
     /// of `Dbm` is the equality of regions).
     fn arc_in_region(&self, _level: Level, region: &Self::Key, arc: &Self::Key) -> bool {
-        !arc.est_empty() && arc.intersection(region) == *arc
+        !arc.is_empty() && arc.intersection(region) == *arc
     }
 }
 

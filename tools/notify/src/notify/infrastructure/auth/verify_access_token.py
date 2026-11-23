@@ -1,7 +1,7 @@
 """Local validation of OIDC access tokens (RS256 JWT) against the IdP JWKS.
 
-Brick of the unified authentication (issue #309, cadrage "Authentification
-unifiée saucisson"): the discovery document and the JWKS are fetched over
+Brick of the unified authentication (issue #309, framing "saucisson unified
+authentication"): the discovery document and the JWKS are fetched over
 HTTP and cached (discovery 24 h, JWKS 1 h, forced refresh on an unknown
 ``kid``); the signature is verified with joserfc and the claims (``iss``,
 ``aud``, ``exp``, ``nbf``) are checked with a 60 s clock-skew leeway. No

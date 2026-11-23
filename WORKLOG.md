@@ -46,6 +46,119 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-23 - Integration of the delivered english-only patch (rebased on daily a99353a) + repair of its integration defects (issues #104, #110)
+
+- **Issue**: #104 (English-only charter) + #110; applies the delivered
+  `lisage-english-only.patch` (216 files) onto `daily` @ `a99353a`.
+- **Done**: patch applied cleanly (`git apply --check` 216/216). The
+  delivered tree did not compile/pass its own gates; fixed: (1)
+  `lisage-bench/tests/operations.rs`: `existe`/`filtrer` renamed to
+  `exists`/`filter` collided with `lisage_lang::interpreter::{exists,
+  filter}` — core imports aliased `exists_dd`/`filter_dd`; (2)
+  `confrontation.rs` `write_file_states`: renamed counter `number`
+  shadowed the `number` parameter ("declared n 0 ≠ requested n 3") —
+  counter renamed `file_index`; (3) `spans.rs`: rename made the guard
+  `*number == number` (field shadows closure param) — param renamed
+  `target`; (4) clippy `redundant_field_names` on renamed fields
+  (`result: result` x2, `number: number` x2) — field-init shorthand;
+  (5) `inspection.rs` diff view still emitted `avant:`/`apres:` — now
+  `before:`/`after:`; (6) `debugger.rs` test expected the old
+  `Visite[...]` span-kind Debug — now `Visit`; (7) committed offline
+  page artifact regenerated to the generator output (`"kind":"Visit"`,
+  `"classification":"Identity"/"Relabeling"`); (8) scanner
+  `english_only.py`: stop-word boundaries now exclude digits (pinned
+  commit SHAs in Dockerfiles are not French prose — precision fix, not
+  a weakening), plus ruff/mypy cleanups (SIM905 lexicon via named
+  constant, UP037 unquoted annotations, D105/D107 docstrings, PLR0911
+  `scan_file` refactor, E501 rewraps, `nb` -> `neighbors`,
+  `debut`/`verifie` -> `start`/`verified` in oxidd_count with the
+  French JSON wire keys untouched, web-directive code span rewrapped to
+  one line).
+- **Evidence**: `cargo nextest run --workspace --all-targets`: 484
+  passed, 0 failed, 11 skipped; `cargo clippy --workspace --all-targets
+  -- -D warnings`: clean; `cargo fmt --check`: clean; `python -m
+  scripts english-only`: 0 offenders; `ruff check .` and `ruff format
+  --check .`: clean; `mypy tools/notify/src tools/notify/tests
+  scripts`: no issues in 49 files; `pytest`: 92 passed, coverage
+  92.11% (floor 90%). Environment notes: project requires Python
+  >=3.15 (`uv run` dev group broken here — pyyaml build SIGSEGV — so
+  gates ran via `uv run --no-dev` / `uvx`); `lint-imports` NOT run
+  (import-linter not resolvable from the registry in this
+  environment); CI must rerun `make check`.
+- **Judgement calls**: wire formats stay byte-stable per the patch
+  invariants (JSONL v3 keys, trace tags `VisiteEntree` etc., bench
+  JSON keys `outil`/`noeuds`/`verifie`/`temps_ms` remain French);
+  the stop-word digit boundary only excludes matches no French prose
+  can produce.
+- **Escalations**: none.
+
+## 2026-11-23 - M6 completion: English-only repository, closing pass (issues #104, #110)
+
+- **Issue**: #104 (English-only charter) + #110 (accent-free French
+  leftovers); closes the rename tail left by the M6 word-level passes
+  (#103-#109).
+- **Done**: (1) Prose: the last French panic messages and comments are
+  translated (`trace_val.rs`, `unique.rs`, `observer.rs` Debug and
+  liseuse `inspection.rs`, bench prose). (2) Identifiers: ~390 distinct
+  French identifiers renamed across the crates (word-level dictionary
+  pass plus curated compounds: `MarqueEncodage`/`Encodage` ->
+  `EncodingMark`/`Encoding`, `StrategieAval` -> `DownstreamStrategy`,
+  `SemiAnneau` -> `Semiring`, `VariableEnDouble` ->
+  `DuplicateVariable`, `KeyPresentes` -> `PresenceKeys`,
+  `IdsAleatoires` -> `RandomIds`, `plan_de` -> `plan_of`, `glessee` ->
+  `shifted_by`, bare `vrai`/`faux` node variables -> `true_node`/
+  `false_node`, `est_*` -> `is_*`, plus the French-cased test names).
+  (3) Docs: `docs/etudes-surcharge/` is renamed and translated to
+  `docs/overload-studies/` (studies 01-07, README, bench Python
+  CLIs/comments/prints and their `results{5,6,7}.json`, regenerated and
+  numerically identical); `docs/lisage-web-v1/consigne-interface-web.md`
+  -> `web-interface-directive.md` (French UI labels kept inside code
+  spans on purpose, ADR-0107 rule retained at lines 47/55).
+  (4) Non-Rust: Cargo.toml descriptions, Dockerfile/`.gitignore`
+  comments, `tools/notify` docstring translated. (5) Lint: new
+  `scripts/english_only.py` (ADR-0021 `register`/`run` driver,
+  `make english-only` -> `python -m scripts english-only`) replaces
+  the accented-grep: French-only accent class, French function words in
+  comments only (Rust identifier-safe), French identifier stems over
+  code and docs, Markdown fences/inline spans and Rust/Python string
+  literals skipped (wire data), explicit allowlist (WORKLOG pre-M6
+  entries, glossary, audit inventory, PR bodies, bench results).
+  (6) Rebased onto the late `daily` commits of 2026-11-23: the #347
+  ruff-cleaned bancs were already the translation base (identical
+  structure, wording only), and the #346 narrow PBT fix is absorbed with
+  its French-FREE additions kept verbatim and `paires` -> `pairs` in
+  step with the renamed proptest parameters; the new
+  `#347/#346` WORKLOG entries are preserved untouched at the tail.
+- **Evidence**: `cargo test -p lisage-lang -p lisage-algebra -p
+  lisage-plan -p lisage-backend -p lisage-core`: 235 passed, 0 failed
+  (equals the pre-change count; wire-literal invariants re-checked
+  byte-identical: JSONL v3 keys `noeud`/`valeur`/`avant`/`apres`/
+  `niveaux_actifs`, event tags `VisiteEntree`/`VisiteSortie`,
+  `herite`/`synthetise`/`memoire`, trace content labels
+  `Cherche`/`Extrait`/`Transfert`, report keys
+  `nodes_partages`/`size_depliee`/`encodage`/`contre`).
+  `cargo check -p lisage-bench --lib --bins` clean; liseuse lib
+  `cargo check` clean (gateway aside); `python -m scripts
+  english-only`: 0 offenders. Rebase check (2026-11-23, late): the
+  regenerated patch replays cleanly onto the latest `daily` head and
+  reproduces the translated tree byte-identically; the #346 absorption
+  is a pure `paires` -> `pairs` rename inside upstream-verified,
+  English-only additions. Not run here: lisage-bench/liseuse test
+  suites, full `make check`, clippy/fmt, CI (environment without a C
+  linker for build scripts) — CI must rerun `make check`.
+- **Judgement calls**: wire formats stay byte-stable on purpose (JSONL
+  v3, benchmark CLI tokens/JSON keys like `noeuds`/`verifie`, trace
+  content labels, aggregats.json); the translated study benches rename
+  their Python-side dict keys in lockstep with the regenerated results
+  JSON; `rayon` protected from the word-level renamer; English
+  collisions (`confrontation`, `verifier`, `elide`, `charge`)
+  kept out of the lint lexicon.
+- **Escalations**: needs-human follow-ups: (a) whether a wire v4 with
+  English keys is wanted (out of scope here, would break the trace
+  compatibility contract); (b) stray `knowledge://` link in
+  `docs/overload-studies/studies/01-overload-homogeneity.md` is
+  pre-existing in the repo and left untouched.
+
 ## 2026-11-21 - D5-1/D5-2: semantic oracle and fixpoint oracle (issues #172, #173)
 
 - **Issue**: #172 (D5-1, différentiel sémantique échantillonné) + #173 (D5-2, croissance du fixpoint et tableau de bord).

@@ -37,7 +37,7 @@ pub struct PoolMirror {
     collected_nodes: BTreeSet<NodeId>,
     /// Memo table: keys currently present.
     memo_keys: BTreeSet<MemoKey>,
-    /// Current memory version (last `EcritureMemoire`).
+    /// Current memory version (last `MemoryWrite`).
     memory_version: u64,
     /// Pool size reported by the last `DiagramBuilt`.
     last_pool_size: Option<usize>,
@@ -66,15 +66,13 @@ impl PoolMirror {
                 // A shared node is already in the pool: it counts as live.
                 self.live_nodes.insert(*node);
             }
-            TraceEvent::VisiteEntree { node, .. } => {
+            TraceEvent::VisitEntry { node, .. } => {
                 // A visited node is necessarily in the pool.
                 self.live_nodes.insert(*node);
             }
-            TraceEvent::Gc {
-                liste_collectes, ..
-            } => {
+            TraceEvent::Gc { collected_list, .. } => {
                 self.gc_count += 1;
-                for node in liste_collectes {
+                for node in collected_list {
                     self.collected_nodes.insert(*node);
                     self.live_nodes.remove(node);
                 }
@@ -91,8 +89,8 @@ impl PoolMirror {
                     version: *version,
                 });
             }
-            TraceEvent::EcritureMemoire { version_apres, .. } => {
-                self.memory_version = *version_apres;
+            TraceEvent::MemoryWrite { version_after, .. } => {
+                self.memory_version = *version_after;
             }
             TraceEvent::DiagramBuilt { nodes, .. } => {
                 self.last_pool_size = Some(*nodes);
@@ -162,7 +160,7 @@ impl PoolMirror {
 }
 
 /// Per-level memory version map (level → version at last write).
-/// Reconstructed from `EcritureMemoire` events; the level is not
+/// Reconstructed from `MemoryWrite` events; the level is not
 /// carried by the event, so this mirror tracks only the global
 /// version counter.
 pub type MemoryVersions = BTreeMap<u32, u64>;

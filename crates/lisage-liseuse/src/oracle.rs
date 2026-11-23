@@ -31,9 +31,9 @@ pub struct DenotationDivergence {
 
 /// D5-1: sampled semantic oracle. Walks the trace and, at each `OpEnd`,
 /// evaluates a set of witness valuations against every `(input, output)`
-/// node pair recorded by `VisiteSortie` inside the operation. The actual
+/// node pair recorded by `VisitExit` inside the operation. The actual
 /// output is the real denotation of the output node; the expected value
-/// comes from an independent semantics closure. A `Filtre` with a faulty
+/// comes from an independent semantics closure. A `Filter` with a faulty
 /// predicate produces a wrong output node and is caught at the offending
 /// operation, not at the end of the chain.
 #[derive(Default)]
@@ -64,9 +64,9 @@ impl SemanticOracle {
                 TraceEvent::OpStart { fingerprint, .. } => {
                     open_ops.push((*fingerprint, Vec::new()));
                 }
-                TraceEvent::VisiteSortie { node, resultat, .. } => {
+                TraceEvent::VisitExit { node, result, .. } => {
                     if let Some((_, pairs)) = open_ops.last_mut() {
-                        pairs.push((*node, *resultat));
+                        pairs.push((*node, *result));
                     }
                 }
                 TraceEvent::OpEnd { .. } => {
@@ -160,7 +160,7 @@ impl SemanticOracle {
 /// D5-2: a fixpoint monotonicity violation at a round boundary.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MonotonicityViolation {
-    /// Round number (1-based) where the non-inclusion was detected.
+    /// Round number (1-based) where the not-inclusion was detected.
     pub round: u32,
     /// Position in the trace of the offending `Round` event.
     pub position: usize,
@@ -191,10 +191,10 @@ pub struct FixpointOracle {
 }
 
 impl FixpointOracle {
-    /// Run the oracle over a trace. `included(avant, apres)` is true iff
-    /// the denotation of `avant` is included in the denotation of `apres`
+    /// Run the oracle over a trace. `included(before, after)` is true iff
+    /// the denotation of `before` is included in the denotation of `after`
     /// (X_k ⊆ X_{k+1}); the DoD tests plug a witness-sampled inclusion over
-    /// the real pool. Any non-inclusion at a non-converged round is a bug
+    /// the real pool. Any not-inclusion at a not-converged round is a bug
     /// in τ or ⊕.
     pub fn run<F>(events: &[TraceEvent], mut included: F) -> Self
     where
@@ -203,27 +203,27 @@ impl FixpointOracle {
         let mut oracle = FixpointOracle::default();
         for (position, event) in events.iter().enumerate() {
             if let TraceEvent::Round {
-                numero,
-                niveaux_actifs,
-                niveaux_modifies,
-                avant,
-                apres,
-                croissance,
+                number,
+                active_levels,
+                modified_levels,
+                before,
+                after,
+                growth,
                 ..
             } = event
             {
-                let converged = avant == apres;
-                if !converged && !included(*avant, *apres) {
+                let converged = before == after;
+                if !converged && !included(*before, *after) {
                     oracle.violations.push(MonotonicityViolation {
-                        round: *numero,
+                        round: *number,
                         position,
                     });
                 }
                 oracle.dashboard.push(RoundDashboard {
-                    round: *numero,
-                    active_levels: niveaux_actifs.clone(),
-                    modified_levels: niveaux_modifies.clone(),
-                    growth: *croissance,
+                    round: *number,
+                    active_levels: active_levels.clone(),
+                    modified_levels: modified_levels.clone(),
+                    growth: *growth,
                     converged,
                 });
             }
@@ -279,10 +279,10 @@ mod tests {
         TraceEvent::OpEnd { span: None }
     }
 
-    fn visite_sortie(node: NodeId, resultat: NodeId) -> TraceEvent {
-        TraceEvent::VisiteSortie {
+    fn visit_exit(node: NodeId, result: NodeId) -> TraceEvent {
+        TraceEvent::VisitExit {
             node,
-            resultat,
+            result,
             span: None,
         }
     }
@@ -295,7 +295,7 @@ mod tests {
     #[test]
     fn test_semantic_oracle_clean() {
         // Identity operation: output node == input node, identity semantics.
-        let events = vec![op_start(42), visite_sortie(NodeId(0), NodeId(0)), op_end()];
+        let events = vec![op_start(42), visit_exit(NodeId(0), NodeId(0)), op_end()];
         let oracle = SemanticOracle::run(
             &events,
             DOMAIN_SIZE,
@@ -310,7 +310,7 @@ mod tests {
         // The engine produced the wrong output node (NodeId(1), denotation
         // false) where the semantics expects the input denotation (true):
         // a faulty predicate is caught at the offending operation.
-        let events = vec![op_start(42), visite_sortie(NodeId(0), NodeId(1)), op_end()];
+        let events = vec![op_start(42), visit_exit(NodeId(0), NodeId(1)), op_end()];
         let oracle = SemanticOracle::run(
             &events,
             DOMAIN_SIZE,
@@ -327,7 +327,7 @@ mod tests {
     fn test_semantic_oracle_witness_sampling() {
         // Divergence only on the full-set witness: the actual output is
         // false, the expected value is true exactly for the full set.
-        let events = vec![op_start(99), visite_sortie(NodeId(0), NodeId(1)), op_end()];
+        let events = vec![op_start(99), visit_exit(NodeId(0), NodeId(1)), op_end()];
         let oracle = SemanticOracle::run(
             &events,
             DOMAIN_SIZE,
@@ -343,28 +343,28 @@ mod tests {
         // Two rounds, monotonically growing.
         let events = vec![
             TraceEvent::Round {
-                numero: 1,
-                niveaux_actifs: vec![0],
-                niveaux_modifies: vec![0],
-                avant: NodeId(0),
+                number: 1,
+                active_levels: vec![0],
+                modified_levels: vec![0],
+                before: NodeId(0),
                 image: NodeId(1),
-                apres: NodeId(1),
-                croissance: 5,
+                after: NodeId(1),
+                growth: 5,
                 span: None,
             },
             TraceEvent::Round {
-                numero: 2,
-                niveaux_actifs: vec![0],
-                niveaux_modifies: vec![],
-                avant: NodeId(1),
+                number: 2,
+                active_levels: vec![0],
+                modified_levels: vec![],
+                before: NodeId(1),
                 image: NodeId(1),
-                apres: NodeId(1),
-                croissance: 0,
+                after: NodeId(1),
+                growth: 0,
                 span: None,
             },
         ];
         // Families: NodeId(0) = ∅, NodeId(1) = {∅, {0}} — growing by inclusion.
-        let oracle = FixpointOracle::run(&events, |avant, apres| {
+        let oracle = FixpointOracle::run(&events, |before, after| {
             let family = |node: NodeId| -> u8 {
                 match node {
                     NodeId(0) => 0b00,
@@ -372,7 +372,7 @@ mod tests {
                     _ => 0,
                 }
             };
-            family(avant) & !family(apres) == 0
+            family(before) & !family(after) == 0
         });
         assert!(oracle.is_clean());
         assert_eq!(oracle.dashboard().len(), 2);
@@ -385,17 +385,17 @@ mod tests {
     fn test_fixpoint_oracle_catches_decrease() {
         // Round 2 shrinks (bug in τ): size 5 → 3.
         let events = vec![TraceEvent::Round {
-            numero: 2,
-            niveaux_actifs: vec![0],
-            niveaux_modifies: vec![0],
-            avant: NodeId(1),
+            number: 2,
+            active_levels: vec![0],
+            modified_levels: vec![0],
+            before: NodeId(1),
             image: NodeId(2),
-            apres: NodeId(2),
-            croissance: -2,
+            after: NodeId(2),
+            growth: -2,
             span: None,
         }];
         // Families: NodeId(1) = {∅, {0}}, NodeId(2) = {∅} — shrinking.
-        let oracle = FixpointOracle::run(&events, |avant, apres| {
+        let oracle = FixpointOracle::run(&events, |before, after| {
             let family = |node: NodeId| -> u8 {
                 match node {
                     NodeId(1) => 0b11,
@@ -403,7 +403,7 @@ mod tests {
                     _ => 0,
                 }
             };
-            family(avant) & !family(apres) == 0
+            family(before) & !family(after) == 0
         });
         assert!(!oracle.is_clean());
         assert_eq!(oracle.violations().len(), 1);

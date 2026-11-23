@@ -8,38 +8,38 @@ use std::sync::{Arc, Mutex};
 
 use lisage_core::MemoryPolicy;
 use lisage_core::arena::Arena;
+use lisage_core::fold::Fold;
 use lisage_core::observer::{ChannelAttr, Observer, TraceEvent, TraceVal};
-use lisage_core::pli::Pli;
-use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
+use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
-use lisage_core::transduction::Transducteur;
+use lisage_core::transduction::Transducer;
 use lisage_core::{Anchor, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::step_by_step::{
-    DiffTrace, Scrubber, diff, legende_channels, rendre_svg_step_by_step,
+    DiffTrace, Scrubber, diff, legend_channels, render_svg_step_by_step,
 };
-use lisage_liseuse::trace::{TRACE_VERSION, serialiser_evenement};
+use lisage_liseuse::trace::{TRACE_VERSION, serialize_event};
 
 type PoolRef = Arena<ReferenceController>;
 
 /// Observer that collects the typed events in memory.
 #[derive(Clone, Default)]
 struct Collector {
-    evenements: Arc<Mutex<Vec<TraceEvent>>>,
+    events: Arc<Mutex<Vec<TraceEvent>>>,
 }
 
 impl Collector {
     fn new() -> Self {
         Self::default()
     }
-    fn prendre(&self) -> Vec<TraceEvent> {
-        self.evenements.lock().expect("mutex poisoned").clone()
+    fn take(&self) -> Vec<TraceEvent> {
+        self.events.lock().expect("mutex poisoned").clone()
     }
 }
 
 impl Observer for Collector {
     fn on_event(&self, event: &TraceEvent) {
-        self.evenements
+        self.events
             .lock()
             .expect("mutex poisoned")
             .push(event.clone());
@@ -50,12 +50,12 @@ fn schema_set() -> Schema {
     Schema::Set(Domain::new(vec![Atom(0), Atom(1), Atom(2)]))
 }
 
-fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> NodeId {
+fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atoms: &[u64]) -> NodeId {
     compiler(
         pool,
         anchor,
         schema,
-        &Value::Set(atomes.iter().map(|a| Value::Atom(Atom(*a))).collect()),
+        &Value::Set(atoms.iter().map(|a| Value::Atom(Atom(*a))).collect()),
     )
     .unwrap()
 }
@@ -63,12 +63,12 @@ fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atomes: &[u64]) -> N
 /// M2-6 / D1-1 / D1-2: the trace schema is versioned v5 and serializes the
 /// step-by-step events, each carrying its `"span"` field.
 #[test]
-fn test_serialisation_v5_evenements_step_by_step() {
+fn test_serialization_v5_events_step_by_step() {
     assert_eq!(TRACE_VERSION, 5);
-    let attr = serialiser_evenement(&TraceEvent::Attr {
+    let attr = serialize_event(&TraceEvent::Attr {
         channel: ChannelAttr::Inherited,
         node: NodeId(3),
-        value: TraceVal::texte("Transfert(1)"),
+        value: TraceVal::text("Transfert(1)"),
         span: None,
     });
     assert_eq!(
@@ -76,47 +76,47 @@ fn test_serialisation_v5_evenements_step_by_step() {
         "{\"v\":5,\"type\":\"Attr\",\"span\":null,\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::MemoHit {
+        serialize_event(&TraceEvent::MemoHit {
             node: NodeId(7),
             span: None
         }),
         "{\"v\":5,\"type\":\"MemoHit\",\"span\":null,\"noeud\":7}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::MemoMiss {
+        serialize_event(&TraceEvent::MemoMiss {
             node: NodeId(8),
             span: None
         }),
         "{\"v\":5,\"type\":\"MemoMiss\",\"span\":null,\"noeud\":8}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::Round {
-            numero: 2,
-            niveaux_actifs: vec![0, 1],
-            niveaux_modifies: vec![1],
-            avant: NodeId(4),
+        serialize_event(&TraceEvent::Round {
+            number: 2,
+            active_levels: vec![0, 1],
+            modified_levels: vec![1],
+            before: NodeId(4),
             image: NodeId(5),
-            apres: NodeId(6),
-            croissance: 2,
+            after: NodeId(6),
+            growth: 2,
             span: None
         }),
         "{\"v\":5,\"type\":\"Round\",\"span\":null,\"numero\":2,\"niveaux_actifs\":[0,1],\"niveaux_modifies\":[1],\"avant\":4,\"image\":5,\"apres\":6,\"croissance\":2}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::Gc {
+        serialize_event(&TraceEvent::Gc {
             live: 12,
             collected: 5,
             compaction: true,
-            liste_collectes: vec![NodeId(3), NodeId(4)],
+            collected_list: vec![NodeId(3), NodeId(4)],
             span: None,
         }),
         "{\"v\":5,\"type\":\"Gc\",\"span\":null,\"vivants\":12,\"collectes\":5,\"compaction\":true,\"liste_collectes\":[3,4]}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::Attr {
+        serialize_event(&TraceEvent::Attr {
             channel: ChannelAttr::Memory,
             node: NodeId(1),
-            value: TraceVal::texte("true"),
+            value: TraceVal::text("true"),
             span: None,
         }),
         "{\"v\":5,\"type\":\"Attr\",\"span\":null,\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
@@ -126,7 +126,7 @@ fn test_serialisation_v5_evenements_step_by_step() {
 /// M2-6: the runner emits `MemoMiss`/`MemoHit` and the `Attr` of the
 /// inherited/synthesized channels during an observed transduction.
 #[test]
-fn test_runner_emet_memo_and_attr() {
+fn test_runner_emits_memo_and_attr() {
     let schema = schema_set();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -136,8 +136,8 @@ fn test_runner_emet_memo_and_attr() {
     let root = set(&mut pool, anchor, &schema, &[0, 1]);
 
     let collector = Collector::new();
-    let mut runner = Transducteur::with_observer(
-        Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
+    let mut runner = Transducer::with_observer(
+        Fold::<lisage_core::fold::Natural>::new(schema.clone()),
         MemoryPolicy::NoMemory,
         Arc::new(collector.clone()),
     );
@@ -149,21 +149,21 @@ fn test_runner_emet_memo_and_attr() {
     // Re-run to trigger MemoHit.
     let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
 
-    let evenements = collector.prendre();
+    let events = collector.take();
     assert!(
-        evenements
+        events
             .iter()
             .any(|e| matches!(e, TraceEvent::MemoMiss { .. })),
         "at least one MemoMiss"
     );
     assert!(
-        evenements
+        events
             .iter()
             .any(|e| matches!(e, TraceEvent::MemoHit { .. })),
         "at least one MemoHit on the second run"
     );
     assert!(
-        evenements.iter().any(|e| matches!(
+        events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
                 channel: ChannelAttr::Inherited,
@@ -173,7 +173,7 @@ fn test_runner_emet_memo_and_attr() {
         "inherited channel emitted"
     );
     assert!(
-        evenements.iter().any(|e| matches!(
+        events.iter().any(|e| matches!(
             e,
             TraceEvent::Attr {
                 channel: ChannelAttr::Synthesized,
@@ -186,9 +186,9 @@ fn test_runner_emet_memo_and_attr() {
 
 /// Identity transduction (cloneable) for the saturate test.
 #[derive(Clone)]
-struct Identite;
+struct Identity;
 
-impl lisage_core::transduction::Transduction for Identite {
+impl lisage_core::transduction::Transduction for Identity {
     type H = ();
     type S = ();
     type Out = bool;
@@ -210,8 +210,8 @@ impl lisage_core::transduction::Transduction for Identite {
     fn phi_out<P: lisage_core::Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: lisage_core::transduction::ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
+        ctx: lisage_core::transduction::PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -220,7 +220,7 @@ impl lisage_core::transduction::Transduction for Identite {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memory::EffetMemory::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: lisage_core::Pool<Key = u64, Payload = bool>>(
@@ -240,7 +240,7 @@ impl lisage_core::transduction::Transduction for Identite {
 /// M2-6: `saturate` emits one `Round` per iteration when an observer is
 /// provided.
 #[test]
-fn test_saturate_emet_rounds() {
+fn test_saturate_emits_rounds() {
     let schema = schema_set();
     let keys = SchemaKeys::new(schema.clone());
     let mut pool = Arena::new(
@@ -254,9 +254,9 @@ fn test_saturate_emet_rounds() {
     let levels: Vec<lisage_core::Level> = (0..schema.number_levels())
         .map(lisage_core::Level)
         .collect();
-    let policy = PolicySaturation::Statique(levels);
-    let mut params = ParametresSaturation {
-        transduction: &Identite,
+    let policy = PolicySaturation::Static(levels);
+    let mut params = SaturationParameters {
+        transduction: &Identity,
         policy: &policy,
         pool: &mut pool,
         keys: &keys,
@@ -265,12 +265,12 @@ fn test_saturate_emet_rounds() {
         number_levels: schema.number_levels(),
         observer: Some(Arc::new(collector.clone())),
     };
-    let result = saturer(&mut params).unwrap();
+    let result = saturate(&mut params).unwrap();
     let rounds: Vec<u32> = collector
-        .prendre()
+        .take()
         .iter()
         .filter_map(|e| match e {
-            TraceEvent::Round { numero, .. } => Some(*numero),
+            TraceEvent::Round { number, .. } => Some(*number),
             _ => None,
         })
         .collect();
@@ -282,17 +282,17 @@ fn test_saturate_emet_rounds() {
 /// memo counters, rounds).
 #[test]
 fn test_scrubber_replay_and_diff() {
-    let evenements = vec![
+    let events = vec![
         TraceEvent::NodeCreated {
             node: NodeId(1),
             level: Some(lisage_core::Level(0)),
-            forme: TraceVal::texte("Noeud"),
+            form: TraceVal::text("Noeud"),
             span: None,
         },
         TraceEvent::Attr {
             channel: ChannelAttr::Inherited,
             node: NodeId(1),
-            value: TraceVal::texte("0"),
+            value: TraceVal::text("0"),
             span: None,
         },
         TraceEvent::MemoMiss {
@@ -300,19 +300,19 @@ fn test_scrubber_replay_and_diff() {
             span: None,
         },
         TraceEvent::Round {
-            numero: 1,
-            niveaux_actifs: Vec::new(),
-            niveaux_modifies: Vec::new(),
-            avant: NodeId(0),
+            number: 1,
+            active_levels: Vec::new(),
+            modified_levels: Vec::new(),
+            before: NodeId(0),
             image: NodeId(0),
-            apres: NodeId(0),
-            croissance: 0,
+            after: NodeId(0),
+            growth: 0,
             span: None,
         },
         TraceEvent::NodeCreated {
             node: NodeId(2),
             level: Some(lisage_core::Level(1)),
-            forme: TraceVal::texte("Noeud"),
+            form: TraceVal::text("Noeud"),
             span: None,
         },
         TraceEvent::MemoHit {
@@ -320,58 +320,58 @@ fn test_scrubber_replay_and_diff() {
             span: None,
         },
         TraceEvent::Round {
-            numero: 2,
-            niveaux_actifs: Vec::new(),
-            niveaux_modifies: Vec::new(),
-            avant: NodeId(0),
+            number: 2,
+            active_levels: Vec::new(),
+            modified_levels: Vec::new(),
+            before: NodeId(0),
             image: NodeId(0),
-            apres: NodeId(0),
-            croissance: 0,
+            after: NodeId(0),
+            growth: 0,
             span: None,
         },
     ];
-    let mut scrubber = Scrubber::new(evenements);
-    assert_eq!(scrubber.longueur(), 7);
+    let mut scrubber = Scrubber::new(events);
+    assert_eq!(scrubber.length(), 7);
 
-    scrubber.aller_a(3);
-    let etat3 = scrubber.etat();
-    assert_eq!(etat3.nodes, BTreeSet::from([NodeId(1)]));
-    assert_eq!(etat3.attributes.len(), 1);
-    assert_eq!(etat3.memo_misses, 1);
-    assert_eq!(etat3.memo_hits, 0);
-    assert_eq!(etat3.rounds, 0, "the Round at index 3 is not replayed yet");
-    scrubber.aller_a(4);
-    assert_eq!(scrubber.etat().rounds, 1);
+    scrubber.round_a(3);
+    let state3 = scrubber.state();
+    assert_eq!(state3.nodes, BTreeSet::from([NodeId(1)]));
+    assert_eq!(state3.attributes.len(), 1);
+    assert_eq!(state3.memo_misses, 1);
+    assert_eq!(state3.memo_hits, 0);
+    assert_eq!(state3.rounds, 0, "the Round at index 3 is not replayed yet");
+    scrubber.round_a(4);
+    assert_eq!(scrubber.state().rounds, 1);
 
-    scrubber.aller_a(100); // clamped to the length
+    scrubber.round_a(100); // clamped to the length
     assert_eq!(scrubber.position(), 7);
-    let etat7 = scrubber.etat();
-    assert_eq!(etat7.nodes, BTreeSet::from([NodeId(1), NodeId(2)]));
-    assert_eq!(etat7.memo_hits, 1);
-    assert_eq!(etat7.rounds, 2);
+    let state7 = scrubber.state();
+    assert_eq!(state7.nodes, BTreeSet::from([NodeId(1), NodeId(2)]));
+    assert_eq!(state7.memo_hits, 1);
+    assert_eq!(state7.rounds, 2);
 
     // Before/after differential from the end: node 2 is a ghost
     // at position 3, no addition.
-    let diff = scrubber.diff_vers(3);
+    let diff = scrubber.diff_to(3);
     assert!(diff.ajoutes.is_empty());
     assert_eq!(diff.ghosts, BTreeSet::from([NodeId(2)]));
     // Inverse diff: node 2 is a ghost.
-    let mut retour = Scrubber::new(vec![
+    let mut trip = Scrubber::new(vec![
         TraceEvent::NodeCreated {
             node: NodeId(1),
             level: None,
-            forme: TraceVal::texte("Noeud"),
+            form: TraceVal::text("Noeud"),
             span: None,
         },
         TraceEvent::NodeCreated {
             node: NodeId(2),
             level: None,
-            forme: TraceVal::texte("Noeud"),
+            form: TraceVal::text("Noeud"),
             span: None,
         },
     ]);
-    retour.aller_a(2);
-    let diff_inv = retour.diff_vers(1);
+    trip.round_a(2);
+    let diff_inv = trip.diff_to(1);
     assert!(diff_inv.ajoutes.is_empty());
     assert_eq!(diff_inv.ghosts, BTreeSet::from([NodeId(2)]));
 }
@@ -389,8 +389,8 @@ fn test_rendu_svg_step_by_step_channels_and_ghosts() {
     let root = set(&mut pool, anchor, &schema, &[0, 1]);
 
     let collector = Collector::new();
-    let mut runner = Transducteur::with_observer(
-        Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
+    let mut runner = Transducer::with_observer(
+        Fold::<lisage_core::fold::Natural>::new(schema.clone()),
         MemoryPolicy::NoMemory,
         Arc::new(collector.clone()),
     );
@@ -399,32 +399,32 @@ fn test_rendu_svg_step_by_step_channels_and_ghosts() {
         Box::new(lisage_core::observer::NoOpObserver),
     );
     let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
-    let mut evenements = collector.prendre();
-    evenements.insert(
+    let mut events = collector.take();
+    events.insert(
         0,
         TraceEvent::Round {
-            numero: 1,
-            niveaux_actifs: Vec::new(),
-            niveaux_modifies: Vec::new(),
-            avant: NodeId(0),
+            number: 1,
+            active_levels: Vec::new(),
+            modified_levels: Vec::new(),
+            before: NodeId(0),
             image: NodeId(0),
-            apres: NodeId(0),
-            croissance: 0,
+            after: NodeId(0),
+            growth: 0,
             span: None,
         },
     );
     // The runner does not observe the pool: we add the NodeCreated of the
     // input diagram so that the state has nodes.
     let mut stack = vec![root];
-    let mut deja_vu = BTreeSet::new();
+    let mut already_seen = BTreeSet::new();
     while let Some(n) = stack.pop() {
-        if !deja_vu.insert(n) {
+        if !already_seen.insert(n) {
             continue;
         }
-        evenements.push(TraceEvent::NodeCreated {
+        events.push(TraceEvent::NodeCreated {
             node: n,
             level: None,
-            forme: TraceVal::texte("Noeud"),
+            form: TraceVal::text("Noeud"),
             span: None,
         });
         if let Ok(lisage_core::Form::Node { arcs, .. }) = pool.resolve(n) {
@@ -434,39 +434,39 @@ fn test_rendu_svg_step_by_step_channels_and_ghosts() {
         }
     }
 
-    let mut scrubber = Scrubber::new(evenements);
-    scrubber.aller_a(scrubber.longueur());
+    let mut scrubber = Scrubber::new(events);
+    scrubber.round_a(scrubber.length());
     let diff_empty = DiffTrace::default();
-    let svg = rendre_svg_step_by_step(&pool, root, &scrubber, &diff_empty);
+    let svg = render_svg_step_by_step(&pool, root, &scrubber, &diff_empty);
     // Colored channels present (inherited blue, synthesized orange).
-    let legende = legende_channels();
+    let legend = legend_channels();
     assert!(
-        svg.contains(legende["inherited"]),
+        svg.contains(legend["inherited"]),
         "inherited channel colored"
     );
     assert!(
-        svg.contains(legende["synthesized"]),
+        svg.contains(legend["synthesized"]),
         "synthesized channel colored"
     );
     // Timeline: round bar in purple + current position.
-    assert!(svg.contains(legende["memory"]), "round bar / memory");
+    assert!(svg.contains(legend["memory"]), "round bar / memory");
     assert!(svg.contains("step by step"), "dashboard as title");
 
     // Ghost: diff with an empty state at the start → all the nodes are ghosts
     // not in the diff (additions), let's test the reverse: diff towards 0.
-    let diff_ghosts = scrubber.diff_vers(0);
+    let diff_ghosts = scrubber.diff_to(0);
     assert!(
         !diff_ghosts.ghosts.is_empty(),
         "present nodes = ghosts when going back to 0"
     );
-    let svg_ghosts = rendre_svg_step_by_step(&pool, root, &scrubber, &diff_ghosts);
+    let svg_ghosts = render_svg_step_by_step(&pool, root, &scrubber, &diff_ghosts);
     assert!(
         svg_ghosts.contains("stroke-dasharray=\"4 3\""),
         "ghosts dashed"
     );
 
     // Determinism.
-    let svg2 = rendre_svg_step_by_step(&pool, root, &scrubber, &diff_empty);
+    let svg2 = render_svg_step_by_step(&pool, root, &scrubber, &diff_empty);
     assert_eq!(svg, svg2, "deterministic rendering");
 }
 
@@ -475,80 +475,80 @@ fn test_rendu_svg_step_by_step_channels_and_ghosts() {
 /// k+1 for nodes and counters) and the diff is antisymmetric
 /// (`diff(a→b).ajoutes == diff(b→a).ghosts` and vice versa).
 #[test]
-fn test_scrubber_proprietes_prefixe_monotone_and_diff_antisymetrique() {
+fn test_scrubber_properties_prefixe_monotone_and_diff_antisymmetric() {
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
-    const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
-    const INCREMENT_LCG: u64 = 1442695040888963407;
+    const LCG_MULTIPLIER: u64 = 6364136223846793005;
+    const LCG_INCREMENT: u64 = 1442695040888963407;
 
     let mut seed = SEED_LCG;
     let mut next = move || {
         seed = seed
-            .wrapping_mul(MULTIPLICATEUR_LCG)
-            .wrapping_add(INCREMENT_LCG);
+            .wrapping_mul(LCG_MULTIPLIER)
+            .wrapping_add(LCG_INCREMENT);
         seed >> 33
     };
 
     for _cas in 0..50 {
-        let longueur = 1 + (next() % 40) as usize;
-        let evenements: Vec<TraceEvent> = (0..longueur)
+        let length = 1 + (next() % 40) as usize;
+        let events: Vec<TraceEvent> = (0..length)
             .map(|_| {
                 let node = NodeId(1 + (next() % 6) as u32);
                 match next() % 5 {
                     0 => TraceEvent::NodeCreated {
                         node,
                         level: None,
-                        forme: TraceVal::texte("Noeud"),
+                        form: TraceVal::text("Noeud"),
                         span: None,
                     },
                     1 => TraceEvent::Attr {
                         channel: ChannelAttr::Inherited,
                         node,
-                        value: TraceVal::texte("x"),
+                        value: TraceVal::text("x"),
                         span: None,
                     },
                     2 => TraceEvent::MemoHit { node, span: None },
                     3 => TraceEvent::MemoMiss { node, span: None },
                     _ => TraceEvent::Round {
-                        numero: 1 + (next() % 3) as u32,
-                        niveaux_actifs: Vec::new(),
-                        niveaux_modifies: Vec::new(),
-                        avant: NodeId(0),
+                        number: 1 + (next() % 3) as u32,
+                        active_levels: Vec::new(),
+                        modified_levels: Vec::new(),
+                        before: NodeId(0),
                         image: NodeId(0),
-                        apres: NodeId(0),
-                        croissance: 0,
+                        after: NodeId(0),
+                        growth: 0,
                         span: None,
                     },
                 }
             })
             .collect();
-        let mut scrubber = Scrubber::new(evenements);
-        let mut precedent = scrubber.etat();
-        for position in 1..=scrubber.longueur() {
-            scrubber.aller_a(position);
-            let etat = scrubber.etat();
+        let mut scrubber = Scrubber::new(events);
+        let mut previous = scrubber.state();
+        for position in 1..=scrubber.length() {
+            scrubber.round_a(position);
+            let state = scrubber.state();
             assert!(
-                precedent.nodes.iter().all(|n| etat.nodes.contains(n)),
+                previous.nodes.iter().all(|n| state.nodes.contains(n)),
                 "node monotonicity at position {position}"
             );
-            assert!(precedent.memo_hits <= etat.memo_hits);
-            assert!(precedent.memo_misses <= etat.memo_misses);
-            assert!(precedent.rounds <= etat.rounds);
-            assert!(precedent.attributes.len() <= etat.attributes.len());
+            assert!(previous.memo_hits <= state.memo_hits);
+            assert!(previous.memo_misses <= state.memo_misses);
+            assert!(previous.rounds <= state.rounds);
+            assert!(previous.attributes.len() <= state.attributes.len());
             // Antisymmetry of the diff between positions k-1 and k.
-            let diff_avant = diff(&precedent, &etat);
-            let diff_arriere = diff(&etat, &precedent);
-            assert_eq!(diff_avant.ajoutes, diff_arriere.ghosts);
-            assert_eq!(diff_avant.ghosts, diff_arriere.ajoutes);
-            precedent = etat;
+            let diff_before = diff(&previous, &state);
+            let diff_arriere = diff(&state, &previous);
+            assert_eq!(diff_before.ajoutes, diff_arriere.ghosts);
+            assert_eq!(diff_before.ghosts, diff_arriere.ajoutes);
+            previous = state;
         }
     }
 }
 
 /// D1-1: an observed transduction run is wrapped in an Op span, each node
-/// visit opens a Visite span, and every event carries its span with a
+/// visit opens a Visit span, and every event carries its span with a
 /// stack-disciplined nesting.
 #[test]
-fn test_spans_run_transduction_op_visite_et_contexte() {
+fn test_spans_run_transduction_op_visit_and_context() {
     use lisage_core::observer::SpanKind;
 
     let schema = schema_set();
@@ -560,8 +560,8 @@ fn test_spans_run_transduction_op_visite_et_contexte() {
     let root = set(&mut pool, anchor, &schema, &[0, 1]);
 
     let collector = Collector::new();
-    let mut runner = Transducteur::with_observer(
-        Pli::<lisage_core::pli::Naturel>::new(schema.clone()),
+    let mut runner = Transducer::with_observer(
+        Fold::<lisage_core::fold::Natural>::new(schema.clone()),
         MemoryPolicy::NoMemory,
         Arc::new(collector.clone()),
     );
@@ -571,26 +571,26 @@ fn test_spans_run_transduction_op_visite_et_contexte() {
     );
     let _ = runner.run(&pool, &mut output, anchor, root).unwrap();
 
-    let evenements = collector.prendre();
+    let events = collector.take();
     // The run opens with an Op span and closes with its SpanClose.
-    let (premier_span, kind_premier) = match &evenements[0] {
+    let (first_span, kind_first) = match &events[0] {
         TraceEvent::SpanOpen { span, kind, lane } => {
             assert_eq!(*lane, 0);
             (*span, *kind)
         }
-        autre => panic!("first event must be SpanOpen, got {autre:?}"),
+        other => panic!("first event must be SpanOpen, got {other:?}"),
     };
-    assert_eq!(kind_premier, SpanKind::Op);
-    match evenements.last() {
-        Some(TraceEvent::SpanClose { span }) => assert_eq!(*span, premier_span),
-        autre => panic!("last event must be SpanClose, got {autre:?}"),
+    assert_eq!(kind_first, SpanKind::Op);
+    match events.last() {
+        Some(TraceEvent::SpanClose { span }) => assert_eq!(*span, first_span),
+        other => panic!("last event must be SpanClose, got {other:?}"),
     }
-    // At least one Visite span was opened.
+    // At least one Visit span was opened.
     assert!(
-        evenements.iter().any(|e| matches!(
+        events.iter().any(|e| matches!(
             e,
             TraceEvent::SpanOpen {
-                kind: SpanKind::Visite,
+                kind: SpanKind::Visit,
                 ..
             }
         )),
@@ -599,8 +599,8 @@ fn test_spans_run_transduction_op_visite_et_contexte() {
     // Stack discipline: SpanOpen pushes, SpanClose pops the matching id,
     // and every other event carries the innermost open span.
     let mut pile: Vec<lisage_core::observer::SpanId> = Vec::new();
-    for evenement in &evenements {
-        match evenement {
+    for event in &events {
+        match event {
             TraceEvent::SpanOpen { span, .. } => pile.push(*span),
             TraceEvent::SpanClose { span } => {
                 assert_eq!(
@@ -609,10 +609,10 @@ fn test_spans_run_transduction_op_visite_et_contexte() {
                     "SpanClose must close the innermost span"
                 )
             }
-            autre => assert_eq!(
-                autre.span(),
+            other => assert_eq!(
+                other.span(),
                 pile.last().copied(),
-                "every event carries the innermost open span: {autre:?}"
+                "every event carries the innermost open span: {other:?}"
             ),
         }
     }
@@ -638,9 +638,9 @@ fn test_spans_saturation_round() {
     let levels: Vec<lisage_core::Level> = (0..schema.number_levels())
         .map(lisage_core::Level)
         .collect();
-    let policy = PolicySaturation::Statique(levels);
-    let mut params = ParametresSaturation {
-        transduction: &Identite,
+    let policy = PolicySaturation::Static(levels);
+    let mut params = SaturationParameters {
+        transduction: &Identity,
         policy: &policy,
         pool: &mut pool,
         keys: &keys,
@@ -649,10 +649,10 @@ fn test_spans_saturation_round() {
         number_levels: schema.number_levels(),
         observer: Some(Arc::new(collector.clone())),
     };
-    let _ = saturer(&mut params).unwrap();
+    let _ = saturate(&mut params).unwrap();
 
-    let evenements = collector.prendre();
-    let span_round = evenements
+    let events = collector.take();
+    let span_round = events
         .iter()
         .find_map(|e| match e {
             TraceEvent::SpanOpen {
@@ -664,15 +664,15 @@ fn test_spans_saturation_round() {
         })
         .expect("one Round span per iteration");
     assert!(
-        evenements.iter().any(|e| matches!(
+        events.iter().any(|e| matches!(
             e,
-            TraceEvent::Round { numero: 1, span, .. } if *span == Some(span_round)
+            TraceEvent::Round { number: 1, span, .. } if *span == Some(span_round)
         )),
         "the Round event carries the Round span"
     );
     // The Round span is closed by a matching SpanClose.
     assert!(
-        evenements
+        events
             .iter()
             .any(|e| matches!(e, TraceEvent::SpanClose { span } if *span == span_round)),
         "the Round span is closed"
@@ -681,11 +681,11 @@ fn test_spans_saturation_round() {
 
 /// D1-1: golden serialization of the span boundary events (schema v5).
 #[test]
-fn test_serialisation_span_open_close_v5() {
+fn test_serialization_span_open_close_v5() {
     use lisage_core::observer::{SpanId, SpanKind};
 
     assert_eq!(
-        serialiser_evenement(&TraceEvent::SpanOpen {
+        serialize_event(&TraceEvent::SpanOpen {
             span: SpanId(9),
             kind: SpanKind::Op,
             lane: 0,
@@ -693,20 +693,20 @@ fn test_serialisation_span_open_close_v5() {
         "{\"v\":5,\"type\":\"SpanOpen\",\"span\":9,\"kind\":\"op\",\"lane\":0}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::SpanOpen {
+        serialize_event(&TraceEvent::SpanOpen {
             span: SpanId(10),
-            kind: SpanKind::Visite,
+            kind: SpanKind::Visit,
             lane: 2,
         }),
         "{\"v\":5,\"type\":\"SpanOpen\",\"span\":10,\"kind\":\"visite\",\"lane\":2}"
     );
     assert_eq!(
-        serialiser_evenement(&TraceEvent::SpanClose { span: SpanId(9) }),
+        serialize_event(&TraceEvent::SpanClose { span: SpanId(9) }),
         "{\"v\":5,\"type\":\"SpanClose\",\"span\":9}"
     );
     // A spanned event renders its span id.
     assert_eq!(
-        serialiser_evenement(&TraceEvent::MemoHit {
+        serialize_event(&TraceEvent::MemoHit {
             node: NodeId(7),
             span: Some(SpanId(10)),
         }),

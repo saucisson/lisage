@@ -71,7 +71,7 @@ fn main() -> AllocResult<()> {
         manager.add_vars(MAX_VARIABLES);
     });
     // Measured block: input reading + construction + verification counting.
-    let debut = std::time::Instant::now();
+    let start = std::time::Instant::now();
     let mut input = String::new();
     std::io::Read::read_to_string(&mut std::io::stdin(), &mut input).expect("failed to read stdin");
     let mut tokens = input.split_whitespace();
@@ -83,7 +83,7 @@ fn main() -> AllocResult<()> {
     assert!(n <= MAX_VARIABLES, "n exceeds the pre-declared variables");
     let table: Vec<bool> = tokens.map(|token| token == "1").collect();
     assert_eq!(table.len(), 1usize << n, "truth table size mismatch");
-    let verifie = table.iter().filter(|value| **value).count() as u64;
+    let verified = table.iter().filter(|value| **value).count() as u64;
     let function = manager_ref.with_manager_shared(|manager| {
         let vars: Vec<BDDFunction> = (0..n)
             .map(|var| BDDFunction::var(manager, var))
@@ -116,10 +116,10 @@ fn main() -> AllocResult<()> {
     // node_count() counts reachable nodes including terminals — the same
     // convention as lisage's count_nodes (verified locally, see PR).
     let nodes = function.node_count();
-    let temps_ms = debut.elapsed().as_secs_f64() * 1000.0;
+    let temps_ms = start.elapsed().as_secs_f64() * 1000.0;
     let rss = rss_max_ko();
     println!(
-        "{{\"outil\":\"oxidd\",\"variante\":\"bdd\",\"charge\":\"{charge}\",\"parametres\":{{\"n\":\"{n}\"}},\"temps_ms\":{temps_ms:.3},\"rss_max_ko\":{rss},\"noeuds\":{nodes},\"verifie\":{verifie}}}"
+        "{{\"outil\":\"oxidd\",\"variante\":\"bdd\",\"charge\":\"{charge}\",\"parametres\":{{\"n\":\"{n}\"}},\"temps_ms\":{temps_ms:.3},\"rss_max_ko\":{rss},\"noeuds\":{nodes},\"verifie\":{verified}}}"
     );
     Ok(())
 }

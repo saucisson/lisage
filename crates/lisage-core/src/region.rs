@@ -58,7 +58,7 @@ impl Interval {
     }
 
     /// Is the interval empty?
-    pub fn est_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.bound_inf > self.bound_sup
     }
 
@@ -66,7 +66,7 @@ impl Interval {
     /// `u64::MAX` for `Interval::new(0, u64::MAX)` (the public
     /// constructor accepts any pair of `u64`).
     pub fn size(&self) -> u64 {
-        if self.est_empty() {
+        if self.is_empty() {
             0
         } else {
             self.bound_sup
@@ -77,7 +77,7 @@ impl Interval {
 
     /// Does the point `v` belong to the interval?
     pub fn contains(&self, v: u64) -> bool {
-        !self.est_empty() && self.bound_inf <= v && v <= self.bound_sup
+        !self.is_empty() && self.bound_inf <= v && v <= self.bound_sup
     }
 }
 

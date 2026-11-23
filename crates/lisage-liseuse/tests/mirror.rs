@@ -5,12 +5,12 @@
 use std::sync::{Arc, Mutex};
 
 use lisage_core::MemoryPolicy;
+use lisage_core::fold::{Fold, Natural};
 use lisage_core::observer::{Observer, TraceEvent, TraceVal};
-use lisage_core::pli::{Naturel, Pli};
-use lisage_core::transduction::Transducteur;
+use lisage_core::transduction::Transducer;
 use lisage_core::{Anchor, Level, NodeId};
 use lisage_liseuse::mirror::PoolMirror;
-use lisage_liseuse::philosophers::{build_r_n, pool_neuf, schema_anneau};
+use lisage_liseuse::philosophers::{build_r_n, fresh_pool, schema_ring};
 
 /// Observer that collects the typed events in memory.
 #[derive(Clone, Default)]
@@ -31,14 +31,14 @@ impl Observer for Collector {
 /// trace (hundreds of events, one op).
 fn philosophers_trace() -> Vec<TraceEvent> {
     let n = 5;
-    let schema = schema_anneau(n);
-    let mut input = pool_neuf(&schema);
-    let mut output = pool_neuf(&schema);
+    let schema = schema_ring(n);
+    let mut input = fresh_pool(&schema);
+    let mut output = fresh_pool(&schema);
     let anchor = Anchor(0);
     let root = build_r_n(&mut input, anchor, n);
     let collector = Collector::default();
-    let mut runner = Transducteur::with_observer(
-        Pli::<Naturel>::new(schema),
+    let mut runner = Transducer::with_observer(
+        Fold::<Natural>::new(schema),
         MemoryPolicy::NoMemory,
         Arc::new(collector.clone()),
     );
@@ -55,7 +55,7 @@ fn mirror_rebuilds_live_nodes_from_philosophers_trace() {
     // every visited node is live in the mirror.
     let visited_count = events
         .iter()
-        .filter(|e| matches!(e, TraceEvent::VisiteEntree { .. }))
+        .filter(|e| matches!(e, TraceEvent::VisitEntry { .. }))
         .count();
     assert!(visited_count > 0, "the trace must contain node visits");
     assert!(mirror.live_count() > 0);
@@ -88,7 +88,7 @@ fn mirror_tracks_memory_version() {
     let last_version = events
         .iter()
         .filter_map(|e| match e {
-            TraceEvent::EcritureMemoire { version_apres, .. } => Some(*version_apres),
+            TraceEvent::MemoryWrite { version_after, .. } => Some(*version_after),
             _ => None,
         })
         .next_back();
@@ -111,20 +111,20 @@ fn mirror_handles_gc_events() {
         TraceEvent::NodeCreated {
             node: node_a,
             level: Some(Level(1)),
-            forme: TraceVal::Elide,
+            form: TraceVal::Elided,
             span: None,
         },
         TraceEvent::NodeCreated {
             node: node_b,
             level: Some(Level(1)),
-            forme: TraceVal::Elide,
+            form: TraceVal::Elided,
             span: None,
         },
         TraceEvent::Gc {
             live: 1,
             collected: 1,
             compaction: false,
-            liste_collectes: vec![node_b],
+            collected_list: vec![node_b],
             span: None,
         },
     ];

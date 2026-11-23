@@ -10,7 +10,7 @@ proptest! {
     /// version(M) == number of writes; read-after-write; consistent size.
     #[test]
     fn test_memory_level_invariants(
-        ecritures in prop::collection::vec(
+        writes in prop::collection::vec(
             (0u32..10, 0u32..5, 0u64..100),
             0..20
         )
@@ -19,7 +19,7 @@ proptest! {
         prop_assert_eq!(memory.version(), 0);
         let mut expected: std::collections::HashMap<(NodeId, Level), u64> =
             std::collections::HashMap::new();
-        for (i, (node, level, value)) in ecritures.iter().enumerate() {
+        for (i, (node, level, value)) in writes.iter().enumerate() {
             let old = memory.write(NodeId(*node), Level(*level), *value);
             prop_assert_eq!(memory.version(), (i + 1) as u64, "version == number of writes");
             prop_assert_eq!(old, expected.insert((NodeId(*node), Level(*level)), *value));

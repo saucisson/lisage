@@ -8,7 +8,7 @@ use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema};
-use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transducer, Transduction};
 use lisage_lang::value::Atom;
 use proptest::prelude::*;
 
@@ -19,9 +19,9 @@ fn new_pool() -> PoolRef {
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
-struct Identite;
+struct Identity;
 
-impl Transduction for Identite {
+impl Transduction for Identity {
     type H = ();
     type S = ();
     type Out = bool;
@@ -38,8 +38,8 @@ impl Transduction for Identite {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<Self::M>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -48,7 +48,7 @@ impl Transduction for Identite {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memory::EffetMemory::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -83,8 +83,8 @@ impl Transduction for CountPaths {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<Self::M>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -93,7 +93,7 @@ impl Transduction for CountPaths {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memory::EffetMemory::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -112,17 +112,17 @@ impl Transduction for CountPaths {
 
 /// Structural equality of two forms in two distinct pools (the NodeIds
 /// are specific to each pool).
-fn forms_egales(
+fn forms_equal(
     pool_a: &PoolRef,
     node_a: NodeId,
     pool_b: &PoolRef,
     node_b: NodeId,
-    visites: &mut std::collections::HashMap<(NodeId, NodeId), bool>,
+    visits: &mut std::collections::HashMap<(NodeId, NodeId), bool>,
 ) -> bool {
-    if let Some(&vu) = visites.get(&(node_a, node_b)) {
-        return vu;
+    if let Some(&seen) = visits.get(&(node_a, node_b)) {
+        return seen;
     }
-    let egales = match (
+    let equal = match (
         pool_a.resolve(node_a).unwrap(),
         pool_b.resolve(node_b).unwrap(),
     ) {
@@ -139,31 +139,31 @@ fn forms_egales(
         ) => {
             level_a == level_b
                 && aa.len() == ab.len()
-                && aa.iter().zip(ab.iter()).all(|((va, na), (vb, nb))| {
-                    va == vb && forms_egales(pool_a, *na, pool_b, *nb, visites)
+                && aa.iter().zip(ab.iter()).all(|((va, na), (vb, count))| {
+                    va == vb && forms_equal(pool_a, *na, pool_b, *count, visits)
                 })
         }
         _ => false,
     };
-    visites.insert((node_a, node_b), egales);
-    egales
+    visits.insert((node_a, node_b), equal);
+    equal
 }
 
 /// Naive recursive count of accepting paths (independent oracle).
-fn count_naif(pool: &PoolRef, node: NodeId) -> u64 {
+fn count_naive(pool: &PoolRef, node: NodeId) -> u64 {
     match pool.resolve(node).unwrap() {
         Form::Terminal(payload) => u64::from(payload),
-        Form::Node { arcs, .. } => arcs.values().map(|&c| count_naif(pool, c)).sum(),
+        Form::Node { arcs, .. } => arcs.values().map(|&c| count_naive(pool, c)).sum(),
     }
 }
 
 /// Builds a random DAG in the input pool: terminals then nodes
 /// of levels 0..3, arcs towards nodes of strictly lower index.
-fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> NodeId {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
-    let faux = pool.intern(anchor, Form::Terminal(false));
-    let mut nodes = vec![vrai, faux];
-    for (level, target) in paires {
+fn dag_random(pool: &mut PoolRef, anchor: Anchor, pairs: Vec<(u8, u32)>) -> NodeId {
+    let true_node = pool.intern(anchor, Form::Terminal(true));
+    let false_node = pool.intern(anchor, Form::Terminal(false));
+    let mut nodes = vec![true_node, false_node];
+    for (level, target) in pairs {
         let target = nodes[usize::try_from(target).unwrap() % nodes.len()];
         let node = pool.intern(
             anchor,
@@ -180,14 +180,14 @@ fn dag_aleatoire(pool: &mut PoolRef, anchor: Anchor, paires: Vec<(u8, u32)>) -> 
 proptest! {
     /// Identity: the transduction rebuilds the same forms on output.
     #[test]
-    fn test_identite_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
+    fn test_identity_pbt(pairs in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
         let mut input = new_pool();
         let mut output = new_pool();
         let anchor = Anchor(0);
-        let root = dag_aleatoire(&mut input, anchor, paires);
-        let mut runner = Transducteur::new(Identite);
+        let root = dag_random(&mut input, anchor, pairs);
+        let mut runner = Transducer::new(Identity);
         let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
-        prop_assert!(forms_egales(
+        prop_assert!(forms_equal(
             &input,
             root,
             &output,
@@ -198,15 +198,15 @@ proptest! {
 
     /// Counting: the transduction (φ_aggr = sum) equals the naive count.
     #[test]
-    fn test_comptage_pbt(paires in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
+    fn test_counting_pbt(pairs in prop::collection::vec((0u8..4, 0u32..8), 0..8)) {
         let mut input = new_pool();
         let mut output = new_pool();
         let anchor = Anchor(0);
-        let root = dag_aleatoire(&mut input, anchor, paires);
-        let expected = count_naif(&input, root);
-        let mut runner = Transducteur::new(CountPaths);
+        let root = dag_random(&mut input, anchor, pairs);
+        let expected = count_naive(&input, root);
+        let mut runner = Transducer::new(CountPaths);
         let (result, count) = runner.run(&input, &mut output, anchor, root).unwrap();
-        prop_assert!(forms_egales(
+        prop_assert!(forms_equal(
             &input,
             root,
             &output,

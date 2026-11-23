@@ -1,4 +1,4 @@
-//! MEM-18: non-regression thresholds (ADR-0012 anti-complacency) —
+//! MEM-18: not-regression thresholds (ADR-0012 anti-complacency) —
 //! end-to-end bytes per node (arena + tables) and allocations per
 //! interning as CI gates, on a deterministic workload built with
 //! reproducible randomized IDs (so that a layout on/off comparison never
@@ -21,12 +21,12 @@ use lisage_core::observer::NoOpObserver;
 /// Frozen threshold: end-to-end bytes per node on the BDD workload
 /// (unique table + class arenas + shadow index over live nodes).
 /// Measured 60.75 at MEM-18; frozen at 66.0. Freeze after MEM-C.
-const SEUIL_OCTETS_PAR_NOEUD: f64 = 66.0;
+const THRESHOLD_BYTES_PER_NODE: f64 = 66.0;
 /// Frozen threshold: allocations per interning on the seeded BDD
 /// workload. Measured ~9.2 at MEM-18; frozen at 10.0. Freeze after MEM-C.
-const SEUIL_ALLOCATIONS_PAR_INTERNEMENT: f64 = 10.0;
+const THRESHOLD_ALLOCATIONS_PER_INTERNING: f64 = 10.0;
 /// Number of interned nodes in the threshold workload.
-const NB_INTERNEMENTS: u32 = 2000;
+const COUNT_INTERNING: u32 = 2000;
 /// Fixed seed of the randomized IDs: reproducible across runs and
 /// machines (xorshift64*), so the measurement is deterministic.
 const SEED_IDS: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -37,12 +37,12 @@ const SEED_IDS: u64 = 0x9E37_79B9_7F4A_7C15;
 struct CountingAllocator;
 
 static ALLOCATIONS: AtomicU64 = AtomicU64::new(0);
-static OCTETS_ALLOUES: AtomicU64 = AtomicU64::new(0);
+static BYTES_ALLOCATED: AtomicU64 = AtomicU64::new(0);
 
 unsafe impl GlobalAlloc for CountingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
-        OCTETS_ALLOUES.fetch_add(layout.size() as u64, Ordering::Relaxed);
+        BYTES_ALLOCATED.fetch_add(layout.size() as u64, Ordering::Relaxed);
         unsafe { System.alloc(layout) }
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
@@ -50,7 +50,7 @@ unsafe impl GlobalAlloc for CountingAllocator {
     }
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
-        OCTETS_ALLOUES.fetch_add(new_size as u64, Ordering::Relaxed);
+        BYTES_ALLOCATED.fetch_add(new_size as u64, Ordering::Relaxed);
         unsafe { System.realloc(ptr, layout, new_size) }
     }
 }
@@ -61,12 +61,12 @@ static GLOBAL: CountingAllocator = CountingAllocator;
 /// Serializes the tests of this binary: the counting allocator is global
 /// to the test binary, so measurements must not run concurrently (under
 /// nextest each test already runs in its own process).
-static MESURE_LOCK: Mutex<()> = Mutex::new(());
+static MEASURE_LOCK: Mutex<()> = Mutex::new(());
 
 /// Reset the allocation counters (call right before the measured loop).
 fn reset_compteurs() {
     ALLOCATIONS.store(0, Ordering::Relaxed);
-    OCTETS_ALLOUES.store(0, Ordering::Relaxed);
+    BYTES_ALLOCATED.store(0, Ordering::Relaxed);
 }
 
 /// Allocations since the last reset.
@@ -78,13 +78,13 @@ fn allocations() -> u64 {
 /// no external dependency (escalation list), deterministic across runs,
 /// so a layout on/off comparison measures the layout, not the hash
 /// functions fed with sequential IDs.
-struct IdsAleatoires {
+struct RandomIds {
     state: u64,
 }
 
-impl IdsAleatoires {
+impl RandomIds {
     fn new(seed: u64) -> Self {
-        IdsAleatoires { state: seed }
+        RandomIds { state: seed }
     }
     fn next_u64(&mut self) -> u64 {
         let mut x = self.state;
@@ -113,10 +113,10 @@ fn pool_bdd() -> Arena<BddController> {
 /// Deterministic seeded workload: `count` distinct degree-2 nodes (one
 /// per level) whose arc keys come from the reproducible randomized IDs —
 /// the hash functions see randomized keys, not a sequential artifact.
-fn workload_aleatoire(pool: &mut Arena<BddController>, count: u32) -> Vec<NodeId> {
+fn workload_random(pool: &mut Arena<BddController>, count: u32) -> Vec<NodeId> {
     let t0 = pool.terminal(Anchor(0), false);
     let t1 = pool.terminal(Anchor(0), true);
-    let mut ids = IdsAleatoires::new(SEED_IDS);
+    let mut ids = RandomIds::new(SEED_IDS);
     (0..count)
         .map(|i| {
             pool.intern(
@@ -133,15 +133,15 @@ fn workload_aleatoire(pool: &mut Arena<BddController>, count: u32) -> Vec<NodeId
 /// Threshold gate: end-to-end bytes per node on the seeded BDD workload.
 /// Turns red on any regression of the arena + tables footprint.
 #[test]
-fn test_seuil_octets_par_noeud() {
-    let _guard = MESURE_LOCK.lock().unwrap();
+fn test_threshold_bytes_per_node() {
+    let _guard = MEASURE_LOCK.lock().unwrap();
     let mut pool = pool_bdd();
-    let nodes = workload_aleatoire(&mut pool, NB_INTERNEMENTS);
+    let nodes = workload_random(&mut pool, COUNT_INTERNING);
     assert_eq!(pool.live(), nodes.len() + 2, "nodes + 2 terminals");
-    let bytes_par_noeud = pool.bytes_per_node();
+    let bytes_per_node = pool.bytes_per_node();
     assert!(
-        bytes_par_noeud <= SEUIL_OCTETS_PAR_NOEUD,
-        "REGRESSION: bytes/node {bytes_par_noeud:.2} > threshold {SEUIL_OCTETS_PAR_NOEUD}"
+        bytes_per_node <= THRESHOLD_BYTES_PER_NODE,
+        "REGRESSION: bytes/node {bytes_per_node:.2} > threshold {THRESHOLD_BYTES_PER_NODE}"
     );
 }
 
@@ -150,14 +150,14 @@ fn test_seuil_octets_par_noeud() {
 /// the interning path (e.g. a form clone sneaking back into the unique
 /// table).
 #[test]
-fn test_seuil_allocations_par_internement() {
-    let _guard = MESURE_LOCK.lock().unwrap();
+fn test_threshold_allocations_per_interning() {
+    let _guard = MEASURE_LOCK.lock().unwrap();
     let mut pool = pool_bdd();
     let t0 = pool.terminal(Anchor(0), false);
     let t1 = pool.terminal(Anchor(0), true);
-    let mut ids = IdsAleatoires::new(SEED_IDS);
+    let mut ids = RandomIds::new(SEED_IDS);
     reset_compteurs();
-    for i in 0..NB_INTERNEMENTS {
+    for i in 0..COUNT_INTERNING {
         pool.intern(
             Anchor(0),
             Form::Node {
@@ -166,24 +166,24 @@ fn test_seuil_allocations_par_internement() {
             },
         );
     }
-    let par_internement = allocations() as f64 / NB_INTERNEMENTS as f64;
+    let per_interning = allocations() as f64 / COUNT_INTERNING as f64;
     assert!(
-        par_internement <= SEUIL_ALLOCATIONS_PAR_INTERNEMENT,
-        "REGRESSION: {par_internement:.3} allocations/intern > threshold {SEUIL_ALLOCATIONS_PAR_INTERNEMENT}"
+        per_interning <= THRESHOLD_ALLOCATIONS_PER_INTERNING,
+        "REGRESSION: {per_interning:.3} allocations/intern > threshold {THRESHOLD_ALLOCATIONS_PER_INTERNING}"
     );
 }
 
 /// The randomized IDs are reproducible: same seed, same sequence — the
 /// threshold workload is deterministic across runs and machines.
 #[test]
-fn test_ids_aleatoires_reproductibles() {
-    let _guard = MESURE_LOCK.lock().unwrap();
-    let mut a = IdsAleatoires::new(SEED_IDS);
-    let mut b = IdsAleatoires::new(SEED_IDS);
+fn test_ids_random_reproducible() {
+    let _guard = MEASURE_LOCK.lock().unwrap();
+    let mut a = RandomIds::new(SEED_IDS);
+    let mut b = RandomIds::new(SEED_IDS);
     let seq_a: Vec<u64> = (0..100).map(|_| a.next_u64()).collect();
     let seq_b: Vec<u64> = (0..100).map(|_| b.next_u64()).collect();
     assert_eq!(seq_a, seq_b, "same seed: same sequence");
-    let mut c = IdsAleatoires::new(SEED_IDS.wrapping_add(1));
+    let mut c = RandomIds::new(SEED_IDS.wrapping_add(1));
     let seq_c: Vec<u64> = (0..100).map(|_| c.next_u64()).collect();
     assert_ne!(seq_a, seq_c, "different seed: different sequence");
 }

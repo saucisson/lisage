@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 
 use lisage_core::observer::TraceEvent;
 
-use crate::step_by_step::EtatTrace;
+use crate::step_by_step::StateTrace;
 
 /// Default minimum number of events between two snapshots.
 pub const DEFAULT_SNAPSHOT_BUDGET: usize = 1_000;
@@ -21,13 +21,13 @@ struct Snapshot {
     /// Position in the trace (number of events replayed).
     position: usize,
     /// Replayed state at that position.
-    etat: EtatTrace,
+    state: StateTrace,
 }
 
 /// Scrubber with snapshots: seek answers in O(log n + replay tail).
 pub struct SnapshotScrubber {
     /// The underlying event trace.
-    evenements: Vec<TraceEvent>,
+    events: Vec<TraceEvent>,
     /// Snapshots at frontier positions, sorted by position.
     snapshots: Vec<Snapshot>,
     /// Minimum events between two snapshots (budget).
@@ -38,14 +38,14 @@ pub struct SnapshotScrubber {
 
 impl SnapshotScrubber {
     /// New snapshot scrubber on the given trace, with the default budget.
-    pub fn new(evenements: Vec<TraceEvent>) -> Self {
-        Self::with_budget(evenements, DEFAULT_SNAPSHOT_BUDGET)
+    pub fn new(events: Vec<TraceEvent>) -> Self {
+        Self::with_budget(events, DEFAULT_SNAPSHOT_BUDGET)
     }
 
     /// New snapshot scrubber with a custom snapshot budget.
-    pub fn with_budget(evenements: Vec<TraceEvent>, budget: usize) -> Self {
+    pub fn with_budget(events: Vec<TraceEvent>, budget: usize) -> Self {
         let mut scrubber = SnapshotScrubber {
-            evenements,
+            events,
             snapshots: Vec::new(),
             budget: budget.max(1),
             position: 0,
@@ -57,14 +57,14 @@ impl SnapshotScrubber {
     /// Rebuilds all snapshots from scratch (one pass over the trace).
     fn rebuild_snapshots(&mut self) {
         self.snapshots.clear();
-        let mut etat = EtatTrace::default();
+        let mut state = StateTrace::default();
         let mut last_snapshot_position = 0usize;
-        for (index, event) in self.evenements.iter().enumerate() {
-            apply_event(&mut etat, event);
+        for (index, event) in self.events.iter().enumerate() {
+            apply_event(&mut state, event);
             if index - last_snapshot_position >= self.budget {
                 self.snapshots.push(Snapshot {
                     position: index + 1,
-                    etat: etat.clone(),
+                    state: state.clone(),
                 });
                 last_snapshot_position = index + 1;
             }
@@ -75,15 +75,15 @@ impl SnapshotScrubber {
                 0,
                 Snapshot {
                     position: 0,
-                    etat: EtatTrace::default(),
+                    state: StateTrace::default(),
                 },
             );
         }
     }
 
     /// Number of events in the trace.
-    pub fn longueur(&self) -> usize {
-        self.evenements.len()
+    pub fn length(&self) -> usize {
+        self.events.len()
     }
 
     /// Number of snapshots.
@@ -99,8 +99,8 @@ impl SnapshotScrubber {
     /// Moves to `position` (clamped) and returns the replayed state there.
     /// Seek = binary search for the last snapshot <= position, then replay
     /// the tail. O(log n + tail).
-    pub fn seek(&mut self, position: usize) -> &EtatTrace {
-        let target = position.min(self.evenements.len());
+    pub fn seek(&mut self, position: usize) -> &StateTrace {
+        let target = position.min(self.events.len());
         self.position = target;
         // Binary search: last snapshot with position <= target.
         let snapshot_index = self
@@ -108,37 +108,37 @@ impl SnapshotScrubber {
             .partition_point(|s| s.position <= target)
             .saturating_sub(1);
         let snapshot = &self.snapshots[snapshot_index];
-        let mut etat = snapshot.etat.clone();
-        for event in &self.evenements[snapshot.position..target] {
-            apply_event(&mut etat, event);
+        let mut state = snapshot.state.clone();
+        for event in &self.events[snapshot.position..target] {
+            apply_event(&mut state, event);
         }
         // Cache the computed state at the current position for repeated calls.
         // (Stored as the last snapshot if it is at the target, else recomputed.)
-        etat_cache_set(&mut self.snapshots, target, etat);
-        &self.snapshots.last().expect("at least one snapshot").etat
+        state_cache_set(&mut self.snapshots, target, state);
+        &self.snapshots.last().expect("at least one snapshot").state
     }
 
     /// State at the current position (replays from the nearest snapshot).
-    pub fn etat(&self) -> EtatTrace {
+    pub fn state(&self) -> StateTrace {
         let target = self.position;
         let snapshot_index = self
             .snapshots
             .partition_point(|s| s.position <= target)
             .saturating_sub(1);
         let snapshot = &self.snapshots[snapshot_index];
-        let mut etat = snapshot.etat.clone();
-        for event in &self.evenements[snapshot.position..target] {
-            apply_event(&mut etat, event);
+        let mut state = snapshot.state.clone();
+        for event in &self.events[snapshot.position..target] {
+            apply_event(&mut state, event);
         }
-        etat
+        state
     }
 }
 
-/// Applies one event to the replayed state (same logic as Scrubber::etat).
-fn apply_event(etat: &mut EtatTrace, event: &TraceEvent) {
+/// Applies one event to the replayed state (same logic as Scrubber::state).
+fn apply_event(state: &mut StateTrace, event: &TraceEvent) {
     match event {
         TraceEvent::NodeCreated { node, .. } | TraceEvent::NodeShared { node, .. } => {
-            etat.nodes.insert(*node);
+            state.nodes.insert(*node);
         }
         TraceEvent::Attr {
             channel,
@@ -146,24 +146,24 @@ fn apply_event(etat: &mut EtatTrace, event: &TraceEvent) {
             value,
             ..
         } => {
-            etat.attributes.push((*channel, *node, value.clone()));
+            state.attributes.push((*channel, *node, value.clone()));
         }
-        TraceEvent::MemoHit { .. } => etat.memo_hits += 1,
-        TraceEvent::MemoMiss { .. } => etat.memo_misses += 1,
-        TraceEvent::Round { numero, .. } => etat.rounds = etat.rounds.max(*numero),
+        TraceEvent::MemoHit { .. } => state.memo_hits += 1,
+        TraceEvent::MemoMiss { .. } => state.memo_misses += 1,
+        TraceEvent::Round { number, .. } => state.rounds = state.rounds.max(*number),
         _ => {}
     }
 }
 
 /// Stores the computed state as a snapshot at `position` if not present.
-fn etat_cache_set(snapshots: &mut Vec<Snapshot>, position: usize, etat: EtatTrace) {
+fn state_cache_set(snapshots: &mut Vec<Snapshot>, position: usize, state: StateTrace) {
     if let Some(last) = snapshots.last_mut()
         && last.position == position
     {
-        last.etat = etat;
+        last.state = state;
         return;
     }
-    snapshots.push(Snapshot { position, etat });
+    snapshots.push(Snapshot { position, state });
 }
 
 /// Set of live nodes at a position (convenience for tests).
@@ -171,9 +171,9 @@ pub fn live_nodes_at(
     scrubber: &SnapshotScrubber,
     position: usize,
 ) -> BTreeSet<lisage_core::NodeId> {
-    let mut s = SnapshotScrubber::new(scrubber.evenements.clone());
+    let mut s = SnapshotScrubber::new(scrubber.events.clone());
     s.seek(position);
-    s.etat().nodes.clone()
+    s.state().nodes.clone()
 }
 
 /// Re-export Scrubber for migration callers.

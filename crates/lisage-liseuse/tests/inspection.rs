@@ -7,10 +7,10 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use lisage_core::arena::Arena;
-use lisage_core::memory::EffetMemory;
+use lisage_core::memory::EffectMemory;
 use lisage_core::observer::{Observer, StructureChangeKind, TraceEvent};
 use lisage_core::schema::{Domain, ReferenceController, Schema};
-use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transducer, Transduction};
 use lisage_core::{Anchor, Form, Level, MemoryPolicy, NodeId, Pool};
 use lisage_lang::value::Atom;
 use lisage_liseuse::debugger::{
@@ -61,9 +61,9 @@ impl Transduction for WriteMemory {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, EffetMemory<u64>) {
-        let effet = EffetMemory::one(ctx.node_input, ctx.level, *ctx.h);
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, EffectMemory<u64>) {
+        let effect = EffectMemory::one(ctx.node_input, ctx.level, *ctx.h);
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(
@@ -73,7 +73,7 @@ impl Transduction for WriteMemory {
                     arcs,
                 },
             ),
-            effet,
+            effect,
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -87,7 +87,7 @@ impl Transduction for WriteMemory {
     }
 }
 
-/// A real traced run with memory writes: two non-terminal nodes, each
+/// A real traced run with memory writes: two not-terminal nodes, each
 /// writing the level memory (two L1 version bumps).
 fn memory_scenario() -> Vec<TraceEvent> {
     let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
@@ -117,7 +117,7 @@ fn memory_scenario() -> Vec<TraceEvent> {
         },
     );
     let collector = Collector::default();
-    let mut runner = Transducteur::with_observer(
+    let mut runner = Transducer::with_observer(
         WriteMemory,
         MemoryPolicy::PerLevel,
         Arc::new(collector.clone()),
@@ -137,7 +137,7 @@ fn test_memo_l1_invalidation_one_command() {
     let events = memory_scenario();
     let writes = events
         .iter()
-        .filter(|e| matches!(e, TraceEvent::EcritureMemoire { .. }))
+        .filter(|e| matches!(e, TraceEvent::MemoryWrite { .. }))
         .count();
     assert!(writes >= 2, "the scenario really bumps the version");
     let mut debugger = Debugger::new(events);
@@ -161,22 +161,22 @@ fn test_memo_table_live_dead_split() {
         TraceEvent::MemoInsert {
             fingerprint: 7,
             node: NodeId(3),
-            h: lisage_core::observer::TraceVal::Elide,
+            h: lisage_core::observer::TraceVal::Elided,
             version: 0,
-            resultat: NodeId(5),
+            result: NodeId(5),
             span: None,
         },
-        TraceEvent::EcritureMemoire {
-            version_avant: 0,
-            version_apres: 1,
+        TraceEvent::MemoryWrite {
+            version_before: 0,
+            version_after: 1,
             span: None,
         },
         TraceEvent::MemoInsert {
             fingerprint: 7,
             node: NodeId(4),
-            h: lisage_core::observer::TraceVal::Elide,
+            h: lisage_core::observer::TraceVal::Elided,
             version: 1,
-            resultat: NodeId(6),
+            result: NodeId(6),
             span: None,
         },
     ];
@@ -198,14 +198,14 @@ fn test_memo_table_live_dead_split() {
 #[test]
 fn test_memory_view() {
     let events = vec![
-        TraceEvent::EcritureMemoire {
-            version_avant: 0,
-            version_apres: 1,
+        TraceEvent::MemoryWrite {
+            version_before: 0,
+            version_after: 1,
             span: None,
         },
-        TraceEvent::EcritureMemoire {
-            version_avant: 1,
-            version_apres: 2,
+        TraceEvent::MemoryWrite {
+            version_before: 1,
+            version_after: 2,
             span: None,
         },
     ];
@@ -225,7 +225,7 @@ fn test_node_view() {
     let node = events
         .iter()
         .find_map(|e| match e {
-            TraceEvent::VisiteEntree { node, .. } => Some(*node),
+            TraceEvent::VisitEntry { node, .. } => Some(*node),
             _ => None,
         })
         .expect("the scenario visits nodes");
@@ -249,8 +249,8 @@ fn test_diff_view() {
         TraceEvent::StructureChange {
             node: NodeId(7),
             classification: StructureChangeKind::Collapse,
-            arcs_avant: vec![(0, NodeId(3)), (1, NodeId(4))],
-            arcs_apres: vec![(1, NodeId(4))],
+            arcs_before: vec![(0, NodeId(3)), (1, NodeId(4))],
+            arcs_after: vec![(1, NodeId(4))],
             span: None,
         },
     ];
@@ -259,10 +259,10 @@ fn test_diff_view() {
     assert!(view.contains("node NodeId(7)"), "{view}");
     assert!(view.contains("Collapse"), "{view}");
     assert!(
-        view.contains("avant: [0->NodeId(3), 1->NodeId(4)]"),
+        view.contains("before: [0->NodeId(3), 1->NodeId(4)]"),
         "{view}"
     );
-    assert!(view.contains("apres: [1->NodeId(4)]"), "{view}");
+    assert!(view.contains("after: [1->NodeId(4)]"), "{view}");
     // No StructureChange after the cursor: explicit message.
     let view = inspector.diff_view(2);
     assert!(view.contains("no StructureChange"), "{view}");

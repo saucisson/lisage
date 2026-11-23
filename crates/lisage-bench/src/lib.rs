@@ -1,11 +1,11 @@
-//! Lisage bench — differential, property-based, MCC, non-local events.
+//! Lisage bench — differential, property-based, MCC, not-local events.
 
 pub mod confrontation;
-pub mod differentiel;
+pub mod differential;
 pub mod pnml;
 pub mod sdd;
-pub mod temoin_bdd;
-pub mod triptyque;
+pub mod triptych;
+pub mod witness_bdd;
 
 /// Path A: naive reference interpreter (source of truth).
 pub fn lane_a(x: u32) -> u32 {

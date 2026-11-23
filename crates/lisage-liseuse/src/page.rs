@@ -182,7 +182,7 @@ fn event_json(event: &TraceEvent) -> String {
         TraceEvent::NodeCreated {
             node,
             level,
-            forme,
+            form,
             span,
         } => {
             let level_json = match level {
@@ -193,7 +193,7 @@ fn event_json(event: &TraceEvent) -> String {
                 r#"{{"type":"NodeCreated","node":{},"level":{},"form":"{}","span":{}}}"#,
                 node.0,
                 level_json,
-                json_escape(&forme.rendre()),
+                json_escape(&form.render()),
                 span_json(*span)
             )
         }
@@ -229,7 +229,7 @@ fn event_json(event: &TraceEvent) -> String {
             r#"{{"type":"Attr","channel":"{:?}","node":{},"value":"{}","span":{}}}"#,
             channel,
             node.0,
-            json_escape(&value.rendre()),
+            json_escape(&value.render()),
             span_json(*span)
         ),
         TraceEvent::MemoHit { node, span } => format!(
@@ -246,34 +246,34 @@ fn event_json(event: &TraceEvent) -> String {
             live,
             collected,
             compaction,
-            liste_collectes,
+            collected_list,
             span,
         } => format!(
             r#"{{"type":"Gc","live":{},"collected":{},"compaction":{},"collected_nodes":{},"span":{}}}"#,
             live,
             collected,
             compaction,
-            node_array(liste_collectes),
+            node_array(collected_list),
             span_json(*span)
         ),
         TraceEvent::Round {
-            numero,
-            niveaux_actifs,
-            niveaux_modifies,
-            avant,
+            number,
+            active_levels,
+            modified_levels,
+            before,
             image,
-            apres,
-            croissance,
+            after,
+            growth,
             span,
         } => format!(
             r#"{{"type":"Round","round":{},"active_levels":{},"modified_levels":{},"before":{},"image":{},"after":{},"growth":{},"span":{}}}"#,
-            numero,
-            u32_array(niveaux_actifs),
-            u32_array(niveaux_modifies),
-            avant.0,
+            number,
+            u32_array(active_levels),
+            u32_array(modified_levels),
+            before.0,
             image.0,
-            apres.0,
-            croissance,
+            after.0,
+            growth,
             span_json(*span)
         ),
         TraceEvent::Histogram { classes, span } => {
@@ -300,19 +300,15 @@ fn event_json(event: &TraceEvent) -> String {
         TraceEvent::OpEnd { span } => {
             format!(r#"{{"type":"OpEnd","span":{}}}"#, span_json(*span))
         }
-        TraceEvent::VisiteEntree { node, span } => format!(
+        TraceEvent::VisitEntry { node, span } => format!(
             r#"{{"type":"VisitEnter","node":{},"span":{}}}"#,
             node.0,
             span_json(*span)
         ),
-        TraceEvent::VisiteSortie {
-            node,
-            resultat,
-            span,
-        } => format!(
+        TraceEvent::VisitExit { node, result, span } => format!(
             r#"{{"type":"VisitExit","node":{},"result":{},"span":{}}}"#,
             node.0,
-            resultat.0,
+            result.0,
             span_json(*span)
         ),
         TraceEvent::MemoConsult {
@@ -326,7 +322,7 @@ fn event_json(event: &TraceEvent) -> String {
             r#"{{"type":"MemoConsult","fingerprint":{},"node":{},"h":"{}","version":{},"hit":{},"span":{}}}"#,
             fingerprint,
             node.0,
-            json_escape(&h.rendre()),
+            json_escape(&h.render()),
             version,
             hit,
             span_json(*span)
@@ -336,39 +332,39 @@ fn event_json(event: &TraceEvent) -> String {
             node,
             h,
             version,
-            resultat,
+            result,
             span,
         } => format!(
             r#"{{"type":"MemoInsert","fingerprint":{},"node":{},"h":"{}","version":{},"result":{},"span":{}}}"#,
             fingerprint,
             node.0,
-            json_escape(&h.rendre()),
+            json_escape(&h.render()),
             version,
-            resultat.0,
+            result.0,
             span_json(*span)
         ),
-        TraceEvent::EcritureMemoire {
-            version_avant,
-            version_apres,
+        TraceEvent::MemoryWrite {
+            version_before,
+            version_after,
             span,
         } => format!(
             r#"{{"type":"MemoryWrite","version_before":{},"version_after":{},"span":{}}}"#,
-            version_avant,
-            version_apres,
+            version_before,
+            version_after,
             span_json(*span)
         ),
         TraceEvent::StructureChange {
             node,
             classification,
-            arcs_avant,
-            arcs_apres,
+            arcs_before,
+            arcs_after,
             span,
         } => format!(
             r#"{{"type":"StructureChange","node":{},"classification":"{:?}","arcs_before":{},"arcs_after":{},"span":{}}}"#,
             node.0,
             classification,
-            arcs_json(arcs_avant),
-            arcs_json(arcs_apres),
+            arcs_json(arcs_before),
+            arcs_json(arcs_after),
             span_json(*span)
         ),
     }

@@ -44,10 +44,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, ControllerId, Form, Level, MemoryPolicy, NodeId, Pool, PoolError,
 };
-use lisage_algebra::relatif::{AnchorComposee, CycleGroup, Fragment};
+use lisage_algebra::relative::{CompositeAnchor, CycleGroup, Fragment};
 
 use crate::observer::{
-    ChannelAttr, Observer, SpanKind, TraceEvent, TraceVal, contextualiser, next_span_id, pop_span,
+    ChannelAttr, Observer, SpanKind, TraceEvent, TraceVal, contextualize, next_span_id, pop_span,
     push_span,
 };
 
@@ -57,32 +57,32 @@ pub struct Reductions {
     /// R-collapse active.
     pub collapse: bool,
     /// R-default active (absorption of the δ(ℓ) arc towards D_δ).
-    pub defaut: bool,
+    pub default: bool,
 }
 
 impl Reductions {
     /// All reductions enabled (canonical configuration).
-    pub const TOUTES: Reductions = Reductions {
+    pub const ALL: Reductions = Reductions {
         collapse: true,
-        defaut: true,
+        default: true,
     };
     /// No controller-side reduction (R-share always active, measured).
-    pub const AUCUNE: Reductions = Reductions {
+    pub const NONE: Reductions = Reductions {
         collapse: false,
-        defaut: false,
+        default: false,
     };
     /// R-collapse toggled off, R-default active.
     pub fn without_collapse() -> Self {
         Reductions {
             collapse: false,
-            defaut: true,
+            default: true,
         }
     }
     /// R-default toggled off, R-collapse active.
-    pub fn without_defaut() -> Self {
+    pub fn without_default() -> Self {
         Reductions {
             collapse: true,
-            defaut: false,
+            default: false,
         }
     }
 }
@@ -120,7 +120,7 @@ impl<C: Controller> Controller for WorkshopController<C> {
     }
 
     fn default_payload(&self, level: Level) -> Option<Self::Payload> {
-        if self.reductions.defaut {
+        if self.reductions.default {
             self.inner.default_payload(level)
         } else {
             None
@@ -132,7 +132,7 @@ impl<C: Controller> Controller for WorkshopController<C> {
     }
 
     fn default_active(&self) -> bool {
-        self.reductions.defaut
+        self.reductions.default
     }
 
     fn memory_policy(&self) -> MemoryPolicy {
@@ -140,7 +140,7 @@ impl<C: Controller> Controller for WorkshopController<C> {
     }
 
     fn generalized_absorption(&self) -> bool {
-        self.reductions.defaut && self.inner.generalized_absorption()
+        self.reductions.default && self.inner.generalized_absorption()
     }
 
     fn cycle_group(&self) -> Option<&dyn CycleGroup<Key = Self::Key, Argument = i64>> {
@@ -152,12 +152,12 @@ impl<C: Controller> Controller for WorkshopController<C> {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ReportWorkshop {
     /// Distinct reachable nodes (R-share active): the shared diagram.
-    pub nodes_partages: u64,
+    pub nodes_shared: u64,
     /// Root → terminal paths in the DAG.
     pub paths: u64,
     /// Nodes of the unfolded tree (each arc duplicating the target subtree):
     /// the cost of the absence of hash-consing.
-    pub size_depliee: u64,
+    pub size_unfolded: u64,
 }
 
 /// Measures a diagram: shared nodes, paths and unfolded size. Propagates
@@ -179,12 +179,12 @@ pub fn measure<P: Pool>(
             lane: 0,
         });
     }
-    let resultat = measure_inner(pool, root, observer);
+    let result = measure_inner(pool, root, observer);
     if let Some(obs) = observer {
         obs.on_event(&TraceEvent::SpanClose { span });
     }
     pop_span();
-    resultat
+    result
 }
 
 fn measure_inner<P: Pool>(
@@ -193,26 +193,26 @@ fn measure_inner<P: Pool>(
     observer: Option<&dyn Observer>,
 ) -> Result<ReportWorkshop, PoolError> {
     let report = ReportWorkshop {
-        nodes_partages: count_nodes(pool, root)?,
+        nodes_shared: count_nodes(pool, root)?,
         paths: count_paths(pool, root)?,
-        size_depliee: count_size_depliee(pool, root)?,
+        size_unfolded: count_size_unfolded(pool, root)?,
     };
     if let Some(obs) = observer {
-        obs.on_event(&contextualiser(TraceEvent::Attr {
+        obs.on_event(&contextualize(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root,
-            value: TraceVal::carte(vec![
+            value: TraceVal::map(vec![
                 (
-                    TraceVal::texte("nodes_partages"),
-                    TraceVal::entier(report.nodes_partages as i64),
+                    TraceVal::text("nodes_partages"),
+                    TraceVal::integer(report.nodes_shared as i64),
                 ),
                 (
-                    TraceVal::texte("paths"),
-                    TraceVal::entier(report.paths as i64),
+                    TraceVal::text("paths"),
+                    TraceVal::integer(report.paths as i64),
                 ),
                 (
-                    TraceVal::texte("size_depliee"),
-                    TraceVal::entier(report.size_depliee as i64),
+                    TraceVal::text("size_depliee"),
+                    TraceVal::integer(report.size_unfolded as i64),
                 ),
             ]),
             span: None,
@@ -223,22 +223,22 @@ fn measure_inner<P: Pool>(
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
 pub fn count_nodes<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
-    let mut visite = BTreeSet::new();
+    let mut visit = BTreeSet::new();
     let mut stack = vec![root];
     while let Some(node) = stack.pop() {
-        if !visite.insert(node) {
+        if !visit.insert(node) {
             continue;
         }
         if let Form::Node { arcs, .. } = pool.resolve(node)? {
             stack.extend(arcs.values().copied());
         }
     }
-    Ok(visite.len() as u64)
+    Ok(visit.len() as u64)
 }
 
 /// Counts the root → terminal paths of the DAG (memoized per node, saturating).
 /// This is not the unfolded size: that one is the sum of path lengths,
-/// computed by [`count_size_depliee`].
+/// computed by [`count_size_unfolded`].
 pub fn count_paths<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     fn paths<P: Pool>(
         pool: &P,
@@ -268,7 +268,7 @@ pub fn count_paths<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
 /// Number of nodes in the unfolded tree (memoized per node, saturating): each
 /// arc duplicates the subtree of its target, what the absence of
 /// R-share would cost.
-pub fn count_size_depliee<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
+pub fn count_size_unfolded<P: Pool>(pool: &P, root: NodeId) -> Result<u64, PoolError> {
     fn size<P: Pool>(
         pool: &P,
         node: NodeId,
@@ -303,41 +303,41 @@ const LEVEL_WINDOW: u32 = 1;
 /// controller parameters — ordering, absolute/relative encoding, realm,
 /// composite anchor").
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Encodage {
+pub enum Encoding {
     /// Absolute keys: each window has its own keys, one node per base.
-    Absolu,
+    Absolute,
     /// Relative keys (min section = 0, M4-2): a single shared shape,
     /// the position argument lives on the incoming arc.
-    Relatif,
+    Relative,
 }
 
 /// Didactic comparison of the two encodings on the same logical object.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ReportComparaison {
+pub struct ReportComparison {
     /// Metrics of the absolute encoding.
-    pub absolu: ReportWorkshop,
+    pub absolute: ReportWorkshop,
     /// Metrics of the relative encoding.
-    pub relatif: ReportWorkshop,
+    pub relative: ReportWorkshop,
 }
 
 /// Builds the **sliding window** in absolute encoding: for each base
-/// `b ∈ [0, nb_bases)`, its own window `{b..b+size-1}` (one node per
+/// `b ∈ [0, count_bases)`, its own window `{b..b+size-1}` (one node per
 /// base), all linked to the root. The number of nodes grows with
-/// `nb_bases` — this is the "infinity of the window" of the flat prototype.
-pub fn build_window_absolue<P: Pool<Key = u64, Payload = bool>>(
+/// `count_bases` — this is the "infinity of the window" of the flat prototype.
+pub fn build_absolute_window<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
-    nb_bases: u64,
+    count_bases: u64,
 ) -> NodeId {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
+    let true_node = pool.intern(anchor, Form::Terminal(true));
     let mut arcs = BTreeMap::new();
-    for base in 0..nb_bases {
+    for base in 0..count_bases {
         let window = pool.intern(
             anchor,
             Form::Node {
                 level: Level(LEVEL_WINDOW),
-                arcs: (0..size).map(|k| (base + k, vrai)).collect(),
+                arcs: (0..size).map(|k| (base + k, true_node)).collect(),
             },
         );
         arcs.insert(base, window);
@@ -358,12 +358,12 @@ fn interner_window_relative<P: Pool<Key = u64, Payload = bool>>(
     anchor: Anchor,
     size: u64,
 ) -> NodeId {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
+    let true_node = pool.intern(anchor, Form::Terminal(true));
     pool.intern(
         anchor,
         Form::Node {
             level: Level(LEVEL_WINDOW),
-            arcs: (0..size).map(|k| (k, vrai)).collect(),
+            arcs: (0..size).map(|k| (k, true_node)).collect(),
         },
     )
 }
@@ -376,10 +376,10 @@ pub fn build_window_relative<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
-    nb_bases: u64,
+    count_bases: u64,
 ) -> NodeId {
     let window = interner_window_relative(pool, anchor, size);
-    let arcs: ArcRun<u64> = (0..nb_bases).map(|base| (base, window)).collect();
+    let arcs: ArcRun<u64> = (0..count_bases).map(|base| (base, window)).collect();
     pool.intern(
         anchor,
         Form::Node {
@@ -389,57 +389,57 @@ pub fn build_window_relative<P: Pool<Key = u64, Payload = bool>>(
     )
 }
 
-/// Builds the sliding window in the requested `encodage`: single entry
+/// Builds the sliding window in the requested `encoding`: single entry
 /// point of the encoding parameter.
 pub fn build_window<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
-    encodage: Encodage,
+    encoding: Encoding,
     size: u64,
-    nb_bases: u64,
+    count_bases: u64,
 ) -> NodeId {
-    match encodage {
-        Encodage::Absolu => build_window_absolue(pool, anchor, size, nb_bases),
-        Encodage::Relatif => build_window_relative(pool, anchor, size, nb_bases),
+    match encoding {
+        Encoding::Absolute => build_absolute_window(pool, anchor, size, count_bases),
+        Encoding::Relative => build_window_relative(pool, anchor, size, count_bases),
     }
 }
 
-/// Compares the two encodings of the sliding window over `nb_bases` bases:
+/// Compares the two encodings of the sliding window over `count_bases` bases:
 /// same paths (same logical object), different shared nodes — the
 /// relative sharing is visible to the naked eye. `observer`: ADR-0100 narration.
 pub fn comparer_encodages_window<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
-    nb_bases: u64,
+    count_bases: u64,
     observer: Option<&dyn Observer>,
-) -> Result<ReportComparaison, PoolError> {
-    let root_absolue = build_window(pool, anchor, Encodage::Absolu, size, nb_bases);
-    let root_relative = build_window(pool, anchor, Encodage::Relatif, size, nb_bases);
-    let absolu = measure(pool, root_absolue, observer)?;
-    let relatif = measure(pool, root_relative, observer)?;
+) -> Result<ReportComparison, PoolError> {
+    let absolute_root = build_window(pool, anchor, Encoding::Absolute, size, count_bases);
+    let root_relative = build_window(pool, anchor, Encoding::Relative, size, count_bases);
+    let absolute = measure(pool, absolute_root, observer)?;
+    let relative = measure(pool, root_relative, observer)?;
     if let Some(obs) = observer {
-        obs.on_event(&contextualiser(TraceEvent::Attr {
+        obs.on_event(&contextualize(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root_relative,
-            value: TraceVal::carte(vec![
+            value: TraceVal::map(vec![
                 (
-                    TraceVal::texte("encodage"),
-                    TraceVal::texte("relatif_vs_absolu"),
+                    TraceVal::text("encodage"),
+                    TraceVal::text("relatif_vs_absolu"),
                 ),
                 (
-                    TraceVal::texte("nodes"),
-                    TraceVal::entier(relatif.nodes_partages as i64),
+                    TraceVal::text("nodes"),
+                    TraceVal::integer(relative.nodes_shared as i64),
                 ),
                 (
-                    TraceVal::texte("contre"),
-                    TraceVal::entier(absolu.nodes_partages as i64),
+                    TraceVal::text("contre"),
+                    TraceVal::integer(absolute.nodes_shared as i64),
                 ),
             ]),
             span: None,
         }));
     }
-    Ok(ReportComparaison { absolu, relatif })
+    Ok(ReportComparison { absolute, relative })
 }
 
 /// **Ordering parameter** (didactic workshop, backlog § 9: "playing with the
@@ -454,7 +454,7 @@ pub struct Order {
 
 impl Order {
     /// Natural ordering: level ℓ decides variable ℓ.
-    pub fn naturel(number_variables: u32) -> Self {
+    pub fn natural(number_variables: u32) -> Self {
         Order {
             permutation: (0..number_variables).collect(),
         }
@@ -470,11 +470,11 @@ impl Order {
     /// Custom ordering: `permutation[ℓ]` = variable of level ℓ. Must
     /// be a permutation of `0..n` (otherwise two levels would decide the
     /// same variable and one variable would be skipped).
-    pub fn personnalise(permutation: Vec<u32>) -> Self {
-        let mut triee = permutation.clone();
-        triee.sort_unstable();
+    pub fn custom(permutation: Vec<u32>) -> Self {
+        let mut sorted = permutation.clone();
+        sorted.sort_unstable();
         assert_eq!(
-            triee,
+            sorted,
             (0..permutation.len() as u32).collect::<Vec<_>>(),
             "the ordering is a permutation of 0..n (internal invariant)"
         );
@@ -519,10 +519,10 @@ pub fn compiler_bdd_order<P: Pool<Key = u64, Payload = bool>>(
     // the original index, then the classic Shannon expansion applies
     // (at level ℓ we branch on bit ℓ of the local index).
     let table_locale: Vec<bool> = (0..table.len())
-        .map(|indice| {
+        .map(|index| {
             let mut original = 0usize;
             for level in 0..number_variables {
-                original |= ((indice >> level) & 1) << order.variable_au_level(level) as usize;
+                original |= ((index >> level) & 1) << order.variable_au_level(level) as usize;
             }
             table[original]
         })
@@ -558,7 +558,7 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
 
 /// Didactic comparison of two orderings on the same boolean function.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ReportComparaisonOrders {
+pub struct ReportComparisonOrders {
     /// Metrics under the first ordering.
     pub first: ReportWorkshop,
     /// Metrics under the second ordering.
@@ -576,7 +576,7 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
     order_first: &Order,
     order_second: &Order,
     observer: Option<&dyn Observer>,
-) -> Result<ReportComparaisonOrders, PoolError> {
+) -> Result<ReportComparisonOrders, PoolError> {
     assert_eq!(
         order_first.number_variables(),
         order_second.number_variables(),
@@ -587,30 +587,30 @@ pub fn comparer_orders<P: Pool<Key = u64, Payload = bool>>(
     let first = measure(pool, root_first, observer)?;
     let second = measure(pool, root_second, observer)?;
     if let Some(obs) = observer {
-        obs.on_event(&contextualiser(TraceEvent::Attr {
+        obs.on_event(&contextualize(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
             node: root_second,
             value: {
                 let order_label = format!("{}_vs_{}", order_first.label(), order_second.label());
-                TraceVal::carte(vec![
+                TraceVal::map(vec![
                     (
-                        TraceVal::texte("order"),
+                        TraceVal::text("order"),
                         TraceVal::fragment_format(move || order_label.clone()),
                     ),
                     (
-                        TraceVal::texte("nodes"),
-                        TraceVal::entier(first.nodes_partages as i64),
+                        TraceVal::text("nodes"),
+                        TraceVal::integer(first.nodes_shared as i64),
                     ),
                     (
-                        TraceVal::texte("contre"),
-                        TraceVal::entier(second.nodes_partages as i64),
+                        TraceVal::text("contre"),
+                        TraceVal::integer(second.nodes_shared as i64),
                     ),
                 ])
             },
             span: None,
         }));
     }
-    Ok(ReportComparaisonOrders { first, second })
+    Ok(ReportComparisonOrders { first, second })
 }
 
 /// Fragment named "base" of the composite anchor of the sliding window
@@ -633,14 +633,14 @@ pub fn fragment_horizon() -> Fragment {
 /// stays in the handle (C1 unchanged), the pool stays blind.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AnchorWindow {
-    inner: AnchorComposee,
+    inner: CompositeAnchor,
 }
 
 impl AnchorWindow {
     /// Anchor `{base, horizon}`: the two named offsets of the SWP protocol.
     pub fn new(base: i64, horizon: i64) -> Self {
         AnchorWindow {
-            inner: AnchorComposee::new()
+            inner: CompositeAnchor::new()
                 .with(fragment_base(), base)
                 .with(fragment_horizon(), horizon),
         }
@@ -648,23 +648,23 @@ impl AnchorWindow {
 
     /// Offset of the base (sequence position).
     pub fn base(&self) -> i64 {
-        self.inner.decalage(&fragment_base())
+        self.inner.shift(&fragment_base())
     }
 
     /// Offset of the horizon (window size).
     pub fn horizon(&self) -> i64 {
-        self.inner.decalage(&fragment_horizon())
+        self.inner.shift(&fragment_horizon())
     }
 
     /// New anchor, base shifted by `delta`: the slide of the window.
-    pub fn glessee(&self, delta: i64) -> Self {
+    pub fn shifted_by(&self, delta: i64) -> Self {
         AnchorWindow {
-            inner: self.inner.decalee(&fragment_base(), delta),
+            inner: self.inner.shifted(&fragment_base(), delta),
         }
     }
 
     /// Absolute reading of the window: the interval `[base, base + horizon)`.
-    pub fn window_absolue(&self) -> (i64, i64) {
+    pub fn absolute_window(&self) -> (i64, i64) {
         let base = self.base();
         (base, base + self.horizon())
     }
@@ -706,11 +706,11 @@ pub fn build_window_anchored<P: Pool<Key = u64, Payload = bool>>(
 
 /// Didactic comparison of two composite anchors on the same window.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ReportComparaisonAnchors {
+pub struct ReportComparisonAnchors {
     /// Metrics of the window read under the first anchor.
-    pub avant: ReportWorkshop,
+    pub before: ReportWorkshop,
     /// Metrics of the window read under the second anchor.
-    pub apres: ReportWorkshop,
+    pub after: ReportWorkshop,
     /// True if both readings reach the same window shape
     /// (`NodeId`): moving the base does not duplicate the shape.
     pub same_form: bool,
@@ -718,9 +718,9 @@ pub struct ReportComparaisonAnchors {
     /// anchor, a single window shape).
     pub nodes_pool: u64,
     /// Absolute reading `[base, base + horizon)` under the first anchor.
-    pub lecture_avant: (i64, i64),
+    pub read_before: (i64, i64),
     /// Absolute reading `[base, base + horizon)` under the second anchor.
-    pub lecture_apres: (i64, i64),
+    pub read_after: (i64, i64),
 }
 
 /// Compares the sliding window read under two composite anchors: each
@@ -734,59 +734,59 @@ pub fn comparer_anchors_window<P: Pool<Key = u64, Payload = bool>>(
     pool: &mut P,
     anchor: Anchor,
     size: u64,
-    anchor_avant: &AnchorWindow,
-    anchor_apres: &AnchorWindow,
+    anchor_before: &AnchorWindow,
+    anchor_after: &AnchorWindow,
     observer: Option<&dyn Observer>,
-) -> Result<ReportComparaisonAnchors, PoolError> {
+) -> Result<ReportComparisonAnchors, PoolError> {
     // Each anchor enters the pool through its incoming arc (its base); the
     // window shape reached on both sides must be the same node.
-    let (root_avant, window_avant) = build_window_anchored(pool, anchor, size, anchor_avant);
-    let (root_apres, window_apres) = build_window_anchored(pool, anchor, size, anchor_apres);
+    let (root_before, window_before) = build_window_anchored(pool, anchor, size, anchor_before);
+    let (root_after, window_after) = build_window_anchored(pool, anchor, size, anchor_after);
     let nodes_pool = pool.node_count() as u64;
-    let same_form = window_avant == window_apres;
-    let avant = measure(pool, root_avant, observer)?;
-    let apres = measure(pool, root_apres, observer)?;
+    let same_form = window_before == window_after;
+    let before = measure(pool, root_before, observer)?;
+    let after = measure(pool, root_after, observer)?;
     if let Some(obs) = observer {
-        let (debut_avant, fin_avant) = anchor_avant.window_absolue();
-        let (debut_apres, fin_apres) = anchor_apres.window_absolue();
-        obs.on_event(&contextualiser(TraceEvent::Attr {
+        let (start_before, end_before) = anchor_before.absolute_window();
+        let (start_after, end_after) = anchor_after.absolute_window();
+        obs.on_event(&contextualize(TraceEvent::Attr {
             channel: ChannelAttr::Synthesized,
-            node: root_apres,
+            node: root_after,
             value: {
-                let anchor_label = format!("{}_vs_{}", anchor_avant.label(), anchor_apres.label());
-                let lecture_label = format!(
+                let anchor_label = format!("{}_vs_{}", anchor_before.label(), anchor_after.label());
+                let read_label = format!(
                     "[{}..{}) contre [{}..{})",
-                    debut_avant, fin_avant, debut_apres, fin_apres
+                    start_before, end_before, start_after, end_after
                 );
-                TraceVal::carte(vec![
+                TraceVal::map(vec![
                     (
-                        TraceVal::texte("anchor"),
+                        TraceVal::text("anchor"),
                         TraceVal::fragment_format(move || anchor_label.clone()),
                     ),
                     (
-                        TraceVal::texte("nodes"),
-                        TraceVal::entier(avant.nodes_partages as i64),
+                        TraceVal::text("nodes"),
+                        TraceVal::integer(before.nodes_shared as i64),
                     ),
                     (
-                        TraceVal::texte("contre"),
-                        TraceVal::entier(apres.nodes_partages as i64),
+                        TraceVal::text("contre"),
+                        TraceVal::integer(after.nodes_shared as i64),
                     ),
                     (
-                        TraceVal::texte("lecture"),
-                        TraceVal::fragment_format(move || lecture_label.clone()),
+                        TraceVal::text("lecture"),
+                        TraceVal::fragment_format(move || read_label.clone()),
                     ),
-                    (TraceVal::texte("pool"), TraceVal::entier(nodes_pool as i64)),
+                    (TraceVal::text("pool"), TraceVal::integer(nodes_pool as i64)),
                 ])
             },
             span: None,
         }));
     }
-    Ok(ReportComparaisonAnchors {
-        avant,
-        apres,
+    Ok(ReportComparisonAnchors {
+        before,
+        after,
         same_form,
         nodes_pool,
-        lecture_avant: anchor_avant.window_absolue(),
-        lecture_apres: anchor_apres.window_absolue(),
+        read_before: anchor_before.absolute_window(),
+        read_after: anchor_after.absolute_window(),
     })
 }

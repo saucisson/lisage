@@ -15,17 +15,17 @@ pub enum CoreError {
         /// Expected schema shape.
         expected: &'static str,
         /// Received schema shape.
-        recu: &'static str,
+        received: &'static str,
     },
     /// Node level outside the schema (incompatible diagram).
-    LevelHorsSchema(Level),
+    LevelOutsideSchema(Level),
     /// Memory effect produced while the controller's policy is `NoMemory`
     /// (M2-3, T3).
-    MemoryNonAutorisee,
+    MemoryDisallowed,
     /// Fixpoint loop (`saturate`, M2-4) exceeding the safety bound (T2
     /// guarantees termination on a bounded schema; exceeding the bound
     /// signals a regression).
-    NonTerminaison {
+    NonTermination {
         /// Iteration bound exceeded.
         bound: u32,
     },
@@ -36,19 +36,19 @@ impl std::fmt::Display for CoreError {
         match self {
             CoreError::Pool(error) => write!(formatter, "pool error: {error}"),
             CoreError::EmptyArena => write!(formatter, "the pool is empty"),
-            CoreError::SchemaInexpected { expected, recu } => {
+            CoreError::SchemaInexpected { expected, received } => {
                 write!(
                     formatter,
-                    "unexpected schema: expected {expected}, got {recu}"
+                    "unexpected schema: expected {expected}, got {received}"
                 )
             }
-            CoreError::LevelHorsSchema(level) => {
+            CoreError::LevelOutsideSchema(level) => {
                 write!(formatter, "level outside schema: {level:?}")
             }
-            CoreError::MemoryNonAutorisee => {
+            CoreError::MemoryDisallowed => {
                 write!(formatter, "memory effect produced with the NoMemory policy")
             }
-            CoreError::NonTerminaison { bound } => {
+            CoreError::NonTermination { bound } => {
                 write!(
                     formatter,
                     "saturation did not terminate after {bound} iterations"

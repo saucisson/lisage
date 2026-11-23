@@ -12,9 +12,9 @@ use std::time::Instant;
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::parallel_ops::{IndependentOp, run_independent_par, run_independent_seq};
+use lisage_core::parallel_ops::{IndependentOp, run_independent_parallel, run_independent_seq};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
-use lisage_core::transduction::{ContextePhiOut, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transduction};
 use lisage_lang::value::{Atom, Value};
 
 const ANCHOR: Anchor = Anchor(0);
@@ -48,8 +48,8 @@ impl Transduction for CountPaths {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -58,7 +58,7 @@ impl Transduction for CountPaths {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memory::EffetMemory::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -164,7 +164,7 @@ fn main() {
     let mut root = input.intern(ANCHOR, Form::Terminal(false));
     for word in &words {
         let member = compile_member(&mut input, &schema, word, n);
-        root = lisage_core::pli::union(&mut input, &keys, ANCHOR, root, member).unwrap();
+        root = lisage_core::fold::union(&mut input, &keys, ANCHOR, root, member).unwrap();
         roots.push(member);
     }
 
@@ -186,17 +186,17 @@ fn main() {
     let seq_ms = start.elapsed().as_secs_f64() * 1000.0;
 
     let start = Instant::now();
-    let par = run_independent_par(&input, &schema, ANCHOR, &ops).unwrap();
-    let par_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let parallel = run_independent_parallel(&input, &schema, ANCHOR, &ops).unwrap();
+    let per_ms = start.elapsed().as_secs_f64() * 1000.0;
 
-    // PAR-1 sanity inside the bench: same synthesized attributes.
-    for ((_, _, attr_seq), (_, _, attr_par)) in seq.iter().zip(par.iter()) {
-        assert_eq!(attr_seq, attr_par, "PAR-1: same attribute seq vs par");
+    // PER-1 sanity inside the bench: same synthesized attributes.
+    for ((_, _, attr_seq), (_, _, attr_parallel)) in seq.iter().zip(parallel.iter()) {
+        assert_eq!(attr_seq, attr_parallel, "PAR-1: same attribute seq vs par");
     }
 
-    let speedup = if par_ms > 0.0 { seq_ms / par_ms } else { 0.0 };
+    let speedup = if per_ms > 0.0 { seq_ms / per_ms } else { 0.0 };
     println!(
-        "{{\"tool\":\"lisage-parallel-ops\",\"n\":{n},\"ops\":{number_ops},\"members\":{},\"seq_ms\":{seq_ms:.3},\"par_ms\":{par_ms:.3},\"speedup\":{speedup:.3}}}",
+        "{{\"tool\":\"lisage-parallel-ops\",\"n\":{n},\"ops\":{number_ops},\"members\":{},\"seq_ms\":{seq_ms:.3},\"par_ms\":{per_ms:.3},\"speedup\":{speedup:.3}}}",
         roots.len()
     );
 }

@@ -2,8 +2,8 @@
 //! (INV10, ADR-0105): n independent operations read the same input pool
 //! read-shared and each writes its own output pool. The sequential path is
 //! the one-worker case; the parallel path is the same operations on a rayon
-//! fork-join. PAR-1 (equivalence on the same inputs) is pinned by the PBT in
-//! `lisage-bench/tests/par_equivalence.rs`.
+//! fork-join. PER-1 (equivalence on the same inputs) is pinned by the PBT in
+//! `lisage-bench/tests/per_equivalence.rs`.
 
 use lisage_algebra::interface::{Anchor, Form, NodeId};
 use rayon::prelude::*;
@@ -12,7 +12,7 @@ use crate::arena::Arena;
 use crate::error::CoreError;
 use crate::observer::NoOpObserver;
 use crate::schema::{ReferenceController, Schema, SchemaKeys};
-use crate::transduction::{Transducteur, Transduction};
+use crate::transduction::{Transducer, Transduction};
 
 type PoolRef = Arena<ReferenceController>;
 
@@ -38,7 +38,7 @@ fn run_one<T: Transduction<Out = bool> + Clone>(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
-    let mut runner = Transducteur::new(op.transduction.clone());
+    let mut runner = Transducer::new(op.transduction.clone());
     let (node, attr) = runner.run(input, &mut output, anchor, op.root)?;
     Ok((output, node, attr))
 }
@@ -59,7 +59,7 @@ pub fn run_independent_seq<T: Transduction<Out = bool> + Clone>(
 /// Parallel execution (rayon fork-join) of independent transductions, all
 /// reading the shared input pool read-only, each in its own output pool
 /// (INV10). Results in the input order.
-pub fn run_independent_par<T: Transduction<Out = bool> + Clone>(
+pub fn run_independent_parallel<T: Transduction<Out = bool> + Clone>(
     input: &PoolRef,
     schema: &Schema,
     anchor: Anchor,
@@ -130,7 +130,7 @@ pub fn merge_pools_seq(
     pools: &[PoolRef],
     roots: &[NodeId],
 ) -> Result<(PoolRef, NodeId), CoreError> {
-    use crate::pli::union;
+    use crate::fold::union;
     use lisage_algebra::interface::Pool as _;
     assert_eq!(pools.len(), roots.len(), "one root per pool");
     let keys = SchemaKeys::new(schema.clone());
@@ -149,13 +149,13 @@ pub fn merge_pools_seq(
 /// Parallel merge: pairwise tree reduction of the output pools (merge at
 /// barriers) — each pair is merged in its own rayon task into a fresh pool,
 /// until one pool remains. Cross-pool sharing happens inside every merge.
-pub fn merge_pools_par(
+pub fn merge_pools_parallel(
     schema: &Schema,
     anchor: Anchor,
     pools: Vec<PoolRef>,
     roots: Vec<NodeId>,
 ) -> Result<(PoolRef, NodeId), CoreError> {
-    use crate::pli::union;
+    use crate::fold::union;
     use lisage_algebra::interface::Pool as _;
     assert_eq!(pools.len(), roots.len());
     if pools.is_empty() {

@@ -6,7 +6,7 @@
 //! the inter-level projections = set operations on `lang/`.
 //!
 //! The falsification: no new mechanism in `lisage-core` — this
-//! module only assembles schema + anchors + hash-consing + pli.
+//! module only assembles schema + anchors + hash-consing + fold.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -14,8 +14,8 @@ use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_algebra::vtree::{ErrorVtree, Vtree};
 use lisage_core::arena::Arena;
 use lisage_core::error::CoreError;
+use lisage_core::fold::{count, union};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaError, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
@@ -28,7 +28,7 @@ pub enum ErrorSdd {
     WithoutVariable,
     /// Error compiling a projection against its schema.
     Schema(SchemaError),
-    /// Core error (union, pli) during the construction.
+    /// Core error (union, fold) during the construction.
     Core(CoreError),
 }
 
@@ -80,27 +80,27 @@ pub struct LevelSdd {
     pub anchor: Anchor,
     /// Root of the local DD (set projected on the variables of the subtree).
     pub root: NodeId,
-    /// Cardinality of the local DD (pli `(ℕ,+,×)`).
+    /// Cardinality of the local DD (fold `(ℕ,+,×)`).
     pub cardinality: u64,
 }
 
 /// Pool for an SDD installation: the controller carries the **root** schema
 /// (all the vtree variables, domain of the complete set) — the
 /// R-default reductions at interning are driven by this schema.
-pub fn pool_pour_sdd(vtree: &Vtree, set: &BTreeSet<Value>) -> Arena<ReferenceController> {
+pub fn pool_for_sdd(vtree: &Vtree, set: &BTreeSet<Value>) -> Arena<ReferenceController> {
     let schema = Schema::Map(vtree.order_plat(), domain_set(set));
     Arena::new(ReferenceController::new(schema), Box::new(NoOpObserver))
 }
 
 /// Complete installation: one [`LevelSdd`] per vtree node, anchors in
 /// pre-order. Returns the root of the root level. The pool must be created by
-/// [`pool_pour_sdd`] (root schema = controller schema).
+/// [`pool_for_sdd`] (root schema = controller schema).
 pub fn installer_sdd(
     pool: &mut Arena<ReferenceController>,
     vtree: &Vtree,
     set: &BTreeSet<Value>,
 ) -> Result<LevelSdd, ErrorSdd> {
-    vtree.valider()?;
+    vtree.validate()?;
     let domain = domain_set(set);
     let mut counter_anchors = 0u32;
     installer_level(pool, vtree, set, &domain, &mut counter_anchors)
@@ -125,9 +125,9 @@ fn installer_level(
     let schema = Schema::Map(variables, domain.clone());
     let root = compiler_projection(pool, &schema, &projection, anchor)?;
     let cardinality = count_level(pool, &schema, root, anchor)?;
-    if let Vtree::Node { gauche, droite } = vtree {
-        installer_level(pool, gauche, &projection, domain, counter_anchors)?;
-        installer_level(pool, droite, &projection, domain, counter_anchors)?;
+    if let Vtree::Node { left, right } = vtree {
+        installer_level(pool, left, &projection, domain, counter_anchors)?;
+        installer_level(pool, right, &projection, domain, counter_anchors)?;
     }
     Ok(LevelSdd {
         anchor,
@@ -145,7 +145,7 @@ pub fn projeter(set: &BTreeSet<Value>, keys: &[Atom]) -> BTreeSet<Value> {
                 let projetee: BTreeMap<Value, Value> = map
                     .iter()
                     .filter(|(key, _)| match key {
-                        Value::Atom(atome) => keys.contains(atome),
+                        Value::Atom(atom) => keys.contains(atom),
                         _ => false,
                     })
                     .map(|(key, value)| (key.clone(), value.clone()))
@@ -167,7 +167,7 @@ fn domain_set(set: &BTreeSet<Value>) -> Domain {
             Value::Map(map) => map
                 .values()
                 .filter_map(|v| match v {
-                    Value::Atom(atome) => Some(atome.0),
+                    Value::Atom(atom) => Some(atom.0),
                     _ => None,
                 })
                 .max(),
@@ -195,7 +195,7 @@ fn compiler_projection(
     Ok(root)
 }
 
-/// Cardinality of a local DD via the `(ℕ,+,×)` pli.
+/// Cardinality of a local DD via the `(ℕ,+,×)` fold.
 fn count_level(
     pool: &Arena<ReferenceController>,
     schema: &Schema,

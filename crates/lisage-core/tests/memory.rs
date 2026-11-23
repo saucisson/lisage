@@ -8,10 +8,10 @@ use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, Form, Level, MemoryPolicy, NodeId, Pool,
 };
 use lisage_core::arena::Arena;
-use lisage_core::memory::{EffetMemory, MemoryLevel};
+use lisage_core::memory::{EffectMemory, MemoryLevel};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema};
-use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transducer, Transduction};
 use lisage_lang::value::Atom;
 
 type PoolRef = Arena<ReferenceController>;
@@ -23,7 +23,7 @@ fn pool() -> PoolRef {
 
 /// M2-3: the level memory stores and versions (L1).
 #[test]
-fn test_memory_level_stockage_and_version() {
+fn test_memory_level_storage_and_version() {
     let mut memory: MemoryLevel<u64> = MemoryLevel::new();
     assert_eq!(memory.version(), 0);
     assert_eq!(memory.read(NodeId(0), Level(0)), None);
@@ -47,15 +47,15 @@ fn test_memory_level_stockage_and_version() {
 
 /// M2-3: the memory effect applies and bumps the version.
 #[test]
-fn test_effet_memory_appliquer() {
+fn test_effect_memory_apply() {
     let mut memory: MemoryLevel<u64> = MemoryLevel::new();
-    let effet = EffetMemory::one(NodeId(3), Level(1), 7);
-    effet.apply(&mut memory);
+    let effect = EffectMemory::one(NodeId(3), Level(1), 7);
+    effect.apply(&mut memory);
     assert_eq!(memory.version(), 1);
     assert_eq!(memory.read(NodeId(3), Level(1)), Some(&7));
 
-    let effet_empty: EffetMemory<u64> = EffetMemory::new();
-    effet_empty.apply(&mut memory);
+    let effect_empty: EffectMemory<u64> = EffectMemory::new();
+    effect_empty.apply(&mut memory);
     assert_eq!(memory.version(), 1, "empty effect: no bump");
 }
 
@@ -63,11 +63,11 @@ fn test_effet_memory_appliquer() {
 /// visit: `M[id(n), ℓ] ← h` (the inherited attribute = depth). The read
 /// value (if present) is accumulated in a shared counter to prove that φ_out
 /// does observe the state stored by a previous visit.
-struct EcritMemory {
+struct WritesMemory {
     lus: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
 
-impl Transduction for EcritMemory {
+impl Transduction for WritesMemory {
     type H = u64;
     type S = u64;
     type Out = bool;
@@ -88,8 +88,8 @@ impl Transduction for EcritMemory {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, EffetMemory<u64>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, EffectMemory<u64>) {
         // Read the memory: if a value was already stored at this (node, level),
         // it is visible here and counted (test: φ_out observes the state stored
         // by a previous visit of the same node).
@@ -97,7 +97,7 @@ impl Transduction for EcritMemory {
             self.lus.fetch_add(*v, std::sync::atomic::Ordering::SeqCst);
         }
         // Write h into the memory at (input_node, level).
-        let effet = EffetMemory::one(ctx.node_input, ctx.level, *ctx.h);
+        let effect = EffectMemory::one(ctx.node_input, ctx.level, *ctx.h);
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(
@@ -107,7 +107,7 @@ impl Transduction for EcritMemory {
                     arcs,
                 },
             ),
-            effet,
+            effect,
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -124,30 +124,30 @@ impl Transduction for EcritMemory {
 /// M2-3: a memory transduction really writes into the level memory via the
 /// effect produced by φ_out, and the version is bumped (L1).
 #[test]
-fn test_transduction_with_memory_ecrit() {
+fn test_transduction_with_memory_writes() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
-    let vrai = input.intern(anchor, Form::Terminal(true));
-    let faux = input.intern(anchor, Form::Terminal(false));
+    let true_node = input.intern(anchor, Form::Terminal(true));
+    let false_node = input.intern(anchor, Form::Terminal(false));
     let a = input.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, true_node), (1, false_node)]),
         },
     );
     let b = input.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: ArcRun::from_pairs([(0, a), (1, vrai)]),
+            arcs: ArcRun::from_pairs([(0, a), (1, true_node)]),
         },
     );
 
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     let mut runner =
-        Transducteur::with_policy(EcritMemory { lus: lus.clone() }, MemoryPolicy::PerLevel);
+        Transducer::with_policy(WritesMemory { lus: lus.clone() }, MemoryPolicy::PerLevel);
     assert_eq!(runner.version_memory(), 0, "empty memory at start");
     let (result, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
@@ -155,7 +155,7 @@ fn test_transduction_with_memory_ecrit() {
         input.resolve(b).unwrap(),
         "identity copy"
     );
-    // Two non-terminal nodes (a and b) each wrote into the memory.
+    // Two not-terminal nodes (a and b) each wrote into the memory.
     assert!(
         runner.version_memory() >= 2,
         "version bumped by the memory effects (L1), version = {}",
@@ -177,29 +177,26 @@ fn test_transduction_with_memory_ecrit() {
 
 /// M2-3: the `NoMemory` policy rejects memory effects (TO-FIX review).
 #[test]
-fn test_policy_aucune_rejette_effet_memory() {
+fn test_policy_none_rejects_effect_memory() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
-    let vrai = input.intern(anchor, Form::Terminal(true));
-    let faux = input.intern(anchor, Form::Terminal(false));
+    let true_node = input.intern(anchor, Form::Terminal(true));
+    let false_node = input.intern(anchor, Form::Terminal(false));
     // Two arcs to distinct targets: no R-collapse.
     let a = input.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, true_node), (1, false_node)]),
         },
     );
     let lus = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
     // NoMemory policy (default): the memory effect must be rejected.
-    let mut runner = Transducteur::new(EcritMemory { lus: lus.clone() });
+    let mut runner = Transducer::new(WritesMemory { lus: lus.clone() });
     let result = runner.run(&input, &mut output, anchor, a);
     assert!(
-        matches!(
-            result,
-            Err(lisage_core::error::CoreError::MemoryNonAutorisee)
-        ),
+        matches!(result, Err(lisage_core::error::CoreError::MemoryDisallowed)),
         "NoMemory policy ⇒ memory effect rejected, got {result:?}"
     );
 }
@@ -207,11 +204,11 @@ fn test_policy_aucune_rejette_effet_memory() {
 /// M2-3: the storage policy is declared by the controller (`NoMemory` by
 /// default in M1, `PerLevel` to allow the memory).
 #[test]
-fn test_policy_memory_du_controleur() {
+fn test_controller_memory_policy() {
     let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
-    let controleur = ReferenceController::new(schema);
+    let controller = ReferenceController::new(schema);
     assert_eq!(
-        controleur.memory_policy(),
+        controller.memory_policy(),
         MemoryPolicy::NoMemory,
         "default policy (M1): no level memory"
     );
@@ -221,7 +218,7 @@ fn test_policy_memory_du_controleur() {
 /// divided by at least 2 against the old `HashMap<(NodeId, Level), V>`
 /// (~48 B per entry).
 #[test]
-fn test_empreinte_memo_dense_divisee() {
+fn test_fingerprint_memo_dense_divisee() {
     const BASELINE_HASHMAP_BYTES_PER_ENTRY: usize = 48;
     let mut memory: MemoryLevel<u64> = MemoryLevel::new();
     for node in 0..500u32 {
@@ -246,7 +243,7 @@ fn test_empreinte_memo_dense_divisee() {
 /// MEM-15: several levels for the same node keep the exact `(node, level)`
 /// semantics (dense slot + overflow list).
 #[test]
-fn test_plusieurs_niveaux_par_noeud() {
+fn test_several_levels_per_node() {
     let mut memory: MemoryLevel<u64> = MemoryLevel::new();
     assert_eq!(memory.write(NodeId(5), Level(0), 10), None);
     assert_eq!(
@@ -269,7 +266,7 @@ fn test_plusieurs_niveaux_par_noeud() {
 /// MEM-15: the memory holders apply the compaction remap — stored node ids
 /// are translated, dead nodes drop their entry, the version bumps (L1).
 #[test]
-fn test_remap_applique_par_les_porteurs() {
+fn test_remap_applies_per_the_carriers() {
     let mut memory: MemoryLevel<u64> = MemoryLevel::new();
     memory.write(NodeId(0), Level(0), 100);
     memory.write(NodeId(1), Level(0), 200);
@@ -290,7 +287,7 @@ fn test_remap_applique_par_les_porteurs() {
 /// MEM-15: with a pool class width `b`, the memory decodes `(class, index)`
 /// — entries land in the dense array of their class.
 #[test]
-fn test_decode_avec_class_bits_du_pool() {
+fn test_decode_with_pool_class_bits() {
     use lisage_algebra::class_bits::TAG_BITS;
     // b = 2: class in bits [26..28), index in the low 26 bits.
     let mut memory: MemoryLevel<u64> = MemoryLevel::with_class_bits(2);

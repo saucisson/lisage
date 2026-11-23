@@ -26,8 +26,8 @@ impl KeyAlgebra for MockKeys {
     fn rank(&self, _level: Level, key: &Self::Key) -> Option<u64> {
         (*key < 4).then_some(*key)
     }
-    fn unrank(&self, _level: Level, rang: u64) -> Option<Self::Key> {
-        (rang < 4).then_some(rang)
+    fn unrank(&self, _level: Level, rank: u64) -> Option<Self::Key> {
+        (rank < 4).then_some(rank)
     }
 }
 
@@ -88,7 +88,7 @@ fn nouvelle_arena() -> Arena<MockController> {
     Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver))
 }
 
-fn nouvelle_arena_ouverte() -> Arena<MockControllerOpen> {
+fn nouvelle_arena_open() -> Arena<MockControllerOpen> {
     Arena::new(
         MockControllerOpen { keys: MockKeysOpen },
         Box::new(NoOpObserver),
@@ -100,7 +100,7 @@ proptest! {
     /// key narrows then widens back to itself; a key outside the domain
     /// does not narrow.
     #[test]
-    fn test_aller_retour_cles_retrillies(
+    fn test_round_trip_keys_retrillies(
         key in 0u64..8,
         level in 0u32..3,
     ) {
@@ -125,32 +125,32 @@ proptest! {
     /// every arc points to the same target, R-collapse reduces the form
     /// to that target and no node is created - there is no exact class.
     #[test]
-    fn test_classe_exacte_et_aller_retour_forme(
-        paires in prop::collection::vec((0u64..4, 0u32..8), 1..5),
+    fn test_class_exact_and_round_trip_form(
+        pairs in prop::collection::vec((0u64..4, 0u32..8), 1..5),
         level in 0u32..3,
     ) {
         let mut pool = nouvelle_arena();
         let mut dedup: std::collections::BTreeMap<u64, u32> = std::collections::BTreeMap::new();
-        for (key, target) in &paires {
+        for (key, target) in &pairs {
             dedup.insert(*key, *target);
         }
-        let paires: Vec<(u64, u32)> = dedup.into_iter().collect();
+        let pairs: Vec<(u64, u32)> = dedup.into_iter().collect();
         let form = Form::Node {
             level: Level(level),
-            arcs: paires
+            arcs: pairs
                 .iter()
                 .map(|(key, target)| (*key, NodeId(*target)))
                 .collect::<ArcRun<u64>>(),
         };
         let node = pool.intern(Anchor(0), form.clone());
-        let degree = paires.len() as u32;
+        let degree = pairs.len() as u32;
         let distinct_targets: std::collections::BTreeSet<u32> =
-            paires.iter().map(|(_, target)| *target).collect();
+            pairs.iter().map(|(_, target)| *target).collect();
         // R-collapse (issue #346): without a level default, collapse holds
         // only when ALL values are explicit (arcs.len() >= cardinality) and
         // every target is the same - then no node is created and the
         // interned handle IS the shared target (e.g. TERMINAL_CLASS 0).
-        let covers_all_values = paires.len() as u64 >= 4; // MockKeys::cardinality
+        let covers_all_values = pairs.len() as u64 >= 4; // MockKeys::cardinality
         if distinct_targets.len() == 1 && covers_all_values {
             let target = NodeId(*distinct_targets.iter().next().expect("one target"));
             prop_assert_eq!(node, target, "R-collapse to the shared target");
@@ -165,12 +165,12 @@ proptest! {
         let Form::Node { arcs, .. } = &resolved else {
             panic!("node expected");
         };
-        let obtenu: Vec<(u64, NodeId)> = arcs.iter().map(|(k, t)| (*k, *t)).collect();
-        let attendu: Vec<(u64, NodeId)> = paires
+        let obtained: Vec<(u64, NodeId)> = arcs.iter().map(|(k, t)| (*k, *t)).collect();
+        let expected: Vec<(u64, NodeId)> = pairs
             .iter()
             .map(|(key, target)| (*key, NodeId(*target)))
             .collect();
-        prop_assert_eq!(obtenu, attendu, "inline storage round-trip");
+        prop_assert_eq!(obtained, expected, "inline storage round-trip");
         // C1: re-interning the resolved form shares the node.
         let again = pool.intern(Anchor(0), resolved);
         prop_assert_eq!(again, node, "C1 through the inline storage");
@@ -200,8 +200,8 @@ fn test_collapse_all_keys_to_terminal() {
 /// no narrowing is possible - the node goes to the catch-all class and
 /// the key/value run path is unchanged (full-width keys, same form).
 #[test]
-fn test_domaine_ouvert_voie_inchangee() {
-    let mut pool = nouvelle_arena_ouverte();
+fn test_domain_open_way_unchanged() {
+    let mut pool = nouvelle_arena_open();
     let keys = MockKeysOpen;
     assert_eq!(
         keys.key_width(Level(0)),

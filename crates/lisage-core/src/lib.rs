@@ -15,18 +15,18 @@ pub mod classes;
 pub mod dbm;
 pub mod ddd;
 pub mod error;
-pub mod integrale;
+pub mod fold;
+pub mod integral;
 pub mod lookup;
 pub mod memory;
 pub mod observer;
 pub mod operations;
 pub mod parallel_ops;
-pub mod pli;
 pub mod region;
 pub mod saturate;
 pub mod schema;
 pub mod transduction;
-pub mod transfert;
+pub mod transfer;
 mod unique;
 pub mod workshop;
 
@@ -36,6 +36,6 @@ pub use lisage_algebra::interface::{
 };
 
 /// Dummy placeholder to validate CI (M0-1).
-pub fn socle() -> u32 {
+pub fn base() -> u32 {
     42
 }

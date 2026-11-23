@@ -6,9 +6,7 @@
 
 use std::process::ExitCode;
 
-use lisage_bench::confrontation::{
-    Workload, executer, serialiser_charge_depuis_fichier, serialiser_ligne,
-};
+use lisage_bench::confrontation::{Workload, execute, serialize_line, serialize_load_from_file};
 
 /// Exit code: incorrect usage.
 const CODE_USAGE: u8 = 2;
@@ -18,14 +16,14 @@ const USAGE_WORKLOADS: &str = "workloads: alea-lcg <n> | philosophers <n> <path>
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    // `dump-charge <workload> <path>`: serializes the charge in the standard
+    // `dump-load <workload> <path>`: serializes the load in the standard
     // stdin protocol of the external witnesses (orchestrator feed).
     if arguments.first().map(String::as_str) == Some("dump-charge") {
         let Some(name_workload) = arguments.get(1) else {
             eprintln!("usage: confrontation dump-charge <workload> <path>");
             return ExitCode::from(CODE_USAGE);
         };
-        let Some(workload) = Workload::depuis_name(name_workload) else {
+        let Some(workload) = Workload::from_name(name_workload) else {
             eprintln!("unknown workload: {name_workload}");
             return ExitCode::from(CODE_USAGE);
         };
@@ -33,9 +31,9 @@ fn main() -> ExitCode {
             eprintln!("usage: confrontation dump-charge <workload> <path>");
             return ExitCode::from(CODE_USAGE);
         };
-        return match serialiser_charge_depuis_fichier(&workload, path) {
-            Ok(charge) => {
-                print!("{charge}");
+        return match serialize_load_from_file(&workload, path) {
+            Ok(load) => {
+                print!("{load}");
                 ExitCode::SUCCESS
             }
             Err(error) => {
@@ -44,19 +42,19 @@ fn main() -> ExitCode {
             }
         };
     }
-    let Some((name_workload, parametres)) = arguments.split_first() else {
+    let Some((name_workload, parameters)) = arguments.split_first() else {
         eprintln!("usage: confrontation <workload> [parameters…]");
         eprintln!("{USAGE_WORKLOADS}");
         return ExitCode::from(CODE_USAGE);
     };
-    let Some(workload) = Workload::depuis_name(name_workload) else {
+    let Some(workload) = Workload::from_name(name_workload) else {
         eprintln!("unknown workload: {name_workload}");
         eprintln!("{USAGE_WORKLOADS}");
         return ExitCode::from(CODE_USAGE);
     };
-    match executer(&workload, parametres, None) {
+    match execute(&workload, parameters, None) {
         Ok(measure) => {
-            println!("{}", serialiser_ligne(&measure));
+            println!("{}", serialize_line(&measure));
             ExitCode::SUCCESS
         }
         Err(error) => {

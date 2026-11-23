@@ -23,7 +23,7 @@ pub enum SpanKind {
     /// One saturation round.
     Round,
     /// Visit of one node.
-    Visite,
+    Visit,
 }
 
 /// Classification of the structure change between the input form and the
@@ -32,9 +32,9 @@ pub enum SpanKind {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum StructureChangeKind {
     /// Output form identical to the input form.
-    Identite,
+    Identity,
     /// Same arcs, different level (relabelling).
-    Reetiquetage,
+    Relabeling,
     /// Node collapsed to a terminal.
     Collapse,
     /// Terminal expanded to a node (T-EXPAND).
@@ -74,9 +74,9 @@ pub fn current_span() -> Option<SpanId> {
 
 /// Attaches the current span to an event (D1-1): every event carries its
 /// span; `SpanOpen`/`SpanClose` define spans and stay unspanned.
-pub fn contextualiser(mut evenement: TraceEvent) -> TraceEvent {
-    evenement.set_span(current_span());
-    evenement
+pub fn contextualize(mut event: TraceEvent) -> TraceEvent {
+    event.set_span(current_span());
+    event
 }
 
 /// Reduction rule applied at handle creation (spec § 2.3).
@@ -115,148 +115,140 @@ pub struct ClassHistogram {
     pub slack: u64,
 }
 
-/// Maximum number of elements in an `Ensemble`/`Carte` trace value
+/// Maximum number of elements in an `Set`/`Map` trace value
 /// (D1-3): the value is bounded, the excess is elided.
-pub const TRACE_VAL_MAX_JETONS: usize = 64;
+pub const TRACE_VAL_MAX_TOKENS: usize = 64;
 
-/// Maximum length (in chars) of a `Texte` trace value (D1-3).
-pub const TRACE_VAL_MAX_TEXTE: usize = 256;
+/// Maximum length (in chars) of a `Text` trace value (D1-3).
+pub const TRACE_VAL_MAX_TEXT: usize = 256;
 
 /// Maximum depth of `Fragment` resolution when forcing a trace value
 /// (D1-3): beyond it, the value elides.
-pub const TRACE_VAL_MAX_PROFONDEUR: usize = 16;
+pub const TRACE_VAL_MAX_DEPTH: usize = 16;
 
 /// Bounded mini-ADT of a trace value (D1-3). Small values are eager
-/// (`Entier`/`Texte`/`Ensemble`/`Carte`); expensive values are lazy
+/// (`Integer`/`Text`/`Set`/`Map`); expensive values are lazy
 /// (`Fragment`: computed only when forced, e.g. by the serializer or by
-/// an observer whose filter passes); `Elide` marks an elided value. The
-/// ADT is bounded: collections are capped at `TRACE_VAL_MAX_JETONS`
-/// elements and texts at `TRACE_VAL_MAX_TEXTE` chars (enforced by the
+/// an observer whose filter passes); `Elided` marks an elided value. The
+/// ADT is bounded: collections are capped at `TRACE_VAL_MAX_TOKENS`
+/// elements and texts at `TRACE_VAL_MAX_TEXT` chars (enforced by the
 /// constructors).
 #[derive(Clone)]
 pub enum TraceVal {
     /// Integer value.
-    Entier(i64),
+    Integer(i64),
     /// Text value (bounded by the constructor).
-    Texte(String),
+    Text(String),
     /// Set of values (bounded by the constructor).
-    Ensemble(Vec<TraceVal>),
+    Set(Vec<TraceVal>),
     /// Map of key → value pairs (bounded by the constructor).
-    Carte(Vec<(TraceVal, TraceVal)>),
+    Map(Vec<(TraceVal, TraceVal)>),
     /// Lazy fragment: the value is computed only when forced.
     Fragment(Arc<dyn Fn() -> TraceVal + Send + Sync>),
     /// Elided value (bound reached or filter rejected).
-    Elide,
+    Elided,
 }
 
 impl TraceVal {
     /// Integer value.
-    pub fn entier(valeur: i64) -> Self {
-        TraceVal::Entier(valeur)
+    pub fn integer(value: i64) -> Self {
+        TraceVal::Integer(value)
     }
 
-    /// Text value, truncated to `TRACE_VAL_MAX_TEXTE` chars.
-    pub fn texte(texte: impl Into<String>) -> Self {
-        let texte = texte.into();
-        let tronque: String = texte.chars().take(TRACE_VAL_MAX_TEXTE).collect();
-        if tronque.chars().count() < texte.chars().count() {
-            TraceVal::Texte(format!("{tronque}…"))
+    /// Text value, truncated to `TRACE_VAL_MAX_TEXT` chars.
+    pub fn text(text: impl Into<String>) -> Self {
+        let text = text.into();
+        let truncated: String = text.chars().take(TRACE_VAL_MAX_TEXT).collect();
+        if truncated.chars().count() < text.chars().count() {
+            TraceVal::Text(format!("{truncated}…"))
         } else {
-            TraceVal::Texte(tronque)
+            TraceVal::Text(truncated)
         }
     }
 
-    /// Set value, capped at `TRACE_VAL_MAX_JETONS` elements (the cap
-    /// appends an `Elide` marker).
-    pub fn ensemble(valeurs: Vec<TraceVal>) -> Self {
-        let mut valeurs = valeurs;
-        if valeurs.len() > TRACE_VAL_MAX_JETONS {
-            valeurs.truncate(TRACE_VAL_MAX_JETONS);
-            valeurs.push(TraceVal::Elide);
+    /// Set value, capped at `TRACE_VAL_MAX_TOKENS` elements (the cap
+    /// appends an `Elided` marker).
+    pub fn set(values: Vec<TraceVal>) -> Self {
+        let mut values = values;
+        if values.len() > TRACE_VAL_MAX_TOKENS {
+            values.truncate(TRACE_VAL_MAX_TOKENS);
+            values.push(TraceVal::Elided);
         }
-        TraceVal::Ensemble(valeurs)
+        TraceVal::Set(values)
     }
 
-    /// Map value, capped at `TRACE_VAL_MAX_JETONS` pairs (the cap
-    /// appends an `Elide` marker).
-    pub fn carte(paires: Vec<(TraceVal, TraceVal)>) -> Self {
-        let mut paires = paires;
-        if paires.len() > TRACE_VAL_MAX_JETONS {
-            paires.truncate(TRACE_VAL_MAX_JETONS);
-            paires.push((TraceVal::Elide, TraceVal::Elide));
+    /// Map value, capped at `TRACE_VAL_MAX_TOKENS` pairs (the cap
+    /// appends an `Elided` marker).
+    pub fn map(pairs: Vec<(TraceVal, TraceVal)>) -> Self {
+        let mut pairs = pairs;
+        if pairs.len() > TRACE_VAL_MAX_TOKENS {
+            pairs.truncate(TRACE_VAL_MAX_TOKENS);
+            pairs.push((TraceVal::Elided, TraceVal::Elided));
         }
-        TraceVal::Carte(paires)
+        TraceVal::Map(pairs)
     }
 
-    /// Lazy fragment: `valeur` is formatted with `Debug` **only when the
+    /// Lazy fragment: `value` is formatted with `Debug` **only when the
     /// fragment is forced** — never on the emission hot path.
-    pub fn fragment<T: fmt::Debug + Send + Sync + 'static>(valeur: T) -> Self {
-        TraceVal::Fragment(Arc::new(move || TraceVal::texte(format!("{valeur:?}"))))
+    pub fn fragment<T: fmt::Debug + Send + Sync + 'static>(value: T) -> Self {
+        TraceVal::Fragment(Arc::new(move || TraceVal::text(format!("{value:?}"))))
     }
 
     /// Lazy formatted text: the `format!` runs **only when the fragment
     /// is forced** — never on the emission hot path.
     pub fn fragment_format(f: impl Fn() -> String + Send + Sync + 'static) -> Self {
-        TraceVal::Fragment(Arc::new(move || TraceVal::texte(f())))
+        TraceVal::Fragment(Arc::new(move || TraceVal::text(f())))
     }
 
     /// Forces the value: resolves the `Fragment` chain (bounded by
-    /// `TRACE_VAL_MAX_PROFONDEUR`) and returns an eager value.
+    /// `TRACE_VAL_MAX_DEPTH`) and returns an eager value.
     pub fn force(&self) -> TraceVal {
-        self.force_profondeur(0)
+        self.force_depth(0)
     }
 
-    fn force_profondeur(&self, profondeur: usize) -> TraceVal {
+    fn force_depth(&self, depth: usize) -> TraceVal {
         match self {
-            TraceVal::Fragment(fragment) if profondeur < TRACE_VAL_MAX_PROFONDEUR => {
-                fragment().force_profondeur(profondeur + 1)
+            TraceVal::Fragment(fragment) if depth < TRACE_VAL_MAX_DEPTH => {
+                fragment().force_depth(depth + 1)
             }
-            TraceVal::Fragment(_) => TraceVal::Elide,
-            TraceVal::Ensemble(valeurs) => TraceVal::Ensemble(
-                valeurs
+            TraceVal::Fragment(_) => TraceVal::Elided,
+            TraceVal::Set(values) => {
+                TraceVal::Set(values.iter().map(|v| v.force_depth(depth)).collect())
+            }
+            TraceVal::Map(pairs) => TraceVal::Map(
+                pairs
                     .iter()
-                    .map(|v| v.force_profondeur(profondeur))
+                    .map(|(k, v)| (k.force_depth(depth), v.force_depth(depth)))
                     .collect(),
             ),
-            TraceVal::Carte(paires) => TraceVal::Carte(
-                paires
-                    .iter()
-                    .map(|(k, v)| {
-                        (
-                            k.force_profondeur(profondeur),
-                            v.force_profondeur(profondeur),
-                        )
-                    })
-                    .collect(),
-            ),
-            autre => autre.clone(),
+            other => other.clone(),
         }
     }
 
     /// Renders the value as a display string (forcing lazy fragments):
-    /// `Entier` → `42`, `Texte` → as-is, `Ensemble` → `{a, b}`,
-    /// `Carte` → `{k: v}`, `Elide` → `…`.
-    pub fn rendre(&self) -> String {
+    /// `Integer` → `42`, `Text` → as-is, `Set` → `{a, b}`,
+    /// `Map` → `{k: v}`, `Elided` → `…`.
+    pub fn render(&self) -> String {
         match self.force() {
-            TraceVal::Entier(valeur) => format!("{valeur}"),
-            TraceVal::Texte(texte) => texte,
-            TraceVal::Ensemble(valeurs) => format!(
+            TraceVal::Integer(value) => format!("{value}"),
+            TraceVal::Text(text) => text,
+            TraceVal::Set(values) => format!(
                 "{{{}}}",
-                valeurs
+                values
                     .iter()
-                    .map(|v| v.rendre())
+                    .map(|v| v.render())
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            TraceVal::Carte(paires) => format!(
+            TraceVal::Map(pairs) => format!(
                 "{{{}}}",
-                paires
+                pairs
                     .iter()
-                    .map(|(k, v)| format!("{}: {}", k.rendre(), v.rendre()))
+                    .map(|(k, v)| format!("{}: {}", k.render(), v.render()))
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            TraceVal::Elide => "…".to_string(),
+            TraceVal::Elided => "…".to_string(),
             TraceVal::Fragment(_) => "…".to_string(),
         }
     }
@@ -265,11 +257,11 @@ impl TraceVal {
 impl PartialEq for TraceVal {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (TraceVal::Entier(a), TraceVal::Entier(b)) => a == b,
-            (TraceVal::Texte(a), TraceVal::Texte(b)) => a == b,
-            (TraceVal::Ensemble(a), TraceVal::Ensemble(b)) => a == b,
-            (TraceVal::Carte(a), TraceVal::Carte(b)) => a == b,
-            (TraceVal::Elide, TraceVal::Elide) => true,
+            (TraceVal::Integer(a), TraceVal::Integer(b)) => a == b,
+            (TraceVal::Text(a), TraceVal::Text(b)) => a == b,
+            (TraceVal::Set(a), TraceVal::Set(b)) => a == b,
+            (TraceVal::Map(a), TraceVal::Map(b)) => a == b,
+            (TraceVal::Elided, TraceVal::Elided) => true,
             // Two lazy fragments are equal iff they share the same
             // allocation (the payload is not forced to compare).
             (TraceVal::Fragment(a), TraceVal::Fragment(b)) => Arc::ptr_eq(a, b),
@@ -283,12 +275,12 @@ impl Eq for TraceVal {}
 impl fmt::Debug for TraceVal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TraceVal::Entier(valeur) => write!(f, "Entier({valeur})"),
-            TraceVal::Texte(texte) => write!(f, "Texte({texte:?})"),
-            TraceVal::Ensemble(valeurs) => write!(f, "Ensemble({valeurs:?})"),
-            TraceVal::Carte(paires) => write!(f, "Carte({paires:?})"),
+            TraceVal::Integer(value) => write!(f, "Integer({value})"),
+            TraceVal::Text(text) => write!(f, "Text({text:?})"),
+            TraceVal::Set(values) => write!(f, "Set({values:?})"),
+            TraceVal::Map(pairs) => write!(f, "Map({pairs:?})"),
             TraceVal::Fragment(_) => write!(f, "Fragment(<lazy>)"),
-            TraceVal::Elide => write!(f, "Elide"),
+            TraceVal::Elided => write!(f, "Elide"),
         }
     }
 }
@@ -296,7 +288,7 @@ impl fmt::Debug for TraceVal {
 /// Conversion of a value into a trace value (D1-3). The default
 /// implementation is the **Debug fallback**: a lazy fragment, formatted
 /// only if forced. Types with a meaningful structure override it with
-/// eager `Entier`/`Texte`/`Ensemble`/`Carte` values.
+/// eager `Integer`/`Text`/`Set`/`Map` values.
 pub trait Traceable: fmt::Debug + Clone + Send + Sync + 'static {
     /// Trace value of `self`.
     fn trace_val(&self) -> TraceVal {
@@ -306,45 +298,45 @@ pub trait Traceable: fmt::Debug + Clone + Send + Sync + 'static {
 
 impl Traceable for () {
     fn trace_val(&self) -> TraceVal {
-        TraceVal::Elide
+        TraceVal::Elided
     }
 }
 
 impl Traceable for bool {
     fn trace_val(&self) -> TraceVal {
-        TraceVal::Entier(i64::from(*self))
+        TraceVal::Integer(i64::from(*self))
     }
 }
 
 impl Traceable for u64 {
     fn trace_val(&self) -> TraceVal {
-        TraceVal::Entier(*self as i64)
+        TraceVal::Integer(*self as i64)
     }
 }
 
 impl Traceable for NodeId {
     fn trace_val(&self) -> TraceVal {
-        TraceVal::Entier(self.0 as i64)
+        TraceVal::Integer(self.0 as i64)
     }
 }
 
 impl Traceable for Level {
     fn trace_val(&self) -> TraceVal {
-        TraceVal::Entier(i64::from(self.0))
+        TraceVal::Integer(i64::from(self.0))
     }
 }
 
 impl Traceable for BTreeSet<u64> {
     fn trace_val(&self) -> TraceVal {
-        TraceVal::ensemble(self.iter().map(|cle| cle.trace_val()).collect())
+        TraceVal::set(self.iter().map(|key| key.trace_val()).collect())
     }
 }
 
 impl Traceable for BTreeMap<u64, NodeId> {
     fn trace_val(&self) -> TraceVal {
-        TraceVal::carte(
+        TraceVal::map(
             self.iter()
-                .map(|(cle, cible)| (cle.trace_val(), cible.trace_val()))
+                .map(|(key, target)| (key.trace_val(), target.trace_val()))
                 .collect(),
         )
     }
@@ -352,12 +344,12 @@ impl Traceable for BTreeMap<u64, NodeId> {
 
 impl<M: Traceable> Traceable for Vec<(NodeId, Level, M)> {
     fn trace_val(&self) -> TraceVal {
-        TraceVal::ensemble(
+        TraceVal::set(
             self.iter()
-                .map(|(node, level, valeur)| {
-                    TraceVal::carte(vec![
+                .map(|(node, level, value)| {
+                    TraceVal::map(vec![
                         (node.trace_val(), level.trace_val()),
-                        (TraceVal::Elide, valeur.trace_val()),
+                        (TraceVal::Elided, value.trace_val()),
                     ])
                 })
                 .collect(),
@@ -393,7 +385,7 @@ pub enum TraceEvent {
         /// Level of the node, `None` for terminals.
         level: Option<Level>,
         /// Full form of the node (lazy `TraceVal`, D1-3).
-        forme: TraceVal,
+        form: TraceVal,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -457,7 +449,7 @@ pub enum TraceEvent {
         /// Compaction performed (dead threshold reached).
         compaction: bool,
         /// Identifiers of the collected nodes (D1-2).
-        liste_collectes: Vec<NodeId>,
+        collected_list: Vec<NodeId>,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -465,19 +457,19 @@ pub enum TraceEvent {
     /// and modified levels, handles before/image/after, growth.
     Round {
         /// Round number (1-based).
-        numero: u32,
+        number: u32,
         /// Active levels of the round.
-        niveaux_actifs: Vec<u32>,
+        active_levels: Vec<u32>,
         /// Levels modified by the round.
-        niveaux_modifies: Vec<u32>,
+        modified_levels: Vec<u32>,
         /// Handle before the round.
-        avant: NodeId,
+        before: NodeId,
         /// Handle of the image computed by the round.
         image: NodeId,
         /// Handle after the union.
-        apres: NodeId,
+        after: NodeId,
         /// Growth of the pool in nodes during the round.
-        croissance: i64,
+        growth: i64,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -502,19 +494,19 @@ pub enum TraceEvent {
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
-    /// Entry into a node visit (D1-2), right after the `Visite` span opens.
-    VisiteEntree {
+    /// Entry into a node visit (D1-2), right after the `Visit` span opens.
+    VisitEntry {
         /// Node visited.
         node: NodeId,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
-    /// Exit of a node visit (D1-2), right before the `Visite` span closes.
-    VisiteSortie {
+    /// Exit of a node visit (D1-2), right before the `Visit` span closes.
+    VisitExit {
         /// Node visited.
         node: NodeId,
         /// Resulting node of the visit.
-        resultat: NodeId,
+        result: NodeId,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -545,16 +537,16 @@ pub enum TraceEvent {
         /// Memory version of the key.
         version: u64,
         /// Result stored under the key.
-        resultat: NodeId,
+        result: NodeId,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
     /// Memory write (D1-2): level-memory version before -> after.
-    EcritureMemoire {
+    MemoryWrite {
         /// Version before the write.
-        version_avant: u64,
+        version_before: u64,
         /// Version after the write.
-        version_apres: u64,
+        version_after: u64,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -566,9 +558,9 @@ pub enum TraceEvent {
         /// Classification of the change.
         classification: StructureChangeKind,
         /// Arcs of the input form `(key, target)`.
-        arcs_avant: Vec<(u64, NodeId)>,
+        arcs_before: Vec<(u64, NodeId)>,
         /// Arcs of the output form `(key, target)`.
-        arcs_apres: Vec<(u64, NodeId)>,
+        arcs_after: Vec<(u64, NodeId)>,
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
@@ -592,11 +584,11 @@ impl TraceEvent {
             | TraceEvent::Histogram { span: s, .. }
             | TraceEvent::OpStart { span: s, .. }
             | TraceEvent::OpEnd { span: s, .. }
-            | TraceEvent::VisiteEntree { span: s, .. }
-            | TraceEvent::VisiteSortie { span: s, .. }
+            | TraceEvent::VisitEntry { span: s, .. }
+            | TraceEvent::VisitExit { span: s, .. }
             | TraceEvent::MemoConsult { span: s, .. }
             | TraceEvent::MemoInsert { span: s, .. }
-            | TraceEvent::EcritureMemoire { span: s, .. }
+            | TraceEvent::MemoryWrite { span: s, .. }
             | TraceEvent::StructureChange { span: s, .. } => *s = span,
         }
     }
@@ -618,11 +610,11 @@ impl TraceEvent {
             | TraceEvent::Histogram { span, .. }
             | TraceEvent::OpStart { span, .. }
             | TraceEvent::OpEnd { span, .. }
-            | TraceEvent::VisiteEntree { span, .. }
-            | TraceEvent::VisiteSortie { span, .. }
+            | TraceEvent::VisitEntry { span, .. }
+            | TraceEvent::VisitExit { span, .. }
             | TraceEvent::MemoConsult { span, .. }
             | TraceEvent::MemoInsert { span, .. }
-            | TraceEvent::EcritureMemoire { span, .. }
+            | TraceEvent::MemoryWrite { span, .. }
             | TraceEvent::StructureChange { span, .. } => *span,
         }
     }

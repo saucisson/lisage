@@ -7,24 +7,24 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, Pool};
 use lisage_algebra::vtree::{ErrorVtree, Vtree};
-use lisage_bench::sdd::{ErrorSdd, installer_sdd, pool_pour_sdd, projeter};
+use lisage_bench::sdd::{ErrorSdd, installer_sdd, pool_for_sdd, projeter};
 use lisage_core::arena::Arena;
-use lisage_core::pli::{count, union};
+use lisage_core::fold::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
 /// Test vtree: (x0, x1) on the left, (x2, x3) on the right.
 fn vtree_test() -> Vtree {
     Vtree::node(
-        Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
-        Vtree::node(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
+        Vtree::node(Vtree::leaf(Atom(0)), Vtree::leaf(Atom(1))),
+        Vtree::node(Vtree::leaf(Atom(2)), Vtree::leaf(Atom(3))),
     )
 }
 
 /// Builds a `Value::Map` from (key, value) pairs.
-fn map_de(paires: &[(u64, u64)]) -> Value {
+fn map_from(pairs: &[(u64, u64)]) -> Value {
     Value::Map(
-        paires
+        pairs
             .iter()
             .map(|(key, value)| (Value::Atom(Atom(*key)), Value::Atom(Atom(*value))))
             .collect::<BTreeMap<Value, Value>>(),
@@ -37,19 +37,19 @@ fn set_decomposable() -> BTreeSet<Value> {
     let mut set = BTreeSet::new();
     for a in 0..=1u64 {
         for b in 0..=1u64 {
-            set.insert(map_de(&[(0, a), (1, a), (2, b), (3, b)]));
+            set.insert(map_from(&[(0, a), (1, a), (2, b), (3, b)]));
         }
     }
     set
 }
 
-/// Non-decomposable set: {x0 = x2} — 8 maps over 4 keys.
-fn set_non_decomposable() -> BTreeSet<Value> {
+/// Not-decomposable set: {x0 = x2} — 8 maps over 4 keys.
+fn set_not_decomposable() -> BTreeSet<Value> {
     let mut set = BTreeSet::new();
     for c in 0..=1u64 {
         for x1 in 0..=1u64 {
             for x3 in 0..=1u64 {
-                set.insert(map_de(&[(0, c), (1, x1), (2, c), (3, x3)]));
+                set.insert(map_from(&[(0, c), (1, x1), (2, c), (3, x3)]));
             }
         }
     }
@@ -57,8 +57,8 @@ fn set_non_decomposable() -> BTreeSet<Value> {
 }
 
 /// Pool for a test: root schema of the test vtree over {0,1}.
-fn pool_neuf() -> Arena<ReferenceController> {
-    pool_pour_sdd(&vtree_test(), &set_decomposable())
+fn fresh_pool() -> Arena<ReferenceController> {
+    pool_for_sdd(&vtree_test(), &set_decomposable())
 }
 
 /// Cardinality of the flat DD of the set over the 4 keys (path B reference).
@@ -72,7 +72,7 @@ fn cardinality_plat(pool: &mut Arena<ReferenceController>, set: &BTreeSet<Value>
         let membre = compiler(pool, anchor, &schema, value).unwrap();
         root = union(pool, &keys, anchor, root, membre).unwrap();
     }
-    let mut output = pool_pour_sdd(&vtree_test(), set);
+    let mut output = pool_for_sdd(&vtree_test(), set);
     count(pool, &mut output, anchor, &schema, root).unwrap()
 }
 
@@ -80,62 +80,62 @@ fn cardinality_plat(pool: &mut Arena<ReferenceController>, set: &BTreeSet<Value>
 /// hierarchical installation, and for a set decomposable along the
 /// vtree, root cardinality == product of the cardinalities of the two subtrees.
 #[test]
-fn test_cardinality_global_egal_produit_des_locaux_si_decomposable() {
+fn test_cardinality_global_equals_product_of_locals_if_decomposable() {
     let set = set_decomposable();
-    let mut pool = pool_neuf();
+    let mut pool = fresh_pool();
     let level = installer_sdd(&mut pool, &vtree_test(), &set).unwrap();
     assert_eq!(level.cardinality, 4);
-    let gauche = installer_sdd(
+    let left = installer_sdd(
         &mut pool,
-        &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
+        &Vtree::node(Vtree::leaf(Atom(0)), Vtree::leaf(Atom(1))),
         &set,
     )
     .unwrap();
-    let droite = installer_sdd(
+    let right = installer_sdd(
         &mut pool,
-        &Vtree::node(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
+        &Vtree::node(Vtree::leaf(Atom(2)), Vtree::leaf(Atom(3))),
         &set,
     )
     .unwrap();
-    assert_eq!(gauche.cardinality, 2);
-    assert_eq!(droite.cardinality, 2);
-    assert_eq!(level.cardinality, gauche.cardinality * droite.cardinality);
+    assert_eq!(left.cardinality, 2);
+    assert_eq!(right.cardinality, 2);
+    assert_eq!(level.cardinality, left.cardinality * right.cardinality);
     assert_eq!(cardinality_plat(&mut pool, &set), 4);
 }
 
-/// Non-decomposable set: the product of the local cardinalities upper-bounds the
+/// Not-decomposable set: the product of the local cardinalities upper-bounds the
 /// global cardinality (over-approximation of the decomposition), the global
 /// cardinality remaining exact and equal to the flat DD.
 #[test]
-fn test_produit_des_locaux_majore_le_global_si_non_decomposable() {
-    let set = set_non_decomposable();
-    let mut pool = pool_neuf();
+fn test_product_of_locals_bounds_the_global_if_not_decomposable() {
+    let set = set_not_decomposable();
+    let mut pool = fresh_pool();
     let level = installer_sdd(&mut pool, &vtree_test(), &set).unwrap();
     assert_eq!(level.cardinality, 8);
-    let gauche = installer_sdd(
+    let left = installer_sdd(
         &mut pool,
-        &Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(1))),
+        &Vtree::node(Vtree::leaf(Atom(0)), Vtree::leaf(Atom(1))),
         &set,
     )
     .unwrap();
-    let droite = installer_sdd(
+    let right = installer_sdd(
         &mut pool,
-        &Vtree::node(Vtree::feuille(Atom(2)), Vtree::feuille(Atom(3))),
+        &Vtree::node(Vtree::leaf(Atom(2)), Vtree::leaf(Atom(3))),
         &set,
     )
     .unwrap();
-    assert_eq!(gauche.cardinality, 4);
-    assert_eq!(droite.cardinality, 4);
-    assert!(gauche.cardinality * droite.cardinality >= level.cardinality);
+    assert_eq!(left.cardinality, 4);
+    assert_eq!(right.cardinality, 4);
+    assert!(left.cardinality * right.cardinality >= level.cardinality);
     assert_eq!(cardinality_plat(&mut pool, &set), 8);
 }
 
 /// C1 canonicity by handle: reinstalling the same vtree on the same
 /// set in the same pool gives the same handles (hash-consing).
 #[test]
-fn test_canonicite_par_handle_reinstallation_identique() {
+fn test_canonicity_per_handle_reinstallation_identical() {
     let set = set_decomposable();
-    let mut pool = pool_neuf();
+    let mut pool = fresh_pool();
     let first = installer_sdd(&mut pool, &vtree_test(), &set).unwrap();
     let second = installer_sdd(&mut pool, &vtree_test(), &set).unwrap();
     assert_eq!(first, second);
@@ -146,8 +146,8 @@ fn test_canonicite_par_handle_reinstallation_identique() {
 /// handle. Terminals are the exception (MEM-11): pool-wide singletons keyed
 /// by payload only, shared across anchors.
 #[test]
-fn test_canonicite_two_anchors_distinctes() {
-    let mut pool = pool_neuf();
+fn test_canonicity_two_anchors_distinct() {
+    let mut pool = fresh_pool();
     let t_true = pool.intern(Anchor(0), Form::Terminal(true));
     let t_false = pool.intern(Anchor(0), Form::Terminal(false));
     let form = Form::Node {
@@ -160,8 +160,8 @@ fn test_canonicite_two_anchors_distinctes() {
     assert_eq!(same_anchor_a, same_anchor_b);
     assert_ne!(same_anchor_a, other_anchor);
     // MEM-11: a terminal interned under another anchor is the same singleton.
-    let t_true_autre_ancre = pool.intern(Anchor(1), Form::Terminal(true));
-    assert_eq!(t_true, t_true_autre_ancre);
+    let t_true_other_ancre = pool.intern(Anchor(1), Form::Terminal(true));
+    assert_eq!(t_true, t_true_other_ancre);
 }
 
 /// Projection: keeps only the requested keys.
@@ -182,11 +182,11 @@ fn test_projection() {
 
 /// Invalid vtree (duplicated variable): typed error at installation.
 #[test]
-fn test_vtree_invalide_rejete() {
-    let vtree = Vtree::node(Vtree::feuille(Atom(0)), Vtree::feuille(Atom(0)));
-    let mut pool = pool_neuf();
+fn test_vtree_invalid_rejected() {
+    let vtree = Vtree::node(Vtree::leaf(Atom(0)), Vtree::leaf(Atom(0)));
+    let mut pool = fresh_pool();
     assert_eq!(
         installer_sdd(&mut pool, &vtree, &BTreeSet::new()).unwrap_err(),
-        ErrorSdd::Vtree(ErrorVtree::VariableEnDouble(Atom(0)))
+        ErrorSdd::Vtree(ErrorVtree::DuplicateVariable(Atom(0)))
     );
 }

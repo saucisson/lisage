@@ -18,16 +18,16 @@ proptest! {
     /// `rank(level, unrank(level, r)) = r` for every ordinal in range,
     /// and both directions return `None` out of range.
     #[test]
-    fn test_rank_unrank_roundtrip_reference_instance(size in 1u64..64, rang in 0u64..80) {
+    fn test_rank_unrank_roundtrip_reference_instance(size in 1u64..64, rank in 0u64..80) {
         let keys = schema_keys(size);
         let level = Level(0);
-        if rang < size {
-            let key = keys.unrank(level, rang).expect("ordinal in range");
-            prop_assert_eq!(keys.rank(level, &key), Some(rang));
+        if rank < size {
+            let key = keys.unrank(level, rank).expect("ordinal in range");
+            prop_assert_eq!(keys.rank(level, &key), Some(rank));
         } else {
-            prop_assert_eq!(keys.unrank(level, rang), None);
+            prop_assert_eq!(keys.unrank(level, rank), None);
         }
-        let key = rang;
+        let key = rank;
         if key < size {
             prop_assert_eq!(keys.rank(level, &key), Some(key));
         } else {
@@ -37,15 +37,15 @@ proptest! {
 
     /// Round-trip on the BDD algebra (bounded domain of cardinality 2).
     #[test]
-    fn test_rank_unrank_roundtrip_bdd(rang in 0u64..4) {
+    fn test_rank_unrank_roundtrip_bdd(rank in 0u64..4) {
         let keys = BddKeys::new(8);
         let level = Level(3);
-        if rang < 2 {
-            let key = keys.unrank(level, rang).expect("ordinal in range");
-            prop_assert_eq!(keys.rank(level, &key), Some(rang));
+        if rank < 2 {
+            let key = keys.unrank(level, rank).expect("ordinal in range");
+            prop_assert_eq!(keys.rank(level, &key), Some(rank));
         } else {
-            prop_assert_eq!(keys.unrank(level, rang), None);
-            prop_assert_eq!(keys.rank(level, &rang), None);
+            prop_assert_eq!(keys.unrank(level, rank), None);
+            prop_assert_eq!(keys.rank(level, &rank), None);
         }
     }
 }

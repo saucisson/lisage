@@ -13,7 +13,7 @@ fn pool(number_variables: u32) -> PoolBdd {
 }
 
 /// Truth table of the constant ⊥.
-fn table_constante(number_variables: u32, value: bool) -> Vec<bool> {
+fn table_constant(number_variables: u32, value: bool) -> Vec<bool> {
     vec![value; 1usize << number_variables]
 }
 
@@ -23,21 +23,21 @@ fn table_xor2() -> Vec<bool> {
 }
 
 #[test]
-fn test_bdd_constantes_one_single_terminal() {
+fn test_bdd_constants_one_single_terminal() {
     let mut pool = pool(3);
     let anchor = Anchor(0);
     let keys = BddKeys::new(3);
-    let root_faux = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, false));
-    let root_vrai = compiler_bdd(&mut pool, anchor, &keys, &table_constante(3, true));
+    let root_false = compiler_bdd(&mut pool, anchor, &keys, &table_constant(3, false));
+    let root_true = compiler_bdd(&mut pool, anchor, &keys, &table_constant(3, true));
     // R-collapse: no variable, a single terminal visited.
-    assert_eq!(count_nodes(&pool, root_faux), 1);
-    assert_eq!(count_nodes(&pool, root_vrai), 1);
-    assert!(!evaluate(&pool, root_faux, 0b101).unwrap());
-    assert!(evaluate(&pool, root_vrai, 0b101).unwrap());
+    assert_eq!(count_nodes(&pool, root_false), 1);
+    assert_eq!(count_nodes(&pool, root_true), 1);
+    assert!(!evaluate(&pool, root_false, 0b101).unwrap());
+    assert!(evaluate(&pool, root_true, 0b101).unwrap());
 }
 
 #[test]
-fn test_bdd_xor2_count_and_evalue() {
+fn test_bdd_xor2_count_and_evaluates() {
     let mut pool = pool(2);
     let anchor = Anchor(0);
     let keys = BddKeys::new(2);

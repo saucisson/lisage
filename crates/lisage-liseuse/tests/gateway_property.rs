@@ -13,9 +13,9 @@ use proptest::prelude::*;
 #[rustfmt::skip]
 fn trace_with_rounds(count: u32) -> Vec<TraceEvent> {
     (1..=count).map(|number| TraceEvent::Round {
-        numero: number, niveaux_actifs: vec![0], niveaux_modifies: vec![0],
-        avant: NodeId(number), image: NodeId(number), apres: NodeId(number),
-        croissance: 1, span: None,
+        number, active_levels: vec![0], modified_levels: vec![0],
+        before: NodeId(number), image: NodeId(number), after: NodeId(number),
+        growth: 1, span: None,
     }).collect()
 }
 

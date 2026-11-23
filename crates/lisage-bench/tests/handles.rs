@@ -47,10 +47,10 @@ fn nouvelle_arena() -> Arena<MockController> {
     Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver))
 }
 
-fn form_aleatoire(paires: Vec<(u8, u32)>, level: u8) -> Form<u64, bool> {
+fn form_random(pairs: Vec<(u8, u32)>, level: u8) -> Form<u64, bool> {
     Form::Node {
         level: Level(u32::from(level)),
-        arcs: paires
+        arcs: pairs
             .into_iter()
             .map(|(key, target)| (u64::from(key), NodeId(target)))
             .collect::<ArcRun<u64>>(),
@@ -65,8 +65,8 @@ proptest! {
     // arcs are R-default-dropped and the form may reduce to a terminal, which
     // the cross-arena form comparison below cannot resolve; targets are the
     // two terminals interned first (issue #137 requalification).
-    fn test_c1_unicite_handles(paires in prop::collection::vec((1u8..3, 0u32..2), 0..5), level in 0u8..4) {
-        let form = form_aleatoire(paires, level);
+    fn test_c1_unicite_handles(pairs in prop::collection::vec((1u8..3, 0u32..2), 0..5), level in 0u8..4) {
+        let form = form_random(pairs, level);
         let anchor = Anchor(0);
         let mut arena_a = nouvelle_arena();
         let mut arena_b = nouvelle_arena();
@@ -94,28 +94,28 @@ proptest! {
     /// reduced form (after R-collapse/R-default) share the same handle; two
     /// distinct reduced forms have distinct handles.
     #[test]
-    fn test_c1_canonicite_par_handle(paires_a in prop::collection::vec((0u8..3, 0u32..2), 0..5), paires_b in prop::collection::vec((0u8..3, 0u32..2), 0..5), level in 0u8..4) {
+    fn test_c1_canonicity_per_handle(pairs_a in prop::collection::vec((0u8..3, 0u32..2), 0..5), pairs_b in prop::collection::vec((0u8..3, 0u32..2), 0..5), level in 0u8..4) {
         use lisage_algebra::reduction::{reduce, Reduction};
-        let est_defaut = |node: NodeId| node == NodeId(0);
-        let reducede = |paires: Vec<(u8, u32)>| -> Reduction<u64> {
-            let arcs: ArcRun<u64> = paires
+        let is_default = |node: NodeId| node == NodeId(0);
+        let reducede = |pairs: Vec<(u8, u32)>| -> Reduction<u64> {
+            let arcs: ArcRun<u64> = pairs
                 .into_iter()
                 .map(|(key, target)| (u64::from(key), NodeId(target)))
                 .collect();
-            reduce(arcs, Some(0), &est_defaut, 2)
+            reduce(arcs, Some(0), &is_default, 2)
         };
-        prop_assume!(!paires_a.is_empty() && !paires_b.is_empty());
-        let form_a = form_aleatoire(paires_a.clone(), level);
-        let form_b = form_aleatoire(paires_b.clone(), level);
-        let reducede_a = reducede(paires_a);
-        let reducede_b = reducede(paires_b);
+        prop_assume!(!pairs_a.is_empty() && !pairs_b.is_empty());
+        let form_a = form_random(pairs_a.clone(), level);
+        let form_b = form_random(pairs_b.clone(), level);
+        let reducede_a = reducede(pairs_a);
+        let reducede_b = reducede(pairs_b);
         let mut arena = nouvelle_arena();
         let anchor = Anchor(0);
         // arc targets must be real nodes: intern the false terminal
         // (D_δ = NodeId(0)) then the true terminal (NodeId(1)),
-        // which makes the test's est_defaut predicate identical to the arena's.
-        let defaut = arena.terminal(anchor, false);
-        prop_assert_eq!(defaut, NodeId(0));
+        // which makes the test's is_default predicate identical to the arena's.
+        let default = arena.terminal(anchor, false);
+        prop_assert_eq!(default, NodeId(0));
         let other = arena.terminal(anchor, true);
         prop_assert_eq!(other, NodeId(1));
         let node_a = arena.intern(anchor, form_a);

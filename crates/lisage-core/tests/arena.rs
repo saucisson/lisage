@@ -56,7 +56,7 @@ impl Observer for RecordingObserver {
 
 fn arena_with_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserver>) {
     let observer = std::sync::Arc::new(RecordingObserver::default());
-    let copie = observer.clone();
+    let copy = observer.clone();
     struct Pont(std::sync::Arc<RecordingObserver>);
     impl Observer for Pont {
         fn on_event(&self, event: &TraceEvent) {
@@ -64,7 +64,7 @@ fn arena_with_trace() -> (Arena<MockController>, std::sync::Arc<RecordingObserve
         }
     }
     (
-        Arena::new(MockController { keys: MockKeys }, Box::new(Pont(copie))),
+        Arena::new(MockController { keys: MockKeys }, Box::new(Pont(copy))),
         observer,
     )
 }
@@ -80,12 +80,12 @@ fn test_r_share_table_unique() {
 }
 
 #[test]
-fn test_forms_distinctes_nodes_distincts() {
+fn test_forms_distinct_nodes_distinct() {
     let (mut arena, _trace) = arena_with_trace();
     let anchor = Anchor(0);
-    let vrai_ = arena.intern(anchor, Form::Terminal(true));
-    let faux = arena.intern(anchor, Form::Terminal(false));
-    assert_ne!(vrai_, faux);
+    let true_ = arena.intern(anchor, Form::Terminal(true));
+    let false_node = arena.intern(anchor, Form::Terminal(false));
+    assert_ne!(true_, false_node);
     assert_eq!(arena.node_count(), 2);
 }
 
@@ -109,13 +109,13 @@ fn test_handles_unicite() {
 }
 
 #[test]
-fn test_resolve_error_typee() {
+fn test_resolve_error_typed() {
     let (arena, _trace) = arena_with_trace();
     let result = arena.resolve(NodeId(99));
     assert_eq!(result, Err(lisage_core::PoolError::UnknownNode(NodeId(99))));
 }
 
-/// Non-identity key algebra: two spellings (0 and 2) have the same normal
+/// Not-identity key algebra: two spellings (0 and 2) have the same normal
 /// form — used to prove that normalization is applied before hashing
 /// (otherwise C1 would be violated).
 struct NormalizingKeys;
@@ -152,7 +152,7 @@ impl Controller for NormalizingController {
 }
 
 #[test]
-fn test_normalisation_keys_avant_hachage() {
+fn test_normalisation_keys_before_hashing() {
     let mut arena: Arena<NormalizingController> = Arena::new(
         NormalizingController {
             keys: NormalizingKeys,
@@ -200,8 +200,8 @@ fn test_events_trace_narration() {
         .iter()
         .map(|e| match e {
             TraceEvent::NodeCreated {
-                node, level, forme, ..
-            } => (*node, *level, forme.rendre()),
+                node, level, form, ..
+            } => (*node, *level, form.render()),
             TraceEvent::NodeShared { node, .. } => (*node, None, "partage".to_string()),
             _ => panic!("unexpected event"),
         })
@@ -234,7 +234,7 @@ fn test_events_trace_narration() {
 fn test_events_reduction_applied() {
     let (mut arena, trace) = arena_with_trace();
     let anchor = Anchor(0);
-    let defaut = arena.terminal(anchor, false); // D_δ = NodeId(0)
+    let default = arena.terminal(anchor, false); // D_δ = NodeId(0)
     let other = arena.terminal(anchor, true);
     let level = Level(3);
     // R-collapse: all arcs lead to D_δ and δ is explicit ⇒ Collapse(D_δ).
@@ -242,19 +242,19 @@ fn test_events_reduction_applied() {
         anchor,
         Form::Node {
             level,
-            arcs: ArcRun::from_pairs([(0, defaut), (1, defaut)]),
+            arcs: ArcRun::from_pairs([(0, default), (1, default)]),
         },
     );
-    assert_eq!(target, defaut);
+    assert_eq!(target, default);
     // R-default: the δ(ℓ) arc leads to D_δ, it is removed, the form is kept.
     let node = arena.intern(
         anchor,
         Form::Node {
             level,
-            arcs: ArcRun::from_pairs([(0, defaut), (1, other)]),
+            arcs: ArcRun::from_pairs([(0, default), (1, other)]),
         },
     );
-    assert_ne!(node, defaut);
+    assert_ne!(node, default);
     let events = trace.events.lock().unwrap();
     assert!(
         events.contains(&TraceEvent::ReductionApplied {
@@ -275,7 +275,7 @@ fn test_events_reduction_applied() {
 }
 
 #[test]
-fn test_noop_observer_par_defaut() {
+fn test_noop_observer_per_default() {
     let mut arena: Arena<MockController> =
         Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver));
     let node = arena.terminal(Anchor(0), true);

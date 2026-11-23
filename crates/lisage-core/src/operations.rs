@@ -6,8 +6,8 @@
 //! the presence level" — here the inherited channel carries it down to the
 //! terminal).
 //!
-//! - [`Existe`]: fold over `(Bool, ∨, ∧)` (spec § 5), `S = BoolOu`.
-//! - [`Filtre`]: restriction, `S` trivial, the output diagram is the
+//! - [`Exists`]: fold over `(Bool, ∨, ∧)` (spec § 5), `S = BoolOr`.
+//! - [`Filter`]: restriction, `S` trivial, the output diagram is the
 //!   filtered set (rejected members lead to `ε(false)`).
 //! - [`Image`]: relabeling of the atoms of a set (schema `Atom`), `S`
 //!   trivial, the arcs of level 0 are replaced by their image.
@@ -23,64 +23,64 @@ use std::collections::{BTreeMap, BTreeSet};
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::error::CoreError;
-use crate::pli::{BoolOu, SemiAnneau};
-use crate::schema::{PAS_LEVEL_MAP, PRESENT, Schema};
-use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
+use crate::fold::{BoolOr, Semiring};
+use crate::schema::{PRESENT, STEP_LEVEL_MAP, Schema};
+use crate::transduction::{PhiOutContext, Transducer, Transduction};
 
 /// Base of the fingerprint namespace of the guard/image family.
-const FINGERPRINT_BASE_GARDE: u64 = 5000;
+const FINGERPRINT_BASE_GUARD: u64 = 5000;
 
 /// Set of keys present on the path of a map under construction.
-pub type KeyPresentes = BTreeSet<u64>;
+pub type PresenceKeys = BTreeSet<u64>;
 
 /// Presence predicate on a map (example: `p(m) = present(a)`).
-pub type PredicatMap = Box<dyn Fn(&KeyPresentes) -> bool + Send + Sync>;
+pub type PredicateMap = Box<dyn Fn(&PresenceKeys) -> bool + Send + Sync>;
 
 /// Transduction `exists(p)` on a set of maps (schema `Map`): fold over
 /// `(Bool, ∨, ∧)`, the verdict is resolved at the terminal on the complete
 /// path (spec § 5).
-pub struct Existe {
+pub struct Exists {
     list_keys: Vec<u64>,
-    predicat: PredicatMap,
+    predicate: PredicateMap,
 }
 
-impl Existe {
+impl Exists {
     /// `exists(p)` for the given `Map(list_keys, _)` schema; typed error if
     /// the schema is not a map.
-    pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
+    pub fn new(schema: &Schema, predicate: PredicateMap) -> Result<Self, CoreError> {
         let Schema::Map(list_keys, _) = schema else {
             return Err(CoreError::SchemaInexpected {
                 expected: "Map",
-                recu: form_schema(schema),
+                received: form_schema(schema),
             });
         };
-        Ok(Existe {
-            list_keys: list_keys.iter().map(|atome| atome.0).collect(),
-            predicat,
+        Ok(Exists {
+            list_keys: list_keys.iter().map(|atom| atom.0).collect(),
+            predicate,
         })
     }
 }
 
 /// Transduction `filter(p)` (guard) on a set of maps: restriction, rejected
 /// members lead to `ε(false)` (spec § 4, `f_filter` = preimage of `p`).
-pub struct Filtre {
+pub struct Filter {
     list_keys: Vec<u64>,
-    predicat: PredicatMap,
+    predicate: PredicateMap,
 }
 
-impl Filtre {
+impl Filter {
     /// `filter(p)` for the given `Map(list_keys, _)` schema; typed error if
     /// the schema is not a map.
-    pub fn new(schema: &Schema, predicat: PredicatMap) -> Result<Self, CoreError> {
+    pub fn new(schema: &Schema, predicate: PredicateMap) -> Result<Self, CoreError> {
         let Schema::Map(list_keys, _) = schema else {
             return Err(CoreError::SchemaInexpected {
                 expected: "Map",
-                recu: form_schema(schema),
+                received: form_schema(schema),
             });
         };
-        Ok(Filtre {
-            list_keys: list_keys.iter().map(|atome| atome.0).collect(),
-            predicat,
+        Ok(Filter {
+            list_keys: list_keys.iter().map(|atom| atom.0).collect(),
+            predicate,
         })
     }
 }
@@ -97,24 +97,24 @@ fn form_schema(schema: &Schema) -> &'static str {
 }
 
 /// Checks that all levels of the diagram are in the schema (otherwise
-/// `disperser_path` would index out of bounds): typed `CoreError`.
-fn valider_levels<P: Pool<Key = u64, Payload = bool>>(
+/// `disperse_path` would index out of bounds): typed `CoreError`.
+fn validate_levels<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     schema: &Schema,
     node: NodeId,
-    visite: &mut BTreeSet<NodeId>,
+    visit: &mut BTreeSet<NodeId>,
 ) -> Result<(), CoreError> {
-    if !visite.insert(node) {
+    if !visit.insert(node) {
         return Ok(());
     }
     match pool.resolve(node)? {
         Form::Terminal(_) => Ok(()),
         Form::Node { level, arcs } => {
             if level.0 >= schema.number_levels() {
-                return Err(CoreError::LevelHorsSchema(level));
+                return Err(CoreError::LevelOutsideSchema(level));
             }
             for target in arcs.values() {
-                valider_levels(pool, schema, *target, visite)?;
+                validate_levels(pool, schema, *target, visit)?;
             }
             Ok(())
         }
@@ -125,24 +125,24 @@ fn valider_levels<P: Pool<Key = u64, Payload = bool>>(
 /// arc of level 0 is replaced by its image under `f` (spec § 4: "map,
 /// filter, relabelings").
 pub struct Image {
-    fonction: Box<dyn Fn(u64) -> u64 + Send + Sync>,
+    function: Box<dyn Fn(u64) -> u64 + Send + Sync>,
 }
 
 impl Image {
     /// Image under `f` of the atoms of a set (schema `Atom`).
-    pub fn new(fonction: Box<dyn Fn(u64) -> u64 + Send + Sync>) -> Self {
-        Image { fonction }
+    pub fn new(function: Box<dyn Fn(u64) -> u64 + Send + Sync>) -> Self {
+        Image { function }
     }
 }
 
 /// Common descendant: updates the set of present keys along arc `v` of
 /// level `ℓ` (a presence level with the `present` arc adds the key; a value
 /// level changes nothing).
-fn disperser_path(list_keys: &[u64], level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
+fn disperse_path(list_keys: &[u64], level: Level, h: &PresenceKeys, arc: u64) -> PresenceKeys {
     let mut h = h.clone();
-    if level.0.is_multiple_of(PAS_LEVEL_MAP) && arc == PRESENT {
-        let index = (level.0 / PAS_LEVEL_MAP) as usize;
-        // Guaranteed by `valider_levels` before the transduction.
+    if level.0.is_multiple_of(STEP_LEVEL_MAP) && arc == PRESENT {
+        let index = (level.0 / STEP_LEVEL_MAP) as usize;
+        // Guaranteed by `validate_levels` before the transduction.
         if let Some(&key) = list_keys.get(index) {
             h.insert(key);
         }
@@ -150,41 +150,41 @@ fn disperser_path(list_keys: &[u64], level: Level, h: &KeyPresentes, arc: u64) -
     h
 }
 
-impl Transduction for Existe {
-    type H = KeyPresentes;
-    type S = BoolOu;
+impl Transduction for Exists {
+    type H = PresenceKeys;
+    type S = BoolOr;
     type Out = bool;
     type M = ();
 
     fn fingerprint(&self) -> u64 {
-        FINGERPRINT_BASE_GARDE + 1
+        FINGERPRINT_BASE_GUARD + 1
     }
 
-    fn h0(&self) -> KeyPresentes {
-        KeyPresentes::new()
+    fn h0(&self) -> PresenceKeys {
+        PresenceKeys::new()
     }
 
-    fn phi_disp(&self, level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
-        disperser_path(&self.list_keys, level, h, arc)
+    fn phi_disp(&self, level: Level, h: &PresenceKeys, arc: u64) -> PresenceKeys {
+        disperse_path(&self.list_keys, level, h, arc)
     }
 
     fn phi_aggr(
         &self,
         _level: Level,
-        _h: &KeyPresentes,
-        arcs: &BTreeMap<u64, (Option<Level>, BoolOu)>,
-    ) -> BoolOu {
+        _h: &PresenceKeys,
+        arcs: &BTreeMap<u64, (Option<Level>, BoolOr)>,
+    ) -> BoolOr {
         // (Bool, ∨, ∧): the A4 multiplier is ⊤ (|Val| ≥ 1), the fold is the
         // ∨ of the subtotals; the implicit default arc leads to
         // D_δ = ε(false), of weight false.
-        arcs.values().fold(BoolOu(false), |acc, (_, s)| acc.plus(s))
+        arcs.values().fold(BoolOr(false), |acc, (_, s)| acc.plus(s))
     }
 
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memory::EffectMemory<Self::M>) {
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(
@@ -194,7 +194,7 @@ impl Transduction for Existe {
                     arcs,
                 },
             ),
-            crate::memory::EffetMemory::new(),
+            crate::memory::EffectMemory::new(),
         )
     }
 
@@ -203,38 +203,38 @@ impl Transduction for Existe {
         pool: &mut P,
         anchor: Anchor,
         payload: bool,
-        h: &KeyPresentes,
-    ) -> (NodeId, BoolOu) {
-        let verdict = payload && (self.predicat)(h);
+        h: &PresenceKeys,
+    ) -> (NodeId, BoolOr) {
+        let verdict = payload && (self.predicate)(h);
         (
             pool.intern(anchor, Form::Terminal(payload)),
-            BoolOu(verdict),
+            BoolOr(verdict),
         )
     }
 }
 
-impl Transduction for Filtre {
-    type H = KeyPresentes;
+impl Transduction for Filter {
+    type H = PresenceKeys;
     type S = ();
     type Out = bool;
     type M = ();
 
     fn fingerprint(&self) -> u64 {
-        FINGERPRINT_BASE_GARDE + 2
+        FINGERPRINT_BASE_GUARD + 2
     }
 
-    fn h0(&self) -> KeyPresentes {
-        KeyPresentes::new()
+    fn h0(&self) -> PresenceKeys {
+        PresenceKeys::new()
     }
 
-    fn phi_disp(&self, level: Level, h: &KeyPresentes, arc: u64) -> KeyPresentes {
-        disperser_path(&self.list_keys, level, h, arc)
+    fn phi_disp(&self, level: Level, h: &PresenceKeys, arc: u64) -> PresenceKeys {
+        disperse_path(&self.list_keys, level, h, arc)
     }
 
     fn phi_aggr(
         &self,
         _level: Level,
-        _h: &KeyPresentes,
+        _h: &PresenceKeys,
         _arcs: &BTreeMap<u64, (Option<Level>, ())>,
     ) {
     }
@@ -242,19 +242,19 @@ impl Transduction for Filtre {
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memory::EffectMemory<Self::M>) {
         // (A2): if all children lead to ε(false), the node is ε(false)
         // (nodes produced by the runner are always resolvable).
-        let tout_rejete = !ctx.arcs.is_empty()
+        let all_rejected = !ctx.arcs.is_empty()
             && ctx
                 .arcs
                 .values()
                 .all(|(n, _)| matches!(pool.resolve(*n), Ok(Form::Terminal(false))));
-        if tout_rejete {
+        if all_rejected {
             return (
                 pool.intern(ctx.anchor, Form::Terminal(false)),
-                crate::memory::EffetMemory::new(),
+                crate::memory::EffectMemory::new(),
             );
         }
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
@@ -266,7 +266,7 @@ impl Transduction for Filtre {
                     arcs,
                 },
             ),
-            crate::memory::EffetMemory::new(),
+            crate::memory::EffectMemory::new(),
         )
     }
 
@@ -275,10 +275,10 @@ impl Transduction for Filtre {
         pool: &mut P,
         anchor: Anchor,
         payload: bool,
-        h: &KeyPresentes,
+        h: &PresenceKeys,
     ) -> (NodeId, ()) {
         // Guard: the member is rejected (ε(false)) if the predicate fails.
-        let guard = payload && (self.predicat)(h);
+        let guard = payload && (self.predicate)(h);
         (pool.intern(anchor, Form::Terminal(guard)), ())
     }
 }
@@ -290,7 +290,7 @@ impl Transduction for Image {
     type M = ();
 
     fn fingerprint(&self) -> u64 {
-        FINGERPRINT_BASE_GARDE + 3
+        FINGERPRINT_BASE_GUARD + 3
     }
 
     fn h0(&self) {}
@@ -304,13 +304,13 @@ impl Transduction for Image {
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memory::EffectMemory<Self::M>) {
         // Relabeling: arc v becomes f(v).
         let arcs = ctx
             .arcs
             .into_iter()
-            .map(|(v, (n, _))| ((self.fonction)(v), n))
+            .map(|(v, (n, _))| ((self.function)(v), n))
             .collect();
         (
             pool.intern(
@@ -320,7 +320,7 @@ impl Transduction for Image {
                     arcs,
                 },
             ),
-            crate::memory::EffetMemory::new(),
+            crate::memory::EffectMemory::new(),
         )
     }
 
@@ -336,44 +336,44 @@ impl Transduction for Image {
 }
 
 /// `exists(p)` on the set of maps denoted by `node` (schema `Map`).
-pub fn existe<PIn, POut>(
+pub fn exists<PIn, POut>(
     pool_input: &PIn,
     pool_output: &mut POut,
     anchor: Anchor,
     schema: &Schema,
     node: NodeId,
-    predicat: PredicatMap,
+    predicate: PredicateMap,
 ) -> Result<bool, CoreError>
 where
     PIn: Pool<Key = u64, Payload = bool>,
     POut: Pool<Key = u64, Payload = bool>,
 {
-    let transduction = Existe::new(schema, predicat)?;
-    let mut visite = BTreeSet::new();
-    valider_levels(pool_input, schema, node, &mut visite)?;
-    let mut runner = Transducteur::new(transduction);
+    let transduction = Exists::new(schema, predicate)?;
+    let mut visit = BTreeSet::new();
+    validate_levels(pool_input, schema, node, &mut visit)?;
+    let mut runner = Transducer::new(transduction);
     let (_, verdict) = runner.run(pool_input, pool_output, anchor, node)?;
     Ok(verdict.0)
 }
 
 /// `filter(p)` on the set of maps denoted by `node`: returns the diagram
 /// of the filtered set (canonical, A3).
-pub fn filtrer<PIn, POut>(
+pub fn filter<PIn, POut>(
     pool_input: &PIn,
     pool_output: &mut POut,
     anchor: Anchor,
     schema: &Schema,
     node: NodeId,
-    predicat: PredicatMap,
+    predicate: PredicateMap,
 ) -> Result<NodeId, CoreError>
 where
     PIn: Pool<Key = u64, Payload = bool>,
     POut: Pool<Key = u64, Payload = bool>,
 {
-    let transduction = Filtre::new(schema, predicat)?;
-    let mut visite = BTreeSet::new();
-    valider_levels(pool_input, schema, node, &mut visite)?;
-    let mut runner = Transducteur::new(transduction);
+    let transduction = Filter::new(schema, predicate)?;
+    let mut visit = BTreeSet::new();
+    validate_levels(pool_input, schema, node, &mut visit)?;
+    let mut runner = Transducer::new(transduction);
     let (result, _) = runner.run(pool_input, pool_output, anchor, node)?;
     Ok(result)
 }
@@ -384,13 +384,13 @@ pub fn image<PIn, POut>(
     pool_output: &mut POut,
     anchor: Anchor,
     node: NodeId,
-    fonction: Box<dyn Fn(u64) -> u64 + Send + Sync>,
+    function: Box<dyn Fn(u64) -> u64 + Send + Sync>,
 ) -> Result<NodeId, CoreError>
 where
     PIn: Pool<Key = u64, Payload = bool>,
     POut: Pool<Key = u64, Payload = bool>,
 {
-    let mut runner = Transducteur::new(Image::new(fonction));
+    let mut runner = Transducer::new(Image::new(function));
     let (result, _) = runner.run(pool_input, pool_output, anchor, node)?;
     Ok(result)
 }

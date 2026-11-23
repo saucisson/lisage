@@ -11,7 +11,7 @@
 
 use lisage_core::arena::Arena;
 use lisage_core::observer::{Observer, TraceEvent};
-use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
+use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::{Anchor, Level, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
@@ -40,7 +40,7 @@ pub struct MemoEntry {
 pub struct MemoTable {
     /// Entries in insertion order.
     pub entries: Vec<MemoEntry>,
-    /// Current memory version (last `EcritureMemoire`).
+    /// Current memory version (last `MemoryWrite`).
     pub version: u64,
 }
 
@@ -54,16 +54,16 @@ impl MemoTable {
                     fingerprint,
                     node,
                     version,
-                    resultat,
+                    result,
                     ..
                 } => table.entries.push(MemoEntry {
                     fingerprint: *fingerprint,
                     node: *node,
                     version: *version,
-                    result: *resultat,
+                    result: *result,
                 }),
-                TraceEvent::EcritureMemoire { version_apres, .. } => {
-                    table.version = *version_apres;
+                TraceEvent::MemoryWrite { version_after, .. } => {
+                    table.version = *version_after;
                 }
                 _ => {}
             }
@@ -135,7 +135,7 @@ impl Inspector {
         let mut misses = 0i64;
         for event in prefix {
             match event {
-                TraceEvent::Round { numero, .. } => rounds = rounds.max(*numero as i64),
+                TraceEvent::Round { number, .. } => rounds = rounds.max(*number as i64),
                 TraceEvent::MemoHit { .. } => hits += 1,
                 TraceEvent::MemoMiss { .. } => misses += 1,
                 _ => {}
@@ -161,9 +161,9 @@ impl Inspector {
             TraceEvent::NodeCreated {
                 node: n,
                 level,
-                forme,
+                form,
                 ..
-            } if *n == node => Some((i, *level, forme.rendre())),
+            } if *n == node => Some((i, *level, form.render())),
             _ => None,
         });
         let ranges = self.index.node_ranges(node);
@@ -173,8 +173,8 @@ impl Inspector {
             .collect::<Vec<_>>()
             .join(", ");
         match creation {
-            Some((i, level, forme)) => format!(
-                "node {node:?} @ pos {position}: created @ {i} level {} forme \"{forme}\" events {} ranges [{ranges_text}]",
+            Some((i, level, form)) => format!(
+                "node {node:?} @ pos {position}: created @ {i} level {} form \"{form}\" events {} ranges [{ranges_text}]",
                 level
                     .map(|l| l.0.to_string())
                     .unwrap_or_else(|| "null".to_string()),
@@ -220,14 +220,14 @@ impl Inspector {
         let mut version = 0u64;
         let mut writes: Vec<String> = Vec::new();
         for (i, event) in self.events[..position].iter().enumerate() {
-            if let TraceEvent::EcritureMemoire {
-                version_avant,
-                version_apres,
+            if let TraceEvent::MemoryWrite {
+                version_before,
+                version_after,
                 ..
             } = event
             {
-                writes.push(format!("{}->{} @ {i}", version_avant, version_apres));
-                version = *version_apres;
+                writes.push(format!("{}->{} @ {i}", version_before, version_after));
+                version = *version_after;
             }
         }
         format!(
@@ -263,8 +263,8 @@ impl Inspector {
                 TraceEvent::StructureChange {
                     node,
                     classification,
-                    arcs_avant,
-                    arcs_apres,
+                    arcs_before,
+                    arcs_after,
                     ..
                 } => {
                     let render_arcs = |arcs: &[(u64, NodeId)]| -> String {
@@ -274,11 +274,11 @@ impl Inspector {
                             .join(", ")
                     };
                     format!(
-                        "diff @ pos {at}/{}: node {node:?} {:?}\n  avant: [{}]\n  apres: [{}]",
+                        "diff @ pos {at}/{}: node {node:?} {:?}\n  before: [{}]\n  after: [{}]",
                         self.events.len(),
                         classification,
-                        render_arcs(arcs_avant),
-                        render_arcs(arcs_apres)
+                        render_arcs(arcs_before),
+                        render_arcs(arcs_after)
                     )
                 }
                 _ => unreachable!("target is a StructureChange"),
@@ -370,9 +370,9 @@ pub fn render_current_svg<P: Pool<Key = u64, Payload = bool>>(
     position: usize,
 ) -> String {
     let mut scrubber = Scrubber::new(events.to_vec());
-    scrubber.aller_a(position);
-    let diff = scrubber.diff_vers(events.len());
-    crate::step_by_step::rendre_svg_step_by_step(pool, root, &scrubber, &diff)
+    scrubber.round_a(position);
+    let diff = scrubber.diff_to(events.len());
+    crate::step_by_step::render_svg_step_by_step(pool, root, &scrubber, &diff)
 }
 
 /// Recursive-descent arithmetic evaluator over the [`Counters`].
@@ -556,11 +556,11 @@ pub fn standard_scenario_full(n: u64) -> (Vec<TraceEvent>, Arena<ReferenceContro
 
     let collector = Collector::default();
     let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
-    let policy = PolicySaturation::Statique(levels);
+    let policy = PolicySaturation::Static(levels);
     let step = ChainStep {
         number_levels: schema.number_levels(),
     };
-    let mut params = ParametresSaturation {
+    let mut params = SaturationParameters {
         transduction: &step,
         policy: &policy,
         pool: &mut pool,
@@ -570,7 +570,7 @@ pub fn standard_scenario_full(n: u64) -> (Vec<TraceEvent>, Arena<ReferenceContro
         number_levels: schema.number_levels(),
         observer: Some(std::sync::Arc::new(collector.clone())),
     };
-    let result = saturer(&mut params).expect("scenario saturation terminates");
+    let result = saturate(&mut params).expect("scenario saturation terminates");
     assert_eq!(
         result.iterations, n as u32,
         "the chain saturates in n rounds"

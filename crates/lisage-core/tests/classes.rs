@@ -32,8 +32,8 @@ impl KeyAlgebra for MockKeys {
         (*key < 2).then_some(*key)
     }
 
-    fn unrank(&self, _level: Level, rang: u64) -> Option<Self::Key> {
-        (rang < 2).then_some(rang)
+    fn unrank(&self, _level: Level, rank: u64) -> Option<Self::Key> {
+        (rank < 2).then_some(rank)
     }
 }
 
@@ -331,8 +331,8 @@ impl KeyAlgebra for MockKeysDefault {
         (*key < 3).then_some(*key)
     }
 
-    fn unrank(&self, _level: Level, rang: u64) -> Option<Self::Key> {
-        (rang < 3).then_some(rang)
+    fn unrank(&self, _level: Level, rank: u64) -> Option<Self::Key> {
+        (rank < 3).then_some(rank)
     }
 }
 
@@ -373,12 +373,12 @@ fn test_terminal_singleton_per_pool_across_anchors() {
     );
     let t_c = pool.terminal(Anchor(0), 43);
     assert_ne!(t_a, t_c, "distinct payloads: distinct terminals");
-    assert_eq!(pool.metriques().terminaux, 2, "one singleton per payload");
+    assert_eq!(pool.metrics().terminals, 2, "one singleton per payload");
     // Re-interning shares the singleton instead of creating a new one.
     let t_d = pool.terminal(Anchor(3), 42);
     assert_eq!(t_d, t_a);
-    assert_eq!(pool.metriques().terminaux, 2);
-    assert!(pool.metriques().partages >= 2, "hits counted as shares");
+    assert_eq!(pool.metrics().terminals, 2);
+    assert!(pool.metrics().shared >= 2, "hits counted as shares");
     // GC keeps live terminal singletons; re-interning still shares.
     let stats = pool.gc(&[t_a]);
     assert!(stats.live >= 1);
@@ -426,7 +426,7 @@ fn test_r_default_sees_pool_wide_default_terminal_across_anchors() {
     assert_eq!(n_a, n_a2, "same reduced form, same anchor: same NodeId");
     // Under another anchor the internal node gets its own handle
     // (canonicity by handle), but its arcs reference the SAME terminal
-    // singletons — est_defaut saw the pool-wide D_δ.
+    // singletons — is_default saw the pool-wide D_δ.
     let n_b = pool.intern(Anchor(9), form);
     assert_ne!(n_a, n_b, "internal nodes stay per-anchor handles");
     for node in [n_a, n_b] {
@@ -440,7 +440,7 @@ fn test_r_default_sees_pool_wide_default_terminal_across_anchors() {
         }
     }
     assert_eq!(
-        pool.metriques().terminaux,
+        pool.metrics().terminals,
         3,
         "D_δ interned once per pool, not once per anchor"
     );
@@ -490,13 +490,13 @@ fn test_large_payload_terminal_in_dedicated_class() {
     let (n_class, _n_index) = n.decode(pool.class_map().class_bits);
     assert_eq!(n_class, 2, "degree 2 → exact class 2 at b = 2");
     assert!(pool.resolve(n).is_ok());
-    assert_eq!(pool.metriques().terminaux, 2);
+    assert_eq!(pool.metrics().terminals, 2);
 }
 
 /// MEM-17: the slack (tombstone slots) is traced per class, and the GC
 /// emits the degree histogram on the observer.
 #[test]
-fn test_slack_trace_et_histogramme_sur_observer() {
+fn test_slack_trace_and_histogramme_on_observer() {
     use lisage_core::observer::{ClassHistogram, Observer, TraceEvent};
     use std::sync::{Arc, Mutex};
 

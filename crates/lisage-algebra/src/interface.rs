@@ -686,7 +686,7 @@ pub trait Controller: Send + Sync {
     /// no relative forms (M1, absolute encoding).
     fn cycle_group(
         &self,
-    ) -> Option<&dyn crate::relatif::CycleGroup<Key = Self::Key, Argument = i64>> {
+    ) -> Option<&dyn crate::relative::CycleGroup<Key = Self::Key, Argument = i64>> {
         None
     }
 }

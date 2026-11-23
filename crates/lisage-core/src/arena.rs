@@ -16,7 +16,7 @@ use lisage_algebra::reduction::{
 };
 use std::collections::{BTreeMap, HashMap};
 
-use crate::biplan::{IndexLevels, MetriquesPool, Plan, StatsGc, threshold_atteint};
+use crate::biplan::{IndexLevels, MetricsPool, Plan, StatsGc, threshold_reached};
 use crate::classes::{ClassArenaDyn, ClassMap, ClassMetrics, mark_of, new_arena, set_mark};
 
 /// Per-class arenas behind the object-safe trait (MEM-16): exact classes
@@ -25,9 +25,9 @@ use crate::classes::{ClassArenaDyn, ClassMap, ClassMetrics, mark_of, new_arena, 
 type Arenas<C> =
     Vec<Option<Box<dyn ClassArenaDyn<<C as Controller>::Keys, <C as Controller>::Payload>>>>;
 use crate::observer::{
-    ClassHistogram, Observer, ReductionRule, TraceEvent, TraceVal, contextualiser,
+    ClassHistogram, Observer, ReductionRule, TraceEvent, TraceVal, contextualize,
 };
-use crate::unique::{TableUnique, hash_cle};
+use crate::unique::{TableUnique, hash_key};
 
 /// Arena: canonical, content-addressed storage of forms. Holds the
 /// controller instance: its key algebra (parameterized by the schema, M1-3)
@@ -55,12 +55,12 @@ pub struct Arena<C: Controller> {
     /// Intern calls per level (P0-1, issue #136): `interns_per_level[ℓ]`
     /// counts the node-form intern calls at level ℓ (hit or miss).
     interns_per_level: Vec<u64>,
-    metriques: MetriquesPool,
+    metrics: MetricsPool,
     /// Remapping table of the last compaction, keyed by the old raw
     /// `NodeId` (empty otherwise).
     remap: BTreeMap<u32, Option<NodeId>>,
     observer: Box<dyn Observer>,
-    controleur: C,
+    controller: C,
     /// Layout toggle (MEM-19): `true` = inline exact-class entries
     /// (MEM-16, stride `8·d + header`); `false` = every node in the
     /// catch-all class with the boxed `NodeEntry` (pre-MEM-16 layout).
@@ -75,8 +75,8 @@ where
 {
     /// New arena with the given controller and trace observer. The class
     /// map is derived from the controller's key algebra and frozen here.
-    pub fn new(controleur: C, observer: Box<dyn Observer>) -> Self {
-        let class_map = ClassMap::new(controleur.keys(), controleur.keys().sweep_levels());
+    pub fn new(controller: C, observer: Box<dyn Observer>) -> Self {
+        let class_map = ClassMap::new(controller.keys(), controller.keys().sweep_levels());
         let arenas = (0..class_map.number_classes()).map(|_| None).collect();
         Arena {
             class_map,
@@ -85,18 +85,18 @@ where
             unique_terminals: HashMap::new(),
             index_levels: IndexLevels::new(),
             interns_per_level: Vec::new(),
-            metriques: MetriquesPool::default(),
+            metrics: MetricsPool::default(),
             remap: BTreeMap::new(),
             observer,
-            controleur,
+            controller,
             layout_inline: true,
         }
     }
 
     /// Layout toggle (MEM-19): enable/disable the inline exact-class
     /// entries. Must be set before any interning.
-    pub fn set_layout_inline(&mut self, actif: bool) {
-        self.layout_inline = actif;
+    pub fn set_layout_inline(&mut self, active: bool) {
+        self.layout_inline = active;
     }
 
     /// Current layout: inline exact-class entries on?
@@ -145,14 +145,14 @@ where
     /// True when every arc key of the form narrows to its 32-bit storage
     /// form at this level (MEM-16): the node can live in an exact class.
     fn narrowable(&self, level: Level, arcs: &ArcRun<C::Key>) -> bool {
-        let keys = self.controleur.keys();
+        let keys = self.controller.keys();
         arcs.iter()
             .all(|(key, _)| keys.narrow(level, key).is_some())
     }
 
     /// Controller owning this arena.
-    pub fn controleur(&self) -> &C {
-        &self.controleur
+    pub fn controller(&self) -> &C {
+        &self.controller
     }
 
     /// Interning of a payload terminal (main plane).
@@ -182,7 +182,7 @@ where
     }
 
     /// Plane of a live node.
-    pub fn plan_de(&self, node: NodeId) -> Option<Plan> {
+    pub fn plan_of(&self, node: NodeId) -> Option<Plan> {
         let (class, index) = self.decode(node);
         self.arena(class).and_then(|arena| arena.plan_of(index))
     }
@@ -197,8 +197,8 @@ where
     }
 
     /// Pool metrics (cache + GC).
-    pub fn metriques(&self) -> MetriquesPool {
-        self.metriques
+    pub fn metrics(&self) -> MetricsPool {
+        self.metrics
     }
 
     /// Intern calls per level (P0-1, issue #136): index ℓ = level ℓ,
@@ -297,13 +297,13 @@ where
         let total = self.node_count() as u64;
         // D1-2: the collected nodes are listed (live but unmarked slots),
         // before the sweep tombstones them.
-        let mut liste_collectes: Vec<NodeId> = Vec::new();
+        let mut collected_list: Vec<NodeId> = Vec::new();
         for class in 0..self.class_map.number_classes() {
             if let Some(arena) = self.arenas.get(class as usize).and_then(|a| a.as_ref()) {
                 let words = marks[class as usize].as_ref().expect("marks allocated");
                 for index in 0..arena.slot_count() as u32 {
                     if arena.is_live(index) && !mark_of(words, index) {
-                        liste_collectes.push(NodeId::encode(class, index, class_bits));
+                        collected_list.push(NodeId::encode(class, index, class_bits));
                     }
                 }
             }
@@ -333,7 +333,7 @@ where
         // slot count, which includes tombstones from a previous GC without
         // compaction).
         let live = self.live() as u64;
-        let compaction = threshold_atteint(collected, total);
+        let compaction = threshold_reached(collected, total);
         if compaction {
             self.remap = self.compacter();
         } else {
@@ -347,11 +347,11 @@ where
                 }
             }
         }
-        self.metriques.gc += 1;
-        self.metriques.live = live;
-        self.metriques.dead += collected;
+        self.metrics.gc += 1;
+        self.metrics.live = live;
+        self.metrics.dead += collected;
         if compaction {
-            self.metriques.compactions += 1;
+            self.metrics.compactions += 1;
         }
         let stats = StatsGc {
             live,
@@ -359,16 +359,16 @@ where
             compaction,
             mark_bytes,
         };
-        self.observer.on_event(&contextualiser(TraceEvent::Gc {
+        self.observer.on_event(&contextualize(TraceEvent::Gc {
             live,
             collected,
             compaction,
-            liste_collectes,
+            collected_list,
             span: None,
         }));
         // MEM-17: the degree histogram per class rides the GC event.
         self.observer
-            .on_event(&contextualiser(TraceEvent::Histogram {
+            .on_event(&contextualize(TraceEvent::Histogram {
                 classes: self.histogram(),
                 span: None,
             }));
@@ -419,7 +419,7 @@ where
         match form {
             Form::Terminal(payload) => Form::Terminal(payload),
             Form::Node { level, arcs } => {
-                let keys = self.controleur.keys();
+                let keys = self.controller.keys();
                 // Canonical already: sorted family, strictly increasing
                 // keys (what `from_pairs` would produce), and every key in
                 // normal form — otherwise the rebuild below canonicalizes.
@@ -457,34 +457,34 @@ where
     ) -> Result<Form<C::Key, C::Payload>, NodeId> {
         // Didactic workshop (backlog § 9): the controller can toggle
         // R-default and R-collapse one at a time.
-        let default_active = self.controleur.default_active();
-        let key_defaut = if default_active {
-            self.controleur.keys().default(level)
+        let default_active = self.controller.default_active();
+        let key_default = if default_active {
+            self.controller.keys().default(level)
         } else {
             None
         };
-        let cardinality = self.controleur.keys().cardinality(level);
-        let payload_defaut = if default_active {
-            self.controleur.default_payload(level)
+        let cardinality = self.controller.keys().cardinality(level);
+        let payload_default = if default_active {
+            self.controller.default_payload(level)
         } else {
             None
         };
-        let est_defaut = |node: NodeId| -> bool {
+        let is_default = |node: NodeId| -> bool {
             default_active
-                && matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_defaut.as_ref() == Some(&payload))
+                && matches!(self.resolve(node), Ok(Form::Terminal(payload)) if payload_default.as_ref() == Some(&payload))
         };
         // M4-3: generalized default (D-abs/D-trans) if the controller enables it.
-        let reduced = if !self.controleur.collapse_active() {
-            reduce_without_collapse(arcs, key_defaut, &est_defaut)
-        } else if self.controleur.generalized_absorption() {
+        let reduced = if !self.controller.collapse_active() {
+            reduce_without_collapse(arcs, key_default, &is_default)
+        } else if self.controller.generalized_absorption() {
             // NodeId of D^default under this anchor, if already interned (used
             // for D-trans on empty form A = ∅).
-            let defaut = payload_defaut
+            let default = payload_default
                 .as_ref()
                 .and_then(|p| self.unique_terminals.get(p).copied());
-            crate_reduction_dabs(arcs, key_defaut, &est_defaut, cardinality, defaut)
+            crate_reduction_dabs(arcs, key_default, &is_default, cardinality, default)
         } else {
-            reduce(arcs, key_defaut, &est_defaut, cardinality)
+            reduce(arcs, key_default, &is_default, cardinality)
         };
         match reduced {
             Reduction::Collapse(target) => Err(target),
@@ -512,16 +512,16 @@ where
         // payload only — the anchor does not enter their canonicity.
         if let Form::Terminal(payload) = &form {
             if let Some(node) = self.unique_terminals.get(payload) {
-                self.metriques.partages += 1;
+                self.metrics.shared += 1;
                 self.observer
-                    .on_event(&contextualiser(TraceEvent::NodeShared {
+                    .on_event(&contextualize(TraceEvent::NodeShared {
                         node: *node,
                         span: None,
                     }));
                 return *node;
             }
             let map = self.class_map;
-            let keys = self.controleur.keys();
+            let keys = self.controller.keys();
             let arena = self
                 .arenas
                 .get_mut(TERMINAL_CLASS as usize)
@@ -532,13 +532,13 @@ where
                 .expect("terminal form representable in the terminal class");
             let node = NodeId::encode(TERMINAL_CLASS, index, self.class_map.class_bits);
             self.unique_terminals.insert(payload.clone(), node);
-            self.metriques.terminaux += 1;
-            self.metriques.creations += 1;
+            self.metrics.terminals += 1;
+            self.metrics.creations += 1;
             self.observer
-                .on_event(&contextualiser(TraceEvent::NodeCreated {
+                .on_event(&contextualize(TraceEvent::NodeCreated {
                     node,
                     level: None,
-                    forme: TraceVal::fragment(form.clone()),
+                    form: TraceVal::fragment(form.clone()),
                     span: None,
                 }));
             return node;
@@ -560,11 +560,11 @@ where
         let mut exact_inline = false;
         let form = match form {
             Form::Node { level, arcs } => {
-                let size_avant = arcs.len();
+                let size_before = arcs.len();
                 match self.reduced(anchor, level, arcs) {
                     Err(target) => {
                         self.observer
-                            .on_event(&contextualiser(TraceEvent::ReductionApplied {
+                            .on_event(&contextualize(TraceEvent::ReductionApplied {
                                 rule: ReductionRule::Collapse,
                                 level,
                                 span: None,
@@ -572,9 +572,9 @@ where
                         return target;
                     }
                     Ok(Form::Node { arcs, .. }) => {
-                        if arcs.len() < size_avant {
+                        if arcs.len() < size_before {
                             self.observer
-                                .on_event(&contextualiser(TraceEvent::ReductionApplied {
+                                .on_event(&contextualize(TraceEvent::ReductionApplied {
                                     rule: ReductionRule::Default,
                                     level,
                                     span: None,
@@ -591,7 +591,7 @@ where
                         let arcs = if exact_inline {
                             arcs
                         } else {
-                            ArcRun::choose_dense_family(level, self.controleur.keys(), arcs)
+                            ArcRun::choose_dense_family(level, self.controller.keys(), arcs)
                         };
                         Form::Node { level, arcs }
                     }
@@ -604,17 +604,17 @@ where
         // (anchor, form), hashed in place — no form clone in the table.
         // MEM-16: equality is decided through the stored entry, widening
         // the narrowed keys of an exact class back to the full key.
-        let hash = hash_cle(anchor, &form);
-        let keys = self.controleur.keys();
-        let meme_forme = |node: NodeId| {
+        let hash = hash_key(anchor, &form);
+        let keys = self.controller.keys();
+        let same_form = |node: NodeId| {
             let (class, index) = self.decode(node);
             self.arena(class)
                 .is_some_and(|arena| arena.same_form(index, &form, keys))
         };
-        if let Some(node) = self.unique.get(hash, anchor, meme_forme) {
-            self.metriques.partages += 1;
+        if let Some(node) = self.unique.get(hash, anchor, same_form) {
+            self.metrics.shared += 1;
             self.observer
-                .on_event(&contextualiser(TraceEvent::NodeShared { node, span: None }));
+                .on_event(&contextualize(TraceEvent::NodeShared { node, span: None }));
             return node;
         }
         // MEM-9: the node is routed to the arena of its class (degree),
@@ -640,7 +640,7 @@ where
             .expect("class within the frozen map")
             .get_or_insert_with(|| new_arena(class, &map));
         // D1-3: lazy form — no format! on the intern hot path.
-        let forme_val = TraceVal::fragment(form.clone());
+        let form_val = TraceVal::fragment(form.clone());
         let index = arena
             .push_form(Plan::Principal, form, keys)
             .expect("form representable in its class");
@@ -649,12 +649,12 @@ where
             self.index_levels.entry(level).or_default().push(node);
         }
         self.unique.insert(hash, anchor, node);
-        self.metriques.creations += 1;
+        self.metrics.creations += 1;
         self.observer
-            .on_event(&contextualiser(TraceEvent::NodeCreated {
+            .on_event(&contextualize(TraceEvent::NodeCreated {
                 node,
                 level,
-                forme: forme_val,
+                form: form_val,
                 span: None,
             }));
         node
@@ -666,7 +666,7 @@ where
         // with the keys widened back from their narrowed storage form.
         let (class, index) = self.decode(node);
         self.arena(class)
-            .and_then(|arena| arena.to_form(index, self.controleur.keys()))
+            .and_then(|arena| arena.to_form(index, self.controller.keys()))
             .ok_or(PoolError::UnknownNode(node))
     }
 

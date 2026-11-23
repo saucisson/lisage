@@ -6,12 +6,12 @@
 use std::sync::{Arc, Mutex};
 
 use lisage_core::MemoryPolicy;
+use lisage_core::fold::{Fold, Natural};
 use lisage_core::observer::{Observer, TraceEvent};
-use lisage_core::pli::{Naturel, Pli};
-use lisage_core::transduction::Transducteur;
+use lisage_core::transduction::Transducer;
 use lisage_core::{Anchor, NodeId};
 use lisage_liseuse::index::IndexTrace;
-use lisage_liseuse::philosophers::{build_r_n, pool_neuf, schema_anneau};
+use lisage_liseuse::philosophers::{build_r_n, fresh_pool, schema_ring};
 
 /// Observer that collects the typed events in memory.
 #[derive(Clone, Default)]
@@ -32,14 +32,14 @@ impl Observer for Collector {
 /// trace (hundreds of nodes, one op).
 fn philosophers_trace() -> Vec<TraceEvent> {
     let n = 5;
-    let schema = schema_anneau(n);
-    let mut input = pool_neuf(&schema);
-    let mut output = pool_neuf(&schema);
+    let schema = schema_ring(n);
+    let mut input = fresh_pool(&schema);
+    let mut output = fresh_pool(&schema);
     let anchor = Anchor(0);
     let root = build_r_n(&mut input, anchor, n);
     let collector = Collector::default();
-    let mut runner = Transducteur::with_observer(
-        Pli::<Naturel>::new(schema),
+    let mut runner = Transducer::with_observer(
+        Fold::<Natural>::new(schema),
         MemoryPolicy::NoMemory,
         Arc::new(collector.clone()),
     );
@@ -68,8 +68,8 @@ fn test_explain_n42_on_philosophers_trace() {
             | TraceEvent::Attr { node, .. }
             | TraceEvent::MemoHit { node, .. }
             | TraceEvent::MemoMiss { node, .. }
-            | TraceEvent::VisiteEntree { node, .. }
-            | TraceEvent::VisiteSortie { node, .. }
+            | TraceEvent::VisitEntry { node, .. }
+            | TraceEvent::VisitExit { node, .. }
             | TraceEvent::StructureChange { node, .. } => Some(*node),
             _ => None,
         })
@@ -100,8 +100,8 @@ fn test_explain_n42_on_philosophers_trace() {
             | TraceEvent::Attr { node, .. }
             | TraceEvent::MemoHit { node, .. }
             | TraceEvent::MemoMiss { node, .. }
-            | TraceEvent::VisiteEntree { node, .. }
-            | TraceEvent::VisiteSortie { node, .. }
+            | TraceEvent::VisitEntry { node, .. }
+            | TraceEvent::VisitExit { node, .. }
             | TraceEvent::StructureChange { node, .. } => *node == target,
             _ => false,
         };
@@ -116,8 +116,8 @@ fn test_explain_n42_on_philosophers_trace() {
             | TraceEvent::Attr { node, .. }
             | TraceEvent::MemoHit { node, .. }
             | TraceEvent::MemoMiss { node, .. }
-            | TraceEvent::VisiteEntree { node, .. }
-            | TraceEvent::VisiteSortie { node, .. }
+            | TraceEvent::VisitEntry { node, .. }
+            | TraceEvent::VisitExit { node, .. }
             | TraceEvent::StructureChange { node, .. } => *node == target,
             _ => false,
         })
@@ -144,29 +144,29 @@ fn test_index_rounds_and_ops() {
             span: None,
         },
         TraceEvent::Round {
-            numero: 1,
-            niveaux_actifs: vec![],
-            niveaux_modifies: vec![],
-            avant: NodeId(0),
+            number: 1,
+            active_levels: vec![],
+            modified_levels: vec![],
+            before: NodeId(0),
             image: NodeId(1),
-            apres: NodeId(1),
-            croissance: 0,
+            after: NodeId(1),
+            growth: 0,
             span: None,
         },
         TraceEvent::NodeCreated {
             node: NodeId(1),
             level: None,
-            forme: lisage_core::observer::TraceVal::Elide,
+            form: lisage_core::observer::TraceVal::Elided,
             span: None,
         },
         TraceEvent::Round {
-            numero: 2,
-            niveaux_actifs: vec![],
-            niveaux_modifies: vec![],
-            avant: NodeId(1),
+            number: 2,
+            active_levels: vec![],
+            modified_levels: vec![],
+            before: NodeId(1),
             image: NodeId(2),
-            apres: NodeId(2),
-            croissance: 1,
+            after: NodeId(2),
+            growth: 1,
             span: None,
         },
         TraceEvent::OpEnd { span: None },

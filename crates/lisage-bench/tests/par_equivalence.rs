@@ -1,4 +1,4 @@
-//! P0-2 (issue #137): mono vs multi equivalence harness (PAR-1..PAR-4).
+//! P0-2 (issue #137): mono vs multi equivalence harness (PER-1..PER-4).
 //!
 //! Property under test: on the same inputs, the multi-thread executor and
 //! the mono-thread executor produce the same node counts and the same
@@ -6,7 +6,7 @@
 //! The harness is written red before any multi-thread implementation: the
 //! `MultiExecutor` leg is a placeholder that delegates to the mono path, so
 //! the harness is green on the current mono-thread (DoD) and becomes the
-//! falsifier for PAR-1..PAR-4 as soon as a real parallel executor (P1-1,
+//! falsifier for PER-1..PER-4 as soon as a real parallel executor (P1-1,
 //! P2-1, P4-1) replaces the placeholder — see the ignored marker test at the
 //! bottom of this file.
 //!
@@ -15,7 +15,7 @@
 //! multi-thread (`schemas.rs`, `schema.rs`, `cdd.rs`, `ddd.rs`,
 //! `liseuse_v0.rs`, `classes.rs`, `dense.rs` — same-pool comparisons, kept).
 //! Across pools, NodeIds are pool-local: `transductions.rs` already compares
-//! forms (`forms_egales`), and `handles.rs` compared bare NodeIds across two
+//! forms (`forms_equal`), and `handles.rs` compared bare NodeIds across two
 //! arenas — requalified in this change as a form comparison (the handle
 //! comparison next to it remains the spec-level C1 assertion).
 
@@ -24,11 +24,11 @@ use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
+use lisage_core::fold::{count, union};
 use lisage_core::observer::{NoOpObserver, Observer, TraceEvent};
-use lisage_core::pli::{count, union};
-use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
+use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
-use lisage_core::transduction::{ContextePhiOut, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transduction};
 use lisage_lang::value::{Atom, Value};
 use proptest::prelude::*;
 
@@ -87,10 +87,10 @@ impl Transduction for EmitSingleton {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         _pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         let _ = ctx;
-        (self.singleton, lisage_core::memory::EffetMemory::new())
+        (self.singleton, lisage_core::memory::EffectMemory::new())
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
         &self,
@@ -149,8 +149,8 @@ fn run_workload(workload: &Workload, observer: Option<Arc<dyn Observer>>) -> (Po
     let singleton = compiler(&mut pool, ANCHOR, &schema, &full).unwrap();
     let step = EmitSingleton { singleton };
     let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
-    let policy = PolicySaturation::Statique(levels);
-    let mut params = ParametresSaturation {
+    let policy = PolicySaturation::Static(levels);
+    let mut params = SaturationParameters {
         transduction: &step,
         policy: &policy,
         pool: &mut pool,
@@ -160,7 +160,7 @@ fn run_workload(workload: &Workload, observer: Option<Arc<dyn Observer>>) -> (Po
         number_levels: schema.number_levels(),
         observer,
     };
-    let result = saturer(&mut params).expect("saturation terminates");
+    let result = saturate(&mut params).expect("saturation terminates");
 
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -194,7 +194,7 @@ impl Executor for MonoExecutor {
 /// The multi-thread executor. Placeholder until P1-1/P2-1 land a real
 /// parallel executor: delegates to the mono path, so the harness is green on
 /// the current mono-thread (DoD of issue #137) and turns into the
-/// falsifier for PAR-1..PAR-4 when replaced.
+/// falsifier for PER-1..PER-4 when replaced.
 struct MultiExecutor;
 
 impl Executor for MultiExecutor {
@@ -263,7 +263,7 @@ fn workload_strategy() -> impl Strategy<Value = Workload> {
 }
 
 proptest! {
-    /// PAR-1..PAR-4 harness: on the same inputs, mono and multi agree on
+    /// PER-1..PER-4 harness: on the same inputs, mono and multi agree on
     /// node counts, fixpoint iterations, semantics (cardinality) and the
     /// structural form of the root.
     #[test]
@@ -299,7 +299,7 @@ proptest! {
 }
 
 /// Red marker (issue #137, "written red before any implementation"): fails
-/// while `MultiExecutor` is still the mono placeholder; un-ignore when a
+/// while `MultiExecutor` is still the mono placeholder; one-ignore when a
 /// real multi-thread executor (P1-1/P2-1) lands.
 #[test]
 #[ignore = "red until a real multi-thread executor exists (issue #137)"]
@@ -336,8 +336,8 @@ impl Transduction for CountPaths {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -346,7 +346,7 @@ impl Transduction for CountPaths {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memory::EffetMemory::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -389,7 +389,7 @@ fn random_input_pool(workload: &Workload) -> (PoolRef, Schema, NodeId, Vec<NodeI
 }
 
 proptest! {
-    /// P1-1 (issue #139, PAR-1): n independent operations on the same
+    /// P1-1 (issue #139, PER-1): n independent operations on the same
     /// read-shared input pool — the sequential path and the rayon parallel
     /// path agree on every synthesized attribute and on the structural form
     /// of every output root (each op in its own output pool, INV10).
@@ -399,7 +399,7 @@ proptest! {
         number_ops in 1usize..6,
     ) {
         use lisage_core::parallel_ops::{
-            IndependentOp, run_independent_par, run_independent_seq,
+            IndependentOp, run_independent_parallel, run_independent_seq,
         };
         let (input, schema, root, members) = random_input_pool(&workload);
         // Each op counts the accepting paths of a root of the shared input
@@ -418,15 +418,15 @@ proptest! {
             .map(|&root| IndependentOp { transduction: CountPaths, root })
             .collect();
         let seq = run_independent_seq(&input, &schema, ANCHOR, &ops).unwrap();
-        let par = run_independent_par(&input, &schema, ANCHOR, &ops).unwrap();
-        prop_assert_eq!(seq.len(), par.len());
+        let parallel = run_independent_parallel(&input, &schema, ANCHOR, &ops).unwrap();
+        prop_assert_eq!(seq.len(), parallel.len());
         prop_assert_eq!(seq.len(), number_ops);
-        for (i, ((pool_seq, node_seq, attr_seq), (pool_par, node_par, attr_par))) in
-            seq.iter().zip(par.iter()).enumerate()
+        for (i, ((pool_seq, node_seq, attr_seq), (pool_parallel, node_per, attr_parallel))) in
+            seq.iter().zip(parallel.iter()).enumerate()
         {
-            prop_assert_eq!(attr_seq, attr_par, "op {}: same synthesized attribute", i);
+            prop_assert_eq!(attr_seq, attr_parallel, "op {}: same synthesized attribute", i);
             prop_assert!(
-                forms_equal(pool_seq, *node_seq, pool_par, *node_par, &mut HashMap::new()),
+                forms_equal(pool_seq, *node_seq, pool_parallel, *node_per, &mut HashMap::new()),
                 "op {}: same structural form of the output root", i
             );
         }
@@ -434,7 +434,7 @@ proptest! {
 }
 
 proptest! {
-    /// P1-2 (issue #140, PAR-1): merging k output pools — the sequential
+    /// P1-2 (issue #140, PER-1): merging k output pools — the sequential
     /// fold and the parallel pairwise tree reduction agree on the
     /// structural form of the merged root and on its cardinality; the
     /// merged pool shares nodes across the source pools (cross-pool
@@ -444,7 +444,7 @@ proptest! {
         workload in workload_strategy(),
         number_pools in 1usize..7,
     ) {
-        use lisage_core::parallel_ops::{merge_pools_par, merge_pools_seq};
+        use lisage_core::parallel_ops::{merge_pools_parallel, merge_pools_seq};
         // k independent output pools, each holding a random diagram. Built
         // twice: the merge functions consume the pools.
         let build = |workload: &Workload| {
@@ -466,13 +466,13 @@ proptest! {
             (pools, roots, schema)
         };
         let (pools_seq, roots_seq, schema) = build(&workload);
-        let (pools_par, roots_par, _) = build(&workload);
+        let (pools_parallel, roots_parallel, _) = build(&workload);
         let sum_live: usize = pools_seq.iter().map(|p| p.live()).sum();
         let (pool_seq, root_seq) = merge_pools_seq(&schema, ANCHOR, &pools_seq, &roots_seq).unwrap();
-        let (pool_par, root_par) =
-            merge_pools_par(&schema, ANCHOR, pools_par, roots_par).unwrap();
+        let (pool_parallel, root_parallel) =
+            merge_pools_parallel(&schema, ANCHOR, pools_parallel, roots_parallel).unwrap();
         prop_assert!(
-            forms_equal(&pool_seq, root_seq, &pool_par, root_par, &mut HashMap::new()),
+            forms_equal(&pool_seq, root_seq, &pool_parallel, root_parallel, &mut HashMap::new()),
             "same structural form of the merged root"
         );
         let mut output = Arena::new(
@@ -480,15 +480,15 @@ proptest! {
             Box::new(NoOpObserver),
         );
         let card_seq = count(&pool_seq, &mut output, ANCHOR, &schema, root_seq).unwrap();
-        let card_par = count(&pool_par, &mut output, ANCHOR, &schema, root_par).unwrap();
-        prop_assert_eq!(card_seq, card_par, "same cardinality of the merged root");
+        let card_parallel = count(&pool_parallel, &mut output, ANCHOR, &schema, root_parallel).unwrap();
+        prop_assert_eq!(card_seq, card_parallel, "same cardinality of the merged root");
         // Cross-pool sharing: the merged pool stays within the sum of the
         // source pools plus one union-root node per pool.
         let bound = sum_live + number_pools;
         prop_assert!(
-            pool_seq.live() <= bound && pool_par.live() <= bound,
+            pool_seq.live() <= bound && pool_parallel.live() <= bound,
             "cross-pool sharing: merged live ({} / {}) <= sum of sources + k ({})",
-            pool_seq.live(), pool_par.live(), bound
+            pool_seq.live(), pool_parallel.live(), bound
         );
     }
 }

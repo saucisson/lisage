@@ -14,6 +14,7 @@ from scripts import (
     ci,
     claims,
     day,
+    english_only,
     machine_fingerprint,
     merge,
     night,
@@ -45,6 +46,7 @@ COMMAND_MODULES = (
     day,
     night,
     bench_confrontation,
+    english_only,
     machine_fingerprint,
 )
 

@@ -3,7 +3,7 @@
 //!
 //! Two saturation policies, two instances of the same fixpoint semantics
 //! (same final result, different iteration strategy):
-//! - [`PolicySaturation::Statique`] (Ciardo-style): `τ` is only applied
+//! - [`PolicySaturation::Static`] (Ciardo-style): `τ` is only applied
 //!   at the declared levels;
 //! - [`PolicySaturation::AutoDetectee`] (Hamez-style): all levels are
 //!   active at first; a level whose current iteration changed nothing is
@@ -17,36 +17,36 @@ use std::sync::{Arc, Mutex};
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 
 use crate::error::CoreError;
+use crate::fold::union;
 use crate::observer::{
-    Observer, SpanKind, TraceEvent, contextualiser, next_span_id, pop_span, push_span,
+    Observer, SpanKind, TraceEvent, contextualize, next_span_id, pop_span, push_span,
 };
-use crate::pli::union;
 use crate::schema::SchemaKeys;
-use crate::transduction::{ContextePhiOut, Transducteur, Transduction};
+use crate::transduction::{PhiOutContext, Transducer, Transduction};
 
 /// Safety bound of the fixpoint loop (T2 guarantees termination on a
 /// bounded schema; the bound is only there to detect a regression).
 pub const BOUND_ITERATIONS: u32 = 1_000;
 
-/// Fingerprint salt of the [`RestreintAuxLevels`] wrapper: domain-separates
+/// Fingerprint salt of the [`RestrictedToLevels`] wrapper: domain-separates
 /// the wrapper's fingerprint from that of the inner transduction.
 const SEL_FINGERPRINT_WRAPPER: u64 = 0x5A7A_0000_0000_0000;
 
 /// Saturation policy (M2-4): two instances of the same fixpoint semantics.
-/// Both policies produce the same fixpoint when `Statique` declares all
+/// Both policies produce the same fixpoint when `Static` declares all
 /// levels; only the iteration strategy differs.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PolicySaturation {
     /// Static by level (Ciardo-style): only the listed levels are saturated
     /// at each iteration.
-    Statique(Vec<Level>),
+    Static(Vec<Level>),
     /// Auto-detected (Hamez-style): all levels are active at first; a level
     /// is removed as soon as an iteration changes nothing at that level.
     AutoDetectee,
 }
 
 /// Parameters of a saturation (record, ADR-0003).
-pub struct ParametresSaturation<'a, T, P> {
+pub struct SaturationParameters<'a, T, P> {
     /// Step transduction `τ` (cloneable for the iterations).
     pub transduction: &'a T,
     /// Saturation policy.
@@ -79,45 +79,45 @@ pub struct ResultSaturation {
 /// Wrapper transduction that restricts a step transduction to a set of
 /// active levels: at active levels, it delegates to the inner transduction
 /// and records the modified levels; at the others, identity copy.
-pub struct RestreintAuxLevels<T> {
+pub struct RestrictedToLevels<T> {
     inner: T,
-    levels_actifs: Vec<Level>,
-    levels_modifies: Mutex<BTreeSet<Level>>,
+    active_levels: Vec<Level>,
+    modified_levels: Mutex<BTreeSet<Level>>,
 }
 
-impl<T: Clone> Clone for RestreintAuxLevels<T> {
+impl<T: Clone> Clone for RestrictedToLevels<T> {
     fn clone(&self) -> Self {
-        // The clone starts from a fresh tracking: `saturer` creates a new
+        // The clone starts from a fresh tracking: `saturate` creates a new
         // wrapper at each iteration anyway.
-        RestreintAuxLevels {
+        RestrictedToLevels {
             inner: self.inner.clone(),
-            levels_actifs: self.levels_actifs.clone(),
-            levels_modifies: Mutex::new(BTreeSet::new()),
+            active_levels: self.active_levels.clone(),
+            modified_levels: Mutex::new(BTreeSet::new()),
         }
     }
 }
 
-impl<T> RestreintAuxLevels<T> {
-    /// New wrapper: `inner` restricted to the `levels_actifs`.
-    pub fn new(inner: T, levels_actifs: Vec<Level>) -> Self {
-        RestreintAuxLevels {
+impl<T> RestrictedToLevels<T> {
+    /// New wrapper: `inner` restricted to the `active_levels`.
+    pub fn new(inner: T, active_levels: Vec<Level>) -> Self {
+        RestrictedToLevels {
             inner,
-            levels_actifs,
-            levels_modifies: Mutex::new(BTreeSet::new()),
+            active_levels,
+            modified_levels: Mutex::new(BTreeSet::new()),
         }
     }
 
     /// Levels at which `φ_out` produced a node different from the input
     /// since the wrapper was created (AutoDetectee policy).
-    pub fn levels_modifies(&self) -> BTreeSet<Level> {
-        self.levels_modifies
+    pub fn modified_levels(&self) -> BTreeSet<Level> {
+        self.modified_levels
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
 }
 
-impl<T: Transduction> Transduction for RestreintAuxLevels<T> {
+impl<T: Transduction> Transduction for RestrictedToLevels<T> {
     type H = T::H;
     type S = T::S;
     type Out = T::Out;
@@ -143,19 +143,19 @@ impl<T: Transduction> Transduction for RestreintAuxLevels<T> {
     fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, crate::memory::EffetMemory<Self::M>) {
-        if self.levels_actifs.contains(&ctx.level) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memory::EffectMemory<Self::M>) {
+        if self.active_levels.contains(&ctx.level) {
             let node_input = ctx.node_input;
             let level = ctx.level;
-            let (node, effet) = self.inner.phi_out(pool, ctx);
+            let (node, effect) = self.inner.phi_out(pool, ctx);
             if node != node_input {
-                self.levels_modifies
+                self.modified_levels
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .insert(level);
             }
-            (node, effet)
+            (node, effect)
         } else {
             let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
             (
@@ -166,7 +166,7 @@ impl<T: Transduction> Transduction for RestreintAuxLevels<T> {
                         arcs,
                     },
                 ),
-                crate::memory::EffetMemory::new(),
+                crate::memory::EffectMemory::new(),
             )
         }
     }
@@ -189,16 +189,16 @@ impl<T: Transduction> Transduction for RestreintAuxLevels<T> {
 /// Termination (T2) is guaranteed on a bounded schema: the set of canonical
 /// forms is finite and the chain is increasing for denotation inclusion.
 /// [`BOUND_ITERATIONS`] is only a safety net against a regression.
-pub fn saturer<T, P>(
-    params: &mut ParametresSaturation<'_, T, P>,
+pub fn saturate<T, P>(
+    params: &mut SaturationParameters<'_, T, P>,
 ) -> Result<ResultSaturation, CoreError>
 where
     T: Transduction<Out = bool> + Clone,
     P: Pool<Key = u64, Payload = bool>,
 {
     // Active levels according to the policy.
-    let mut levels_actifs: Vec<Level> = match params.policy {
-        PolicySaturation::Statique(levels) => levels.clone(),
+    let mut active_levels: Vec<Level> = match params.policy {
+        PolicySaturation::Static(levels) => levels.clone(),
         PolicySaturation::AutoDetectee => (0..params.number_levels).map(Level).collect(),
     };
 
@@ -210,8 +210,8 @@ where
         let span = next_span_id();
         push_span(span);
         if iterations > BOUND_ITERATIONS {
-            fermer_span(&params.observer, span);
-            return Err(CoreError::NonTerminaison {
+            close_span(&params.observer, span);
+            return Err(CoreError::NonTermination {
                 bound: BOUND_ITERATIONS,
             });
         }
@@ -222,59 +222,59 @@ where
                 lane: 0,
             });
         }
-        let pool_avant = params.pool.node_count() as i64;
-        let etape = RestreintAuxLevels::new(params.transduction.clone(), levels_actifs.clone());
+        let pool_before = params.pool.node_count() as i64;
+        let step = RestrictedToLevels::new(params.transduction.clone(), active_levels.clone());
         // Spec § 7: saturate steps can produce a memory effect
         // (T3, M2-5) — PerLevel policy. The memory lives for one pass:
         // the runner (and its memory) is recreated at each iteration.
         let mut runner = match &params.observer {
-            Some(observer) => Transducteur::with_observer(
-                etape,
+            Some(observer) => Transducer::with_observer(
+                step,
                 lisage_algebra::interface::MemoryPolicy::PerLevel,
                 Arc::clone(observer),
             ),
             None => {
-                Transducteur::with_policy(etape, lisage_algebra::interface::MemoryPolicy::PerLevel)
+                Transducer::with_policy(step, lisage_algebra::interface::MemoryPolicy::PerLevel)
             }
         };
-        let resultat = runner.run_same_pool(params.pool, params.anchor, courant);
-        let resultat = match resultat {
-            Ok(valeur) => valeur,
-            Err(erreur) => {
-                fermer_span(&params.observer, span);
-                return Err(erreur);
+        let result = runner.run_same_pool(params.pool, params.anchor, courant);
+        let result = match result {
+            Ok(value) => value,
+            Err(error) => {
+                close_span(&params.observer, span);
+                return Err(error);
             }
         };
-        let (image, _) = resultat;
+        let (image, _) = result;
         let next = match union(params.pool, params.keys, params.anchor, courant, image) {
-            Ok(valeur) => valeur,
-            Err(erreur) => {
-                fermer_span(&params.observer, span);
-                return Err(erreur);
+            Ok(value) => value,
+            Err(error) => {
+                close_span(&params.observer, span);
+                return Err(error);
             }
         };
         // D1-2: the Round event carries the active/modified levels, the
         // before/image/after handles and the growth of the pool.
         if let Some(observer) = &params.observer {
-            let niveaux_modifies: Vec<u32> = runner
+            let modified_levels: Vec<u32> = runner
                 .transduction()
-                .levels_modifies()
+                .modified_levels()
                 .iter()
                 .map(|level| level.0)
                 .collect();
-            observer.on_event(&contextualiser(TraceEvent::Round {
-                numero: iterations,
-                niveaux_actifs: levels_actifs.iter().map(|level| level.0).collect(),
-                niveaux_modifies,
-                avant: courant,
+            observer.on_event(&contextualize(TraceEvent::Round {
+                number: iterations,
+                active_levels: active_levels.iter().map(|level| level.0).collect(),
+                modified_levels,
+                before: courant,
                 image,
-                apres: next,
-                croissance: params.pool.node_count() as i64 - pool_avant,
+                after: next,
+                growth: params.pool.node_count() as i64 - pool_before,
                 span: None,
             }));
         }
         if next == courant {
-            fermer_span(&params.observer, span);
+            close_span(&params.observer, span);
             return Ok(ResultSaturation {
                 node: courant,
                 iterations,
@@ -283,23 +283,23 @@ where
         if matches!(params.policy, PolicySaturation::AutoDetectee) {
             // Hamez policy: a level not modified by the iteration is removed
             // from the active set.
-            let modifies = runner.transduction().levels_modifies();
-            levels_actifs.retain(|level| modifies.contains(level));
-            if levels_actifs.is_empty() {
-                fermer_span(&params.observer, span);
+            let modified = runner.transduction().modified_levels();
+            active_levels.retain(|level| modified.contains(level));
+            if active_levels.is_empty() {
+                close_span(&params.observer, span);
                 return Ok(ResultSaturation {
                     node: next,
                     iterations,
                 });
             }
         }
-        fermer_span(&params.observer, span);
+        close_span(&params.observer, span);
         courant = next;
     }
 }
 
 /// Closes a span and emits its `SpanClose` event on the optional observer (D1-1).
-fn fermer_span(observer: &Option<Arc<dyn Observer>>, span: crate::observer::SpanId) {
+fn close_span(observer: &Option<Arc<dyn Observer>>, span: crate::observer::SpanId) {
     if let Some(observer) = observer {
         observer.on_event(&TraceEvent::SpanClose { span });
     }
