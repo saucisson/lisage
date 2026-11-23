@@ -31,8 +31,8 @@ fn node_of(event: &TraceEvent) -> Option<NodeId> {
         | TraceEvent::Attr { node, .. }
         | TraceEvent::MemoHit { node, .. }
         | TraceEvent::MemoMiss { node, .. }
-        | TraceEvent::VisiteEntree { node, .. }
-        | TraceEvent::VisiteSortie { node, .. }
+        | TraceEvent::VisitEntry { node, .. }
+        | TraceEvent::VisitExit { node, .. }
         | TraceEvent::StructureChange { node, .. } => Some(*node),
         _ => None,
     }
@@ -64,12 +64,12 @@ impl IndexTrace {
                 push_position(by_node.entry(node).or_default(), position);
             }
             match event {
-                TraceEvent::Round { numero, .. } => {
+                TraceEvent::Round { number, .. } => {
                     // The previous round ends where this one starts.
                     if let Some((prev_number, start)) = round_start.take() {
                         by_round.insert(prev_number, start..position);
                     }
-                    round_start = Some((*numero, position));
+                    round_start = Some((*number, position));
                 }
                 TraceEvent::OpStart { .. } => {
                     // The op index is assigned in start order.

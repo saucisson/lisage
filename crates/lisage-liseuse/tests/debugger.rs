@@ -10,9 +10,9 @@ use lisage_liseuse::debugger::{
 };
 
 /// Hand-built trace with nested spans: an Op span [0..10] holding a
-/// Visite span [2..5] and a second Visite span [6..8].
+/// Visit span [2..5] and a second Visit span [6..8].
 fn nested_spans_trace() -> Vec<TraceEvent> {
-    let visit_entree = |node: u32| TraceEvent::VisiteEntree {
+    let visit_entry = |node: u32| TraceEvent::VisitEntry {
         node: NodeId(node),
         span: None,
     };
@@ -28,18 +28,18 @@ fn nested_spans_trace() -> Vec<TraceEvent> {
         }, // 1
         TraceEvent::SpanOpen {
             span: SpanId(2),
-            kind: SpanKind::Visite,
+            kind: SpanKind::Visit,
             lane: 0,
         }, // 2
-        visit_entree(10),                          // 3
-        visit_entree(11),                          // 4
+        visit_entry(10),                           // 3
+        visit_entry(11),                           // 4
         TraceEvent::SpanClose { span: SpanId(2) }, // 5
         TraceEvent::SpanOpen {
             span: SpanId(3),
-            kind: SpanKind::Visite,
+            kind: SpanKind::Visit,
             lane: 0,
         }, // 6
-        visit_entree(12),                          // 7
+        visit_entry(12),                           // 7
         TraceEvent::SpanClose { span: SpanId(3) }, // 8
         TraceEvent::OpEnd { span: None },          // 9
         TraceEvent::SpanClose { span: SpanId(1) }, // 10
@@ -80,7 +80,7 @@ fn test_step_back_goto() {
 #[test]
 fn test_step_over_step_out_span_boundaries() {
     let mut debugger = Debugger::new(nested_spans_trace());
-    debugger.run(Command::Goto(3)); // inside Visite span 2 [2..6)
+    debugger.run(Command::Goto(3)); // inside Visit span 2 [2..6)
     assert_eq!(debugger.visit_stack(), vec![SpanId(2)]);
     debugger.run(Command::StepOver);
     assert_eq!(debugger.position(), 6, "step-over: end of the Visite span");
@@ -106,12 +106,12 @@ fn test_next_op_next_round_until() {
     debugger.run(Command::NextRound);
     assert!(matches!(
         debugger.current_event(),
-        Some(TraceEvent::Round { numero: 1, .. })
+        Some(TraceEvent::Round { number: 1, .. })
     ));
     debugger.run(Command::NextRound);
     assert!(matches!(
         debugger.current_event(),
-        Some(TraceEvent::Round { numero: 2, .. })
+        Some(TraceEvent::Round { number: 2, .. })
     ));
     debugger.run(Command::NextOp);
     assert!(matches!(
@@ -144,10 +144,10 @@ fn test_where_frame_visit_stack() {
     assert!(where_out.contains("pos 3/11"), "{where_out}");
     assert!(where_out.contains("VisiteEntree"), "{where_out}");
     assert!(where_out.contains("Op[0..11]"), "{where_out}");
-    assert!(where_out.contains("Visite[2..6]"), "{where_out}");
+    assert!(where_out.contains("Visit[2..6]"), "{where_out}");
     assert!(where_out.contains("SpanId(2)"), "visit stack: {where_out}");
     let frame = debugger.run(Command::Frame);
-    assert!(frame.contains("Visite"), "{frame}");
+    assert!(frame.contains("Visit"), "{frame}");
     assert!(frame.contains("range 2..6"), "{frame}");
     assert!(frame.contains("balance"), "{frame}");
     // Outside any span, frame reports it.

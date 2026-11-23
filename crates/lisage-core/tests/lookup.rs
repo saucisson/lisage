@@ -9,26 +9,26 @@ use lisage_core::arena::Arena;
 use lisage_core::lookup::{Lookup, LookupController};
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{ABSENT, Domain, PRESENT, ReferenceController, Schema, compiler};
-use lisage_core::transduction::Transducteur;
+use lisage_core::transduction::Transducer;
 use lisage_lang::value::{Atom, Value};
 
 type PoolOutput = Arena<LookupController>;
 
-fn atome(value: u64) -> Value {
+fn atom(value: u64) -> Value {
     Value::Atom(Atom(value))
 }
 
-fn map_de(paires: &[(u64, u64)]) -> Value {
+fn map_from(pairs: &[(u64, u64)]) -> Value {
     Value::Map(
-        paires
+        pairs
             .iter()
-            .map(|(key, value)| (atome(*key), atome(*value)))
+            .map(|(key, value)| (atom(*key), atom(*value)))
             .collect::<BTreeMap<Value, Value>>(),
     )
 }
 
 /// Runs `lookup(key)` on the compiled map and returns (result, fragment).
-fn executer_lookup(
+fn execute_lookup(
     schema: &Schema,
     list_keys: &[Atom],
     domain_values: &Domain,
@@ -45,7 +45,7 @@ fn executer_lookup(
     );
     let anchor = Anchor(0);
     let root = compiler(&mut input, anchor, schema, value).unwrap();
-    let mut runner = Transducteur::new(Lookup::new(key, list_keys.to_vec(), domain_values.clone()));
+    let mut runner = Transducer::new(Lookup::new(key, list_keys.to_vec(), domain_values.clone()));
     let (result, fragment) = runner.run(&input, &mut output, anchor, root).unwrap();
     (output, result, fragment)
 }
@@ -88,17 +88,17 @@ fn payload_terminal(
 
 /// Two-key map over V = {0,1}: lookup finds the value of both keys.
 #[test]
-fn test_lookup_keys_presentes() {
+fn test_lookup_keys_present() {
     let list_keys = vec![Atom(0), Atom(1)];
     let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
     let schema = Schema::Map(list_keys.clone(), domain_values.clone());
-    let value = map_de(&[(0, 1), (1, 0)]);
+    let value = map_from(&[(0, 1), (1, 0)]);
     let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, result, fragment) =
-        executer_lookup(&schema, &list_keys, &domain_values, &value, Atom(0));
+        execute_lookup(&schema, &list_keys, &domain_values, &value, Atom(0));
     assert_eq!(
         payload_terminal(&output, result, &list_keys, map),
         Some(1),
@@ -109,7 +109,7 @@ fn test_lookup_keys_presentes() {
         "the fragment carries the value arc 1 to ε(Some(1))"
     );
 
-    let (output, result, _) = executer_lookup(&schema, &list_keys, &domain_values, &value, Atom(1));
+    let (output, result, _) = execute_lookup(&schema, &list_keys, &domain_values, &value, Atom(1));
     assert_eq!(
         payload_terminal(&output, result, &list_keys, map),
         Some(0),
@@ -119,17 +119,17 @@ fn test_lookup_keys_presentes() {
 
 /// Key absent from the map: the terminal is None (D_δ of the output pool).
 #[test]
-fn test_lookup_key_absente() {
+fn test_lookup_key_missing() {
     let list_keys = vec![Atom(0), Atom(1)];
     let domain_values = Domain::new(vec![Atom(0), Atom(1)]);
     let schema = Schema::Map(list_keys.clone(), domain_values.clone());
-    let value = map_de(&[(0, 1)]);
+    let value = map_from(&[(0, 1)]);
     let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, result, fragment) =
-        executer_lookup(&schema, &list_keys, &domain_values, &value, Atom(1));
+        execute_lookup(&schema, &list_keys, &domain_values, &value, Atom(1));
     assert_eq!(
         payload_terminal(&output, result, &list_keys, map),
         None,
@@ -145,13 +145,13 @@ fn test_lookup_level_value_collapsed_t_expand() {
     let list_keys = vec![Atom(0)];
     let domain_values = Domain::new(vec![Atom(0)]);
     let schema = Schema::Map(list_keys.clone(), domain_values.clone());
-    let value = map_de(&[(0, 0)]);
+    let value = map_from(&[(0, 0)]);
     let Value::Map(ref map) = value else {
         panic!("map")
     };
 
     let (output, result, fragment) =
-        executer_lookup(&schema, &list_keys, &domain_values, &value, Atom(0));
+        execute_lookup(&schema, &list_keys, &domain_values, &value, Atom(0));
     assert_eq!(
         payload_terminal(&output, result, &list_keys, map),
         Some(0),

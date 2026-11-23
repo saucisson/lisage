@@ -18,11 +18,11 @@ use std::time::Instant;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
+use lisage_core::fold::{count, union};
 use lisage_core::observer::{Observer, TraceEvent};
-use lisage_core::pli::{count, union};
-use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
+use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
-use lisage_core::transduction::{ContextePhiOut, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transduction};
 use lisage_lang::value::{Atom, Value};
 
 /// Test anchor.
@@ -87,10 +87,10 @@ impl Transduction for EmitSingleton {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         _pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         let _ = ctx;
-        (self.singleton, lisage_core::memory::EffetMemory::new())
+        (self.singleton, lisage_core::memory::EffectMemory::new())
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
         &self,
@@ -225,9 +225,9 @@ fn main() {
     let singleton = compile_member(&mut pool, &schema, &illegal_word, n);
     let step = EmitSingleton { singleton };
     let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
-    let policy = PolicySaturation::Statique(levels);
+    let policy = PolicySaturation::Static(levels);
     let start = Instant::now();
-    let mut params = ParametresSaturation {
+    let mut params = SaturationParameters {
         transduction: &step,
         policy: &policy,
         pool: &mut pool,
@@ -237,7 +237,7 @@ fn main() {
         number_levels: schema.number_levels(),
         observer: Some(observer.clone()),
     };
-    let result = saturer(&mut params).expect("saturation terminates");
+    let result = saturate(&mut params).expect("saturation terminates");
     let saturation_ms = start.elapsed().as_secs_f64() * 1000.0;
 
     // Phase 3: cardinality of the fixpoint (verification).
@@ -249,7 +249,7 @@ fn main() {
     let verified = count(&pool, &mut output, ANCHOR, &schema, result.node).unwrap();
     let count_ms = start.elapsed().as_secs_f64() * 1000.0;
 
-    let metrics = pool.metriques();
+    let metrics = pool.metrics();
     let memo_hits = *observer.memo_hits.lock().unwrap();
     let memo_misses = *observer.memo_misses.lock().unwrap();
     let memo_total = memo_hits + memo_misses;
@@ -264,7 +264,7 @@ fn main() {
         "{{\"tool\":\"lisage-contention\",\"n\":{n},\"nodes\":{nodes},\"verified\":{verified},\"rounds\":{},\"creations\":{},\"shares\":{},\"rshare_hit_rate\":{},\"memo_hits\":{memo_hits},\"memo_misses\":{memo_misses},\"memo_hit_rate\":{memo_hit_rate:.4},\"interns_per_level\":{:?},\"build_ms\":{build_ms:.3},\"saturation_ms\":{saturation_ms:.3},\"count_ms\":{count_ms:.3}}}",
         *observer.rounds.lock().unwrap(),
         metrics.creations,
-        metrics.partages,
+        metrics.shared,
         metrics.rate_hit(),
         interns_per_level,
     );

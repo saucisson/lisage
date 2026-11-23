@@ -1,9 +1,9 @@
 //! D5 DoD integration tests:
-//! - D5-1: a `Filtre` with a faulty predicate is caught at the offending
+//! - D5-1: a `Filter` with a faulty predicate is caught at the offending
 //!   operation of a chain, not at the end. The oracle evaluates the REAL
 //!   denotation of the output node (via `bdd::evaluate` on the real pool)
 //!   and compares it against an independent model of τ.
-//! - D5-2: an injected non-monotonic τ is caught at the faulty round,
+//! - D5-2: an injected not-monotonic τ is caught at the faulty round,
 //!   not at the end.
 
 use std::collections::BTreeSet;
@@ -101,12 +101,12 @@ fn family_of(node: NodeId) -> u8 {
     }
 }
 
-fn family_included(avant: NodeId, apres: NodeId) -> bool {
-    family_of(avant) & !family_of(apres) == 0
+fn family_included(before: NodeId, after: NodeId) -> bool {
+    family_of(before) & !family_of(after) == 0
 }
 
 /// D5-1 DoD: the semantic oracle over a real standard scenario trace
-/// (saturer chain τ(X) = {{max(X)+1}}) reports no divergence when the
+/// (saturate chain τ(X) = {{max(X)+1}}) reports no divergence when the
 /// semantics model is the correct τ — the actual output denotations come
 /// from `bdd::evaluate` on the real pool.
 #[test]
@@ -169,51 +169,51 @@ fn test_d5_1_faulty_predicate_caught() {
     }
 }
 
-/// D5-2 DoD: a non-monotonic τ injected at round 3 is caught at round 3,
+/// D5-2 DoD: a not-monotonic τ injected at round 3 is caught at round 3,
 /// not at the end. We build a synthetic trace where round 3 shrinks.
 #[test]
-fn test_d5_2_non_monotonic_tau_caught_at_faulty_round() {
+fn test_d5_2_not_monotonic_tau_caught_at_faulty_round() {
     // Rounds 1-2 grow normally, round 3 shrinks (bug), round 4 would grow again.
     let events = vec![
         TraceEvent::Round {
-            numero: 1,
-            niveaux_actifs: vec![0, 1],
-            niveaux_modifies: vec![0],
-            avant: NodeId(0),
+            number: 1,
+            active_levels: vec![0, 1],
+            modified_levels: vec![0],
+            before: NodeId(0),
             image: NodeId(1),
-            apres: NodeId(1),
-            croissance: 3,
+            after: NodeId(1),
+            growth: 3,
             span: None,
         },
         TraceEvent::Round {
-            numero: 2,
-            niveaux_actifs: vec![0, 1],
-            niveaux_modifies: vec![1],
-            avant: NodeId(1),
+            number: 2,
+            active_levels: vec![0, 1],
+            modified_levels: vec![1],
+            before: NodeId(1),
             image: NodeId(2),
-            apres: NodeId(2),
-            croissance: 2,
+            after: NodeId(2),
+            growth: 2,
             span: None,
         },
         // Faulty round: the family shrinks from {{0},{1}} back to {{0}}.
         TraceEvent::Round {
-            numero: 3,
-            niveaux_actifs: vec![0, 1],
-            niveaux_modifies: vec![0, 1],
-            avant: NodeId(2),
+            number: 3,
+            active_levels: vec![0, 1],
+            modified_levels: vec![0, 1],
+            before: NodeId(2),
             image: NodeId(3),
-            apres: NodeId(3),
-            croissance: -3,
+            after: NodeId(3),
+            growth: -3,
             span: None,
         },
         TraceEvent::Round {
-            numero: 4,
-            niveaux_actifs: vec![0],
-            niveaux_modifies: vec![],
-            avant: NodeId(3),
+            number: 4,
+            active_levels: vec![0],
+            modified_levels: vec![],
+            before: NodeId(3),
             image: NodeId(3),
-            apres: NodeId(3),
-            croissance: 0,
+            after: NodeId(3),
+            growth: 0,
             span: None,
         },
     ];
@@ -239,23 +239,23 @@ fn test_d5_2_non_monotonic_tau_caught_at_faulty_round() {
 fn test_d5_2_clean_monotonic() {
     let events = vec![
         TraceEvent::Round {
-            numero: 1,
-            niveaux_actifs: vec![0],
-            niveaux_modifies: vec![0],
-            avant: NodeId(0),
+            number: 1,
+            active_levels: vec![0],
+            modified_levels: vec![0],
+            before: NodeId(0),
             image: NodeId(1),
-            apres: NodeId(1),
-            croissance: 2,
+            after: NodeId(1),
+            growth: 2,
             span: None,
         },
         TraceEvent::Round {
-            numero: 2,
-            niveaux_actifs: vec![0],
-            niveaux_modifies: vec![],
-            avant: NodeId(1),
+            number: 2,
+            active_levels: vec![0],
+            modified_levels: vec![],
+            before: NodeId(1),
             image: NodeId(1),
-            apres: NodeId(1),
-            croissance: 0,
+            after: NodeId(1),
+            growth: 0,
             span: None,
         },
     ];
@@ -268,13 +268,13 @@ fn test_d5_2_clean_monotonic() {
 #[test]
 fn test_d5_2_dashboard_format() {
     let events = vec![TraceEvent::Round {
-        numero: 7,
-        niveaux_actifs: vec![0, 2, 5],
-        niveaux_modifies: vec![2],
-        avant: NodeId(0),
+        number: 7,
+        active_levels: vec![0, 2, 5],
+        modified_levels: vec![2],
+        before: NodeId(0),
         image: NodeId(0),
-        apres: NodeId(0),
-        croissance: 0,
+        after: NodeId(0),
+        growth: 0,
         span: None,
     }];
     let oracle = FixpointOracle::run(&events, family_included);

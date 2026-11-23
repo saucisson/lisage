@@ -65,9 +65,9 @@ impl KeyAlgebra for BddKeys {
         }
     }
 
-    fn unrank(&self, level: Level, rang: u64) -> Option<Self::Key> {
-        if rang < self.cardinality(level) {
-            Some(rang)
+    fn unrank(&self, level: Level, rank: u64) -> Option<Self::Key> {
+        if rank < self.cardinality(level) {
+            Some(rank)
         } else {
             None
         }
@@ -172,31 +172,31 @@ fn shannon<P: Pool<Key = u64, Payload = bool>>(
 
 /// Counts the distinct nodes reachable from `root`, terminals included.
 pub fn count_nodes<P: Pool<Key = u64, Payload = bool>>(pool: &P, root: NodeId) -> u64 {
-    let mut visite = BTreeSet::new();
+    let mut visit = BTreeSet::new();
     let mut stack = vec![root];
     while let Some(node) = stack.pop() {
-        if !visite.insert(node) {
+        if !visit.insert(node) {
             continue;
         }
         if let Ok(Form::Node { arcs, .. }) = pool.resolve(node) {
             stack.extend(arcs.values().copied());
         }
     }
-    visite.len() as u64
+    visit.len() as u64
 }
 
 /// Evaluates the BDD on an assignment (bit ℓ = variable ℓ).
 pub fn evaluate<P: Pool<Key = u64, Payload = bool>>(
     pool: &P,
     root: NodeId,
-    affectation: u64,
+    assignment: u64,
 ) -> Result<bool, PoolError> {
     let mut node = root;
     loop {
         match pool.resolve(node)? {
             Form::Terminal(payload) => return Ok(payload),
             Form::Node { level, arcs } => {
-                let bit = (affectation >> level.0) & 1;
+                let bit = (assignment >> level.0) & 1;
                 node = *arcs.get(&bit).ok_or(PoolError::UnknownNode(node))?;
             }
         }

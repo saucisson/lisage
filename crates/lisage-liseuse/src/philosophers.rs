@@ -14,8 +14,8 @@
 use std::collections::BTreeMap;
 
 use lisage_core::arena::Arena;
+use lisage_core::fold::{count, union};
 use lisage_core::observer::NoOpObserver;
-use lisage_core::pli::{count, union};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::{Anchor, Form, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
@@ -25,18 +25,18 @@ pub const PENSE: u64 = 0;
 /// `hungry` value of a `pc`.
 pub const AFFAME: u64 = 1;
 /// `eat` value of a `pc`.
-pub const MANGE: u64 = 2;
+pub const EATS: u64 = 2;
 /// `free` value of a fork.
-pub const LIBRE: u64 = 0;
+pub const FREE: u64 = 0;
 /// `me` value of a fork.
 pub const TENUE: u64 = 1;
 /// `prev` value of a fork.
-pub const PRECEDENTE: u64 = 2;
+pub const PREVIOUS: u64 = 2;
 
 /// Schema of the unrolled ring in **interleaving** (docs/golden-thread-example-n-philosophers-end-to-end
 /// § 2): `2n` keys, key `2i` = `pc_i`, key `2i+1` = `left_i`, domain
 /// `{0, 1, 2}` for both.
-pub fn schema_anneau(n: u64) -> Schema {
+pub fn schema_ring(n: u64) -> Schema {
     Schema::Map(
         (0..2 * n).map(Atom).collect(),
         Domain::new(vec![Atom(0), Atom(1), Atom(2)]),
@@ -46,18 +46,18 @@ pub fn schema_anneau(n: u64) -> Schema {
 /// Fork `left_i` determined by the word `pc` (no two `E` adjacent
 /// circularly): `me` if i eats, `prev` if i-1 eats, `free` otherwise.
 pub fn fourchette(pc: &[u64], n: usize, i: usize) -> u64 {
-    if pc[i] == MANGE {
+    if pc[i] == EATS {
         TENUE
-    } else if pc[(i + n - 1) % n] == MANGE {
-        PRECEDENTE
+    } else if pc[(i + n - 1) % n] == EATS {
+        PREVIOUS
     } else {
-        LIBRE
+        FREE
     }
 }
 
 /// Enumerates the circular words of length `n` over {0,1,2} with no two `2`
 /// adjacent circularly (reachable states, reference enumeration).
-pub fn mots_atteignables(n: usize) -> Vec<Vec<u64>> {
+pub fn words_reachable(n: usize) -> Vec<Vec<u64>> {
     let mut result = Vec::new();
     let mut mot = vec![0u64; n];
     loop {
@@ -89,10 +89,10 @@ pub fn build_r_n<P: Pool<Key = u64, Payload = bool>>(
     anchor: Anchor,
     n: u64,
 ) -> NodeId {
-    let schema = schema_anneau(n);
+    let schema = schema_ring(n);
     let keys = SchemaKeys::new(schema.clone());
     let mut root = pool.intern(anchor, Form::Terminal(false));
-    for mot in mots_atteignables(n as usize) {
+    for mot in words_reachable(n as usize) {
         let map: BTreeMap<Value, Value> = (0..n)
             .flat_map(|i| {
                 let i = i as usize;
@@ -118,7 +118,7 @@ pub fn count_r_n(
     n: u64,
     root: NodeId,
 ) -> u64 {
-    let schema = schema_anneau(n);
+    let schema = schema_ring(n);
     count(pool_input, pool_output, anchor, &schema, root).expect("internal count")
 }
 
@@ -128,32 +128,32 @@ pub fn count_r_n(
 /// (eat,me); p = 1 allows (think,prev), (hungry,prev). With the 2
 /// terminals ⊥/⊤, these are the **7 forms** of the golden thread (automaton level;
 /// the « 7 DD nodes » version is the relative encoding, milestone M4).
-pub fn cells_legales() -> [(u64, u64); 5] {
+pub fn cells_legal() -> [(u64, u64); 5] {
     [
-        (PENSE, LIBRE),
-        (AFFAME, LIBRE),
-        (MANGE, TENUE),
-        (PENSE, PRECEDENTE),
-        (AFFAME, PRECEDENTE),
+        (PENSE, FREE),
+        (AFFAME, FREE),
+        (EATS, TENUE),
+        (PENSE, PREVIOUS),
+        (AFFAME, PREVIOUS),
     ]
 }
 
 /// « eaters » schema for `filter`/`exists`: `n` keys, key `i` present
 /// iff cell `i` eats (single value `0`). The presence predicates
 /// then discriminate the states.
-pub fn schema_mangeurs(n: u64) -> Schema {
+pub fn schema_eaters(n: u64) -> Schema {
     Schema::Map((0..n).map(Atom).collect(), Domain::new(vec![Atom(0)]))
 }
 
 /// Builds the set of eaters of R_n (key `i` present iff `pc_i =
 /// eat`): projection of R_n usable by `filter`/`exists`.
-pub fn build_mangeurs(pool: &mut Arena<ReferenceController>, anchor: Anchor, n: u64) -> NodeId {
-    let schema = schema_mangeurs(n);
+pub fn build_eaters(pool: &mut Arena<ReferenceController>, anchor: Anchor, n: u64) -> NodeId {
+    let schema = schema_eaters(n);
     let keys = SchemaKeys::new(schema.clone());
     let mut root = pool.intern(anchor, Form::Terminal(false));
-    for mot in mots_atteignables(n as usize) {
+    for mot in words_reachable(n as usize) {
         let map: BTreeMap<Value, Value> = (0..n)
-            .filter(|&i| mot[i as usize] == MANGE)
+            .filter(|&i| mot[i as usize] == EATS)
             .map(|i| (Value::Atom(Atom(i)), Value::Atom(Atom(0))))
             .collect();
         let membre = compiler(pool, anchor, &schema, &Value::Map(map))
@@ -164,7 +164,7 @@ pub fn build_mangeurs(pool: &mut Arena<ReferenceController>, anchor: Anchor, n: 
 }
 
 /// New pool for the demo.
-pub fn pool_neuf(schema: &Schema) -> Arena<ReferenceController> {
+pub fn fresh_pool(schema: &Schema) -> Arena<ReferenceController> {
     Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),

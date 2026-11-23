@@ -7,5 +7,5 @@
 pub mod class_bits;
 pub mod interface;
 pub mod reduction;
-pub mod relatif;
+pub mod relative;
 pub mod vtree;

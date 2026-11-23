@@ -6,11 +6,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use lisage_core::MemoryPolicy;
+use lisage_core::fold::{Fold, Natural};
 use lisage_core::observer::{Observer, TraceEvent};
-use lisage_core::pli::{Naturel, Pli};
-use lisage_core::transduction::Transducteur;
+use lisage_core::transduction::Transducer;
 use lisage_core::{Anchor, NodeId};
-use lisage_liseuse::philosophers::{build_r_n, pool_neuf, schema_anneau};
+use lisage_liseuse::philosophers::{build_r_n, fresh_pool, schema_ring};
 use lisage_liseuse::snapshots::{DEFAULT_SNAPSHOT_BUDGET, SnapshotScrubber};
 use lisage_liseuse::step_by_step::Scrubber;
 
@@ -32,14 +32,14 @@ impl Observer for Collector {
 /// Runs the fold `(ℕ,+,×)` on R_5 with an observer.
 fn philosophers_trace() -> Vec<TraceEvent> {
     let n = 5;
-    let schema = schema_anneau(n);
-    let mut input = pool_neuf(&schema);
-    let mut output = pool_neuf(&schema);
+    let schema = schema_ring(n);
+    let mut input = fresh_pool(&schema);
+    let mut output = fresh_pool(&schema);
     let anchor = Anchor(0);
     let root = build_r_n(&mut input, anchor, n);
     let collector = Collector::default();
-    let mut runner = Transducteur::with_observer(
-        Pli::<Naturel>::new(schema),
+    let mut runner = Transducer::with_observer(
+        Fold::<Natural>::new(schema),
         MemoryPolicy::NoMemory,
         Arc::new(collector.clone()),
     );
@@ -64,10 +64,10 @@ fn seek_matches_legacy_scrubber_state() {
 
     for position in [0, 10, 100, 250, 500, events.len() - 1, events.len()] {
         snapshot_scrubber.seek(position);
-        legacy.aller_a(position);
+        legacy.round_a(position);
         assert_eq!(
-            snapshot_scrubber.etat(),
-            legacy.etat(),
+            snapshot_scrubber.state(),
+            legacy.state(),
             "snapshot seek must match legacy replay at position {position}"
         );
     }
@@ -107,7 +107,7 @@ fn empty_trace_seek_is_safe() {
     let mut scrubber = SnapshotScrubber::new(vec![]);
     scrubber.seek(0);
     assert_eq!(scrubber.position(), 0);
-    assert!(scrubber.etat().nodes.is_empty());
+    assert!(scrubber.state().nodes.is_empty());
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn legacy_scrubber_unchanged() {
     // The existing Scrubber behavior is not modified by D2-2.
     let events = philosophers_trace();
     let mut legacy = Scrubber::new(events.clone());
-    legacy.aller_a(100);
+    legacy.round_a(100);
     assert_eq!(legacy.position(), 100);
-    assert_eq!(legacy.longueur(), events.len());
+    assert_eq!(legacy.length(), events.len());
 }

@@ -27,8 +27,8 @@ impl KeyAlgebra for MockKeys {
     fn rank(&self, _level: Level, key: &Self::Key) -> Option<u64> {
         (*key < 4).then_some(*key)
     }
-    fn unrank(&self, _level: Level, rang: u64) -> Option<Self::Key> {
-        (rang < 4).then_some(rang)
+    fn unrank(&self, _level: Level, rank: u64) -> Option<Self::Key> {
+        (rank < 4).then_some(rank)
     }
 }
 
@@ -54,10 +54,10 @@ fn nouvelle_arena() -> Arena<MockController> {
     Arena::new(MockController { keys: MockKeys }, Box::new(NoOpObserver))
 }
 
-fn form_aleatoire(paires: Vec<(u8, u32)>, level: u8) -> Form<u64, u64> {
+fn form_random(pairs: Vec<(u8, u32)>, level: u8) -> Form<u64, u64> {
     Form::Node {
         level: Level(u32::from(level)),
-        arcs: paires
+        arcs: pairs
             .into_iter()
             .map(|(key, target)| (u64::from(key), NodeId(target)))
             .collect::<ArcRun<u64>>(),
@@ -69,23 +69,23 @@ proptest! {
     /// pair order) share the same NodeId; the stored family matches the
     /// documented threshold (fill ≥ 1/3 of |Val| = 4, all keys ranked).
     #[test]
-    fn test_c1_famille_dense(
-        paires in prop::collection::vec((0u8..4, 0u32..8), 0..5),
+    fn test_c1_family_dense(
+        pairs in prop::collection::vec((0u8..4, 0u32..8), 0..5),
         level in 0u8..3,
     ) {
         let mut pool = nouvelle_arena();
         // Deduplicate by key (last write wins, MEM-5) so that the reversed
         // construction has the SAME semantic content.
         let mut dedup: std::collections::BTreeMap<u8, u32> = std::collections::BTreeMap::new();
-        for (key, target) in &paires {
+        for (key, target) in &pairs {
             dedup.insert(*key, *target);
         }
-        let paires: Vec<(u8, u32)> = dedup.into_iter().collect();
-        let form = form_aleatoire(paires.clone(), level);
+        let pairs: Vec<(u8, u32)> = dedup.into_iter().collect();
+        let form = form_random(pairs.clone(), level);
         // Shuffled construction of the same content.
-        let mut melange = paires.clone();
+        let mut melange = pairs.clone();
         melange.reverse();
-        let form_melangee = form_aleatoire(melange, level);
+        let form_melangee = form_random(melange, level);
         let first = pool.intern(Anchor(0), form.clone());
         let second = pool.intern(Anchor(0), form);
         let third = pool.intern(Anchor(0), form_melangee);
@@ -96,14 +96,14 @@ proptest! {
         let Form::Node { arcs, .. } = pool.resolve(first).unwrap() else {
             panic!("node expected");
         };
-        let attendu_dense = arcs.len() >= 2;
-        prop_assert_eq!(arcs.is_dense(), attendu_dense, "threshold 4·|Val| ≤ 12·arcs");
+        let expected_dense = arcs.len() >= 2;
+        prop_assert_eq!(arcs.is_dense(), expected_dense, "threshold 4·|Val| ≤ 12·arcs");
         // The dense family preserves the content: same pairs, rank order.
-        let attendu: Vec<(u64, NodeId)> = paires
+        let expected: Vec<(u64, NodeId)> = pairs
             .iter()
             .map(|(key, target)| (u64::from(*key), NodeId(*target)))
             .collect();
-        let obtenu: Vec<(u64, NodeId)> = arcs.iter().map(|(k, t)| (*k, *t)).collect();
-        prop_assert_eq!(obtenu, attendu);
+        let obtained: Vec<(u64, NodeId)> = arcs.iter().map(|(k, t)| (*k, *t)).collect();
+        prop_assert_eq!(obtained, expected);
     }
 }

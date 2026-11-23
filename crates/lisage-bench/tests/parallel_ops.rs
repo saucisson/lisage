@@ -38,12 +38,12 @@ fn test_bench_parallel_ops_multi_query() {
     let ops: u64 = field(line, "ops").parse().expect("ops");
     let members: u64 = field(line, "members").parse().expect("members");
     let seq_ms: f64 = field(line, "seq_ms").parse().expect("seq_ms");
-    let par_ms: f64 = field(line, "par_ms").parse().expect("par_ms");
+    let per_ms: f64 = field(line, "par_ms").parse().expect("par_ms");
     let speedup: f64 = field(line, "speedup").parse().expect("speedup");
     assert_eq!(n, u64::from(N));
     assert_eq!(ops, u64::from(OPS));
     assert_eq!(members, 3104, "R_8 has 3104 members");
-    assert!(seq_ms > 0.0 && par_ms > 0.0, "both paths measured");
+    assert!(seq_ms > 0.0 && per_ms > 0.0, "both paths measured");
     assert!(speedup > 0.0, "speedup is positive");
 
     if std::env::var("P11_PUBLISH").is_ok() {
@@ -55,7 +55,7 @@ fn test_bench_parallel_ops_multi_query() {
              seq vs par) is asserted inside the runner.\n\n\
              | n | ops | members | seq (ms) | par (ms) | speedup |\n\
              |---|---|---|---|---|---|\n\
-             | {n} | {ops} | {members} | {seq_ms:.3} | {par_ms:.3} | {speedup:.3} |\n"
+             | {n} | {ops} | {members} | {seq_ms:.3} | {per_ms:.3} | {speedup:.3} |\n"
         );
         let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
         std::fs::write(format!("{directory}/p11-parallel-ops.md"), publication)

@@ -2,7 +2,7 @@
 //! workload at n = 5 with saturation, through the `bench_contention` runner
 //! binary, one process per run. Pins the structural counters (nodes,
 //! cardinality, rounds, hit-rate ranges, per-level intern distribution) and
-//! a generous frozen time ceiling (CI refuses gross time regressions), and
+//! a generous frozen time ceiling (CI refuses coarse time regressions), and
 //! publishes the baselines to `bench-results/p01-contention.md` when
 //! `P01_PUBLISH=1`.
 
@@ -134,7 +134,7 @@ fn test_bench_contention_philosophers_n5() {
         "every level sees intern calls: {:?}",
         measurement.interns_per_level
     );
-    // Frozen time ceiling: CI refuses gross time regressions (algorithmic),
+    // Frozen time ceiling: CI refuses coarse time regressions (algorithmic),
     // not machine noise — see TOTAL_TIME_CEILING_MS.
     let total = measurement.build_ms + measurement.saturation_ms + measurement.count_ms;
     assert!(

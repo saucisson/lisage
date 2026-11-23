@@ -17,7 +17,7 @@ pub enum Plan {
     /// Main plane: the diagram nodes.
     Principal,
     /// Shadow plane: the level → forms index and auxiliary nodes.
-    Ombre,
+    Shadow,
 }
 
 /// Profiled compaction threshold: compact when the tombstone proportion
@@ -27,15 +27,15 @@ pub const THRESHOLD_COMPACTION_NUM: u64 = 1;
 pub const THRESHOLD_COMPACTION_DEN: u64 = 4;
 
 /// Percentage base for `rate_hit` (returned in percent, integer).
-pub const BASE_POURCENTAGE: u64 = 100;
+pub const BASE_PERCENTAGE: u64 = 100;
 
 /// Pool metrics: hash-consing cache and GC counters.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub struct MetriquesPool {
+pub struct MetricsPool {
     /// Nodes created (hash-consing miss).
     pub creations: u64,
     /// Nodes shared (hash-consing hit, R-share).
-    pub partages: u64,
+    pub shared: u64,
     /// Live nodes after the last GC.
     pub live: u64,
     /// Nodes collected in total.
@@ -45,15 +45,15 @@ pub struct MetriquesPool {
     /// Number of compactions executed.
     pub compactions: u64,
     /// Terminal singletons of the pool (MEM-11): one per distinct payload.
-    pub terminaux: u64,
+    pub terminals: u64,
 }
 
-impl MetriquesPool {
+impl MetricsPool {
     /// Cache hit rate = shares / (creations + shares); 0 if empty.
     pub fn rate_hit(&self) -> u64 {
-        let total = self.creations + self.partages;
-        self.partages
-            .checked_mul(BASE_POURCENTAGE)
+        let total = self.creations + self.shared;
+        self.shared
+            .checked_mul(BASE_PERCENTAGE)
             .and_then(|p| p.checked_div(total))
             .unwrap_or(0)
     }
@@ -89,6 +89,6 @@ pub(crate) struct NodeEntry<Key, Payload> {
 pub(crate) type IndexLevels = BTreeMap<Level, Vec<NodeId>>;
 
 /// Decides whether the profiled compaction threshold is reached.
-pub fn threshold_atteint(dead: u64, total: u64) -> bool {
+pub fn threshold_reached(dead: u64, total: u64) -> bool {
     dead * THRESHOLD_COMPACTION_DEN >= total * THRESHOLD_COMPACTION_NUM && total > 0
 }

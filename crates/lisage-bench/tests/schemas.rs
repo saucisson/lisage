@@ -15,7 +15,7 @@ fn domain(values: Vec<u64>) -> Domain {
     Domain::new(values.into_iter().map(Atom).collect())
 }
 
-fn atome(v: u64) -> Value {
+fn atom(v: u64) -> Value {
     Value::Atom(Atom(v))
 }
 
@@ -26,7 +26,7 @@ fn schema_set() -> BoxedStrategy<(Schema, Value)> {
             let set: BTreeSet<Value> = elements
                 .into_iter()
                 .filter(|&e| u64::from(e) < u64::from(size))
-                .map(|e| atome(u64::from(e)))
+                .map(|e| atom(u64::from(e)))
                 .collect();
             (Schema::Set(domain), Value::Set(set))
         })
@@ -38,24 +38,24 @@ fn schema_map() -> BoxedStrategy<(Schema, Value)> {
         prop::collection::vec(0u8..4, 1..4),
         prop::collection::vec((0u8..4, 0u8..3), 0..4),
     )
-        .prop_map(|(keys, paires)| {
+        .prop_map(|(keys, pairs)| {
             let keys: Vec<Atom> = keys.into_iter().map(|c| Atom(u64::from(c))).collect();
             let domain_v = domain(vec![0, 1, 2]);
-            let map: BTreeMap<Value, Value> = paires
+            let map: BTreeMap<Value, Value> = pairs
                 .into_iter()
                 .filter(|(c, _)| keys.contains(&Atom(u64::from(*c))))
-                .map(|(c, v)| (atome(u64::from(c)), atome(u64::from(v))))
+                .map(|(c, v)| (atom(u64::from(c)), atom(u64::from(v))))
                 .collect();
             (Schema::Map(keys, domain_v), Value::Map(map))
         })
         .boxed()
 }
 
-fn schema_atome() -> BoxedStrategy<(Schema, Value)> {
+fn schema_atom() -> BoxedStrategy<(Schema, Value)> {
     (1u8..4, 0u8..4)
         .prop_map(|(size, v)| {
             let domain = domain((0..u64::from(size)).collect());
-            let value = atome(u64::from(v) % u64::from(size));
+            let value = atom(u64::from(v) % u64::from(size));
             (Schema::Atom(domain), value)
         })
         .boxed()
@@ -76,7 +76,7 @@ fn schema_and_two_values() -> BoxedStrategy<(Schema, Value, Value)> {
                         elements
                             .into_iter()
                             .filter(|&e| u64::from(e) < u64::from(size))
-                            .map(|e| atome(u64::from(e)))
+                            .map(|e| atom(u64::from(e)))
                             .collect(),
                     )
                 };
@@ -90,13 +90,13 @@ fn schema_and_two_values() -> BoxedStrategy<(Schema, Value, Value)> {
             .prop_map(|(keys, pa, pb)| {
                 let keys: Vec<Atom> = keys.into_iter().map(|c| Atom(u64::from(c))).collect();
                 let domain_v = domain(vec![0, 1, 2]);
-                let keys_filtre = keys.clone();
-                let mk = move |paires: Vec<(u8, u8)>| {
+                let keys_filter = keys.clone();
+                let mk = move |pairs: Vec<(u8, u8)>| {
                     Value::Map(
-                        paires
+                        pairs
                             .into_iter()
-                            .filter(|(c, _)| keys_filtre.contains(&Atom(u64::from(*c))))
-                            .map(|(c, v)| (atome(u64::from(c)), atome(u64::from(v))))
+                            .filter(|(c, _)| keys_filter.contains(&Atom(u64::from(*c))))
+                            .map(|(c, v)| (atom(u64::from(c)), atom(u64::from(v))))
                             .collect(),
                     )
                 };
@@ -106,8 +106,8 @@ fn schema_and_two_values() -> BoxedStrategy<(Schema, Value, Value)> {
             let domain = domain((0..u64::from(size)).collect());
             (
                 Schema::Atom(domain),
-                atome(u64::from(va) % u64::from(size)),
-                atome(u64::from(vb) % u64::from(size)),
+                atom(u64::from(va) % u64::from(size)),
+                atom(u64::from(vb) % u64::from(size)),
             )
         }),
     ]
@@ -117,7 +117,7 @@ fn schema_and_two_values() -> BoxedStrategy<(Schema, Value, Value)> {
 proptest! {
     /// Round-trip: decompiler(compiler(v)) = v for the three bounded schemas.
     #[test]
-    fn test_round_trip_compilation((schema, value) in prop_oneof![schema_set(), schema_map(), schema_atome()]) {
+    fn test_round_trip_compilation((schema, value) in prop_oneof![schema_set(), schema_map(), schema_atom()]) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = Anchor(0);
         let root = compiler(&mut pool, anchor, &schema, &value).unwrap();
@@ -127,7 +127,7 @@ proptest! {
     /// Canonicity (C1): two distinct values compile to distinct
     /// nodes; the same value compiled twice gives the same node.
     #[test]
-    fn test_canonicite_compilation((schema, value_a, value_b) in schema_and_two_values()) {
+    fn test_canonicity_compilation((schema, value_a, value_b) in schema_and_two_values()) {
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = Anchor(0);
         let root_a1 = compiler(&mut pool, anchor, &schema, &value_a).unwrap();
@@ -144,7 +144,7 @@ proptest! {
 /// compile then decompile gives the sequence back (round-trip), and two
 /// equal sequences compile to the same node (canonicity).
 #[test]
-fn test_t5_seq_round_trip_propriete() {
+fn test_t5_seq_round_trip_property() {
     use lisage_core::arena::Arena;
     use lisage_core::observer::NoOpObserver;
     use lisage_core::schema::{Domain, ReferenceController, Schema, compiler, decompiler};
@@ -152,22 +152,22 @@ fn test_t5_seq_round_trip_propriete() {
     use proptest::prelude::*;
 
     proptest!(|(domain_size in 1u64..=4,
-                 longueur_max in 1u32..=4,
+                 length_max in 1u32..=4,
                  elements in prop::collection::vec(0u64..4, 0..5))| {
         let domain = Domain::new((0..domain_size).map(Atom).collect());
-        let schema = Schema::Seq(domain.clone(), longueur_max);
+        let schema = Schema::Seq(domain.clone(), length_max);
         let mut pool = Arena::new(ReferenceController::new(schema.clone()), Box::new(NoOpObserver));
         let anchor = lisage_algebra::interface::Anchor(0);
         // Truncate to the max length and filter into the domain.
         let seq: Vec<Value> = elements.iter()
-            .take(longueur_max as usize)
+            .take(length_max as usize)
             .filter(|&&v| v < domain_size)
             .map(|&v| Value::Atom(Atom(v)))
             .collect();
         let value = Value::Seq(seq.clone());
         let root = compiler(&mut pool, anchor, &schema, &value).unwrap();
-        let retour = decompiler(&pool, &schema, root).unwrap();
-        prop_assert_eq!(retour, value.clone(), "round-trip Seq");
+        let trip = decompiler(&pool, &schema, root).unwrap();
+        prop_assert_eq!(trip, value.clone(), "round-trip Seq");
         // Canonicity.
         let root2 = compiler(&mut pool, anchor, &schema, &value).unwrap();
         prop_assert_eq!(root, root2, "canonicity Seq");

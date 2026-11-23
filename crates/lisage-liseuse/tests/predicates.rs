@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use lisage_core::arena::Arena;
 use lisage_core::dbm::{Dbm, DbmController, DbmKeys};
-use lisage_core::ddd::compiler_bande;
+use lisage_core::ddd::compiler_band;
 use lisage_core::observer::{Observer, TraceEvent};
 use lisage_core::schema::{ABSENT, PRESENT, SchemaKeys};
 use lisage_core::{Anchor, Form, Level, NodeId, PathPredicate, Pool};
@@ -48,9 +48,7 @@ fn forms_of_visited_nodes<P: Pool>(
     let visited: BTreeSet<NodeId> = events
         .iter()
         .filter_map(|event| match event {
-            TraceEvent::VisiteEntree { node, .. } | TraceEvent::VisiteSortie { node, .. } => {
-                Some(*node)
-            }
+            TraceEvent::VisitEntry { node, .. } | TraceEvent::VisitExit { node, .. } => Some(*node),
             _ => None,
         })
         .collect();
@@ -124,17 +122,17 @@ fn test_path_condition_reference_instance() {
     )
     .expect("parses");
     let all_visits = Evaluator::replay(both, keys.clone(), resolver.clone(), &events);
-    // Depth of each visit opening (the stack of Visite spans): the root
+    // Depth of each visit opening (the stack of Visit spans): the root
     // visit of each operation has depth 0 and an empty prefix path.
     let mut depths: Vec<(usize, usize)> = Vec::new();
     let mut stack: Vec<()> = Vec::new();
     for (position, event) in events.iter().enumerate() {
         match event {
-            TraceEvent::VisiteEntree { .. } => {
+            TraceEvent::VisitEntry { .. } => {
                 depths.push((position, stack.len()));
                 stack.push(());
             }
-            TraceEvent::VisiteSortie { .. } => {
+            TraceEvent::VisitExit { .. } => {
                 stack.pop();
             }
             _ => {}
@@ -175,7 +173,7 @@ fn test_path_condition_dbm_instance() {
         DbmController::new(DbmKeys::new(SIZE_DOMAIN)),
         Box::new(collector.clone()),
     );
-    let root = compiler_bande(&mut pool, anchor);
+    let root = compiler_band(&mut pool, anchor);
     let events = collector.events.lock().expect("mutex poisoned").clone();
 
     // Synthetic visit trace: properly nested DFS from the root (each
@@ -189,15 +187,15 @@ fn test_path_condition_dbm_instance() {
         if !visited.insert(node) {
             return;
         }
-        events.push(TraceEvent::VisiteEntree { node, span: None });
+        events.push(TraceEvent::VisitEntry { node, span: None });
         if let Form::Node { arcs, .. } = pool.resolve(node).expect("node resolvable") {
             for (_, target) in arcs.iter() {
                 dfs(pool, *target, events, visited);
             }
         }
-        events.push(TraceEvent::VisiteSortie {
+        events.push(TraceEvent::VisitExit {
             node,
-            resultat: node,
+            result: node,
             span: None,
         });
     }
@@ -311,7 +309,7 @@ fn test_resolver_from_pool() {
         DbmController::new(DbmKeys::new(SIZE_DOMAIN)),
         Box::new(lisage_core::observer::NoOpObserver),
     );
-    let root = compiler_bande(&mut pool, anchor);
+    let root = compiler_band(&mut pool, anchor);
     let shared = Arc::new(Mutex::new(pool));
     let resolver = resolver_from_pool(shared.clone());
     let (level, arc_key, target) = {

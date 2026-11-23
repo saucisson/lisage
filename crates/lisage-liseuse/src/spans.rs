@@ -7,7 +7,7 @@
 //!   interval answers in O(1), never by linear scan.
 //! - [`round_lines`] / [`render_balance_lines`] present a saturation as
 //!   one balance line per round, with the convergence marker (a round
-//!   that changed nothing, `apres == avant` = fixpoint).
+//!   that changed nothing, `after == before` = fixpoint).
 //! - [`diff_rounds`] compares two rounds (DoD: diff round 11 vs 12) by
 //!   round-interval lookup + prefix sums, in O(1) after one O(n) pass.
 
@@ -191,7 +191,7 @@ impl Balances {
             let (created, hit, grown) = match event {
                 TraceEvent::NodeCreated { .. } => (1, 0, 0),
                 TraceEvent::MemoHit { .. } => (0, 1, 0),
-                TraceEvent::Round { croissance, .. } => (0, 0, *croissance),
+                TraceEvent::Round { growth, .. } => (0, 0, *growth),
                 _ => (0, 0, 0),
             };
             nodes_created.push(nodes_created.last().expect("prefix non-empty") + created);
@@ -234,7 +234,7 @@ pub struct RoundLine {
     pub number: u32,
     /// Folded balance of the round's event interval.
     pub balance: Balance,
-    /// Convergence marker: the round changed nothing (`apres == avant`,
+    /// Convergence marker: the round changed nothing (`after == before`,
     /// fixpoint reached).
     pub converged: bool,
 }
@@ -251,27 +251,27 @@ pub fn round_intervals(
 ) -> BTreeMap<u32, Range<usize>> {
     let mut intervals: BTreeMap<u32, Range<usize>> = BTreeMap::new();
     for event in events {
-        if let TraceEvent::Round { numero, span, .. } = event {
+        if let TraceEvent::Round { number, span, .. } = event {
             let range = span
                 .and_then(|span| tree.span_range(span))
-                .or_else(|| index.round_range(*numero))
+                .or_else(|| index.round_range(*number))
                 .unwrap_or(0..0);
-            intervals.insert(*numero, range);
+            intervals.insert(*number, range);
         }
     }
     intervals
 }
 
-/// First round that changed nothing (`apres == avant`) — the
+/// First round that changed nothing (`after == before`) — the
 /// convergence marker of the saturation.
 pub fn convergence_round(events: &[TraceEvent]) -> Option<u32> {
     events.iter().find_map(|event| match event {
         TraceEvent::Round {
-            numero,
-            avant,
-            apres,
+            number,
+            before,
+            after,
             ..
-        } if avant == apres => Some(*numero),
+        } if before == after => Some(*number),
         _ => None,
     })
 }
@@ -288,11 +288,11 @@ pub fn round_lines(
         .iter()
         .filter_map(|event| match event {
             TraceEvent::Round {
-                numero,
-                avant,
-                apres,
+                number,
+                before,
+                after,
                 ..
-            } => Some((*numero, avant == apres)),
+            } => Some((*number, before == after)),
             _ => None,
         })
         .collect();

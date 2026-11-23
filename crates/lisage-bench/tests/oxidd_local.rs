@@ -55,7 +55,7 @@ fn oxidd_count_nodes(number_variables: u32, table: &[bool]) -> Option<usize> {
         return None;
     }
     // The witness writes one JSON line of the confrontation protocol since
-    // M7-5: extract the `noeuds` field.
+    // M7-5: extract the `nodes` field.
     let line = String::from_utf8_lossy(&output.stdout);
     let key = "\"noeuds\":";
     let start = line.find(key)? + key.len();
@@ -90,16 +90,16 @@ proptest! {
         let root = compiler_bdd(&mut pool, anchor, &keys, &table);
         let nodes_arena = count_nodes(&pool, root);
 
-        let mut temoin = lisage_bench::temoin_bdd::MiniBdd::new();
-        let root_temoin = temoin.compiler_table(number_variables, &table);
-        let nodes_temoin = temoin.count_nodes(root_temoin);
+        let mut witness = lisage_bench::witness_bdd::MiniBdd::new();
+        let root_witness = witness.compiler_table(number_variables, &table);
+        let nodes_witness = witness.count_nodes(root_witness);
 
         let nodes_oxidd = oxidd_count_nodes(number_variables, &table)
             .expect("call to the lisage-oxidd Docker container failed");
 
         prop_assert_eq!(
             nodes_arena,
-            nodes_temoin,
+            nodes_witness,
             "local M7-3: lisage arena and internal mini-BDD disagree"
         );
         prop_assert_eq!(

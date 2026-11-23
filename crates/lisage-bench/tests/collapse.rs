@@ -68,7 +68,7 @@ fn test_collapse_cas_limites() {
 }
 
 proptest! {
-    /// R-collapse: `Some(target)` iff the table is non-empty and all the
+    /// R-collapse: `Some(target)` iff the table is not-empty and all the
     /// targets are equal; `None` otherwise.
     #[test]
     fn test_collapse_pbt(pairs in prop::collection::vec((0u8..4, 0u32..10), 0..8)) {

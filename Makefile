@@ -6,8 +6,6 @@ UV := uv
 PYTHON := $(UV) run python
 CONSOLE_SCRIPT := $(UV) run notify
 DAY_TAG := daily-$(shell date +%F)
-# French accented characters, for the English-only lint (issue #110).
-ACCENTS := [àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]
 
 .DEFAULT_GOAL := help
 .PHONY: help install lint format typecheck imports test check security build \
@@ -36,20 +34,10 @@ typecheck: ## Run the reference type checker (mypy strict, ADR-0006).
 imports: ## Verify the onion layer contract (import-linter, ADR-0002).
 	$(UV) run lint-imports
 
-# Allowlisted on purpose: glossary.md holds the FR→EN mapping terms,
-# audit-french-inventory.md quotes the inventoried French strings, and
-# WORKLOG.md keeps its pre-M6 entries in French as the historical record
-# (its own header forbids rewriting them).
-english-only: ## Fail on French accented characters in docs/, root Markdown and crates/ (issue #110).
-	@test -d docs/ && test -d crates/ && ls *.md >/dev/null 2>&1 || { echo 'english-only: scan scope missing (docs/, crates/ or root *.md)'; exit 1; }
-	@offenders=$$( { grep -rIlP --include='*.md' '$(ACCENTS)' docs/; \
-		grep -rIlP '$(ACCENTS)' *.md; \
-		grep -rIlP --include='*.rs' '$(ACCENTS)' crates/; } | sort -u \
-		| grep -v -x -e 'docs/glossary.md' -e 'docs/audit-french-inventory.md' -e 'WORKLOG.md' || true); \
-	if [ -n "$$offenders" ]; then \
-		echo 'French accented characters found (English-only repository, issue #110):'; \
-		echo "$$offenders"; exit 1; \
-	fi
+# The allowlist (glossary, audit inventory, WORKLOG pre-M6 entries,
+# historical PR bodies, bench-results/) is documented inside the checker.
+english-only: ## Fail on French text (accents, stop-words, stale French identifiers) over the repo (issues #104, #110).
+	$(PYTHON) -m scripts english-only
 
 test: ## Run the full test suite with the coverage floor (ADR-0007).
 	$(UV) run pytest

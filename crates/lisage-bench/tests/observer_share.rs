@@ -2,7 +2,7 @@
 //! the `observer_share` runner binary, one process per run, two modes
 //! (`noop` = `NoOpObserver`, `counting` = wired observer tallying every
 //! event). Pins the structural counters only: identical node and
-//! internement counts across modes (C1), event tallies consistent with
+//! interning counts across modes (C1), event tallies consistent with
 //! the intern path. Times are machine-dependent and are never pinned —
 //! they are published in `bench-results/align3-observer-share.md` with
 //! the exact reproduction command (median of 5 direct release runs per
@@ -11,7 +11,7 @@
 
 use std::process::Command;
 
-/// Reference charge of the BENCH-1 campaign: alea-lcg-20.
+/// Reference load of the BENCH-1 campaign: alea-lcg-20.
 const N: u32 = 20;
 
 /// One JSON line of the runner, parsed field by field (no dependency).
@@ -69,7 +69,7 @@ fn measure(mode: &str, n: u32) -> Measurement {
     }
 }
 
-/// Both observer modes on the reference charge: identical structure
+/// Both observer modes on the reference load: identical structure
 /// (C1), consistent event tallies. The time share is published, not
 /// pinned.
 #[test]
@@ -130,7 +130,7 @@ fn test_observer_share_alea_lcg_20() {
     );
     assert!(
         counting.shares > 0,
-        "the charge is mostly hash-consing hits"
+        "the workload is mostly hash-consing hits"
     );
     // The no-op mode reports zeroed tallies (it is the neutral baseline).
     assert_eq!(noop.events, 0);

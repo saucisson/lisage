@@ -5,7 +5,7 @@
 
 use lisage_algebra::interface::{Anchor, ArcRun, Form, KeyAlgebra, Level, Pool};
 use lisage_core::arena::Arena;
-use lisage_core::dbm::{Dbm, DbmController, DbmKeys, INCOHERENT};
+use lisage_core::dbm::{Dbm, DbmController, DbmKeys, INCONSISTENT};
 use lisage_core::observer::NoOpObserver;
 
 type PoolDbm = Arena<DbmController>;
@@ -20,31 +20,31 @@ fn pool(size_domain: u64) -> PoolDbm {
 }
 
 #[test]
-fn test_dbm_cloture_canonique() {
+fn test_dbm_canonical_closure() {
     // x0 − x1 ≤ 2 and x1 − x0 ≤ 3 describe the same region as the direct
     // closure; a redundant constraint does not change the normal form.
-    let directe = Dbm::new(2, &[(0, 1, 2), (1, 0, 3)]);
-    let with_redondance = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 5), (0, 0, 0)]);
-    assert_eq!(directe, with_redondance, "canonical closure");
+    let direct = Dbm::new(2, &[(0, 1, 2), (1, 0, 3)]);
+    let with_redundancy = Dbm::new(2, &[(0, 1, 2), (1, 0, 3), (0, 1, 5), (0, 0, 0)]);
+    assert_eq!(direct, with_redundancy, "canonical closure");
     // The closure propagates: x0−x1 ≤ 1 and x1−x2 ≤ 1 entail x0−x2 ≤ 2.
-    let propagee = Dbm::new(3, &[(0, 1, 1), (1, 2, 1)]);
-    let explicite = Dbm::new(3, &[(0, 1, 1), (1, 2, 1), (0, 2, 2)]);
+    let propagated = Dbm::new(3, &[(0, 1, 1), (1, 2, 1)]);
+    let explicit = Dbm::new(3, &[(0, 1, 1), (1, 2, 1), (0, 2, 2)]);
     assert_eq!(
-        propagee, explicite,
+        propagated, explicit,
         "the closure propagates transitive constraints"
     );
 }
 
 #[test]
-fn test_dbm_incoherent_normalise() {
+fn test_dbm_inconsistent_normalise() {
     // x0 − x1 ≤ 2 and x1 − x0 ≤ −3 are incompatible: empty region.
-    let incoherente = Dbm::new(2, &[(0, 1, 2), (1, 0, -3)]);
-    assert_eq!(incoherente, INCOHERENT);
-    assert!(incoherente.est_empty());
-    assert!(!incoherente.contains(&[0, 0]));
-    // Any inconsistent region, whatever its writing, is INCOHERENT.
+    let inconsistent = Dbm::new(2, &[(0, 1, 2), (1, 0, -3)]);
+    assert_eq!(inconsistent, INCONSISTENT);
+    assert!(inconsistent.is_empty());
+    assert!(!inconsistent.contains(&[0, 0]));
+    // Any inconsistent region, whatever its writing, is INCONSISTENT.
     let other = Dbm::new(3, &[(0, 1, -1), (1, 2, 0), (2, 0, 0)]);
-    assert_eq!(other, INCOHERENT);
+    assert_eq!(other, INCONSISTENT);
 }
 
 #[test]
@@ -57,18 +57,18 @@ fn test_dbm_contains() {
 }
 
 #[test]
-fn test_cardinality_and_defaut() {
+fn test_cardinality_and_default() {
     let keys = DbmKeys::new(4);
     assert_eq!(keys.cardinality(Level(0)), 4);
     assert_eq!(keys.cardinality(Level(7)), 4);
     // δ(ℓ) = the empty region, the continuous "absent".
-    assert_eq!(keys.default(Level(0)), Some(INCOHERENT));
+    assert_eq!(keys.default(Level(0)), Some(INCONSISTENT));
 }
 
 /// Relative C1: two writings of the same region share the same node in the
 /// pool (R-share after normal form), two distinct regions do not.
 #[test]
-fn test_partage_pool_c1_relatif() {
+fn test_shared_pool_c1_relative() {
     let mut pool = pool(4);
     let terminal = pool.intern(ANCHOR, Form::Terminal(true));
     let level = Level(0);
@@ -89,7 +89,7 @@ fn test_partage_pool_c1_relatif() {
     );
     let form_empty_a = Form::Node {
         level,
-        arcs: ArcRun::from_pairs([(INCOHERENT, terminal)]),
+        arcs: ArcRun::from_pairs([(INCONSISTENT, terminal)]),
     };
     let form_empty_b = Form::Node {
         level,
@@ -115,23 +115,23 @@ fn test_partage_pool_c1_relatif() {
 /// the same closure are equal; `contains` is consistent with the normalized
 /// matrix.
 #[test]
-fn test_propriete_cloture_lcg() {
+fn test_property_closure_lcg() {
     const SEED_LCG: u64 = 0x853C_49E6_748F_EA9B;
-    const MULTIPLICATEUR_LCG: u64 = 6364136223846793005;
-    const INCREMENT_LCG: u64 = 1442695040888963407;
+    const LCG_MULTIPLIER: u64 = 6364136223846793005;
+    const LCG_INCREMENT: u64 = 1442695040888963407;
     const NUMBER_CAS: u64 = 30;
     let keys = DbmKeys::new(6);
     let mut seed = SEED_LCG;
     let mut next = || {
         seed = seed
-            .wrapping_mul(MULTIPLICATEUR_LCG)
-            .wrapping_add(INCREMENT_LCG);
+            .wrapping_mul(LCG_MULTIPLIER)
+            .wrapping_add(LCG_INCREMENT);
         seed
     };
     for _ in 0..NUMBER_CAS {
         let n = 2 + (next() % 2) as usize;
-        let number_contraintes = next() % 5;
-        let contraintes: Vec<(usize, usize, i64)> = (0..number_contraintes)
+        let number_constraints = next() % 5;
+        let constraints: Vec<(usize, usize, i64)> = (0..number_constraints)
             .map(|_| {
                 (
                     (next() % n as u64) as usize,
@@ -140,12 +140,12 @@ fn test_propriete_cloture_lcg() {
                 )
             })
             .collect();
-        let dbm = Dbm::new(n, &contraintes);
+        let dbm = Dbm::new(n, &constraints);
         let normalisee = keys.normal_form(&dbm);
         assert_eq!(keys.normal_form(&normalisee), normalisee, "idempotence");
-        // Membership of a randomly drawn point, consistent with est_empty.
+        // Membership of a randomly drawn point, consistent with is_empty.
         let point: Vec<u64> = (0..n).map(|_| next() % 6).collect();
-        if normalisee.est_empty() {
+        if normalisee.is_empty() {
             assert!(!normalisee.contains(&point));
         }
     }
@@ -156,22 +156,22 @@ fn test_propriete_cloture_lcg() {
 /// of the box, the target read in the DD equals the naive target. The empty
 /// region arc leads to the default D_δ = terminal(false): R-default.
 #[test]
-fn test_differentiel_appartenance_contre_enumeration() {
+fn test_differential_membership_against_enumeration() {
     const SIZE_DOMAIN: u64 = 4;
     let mut pool = pool(SIZE_DOMAIN);
-    let vrai_terminal = pool.intern(ANCHOR, Form::Terminal(true));
-    let faux_terminal = pool.intern(ANCHOR, Form::Terminal(false));
+    let true_terminal = pool.intern(ANCHOR, Form::Terminal(true));
+    let false_terminal = pool.intern(ANCHOR, Form::Terminal(false));
     // x0 − x1 ≤ 0  ⇔  x0 ≤ x1; the complement is x1 − x0 ≤ −1.
-    let region_dessous = Dbm::new(2, &[(0, 1, 0)]);
+    let region_below = Dbm::new(2, &[(0, 1, 0)]);
     let region_dessus = Dbm::new(2, &[(1, 0, -1)]);
     let root = pool.intern(
         ANCHOR,
         Form::Node {
             level: Level(0),
             arcs: ArcRun::from_pairs([
-                (region_dessous.clone(), vrai_terminal),
-                (region_dessus.clone(), faux_terminal),
-                (INCOHERENT, faux_terminal),
+                (region_below.clone(), true_terminal),
+                (region_dessus.clone(), false_terminal),
+                (INCONSISTENT, false_terminal),
             ]),
         },
     );
@@ -180,16 +180,16 @@ fn test_differentiel_appartenance_contre_enumeration() {
         panic!("two distinct regions: no R-collapse");
     };
     assert!(
-        !arcs.contains_key(&INCOHERENT),
+        !arcs.contains_key(&INCONSISTENT),
         "R-default removes the arc to the default"
     );
     for x0 in 0..SIZE_DOMAIN {
         for x1 in 0..SIZE_DOMAIN {
             let point = [x0, x1];
             let target_naive = if x0 <= x1 {
-                vrai_terminal
+                true_terminal
             } else {
-                faux_terminal
+                false_terminal
             };
             let target_dd = arcs
                 .iter()

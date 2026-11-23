@@ -20,7 +20,7 @@ use crate::interface::{KeyAlgebra, Level, NodeId};
 pub const CLASS_BITS_MAX: u32 = 8;
 
 /// Low default of the class field for an open (unbounded) domain: the
-/// derivation is impossible, every non-terminal degree goes to the
+/// derivation is impossible, every not-terminal degree goes to the
 /// catch-all class — correct, but with no exact class.
 pub const CLASS_BITS_OPEN_DEFAULT: u32 = 1;
 

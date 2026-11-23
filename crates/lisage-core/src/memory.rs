@@ -251,35 +251,33 @@ impl<V: Clone + Eq + Hash + Debug> MemoryLevel<V> {
 /// Memory effect produced by `φ_out` (spec § 3.1: `M ← M ⊕ μ`): list of writes
 /// to apply after the node restructuring.
 #[derive(Clone, Debug)]
-pub struct EffetMemory<V: Clone + Eq + Hash + Debug> {
+pub struct EffectMemory<V: Clone + Eq + Hash + Debug> {
     /// Writes `(node, level, value)` to apply in the memory.
-    pub ecritures: Vec<(NodeId, Level, V)>,
+    pub writes: Vec<(NodeId, Level, V)>,
 }
 
-impl<V: Clone + Eq + Hash + Debug> Default for EffetMemory<V> {
+impl<V: Clone + Eq + Hash + Debug> Default for EffectMemory<V> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<V: Clone + Eq + Hash + Debug> EffetMemory<V> {
+impl<V: Clone + Eq + Hash + Debug> EffectMemory<V> {
     /// Empty effect: no write.
     pub fn new() -> Self {
-        EffetMemory {
-            ecritures: Vec::new(),
-        }
+        EffectMemory { writes: Vec::new() }
     }
 
     /// Effect with a single write.
     pub fn one(node: NodeId, level: Level, value: V) -> Self {
-        EffetMemory {
-            ecritures: vec![(node, level, value)],
+        EffectMemory {
+            writes: vec![(node, level, value)],
         }
     }
 
     /// Applies the effect to the memory (increments the version per write).
     pub fn apply(&self, memory: &mut MemoryLevel<V>) {
-        for (node, level, value) in &self.ecritures {
+        for (node, level, value) in &self.writes {
             memory.write(*node, *level, value.clone());
         }
     }

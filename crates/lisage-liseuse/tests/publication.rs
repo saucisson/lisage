@@ -10,7 +10,7 @@ use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
 use lisage_core::{Anchor, NodeId};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::publication::{
-    LEGENDE_CHANNELS, Theme, rendre_legende_svg, rendre_pgf, rendre_svg_publication,
+    LEGEND_CHANNELS, Theme, render_legend_svg, render_pgf, render_svg_publication,
 };
 
 type PoolRef = Arena<ReferenceController>;
@@ -21,7 +21,7 @@ fn schema_test() -> Schema {
 }
 
 /// Builds the diagram of the set `{0}` in a new pool.
-fn diagramme_test() -> (PoolRef, NodeId) {
+fn diagram_test() -> (PoolRef, NodeId) {
     let schema = schema_test();
     let mut pool = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -34,10 +34,10 @@ fn diagramme_test() -> (PoolRef, NodeId) {
 
 /// The publication SVG is standalone, in the serif theme, with the escaped title.
 #[test]
-fn test_svg_publication_theme_serif_and_titre() {
-    let (pool, root) = diagramme_test();
+fn test_svg_publication_theme_serif_and_title() {
+    let (pool, root) = diagram_test();
     let theme = Theme::publication();
-    let svg = rendre_svg_publication(&pool, root, "figure <A> & B", &theme, false);
+    let svg = render_svg_publication(&pool, root, "figure <A> & B", &theme, false);
     assert!(svg.starts_with("<svg xmlns=\"http://www.w3.org/2000/svg\""));
     assert!(svg.contains("font-family=\"serif\""));
     assert!(svg.contains("figure &lt;A&gt; &amp; B"));
@@ -48,43 +48,43 @@ fn test_svg_publication_theme_serif_and_titre() {
 /// The legend is auto-generated from the channel legend: one swatch and one
 /// label per channel, with the declared color.
 #[test]
-fn test_legende_auto_depuis_legende_des_channels() {
+fn test_legend_auto_from_channel_legends() {
     let theme = Theme::publication();
-    let legende = rendre_legende_svg(&theme, 10, 20);
-    assert_eq!(LEGENDE_CHANNELS.len(), 3);
-    for (channel, label, couleur) in LEGENDE_CHANNELS {
+    let legend = render_legend_svg(&theme, 10, 20);
+    assert_eq!(LEGEND_CHANNELS.len(), 3);
+    for (channel, label, color) in LEGEND_CHANNELS {
         assert!(
-            legende.contains(&format!("fill=\"{couleur}\"")),
+            legend.contains(&format!("fill=\"{color}\"")),
             "color of {channel:?}"
         );
-        assert!(legende.contains(label), "label of {channel:?}");
+        assert!(legend.contains(label), "label of {channel:?}");
     }
     // The publication SVG with legend embeds the three channels.
-    let (pool, root) = diagramme_test();
-    let svg = rendre_svg_publication(&pool, root, "fig", &theme, true);
-    for (_channel, label, _couleur) in LEGENDE_CHANNELS {
+    let (pool, root) = diagram_test();
+    let svg = render_svg_publication(&pool, root, "fig", &theme, true);
+    for (_channel, label, _color) in LEGEND_CHANNELS {
         assert!(svg.contains(label));
     }
     // Without legend: no channel swatch.
-    let svg_without = rendre_svg_publication(&pool, root, "fig", &theme, false);
+    let svg_without = render_svg_publication(&pool, root, "fig", &theme, false);
     assert!(!svg_without.contains("inherited (φ_disp)"));
 }
 
 /// The publication rendering is deterministic (two identical calls).
 #[test]
-fn test_svg_publication_deterministe() {
-    let (pool, root) = diagramme_test();
+fn test_svg_publication_deterministic() {
+    let (pool, root) = diagram_test();
     let theme = Theme::publication();
-    let first = rendre_svg_publication(&pool, root, "fig", &theme, true);
-    let second = rendre_svg_publication(&pool, root, "fig", &theme, true);
+    let first = render_svg_publication(&pool, root, "fig", &theme, true);
+    let second = render_svg_publication(&pool, root, "fig", &theme, true);
     assert_eq!(first, second);
 }
 
 /// The PGF is a standalone TikZ document: diagram nodes and arcs, title.
 #[test]
 fn test_pgf_autonomous_with_nodes_and_arcs() {
-    let (pool, root) = diagramme_test();
-    let pgf = rendre_pgf(&pool, root, "figure A");
+    let (pool, root) = diagram_test();
+    let pgf = render_pgf(&pool, root, "figure A");
     assert!(pgf.contains("\\documentclass[tikz,border=5pt]{standalone}"));
     assert!(pgf.contains("\\begin{tikzpicture}"));
     assert!(pgf.contains("\\end{tikzpicture}"));
@@ -96,18 +96,18 @@ fn test_pgf_autonomous_with_nodes_and_arcs() {
     assert_eq!(number_nodes, 2);
     assert_eq!(pgf.matches("\\draw[->]").count(), 1);
     // LaTeX escaping of the title.
-    let pgf_echappe = rendre_pgf(&pool, root, "100% _special_");
-    assert!(pgf_echappe.contains("100\\% \\_special\\_"));
+    let pgf_escape = render_pgf(&pool, root, "100% _special_");
+    assert!(pgf_escape.contains("100\\% \\_special\\_"));
     // Regression: the backslash must be escaped last, otherwise the
     // braces of `\textbackslash{}` are re-escaped.
-    let pgf_backslash = rendre_pgf(&pool, root, "a\\b");
+    let pgf_backslash = render_pgf(&pool, root, "a\\b");
     assert!(pgf_backslash.contains("a\\textbackslash{}b"));
 }
 
 /// The `ChannelAttr` channel covered by the legend is the observer's one.
 #[test]
-fn test_legende_couvre_les_trois_channels() {
-    let channels: Vec<ChannelAttr> = LEGENDE_CHANNELS
+fn test_legend_covers_the_three_channels() {
+    let channels: Vec<ChannelAttr> = LEGEND_CHANNELS
         .iter()
         .map(|(channel, _, _)| *channel)
         .collect();

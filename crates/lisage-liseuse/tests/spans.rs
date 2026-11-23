@@ -8,11 +8,11 @@ use std::sync::{Arc, Mutex};
 
 use lisage_core::arena::Arena;
 use lisage_core::observer::{Observer, SpanKind, TraceEvent};
-use lisage_core::saturate::{ParametresSaturation, PolicySaturation, saturer};
+use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate};
 use lisage_core::schema::{
     ABSENT, Domain, PRESENT, ReferenceController, Schema, SchemaKeys, compiler,
 };
-use lisage_core::transduction::{ContextePhiOut, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transduction};
 use lisage_core::{Anchor, Form, Level, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::index::IndexTrace;
@@ -80,8 +80,8 @@ impl Transduction for Successor {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<()>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<()>) {
         // `m = max atom of this subtree + 1` (recomputed from the
         // children's synthesized attributes, as at the root).
         let mut m = 0u64;
@@ -114,7 +114,7 @@ impl Transduction for Successor {
             }
             current
         };
-        (node, lisage_core::memory::EffetMemory::new())
+        (node, lisage_core::memory::EffectMemory::new())
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
         &self,
@@ -148,11 +148,11 @@ fn saturation_trace(n: u64) -> Vec<TraceEvent> {
 
     let collector = Collector::default();
     let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
-    let policy = PolicySaturation::Statique(levels);
+    let policy = PolicySaturation::Static(levels);
     let step = Successor {
         number_levels: schema.number_levels(),
     };
-    let mut params = ParametresSaturation {
+    let mut params = SaturationParameters {
         transduction: &step,
         policy: &policy,
         pool: &mut pool,
@@ -162,7 +162,7 @@ fn saturation_trace(n: u64) -> Vec<TraceEvent> {
         number_levels: schema.number_levels(),
         observer: Some(Arc::new(collector.clone())),
     };
-    let result = saturer(&mut params).unwrap();
+    let result = saturate(&mut params).unwrap();
     assert_eq!(
         result.iterations, n as u32,
         "the chain saturates in n rounds"
@@ -171,7 +171,7 @@ fn saturation_trace(n: u64) -> Vec<TraceEvent> {
 }
 
 /// D2-4: the span tree of a saturation — one `Round` root per round,
-/// each holding one `Op` span, itself holding the `Visite` spans; the
+/// each holding one `Op` span, itself holding the `Visit` spans; the
 /// children intervals are nested in the parent interval.
 #[test]
 fn test_span_tree_saturation_n4() {
@@ -189,7 +189,7 @@ fn test_span_tree_saturation_n4() {
             "the Op span holds the Visite spans"
         );
         for child in &root.children[0].children {
-            assert_eq!(child.kind, SpanKind::Visite);
+            assert_eq!(child.kind, SpanKind::Visit);
         }
     }
     // Nesting: every child interval is inside its parent's.
@@ -203,7 +203,7 @@ fn test_span_tree_saturation_n4() {
     for root in tree.roots() {
         check_nested(root);
     }
-    // Depth: Round > Op > Visite, and the Visite spans nest by
+    // Depth: Round > Op > Visit, and the Visit spans nest by
     // recursion (depth >= 3). Lookup by id finds a known span.
     assert!(tree.depth() >= 3);
     let first = tree.roots()[0].span;
@@ -234,7 +234,7 @@ fn test_balances_prefix_sums() {
     let scan_growth: i64 = events
         .iter()
         .map(|e| match e {
-            TraceEvent::Round { croissance, .. } => *croissance,
+            TraceEvent::Round { growth, .. } => *growth,
             _ => 0,
         })
         .sum();
@@ -333,13 +333,11 @@ fn test_diff_rounds_11_vs_12() {
         .delta(&balances.balance(range_11));
     assert_eq!(delta, expected);
     // The growth delta equals the difference of the two Round growths.
-    let growth_of = |number: u32| {
+    let growth_of = |target: u32| {
         events
             .iter()
             .find_map(|e| match e {
-                TraceEvent::Round {
-                    numero, croissance, ..
-                } if *numero == number => Some(*croissance),
+                TraceEvent::Round { number, growth, .. } if *number == target => Some(*growth),
                 _ => None,
             })
             .unwrap()

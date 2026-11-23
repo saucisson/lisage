@@ -12,7 +12,7 @@ use std::time::Instant;
 use lisage_algebra::interface::{Anchor, Form, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
-use lisage_core::parallel_ops::{merge_pools_par, merge_pools_seq};
+use lisage_core::parallel_ops::{merge_pools_parallel, merge_pools_seq};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_lang::value::{Atom, Value};
 
@@ -64,7 +64,7 @@ fn build_input(n: u64, number_words: usize) -> (PoolRef, Schema, NodeId) {
             .map(|(i, &v)| (Value::Atom(Atom(i as u64)), Value::Atom(Atom(v))))
             .collect();
         let member = compiler(&mut pool, ANCHOR, &schema, &Value::Map(map)).unwrap();
-        root = lisage_core::pli::union(&mut pool, &keys, ANCHOR, root, member).unwrap();
+        root = lisage_core::fold::union(&mut pool, &keys, ANCHOR, root, member).unwrap();
     }
     (pool, schema, root)
 }
@@ -103,33 +103,40 @@ fn main() {
         (pools, roots)
     };
     let (pools_seq, roots_seq) = make();
-    let (pools_par, roots_par) = make();
+    let (pools_parallel, roots_parallel) = make();
 
     let start = Instant::now();
     let (merged_seq, root_seq) = merge_pools_seq(&schema, ANCHOR, &pools_seq, &roots_seq).unwrap();
     let seq_ms = start.elapsed().as_secs_f64() * 1000.0;
 
     let start = Instant::now();
-    let (merged_par, root_par) = merge_pools_par(&schema, ANCHOR, pools_par, roots_par).unwrap();
-    let par_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let (merged_parallel, root_parallel) =
+        merge_pools_parallel(&schema, ANCHOR, pools_parallel, roots_parallel).unwrap();
+    let per_ms = start.elapsed().as_secs_f64() * 1000.0;
 
-    // PAR-1 sanity: same merged cardinality, seq vs par.
+    // PER-1 sanity: same merged cardinality, seq vs parallel.
     let mut output = Arena::new(
         ReferenceController::new(schema.clone()),
         Box::new(NoOpObserver),
     );
     let card_seq =
-        lisage_core::pli::count(&merged_seq, &mut output, ANCHOR, &schema, root_seq).unwrap();
-    let card_par =
-        lisage_core::pli::count(&merged_par, &mut output, ANCHOR, &schema, root_par).unwrap();
+        lisage_core::fold::count(&merged_seq, &mut output, ANCHOR, &schema, root_seq).unwrap();
+    let card_parallel = lisage_core::fold::count(
+        &merged_parallel,
+        &mut output,
+        ANCHOR,
+        &schema,
+        root_parallel,
+    )
+    .unwrap();
     assert_eq!(
-        card_seq, card_par,
+        card_seq, card_parallel,
         "PAR-1: same merged cardinality seq vs par"
     );
 
-    let speedup = if par_ms > 0.0 { seq_ms / par_ms } else { 0.0 };
+    let speedup = if per_ms > 0.0 { seq_ms / per_ms } else { 0.0 };
     println!(
-        "{{\"tool\":\"lisage-merge\",\"n\":{n},\"pools\":{number_pools},\"input_live\":{},\"merged_live\":{},\"seq_ms\":{seq_ms:.3},\"par_ms\":{par_ms:.3},\"speedup\":{speedup:.3}}}",
+        "{{\"tool\":\"lisage-merge\",\"n\":{n},\"pools\":{number_pools},\"input_live\":{},\"merged_live\":{},\"seq_ms\":{seq_ms:.3},\"par_ms\":{per_ms:.3},\"speedup\":{speedup:.3}}}",
         input.live(),
         merged_seq.live()
     );

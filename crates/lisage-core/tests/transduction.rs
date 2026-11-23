@@ -8,7 +8,7 @@ use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::observer::NoOpObserver;
 use lisage_core::schema::{Domain, ReferenceController, Schema, compiler};
-use lisage_core::transduction::{ContextePhiOut, Transducteur, Transduction};
+use lisage_core::transduction::{PhiOutContext, Transducer, Transduction};
 use lisage_lang::value::{Atom, Value};
 
 type PoolRef = Arena<ReferenceController>;
@@ -19,9 +19,9 @@ fn pool() -> PoolRef {
 }
 
 /// Identity transduction with inherited channel = depth: H = u64.
-struct IdentiteDepth;
+struct IdentityDepth;
 
-impl Transduction for IdentiteDepth {
+impl Transduction for IdentityDepth {
     type H = u64;
     type S = u64;
     type Out = bool;
@@ -42,8 +42,8 @@ impl Transduction for IdentiteDepth {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<Self::M>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -52,7 +52,7 @@ impl Transduction for IdentiteDepth {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memory::EffetMemory::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -90,8 +90,8 @@ impl Transduction for CountPaths {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<Self::M>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
         self.appels.fetch_add(1, Ordering::SeqCst);
         (
             pool.intern(
@@ -101,7 +101,7 @@ impl Transduction for CountPaths {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memory::EffetMemory::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -119,9 +119,9 @@ impl Transduction for CountPaths {
 }
 
 /// Identity without inherited channel, to compare memo fingerprints.
-struct Identite;
+struct Identity;
 
-impl Transduction for Identite {
+impl Transduction for Identity {
     type H = ();
     type S = ();
     type Out = bool;
@@ -138,8 +138,8 @@ impl Transduction for Identite {
     fn phi_out<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
-        ctx: ContextePhiOut<'_, Self::H, Self::S, Self::M>,
-    ) -> (NodeId, lisage_core::memory::EffetMemory<Self::M>) {
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, lisage_core::memory::EffectMemory<Self::M>) {
         (
             pool.intern(
                 ctx.anchor,
@@ -148,7 +148,7 @@ impl Transduction for Identite {
                     arcs: ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect(),
                 },
             ),
-            lisage_core::memory::EffetMemory::new(),
+            lisage_core::memory::EffectMemory::new(),
         )
     }
     fn psi<P: Pool<Key = u64, Payload = bool>>(
@@ -165,20 +165,20 @@ impl Transduction for Identite {
 /// Builds a small DAG in the input pool: b = ν(1, {0 ↦ a, 1 ↦ ⊤}),
 /// a = ν(0, {0 ↦ ⊤, 1 ↦ ⊥}).
 fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
-    let vrai = pool.intern(anchor, Form::Terminal(true));
-    let faux = pool.intern(anchor, Form::Terminal(false));
+    let true_node = pool.intern(anchor, Form::Terminal(true));
+    let false_node = pool.intern(anchor, Form::Terminal(false));
     let a = pool.intern(
         anchor,
         Form::Node {
             level: Level(0),
-            arcs: ArcRun::from_pairs([(0, vrai), (1, faux)]),
+            arcs: ArcRun::from_pairs([(0, true_node), (1, false_node)]),
         },
     );
     let b = pool.intern(
         anchor,
         Form::Node {
             level: Level(1),
-            arcs: ArcRun::from_pairs([(0, a), (1, vrai)]),
+            arcs: ArcRun::from_pairs([(0, a), (1, true_node)]),
         },
     );
     (a, b)
@@ -187,12 +187,12 @@ fn dag(pool: &mut PoolRef, anchor: Anchor) -> (NodeId, NodeId) {
 /// Inherited channel: the identity transduction rebuilds the same forms; the
 /// returned depth equals the DAG's height.
 #[test]
-fn test_channel_herite_identite_and_depth() {
+fn test_channel_inherited_identity_and_depth() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
     let (_, b) = dag(&mut input, anchor);
-    let mut runner = Transducteur::new(IdentiteDepth);
+    let mut runner = Transducer::new(IdentityDepth);
     let (result, depth) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(
         output.resolve(result).unwrap(),
@@ -205,7 +205,7 @@ fn test_channel_herite_identite_and_depth() {
 /// Synthesized channel: φ_aggr sums the children's weights; the count is the
 /// number of accepting paths (2 in the DAG: 0·0 and 1).
 #[test]
-fn test_channel_synthetise_comptage() {
+fn test_channel_synthesized_counting() {
     let mut input = pool();
     let mut output = pool();
     let anchor = Anchor(0);
@@ -214,7 +214,7 @@ fn test_channel_synthetise_comptage() {
     let count = CountPaths {
         appels: appels.clone(),
     };
-    let mut runner = Transducteur::new(count);
+    let mut runner = Transducer::new(count);
     let (result, count_paths) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(output.resolve(result).unwrap(), input.resolve(b).unwrap());
     assert_eq!(count_paths, 2, "two paths lead to ⊤");
@@ -233,23 +233,23 @@ fn test_memo_fingerprint_op_node() {
     let mut output = pool();
     let anchor = Anchor(0);
     let (_, b) = dag(&mut input, anchor);
-    let mut runner = Transducteur::new(Identite);
+    let mut runner = Transducer::new(Identity);
     let (r1, _) = runner.run(&input, &mut output, anchor, b).unwrap();
-    let size_apres_1 = runner.size_memo();
+    let size_after_1 = runner.size_memo();
     let (r2, _) = runner.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(r1, r2);
     assert_eq!(
         runner.size_memo(),
-        size_apres_1,
+        size_after_1,
         "second run: only memo hits"
     );
     // 4 distinct (node, h) pairs: b, a, ⊤, ⊥.
-    assert_eq!(size_apres_1, 4);
+    assert_eq!(size_after_1, 4);
 
     // Another operation (different fingerprint) on the same node: separate
     // memo. With H = depth, ⊤ is visited at two distinct h (1 via b's arc 1,
     // 2 via a's arc 0): 5 entries (b, a, ⊤×2, ⊥).
-    let mut other = Transducteur::new(IdentiteDepth);
+    let mut other = Transducer::new(IdentityDepth);
     let (r3, _) = other.run(&input, &mut output, anchor, b).unwrap();
     assert_eq!(output.resolve(r3).unwrap(), input.resolve(b).unwrap());
     assert_eq!(
@@ -262,7 +262,7 @@ fn test_memo_fingerprint_op_node() {
 /// The transduction also applies to a diagram compiled from a value (M1-3
 /// schema): identity over a compiled set.
 #[test]
-fn test_transduction_sur_diagramme_compile() {
+fn test_transduction_on_diagram_compile() {
     let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
     let mut input = Arena::new(
         ReferenceController::new(schema.clone()),
@@ -278,7 +278,7 @@ fn test_transduction_sur_diagramme_compile() {
         Value::Atom(Atom(1)),
     ]));
     let root = compiler(&mut input, anchor, &schema, &set).unwrap();
-    let mut runner = Transducteur::new(Identite);
+    let mut runner = Transducer::new(Identity);
     let (result, _) = runner.run(&input, &mut output, anchor, root).unwrap();
     assert_eq!(
         output.resolve(result).unwrap(),

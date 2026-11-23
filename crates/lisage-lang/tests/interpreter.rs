@@ -122,7 +122,7 @@ fn test_hof_iterate_property_lcg() {
     // for n drawn from a deterministic LCG (same constants as lisage-plan).
     const SEED_LCG: u64 = 0x9E37_79B9_7F4A_7C15;
     const MULTIPLIER_LCG: u64 = 6364136223846793005;
-    const INCREMENT_LCG: u64 = 1442695040888963407;
+    const LCG_INCREMENT: u64 = 1442695040888963407;
     const NUMBER_CASES: u64 = 50;
     const BOUND_N: u64 = 12;
     const BOUND_X: u64 = 100;
@@ -130,7 +130,7 @@ fn test_hof_iterate_property_lcg() {
     let mut next = move || {
         seed = seed
             .wrapping_mul(MULTIPLIER_LCG)
-            .wrapping_add(INCREMENT_LCG);
+            .wrapping_add(LCG_INCREMENT);
         seed >> 33
     };
     let increment = |v: &u64| (v + 1) % BOUND_X;

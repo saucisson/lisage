@@ -12,45 +12,45 @@ use std::process::Command;
 const N: u32 = 20000;
 
 /// One JSON line of the runner, parsed field by field (no dependency).
-struct Mesure {
+struct Measure {
     layout: String,
     nodes: u64,
-    bytes_par_noeud: f64,
-    octets_arenas_par_noeud: f64,
+    bytes_per_node: f64,
+    arena_bytes_per_node: f64,
     temps_ms: f64,
     rss_max_ko: u64,
 }
 
-fn champ(json: &str, cle: &str) -> String {
-    let marqueur = format!("\"{cle}\":");
-    let debut = json.find(&marqueur).expect("field present") + marqueur.len();
-    let reste = &json[debut..];
-    if let Some(stripped) = reste.strip_prefix('"') {
-        let fin = stripped.find('"').expect("closing quote");
-        stripped[..fin].to_string()
+fn field(json: &str, key: &str) -> String {
+    let marker = format!("\"{key}\":");
+    let start = json.find(&marker).expect("field present") + marker.len();
+    let remaining = &json[start..];
+    if let Some(stripped) = remaining.strip_prefix('"') {
+        let end = stripped.find('"').expect("closing quote");
+        stripped[..end].to_string()
     } else {
-        let fin = reste.find([',', '}']).expect("field terminator");
-        reste[..fin].to_string()
+        let end = remaining.find([',', '}']).expect("field terminator");
+        remaining[..end].to_string()
     }
 }
 
-fn mesurer(layout: &str) -> Mesure {
-    let sortie = Command::new(env!("CARGO_BIN_EXE_layout"))
+fn measure(layout: &str) -> Measure {
+    let exit = Command::new(env!("CARGO_BIN_EXE_layout"))
         .args([layout, &N.to_string()])
         .output()
         .expect("running the layout runner");
-    assert!(sortie.status.success(), "runner exit status");
-    let json = String::from_utf8(sortie.stdout).expect("utf-8 JSON line");
-    let ligne = json.lines().next().expect("one JSON line");
-    Mesure {
-        layout: champ(ligne, "layout"),
-        nodes: champ(ligne, "nodes").parse().expect("nodes"),
-        bytes_par_noeud: champ(ligne, "bytes_par_noeud").parse().expect("bytes/node"),
-        octets_arenas_par_noeud: champ(ligne, "octets_arenas_par_noeud")
+    assert!(exit.status.success(), "runner exit status");
+    let json = String::from_utf8(exit.stdout).expect("utf-8 JSON line");
+    let line = json.lines().next().expect("one JSON line");
+    Measure {
+        layout: field(line, "layout"),
+        nodes: field(line, "nodes").parse().expect("nodes"),
+        bytes_per_node: field(line, "bytes_par_noeud").parse().expect("bytes/node"),
+        arena_bytes_per_node: field(line, "octets_arenas_par_noeud")
             .parse()
             .expect("arena bytes/node"),
-        temps_ms: champ(ligne, "temps_ms").parse().expect("temps_ms"),
-        rss_max_ko: champ(ligne, "rss_max_ko").parse().expect("rss"),
+        temps_ms: field(line, "temps_ms").parse().expect("temps_ms"),
+        rss_max_ko: field(line, "rss_max_ko").parse().expect("rss"),
     }
 }
 
@@ -58,30 +58,30 @@ fn mesurer(layout: &str) -> Mesure {
 /// measurement.
 #[test]
 fn test_confrontation_layout_on_off() {
-    let on = mesurer("on");
-    let off = mesurer("off");
+    let on = measure("on");
+    let off = measure("off");
     assert_eq!(on.layout, "on");
     assert_eq!(off.layout, "off");
     // C1: identical node counts — only the container differs.
     assert_eq!(on.nodes, off.nodes, "C1: same node count on/off");
     assert_eq!(on.nodes, N as u64 + 2, "n nodes + 2 terminals");
-    let facteur_arenas = off.octets_arenas_par_noeud / on.octets_arenas_par_noeud;
-    let facteur_bout_en_bout = off.bytes_par_noeud / on.bytes_par_noeud;
-    let facteur_rss = off.rss_max_ko as f64 / on.rss_max_ko as f64;
+    let factor_arenas = off.arena_bytes_per_node / on.arena_bytes_per_node;
+    let end_to_end_factor = off.bytes_per_node / on.bytes_per_node;
+    let factor_rss = off.rss_max_ko as f64 / on.rss_max_ko as f64;
     // Pinned, falsifiable ranges (measured at MEM-19: arenas 1.67x,
     // end-to-end ~1.2x, RSS ~1.26x — constant in n). Re-pinned on the
     // ALIGN-2 measured baseline: the dense-family slots went from
     // Option<(u64, NodeId)> = 24 bytes to Option<NodeId> = 8 bytes and the
     // ArcRun enum from 24 to 16 bytes, so the arena factor is now 1.33x
-    // (32.00/24.00 bytes/node on the n=20000 charge) — a frozen range may
+    // (32.00/24.00 bytes/node on the n=20000 load) — a frozen range may
     // only be re-pinned on a measured baseline, never widened to pass.
     assert!(
-        (1.2..=1.6).contains(&facteur_arenas),
-        "arena factor {facteur_arenas:.3} out of the pinned range"
+        (1.2..=1.6).contains(&factor_arenas),
+        "arena factor {factor_arenas:.3} out of the pinned range"
     );
     assert!(
-        (1.1..=1.5).contains(&facteur_bout_en_bout),
-        "end-to-end factor {facteur_bout_en_bout:.3} out of the pinned range"
+        (1.1..=1.5).contains(&end_to_end_factor),
+        "end-to-end factor {end_to_end_factor:.3} out of the pinned range"
     );
     // Publication: bench-results/mem19-layout-on-off.md carries the
     // structural values; rewrite only on explicit demand so a test run
@@ -98,18 +98,18 @@ fn test_confrontation_layout_on_off() {
          ~1.26x RSS) — the x5..x12 prediction applies to the cumulative MEM-B track against\n\
          the ~420 B/node pre-MEM-B baseline (measured 420/60.75 = 6.9x), not to the layout\n         toggle alone.\n",
         on.nodes,
-        on.bytes_par_noeud,
-        on.octets_arenas_par_noeud,
+        on.bytes_per_node,
+        on.arena_bytes_per_node,
         on.temps_ms,
         on.rss_max_ko,
         off.nodes,
-        off.bytes_par_noeud,
-        off.octets_arenas_par_noeud,
+        off.bytes_per_node,
+        off.arena_bytes_per_node,
         off.temps_ms,
         off.rss_max_ko,
-        facteur_arenas,
-        facteur_bout_en_bout,
-        facteur_rss
+        factor_arenas,
+        end_to_end_factor,
+        factor_rss
     );
     let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
     let path = format!("{directory}/mem19-layout-on-off.md");
@@ -120,21 +120,21 @@ fn test_confrontation_layout_on_off() {
         let commitee = std::fs::read_to_string(&path).expect("reading the committed publication");
         // The structural lines must be up to date (nodes, bytes/node,
         // arena bytes/node, factors); RSS/time are machine-dependent.
-        for ligne in md
+        for line in md
             .lines()
             .filter(|l| l.contains("| on") || l.contains("| off"))
         {
-            let cellules: Vec<&str> = ligne.split('|').map(str::trim).collect();
+            let cells: Vec<&str> = line.split('|').map(str::trim).collect();
             assert!(
                 commitee.lines().any(|c| {
                     let cc: Vec<&str> = c.split('|').map(str::trim).collect();
-                    cc.len() == cellules.len()
-                        && cc[1] == cellules[1]
-                        && cc[2] == cellules[2]
-                        && cc[3] == cellules[3]
-                        && cc[4] == cellules[4]
+                    cc.len() == cells.len()
+                        && cc[1] == cells[1]
+                        && cc[2] == cells[2]
+                        && cc[3] == cells[3]
+                        && cc[4] == cells[4]
                 }),
-                "committed publication up to date for line: {ligne}"
+                "committed publication up to date for line: {line}"
             );
         }
     }

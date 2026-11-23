@@ -21,7 +21,7 @@
 //! `DbmKeys`.
 //!
 //! The [`Evaluator`] advances an incremental automaton at each visit
-//! opening (`VisiteEntree`): the prefix path is the sequence of arcs from
+//! opening (`VisitEntry`): the prefix path is the sequence of arcs from
 //! the root to the visited node, resolved through an [`ArcResolver`]
 //! (a node→form map in replay, the live pool at the gate). Membership of
 //! an arc in a path region goes through the controller-side
@@ -170,8 +170,8 @@ fn event_node(event: &TraceEvent) -> Option<NodeId> {
         | TraceEvent::NodeShared { node, .. }
         | TraceEvent::MemoHit { node, .. }
         | TraceEvent::MemoMiss { node, .. }
-        | TraceEvent::VisiteEntree { node, .. }
-        | TraceEvent::VisiteSortie { node, .. }
+        | TraceEvent::VisitEntry { node, .. }
+        | TraceEvent::VisitExit { node, .. }
         | TraceEvent::MemoConsult { node, .. }
         | TraceEvent::MemoInsert { node, .. }
         | TraceEvent::StructureChange { node, .. } => Some(*node),
@@ -272,14 +272,14 @@ impl<A: PathPredicate> Evaluator<A> {
     pub fn on_event(&mut self, event: &TraceEvent) -> bool {
         self.mirror.apply(event);
         match event {
-            TraceEvent::VisiteEntree { node, .. } => {
+            TraceEvent::VisitEntry { node, .. } => {
                 let arc = match self.visits.last() {
                     None => None,
                     Some(parent) => (self.resolver)(parent.node, *node),
                 };
                 self.visits.push(VisitFrame { node: *node, arc });
             }
-            TraceEvent::VisiteSortie { .. } => {
+            TraceEvent::VisitExit { .. } => {
                 self.visits.pop();
             }
             _ => {}

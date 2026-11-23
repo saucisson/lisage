@@ -4,28 +4,28 @@
 //! Liseuse.
 
 use lisage_core::Anchor;
-use lisage_core::operations::{KeyPresentes, existe, filtrer};
-use lisage_core::pli::count;
+use lisage_core::fold::count;
+use lisage_core::operations::{PresenceKeys, exists, filter};
 use lisage_liseuse::philosophers::{
-    build_mangeurs, build_r_n, cells_legales, count_r_n, mots_atteignables, pool_neuf,
-    schema_anneau, schema_mangeurs,
+    build_eaters, build_r_n, cells_legal, count_r_n, fresh_pool, schema_eaters, schema_ring,
+    words_reachable,
 };
-use lisage_liseuse::svg::rendre_svg;
+use lisage_liseuse::svg::render_svg;
 
 /// Expected |R_n| (docs/golden-thread-example-n-philosophers-end-to-end § 0, verified by simulation).
 const R_EXPECTEDS: &[(u64, u64)] = &[(3, 20), (4, 56), (5, 152)];
 
 /// C8: |R_n| by DD fold == reference enumeration == golden-thread values.
 #[test]
-fn test_c8_cardinaux_r3_r4_r5() {
+fn test_c8_cardinals_r3_r4_r5() {
     for &(n, expected) in R_EXPECTEDS {
-        let schema = schema_anneau(n);
-        let mut input = pool_neuf(&schema);
-        let mut output = pool_neuf(&schema);
+        let schema = schema_ring(n);
+        let mut input = fresh_pool(&schema);
+        let mut output = fresh_pool(&schema);
         let anchor = Anchor(0);
         let root = build_r_n(&mut input, anchor, n);
         let count = count_r_n(&input, &mut output, anchor, n, root);
-        let reference = mots_atteignables(n as usize).len() as u64;
+        let reference = words_reachable(n as usize).len() as u64;
         assert_eq!(count, reference, "n={n} : DD fold == enumeration");
         assert_eq!(
             count, expected,
@@ -37,27 +37,27 @@ fn test_c8_cardinaux_r3_r4_r5() {
 /// `filter` on the « eaters » projection of R_n: states where cell 0
 /// eats (key 0 present); DD count == reference.
 #[test]
-fn test_filter_cell_zero_mange() {
+fn test_filter_cell_zero_eats() {
     for &(n, _) in R_EXPECTEDS {
-        let schema = schema_mangeurs(n);
-        let mut input = pool_neuf(&schema);
-        let mut output = pool_neuf(&schema);
+        let schema = schema_eaters(n);
+        let mut input = fresh_pool(&schema);
+        let mut output = fresh_pool(&schema);
         let anchor = Anchor(0);
-        let root = build_mangeurs(&mut input, anchor, n);
-        let filtre = filtrer(
+        let root = build_eaters(&mut input, anchor, n);
+        let filter = filter(
             &input,
             &mut output,
             anchor,
             &schema,
             root,
-            Box::new(|keys: &KeyPresentes| keys.contains(&0)),
+            Box::new(|keys: &PresenceKeys| keys.contains(&0)),
         )
         .unwrap();
-        let mut output2 = pool_neuf(&schema);
-        let count = count(&output, &mut output2, anchor, &schema, filtre).unwrap();
+        let mut output2 = fresh_pool(&schema);
+        let count = count(&output, &mut output2, anchor, &schema, filter).unwrap();
         // Reference: independent sets of C_n containing 0 (the
         // eaters projection is many-to-one: we count the eaters).
-        let reference = mots_atteignables(n as usize)
+        let reference = words_reachable(n as usize)
             .iter()
             .map(|mot| {
                 (0..n)
@@ -66,7 +66,7 @@ fn test_filter_cell_zero_mange() {
             })
             .collect::<std::collections::BTreeSet<_>>()
             .into_iter()
-            .filter(|mangeurs| mangeurs.contains(&0))
+            .filter(|eaters| eaters.contains(&0))
             .count() as u64;
         assert_eq!(count, reference, "n={n} : filter « cell 0 eats »");
     }
@@ -78,34 +78,34 @@ fn test_filter_cell_zero_mange() {
 /// adjacent circularly). Both assertions can fail if
 /// `exists` is broken (always-true or always-false).
 #[test]
-fn test_exists_sur_r_n() {
+fn test_exists_on_r_n() {
     for &(n, _) in R_EXPECTEDS {
-        let schema = schema_mangeurs(n);
-        let mut input = pool_neuf(&schema);
-        let mut output = pool_neuf(&schema);
+        let schema = schema_eaters(n);
+        let mut input = fresh_pool(&schema);
+        let mut output = fresh_pool(&schema);
         let anchor = Anchor(0);
-        let root = build_mangeurs(&mut input, anchor, n);
-        let un_mange = existe(
+        let root = build_eaters(&mut input, anchor, n);
+        let one_eats = exists(
             &input,
             &mut output,
             anchor,
             &schema,
             root,
-            Box::new(|keys: &KeyPresentes| keys.contains(&0)),
+            Box::new(|keys: &PresenceKeys| keys.contains(&0)),
         )
         .unwrap();
-        assert!(un_mange, "n={n} : a state where cell 0 eats exists");
-        let n_copie = n;
-        let toutes_mangent = existe(
+        assert!(one_eats, "n={n} : a state where cell 0 eats exists");
+        let n_copy = n;
+        let all_eat = exists(
             &input,
             &mut output,
             anchor,
             &schema,
             root,
-            Box::new(move |keys: &KeyPresentes| (0..n_copie).all(|i| keys.contains(&i))),
+            Box::new(move |keys: &PresenceKeys| (0..n_copy).all(|i| keys.contains(&i))),
         )
         .unwrap();
-        assert!(!toutes_mangent, "n={n} : no state where all the cells eat");
+        assert!(!all_eat, "n={n} : no state where all the cells eat");
     }
 }
 
@@ -115,63 +115,63 @@ fn test_exists_sur_r_n() {
 /// reference enumeration compiles to a reachable node, and the
 /// only (pc, left) combinations appearing in R_n are the 5 legal ones.
 #[test]
-fn test_sept_forms_contre_r_n() {
+fn test_seven_forms_against_r_n() {
     use lisage_core::{Form, Pool};
 
-    let legales = cells_legales();
-    assert_eq!(legales.len(), 5, "5 internal forms");
+    let legal = cells_legal();
+    assert_eq!(legal.len(), 5, "5 internal forms");
     for &(n, _) in R_EXPECTEDS {
-        let schema = schema_anneau(n);
-        let mut input = pool_neuf(&schema);
+        let schema = schema_ring(n);
+        let mut input = fresh_pool(&schema);
         let anchor = Anchor(0);
         let root = build_r_n(&mut input, anchor, n);
 
         // Nodes reachable from the root + terminals seen.
-        let mut atteignables = std::collections::BTreeSet::new();
-        let mut terminaux_vus = std::collections::BTreeSet::new();
+        let mut reachable = std::collections::BTreeSet::new();
+        let mut terminals_seen = std::collections::BTreeSet::new();
         let mut stack = vec![root];
         while let Some(node) = stack.pop() {
-            if !atteignables.insert(node) {
+            if !reachable.insert(node) {
                 continue;
             }
             match input.resolve(node).unwrap() {
                 Form::Terminal(payload) => {
-                    terminaux_vus.insert(payload);
+                    terminals_seen.insert(payload);
                 }
                 Form::Node { arcs, .. } => stack.extend(arcs.values().copied()),
             }
         }
-        // ⊤ is reachable (R_n is non-empty); ⊥ is not (every path
+        // ⊤ is reachable (R_n is not-empty); ⊥ is not (every path
         // of R_n leads to acceptance). Both assertions are
         // counter-examples: they fail if the construction changes.
         assert!(
-            terminaux_vus.contains(&true),
+            terminals_seen.contains(&true),
             "n={n} : the acceptance terminal ⊤ is in R_n"
         );
         assert!(
-            !terminaux_vus.contains(&false),
+            !terminals_seen.contains(&false),
             "n={n} : the rejection terminal ⊥ is not reachable from R_n"
         );
 
         // DD cardinality == enumeration cardinality (test C8): the two
         // sets coincide. We record here the (pc, left)
         // combinations appearing in R_n.
-        let mut vus: std::collections::BTreeSet<(u64, u64)> = std::collections::BTreeSet::new();
-        for mot in mots_atteignables(n as usize) {
+        let mut seen: std::collections::BTreeSet<(u64, u64)> = std::collections::BTreeSet::new();
+        for mot in words_reachable(n as usize) {
             for i in 0..n as usize {
-                vus.insert((
+                seen.insert((
                     mot[i],
                     lisage_liseuse::philosophers::fourchette(&mot, n as usize, i),
                 ));
             }
         }
-        for cell in legales {
+        for cell in legal {
             assert!(
-                vus.contains(&cell),
+                seen.contains(&cell),
                 "n={n} : the legal cell {cell:?} appears"
             );
         }
-        assert_eq!(vus.len(), 5, "n={n} : exactly 5 legal cells in R_n");
+        assert_eq!(seen.len(), 5, "n={n} : exactly 5 legal cells in R_n");
     }
 }
 
@@ -180,7 +180,7 @@ fn test_sept_forms_contre_r_n() {
 fn reference_circulaire(n: usize) -> u64 {
     (0..3usize)
         .flat_map(|first| {
-            dp_lineaire(n, first)
+            dp_linear(n, first)
                 .into_iter()
                 .filter(move |(last, _)| !(first == 2 && *last == 2))
                 .map(|(_, count)| count)
@@ -192,7 +192,7 @@ fn reference_circulaire(n: usize) -> u64 {
 /// Linear DP: number of words of length `n` starting with `first`,
 /// with no two `2` adjacent (circular constraint not included). Returns
 /// the last symbol and the count.
-fn dp_lineaire(n: usize, first: usize) -> Vec<(usize, u64)> {
+fn dp_linear(n: usize, first: usize) -> Vec<(usize, u64)> {
     let mut dp = [0u64; 3];
     dp[first] = 1;
     for _ in 1..n {
@@ -214,15 +214,15 @@ fn dp_lineaire(n: usize, first: usize) -> Vec<(usize, u64)> {
 /// respects the invariant « no two `eat` adjacent circularly », and
 /// the enumeration has the same cardinality as the reference DP.
 #[test]
-fn test_propriete_mots_atteignables_jusqua_n12() {
+fn test_property_words_reachable_until_n12() {
     for n in 3..=12usize {
-        let mots = mots_atteignables(n);
+        let words = words_reachable(n);
         assert_eq!(
-            mots.len() as u64,
+            words.len() as u64,
             reference_circulaire(n),
             "n={n} : enumeration == reference DP"
         );
-        for mot in &mots {
+        for mot in &words {
             assert!(
                 (0..n).all(|i| !(mot[i] == 2 && mot[(i + 1) % n] == 2)),
                 "n={n} : circular invariant on {mot:?}"
@@ -234,14 +234,14 @@ fn test_propriete_mots_atteignables_jusqua_n12() {
 /// Figure exported from the Liseuse: static SVG of R_5, deterministic,
 /// written to `bench-results/` (committed).
 #[test]
-fn test_figure_svg_r5_exportee() {
+fn test_figure_svg_r5_exported() {
     let n = 5u64;
-    let schema = schema_anneau(n);
-    let mut input = pool_neuf(&schema);
+    let schema = schema_ring(n);
+    let mut input = fresh_pool(&schema);
     let root = build_r_n(&mut input, Anchor(0), n);
-    let svg = rendre_svg(&input, root);
+    let svg = render_svg(&input, root);
     assert!(svg.starts_with("<svg ") && svg.contains("ℓ0"));
-    assert_eq!(svg, rendre_svg(&input, root), "deterministic rendering");
+    assert_eq!(svg, render_svg(&input, root), "deterministic rendering");
 
     let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
     std::fs::create_dir_all(directory).expect("creation of bench-results");
@@ -262,10 +262,10 @@ fn test_figure_svg_r5_exportee() {
 #[test]
 fn test_histogramme_degres_instance_reference_r5() {
     let n = 5u64;
-    let schema = schema_anneau(n);
-    let mut pool = pool_neuf(&schema);
+    let schema = schema_ring(n);
+    let mut pool = fresh_pool(&schema);
     let root = build_r_n(&mut pool, Anchor(0), n);
-    let _ = count_r_n(&pool, &mut pool_neuf(&schema), Anchor(0), n, root);
+    let _ = count_r_n(&pool, &mut fresh_pool(&schema), Anchor(0), n, root);
     let histogram = pool.histogram();
     let internal: u64 = histogram
         .iter()

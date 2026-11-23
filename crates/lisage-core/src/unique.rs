@@ -12,8 +12,8 @@ use std::hash::{Hash, Hasher};
 use std::num::NonZero;
 
 /// Load factor ceiling: the table grows when `len / capacity > 1/2`.
-const CHARGE_NUM: usize = 1;
-const CHARGE_DEN: usize = 2;
+const LOAD_NUM: usize = 1;
+const LOAD_DEN: usize = 2;
 
 /// One occupied slot: truncated hash of the key (32 bits — equality is
 /// always confirmed through the stored form, so a collision only costs a
@@ -31,7 +31,7 @@ struct Slot {
 }
 
 /// Truncate the 64-bit key hash to the 32-bit slot tag, remapping 0 to 1
-/// so the tag stays non-zero (ALIGN-1 niche). Documented invariant: the tag
+/// so the tag stays not-zero (ALIGN-1 niche). Documented invariant: the tag
 /// is used for bucket placement and cheap pre-filtering only; equality is
 /// always confirmed semantically through the stored node's form.
 #[inline]
@@ -70,7 +70,7 @@ impl TableUnique {
             8
         } else {
             // Load factor ≤ 1/2: capacity ≥ 2 × (len + 1), power of two.
-            ((self.len + 1) * CHARGE_DEN / CHARGE_NUM)
+            ((self.len + 1) * LOAD_DEN / LOAD_NUM)
                 .max(8)
                 .next_power_of_two()
         };
@@ -111,7 +111,7 @@ impl TableUnique {
 
     /// Insert a `(hash, anchor, node)` record, growing at load factor 1/2.
     pub(crate) fn insert(&mut self, hash: u64, anchor: Anchor, node: NodeId) {
-        if (self.len + 1) * CHARGE_DEN > self.slots.len() * CHARGE_NUM {
+        if (self.len + 1) * LOAD_DEN > self.slots.len() * LOAD_NUM {
             self.grow();
         }
         let tag = slot_tag(hash);
@@ -226,7 +226,7 @@ impl Hasher for FastHasher {
 
 /// Hash of the hash-consing key `(anchor, form)` — the semantic form,
 /// hashed in place, never cloned.
-pub(crate) fn hash_cle<Key, Payload>(anchor: Anchor, form: &Form<Key, Payload>) -> u64
+pub(crate) fn hash_key<Key, Payload>(anchor: Anchor, form: &Form<Key, Payload>) -> u64
 where
     Key: Hash,
     Payload: Hash,
@@ -242,8 +242,8 @@ mod tests {
     use super::*;
     use lisage_algebra::interface::{ArcRun, Level};
 
-    /// Golden `hash_cle` value for the fixed form of the test below.
-    const GOLDEN_HASH_CLE: u64 = 3_561_021_471_050_673_137;
+    /// Golden `hash_key` value for the fixed form of the test below.
+    const GOLDEN_HASH_KEY: u64 = 3_561_021_471_050_673_137;
 
     /// ALIGN-1 witness: the `NonZero<u32>` hash tag gives `Option<Slot>` a
     /// niche, so the occupied/empty discriminant costs nothing and
@@ -263,7 +263,7 @@ mod tests {
     }
 
     /// ALIGN-1 invariant: a truncated hash of 0 is remapped to 1 so the tag
-    /// stays non-zero; placement/equality semantics are unchanged because
+    /// stays not-zero; placement/equality semantics are unchanged because
     /// the tag only steers probing.
     #[test]
     fn test_align1_slot_tag_remaps_zero() {
@@ -277,22 +277,22 @@ mod tests {
         );
     }
 
-    /// PERF-3 (issue #284): golden value pinning `hash_cle` — the
+    /// PERF-3 (issue #284): golden value pinning `hash_key` — the
     /// `FastHasher` must stay deterministic across runs and machines
     /// (MEM-18 seeded-workload reproducibility); any change to the hash
     /// algorithm fails this test.
     #[test]
-    fn test_hash_cle_golden_value() {
+    fn test_hash_key_golden_value() {
         let form: Form<u64, bool> = Form::Node {
             level: Level(3),
             arcs: ArcRun::from_pairs([(0, NodeId(11)), (1, NodeId(12))]),
         };
         assert_eq!(
-            hash_cle(Anchor(0), &form),
-            GOLDEN_HASH_CLE,
-            "golden hash_cle value (PERF-3 FastHasher)"
+            hash_key(Anchor(0), &form),
+            GOLDEN_HASH_KEY,
+            "golden hash_key value (PERF-3 FastHasher)"
         );
         // Same key, different anchor: the anchor is part of the key.
-        assert_ne!(hash_cle(Anchor(1), &form), hash_cle(Anchor(0), &form));
+        assert_ne!(hash_key(Anchor(1), &form), hash_key(Anchor(0), &form));
     }
 }

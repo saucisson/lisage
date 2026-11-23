@@ -14,7 +14,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::debugger::event_kind_name;
-use crate::trace::{ErreurDeserialisation, deserialiser_trace};
+use crate::trace::{ErrorDeserialisation, deserialize_trace};
 use lisage_core::NodeId;
 use lisage_core::observer::{ChannelAttr, Observer, TraceEvent, TraceVal};
 
@@ -33,7 +33,7 @@ pub enum GatewayError {
     /// Underlying I/O failure (bind, accept, read, write).
     Io(std::io::Error),
     /// The trace file could not be deserialized (typed cause preserved).
-    Trace(ErreurDeserialisation),
+    Trace(ErrorDeserialisation),
 }
 
 impl fmt::Display for GatewayError {
@@ -157,7 +157,7 @@ impl GatewayState {
         self.position.store(new_position, Ordering::SeqCst);
         let break_round = self.break_round.load(Ordering::SeqCst);
         let hit_break = break_round > 0
-            && matches!(&self.events[current], TraceEvent::Round { numero, .. } if *numero as usize == break_round);
+            && matches!(&self.events[current], TraceEvent::Round { number, .. } if *number as usize == break_round);
         Some((new_position, hit_break))
     }
 }
@@ -166,7 +166,7 @@ fn narrate(observer: &dyn Observer, message: String) {
     observer.on_event(&TraceEvent::Attr {
         channel: ChannelAttr::Synthesized,
         node: NodeId(0),
-        value: TraceVal::texte(message),
+        value: TraceVal::text(message),
         span: None,
     });
 }
@@ -259,7 +259,7 @@ pub async fn run_gateway(
 
 fn load_trace(path: &str) -> Result<Vec<TraceEvent>, GatewayError> {
     let content = std::fs::read_to_string(path)?;
-    deserialiser_trace(&content).map_err(GatewayError::Trace)
+    deserialize_trace(&content).map_err(GatewayError::Trace)
 }
 
 /// Handle one TCP connection on a blocking thread (sync tungstenite, no
@@ -623,7 +623,7 @@ mod tests {
     use std::sync::Mutex;
 
     fn round(number: u32) -> TraceEvent {
-        TraceEvent::Round { numero: number, niveaux_actifs: vec![0], niveaux_modifies: vec![], avant: NodeId(0), image: NodeId(0), apres: NodeId(0), croissance: 0, span: None }
+        TraceEvent::Round { number, active_levels: vec![0], modified_levels: vec![], before: NodeId(0), image: NodeId(0), after: NodeId(0), growth: 0, span: None }
     }
 
     #[test]
@@ -677,7 +677,7 @@ mod tests {
         let state = Arc::new(GatewayState::new(vec![TraceEvent::OpEnd { span: None }]));
         let _ = handle_command(r#"{"cmd":"step"}"#, &state, collector.as_ref()).unwrap();
         let events = collector.events.lock().expect("mutex").clone();
-        assert!(events.iter().any(|e| matches!(e, TraceEvent::Attr { value, .. } if value.rendre() == "gateway: command received cmd=step")), "narration event must be emitted: {events:?}");
+        assert!(events.iter().any(|e| matches!(e, TraceEvent::Attr { value, .. } if value.render() == "gateway: command received cmd=step")), "narration event must be emitted: {events:?}");
     }
 
     /// Position invariants over the whole range: `goto` clamps into

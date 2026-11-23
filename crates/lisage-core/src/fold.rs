@@ -1,0 +1,367 @@
+//! Fold and semirings (M1-6, spec § 5, statements A4/A5/C7).
+//!
+//! **Two declared algebras (A5)**: the **construction** semiring (the merge
+//! of writes) and the **query** semiring (parameter of the transduction)
+//! are two distinct declarations. The construction is idempotent `Bool` —
+//! **hash-consing is this choice**: [`union`] is the idempotent union, it
+//! destroys multiplicity at write time. The query semiring is the `S`
+//! parameter of [`Fold`]: a fold is exact iff its reading factors through
+//! what the construction preserved; on a Bool construction, only the
+//! cardinality is exact (spec § 5.1).
+//!
+//! **Fold** [`Fold<S>`]: `H` trivial, the terminal produces the base
+//! (`weight(⊤) = 1`, `weight(⊥) = 0`), `φ_aggr` the semiring structure.
+//! The counting expansion **(A4)**: between a node of level `ℓ` and a child
+//! of level `ℓ'`, the levels `ℓ+1..ℓ'` were collapsed (all their values
+//! lead to the same continuation) ⇒ the arc weight is multiplied by
+//! `∏ |Val(n)|`. The implicit default arc (R-default) contributes the
+//! weight of `D_δ` — on the reference instance `D_δ = terminal(false)`, of
+//! zero weight (A6: a lifted construction would pay its weight here).
+
+use std::collections::BTreeMap;
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::marker::PhantomData;
+
+use lisage_algebra::interface::{Anchor, ArcRun, Form, KeyAlgebra, Level, NodeId, Pool};
+
+use crate::error::CoreError;
+use crate::observer::{TraceVal, Traceable};
+use crate::schema::{Schema, SchemaKeys};
+use crate::transduction::{PhiOutContext, Transducer, Transduction};
+
+/// Query semiring of a fold (spec § 5): `(S, ⊕, ×)` with zeros and units.
+/// `from_cardinality` translates `|Val(ℓ)|` into `S` (A4).
+pub trait Semiring: Clone + PartialEq + Eq + Hash + Debug + Send + Sync + Traceable {
+    /// Fingerprint of the semiring: enters the memo fingerprint.
+    const FINGERPRINT: u64;
+
+    /// Neutral element of ⊕ (zero).
+    fn zero() -> Self;
+    /// Neutral element of × (one).
+    fn one() -> Self;
+    /// Cardinality of a level, translated into the semiring (A4).
+    fn from_cardinality(cardinality: u64) -> Self;
+    /// ⊕ (aggregation of children).
+    fn plus(&self, other: &Self) -> Self;
+    /// × (weight of arcs by subtotals).
+    fn times(&self, other: &Self) -> Self;
+}
+
+/// `(ℕ, +, ×)`: the semiring of cardinality counting (spec § 5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Natural(pub u64);
+
+impl Traceable for Natural {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::integer(self.0 as i64)
+    }
+}
+
+impl Semiring for Natural {
+    const FINGERPRINT: u64 = 4001;
+
+    fn zero() -> Self {
+        Natural(0)
+    }
+    fn one() -> Self {
+        Natural(1)
+    }
+    fn from_cardinality(cardinality: u64) -> Self {
+        Natural(cardinality)
+    }
+    fn plus(&self, other: &Self) -> Self {
+        Natural(self.0 + other.0)
+    }
+    fn times(&self, other: &Self) -> Self {
+        Natural(self.0 * other.0)
+    }
+}
+
+/// `(Bool, ∨, ∧)`: the semiring of ∃-summaries (`exists`, spec § 5).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct BoolOr(pub bool);
+
+impl Traceable for BoolOr {
+    fn trace_val(&self) -> TraceVal {
+        TraceVal::integer(i64::from(self.0))
+    }
+}
+
+impl Semiring for BoolOr {
+    const FINGERPRINT: u64 = 4002;
+
+    fn zero() -> Self {
+        BoolOr(false)
+    }
+    fn one() -> Self {
+        BoolOr(true)
+    }
+    fn from_cardinality(cardinality: u64) -> Self {
+        BoolOr(cardinality > 0)
+    }
+    fn plus(&self, other: &Self) -> Self {
+        BoolOr(self.0 || other.0)
+    }
+    fn times(&self, other: &Self) -> Self {
+        BoolOr(self.0 && other.0)
+    }
+}
+
+/// Fold over a query semiring `S` (spec § 5): `H` trivial, the output
+/// diagram is the identity copy of the input, and the synthesized attribute
+/// is the fold value. `Fold<Natural>` = `count`.
+pub struct Fold<S: Semiring> {
+    keys: SchemaKeys,
+    number_levels: u32,
+    _semi_ring: PhantomData<S>,
+}
+
+impl<S: Semiring> Fold<S> {
+    /// Fold over the given schema (the level cardinalities come from the
+    /// schema's key algebra, A4).
+    pub fn new(schema: Schema) -> Self {
+        let number_levels = schema.number_levels();
+        Fold {
+            keys: SchemaKeys::new(schema),
+            number_levels,
+            _semi_ring: PhantomData,
+        }
+    }
+
+    /// Weight of a terminal: `weight(⊤) = 1`, `weight(⊥) = 0` (spec § 5).
+    fn weight(&self, payload: bool) -> S {
+        if payload { S::one() } else { S::zero() }
+    }
+
+    /// (A4) multiplier of arc `v` from level `ℓ` to a child of level
+    /// `level_target` (`None` = terminal): product of the cardinalities of
+    /// the levels skipped **on the arc's path**. A skipped value level was
+    /// collapsed with all its explicit values ⇒ factor `|Val(n)|`; a
+    /// skipped presence level only collapses through its default arc
+    /// (factor 1) and its value level `n+1` is off the path.
+    fn multiplier(&self, level: Level, arc: u64, level_target: Option<Level>) -> S {
+        let bound = match level_target {
+            Some(level) => level.0,
+            None => self.number_levels,
+        };
+        // Next level on the arc's path: a value level is always followed; a
+        // presence followed by the default arc skips the value level.
+        let mut n = match self.keys.default(level) {
+            Some(default) if arc == default => level.0 + 2,
+            _ => level.0 + 1,
+        };
+        let mut product = S::one();
+        while n < bound {
+            if self.keys.default(Level(n)).is_some() {
+                // Skipped presence level: default-arc collapse only.
+                n += 2;
+            } else {
+                product = product.times(&S::from_cardinality(self.keys.cardinality(Level(n))));
+                n += 1;
+            }
+        }
+        product
+    }
+}
+
+impl<S: Semiring> Transduction for Fold<S> {
+    type H = ();
+    type S = S;
+    type Out = bool;
+    type M = ();
+
+    fn fingerprint(&self) -> u64 {
+        S::FINGERPRINT
+    }
+
+    fn h0(&self) {}
+
+    fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
+        let _ = h;
+    }
+
+    fn phi_aggr(&self, level: Level, _h: &(), arcs: &BTreeMap<u64, (Option<Level>, S)>) -> S {
+        let mut total = S::zero();
+        for (arc, (level_target, s)) in arcs {
+            let multiplier = self.multiplier(level, *arc, *level_target);
+            total = total.plus(&multiplier.times(s));
+        }
+        // Implicit default arc (R-default): its continuation is D_δ, of
+        // weight `weight(false)` on the reference instance (A6).
+        if let Some(default) = self.keys.default(level)
+            && !arcs.contains_key(&default)
+        {
+            total = total.plus(&self.weight(false));
+        }
+        total
+    }
+
+    fn phi_out<P: Pool<Key = u64, Payload = Self::Out>>(
+        &self,
+        pool: &mut P,
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, crate::memory::EffectMemory<Self::M>) {
+        // Identity copy: the fold does not transform the diagram.
+        let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs,
+                },
+            ),
+            crate::memory::EffectMemory::new(),
+        )
+    }
+
+    fn psi<P: Pool<Key = u64, Payload = Self::Out>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        _h: &(),
+    ) -> (NodeId, S) {
+        let terminal = pool.intern(anchor, Form::Terminal(payload));
+        let weight = self.weight(payload);
+        (terminal, weight)
+    }
+}
+
+/// Cardinality counting of a diagram (denoted set): fold over `(ℕ, +, ×)`,
+/// exact on Bool construction (A5). Lifts the result from the synthesized
+/// channel.
+pub fn count<PIn, POut>(
+    pool_input: &PIn,
+    pool_output: &mut POut,
+    anchor: Anchor,
+    schema: &Schema,
+    node: NodeId,
+) -> Result<u64, CoreError>
+where
+    PIn: Pool<Key = u64, Payload = bool>,
+    POut: Pool<Key = u64, Payload = bool>,
+{
+    let mut runner = Transducer::new(Fold::<Natural>::new(schema.clone()));
+    let (_, total) = runner.run(pool_input, pool_output, anchor, node)?;
+    Ok(total.0)
+}
+
+/// Union of two `bool`-payload diagrams (construction merge, A5): the
+/// idempotent union — **hash-consing is this Bool choice**: multiplicity is
+/// destroyed at write time, only the cardinality is exact. ZDD style: the
+/// terminal `⊤` is the member "all levels by default" (carried by arc
+/// `δ(ℓ)`), and a node of level greater than `ℓ` is the continuation of the
+/// default arc of level `ℓ`.
+pub fn union<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    keys: &SchemaKeys,
+    anchor: Anchor,
+    a: NodeId,
+    b: NodeId,
+) -> Result<NodeId, CoreError> {
+    if a == b {
+        return Ok(a);
+    }
+    let (form_a, form_b) = (pool.resolve(a)?.clone(), pool.resolve(b)?.clone());
+    match (form_a, form_b) {
+        (Form::Terminal(pa), Form::Terminal(pb)) => {
+            Ok(pool.intern(anchor, Form::Terminal(pa || pb)))
+        }
+        (Form::Node { level, arcs }, Form::Terminal(pb)) => {
+            if pb {
+                let true_node = pool.intern(anchor, Form::Terminal(true));
+                union_with_other(pool, keys, anchor, level, arcs, true_node)
+            } else {
+                Ok(a)
+            }
+        }
+        (Form::Terminal(pa), Form::Node { level, arcs }) => {
+            if pa {
+                let true_node = pool.intern(anchor, Form::Terminal(true));
+                union_with_other(pool, keys, anchor, level, arcs, true_node)
+            } else {
+                Ok(b)
+            }
+        }
+        (
+            Form::Node {
+                level: level_a,
+                arcs: arcs_a,
+            },
+            Form::Node {
+                level: level_b,
+                arcs: arcs_b,
+            },
+        ) => {
+            if level_a == level_b {
+                let mut accumulator: BTreeMap<u64, NodeId> = arcs_a.into_iter().collect();
+                for (arc, target_b) in arcs_b {
+                    match accumulator.remove(&arc) {
+                        Some(target_a) => {
+                            let uni = union(pool, keys, anchor, target_a, target_b)?;
+                            accumulator.insert(arc, uni);
+                        }
+                        None => {
+                            accumulator.insert(arc, target_b);
+                        }
+                    }
+                }
+                Ok(pool.intern(
+                    anchor,
+                    Form::Node {
+                        level: level_a,
+                        arcs: accumulator.into(),
+                    },
+                ))
+            } else if level_a < level_b {
+                // Node b is the continuation of a's default arc.
+                union_with_other(pool, keys, anchor, level_a, arcs_a, b)
+            } else {
+                union_with_other(pool, keys, anchor, level_b, arcs_b, a)
+            }
+        }
+    }
+}
+
+/// Union of a node of level `level` with another diagram `other` (terminal
+/// `⊤`, or a deeper node): the path of `other` goes through the default arc
+/// `δ(level)` if the level has one (absent arcs mean δ); otherwise (value
+/// level) it goes through **all** values of the level, explicit or not.
+fn union_with_other<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    keys: &SchemaKeys,
+    anchor: Anchor,
+    level: Level,
+    arcs: ArcRun<u64>,
+    other: NodeId,
+) -> Result<NodeId, CoreError> {
+    let mut accumulator: BTreeMap<u64, NodeId> = arcs.into_iter().collect();
+    match keys.default(level) {
+        Some(default) => {
+            let target = match accumulator.remove(&default) {
+                Some(target) => union(pool, keys, anchor, target, other)?,
+                None => other,
+            };
+            accumulator.insert(default, target);
+        }
+        None => {
+            let cardinality = keys.cardinality(level);
+            for v in 0..cardinality {
+                let target = match accumulator.remove(&v) {
+                    Some(target) => union(pool, keys, anchor, target, other)?,
+                    None => other,
+                };
+                accumulator.insert(v, target);
+            }
+        }
+    }
+    Ok(pool.intern(
+        anchor,
+        Form::Node {
+            level,
+            arcs: accumulator.into(),
+        },
+    ))
+}

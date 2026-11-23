@@ -13,7 +13,7 @@
 //! ```
 
 use lisage_algebra::interface::Anchor;
-use lisage_bench::temoin_bdd::MiniBdd;
+use lisage_bench::witness_bdd::MiniBdd;
 use lisage_core::arena::Arena;
 use lisage_core::bdd::{BddController, BddKeys, compiler_bdd, count_nodes};
 use lisage_core::observer::NoOpObserver;
@@ -58,9 +58,9 @@ fn libddd_measure(number_variables: u32, table: &[bool]) -> Option<(u64, u64)> {
         return None;
     }
     let line = String::from_utf8_lossy(&output.stdout);
-    let noeuds = extract_json_u64(&line, "\"noeuds\":")?;
-    let verifie = extract_json_u64(&line, "\"verifie\":")?;
-    Some((noeuds, verifie))
+    let nodes = extract_json_u64(&line, "\"noeuds\":")?;
+    let verifies = extract_json_u64(&line, "\"verifie\":")?;
+    Some((nodes, verifies))
 }
 
 /// Extracts an unsigned integer value after a JSON key in a flat line.
@@ -85,7 +85,7 @@ proptest! {
     /// matches the table.
     #[test]
     #[ignore = "outside CI — requires the Docker image lisage-libddd:latest"]
-    fn test_c6_local_arene_vs_libddd(
+    fn test_c6_local_arena_vs_libddd(
         number_variables in 2u32..=8,
         table in prop::collection::vec(any::<bool>(), 4..=256),
     ) {
@@ -96,18 +96,18 @@ proptest! {
         let mut pool = Arena::new(BddController::new(number_variables), Box::new(NoOpObserver));
         let anchor = Anchor(0);
         let root = compiler_bdd(&mut pool, anchor, &keys, &table);
-        let nodes_arene = count_nodes(&pool, root);
-        let verifie_arene = table.iter().filter(|value| **value).count() as u64;
+        let nodes_arena = count_nodes(&pool, root);
+        let verifies_arena = table.iter().filter(|value| **value).count() as u64;
 
-        let (nodes_libddd, verifie_libddd) = libddd_measure(number_variables, &table)
+        let (nodes_libddd, verifies_libddd) = libddd_measure(number_variables, &table)
             .expect("call to the lisage-libddd Docker container failed");
 
         prop_assert_eq!(
-            nodes_arene,
+            nodes_arena,
             nodes_libddd,
             "local C6: identical reproduction of the node count against real libDDD"
         );
-        prop_assert_eq!(verifie_arene, verifie_libddd);
+        prop_assert_eq!(verifies_arena, verifies_libddd);
     }
 
     /// Local C6: the node count of the independent mini-BDD witness equals
@@ -155,14 +155,14 @@ fn test_c6_local_order_pinned_asymmetric() {
         "lisage order: 6 nodes (reversed order would give 7)"
     );
 
-    let (nodes_libddd, verifie_libddd) =
+    let (nodes_libddd, verifies_libddd) =
         libddd_measure(3, &table).expect("call to the lisage-libddd Docker container failed");
     assert_eq!(
         nodes_libddd, 6,
         "libDDD must build the same variable order (reversed would give 7)"
     );
     assert_eq!(
-        verifie_libddd, 3,
+        verifies_libddd, 3,
         "three satisfying assignments in the table"
     );
 }

@@ -39,7 +39,7 @@ fn test_bench_merge_pools() {
     let input_live: u64 = field(line, "input_live").parse().expect("input_live");
     let merged_live: u64 = field(line, "merged_live").parse().expect("merged_live");
     let seq_ms: f64 = field(line, "seq_ms").parse().expect("seq_ms");
-    let par_ms: f64 = field(line, "par_ms").parse().expect("par_ms");
+    let per_ms: f64 = field(line, "par_ms").parse().expect("par_ms");
     let speedup: f64 = field(line, "speedup").parse().expect("speedup");
     assert_eq!(n, u64::from(N));
     assert_eq!(pools, u64::from(POOLS));
@@ -48,7 +48,7 @@ fn test_bench_merge_pools() {
         merged_live < input_live,
         "cross-pool sharing: merged ({merged_live}) < one copy ({input_live})"
     );
-    assert!(seq_ms > 0.0 && par_ms > 0.0, "both paths measured");
+    assert!(seq_ms > 0.0 && per_ms > 0.0, "both paths measured");
     assert!(speedup.is_finite(), "speedup is finite");
 
     if std::env::var("P12_PUBLISH").is_ok() {
@@ -60,7 +60,7 @@ fn test_bench_merge_pools() {
              PAR-1 sanity (same merged cardinality seq vs par) is asserted inside the runner.\n\n\
              | n | pools | input live | merged live | seq (ms) | par (ms) | speedup |\n\
              |---|---|---|---|---|---|---|\n\
-             | {n} | {pools} | {input_live} | {merged_live} | {seq_ms:.3} | {par_ms:.3} | {speedup:.3} |\n"
+             | {n} | {pools} | {input_live} | {merged_live} | {seq_ms:.3} | {per_ms:.3} | {speedup:.3} |\n"
         );
         let directory = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bench-results");
         std::fs::write(format!("{directory}/p12-merge.md"), publication)

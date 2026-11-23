@@ -9,14 +9,14 @@ use lisage_algebra::reduction::{Reduction, reduce, reduce_inverse};
 use proptest::prelude::*;
 
 /// Node 0 plays the role of the default diagram D_δ in the tests.
-const NODE_DEFAUT: NodeId = NodeId(0);
+const NODE_DEFAULT: NodeId = NodeId(0);
 
-fn est_defaut(node: NodeId) -> bool {
-    node == NODE_DEFAUT
+fn is_default(node: NodeId) -> bool {
+    node == NODE_DEFAULT
 }
 
-fn vers_arcs(paires: Vec<(u8, u32)>) -> ArcRun<u64> {
-    paires
+fn to_arcs(pairs: Vec<(u8, u32)>) -> ArcRun<u64> {
+    pairs
         .into_iter()
         .map(|(key, target)| (u64::from(key), NodeId(target)))
         .collect()
@@ -27,34 +27,34 @@ fn test_collapse_level_value_exemple_spec() {
     // val(a): 0 and 1 lead to the same sub-DD ⇒ R-collapse (spec § 2.3 example).
     let x = NodeId(5);
     let arcs = ArcRun::from_pairs([(0, x), (1, x)]);
-    let result = reduce(arcs, None, &est_defaut, 2);
+    let result = reduce(arcs, None, &is_default, 2);
     assert_eq!(result, Reduction::Collapse(x));
 }
 
 #[test]
-fn test_r_default_arc_absent_vers_defaut() {
+fn test_r_default_arc_absent_to_default() {
     // presence: absent ↦ ⊥ (D_δ) is removed, present ↦ X stays.
     let x = NodeId(5);
-    let arcs = ArcRun::from_pairs([(0, NODE_DEFAUT), (1, x)]);
-    let result = reduce(arcs, Some(0), &est_defaut, 2);
+    let arcs = ArcRun::from_pairs([(0, NODE_DEFAULT), (1, x)]);
+    let result = reduce(arcs, Some(0), &is_default, 2);
     assert_eq!(result, Reduction::Form(ArcRun::from_pairs([(1, x)])));
 }
 
 #[test]
-fn test_pas_de_collapse_si_target_non_defaut() {
+fn test_no_collapse_if_target_not_default() {
     // {present ↦ X} with implicit default ⊥ and X ≠ ⊥: no collapse.
     let x = NodeId(5);
     let arcs = ArcRun::from_pairs([(1, x)]);
-    let result = reduce(arcs, Some(0), &est_defaut, 2);
+    let result = reduce(arcs, Some(0), &is_default, 2);
     assert_eq!(result, Reduction::Form(ArcRun::from_pairs([(1, x)])));
 }
 
 #[test]
-fn test_collapse_si_tout_vaut_le_defaut() {
+fn test_collapse_if_all_equals_the_default() {
     // {absent ↦ ⊥, present ↦ ⊥} ⇒ collapse to ⊥.
-    let arcs = ArcRun::from_pairs([(0, NODE_DEFAUT), (1, NODE_DEFAUT)]);
-    let result = reduce(arcs, Some(0), &est_defaut, 2);
-    assert_eq!(result, Reduction::Collapse(NODE_DEFAUT));
+    let arcs = ArcRun::from_pairs([(0, NODE_DEFAULT), (1, NODE_DEFAULT)]);
+    let result = reduce(arcs, Some(0), &is_default, 2);
+    assert_eq!(result, Reduction::Collapse(NODE_DEFAULT));
 }
 
 proptest! {
@@ -62,16 +62,16 @@ proptest! {
     /// fixpoint of the reduction.
     #[test]
     fn test_confluence_idempotence(
-        paires in prop::collection::vec((0u8..4, 0u32..6), 0..6),
-        key_defaut in proptest::option::of(0u8..4),
+        pairs in prop::collection::vec((0u8..4, 0u32..6), 0..6),
+        key_default in proptest::option::of(0u8..4),
         cardinality in 1u64..5,
     ) {
-        let arcs = vers_arcs(paires);
-        let key = key_defaut.map(u64::from);
-        let first = reduce(arcs.clone(), key, &est_defaut, cardinality);
+        let arcs = to_arcs(pairs);
+        let key = key_default.map(u64::from);
+        let first = reduce(arcs.clone(), key, &is_default, cardinality);
         if let Reduction::Form(arcs_reduceds) = &first {
-            let seconde = reduce(arcs_reduceds.clone(), key, &est_defaut, cardinality);
-            prop_assert_eq!(seconde, first, "reduce∘reduce = reduce");
+            let second = reduce(arcs_reduceds.clone(), key, &is_default, cardinality);
+            prop_assert_eq!(second, first, "reduce∘reduce = reduce");
         }
     }
 
@@ -79,11 +79,11 @@ proptest! {
     /// LAST target (MEM-5 semantics of the sorted run).
     #[test]
     fn test_last_write_wins(
-        paires in prop::collection::vec((0u8..4, 0u32..6), 0..8),
+        pairs in prop::collection::vec((0u8..4, 0u32..6), 0..8),
     ) {
-        let run = vers_arcs(paires.clone());
+        let run = to_arcs(pairs.clone());
         let mut expected: BTreeMap<u64, NodeId> = BTreeMap::new();
-        for (key, target) in paires {
+        for (key, target) in pairs {
             expected.insert(u64::from(key), NodeId(target));
         }
         // One entry per key: the run holds no duplicate (binary_search in
@@ -97,14 +97,14 @@ proptest! {
     /// then R-collapse.
     #[test]
     fn test_confluence_commutation(
-        paires in prop::collection::vec((0u8..4, 0u32..6), 0..6),
-        key_defaut in proptest::option::of(0u8..4),
+        pairs in prop::collection::vec((0u8..4, 0u32..6), 0..6),
+        key_default in proptest::option::of(0u8..4),
         cardinality in 1u64..5,
     ) {
-        let arcs = vers_arcs(paires);
-        let key = key_defaut.map(u64::from);
-        let direct = reduce(arcs.clone(), key, &est_defaut, cardinality);
-        let inverse = reduce_inverse(arcs, key, &est_defaut, cardinality);
+        let arcs = to_arcs(pairs);
+        let key = key_default.map(u64::from);
+        let direct = reduce(arcs.clone(), key, &is_default, cardinality);
+        let inverse = reduce_inverse(arcs, key, &is_default, cardinality);
         prop_assert_eq!(direct, inverse, "the two reduction orders commute");
     }
 }

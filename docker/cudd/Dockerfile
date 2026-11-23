@@ -24,9 +24,9 @@ RUN ./configure --enable-shared --enable-obj --disable-dependency-tracking \
     && make install \
     && ldconfig
 
-# Binaire de comptage CUDD pour le différentiel local (hors CI).
-# Lit sur stdin : n (nombre de variables) puis 2^n valeurs 0/1 (table de vérité).
-# Écrit sur stdout : le nombre de nœuds du BDD CUDD (un entier suivi d'un retour à la ligne).
+# CUDD counting binary for the local differential (outside CI).
+# Reads from stdin: n (number of variables) then 2^n 0/1 values (truth table).
+# Writes to stdout: the number of nodes of the CUDD BDD (an integer followed by a newline).
 COPY cudd_count.c /opt/cudd_count.c
 COPY cudd_measure.c /opt/cudd_measure.c
 RUN gcc -O2 /opt/cudd_count.c -o /usr/local/bin/cudd_count \

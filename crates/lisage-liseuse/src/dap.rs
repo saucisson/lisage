@@ -98,7 +98,7 @@ fn narrate(observer: &dyn Observer, message: String) {
     observer.on_event(&TraceEvent::Attr {
         channel: ChannelAttr::Synthesized,
         node: NodeId(0),
-        value: TraceVal::texte(message),
+        value: TraceVal::text(message),
         span: None,
     });
 }
@@ -428,7 +428,7 @@ impl DapServer {
                 .debugger
                 .current_event()
                 .and_then(|e| match e {
-                    TraceEvent::Round { numero, .. } => Some(*numero as i64),
+                    TraceEvent::Round { number, .. } => Some(*number as i64),
                     _ => None,
                 })
                 .unwrap_or(0);
@@ -487,14 +487,14 @@ impl DapServer {
                 if position >= self.debugger.length() {
                     break;
                 }
-                if let Some(TraceEvent::Round { numero, .. }) = self.debugger.current_event()
-                    && breakpoints.contains(&(*numero as i64))
+                if let Some(TraceEvent::Round { number, .. }) = self.debugger.current_event()
+                    && breakpoints.contains(&(*number as i64))
                 {
                     stopped_reason = "breakpoint";
-                    stopped_round = Some(*numero as i64);
+                    stopped_round = Some(*number as i64);
                     narrate(
                         self.observer.as_ref(),
-                        format!("dap stopped at breakpoint round={numero}"),
+                        format!("dap stopped at breakpoint round={number}"),
                     );
                     break;
                 }
@@ -586,7 +586,7 @@ impl DapServer {
 }
 
 /// Run the DAP server on stdio. Errors are returned, never swallowed;
-/// the entry point prints them and exits non-zero.
+/// the entry point prints them and exits not-zero.
 pub fn run_stdio() -> Result<(), DapError> {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
@@ -692,8 +692,8 @@ mod tests {
         );
         // The stop must be exactly at round 12, not just any breakpoint hit.
         match server.debugger.current_event() {
-            Some(TraceEvent::Round { numero, .. }) => {
-                assert_eq!(*numero, 12, "continue must stop at breakpoint round 12")
+            Some(TraceEvent::Round { number, .. }) => {
+                assert_eq!(*number, 12, "continue must stop at breakpoint round 12")
             }
             other => panic!("expected a Round event at the breakpoint, got {other:?}"),
         }

@@ -1,5 +1,5 @@
 //! ALIGN-3 runner: share of the observer dispatch on the intern path.
-//! Runs the deterministic LCG charge once with the chosen observer
+//! Runs the deterministic LCG load once with the chosen observer
 //! (`noop` = `NoOpObserver`, the default; `counting` = a wired observer
 //! tallying every event with atomic counters, the lightest real consumer
 //! of the trace) and prints one JSON line with the build-phase wall time,
@@ -8,7 +8,7 @@
 //! are the median of 5 direct `cargo run --release` runs per mode.
 //!
 //! Usage: `observer_share <noop|counting> [n]` (default n = 20, the
-//! BENCH-1 reference charge alea-lcg-20: 106 760 nodes, 2^20 - 1 intern
+//! BENCH-1 reference load alea-lcg-20: 106 760 nodes, 2^20 - 1 intern
 //! calls).
 
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -82,11 +82,11 @@ impl Observer for CountingObserver {
             | TraceEvent::Histogram { .. }
             | TraceEvent::OpStart { .. }
             | TraceEvent::OpEnd { .. }
-            | TraceEvent::VisiteEntree { .. }
-            | TraceEvent::VisiteSortie { .. }
+            | TraceEvent::VisitEntry { .. }
+            | TraceEvent::VisitExit { .. }
             | TraceEvent::MemoConsult { .. }
             | TraceEvent::MemoInsert { .. }
-            | TraceEvent::EcritureMemoire { .. }
+            | TraceEvent::MemoryWrite { .. }
             | TraceEvent::StructureChange { .. } => {}
         }
     }
