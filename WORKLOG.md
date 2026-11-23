@@ -1629,3 +1629,11 @@ One entry per commit or pull request:
 - **Evidence**: `git status` propre après suppression du zip ; ADR-0107 éditée (statut accepted, date 2026-11-23).
 - **Judgement calls**: aucun.
 - **Escalations**: none.
+
+## 2026-11-23 - fix #347 follow-up: ruff-clean the three imported bancs (quality gate was red on daily)
+
+- **Issue**: #347 (ARCH-1) — human decision 2026-11-23: quality gates must pass with docs/ included; fix the errors in the bancs, not the lint config.
+- **Done**: rewrote `docs/etudes-surcharge/bancs/etude{5,6,7}.py` to satisfy `ruff check .` and `ruff format --check .` (305 -> 0 errors): type annotations (ANN), return types, module/function docstrings (D100/D103/D205), pathlib instead of os.path/open (PTH), `sys.stdout.write` instead of `print` (T201), explicit `raise RuntimeError` instead of `assert` (S101), named constants instead of magic values (PLR2004), lowercase locals (N806), top-level imports (PLC0415), split complex functions (C901, class_stats/window_signatures/false_positives/cell_signature/check_theorem/check_cross/verdict_table), single `if` (SIM102).
+- **Evidence**: `ruff check .` and `ruff format --check .` fully green (ruff 0.17.4, the uv.lock version); each banc re-run and its output compared field-by-field against the committed `results{5,6,7}.json` (excluding `sec`): **IDENTICAL** (etude5 tore n<=4, etude6 referendum n<=6 + nqueens n<=5, etude7 full run 4.7 s, 5/5 classifier agreements). results files restored unchanged (`git status` shows only the 3 .py). Not run: full `make check` (mypy/pytest/import-linter do not scan docs/), GitHub CI.
+- **Judgement calls**: `except (A, B):` split into two clauses because ruff 0.17.4 check --fix and format disagreed on the parenthesized form (the auto-fix produced a Python-3 SyntaxError); behaviour preserved via identical results. French comments/docstrings kept (english-only is a `make check` gate, not a CI quality gate, and was already red on imported docs).
+- **Escalations**: none (human decision received in-session).
