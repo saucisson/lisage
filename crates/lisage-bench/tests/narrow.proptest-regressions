@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 76e376ce758252a222a3a7c94c1e071d390559ede8e02c329f6312fbd8036112 # shrinks to paires = [(1, 0), (0, 0)], level = 0
+cc 934cf7c268a0fa237f3d2eb2914dd8bd354f359efb87fd983fcdb0248be00b61 # shrinks to paires = [(0, 0)], level = 0

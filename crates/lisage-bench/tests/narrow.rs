@@ -121,7 +121,9 @@ proptest! {
 
     /// PBT: a node with narrowable keys lands in the exact class of its
     /// degree and resolves back to the same semantic form (round-trip
-    /// through the inline storage).
+    /// through the inline storage). Degenerate case (issue #346): when
+    /// every arc points to the same target, R-collapse reduces the form
+    /// to that target and no node is created - there is no exact class.
     #[test]
     fn test_classe_exacte_et_aller_retour_forme(
         paires in prop::collection::vec((0u64..4, 0u32..8), 1..5),
@@ -142,6 +144,18 @@ proptest! {
         };
         let node = pool.intern(Anchor(0), form.clone());
         let degree = paires.len() as u32;
+        let distinct_targets: std::collections::BTreeSet<u32> =
+            paires.iter().map(|(_, target)| *target).collect();
+        // R-collapse (issue #346): without a level default, collapse holds
+        // only when ALL values are explicit (arcs.len() >= cardinality) and
+        // every target is the same - then no node is created and the
+        // interned handle IS the shared target (e.g. TERMINAL_CLASS 0).
+        let covers_all_values = paires.len() as u64 >= 4; // MockKeys::cardinality
+        if distinct_targets.len() == 1 && covers_all_values {
+            let target = NodeId(*distinct_targets.iter().next().expect("one target"));
+            prop_assert_eq!(node, target, "R-collapse to the shared target");
+            return Ok(());
+        }
         // Exact class: the class of the node is its degree.
         let (class, _) = node.decode(pool.class_bits());
         prop_assert_eq!(class, degree, "narrowable node in the exact class");
@@ -161,6 +175,25 @@ proptest! {
         let again = pool.intern(Anchor(0), resolved);
         prop_assert_eq!(again, node, "C1 through the inline storage");
     }
+}
+
+/// Issue #346 regression (deterministic pin of the proptest seed): four
+/// distinct keys all pointing to the same terminal, all values explicit
+/// and no level default - R-collapse applies, no node is created, and the
+/// handle is the terminal itself (TERMINAL_CLASS 0, not degree 4).
+#[test]
+fn test_collapse_all_keys_to_terminal() {
+    let mut pool = nouvelle_arena();
+    let form = Form::Node {
+        level: Level(0),
+        arcs: (0u64..4)
+            .map(|key| (key, NodeId(0)))
+            .collect::<ArcRun<u64>>(),
+    };
+    let node = pool.intern(Anchor(0), form);
+    assert_eq!(node, NodeId(0), "R-collapse to the shared terminal");
+    let (class, _) = node.decode(pool.class_bits());
+    assert_eq!(class, 0, "collapsed handle lives in the terminal class");
 }
 
 /// Criterion 3: on an open domain (cardinality beyond 32 bits, no rank),
