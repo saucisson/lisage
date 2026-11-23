@@ -1,0 +1,186 @@
+{
+ "tore": [
+  {
+   "n": 2,
+   "states": 7,
+   "anchored": 3,
+   "S_div_n2": 0.75,
+   "plat": 8,
+   "pool": 11,
+   "A_int": 0,
+   "B_bord": 11,
+   "sec": 0.0
+  },
+  {
+   "n": 3,
+   "states": 34,
+   "anchored": 6,
+   "S_div_n2": 0.6666666666666666,
+   "plat": 39,
+   "pool": 43,
+   "A_int": 0,
+   "B_bord": 43,
+   "sec": 0.0
+  },
+  {
+   "n": 4,
+   "states": 743,
+   "anchored": 56,
+   "S_div_n2": 3.5,
+   "plat": 225,
+   "pool": 158,
+   "A_int": 0,
+   "B_bord": 158,
+   "sec": 0.0
+  },
+  {
+   "n": 5,
+   "states": 25531,
+   "anchored": 1027,
+   "S_div_n2": 41.08,
+   "plat": 1159,
+   "pool": 300,
+   "A_int": 17,
+   "B_bord": 283,
+   "sec": 1.7
+  }
+ ],
+ "cylindre": [
+  {
+   "n": 2,
+   "states": 7,
+   "anchored": 4,
+   "S_div_n2": 1.0,
+   "plat": 8,
+   "pool": 13,
+   "A_int": 0,
+   "B_bord": 13,
+   "sec": 0.0
+  },
+  {
+   "n": 3,
+   "states": 43,
+   "anchored": 15,
+   "S_div_n2": 1.6666666666666667,
+   "plat": 43,
+   "pool": 52,
+   "A_int": 0,
+   "B_bord": 52,
+   "sec": 0.0
+  },
+  {
+   "n": 4,
+   "states": 933,
+   "anchored": 244,
+   "S_div_n2": 15.25,
+   "plat": 241,
+   "pool": 174,
+   "A_int": 0,
+   "B_bord": 174,
+   "sec": 0.0
+  },
+  {
+   "n": 5,
+   "states": 36211,
+   "anchored": 7243,
+   "S_div_n2": 289.72,
+   "plat": 1407,
+   "pool": 299,
+   "A_int": 17,
+   "B_bord": 282,
+   "sec": 1.0
+  }
+ ],
+ "plan": [
+  {
+   "n": 2,
+   "states": 7,
+   "anchored": 7,
+   "S_div_n2": 1.75,
+   "plat": 8,
+   "pool": 22,
+   "A_int": 0,
+   "B_bord": 22,
+   "sec": 0.0
+  },
+  {
+   "n": 3,
+   "states": 63,
+   "anchored": 63,
+   "S_div_n2": 7.0,
+   "plat": 32,
+   "pool": 107,
+   "A_int": 0,
+   "B_bord": 107,
+   "sec": 0.0
+  },
+  {
+   "n": 4,
+   "states": 1234,
+   "anchored": 1234,
+   "S_div_n2": 77.125,
+   "plat": 95,
+   "pool": 277,
+   "A_int": 0,
+   "B_bord": 277,
+   "sec": 0.0
+  },
+  {
+   "n": 5,
+   "states": 55447,
+   "anchored": 55447,
+   "S_div_n2": 2217.88,
+   "plat": 249,
+   "pool": 519,
+   "A_int": 34,
+   "B_bord": 485,
+   "sec": 1.8
+  }
+ ],
+ "tore-press\u00e9": [
+  {
+   "n": 2,
+   "states": 9,
+   "anchored": 9,
+   "S_div_n2": 2.25,
+   "plat": 8,
+   "pool": 29,
+   "A_int": 0,
+   "B_bord": 29,
+   "sec": 0.0
+  },
+  {
+   "n": 3,
+   "states": 41,
+   "anchored": 41,
+   "S_div_n2": 4.555555555555555,
+   "plat": 39,
+   "pool": 143,
+   "A_int": 0,
+   "B_bord": 143,
+   "sec": 0.0
+  },
+  {
+   "n": 4,
+   "states": 920,
+   "anchored": 920,
+   "S_div_n2": 57.5,
+   "plat": 225,
+   "pool": 535,
+   "A_int": 0,
+   "B_bord": 535,
+   "sec": 0.0
+  },
+  {
+   "n": 5,
+   "states": 31213,
+   "anchored": 31213,
+   "S_div_n2": 1248.52,
+   "plat": 1159,
+   "pool": 978,
+   "A_int": 51,
+   "B_bord": 927,
+   "sec": 0.9
+  }
+ ]
+}

@@ -1605,3 +1605,11 @@ One entry per commit or pull request:
 - **Issue**: #176 — DAP adapter so VS Code / any DAP client can drive the liseuse debugger.
 - **Done**: new module `crates/lisage-liseuse/src/dap.rs` (DapServer: initialize/launch/setBreakpoints/configurationDone/threads/stackTrace/scopes/variables/continue/next/pause/disconnect, stdio transport with Content-Length framing, default scenario n=13 so round 12 exists for the breakpoint DoD), binary `crates/lisage-liseuse/src/bin/lisage-dap.rs` (stdio default, --port stub for future socket transport), `tests/dap_dod.rs` (4 DoD tests) + `tests/dap_property.rs` (3 proptest) + 9 unit tests.
 - **Evidence**: `cargo clippy -p lisage-liseuse --all-targets -- -D warnings` clean, `cargo test -p lisage-liseuse --all-targets` 63 passed 0 failed, `cargo fmt --all`, `make english-only` green. Not run: full `make check` / nextest / coverage / mutation gates.
+
+## 2026-11-23 - ARCH-1: import des études « surcharge » (parties I à VII)
+
+- **Issue**: #347 (ARCH-1) + sous-issues #348-354 (ARCH-1.1 à ARCH-1.7).
+- **Done**: import de `etudes-surcharge.zip` dans `docs/etudes-surcharge/` (README + 7 études markdown + 3 bancs Python déterministes + 3 résultats JSON). Création du milestone ARCH (#27), des labels `piste/surcharge` et `jalon/ARCH`, de l'issue principale #347 et des 7 sous-issues #348-354, toutes labellisées et rattachées au milestone.
+- **Evidence**: fichiers copiés depuis l'archive zip (vérifié par `ls -laR docs/etudes-surcharge/`) ; issues créées via `gh issue create` (URLs retournées) ; milestone #27 et labels créés via `gh api` / `gh label create`.
+- **Judgement calls**: les sub-issues GitHub n'ont pas pu être liées hiérarchiquement via l'API (403/404 avec le token disponible) ; le lien parent/enfant est documenté dans le body de #347 à la place.
+- **Escalations**: none.
