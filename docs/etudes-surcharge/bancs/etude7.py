@@ -1,38 +1,57 @@
 #!/usr/bin/env python3
-# Étude « surcharge » partie VII — détecter avant de réduire
-#
-# Objectif : à partir des seules lectures statiques des gardes (les supports
-# R(q), sans énumérer le langage), retrouver les verdicts manuels des parties
-# I à VI et prédire le plat. Trois lectures :
-#   1. rayon modèle ρ : distance Chebyshev maximale entre la cellule écrite
-#      et ses lectures ;
-#   2. forme de requête : pli de comptage avec seuil (référendum : majorité) ;
-#   3. mémoire de coupe I(p) : à chaque coupe p de l'ordre des variables,
-#      l'ensemble des cellules futures directement interdites par les
-#      cellules occupées du préfixe, I = {v >= p : u < p occupé, v in R(u)}.
-#
-# Théorème du banc : le nombre de nœuds du plat MDD au niveau p égale
-# exactement le nombre de motifs I(p) distincts parmi les préfixes réels.
-# Chaque nœud du plat est un motif d'interdits résiduels.
-# Contre-hypothèse à réfuter : les nœuds seraient les projections des
-# préfixes sur les cellules encore lues (égalité seulement partielle).
-#
-# Le classifieur lit (rayon, requête, profil de coupe) et tranche :
-# requête agrégative -> compteur ; rayon croissant et mémoire croissante ->
-# registre ; rayon borné et bande fine -> fenêtre ; bourrelet -> + couture.
-#
-# Usage : python3 etude7.py
+"""Etude "surcharge" partie VII - detecter avant de reduire.
+
+From static reads of the guards alone (supports R(q), without enumerating
+the language), recover the manual verdicts of parts I-VI and predict the
+flat MDD. Three readings: model radius rho, query shape, cut memory I(p).
+
+Theorem of the bench: the number of flat-MDD nodes at level p equals the
+number of distinct I(p) motifs over real prefixes.
+
+Usage : python3 etude7.py
+"""
+
+import itertools
+import json
+import math
+import resource
+import sys
+import time
 from collections import deque
-import json, sys, time, resource, os
+from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-RESULTS = HERE + "/results7.json"
+HERE = Path(__file__).resolve().parent
+RESULTS = HERE / "results7.json"
 SEUIL = 2_000_000
+MIN_GRID_N = 3
+MIN_SQUARE_CHECK = 3
+COUTURE_FACTOR = 2
+ANNEAU_N_MIN = 3
+ANNEAU_N_MAX = 10
+GRID_NS = [2, 3, 4, 5]
+NREINES_NS = [4, 5, 6, 7]
+REFERENDUM_N_MIN = 3
+REFERENDUM_N_MAX = 11
+EXPECTED_PLAN5 = 249
+EXPECTED_TORE5 = 1159
+EXPECTED_NR7 = 15180
+EXPECTED_ANNEAU_PLATEAU = 4
+EXPECTED_NR_COUPE = [17, 59, 265, 1146]
 
-def rss():
+
+def rss() -> float:
+    """Peak RSS of this process, in MiB."""
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
 
-def bfs(init, succ):
+
+def emit(line: str) -> None:
+    """Write one line to stdout (CLI entry point of the bench)."""
+    sys.stdout.write(line + "\n")
+    sys.stdout.flush()
+
+
+def bfs(init: bytes, succ: object) -> set[bytes]:
+    """Reachable states from init under succ."""
     seen = {init}
     todo = deque([init])
     while todo:
@@ -43,15 +62,17 @@ def bfs(init, succ):
                 todo.append(t)
     return seen
 
-def mdd_levels(states):
-    """MDD exact : liste du nombre de nœuds par niveau."""
+
+def mdd_levels(states: set[bytes]) -> list[int]:
+    """Exact MDD: node count per level."""
     nvars = len(next(iter(states)))
-    ids = {}
+    ids: dict[object, int] = {}
     counts = [0] * nvars
-    def build(pos, sset):
+
+    def build(pos: int, sset: set[bytes]) -> object:
         if pos == nvars:
             return "T"
-        groups = {}
+        groups: dict[int, set[bytes]] = {}
         for s in sset:
             g = groups.get(s[pos])
             if g is None:
@@ -64,29 +85,40 @@ def mdd_levels(states):
             r = ids[key] = len(ids)
             counts[pos] += 1
         return r
+
     build(0, states)
     return counts
 
-def memoire_de_coupe(states, R):
-    """Nombre de motifs I(p) distincts, par coupe p (version incrémentale :
-    M(t) = (union des R[u], u < t occupés) inter [t, nvars))."""
+
+def memoire_de_coupe(states: set[bytes], reads: list[frozenset[int]]) -> list[int]:
+    """Number of distinct I(p) motifs per cut p.
+
+    Incremental version: M(t) = (union of R[u], u < t occupied) inter [t, nvars).
+    """
     nvars = len(next(iter(states)))
-    R_after = [frozenset(v for v in R[p] if v > p) for p in range(nvars)]
+    r_after = [frozenset(v for v in reads[p] if v > p) for p in range(nvars)]
     motifs = [set() for _ in range(nvars)]
     for s in states:
-        M = set()
+        m = set()
         for p in range(nvars):
-            motifs[p].add(frozenset(M))
-            M.discard(p)
+            motifs[p].add(frozenset(m))
+            m.discard(p)
             if s[p]:
-                M |= R_after[p]
+                m |= r_after[p]
     return [len(m) for m in motifs]
 
-def projections_cellsules(states, R, nvars):
-    """Contre-hypothèse : classes des projections du préfixe sur les
-    cellules passées encore lues par une garde future."""
-    readers = [max([v for v in range(nvars) if u in R[v]], default=-1)
-               for u in range(nvars)]
+
+def projections_cellsules(
+    states: set[bytes],
+    reads: list[frozenset[int]],
+    nvars: int,
+) -> list[int]:
+    """Counter-hypothesis: prefix projection classes.
+
+    Classes of the prefix projection onto past cells still read by some
+    future guard.
+    """
+    readers = [max([v for v in range(nvars) if u in reads[v]], default=-1) for u in range(nvars)]
     prof = []
     for p in range(nvars):
         live = tuple(u for u in range(p) if readers[u] >= p)
@@ -94,11 +126,13 @@ def projections_cellsules(states, R, nvars):
         prof.append(len(motifs))
     return prof
 
-# ----------------------------- familles -----------------------------
-def fam_anneau(n):
-    """Ensembles indépendants du cycle C_n (partie I), ordre naturel."""
-    R = [frozenset({(i - 1) % n, (i + 1) % n}) for i in range(n)]
-    def succ(s):
+
+# ----------------------------- families -----------------------------
+def fam_anneau(n: int) -> dict[str, object]:
+    """Independent sets of the cycle C_n (part I), natural order."""
+    reads = [frozenset({(i - 1) % n, (i + 1) % n}) for i in range(n)]
+
+    def succ(s: bytes) -> list[bytes]:
         out = []
         for i in range(n):
             if s[i]:
@@ -110,12 +144,20 @@ def fam_anneau(n):
                 c[i] = 1
                 out.append(bytes(c))
         return out
-    return {"S": bfs(bytes(n), succ), "R": R, "requete": False, "rho": 1,
-            "rho_croit": False, "nom": f"C_{n}"}
 
-def fam_grille(n, wrap):
-    """Ensembles indépendants d'une grille n×n (partie V), ligne par ligne."""
-    R = []
+    return {
+        "S": bfs(bytes(n), succ),
+        "R": reads,
+        "requete": False,
+        "rho": 1,
+        "rho_croit": False,
+        "nom": f"C_{n}",
+    }
+
+
+def fam_grille(n: int, wrap: str) -> dict[str, object]:
+    """Independent sets of an n*n grid (part V), row by row."""
+    reads = []
     for i in range(n):
         for j in range(n):
             out = set()
@@ -126,9 +168,10 @@ def fam_grille(n, wrap):
                 elif 0 <= a < n and 0 <= b < n:
                     out.add(a * n + b)
             out.discard(i * n + j)
-            R.append(frozenset(out))
-    nb = [list(r) for r in R]
-    def succ(s):
+            reads.append(frozenset(out))
+    nb = [list(r) for r in reads]
+
+    def succ(s: bytes) -> list[bytes]:
         out = []
         for p in range(n * n):
             if s[p]:
@@ -140,159 +183,232 @@ def fam_grille(n, wrap):
                 c[p] = 1
                 out.append(bytes(c))
         return out
-    return {"S": bfs(bytes(n * n), succ), "R": R, "requete": False, "rho": 1,
-            "rho_croit": False, "nom": f"grille-{wrap} {n}x{n}"}
 
-def fam_nreines(N):
-    """N-reines : placer sans conflit ligne/colonne/diagonales (partie VI)."""
-    R = []
-    for p in range(N * N):
-        i, j = divmod(p, N)
+    return {
+        "S": bfs(bytes(n * n), succ),
+        "R": reads,
+        "requete": False,
+        "rho": 1,
+        "rho_croit": False,
+        "nom": f"grille-{wrap} {n}x{n}",
+    }
+
+
+def fam_nreines(size: int) -> dict[str, object]:
+    """N-queens: place without row/column/diagonal conflict (part VI)."""
+    reads = []
+    for p in range(size * size):
+        i, j = divmod(p, size)
         s = set()
-        for q in range(N * N):
+        for q in range(size * size):
             if q == p:
                 continue
-            a, b = divmod(q, N)
+            a, b = divmod(q, size)
             if a == i or b == j or (a - b) == (i - j) or (a + b) == (i + j):
                 s.add(q)
-        R.append(frozenset(s))
-    def succ(s):
+        reads.append(frozenset(s))
+
+    def succ(s: bytes) -> list[bytes]:
         out = []
-        for p in range(N * N):
+        for p in range(size * size):
             if s[p]:
                 c = bytearray(s)
                 c[p] = 0
                 out.append(bytes(c))
-            elif not any(s[q] for q in R[p]):
+            elif not any(s[q] for q in reads[p]):
                 c = bytearray(s)
                 c[p] = 1
                 out.append(bytes(c))
         return out
-    return {"S": bfs(bytes(N * N), succ), "R": R, "requete": False,
-            "rho": N - 1, "rho_croit": True, "nom": f"N-reines {N}x{N}"}
 
-def fam_referendum(N):
-    """Scrutin libre à N votants (partie VI) : garde libre, requête majoritaire."""
-    import itertools
-    S = {bytes(c) for c in itertools.product((0, 1, 2), repeat=N)}
-    return {"S": S, "R": [frozenset()] * N, "requete": True, "rho": 0,
-            "rho_croit": False, "nom": f"référendum N={N}"}
+    return {
+        "S": bfs(bytes(size * size), succ),
+        "R": reads,
+        "requete": False,
+        "rho": size - 1,
+        "rho_croit": True,
+        "nom": f"N-reines {size}x{size}",
+    }
 
-# ----------------------------- classifieur -----------------------------
-def classifieur(fam, rows):
-    """(rayon, requête, profil de coupe) -> verdict de rung."""
+
+def fam_referendum(n_voters: int) -> dict[str, object]:
+    """Free N-voter ballot (part VI): free guard, majority query."""
+    states = {bytes(c) for c in itertools.product((0, 1, 2), repeat=n_voters)}
+    return {
+        "S": states,
+        "R": [frozenset()] * n_voters,
+        "requete": True,
+        "rho": 0,
+        "rho_croit": False,
+        "nom": f"referendum N={n_voters}",
+    }
+
+
+# ----------------------------- classifier -----------------------------
+def classifieur(fam: dict[str, object], rows: list[dict[str, object]]) -> str:
+    """(radius, query, cut profile) -> rung verdict."""
     if fam["requete"]:
         return "compteur"
     if fam["rho_croit"]:
         return "registre"
-    # bourrelet : aux fins de lignes de la plus grande instance carrée,
-    # pic intérieur >= 2 x creux intérieur (couture statique)
-    import math
+    # seam bulge: at the row ends of the largest square instance, inner peak
+    # >= 2 x inner trough (static seam)
     fins_all = []
     for r in rows:
-        m = int(round(math.sqrt(len(r["coupe"]))))
-        if m * m == len(r["coupe"]) and m >= 3:
-            fins = [r["coupe"][p] for p in range(m * m) if (p + 1) % m == 0]
-            fins_all = fins
+        m = round(math.sqrt(len(r["coupe"])))
+        if m * m == len(r["coupe"]) and m >= MIN_SQUARE_CHECK:
+            fins_all = [r["coupe"][p] for p in range(m * m) if (p + 1) % m == 0]
     if fins_all:
         interieur = fins_all[1:-1]
-        if interieur and max(interieur) >= 2 * min(interieur):
-            return "fenêtre + couture"
-    return "fenêtre"
+        if interieur and max(interieur) >= COUTURE_FACTOR * min(interieur):
+            return "fenetre + couture"
+    return "fenetre"
 
-def run_family(mkfam, key, ns, results):
-    rows = []
+
+def run_family(
+    mkfam: object,
+    key: str,
+    ns: list[int],
+    results: dict[str, list[dict[str, object]]],
+) -> list[dict[str, object]]:
+    """Run one family over ns, printing and saving each row."""
+    rows: list[dict[str, object]] = []
     for n in ns:
         t0 = time.time()
         fam = mkfam(n)
-        S = fam["S"]
-        nvars = len(next(iter(S)))
-        assert len(S) * nvars <= SEUIL, (key, n, len(S), nvars)
-        plat = mdd_levels(S)
-        coupe = memoire_de_coupe(S, fam["R"])
-        proj = projections_cellsules(S, fam["R"], nvars)
+        states = fam["S"]
+        nvars = len(next(iter(states)))
+        if len(states) * nvars > SEUIL:
+            raise RuntimeError(f"seuil depasse: {key}, {n}, {len(states)}, {nvars}")
+        plat = mdd_levels(states)
+        coupe = memoire_de_coupe(states, fam["R"])
+        proj = projections_cellsules(states, fam["R"], nvars)
         egal = sum(1 for p in range(nvars) if plat[p] == coupe[p])
         egal_proj = sum(1 for p in range(nvars) if plat[p] == proj[p])
-        rows.append({"n": n, "states": len(S), "niveaux": nvars,
-                     "plat": sum(plat), "coupe": coupe, "coupe_max": max(coupe),
-                     "egalite": f"{egal}/{nvars}",
-                     "egal_proj": f"{egal_proj}/{nvars}",
-                     "sec": round(time.time() - t0, 1)})
-        print(json.dumps({"famille": key, "n": n, "states": len(S),
-                          "plat": sum(plat), "coupe_max": max(coupe),
-                          "egalite": f"{egal}/{nvars}",
-                          "sec": round(time.time() - t0, 1)}), flush=True)
+        rows.append(
+            {
+                "n": n,
+                "states": len(states),
+                "niveaux": nvars,
+                "plat": sum(plat),
+                "coupe": coupe,
+                "coupe_max": max(coupe),
+                "egalite": f"{egal}/{nvars}",
+                "egal_proj": f"{egal_proj}/{nvars}",
+                "sec": round(time.time() - t0, 1),
+            }
+        )
+        emit(
+            json.dumps(
+                {
+                    "famille": key,
+                    "n": n,
+                    "states": len(states),
+                    "plat": sum(plat),
+                    "coupe_max": max(coupe),
+                    "egalite": f"{egal}/{nvars}",
+                    "sec": round(time.time() - t0, 1),
+                }
+            )
+        )
     results[key] = rows
-    with open(RESULTS, "w") as f:
+    with RESULTS.open("w", encoding="utf-8") as f:
         json.dump(results, f, indent=1)
     return rows
 
+
+def check_theorem(results: dict[str, list[dict[str, object]]]) -> tuple[int, int, int]:
+    """The theorem: node count == |I(p)| at every level, everywhere."""
+    total_niv = sum(r["niveaux"] for rows in results.values() for r in rows)
+    total_egal = sum(int(r["egalite"].split("/")[0]) for rows in results.values() for r in rows)
+    total_proj = sum(int(r["egal_proj"].split("/")[0]) for rows in results.values() for r in rows)
+    emit(f"\negalite theoreme (noeuds = |I(p)|) : {total_egal}/{total_niv} niveaux")
+    emit(f"contre-hypothese (projections)  : {total_proj}/{total_niv} niveaux")
+    if total_egal != total_niv:
+        raise RuntimeError("theoreme viole")
+    return total_egal, total_niv, total_proj
+
+
+def check_cross(results: dict[str, list[dict[str, object]]]) -> None:
+    """Seam bulge and cross-checks against parts V and VI."""
+    grid_n = 5
+    nreines_n = 7
+    for key in ("grille-plan", "grille-tore"):
+        r5 = next(r for r in results[key] if r["n"] == grid_n)
+        fins = [r5["coupe"][p] for p in range(grid_n * grid_n) if (p + 1) % grid_n == 0]
+        emit(f"memoire de coupe aux fins de lignes ({key}, n={grid_n}) : {fins}")
+    p5 = next(r for r in results["grille-plan"] if r["n"] == grid_n)
+    t5 = next(r for r in results["grille-tore"] if r["n"] == grid_n)
+    nr7 = next(r for r in results["n-reines"] if r["n"] == nreines_n)
+    if p5["plat"] != EXPECTED_PLAN5:
+        raise RuntimeError(f"plat plan5: {p5['plat']}")
+    if t5["plat"] != EXPECTED_TORE5:
+        raise RuntimeError(f"plat tore5: {t5['plat']}")
+    if nr7["plat"] != EXPECTED_NR7:
+        raise RuntimeError(f"plat n-reines7: {nr7['plat']}")
+    max_an = [max(r["coupe"]) for r in results["anneau"]]
+    emit(f"coupe max anneau C_n (n=3..9)   : {max_an}")
+    if not (max(max_an[ANNEAU_N_MIN:]) == max(max_an) == EXPECTED_ANNEAU_PLATEAU):
+        raise RuntimeError(f"plateau anneau: {max_an}")
+    coupes_nr = [max(r["coupe"]) for r in results["n-reines"]]
+    emit(f"coupe max N-reines (N=4..7)    : {coupes_nr}")
+    if coupes_nr != EXPECTED_NR_COUPE:
+        raise RuntimeError(f"coupe N-reines: {coupes_nr}")
+    emit(
+        "controles croises : plat plan5=249, tore5=1159, n-reines7=15180, "
+        "plateau anneau 4 des n=6, coupe N-reines 17/59/265/1146 : conformes"
+    )
+
+
+def verdict_table(
+    familles: list[tuple[str, object, list[int]]],
+    familles_ref: dict[str, tuple[dict[str, object], list[dict[str, object]]]],
+) -> int:
+    """Print the verdict table and return the number of agreements."""
+    historique = {
+        "anneau": ("fenetre", "I : la fenetre/handles porte le gain"),
+        "grille-plan": ("fenetre", "V : fenetre correcte, surcharge non rentable"),
+        "grille-tore": ("fenetre + couture", "V : la couture porte le gain"),
+        "referendum": ("compteur", "VI-A : multiplicites/compteur"),
+        "n-reines": ("registre", "VI-B : fenetre fausse, registre"),
+    }
+    emit(
+        f"\n{'famille':>12} {'rho':>4} {'requete':>8} {'coupe max':>9} "
+        f"{'verdict':>17} {'attendu':>17} {'accord':>7}"
+    )
+    accords = 0
+    for key, _mk, _ns in familles:
+        fam, rows = familles_ref[key]
+        v = classifieur(fam, rows)
+        attendu, _ref = historique[key]
+        ok = "oui" if v == attendu else "NON"
+        accords += v == attendu
+        requete = "oui" if fam["requete"] else "-"
+        cmax = max(max(r["coupe"]) for r in rows)
+        rho = "n-1" if fam["rho_croit"] else str(fam["rho"])
+        emit(f"{key:>12} {rho:>4} {requete:>8} {cmax:>9} {v:>17} {attendu:>17} {ok:>7}")
+    if accords != len(familles):
+        raise RuntimeError("desaccord du classifieur")
+    emit(f"\n{accords}/{len(familles)} accords. Detecteur conforme aux verdicts historiques I-VI.")
+    return accords
+
+
 if __name__ == "__main__":
     t00 = time.time()
-    results = {}
+    results: dict[str, list[dict[str, object]]] = {}
     familles = [
-        ("anneau", fam_anneau, list(range(3, 10))),
-        ("grille-plan", lambda n: fam_grille(n, "plan"), [2, 3, 4, 5]),
-        ("grille-tore", lambda n: fam_grille(n, "tore"), [2, 3, 4, 5]),
-        ("n-reines", fam_nreines, [4, 5, 6, 7]),
-        ("référendum", fam_referendum, list(range(3, 11))),
+        ("anneau", fam_anneau, list(range(ANNEAU_N_MIN, ANNEAU_N_MAX))),
+        ("grille-plan", lambda n: fam_grille(n, "plan"), GRID_NS),
+        ("grille-tore", lambda n: fam_grille(n, "tore"), GRID_NS),
+        ("n-reines", fam_nreines, NREINES_NS),
+        ("referendum", fam_referendum, list(range(REFERENDUM_N_MIN, REFERENDUM_N_MAX))),
     ]
     familles_ref = {}
     for key, mk, ns in familles:
         rows = run_family(mk, key, ns, results)
         familles_ref[key] = (mk(ns[-1]), rows)
 
-    # théorème : égalité parfaite partout ?
-    total_niv = sum(r["niveaux"] for rows in results.values() for r in rows)
-    total_egal = sum(int(r["egalite"].split("/")[0]) for rows in results.values() for r in rows)
-    total_proj = sum(int(r["egal_proj"].split("/")[0]) for rows in results.values() for r in rows)
-    print(f"\négalité théorème (nœuds = |I(p)|) : {total_egal}/{total_niv} niveaux")
-    print(f"contre-hypothèse (projections)  : {total_proj}/{total_niv} niveaux")
-    assert total_egal == total_niv, "théorème violé"
-
-    # bourrelet de couture : fins de lignes, grilles n=5
-    for key in ("grille-plan", "grille-tore"):
-        r5 = [r for r in results[key] if r["n"] == 5][0]
-        n = 5
-        fins = [r5["coupe"][p] for p in range(n * n) if (p + 1) % n == 0]
-        print(f"mémoire de coupe aux fins de lignes ({key}, n=5) : {fins}")
-    # contrôles croisés : plats des parties V et VI
-    p5 = [r for r in results["grille-plan"] if r["n"] == 5][0]
-    t5 = [r for r in results["grille-tore"] if r["n"] == 5][0]
-    nr7 = [r for r in results["n-reines"] if r["n"] == 7][0]
-    assert p5["plat"] == 249, p5["plat"]
-    assert t5["plat"] == 1159, t5["plat"]
-    assert nr7["plat"] == 15180, nr7["plat"]
-    # plateau anneau et explosion N-reines
-    max_an = [max(r["coupe"]) for r in results["anneau"]]
-    print(f"coupe max anneau C_n (n=3..9)   : {max_an}")
-    assert max(max_an[3:]) == max(max_an) == 4, max_an  # plateau dès n=6
-    coupes_nr = [max(r["coupe"]) for r in results["n-reines"]]
-    print(f"coupe max N-reines (N=4..7)    : {coupes_nr}")
-    assert coupes_nr == [17, 59, 265, 1146], coupes_nr
-    print("contrôles croisés : plat plan5=249, tore5=1159, n-reines7=15180, "
-          "plateau anneau 4 dès n=6, coupe N-reines 17/59/265/1146 : conformes")
-
-    # tableau des verdicts
-    historique = {
-        "anneau": ("fenêtre", "I : la fenêtre/handles porte le gain"),
-        "grille-plan": ("fenêtre", "V : fenêtre correcte, surcharge non rentable"),
-        "grille-tore": ("fenêtre + couture", "V : la couture porte le gain"),
-        "référendum": ("compteur", "VI-A : multiplicités/compteur"),
-        "n-reines": ("registre", "VI-B : fenêtre fausse, registre"),
-    }
-    print(f"\n{'famille':>12} {'ρ':>4} {'requête':>8} {'coupe max':>9} {'verdict':>17} {'attendu':>17} {'accord':>7}")
-    accords = 0
-    for key, mk, ns in familles:
-        fam, rows = familles_ref[key]
-        v = classifieur(fam, rows)
-        attendu, ref = historique[key]
-        ok = "oui" if v == attendu else "NON"
-        accords += v == attendu
-        requete = "oui" if fam["requete"] else "-"
-        cmax = max(max(r["coupe"]) for r in rows)
-        rho = "n-1" if fam["rho_croit"] else str(fam["rho"])
-        print(f"{key:>12} {rho:>4} {requete:>8} {cmax:>9} {v:>17} {attendu:>17} {ok:>7}")
-    assert accords == len(familles), "désaccord du classifieur"
-    print(f"\n{accords}/{len(familles)} accords. Détecteur conforme aux verdicts historiques I-VI.")
-    print("OK -> results7.json (%.1f s, RSS max %.0f Mo)" % (time.time() - t00, rss()))
+    check_theorem(results)
+    check_cross(results)
+    verdict_table(familles, familles_ref)
+    emit(f"OK -> results7.json ({time.time() - t00:.1f} s, RSS max {rss():.0f} Mo)")
