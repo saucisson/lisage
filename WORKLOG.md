@@ -1613,3 +1613,11 @@ One entry per commit or pull request:
 - **Evidence**: fichiers copiés depuis l'archive zip (vérifié par `ls -laR docs/etudes-surcharge/`) ; issues créées via `gh issue create` (URLs retournées) ; milestone #27 et labels créés via `gh api` / `gh label create`.
 - **Judgement calls**: les sub-issues GitHub n'ont pas pu être liées hiérarchiquement via l'API (403/404 avec le token disponible) ; le lien parent/enfant est documenté dans le body de #347 à la place.
 - **Escalations**: none.
+
+## 2026-11-23 - lisage-web-v1: import consigne interface web + logos + ADR-0107 (draft)
+
+- **Issue**: milestone WEB (#25), issues #330-335 (WEB-1 à WEB-6).
+- **Done**: import de `lisage-web-v1.zip` dans `docs/lisage-web-v1/` (consigne-interface-web.md, README, 3 logos SVG). Création de `docs/decisions/adr-0107-web-interface-lisage.md` (statut draft, à faire accepter par l'humain). Mise à jour des 6 issues WEB (#330-335) : titres alignés sur la répartition du contrat commun (WEB-3=auth, WEB-4=atelier, WEB-5=préférences, WEB-6=intégration) et bodies enrichis des exigences auth/zones/UI du contrat (auth.linard.fr PKCE, zones 3 niveaux, header commun, bilingue FR/EN, thème, préférences Mistral). Labels `area/web`, `jalon/WEB`, `auth`, `type/infra` déjà présents (vérifiés, 86 labels au total) — aucun label à créer.
+- **Evidence**: fichiers copiés depuis `/mnt/c/Users/Utilisateur/Downloads/lisage-web-v1.zip` ; ADR-0107 créé en draft ; issues éditées via `gh issue edit` (URLs retournées). Non testé: build du front (crate `lisage-web` pas encore créé, WEB-1).
+- **Judgement calls**: logos déposés dans `docs/lisage-web-v1/logos/` en attendant WEB-1 qui créera le scaffold `web/` et les déplacera dans les assets statiques du front ; ADR-0107 laissé en draft (acceptation = humain, ADR-0010).
+- **Escalations**: aucune (pas de nouvelle dépendance, pas de changement constitutionnel hors ADR drafté dans la plage 0100+).
