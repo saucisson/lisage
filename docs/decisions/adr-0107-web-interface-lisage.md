@@ -1,12 +1,11 @@
 # ADR-0107: Web surface for lisage — lisage.linard.fr (three-zone model, unified saucisson auth)
 
-- Status: draft (drafted 2026-11-21; to be accepted by the human owner after review)
+- Status: accepted (accepted by the human owner on 2026-11-23)
 - Date: 2026-11-21
 
 > Draft written alongside the WEB milestone issues (#330-#335). A project ADR
 > is *drafted* in a PR (numbered from 0100 upward); only the human accepts it.
-> This ADR is to move from **draft** to **accepted** once the human reviews the
-> unified saucisson web contract (`docs/lisage-web-v1/consigne-interface-web.md`).
+> Accepted by the human owner on 2026-11-23.
 
 ## Context
 

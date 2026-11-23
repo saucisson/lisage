@@ -1621,3 +1621,11 @@ One entry per commit or pull request:
 - **Evidence**: fichiers copiés depuis `/mnt/c/Users/Utilisateur/Downloads/lisage-web-v1.zip` ; ADR-0107 créé en draft ; issues éditées via `gh issue edit` (URLs retournées). Non testé: build du front (crate `lisage-web` pas encore créé, WEB-1).
 - **Judgement calls**: logos déposés dans `docs/lisage-web-v1/logos/` en attendant WEB-1 qui créera le scaffold `web/` et les déplacera dans les assets statiques du front ; ADR-0107 laissé en draft (acceptation = humain, ADR-0010).
 - **Escalations**: aucune (pas de nouvelle dépendance, pas de changement constitutionnel hors ADR drafté dans la plage 0100+).
+
+## 2026-11-23 - ajustements post-questions (ADR-0107 acceptée, zip supprimé)
+
+- **Issue**: ADR-0107 / milestone WEB (#25).
+- **Done**: ADR-0107 passée de draft à accepted (acceptation humaine reçue 2026-11-23) ; `etudes-surcharge.zip` supprimé du répertoire de travail (contenu déjà importé dans docs/etudes-surcharge/). Commit direct sur daily accepté pour les tâches documentaires (pas de PR rétrospective). Sub-issues ARCH-1 : référence textuelle dans #347 acceptée. `make check` dispensé (aucun code Rust modifié).
+- **Evidence**: `git status` propre après suppression du zip ; ADR-0107 éditée (statut accepted, date 2026-11-23).
+- **Judgement calls**: aucun.
+- **Escalations**: none.
