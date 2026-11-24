@@ -87,6 +87,8 @@ impl Observer for CountingObserver {
             | TraceEvent::MemoConsult { .. }
             | TraceEvent::MemoInsert { .. }
             | TraceEvent::MemoryWrite { .. }
+            | TraceEvent::MemoryRead { .. }
+            | TraceEvent::MemoryState { .. }
             | TraceEvent::StructureChange { .. }
             | TraceEvent::LocalFire { .. } => {}
         }

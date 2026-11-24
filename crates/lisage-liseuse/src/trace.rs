@@ -12,7 +12,7 @@ use lisage_core::observer::{
     ChannelAttr, ClassHistogram, Observer, ReductionRule, SpanKind, StructureChangeKind, TraceEvent,
 };
 
-/// Trace schema version (`{"v":6, ...}`): v2 adds the
+/// Trace schema version (`{"v":7, ...}`): v2 adds the
 /// `Attr`/`MemoHit`/`MemoMiss`/`Round` events of the step-by-step view (M2-6);
 /// v3 adds the `Histogram` event (MEM-17: degree histogram per class);
 /// v4 adds the spans of D1-1 — `SpanOpen`/`SpanClose` events and a `"span"`
@@ -22,10 +22,15 @@ use lisage_core::observer::{
 /// (`form`), `Gc` (`collected_list`) and `Round` (levels, handles, growth);
 /// v6 adds the events of the in-place kernel (ADR-0109): the `Fire`
 /// span kind (`"fire"`) and the `LocalFire` event, one per local fire
-/// in firing order. New-in-v6 fields follow the English-only charter
-/// (M6): the legacy French field names of v1-v5 stay unchanged, the
-/// `LocalFire` fields are `fire`/`level`/`before`/`image`/`merged`.
-pub const TRACE_VERSION: u32 = 6;
+/// in firing order; v7 adds the memory and S-channel vocabulary of the
+/// deferred ADR-0109 tracks: `MemoryRead` (the observed reads of `φ_out`
+/// through the probe) and `MemoryState` (one per op, the `(0, 0)` witness
+/// of a nil memory `M = ()`). New-in-v6/v7 fields follow the English-only
+/// charter (M6): the legacy French field names of v1-v5 stay unchanged,
+/// the `LocalFire` fields are `fire`/`level`/`before`/`image`/`merged`,
+/// the `MemoryRead` fields are `node`/`level`/`hit`/`value` and the
+/// `MemoryState` fields are `version`/`entries`.
+pub const TRACE_VERSION: u32 = 7;
 
 /// Minimal JSON escaping of a string (events carry no dynamic
 /// ones, but the contract stays correct).
@@ -293,6 +298,28 @@ pub fn serialize_event(event: &TraceEvent) -> String {
             "EcritureMemoire",
             format!("\"version_avant\":{version_before},\"version_apres\":{version_after}"),
         ),
+        TraceEvent::MemoryRead {
+            node,
+            level,
+            hit,
+            value,
+            ..
+        } => (
+            "MemoryRead",
+            format!(
+                "\"node\":{},\"level\":{level},\"hit\":{hit},\"value\":\"{}\"",
+                node.0,
+                escape_json(&value.render())
+            ),
+        ),
+        TraceEvent::MemoryState {
+            version,
+            entries,
+            ..
+        } => (
+            "MemoryState",
+            format!("\"version\":{version},\"entries\":{entries}"),
+        ),
         TraceEvent::StructureChange {
             node,
             classification,
@@ -391,10 +418,11 @@ impl Observer for JsonlObserver {
 // Version policy: the `"v"` field must be present and equal to
 // [`TRACE_VERSION`]; any other version is **rejected explicitly** with a
 // typed error naming the version. Decision on v2 traces: they are
-// rejected, not silently upgraded — v3/v4/v5 added fields (histogram,
-// spans, register events) that a v2 line does not carry, so an upgrade
-// would fabricate `null` spans and empty registers; the correct path is
-// to re-run the scenario and produce a current (`TRACE_VERSION`) trace.
+// rejected, not silently upgraded — v3/v4/v5/v6/v7 added fields
+// (histogram, spans, register events, fires, memory vocabulary) that a
+// v2 line does not carry, so an upgrade would fabricate `null` spans and
+// empty registers; the correct path is to re-run the scenario and produce
+// a current (`TRACE_VERSION`) trace.
 // ---------------------------------------------------------------------
 
 use crate::json::{self, Json};
@@ -696,6 +724,19 @@ pub fn deserialize_event(line: &str) -> Result<TraceEvent, String> {
         "EcritureMemoire" => TraceEvent::MemoryWrite {
             version_before: field_u64(&obj, "version_avant")?,
             version_after: field_u64(&obj, "version_apres")?,
+            span,
+        },
+        "MemoryRead" => TraceEvent::MemoryRead {
+            node: node("node")?,
+            level: field_u32(&obj, "level")?,
+            hit: field_bool(&obj, "hit")?,
+            value: TraceVal::Text(field_str(&obj, "value")?),
+            span,
+        },
+        "MemoryState" => TraceEvent::MemoryState {
+            version: field_u64(&obj, "version")?,
+            entries: usize::try_from(field_num(&obj, "entries")?)
+                .map_err(|_| "field 'entries' out of range".to_string())?,
             span,
         },
         "StructureChange" => TraceEvent::StructureChange {

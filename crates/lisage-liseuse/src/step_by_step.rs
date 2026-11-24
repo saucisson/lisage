@@ -143,6 +143,8 @@ impl Scrubber {
                 | TraceEvent::MemoConsult { .. }
                 | TraceEvent::MemoInsert { .. }
                 | TraceEvent::MemoryWrite { .. }
+                | TraceEvent::MemoryRead { .. }
+                | TraceEvent::MemoryState { .. }
                 | TraceEvent::StructureChange { .. }
                 | TraceEvent::LocalFire { .. } => {}
             }
@@ -186,6 +188,9 @@ fn tiret_timeline(event: &TraceEvent) -> (u32, &'static str) {
         TraceEvent::MemoHit { .. } => (10, COLOR_MEMO_HIT),
         TraceEvent::MemoMiss { .. } => (10, COLOR_MEMO_MISS),
         TraceEvent::Attr { channel, .. } => (10, color_channel(*channel)),
+        // ADR-0109 tracks: the memory vocabulary ticks in the memory
+        // color (reads and per-op states), like the memory channel.
+        TraceEvent::MemoryRead { .. } | TraceEvent::MemoryState { .. } => (10, COLOR_MEMORY),
         _ => (6, COLOR_OTHER),
     }
 }

@@ -174,6 +174,7 @@ fn event_node(event: &TraceEvent) -> Option<NodeId> {
         | TraceEvent::VisitExit { node, .. }
         | TraceEvent::MemoConsult { node, .. }
         | TraceEvent::MemoInsert { node, .. }
+        | TraceEvent::MemoryRead { node, .. }
         | TraceEvent::StructureChange { node, .. } => Some(*node),
         _ => None,
     }
@@ -183,6 +184,8 @@ fn event_node(event: &TraceEvent) -> Option<NodeId> {
 fn event_level(event: &TraceEvent) -> Option<u32> {
     match event {
         TraceEvent::NodeCreated { level, .. } => level.map(|level| level.0),
+        // The level of the consulted memory key (ADR-0109 tracks).
+        TraceEvent::MemoryRead { level, .. } => Some(*level),
         _ => None,
     }
 }

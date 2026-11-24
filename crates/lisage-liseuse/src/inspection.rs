@@ -214,24 +214,43 @@ impl Inspector {
         out
     }
 
-    /// `memory`: the level-memory version history up to the cursor.
+    /// `memory`: the level-memory history up to the cursor — the L1
+    /// version bumps (`MemoryWrite`), the observed reads (`MemoryRead`,
+    /// ADR-0109 deferred tracks) and the per-op states (`MemoryState`).
     pub fn memory_view(&self, position: usize) -> String {
         let position = position.min(self.events.len());
         let mut version = 0u64;
         let mut writes: Vec<String> = Vec::new();
+        let mut reads_hit = 0usize;
+        let mut reads_miss = 0usize;
+        let mut states: Vec<String> = Vec::new();
         for (i, event) in self.events[..position].iter().enumerate() {
-            if let TraceEvent::MemoryWrite {
-                version_before,
-                version_after,
-                ..
-            } = event
-            {
-                writes.push(format!("{}->{} @ {i}", version_before, version_after));
-                version = *version_after;
+            match event {
+                TraceEvent::MemoryWrite {
+                    version_before,
+                    version_after,
+                    ..
+                } => {
+                    writes.push(format!("{}->{} @ {i}", version_before, version_after));
+                    version = *version_after;
+                }
+                TraceEvent::MemoryRead { hit, .. } => {
+                    if *hit {
+                        reads_hit += 1;
+                    } else {
+                        reads_miss += 1;
+                    }
+                }
+                TraceEvent::MemoryState {
+                    version: state_version,
+                    entries,
+                    ..
+                } => states.push(format!("v{state_version} e{entries} @ {i}")),
+                _ => {}
             }
         }
         format!(
-            "memory @ pos {}/{}: version {}\nwrites: {}",
+            "memory @ pos {}/{}: version {}\nwrites: {}\nreads: {} hit / {} miss\nstates: {}",
             position,
             self.events.len(),
             version,
@@ -239,6 +258,13 @@ impl Inspector {
                 "none".to_string()
             } else {
                 writes.join(", ")
+            },
+            reads_hit,
+            reads_miss,
+            if states.is_empty() {
+                "none".to_string()
+            } else {
+                states.join(", ")
             }
         )
     }

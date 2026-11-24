@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use lisage_core::arena::Arena;
 use lisage_core::memory::EffectMemory;
-use lisage_core::observer::{Observer, StructureChangeKind, TraceEvent};
+use lisage_core::observer::{Observer, StructureChangeKind, TraceEvent, TraceVal};
 use lisage_core::schema::{Domain, ReferenceController, Schema};
 use lisage_core::transduction::{PhiOutContext, Transducer, Transduction};
 use lisage_core::{Anchor, Form, Level, MemoryPolicy, NodeId, Pool};
@@ -216,6 +216,57 @@ fn test_memory_view() {
         view.contains("0->1 @ 0") && view.contains("1->2 @ 1"),
         "{view}"
     );
+}
+
+/// `memory`: the reads and per-op states of the ADR-0109 deferred
+/// tracks (v7) — `MemoryRead` hits/misses counted, `MemoryState`
+/// lines with position, and `reads`/`states` empty markers before
+/// any such event.
+#[test]
+fn test_memory_view_reads_and_states() {
+    let events = vec![
+        TraceEvent::MemoryRead {
+            node: NodeId(2),
+            level: 1,
+            hit: false,
+            value: TraceVal::Elided,
+            span: None,
+        },
+        TraceEvent::MemoryWrite {
+            version_before: 0,
+            version_after: 1,
+            span: None,
+        },
+        TraceEvent::MemoryRead {
+            node: NodeId(2),
+            level: 1,
+            hit: true,
+            value: TraceVal::text("1"),
+            span: None,
+        },
+        TraceEvent::MemoryState {
+            version: 1,
+            entries: 1,
+            span: None,
+        },
+    ];
+    // Before the first event, everything is empty.
+    let inspector = Inspector::new(events);
+    let view = inspector.memory_view(0);
+    assert!(
+        view.contains("reads: 0 hit / 0 miss") && view.contains("states: none"),
+        "{view}"
+    );
+    // Reads counted by hit flag, states with version/entries and position.
+    let full = inspector.memory_view(4);
+    assert!(
+        full.contains("reads: 1 hit / 1 miss")
+            && full.contains("states: v1 e1 @ 3"),
+        "{full}"
+    );
+    // A miss read alone keeps the hit/miss split observable.
+    let partial = inspector.memory_view(1);
+    assert!(partial.contains("reads: 0 hit / 1 miss"), "{partial}");
 }
 
 /// `node <id>`: creation level/form and index ranges on the real scenario.
