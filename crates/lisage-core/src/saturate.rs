@@ -87,8 +87,9 @@ pub struct RestrictedToLevels<T> {
 
 impl<T: Clone> Clone for RestrictedToLevels<T> {
     fn clone(&self) -> Self {
-        // The clone starts from a fresh tracking: `saturate` creates a new
-        // wrapper at each iteration anyway.
+        // The clone starts from a fresh tracking: `saturate` installs a
+        // fresh wrapper at each round anyway (`set_transduction`), the
+        // runner persisting behind it.
         RestrictedToLevels {
             inner: self.inner.clone(),
             active_levels: self.active_levels.clone(),
@@ -124,7 +125,14 @@ impl<T: Transduction> Transduction for RestrictedToLevels<T> {
     type M = T::M;
 
     fn fingerprint(&self) -> u64 {
-        self.inner.fingerprint() ^ SEL_FINGERPRINT_WRAPPER
+        // M2-5, the #388 saturation remainder: the wrapper fingerprint
+        // folds the active levels — since the runner (and its memo)
+        // persists from round to round, an entry memoized under one
+        // active set must never answer for another.
+        self.active_levels.iter().fold(
+            self.inner.fingerprint() ^ SEL_FINGERPRINT_WRAPPER,
+            |acc, level| acc.rotate_left(8) ^ u64::from(level.0),
+        )
     }
     fn h0(&self) -> Self::H {
         self.inner.h0()
@@ -204,6 +212,27 @@ where
 
     let mut courant = params.initial;
     let mut iterations = 0u32;
+    // M2-5, the #388 saturation remainder: **one runner for the whole
+    // fixpoint** — its memo and its level memory survive from round to
+    // round. A memo entry stays valid while the fragments its visit
+    // reads did not change (per-fragment versions of `MemoryLevel`),
+    // so the untouched fragments of a round keep answering from the
+    // entries of the previous rounds. Each round swaps only the
+    // per-round wrapper (fresh modified-levels tracking) through
+    // `set_transduction`; the wrapper's fingerprint folds the active
+    // set, so an entry built under one active set never answers for
+    // another.
+    let mut runner = match &params.observer {
+        Some(observer) => Transducer::with_observer(
+            RestrictedToLevels::new(params.transduction.clone(), active_levels.clone()),
+            lisage_algebra::interface::MemoryPolicy::PerLevel,
+            Arc::clone(observer),
+        ),
+        None => Transducer::with_policy(
+            RestrictedToLevels::new(params.transduction.clone(), active_levels.clone()),
+            lisage_algebra::interface::MemoryPolicy::PerLevel,
+        ),
+    };
     loop {
         iterations += 1;
         // D1-1: one Round span per iteration, closed on every exit path.
@@ -223,20 +252,12 @@ where
             });
         }
         let pool_before = params.pool.node_count() as i64;
-        let step = RestrictedToLevels::new(params.transduction.clone(), active_levels.clone());
-        // Spec § 7: saturate steps can produce a memory effect
-        // (T3, M2-5) — PerLevel policy. The memory lives for one pass:
-        // the runner (and its memory) is recreated at each iteration.
-        let mut runner = match &params.observer {
-            Some(observer) => Transducer::with_observer(
-                step,
-                lisage_algebra::interface::MemoryPolicy::PerLevel,
-                Arc::clone(observer),
-            ),
-            None => {
-                Transducer::with_policy(step, lisage_algebra::interface::MemoryPolicy::PerLevel)
-            }
-        };
+        // Fresh wrapper for this round (fresh modified-levels tracking),
+        // same runner: the memo/memory of the previous rounds persist.
+        runner.set_transduction(RestrictedToLevels::new(
+            params.transduction.clone(),
+            active_levels.clone(),
+        ));
         let result = runner.run_same_pool(params.pool, params.anchor, courant);
         let result = match result {
             Ok(value) => value,
