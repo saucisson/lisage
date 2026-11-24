@@ -1427,16 +1427,6 @@ pub struct FragmentedClosure {
     pub local_fixpoints: u64,
 }
 
-/// Saturates the stored tower under the **per-fragment** policy (HSDD-6):
-/// the ring splits into the n overlapping windows of `fragment`
-/// consecutive positions. A parent pass sweeps the windows; each window
-/// fires **to its local fixpoint** (its fragments fire out-of-order inside
-/// it, until the window is quiet) before the lift-off to the next — the
-/// parent pair sheets carry the change through the window boundaries,
-/// the per-fragment memory of the transduction brick (the boundary
-/// guard rides the shared coupling). Parent passes repeat until the
-/// whole ring is stable; the trace carries one round event per parent
-/// pass.
 /// Mutable state threaded through the fragment firing helpers.
 struct FragmentFire<'a> {
     matrices: &'a mut [Vec<Vec<u64>>],
@@ -1483,6 +1473,16 @@ fn fire_window_to_fixpoint(
     }
 }
 
+/// Saturates the stored tower under the **per-fragment** policy (HSDD-6):
+/// the ring splits into the n overlapping windows of `fragment`
+/// consecutive positions. A parent pass sweeps the windows; each window
+/// fires **to its local fixpoint** (its fragments fire out-of-order inside
+/// it, until the window is quiet) before the lift-off to the next — the
+/// parent pair sheets carry the change through the window boundaries,
+/// the per-fragment memory of the transduction brick (the boundary
+/// guard rides the shared coupling). Parent passes repeat until the
+/// whole ring is stable; the trace carries one round event per parent
+/// pass.
 pub fn saturate_fragments(
     pool: &Arena<TowerController>,
     root: NodeId,
