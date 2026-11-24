@@ -1,6 +1,6 @@
 name: dependency-audit
 
-# ADR-0022 (ported from project-template ADR-0008): audit the resolved
+# ADR-0108 (ported from project-template ADR-0008): audit the resolved
 # dependency graph when it actually moves - the locked graph rarely
 # changes, and the day's CI stays short. A weekly sweep catches
 # advisories published for the same lockfile; a human reads the

@@ -1,6 +1,6 @@
 name: continuous-integration
 
-# ADR-0022 (ported from project-template ADR-0008): the GitHub CI is
+# ADR-0108 (ported from project-template ADR-0008): the GitHub CI is
 # one merge signal among several gates (review, mutation at EOD), so
 # it stays SHORT: cancellable, shallow where history does not pay,
 # time-boxed. Only the fast gates belong here (lint, types, unit tier,

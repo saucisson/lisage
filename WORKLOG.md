@@ -67,7 +67,7 @@ One entry per commit or pull request:
   run it. Rust gates not run locally (no code change in crates/).
 - **Judgement calls**: kept lisage's Python-based night loop (richer
   than the template's shell loop: claims, milestones, heartbeat); kept
-  lisage's ADR numbering (0022, next free slot after 0021).
+  lisage's ADR numbering (0108, next free project slot after 0107).
 - **Escalations**: none.
 
 ---
