@@ -273,7 +273,7 @@ impl<T: Transduction> Transducer<T> {
 
     /// Single-pool variant starting from the inherited attribute `h`
     /// given by the caller instead of `h0`: used by the in-place
-    /// saturation driver (`surplace`, M2-4), which carries `h` along its
+    /// saturation driver (`inplace`, M2-4), which carries `h` along its
     /// own depth-first descent and fires at the level of the visited
     /// node. The span/`OpStart`/`OpEnd` instrumentation matches
     /// `run_same_pool`.
