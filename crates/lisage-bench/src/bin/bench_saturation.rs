@@ -519,32 +519,73 @@ impl Transduction for DiningStep {
         ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
     ) -> (NodeId, EffectMemory<Self::M>) {
         let level = ctx.level.0;
-        // Presence level: identity (including A2), never fires.
         if level % 2 == 0 {
-            let transduced: BTreeMap<u64, NodeId> =
-                ctx.arcs.iter().map(|(v, (n, _))| (*v, *n)).collect();
-            if !transduced.is_empty()
-                && transduced
-                    .values()
-                    .all(|n| matches!(pool.resolve(*n), Ok(Form::Terminal(false))))
-            {
-                return (
-                    pool.intern(ctx.anchor, Form::Terminal(false)),
-                    EffectMemory::new(),
-                );
-            }
+            self.phi_out_presence(pool, ctx, level)
+        } else {
+            self.phi_out_value(pool, ctx, level)
+        }
+    }
+
+    fn psi<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        _h: &RingState,
+    ) -> (NodeId, ()) {
+        (pool.intern(anchor, Form::Terminal(payload)), ())
+    }
+}
+
+impl DiningStep {
+    /// Presence level: identity (including A2), never fires.
+    fn phi_out_presence<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        ctx: PhiOutContext<
+            '_,
+            RingState,
+            <DiningStep as Transduction>::S,
+            <DiningStep as Transduction>::M,
+        >,
+        level: u32,
+    ) -> (NodeId, EffectMemory<<DiningStep as Transduction>::M>) {
+        let transduced: BTreeMap<u64, NodeId> =
+            ctx.arcs.iter().map(|(v, (n, _))| (*v, *n)).collect();
+        if !transduced.is_empty()
+            && transduced
+                .values()
+                .all(|n| matches!(pool.resolve(*n), Ok(Form::Terminal(false))))
+        {
             return (
-                pool.intern(
-                    ctx.anchor,
-                    Form::Node {
-                        level: Level(level),
-                        arcs: ArcRun::from_pairs(transduced),
-                    },
-                ),
+                pool.intern(ctx.anchor, Form::Terminal(false)),
                 EffectMemory::new(),
             );
         }
-        // Value level (key i): fire the events.
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: Level(level),
+                    arcs: ArcRun::from_pairs(transduced),
+                },
+            ),
+            EffectMemory::new(),
+        )
+    }
+
+    /// Value level (key i): fire the events.
+    fn phi_out_value<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        ctx: PhiOutContext<
+            '_,
+            RingState,
+            <DiningStep as Transduction>::S,
+            <DiningStep as Transduction>::M,
+        >,
+        level: u32,
+    ) -> (NodeId, EffectMemory<<DiningStep as Transduction>::M>) {
         let i = (level - 1) / 2;
         let raw_arcs: Vec<(u64, NodeId)> = match pool.resolve(ctx.node_input).expect("input node") {
             Form::Node { arcs, .. } => arcs.iter().map(|(v, c)| (*v, *c)).collect(),
@@ -563,27 +604,7 @@ impl Transduction for DiningStep {
                     merge_arc(pool, &self.keys, ctx.anchor, &mut outputs, THINK, child);
                 }
                 HUNGRY => {
-                    // Take: hungry -> eating, guarded by both neighbors.
-                    if i == 0 {
-                        if let Some(fragment) = take_zero_fragment(pool, ctx.anchor, self.n, child)
-                        {
-                            merge_arc(pool, &self.keys, ctx.anchor, &mut outputs, EATS, fragment);
-                        }
-                    } else if ctx.h.prev != EATS {
-                        if i + 1 == self.n {
-                            // Seam: left neighbor through `prev`,
-                            // right neighbor is pc of key 0.
-                            if ctx.h.program_counter_zero != EATS
-                                && ctx.h.program_counter_zero != PROGRAM_COUNTER_ZERO_UNKNOWN
-                            {
-                                merge_arc(pool, &self.keys, ctx.anchor, &mut outputs, EATS, child);
-                            }
-                        } else if let Some(kept) =
-                            guarded_continuation(pool, &self.keys, ctx.anchor, 2 * (i + 1), child)
-                        {
-                            merge_arc(pool, &self.keys, ctx.anchor, &mut outputs, EATS, kept);
-                        }
-                    }
+                    self.fire_take(pool, ctx.anchor, i, ctx.h, child, &mut outputs);
                 }
                 _ => {}
             }
@@ -600,14 +621,35 @@ impl Transduction for DiningStep {
         )
     }
 
-    fn psi<P: Pool<Key = u64, Payload = bool>>(
+    /// Take event: hungry -> eating, guarded by both neighbors.
+    fn fire_take<P: Pool<Key = u64, Payload = bool>>(
         &self,
         pool: &mut P,
         anchor: Anchor,
-        payload: bool,
-        _h: &RingState,
-    ) -> (NodeId, ()) {
-        (pool.intern(anchor, Form::Terminal(payload)), ())
+        i: u32,
+        state: &RingState,
+        child: NodeId,
+        outputs: &mut BTreeMap<u64, NodeId>,
+    ) {
+        if i == 0 {
+            if let Some(fragment) = take_zero_fragment(pool, anchor, self.n, child) {
+                merge_arc(pool, &self.keys, anchor, outputs, EATS, fragment);
+            }
+        } else if state.prev != EATS {
+            if i + 1 == self.n {
+                // Seam: left neighbor through `prev`,
+                // right neighbor is program_counter of key 0.
+                if state.program_counter_zero != EATS
+                    && state.program_counter_zero != PROGRAM_COUNTER_ZERO_UNKNOWN
+                {
+                    merge_arc(pool, &self.keys, anchor, outputs, EATS, child);
+                }
+            } else if let Some(kept) =
+                guarded_continuation(pool, &self.keys, anchor, 2 * (i + 1), child)
+            {
+                merge_arc(pool, &self.keys, anchor, outputs, EATS, kept);
+            }
+        }
     }
 }
 
