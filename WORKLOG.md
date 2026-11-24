@@ -46,6 +46,51 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-24 - HSDD spike: set-valued instantiation above the flat pool (issue #382, milestone HSDD)
+
+- **Issue**: #382 (HSDD parent, spike scope). Closes nothing by design:
+  the spike produces evidence for the sub-issues - #383 (reduction ADR
+  inputs), #386 (set-valued arcs), #390 (install-state C6 style).
+- **Done**: new `crates/lisage-bench/src/hsdd.rs` (spike module) +
+  `crates/lisage-bench/tests/hsdd.rs` (5 tests) + `pub mod hsdd;`
+  registration in the bench crate, and the measurement report
+  `bench-results/hsdd-spike/REPORT.md`. Architecture: a "tower" above
+  the flat pool with zero core change (M5-3 install pattern): (1) a
+  module = the 5 legal cells of the philosopher automaton, compiled
+  once, 4 live nodes; (2) a ring = one `Form::Node` at a pool-opaque
+  instance level carrying a single set-valued arc (key = n-bit
+  position mask through `KeyAlgebra` `TowerKeys`, target = the shared
+  module root) - the HSDD-4 idea as one arc; (3) semantics = a
+  structural fold reading the module once per position through the
+  same `InputArc` relative form (M4-2), then |R_n| by u128 matrix
+  exponentiation. Measured: tower fold == brute-force enumeration ==
+  golden 20/56/152/416/1136 for n=3..7; storage constant in n
+  (4 module nodes + 1 ring) against the flat pool's pinned
+  206/646/1850/5198/14362.
+- **Evidence**: `cargo test -p lisage-bench --test hsdd`: 5 passed,
+  0 failed; full `cargo test -p lisage-bench`: 112 passed, 0 failed,
+  11 ignored; `cargo clippy -p lisage-bench --all-targets
+  -- -D warnings`: clean; `cargo fmt --all -- --check`: clean. NOT
+  run: full `make check` - the `english-only` scanner crashes at import
+  in this environment (pre-existing `Sequence` bug in
+  `scripts/_shared.py` under the local Python build; CI covers it; a
+  manual scan of the touched files found no French identifiers); full
+  workspace nextest gate; GitHub CI.
+- **Judgement calls**: (1) `TowerController` sets `collapse_active`
+  and `default_active` to false: with the default controller,
+  R-collapse folds the 1-arc instance node away and destroys the
+  instantiation record. This is the load-bearing input for the
+  reduction ADR (#383): HSDD levels need reduction *control*, not
+  removal. (2) The instance arc carries a raw bitmask key (u64) rather
+  than an argument node: keeps the spike inside the existing
+  `(anchor, form)` unique table with no core change; the general
+  set-valued arc design remains #386. (3) Semantics by structural
+  fold + matrix exponentiation rather than full unfolding: the
+  reading stays linear in n, and the flat counts pinned in-test double
+  as the regression baseline.
+- **Escalations**: none.
+
+---
 ## 2026-11-23 - Port project-template ADR-0008: gh-first GitHub client + short CI (ADR-0108)
 
 - **Issue**: none (template sync).
