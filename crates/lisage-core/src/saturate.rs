@@ -299,7 +299,9 @@ where
 }
 
 /// Closes a span and emits its `SpanClose` event on the optional observer (D1-1).
-fn close_span(observer: &Option<Arc<dyn Observer>>, span: crate::observer::SpanId) {
+/// Shared with the in-place kernel (`inplace`, ADR-0109) so both
+/// saturation kernels close their spans on the same discipline.
+pub(crate) fn close_span(observer: &Option<Arc<dyn Observer>>, span: crate::observer::SpanId) {
     if let Some(observer) = observer {
         observer.on_event(&TraceEvent::SpanClose { span });
     }

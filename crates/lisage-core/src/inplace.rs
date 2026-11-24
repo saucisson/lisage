@@ -40,6 +40,14 @@
 //!
 //! The `policy` and `number_levels` fields of [`SaturationParameters`]
 //! are ignored by the kernel.
+//!
+//! Firing-order trace (ADR-0109): every local fire opens a `Fire` span
+//! (D1-1) and emits a `TraceEvent::LocalFire` carrying the fire number,
+//! the level, the visited node, the image and the merged node — one
+//! event per fire, in firing order, so Liseuse can replay the order in
+//! which the kernel fired. `ResultSaturation.iterations` and the
+//! highest fire number agree; a fire with `merged == before` is the
+//! sterile fire that closes the local fixpoint of the node.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
@@ -48,8 +56,8 @@ use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, MemoryPolicy, NodeI
 
 use crate::error::CoreError;
 use crate::fold::union;
-use crate::observer::Observer;
-use crate::saturate::{RestrictedToLevels, ResultSaturation, SaturationParameters};
+use crate::observer::{Observer, SpanKind, TraceEvent, contextualize, next_span_id, push_span};
+use crate::saturate::{RestrictedToLevels, ResultSaturation, SaturationParameters, close_span};
 use crate::schema::SchemaKeys;
 use crate::transduction::{Transducer, Transduction};
 
@@ -165,11 +173,49 @@ where
                 if engine.fires > BOUND_FIRES {
                     return Err(CoreError::NonTermination { bound: BOUND_FIRES });
                 }
+                let fire = engine.fires;
+                // ADR-0109: one `Fire` span per local fire (D1-1: opened
+                // before the runner runs, closed on every exit path).
+                let span = next_span_id();
+                push_span(span);
+                if let Some(observer) = &engine.observer {
+                    observer.on_event(&TraceEvent::SpanOpen {
+                        span,
+                        kind: SpanKind::Fire,
+                        lane: 0,
+                    });
+                }
                 // Restricted to `[level]`, the runner fires only here:
                 // `current` is the only node at its level in its subtree.
                 let runner = engine.runner(level.0);
-                let (image, _) = runner.run_same_pool_from(pool, anchor, current, h.clone())?;
-                let next = union(pool, engine.keys, anchor, current, image)?;
+                let (image, _) = match runner.run_same_pool_from(pool, anchor, current, h.clone())
+                {
+                    Ok(value) => value,
+                    Err(error) => {
+                        close_span(&engine.observer, span);
+                        return Err(error);
+                    }
+                };
+                let next = match union(pool, engine.keys, anchor, current, image) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        close_span(&engine.observer, span);
+                        return Err(error);
+                    }
+                };
+                // ADR-0109: the fire is recorded in firing order, with
+                // the level, the visited node, the image and the merge.
+                if let Some(observer) = &engine.observer {
+                    observer.on_event(&contextualize(TraceEvent::LocalFire {
+                        number: fire,
+                        level: level.0,
+                        before: current,
+                        image,
+                        merged: next,
+                        span: None,
+                    }));
+                }
+                close_span(&engine.observer, span);
                 if next == current {
                     break; // Local fixpoint reached.
                 }

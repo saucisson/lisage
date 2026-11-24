@@ -22,6 +22,11 @@ pub enum SpanKind {
     Op,
     /// One saturation round.
     Round,
+    /// One local fire of the in-place kernel (`inplace`, ADR-0109):
+    /// the step transduction restricted to the level of the visited
+    /// node, plus the union with it — the innermost chronological unit
+    /// of the firing-order trace.
+    Fire,
     /// Visit of one node.
     Visit,
 }
@@ -473,6 +478,25 @@ pub enum TraceEvent {
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
+    /// Local fire of the in-place saturation kernel (`inplace`,
+    /// ADR-0109): one event per local fire, in firing order — the
+    /// trace-level counterpart of `ResultSaturation.iterations`,
+    /// replayable by Liseuse. `merged == before` marks the sterile
+    /// fire that closes the local fixpoint of the visited node.
+    LocalFire {
+        /// Fire number, 1-based (the kernel's fire counter).
+        number: u32,
+        /// Level at which the fire happened.
+        level: u32,
+        /// Node before the fire (the visited node).
+        before: NodeId,
+        /// Local image computed by the level runner.
+        image: NodeId,
+        /// Node after the union `before ⊕ image`.
+        merged: NodeId,
+        /// Span in which the event occurs (D1-1: the `Fire` span).
+        span: Option<SpanId>,
+    },
     /// Degree histogram per class (MEM-17): emitted at each GC — live,
     /// peak and slack per class; fixes the C boundary of MEM-9 and
     /// monitors the drift.
@@ -581,6 +605,7 @@ impl TraceEvent {
             | TraceEvent::MemoMiss { span: s, .. }
             | TraceEvent::Gc { span: s, .. }
             | TraceEvent::Round { span: s, .. }
+            | TraceEvent::LocalFire { span: s, .. }
             | TraceEvent::Histogram { span: s, .. }
             | TraceEvent::OpStart { span: s, .. }
             | TraceEvent::OpEnd { span: s, .. }
@@ -607,6 +632,7 @@ impl TraceEvent {
             | TraceEvent::MemoMiss { span, .. }
             | TraceEvent::Gc { span, .. }
             | TraceEvent::Round { span, .. }
+            | TraceEvent::LocalFire { span, .. }
             | TraceEvent::Histogram { span, .. }
             | TraceEvent::OpStart { span, .. }
             | TraceEvent::OpEnd { span, .. }

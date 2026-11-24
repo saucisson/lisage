@@ -5,12 +5,13 @@
 //! kernels must reach the same node id in the same pool.
 
 use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::fold::count;
 use lisage_core::inplace::saturate_in_place;
-use lisage_core::observer::NoOpObserver;
+use lisage_core::observer::{NoOpObserver, Observer, SpanId, SpanKind, TraceEvent};
 use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
 use lisage_core::transduction::{PhiOutContext, Transduction};
@@ -22,6 +23,30 @@ const FINGERPRINT_IDENTITY: u64 = 5001;
 const FINGERPRINT_EMITS_SINGLETON: u64 = 5002;
 
 type PoolRef = Arena<ReferenceController>;
+
+/// Trace collector for the firing-order tests (ADR-0109): records every
+/// event in emission order.
+#[derive(Clone, Default)]
+struct RecordingObserver {
+    /// Events collected so far, in emission order.
+    events: Arc<Mutex<Vec<TraceEvent>>>,
+}
+
+impl Observer for RecordingObserver {
+    fn on_event(&self, event: &TraceEvent) {
+        self.events
+            .lock()
+            .expect("mutex poisoned")
+            .push(event.clone());
+    }
+}
+
+impl RecordingObserver {
+    /// Snapshot of the collected events.
+    fn collected(&self) -> Vec<TraceEvent> {
+        self.events.lock().expect("mutex poisoned").clone()
+    }
+}
 
 /// Identity transduction: copies the diagram (union with itself).
 #[derive(Clone)]
@@ -288,4 +313,143 @@ fn test_in_place_terminal_initial() {
     let result = saturate_in_place(&mut params).unwrap();
     assert_eq!(result.node, initial, "no fire from a terminal");
     assert_eq!(result.iterations, 0);
+}
+
+/// Runs the in-place kernel on the `EmitsSingleton` step with the
+/// recording observer, and returns (result, events).
+fn run_traced(
+    pool: &mut PoolRef,
+    keys: &SchemaKeys,
+    schema: &Schema,
+    initial: NodeId,
+    singleton: NodeId,
+) -> (lisage_core::saturate::ResultSaturation, Vec<TraceEvent>) {
+    let recorder = Arc::new(RecordingObserver::default());
+    let policy = PolicySaturation::AutoDetected;
+    let transduction = EmitsSingleton { singleton };
+    let mut params = SaturationParameters {
+        transduction: &transduction,
+        policy: &policy,
+        pool,
+        keys,
+        anchor: Anchor(0),
+        initial,
+        number_levels: schema.number_levels(),
+        observer: Some(recorder.clone()),
+    };
+    let result = saturate_in_place(&mut params).unwrap();
+    let events = recorder.collected();
+    (result, events)
+}
+
+/// ADR-0109 (trace of the firing order): the kernel emits exactly one
+/// `LocalFire` event per local fire, numbered from 1 in firing order,
+/// each inside its own `Fire` span; the spans of the whole trace are
+/// properly nested (every `SpanClose` pops the innermost open span,
+/// nothing stays open at the end).
+#[test]
+fn test_in_place_trace_of_the_firing_order() {
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
+    let keys = SchemaKeys::new(schema.clone());
+    let mut pool = new_pool(&schema);
+    let anchor = Anchor(0);
+    let initial = compile_set(&mut pool, anchor, &schema, &[0]);
+    let singleton = compile_set(&mut pool, anchor, &schema, &[1]);
+
+    let (result, events) = run_traced(&mut pool, &keys, &schema, initial, singleton);
+
+    let fires: Vec<&TraceEvent> = events
+        .iter()
+        .filter(|event| matches!(event, TraceEvent::LocalFire { .. }))
+        .collect();
+    assert_eq!(
+        fires.len() as u32,
+        result.iterations,
+        "one LocalFire event per local fire"
+    );
+    for (position, event) in fires.iter().enumerate() {
+        let TraceEvent::LocalFire { number, level, .. } = event else {
+            unreachable!("filtered to LocalFire above");
+        };
+        assert_eq!(
+            *number,
+            position as u32 + 1,
+            "fires are numbered from 1, in firing order"
+        );
+        assert!(
+            *level < schema.number_levels(),
+            "the fire happens at a level of the schema"
+        );
+    }
+    let fire_spans = events
+        .iter()
+        .filter(|event| matches!(event, TraceEvent::SpanOpen { kind: SpanKind::Fire, .. }))
+        .count();
+    assert_eq!(fire_spans, fires.len(), "one Fire span per local fire");
+    // D1-1 over the whole emission: proper nesting, innermost close.
+    let mut open: Vec<SpanId> = Vec::new();
+    for event in &events {
+        match event {
+            TraceEvent::SpanOpen { span, .. } => open.push(*span),
+            TraceEvent::SpanClose { span } => {
+                assert_eq!(
+                    open.pop(),
+                    Some(*span),
+                    "SpanClose pops the innermost open span"
+                );
+            }
+            _ => {}
+        }
+    }
+    assert!(open.is_empty(), "no span stays open at the end");
+    // Every fire event carries the `Fire` span in which it was emitted.
+    for event in &events {
+        let TraceEvent::LocalFire { span, .. } = event else {
+            continue;
+        };
+        let span = span.expect("the LocalFire event carries its Fire span");
+        let opened = events.iter().any(|candidate| {
+            matches!(
+                candidate,
+                TraceEvent::SpanOpen { span: candidate_span, kind: SpanKind::Fire, .. }
+                    if *candidate_span == span
+            )
+        });
+        assert!(opened, "the fire's span is a Fire span opened in the trace");
+    }
+}
+
+/// ADR-0109: the last fire of the kernel is the sterile fire that
+/// detects the root's local fixpoint (`merged == before`), and its
+/// number is the final `iterations` count.
+#[test]
+fn test_in_place_last_fire_is_sterile() {
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1)]));
+    let keys = SchemaKeys::new(schema.clone());
+    let mut pool = new_pool(&schema);
+    let anchor = Anchor(0);
+    let initial = compile_set(&mut pool, anchor, &schema, &[0]);
+    let singleton = compile_set(&mut pool, anchor, &schema, &[1]);
+
+    let (result, events) = run_traced(&mut pool, &keys, &schema, initial, singleton);
+
+    let last = events
+        .iter()
+        .rev()
+        .find(|event| matches!(event, TraceEvent::LocalFire { .. }))
+        .expect("at least one local fire");
+    let TraceEvent::LocalFire {
+        number,
+        before,
+        merged,
+        ..
+    } = last
+    else {
+        unreachable!("filtered to LocalFire above");
+    };
+    assert_eq!(
+        before, merged,
+        "the last fire changes nothing (the root reached its local fixpoint)"
+    );
+    assert_eq!(*number, result.iterations, "the last fire carries the count");
 }
