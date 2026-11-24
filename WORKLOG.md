@@ -71,6 +71,7 @@ One entry per commit or pull request:
 ## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #401, issue #387, stacked on #393)
 ## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #402, issue #388, stacked on #401)
 ## 2026-11-24 - HSDD-6 remainder: observed rounds, self-detected policy, per-fragment fixpoints (PR #NNN, issue #388, stacked on #395)
+## 2026-11-24 - HSDD-6 remainder: observed rounds, self-detected policy, per-fragment fixpoints (PR #396, issue #388, stacked on #395)
 
 - **Issue**: #388 (HSDD-6, the three items PR #395 left open: rounds
   visible in the Observer events, the self-detected Hamez policy,
