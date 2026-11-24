@@ -254,3 +254,70 @@ Findings:
   handles and growth) and memo/memory versions per (round x fragment).
 
 Reproduce: `cargo test -p lisage-bench --test hsdd_policy`.
+
+
+
+## Per-round diagrams and per-fragment memory versions (HSDD-6 core, issue #388)
+
+First core change of the stack: the two items #388 lists as core. The
+memo key of the runner now carries the versions of the fragments the
+visit DECLARES to read (`Transduction::read_fragments`, default: the
+visited level only), `MemoryLevel` bumps one version per written
+fragment on top of the global one, and `saturate` keeps ONE runner for
+the whole fixpoint - each round swaps only the per-round
+`RestrictedToLevels` wrapper (whose fingerprint now folds the active
+levels) through `set_transduction`. On top, the bench grows
+`saturate_diagrammed`: the coupling state materialized as a chain of
+sheet nodes (one sheet per position at level 5 + i, the fragment of
+the position), saturated through the core saturation itself, the
+closure counted by reading the final diagram back.
+
+Measured on the full firing set (fold == BFS oracle everywhere, the
+closure read FROM the final diagram):
+
+| n | golden \|R_n\| | diagrammed count | rounds | round-1 growth |
+|---|---|---|---|---|
+| 3 | 20 | 20 | 2 | 3 |
+| 4 | 56 | 56 | 2 | 4 |
+| 5 | 152 | 152 | 2 | 5 |
+| 6 | 416 | 416 | 2 | 6 |
+| 7 | 1136 | 1136 | 2 | 7 |
+
+Storage and memo pins of the materialized saturation (full set, per n):
+
+| n | sheets interned | shares | confirming shares | misses | hits |
+|---|---|---|---|---|---|
+| 3 | 6 | 8 | 3 | 7 | 22 |
+| 4 | 8 | 10 | 4 | 9 | 29 |
+| 5 | 10 | 12 | 5 | 11 | 36 |
+| 6 | 12 | 14 | 6 | 13 | 43 |
+| 7 | 14 | 16 | 7 | 15 | 50 |
+
+Findings:
+
+- The `Round` events now carry the real materialized handles: the
+  continuity `after == next before` holds through the whole trace, the
+  confirming round reproduces the chain on pure R-share (growth 0,
+  nothing modified), and every handle reads back as the coupling chain
+  it claims to be - the seed sheets are the think-think singletons,
+  the final sheets the 8 legal pairs without (eat, eat).
+- The memo survives the rounds, measured: on the uniform ring the seed
+  round misses every visit (2n + 1 misses) and ALL 7n + 1 hits answer
+  in the confirming round - a per-round runner answers none of them.
+  The folded active-level fingerprint is the safety of the reused
+  entries under the per-round active-set tracking.
+- The rounds of the diagrammed engine are simultaneous-firing rounds:
+  2 for every set carrying the hungry bit, 1 confirming-only for the
+  sets that cannot leave the all-think seed, 2 per set for the chain
+  [hungry; eat] (the golden thread in 4 rounds, the fixpoint state of
+  each set handed over as the first before of the next). The closure
+  equals the sweeps of the previous bricks everywhere; the round
+  counts are NOT those of the in-place sweeps.
+- Hash-consing makes the whole diagram one big pool share: re-running
+  the engine interns NOTHING (identical handles, same rounds).
+- Downstream: the committed offline trace page of lisage-liseuse is
+  regenerated (the trace changed with the persistent runner: 196
+  events instead of 202, same 4 rounds, more memo hits).
+
+Reproduce: `cargo test -p lisage-core --test memory --test saturate`
+and `cargo test -p lisage-bench --test hsdd_core_rounds`.

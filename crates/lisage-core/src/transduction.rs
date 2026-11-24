@@ -9,7 +9,7 @@
 //! themselves (spec: "φ_out is the only rule that writes the diagram"),
 //! always by interning (A3: canonical result by construction).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
@@ -56,8 +56,13 @@ use crate::observer::{
 };
 
 /// Memo key: (operation fingerprint, node, inherited attribute,
-/// level-memory version) — lemma L1.
-type KeyMemo<H> = (u64, NodeId, H, u64);
+/// per-fragment level-memory versions) — lemma L1, scoped per fragment
+/// since M2-5 (the #388 core remainder): the fourth component lists the
+/// versions of the fragments the visit DECLARES to read
+/// (`read_fragments`), not the global version of the memory — the
+/// entries of the untouched fragments survive the writes of the
+/// others.
+type KeyMemo<H> = (u64, NodeId, H, Vec<u64>);
 
 /// Context of `φ_out` (T-NODE): groups the restructuring parameters
 /// (spec § 3.1: `φ_out(ℓ, h, {v ↦ (D', s)}, M)`).
@@ -91,8 +96,10 @@ pub trait Transduction: Send + Sync {
     /// (M2-3). `()` for transductions without memory (M1).
     type M: Clone + Eq + Hash + Debug + Send + Sync + Traceable;
 
-    /// Fingerprint of the operation (parameters included): enters the
-    /// memo key `(op, node, h, version(M))` (L1/L3).
+    /// Fingerprint of the operation (parameters included): enters the memo
+    /// key `(op, node, h, versions of the declared fragments)` (L1/L3;
+    /// the versions are per-fragment since M2-5, the #388 core
+    /// remainder — see [`Transduction::read_fragments`]).
     fn fingerprint(&self) -> u64;
 
     /// Initial element of the inherited channel.
@@ -130,6 +137,17 @@ pub trait Transduction: Send + Sync {
         payload: bool,
         h: &Self::H,
     ) -> (NodeId, Self::S);
+
+    /// Fragments of the level memory the visit of a node of `level`
+    /// READS (M2-5, the #388 core remainder): the per-fragment
+    /// versions entering the memo key enter for these fragments only.
+    /// Default: the fragment of the visited level itself — level-local
+    /// scoping, the same contract discipline as the fingerprint (the
+    /// op declares what makes its answers stale); a transduction
+    /// reading across fragments declares them explicitly.
+    fn read_fragments(&self, level: Level) -> Vec<u32> {
+        vec![level.0]
+    }
 }
 
 /// Runner of a transduction with its computed table (memo L1/L3) and its
@@ -203,6 +221,16 @@ impl<T: Transduction> Transducer<T> {
     /// wrapper, e.g. levels modified by `RestrictedToLevels`).
     pub fn transduction(&self) -> &T {
         &self.transduction
+    }
+
+    /// Replaces the embedded transduction, KEEPING the memo and the
+    /// level memory (M2-5, the #388 core remainder): the saturate loop
+    /// swaps its per-round wrapper for the next round while the
+    /// computed table survives — the validity of the surviving entries
+    /// is carried by the fingerprint and the per-fragment versions of
+    /// the memo key, not by the identity of the transduction value.
+    pub fn set_transduction(&mut self, transduction: T) {
+        self.transduction = transduction;
     }
 
     /// Number of memo entries (for tests: proof of hits).
@@ -341,12 +369,24 @@ impl<T: Transduction> Transducer<T> {
         // MEM-15: the co-located memory decodes NodeIds with the pool's
         // class width.
         self.memory.set_class_bits(pool_input.class_bits());
-        let key = (
-            self.transduction.fingerprint(),
-            node,
-            h.clone(),
-            self.memory.version(),
-        );
+        // M2-5 (the #388 core remainder): the level of the visit probes
+        // the input BEFORE the memo check — the fragments the visit
+        // declares to read give the versions of the memo key (a
+        // terminal visit is pure in (payload, h), no fragment read:
+        // empty versions).
+        let level_visit = match pool_input.resolve(node) {
+            Ok(Form::Node { level, .. }) => Some(level),
+            Ok(Form::Terminal(_)) => None,
+            Err(error) => return Err(error.into()),
+        };
+        let versions: Vec<u64> = match level_visit {
+            Some(level) => BTreeSet::from_iter(self.transduction.read_fragments(level))
+                .into_iter()
+                .map(|fragment| self.memory.version_of(fragment))
+                .collect(),
+            None => Vec::new(),
+        };
+        let key: KeyMemo<T::H> = (self.transduction.fingerprint(), node, h.clone(), versions);
         let fingerprint = self.transduction.fingerprint();
         let version = self.memory.version();
         // D1-3: the attribute is a lazy TraceVal — no format! on the hot path.
@@ -518,12 +558,24 @@ impl<T: Transduction> Transducer<T> {
         // MEM-15: the co-located memory decodes NodeIds with the pool's
         // class width.
         self.memory.set_class_bits(pool.class_bits());
-        let key = (
-            self.transduction.fingerprint(),
-            node,
-            h.clone(),
-            self.memory.version(),
-        );
+        // M2-5 (the #388 core remainder): the level of the visit probes
+        // the input BEFORE the memo check — the fragments the visit
+        // declares to read give the versions of the memo key (a
+        // terminal visit is pure in (payload, h), no fragment read:
+        // empty versions).
+        let level_visit = match pool.resolve(node) {
+            Ok(Form::Node { level, .. }) => Some(level),
+            Ok(Form::Terminal(_)) => None,
+            Err(error) => return Err(error.into()),
+        };
+        let versions: Vec<u64> = match level_visit {
+            Some(level) => BTreeSet::from_iter(self.transduction.read_fragments(level))
+                .into_iter()
+                .map(|fragment| self.memory.version_of(fragment))
+                .collect(),
+            None => Vec::new(),
+        };
+        let key: KeyMemo<T::H> = (self.transduction.fingerprint(), node, h.clone(), versions);
         let fingerprint = self.transduction.fingerprint();
         let version = self.memory.version();
         // D1-3: the attribute is a lazy TraceVal — no format! on the hot path.

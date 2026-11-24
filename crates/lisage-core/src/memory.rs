@@ -129,6 +129,14 @@ pub struct MemoryLevel<V: Clone + Eq + Hash + Debug> {
     class_bits: u32,
     /// Per-class dense arrays, created lazily.
     classes: Vec<Option<ClassMemory<V>>>,
+    /// Per-fragment versions (M2-5, the #388 core remainder): one
+    /// version counter per level fragment written so far, bumped
+    /// alongside the global version by every write of the fragment.
+    /// The memo of the runner keys on the versions of the fragments
+    /// the transduction DECLARES to read (`read_fragments`), so a write
+    /// to one fragment never invalidates the memo entries of the
+    /// others.
+    fragment_versions: BTreeMap<u32, u64>,
     version: u64,
     len: usize,
 }
@@ -150,6 +158,7 @@ impl<V: Clone + Eq + Hash + Debug> MemoryLevel<V> {
         MemoryLevel {
             class_bits,
             classes: Vec::new(),
+            fragment_versions: BTreeMap::new(),
             version: 0,
             len: 0,
         }
@@ -164,6 +173,15 @@ impl<V: Clone + Eq + Hash + Debug> MemoryLevel<V> {
     /// Current version (L1): enters the memo key.
     pub fn version(&self) -> u64 {
         self.version
+    }
+
+    /// Current version of one fragment (M2-5, the #388 core remainder):
+    /// the number of writes the fragment received, 0 when it was never
+    /// written. Enters the memo key alongside the nodes and the `h`
+    /// states, scoped to the fragments the transduction declares to
+    /// read: the entries of the other fragments survive its writes.
+    pub fn version_of(&self, fragment: u32) -> u64 {
+        self.fragment_versions.get(&fragment).copied().unwrap_or(0)
     }
 
     /// Read: value stored at `(node, level)`, if present.
@@ -185,6 +203,9 @@ impl<V: Clone + Eq + Hash + Debug> MemoryLevel<V> {
         if old.is_none() {
             self.len += 1;
         }
+        // M2-5: the fragment of the written level carries its own
+        // version, independent of the untouched fragments.
+        *self.fragment_versions.entry(level.0).or_insert(0) += 1;
         self.version += 1;
         old
     }

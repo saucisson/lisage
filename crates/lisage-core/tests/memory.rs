@@ -3,6 +3,7 @@
 //! φ_out, and policy declared by the controller.
 
 use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, Form, Level, MemoryPolicy, NodeId, Pool,
@@ -304,4 +305,165 @@ fn test_decode_with_pool_class_bits() {
         "keyed by (node, level)"
     );
     assert_eq!(memory.size(), 2);
+}
+
+/// M2-5 (the #388 core remainder): the per-fragment versions bump per
+/// fragment, the global version counting every write — the baseline of
+/// the scoping of the memo key.
+#[test]
+fn test_fragment_versions_bump_per_fragment() {
+    let mut memory: MemoryLevel<u64> = MemoryLevel::new();
+    assert_eq!(memory.version_of(5), 0, "never written: version 0");
+    memory.write(NodeId(0), Level(5), 1);
+    memory.write(NodeId(1), Level(6), 2);
+    memory.write(NodeId(2), Level(5), 3);
+    assert_eq!(memory.version_of(5), 2, "two writes in the fragment 5");
+    assert_eq!(memory.version_of(6), 1, "one write in the fragment 6");
+    assert_eq!(memory.version_of(7), 0, "no write in the fragment 7");
+    assert_eq!(
+        memory.version(),
+        3,
+        "the global version counts all the writes"
+    );
+}
+
+/// Transduction whose phi_out writes the level memory OUTSIDE the
+/// fragments its visits read (M2-5, the #388 core remainder): every node
+/// visit of the chain writes at `Level(7)`, a fragment NO visit
+/// declares to read — the default scoping is level-local (a visit of a
+/// node of level l reads the fragment l only), so the writes of the
+/// foreign fragment never invalidate the memo entries.
+struct WritesElsewhere;
+
+impl Transduction for WritesElsewhere {
+    type H = u64;
+    type S = u64;
+    type Out = bool;
+    type M = u64;
+
+    fn fingerprint(&self) -> u64 {
+        3002
+    }
+    fn h0(&self) -> u64 {
+        0
+    }
+    fn phi_disp(&self, _level: Level, h: &u64, _arc: u64) -> u64 {
+        *h
+    }
+    fn phi_aggr(
+        &self,
+        _level: Level,
+        _h: &u64,
+        _arcs: &BTreeMap<u64, (Option<Level>, u64)>,
+    ) -> u64 {
+        0
+    }
+    fn phi_out<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, EffectMemory<u64>) {
+        // The write lands in the foreign fragment 7, not the level of
+        // the visit.
+        let effect = EffectMemory::one(ctx.node_input, Level(7), 1);
+        let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs,
+                },
+            ),
+            effect,
+        )
+    }
+    fn psi<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        _h: &u64,
+    ) -> (NodeId, u64) {
+        (pool.intern(anchor, Form::Terminal(payload)), 0)
+    }
+}
+
+/// Memo-hit recorder (M2-5 tests): clones share the buffer, the hits
+/// land in visit order.
+#[derive(Clone, Default)]
+struct CloneHits {
+    hits: Arc<Mutex<Vec<NodeId>>>,
+}
+
+impl lisage_core::observer::Observer for CloneHits {
+    fn on_event(&self, event: &lisage_core::observer::TraceEvent) {
+        if let lisage_core::observer::TraceEvent::MemoHit { node, .. } = event {
+            self.hits.lock().expect("collecting the hits").push(*node);
+        }
+    }
+}
+
+/// M2-5 (the #388 core remainder): the memo entries are scoped per
+/// fragment — the writes of a fragment nobody reads never invalidate
+/// them. Measured: run 1 fills the table (4 entries, one internal hit
+/// at the shared terminal), run 2 answers at the ROOT from the table
+/// despite the two writes of the foreign fragment (one hit, the write
+/// keys of the visits unchanged).
+#[test]
+fn test_memo_scoped_per_fragment_survives_foreign_writes() {
+    let anchor = Anchor(0);
+    let mut input = pool();
+    let mut output = pool();
+    let true_node = input.intern(anchor, Form::Terminal(true));
+    let false_node = input.intern(anchor, Form::Terminal(false));
+    let a = input.intern(
+        anchor,
+        Form::Node {
+            level: Level(5),
+            arcs: ArcRun::from_pairs([(0, true_node), (1, false_node)]),
+        },
+    );
+    let b = input.intern(
+        anchor,
+        Form::Node {
+            level: Level(6),
+            arcs: ArcRun::from_pairs([(0, a), (1, true_node)]),
+        },
+    );
+
+    let hits = Arc::new(Mutex::new(Vec::new()));
+    let observer: Arc<dyn lisage_core::observer::Observer> =
+        Arc::new(CloneHits { hits: hits.clone() });
+    let mut runner = Transducer::with_observer(WritesElsewhere, MemoryPolicy::PerLevel, observer);
+
+    let (one, _) = runner.run(&input, &mut output, anchor, b).unwrap();
+    let (two, _) = runner.run(&input, &mut output, anchor, b).unwrap();
+    assert_eq!(two, one, "determinism across the foreign writes");
+    assert_eq!(
+        output.resolve(one).unwrap(),
+        input.resolve(b).unwrap(),
+        "identity copy"
+    );
+
+    // The foreign fragment received the two writes (b and a), the
+    // visit fragments none: the memo keys of the second run are the
+    // keys of the first.
+    assert_eq!(runner.memory().version_of(7), 2, "two foreign writes");
+    assert_eq!(runner.memory().version_of(5), 0, "visit fragment untouched");
+    assert_eq!(runner.memory().version_of(6), 0, "visit fragment untouched");
+    assert_eq!(
+        runner.size_memo(),
+        4,
+        "b, a and the two terminals: the entries survive the writes"
+    );
+
+    // The hits: one internal in run 1 (the terminal shared by a and b),
+    // the root short-circuit in run 2.
+    let recorded = hits.lock().unwrap().clone();
+    assert_eq!(
+        recorded,
+        vec![true_node, b],
+        "run 1 hits once at the shared terminal, run 2 answers at the root"
+    );
 }

@@ -9,6 +9,7 @@
 //! not decompiled values.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use lisage_algebra::interface::{Anchor, Form, Level, NodeId, Pool};
 use lisage_core::arena::Arena;
@@ -315,4 +316,117 @@ fn test_saturate_string_growing_multi_iterations() {
         "fixpoint = union of the initial and the singleton"
     );
     assert_eq!(cardinality(&pool, &schema, result.node), 2);
+}
+
+/// Observer of the cross-round memo reuse (M2-5, the #388 core
+/// remainder): records the span ids of the Round spans and the span
+/// ids of the memo hits — the span ids are globally monotone, so a hit
+/// whose span id passes the span of the second round answered from an
+/// entry built in a PREVIOUS round (the MemoHit carries the
+/// innermost Visit span, opened inside the round).
+#[derive(Clone, Default)]
+struct RoundsAndHits {
+    round_spans: std::sync::Arc<std::sync::Mutex<Vec<u64>>>,
+    hits: std::sync::Arc<std::sync::Mutex<Vec<Option<lisage_core::observer::SpanId>>>>,
+}
+
+impl lisage_core::observer::Observer for RoundsAndHits {
+    fn on_event(&self, event: &lisage_core::observer::TraceEvent) {
+        use lisage_core::observer::TraceEvent;
+        match event {
+            TraceEvent::SpanOpen { span, kind, .. }
+                if *kind == lisage_core::observer::SpanKind::Round =>
+            {
+                self.round_spans
+                    .lock()
+                    .expect("collector lock")
+                    .push(span.0);
+            }
+            TraceEvent::MemoHit { span, .. } => {
+                self.hits.lock().expect("collector lock").push(*span);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// M2-5, the #388 saturation remainder: ONE runner for the whole
+/// fixpoint — the computed table of one round answers in the NEXT
+/// ones (the per-fragment versions of `MemoryLevel` carry the validity
+/// of the entries, the folded wrapper fingerprint the active set).
+/// Measured: the increasing chain saturates to the same fixpoint in
+/// the same number of iterations whether observed or not, and at
+/// least one memo hit of the run answers with a span PAST the span of
+/// the second round — an entry built in the first round surviving into
+/// the confirming one.
+#[test]
+fn test_saturate_reuses_memo_across_rounds() {
+    let schema = Schema::Set(Domain::new(vec![Atom(0), Atom(1), Atom(2)]));
+    let keys = SchemaKeys::new(schema.clone());
+    let anchor = Anchor(0);
+
+    // Unobserved baseline: the fixpoint and its iterations.
+    let mut pool = new_pool(&schema);
+    let initial = compiler_set(&mut pool, anchor, &schema, &[0]);
+    let singleton = compiler_set(&mut pool, anchor, &schema, &[2]);
+    let step_plain = EmitsSingleton { singleton };
+    let policy = PolicySaturation::AutoDetectee;
+    let mut params = SaturationParameters {
+        transduction: &step_plain,
+        policy: &policy,
+        pool: &mut pool,
+        keys: &keys,
+        anchor,
+        initial,
+        number_levels: schema.number_levels(),
+        observer: None,
+    };
+    let plain = saturate(&mut params).unwrap();
+    assert!(
+        plain.iterations >= 2,
+        "the increasing chain takes several rounds: {}",
+        plain.iterations
+    );
+
+    // Observed run, same pool, same initial: hash-consing reproduces
+    // the identical fixpoint in the identical number of rounds.
+    let collector = RoundsAndHits::default();
+    let observer: Arc<dyn lisage_core::observer::Observer> = Arc::new(collector.clone());
+    let step = EmitsSingleton { singleton };
+    let mut params = SaturationParameters {
+        transduction: &step,
+        policy: &policy,
+        pool: &mut pool,
+        keys: &keys,
+        anchor,
+        initial,
+        number_levels: schema.number_levels(),
+        observer: Some(observer),
+    };
+    let observed = saturate(&mut params).unwrap();
+    assert_eq!(observed.node, plain.node, "same fixpoint, same pool");
+    assert_eq!(
+        observed.iterations, plain.iterations,
+        "same schedule with the persistent runner"
+    );
+
+    // The cross-round reuse: at least one memo hit answers with a
+    // span id past the span of the second round — a round-two visit
+    // served by a round-one entry.
+    let round_spans = collector.round_spans.lock().expect("collector lock");
+    let hits = collector.hits.lock().expect("collector lock");
+    assert!(
+        round_spans.len() >= 2,
+        "one span per round: {:?}",
+        round_spans
+    );
+    let late: Vec<_> = hits
+        .iter()
+        .filter(|span| span.is_some_and(|s| s.0 > round_spans[1]))
+        .collect();
+    assert!(
+        !late.is_empty(),
+        "the memo answers across the rounds: {} hits, none past the second round span",
+        hits.len()
+    );
 }
