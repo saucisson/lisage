@@ -271,6 +271,34 @@ impl<T: Transduction> Transducer<T> {
         result
     }
 
+    /// Single-pool variant starting from the inherited attribute `h`
+    /// given by the caller instead of `h0`: used by the in-place
+    /// saturation driver (`surplace`, M2-4), which carries `h` along its
+    /// own depth-first descent and fires at the level of the visited
+    /// node. The span/`OpStart`/`OpEnd` instrumentation matches
+    /// `run_same_pool`.
+    pub fn run_same_pool_from<P>(
+        &mut self,
+        pool: &mut P,
+        anchor: Anchor,
+        node: NodeId,
+        h: T::H,
+    ) -> Result<(NodeId, T::S), CoreError>
+    where
+        P: Pool<Key = u64, Payload = bool>,
+        T: Transduction<Out = bool>,
+    {
+        let span = self.open_span(SpanKind::Op, 0);
+        self.notifier(TraceEvent::OpStart {
+            fingerprint: self.transduction.fingerprint(),
+            span: None,
+        });
+        let result = self.run_with_same_pool(pool, anchor, node, h);
+        self.notifier(TraceEvent::OpEnd { span: None });
+        self.close_span(span);
+        result
+    }
+
     fn run_with<PIn, POut>(
         &mut self,
         pool_input: &PIn,
