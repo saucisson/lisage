@@ -69,8 +69,7 @@ One entry per commit or pull request:
   pass, including the 4 new `inplace.rs` tests).
 - **Escalations**: none.
 ## 2026-11-24 - HSDD spike: set-valued instantiation above the flat pool (issue #382, milestone HSDD)
-## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #NNN, issue #387, stacked on #393)
-## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #394, issue #387, stacked on #393)
+## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #401, issue #387, stacked on #393)
 
 - **Issue**: #387 (HSDD-5) + parent #382. Closes nothing by design:
   this is the event-firing brick stacked on the spike of #393; the
