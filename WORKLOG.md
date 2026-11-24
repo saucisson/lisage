@@ -70,6 +70,13 @@ One entry per commit or pull request:
 - **Escalations**: none.
 ## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #401, issue #387, stacked on #393)
 ## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #402, issue #388, stacked on #401)
+
+- **Issue**: #388 (HSDD-6) + parent #382.
+- **Done**: firing sets as saturation nodes, in-place fixpoint folds,
+  closure == golden == BFS oracle. See the merged PR #402 diff for the
+  full description; the follow-up items are tracked in PR #403 below.
+- **Evidence**: CI green, review 0 BLOCKING, 504 tests passed locally.
+- **Escalations**: none.
 ## 2026-11-24 - HSDD-6 remainder: observed rounds, self-detected policy, per-fragment fixpoints (PR #403, issue #388, stacked on #402)
 
 - **Issue**: #388 (HSDD-6, the three items PR #402 left open: rounds
