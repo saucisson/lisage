@@ -370,7 +370,7 @@ fn test_saturate_reuses_memo_across_rounds() {
     let initial = compiler_set(&mut pool, anchor, &schema, &[0]);
     let singleton = compiler_set(&mut pool, anchor, &schema, &[2]);
     let step_plain = EmitsSingleton { singleton };
-    let policy = PolicySaturation::AutoDetectee;
+    let policy = PolicySaturation::AutoDetected;
     let mut params = SaturationParameters {
         transduction: &step_plain,
         policy: &policy,

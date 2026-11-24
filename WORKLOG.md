@@ -47,8 +47,7 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 ## 2026-11-24 - PR #397: in-place saturation kernel (saturate_in_place) + review fixes
-## 2026-11-24 - HSDD-6 core: per-round diagrams, per-fragment memory versions (PR #N, issue #388, stacked on #396)
-## 2026-11-24 - HSDD-6 core: per-round diagrams, per-fragment memory versions (PR #398, issue #388, stacked on #396)
+## 2026-11-24 - HSDD-6 core: per-round diagrams, per-fragment memory versions (PR #404, issue #388, stacked on #403)
 
 - **Issue**: #388 (HSDD-6, the two genuinely-core items the bench
   bricks could not reach: the per-round materialized diagrams - real
@@ -146,28 +145,6 @@ One entry per commit or pull request:
 
 ---
 
-## 2026-11-24 - HSDD-6 remainder: observed rounds, self-detected policy, per-fragment fixpoints (PR #396, issue #388, stacked on #395)
-
-- **Issue**: none (spike follow-up, ADR-0109 draft territory).
-- **Done**: merged `saturation-sur-place` into `daily`. Review fixes
-  applied on the branch: extracted `filter_value_child()` from
-  `guarded_continuation()` to bring cyclomatic complexity and nesting
-  under the constitutional budgets (complexity ≤ 10, depth ≤ 4);
-  added this WORKLOG entry; split proposal added to the PR body
-  (1 480 lines > ~1 000 budget: the bench binary `bench_saturation.rs`
-  926 lines is the bulk, the core kernel + tests are ~500 lines).
-- **Evidence**: `cargo fmt --all -- --check` clean, `cargo clippy
-  --all-targets -- -D warnings` clean (0 errors), `cargo nextest run
-  --all-targets` 488 passed / 11 skipped (run locally on this
-  branch after the review fixes). CI on the PR head: quality gate ✅,
-  rust quality gate ✅, security gates ✅. Python gates (ruff, mypy,
-  pytest, english-only) not run locally on this branch — no Python
-  changes; CI covers them.
-- **Judgement calls**: the refactoring extracts the present-branch
-  filter into `filter_value_child()` returning a `FilteredBranch` enum
-  instead of inline match arms; behavior preserved (all 488 tests
-  pass, including the 4 new `inplace.rs` tests).
-- **Escalations**: none.
 ## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #401, issue #387, stacked on #393)
 ## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #402, issue #388, stacked on #401)
 
