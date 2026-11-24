@@ -656,9 +656,9 @@ fn build_pair_matrices(
     for position in 0..n {
         let next = (position + 1) % n;
         let mut matrix = vec![vec![0u64; size]; size];
-        for u in 0..size {
-            for v in 0..size {
-                matrix[u][v] = u64::from(pair_is_legal(pcs, levels, position, next, depth, u, v));
+        for (u, row) in matrix.iter_mut().enumerate() {
+            for (v, cell) in row.iter_mut().enumerate() {
+                *cell = u64::from(pair_is_legal(pcs, levels, position, next, depth, u, v));
             }
         }
         matrices.push(matrix);
