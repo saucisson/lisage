@@ -1793,24 +1793,8 @@ impl CoreTransduction for FireSetStep {
                 let Some(v) = pc_index(alphabet, fired) else {
                     continue;
                 };
-                for a in 0..size {
-                    if matrix[a][u] == 0 {
-                        continue;
-                    }
-                    if alphabet[a] == EAT && alphabet[v] == EAT {
-                        continue;
-                    }
-                    matrix[a][v] = 1;
-                }
-                for b in 0..size {
-                    if matrix[u][b] == 0 {
-                        continue;
-                    }
-                    if alphabet[v] == EAT && alphabet[b] == EAT {
-                        continue;
-                    }
-                    matrix[v][b] = 1;
-                }
+                fire_row_update(alphabet, &mut matrix, u, v);
+                fire_column_update(alphabet, &mut matrix, u, v);
             }
         }
         let mut sheets: Vec<(u64, NodeId)> = Vec::new();
@@ -1840,6 +1824,37 @@ impl CoreTransduction for FireSetStep {
         _h: &(),
     ) -> (NodeId, ()) {
         (pool.intern(anchor, Form::Terminal(payload)), ())
+    }
+}
+
+/// Row update of one simultaneous firing: writes `matrix[a][v]` for every
+/// left index `a`, skipping when the left pc eats and the fired cell is
+/// `eat` (the `eat` boundary guard).
+fn fire_row_update(alphabet: &[u64], matrix: &mut [Vec<u64>], u: usize, v: usize) {
+    let size = alphabet.len();
+    for (a, row) in matrix.iter_mut().enumerate().take(size) {
+        if row[u] == 0 {
+            continue;
+        }
+        if alphabet[a] == EAT && alphabet[v] == EAT {
+            continue;
+        }
+        row[v] = 1;
+    }
+}
+
+/// Column update of one simultaneous firing: writes `matrix[v][b]` for
+/// every right index `b`, skipping when the fired cell is `eat` and the
+/// right pc eats (the `eat` boundary guard).
+fn fire_column_update(alphabet: &[u64], matrix: &mut [Vec<u64>], u: usize, v: usize) {
+    for (b, &right) in alphabet.iter().enumerate() {
+        if matrix[u][b] == 0 {
+            continue;
+        }
+        if alphabet[v] == EAT && right == EAT {
+            continue;
+        }
+        matrix[v][b] = 1;
     }
 }
 
