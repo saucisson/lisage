@@ -49,7 +49,7 @@ const THINK: u64 = 0;
 const HUNGRY: u64 = 1;
 const EATS: u64 = 2;
 /// Sentinel "pc of key 0 unknown" of the inherited channel.
-const PC0_UNKNOWN: u64 = 3;
+const PROGRAM_COUNTER_ZERO_UNKNOWN: u64 = 3;
 /// Arc key of a presence level: absent (0, default), present (1).
 const PRESENT: u64 = 1;
 /// Fingerprint of the step transduction.
@@ -71,19 +71,22 @@ type PoolRef = Arena<ReferenceController>;
 // Inherited channel: pc of key 0 (seam guard) + previously crossed value.
 // ---------------------------------------------------------------------------
 
-/// Ring inherited attribute: `pc0` is the value of key 0 (needed by the
+/// Ring inherited attribute: `program_counter_zero` is the value of key 0 (needed by the
 /// seam guard at key n-1), `prev` is the pc value of the key crossed
 /// just before (left-neighbor guard).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct RingState {
-    pc0: u64,
+    program_counter_zero: u64,
     prev: u64,
 }
 
 impl Traceable for RingState {
     fn trace_val(&self) -> TraceVal {
         TraceVal::Map(vec![
-            (TraceVal::Integer(self.pc0 as i64), TraceVal::Elided),
+            (
+                TraceVal::Integer(self.program_counter_zero as i64),
+                TraceVal::Elided,
+            ),
             (TraceVal::Integer(self.prev as i64), TraceVal::Elided),
         ])
     }
@@ -177,14 +180,14 @@ fn filter_value_child<P: Pool<Key = u64, Payload = bool>>(
             FilteredBranch::Keep(filtered)
         }
         Form::Node {
-            level: lv,
-            arcs: va,
-        } if lv.0 == presence_level + 1 => {
-            if va.iter().any(|(vk, _)| *vk == EATS) {
-                let kept: Vec<(u64, NodeId)> = va
+            level: child_level,
+            arcs: value_arcs,
+        } if child_level.0 == presence_level + 1 => {
+            if value_arcs.iter().any(|(value_key, _)| *value_key == EATS) {
+                let kept: Vec<(u64, NodeId)> = value_arcs
                     .iter()
-                    .filter(|(vk, _)| **vk != EATS)
-                    .map(|(vk, vt)| (*vk, *vt))
+                    .filter(|(value_key, _)| **value_key != EATS)
+                    .map(|(value_key, value_target)| (*value_key, *value_target))
                     .collect();
                 if kept.is_empty() {
                     return FilteredBranch::Drop;
@@ -192,7 +195,7 @@ fn filter_value_child<P: Pool<Key = u64, Payload = bool>>(
                 let filtered = pool.intern(
                     anchor,
                     Form::Node {
-                        level: lv,
+                        level: child_level,
                         arcs: ArcRun::from_pairs(kept),
                     },
                 );
@@ -201,7 +204,9 @@ fn filter_value_child<P: Pool<Key = u64, Payload = bool>>(
                 FilteredBranch::Keep(child)
             }
         }
-        Form::Node { level: lv, .. } if lv.0 > presence_level + 1 => {
+        Form::Node {
+            level: child_level, ..
+        } if child_level.0 > presence_level + 1 => {
             let filtered = value_without_eats(pool, anchor, presence_level + 1, child);
             FilteredBranch::Keep(filtered)
         }
@@ -334,7 +339,9 @@ impl Transduction for NoEats {
             {
                 let rebuild = match pool.resolve(child).expect("value node") {
                     Form::Terminal(true) => Some(child),
-                    Form::Node { level: lv, .. } if lv.0 > value_level => Some(child),
+                    Form::Node {
+                        level: child_level, ..
+                    } if child_level.0 > value_level => Some(child),
                     _ => None,
                 };
                 if let Some(tail) = rebuild {
@@ -481,18 +488,22 @@ impl Transduction for DiningStep {
 
     fn h0(&self) -> RingState {
         RingState {
-            pc0: PC0_UNKNOWN,
-            prev: PC0_UNKNOWN,
+            program_counter_zero: PROGRAM_COUNTER_ZERO_UNKNOWN,
+            prev: PROGRAM_COUNTER_ZERO_UNKNOWN,
         }
     }
 
     /// (T-NODE) dispatch: leaving an odd (value) level, the arc IS the
-    /// pc value of the crossed key; `prev` records it, `pc0` is pinned
+    /// pc value of the crossed key; `prev` records it, `program_counter_zero` is pinned
     /// at level 1.
     fn phi_disp(&self, level: Level, h: &RingState, arc: u64) -> RingState {
         if level.0 % 2 == 1 {
             RingState {
-                pc0: if level.0 == 1 { arc } else { h.pc0 },
+                program_counter_zero: if level.0 == 1 {
+                    arc
+                } else {
+                    h.program_counter_zero
+                },
                 prev: arc,
             }
         } else {
@@ -562,7 +573,9 @@ impl Transduction for DiningStep {
                         if i + 1 == self.n {
                             // Seam: left neighbor through `prev`,
                             // right neighbor is pc of key 0.
-                            if ctx.h.pc0 != EATS && ctx.h.pc0 != PC0_UNKNOWN {
+                            if ctx.h.program_counter_zero != EATS
+                                && ctx.h.program_counter_zero != PROGRAM_COUNTER_ZERO_UNKNOWN
+                            {
                                 merge_arc(pool, &self.keys, ctx.anchor, &mut outputs, EATS, child);
                             }
                         } else if let Some(kept) =

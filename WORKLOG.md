@@ -58,9 +58,10 @@ One entry per commit or pull request:
   926 lines is the bulk, the core kernel + tests are ~500 lines).
 - **Evidence**: `cargo fmt --all -- --check` clean, `cargo clippy
   --all-targets -- -D warnings` clean (0 errors), `cargo nextest run
-  --all-targets` 488 passed / 11 skipped. CI on the PR head: quality
-  gate ✅, rust quality gate ✅, security gates ✅. Python gates
-  (ruff, mypy, pytest) not run locally on this branch — no Python
+  --all-targets` 488 passed / 11 skipped (run locally on this
+  branch after the review fixes). CI on the PR head: quality gate ✅,
+  rust quality gate ✅, security gates ✅. Python gates (ruff, mypy,
+  pytest, english-only) not run locally on this branch — no Python
   changes; CI covers them.
 - **Judgement calls**: the refactoring extracts the present-branch
   filter into `filter_value_child()` returning a `FilteredBranch` enum

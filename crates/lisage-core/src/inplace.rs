@@ -121,6 +121,79 @@ impl<'k, T: Transduction + Clone> InPlace<'k, T> {
     }
 }
 
+/// Saturates the children of a node (post-order), returning the
+/// rebuilt node with saturated children.
+fn saturate_children<T, P>(
+    engine: &mut InPlace<'_, T>,
+    pool: &mut P,
+    anchor: Anchor,
+    level: Level,
+    arcs: &ArcRun<u64>,
+    h: &T::H,
+) -> Result<Vec<(u64, NodeId)>, CoreError>
+where
+    T: Transduction<Out = bool> + Clone,
+    P: Pool<Key = u64, Payload = bool>,
+{
+    let mut saturated: Vec<(u64, NodeId)> = Vec::with_capacity(arcs.len());
+    for (arc, target) in arcs.iter() {
+        let h_child = engine.transduction.phi_disp(level, h, *arc);
+        let child_saturated = saturate_subtree(engine, pool, anchor, *target, h_child)?;
+        saturated.push((*arc, child_saturated));
+    }
+    Ok(saturated)
+}
+
+/// One local fire round: runs the level-restricted transducer on
+/// `current`, unions with the previous state, and re-saturates the
+/// children if the node changed. Returns the new current node.
+fn fire_round<T, P>(
+    engine: &mut InPlace<'_, T>,
+    pool: &mut P,
+    anchor: Anchor,
+    level: Level,
+    current: NodeId,
+    h: &T::H,
+) -> Result<NodeId, CoreError>
+where
+    T: Transduction<Out = bool> + Clone,
+    P: Pool<Key = u64, Payload = bool>,
+{
+    engine.fires += 1;
+    if engine.fires > BOUND_FIRES {
+        return Err(CoreError::NonTermination { bound: BOUND_FIRES });
+    }
+    // Restricted to `[level]`, the runner fires only here:
+    // `current` is the only node at its level in its subtree.
+    let runner = engine.runner(level.0);
+    let (image, _) = runner.run_same_pool_from(pool, anchor, current, h.clone())?;
+    let next = union(pool, engine.keys, anchor, current, image)?;
+    if next == current {
+        return Ok(current); // Local fixpoint reached.
+    }
+    // The fire may have introduced deep, not-yet-saturated content:
+    // saturate the children of the new node (fresh ones compute,
+    // saturated ones hit the memo).
+    let form = pool.resolve(next)?;
+    let Form::Node {
+        level: level_again,
+        arcs,
+    } = form
+    else {
+        // Defensive: a same-level union never collapses to a terminal;
+        // if it ever did, the state is already stable.
+        return Ok(next);
+    };
+    let resaturated = saturate_children(engine, pool, anchor, level_again, &arcs, h)?;
+    Ok(pool.intern(
+        anchor,
+        Form::Node {
+            level: level_again,
+            arcs: ArcRun::from_pairs(resaturated),
+        },
+    ))
+}
+
 /// Saturates the subdiagram `node` under the inherited attribute `h`:
 /// depth-first post-order — the children are saturated first, then the
 /// node fires locally (its own level, `τ` restricted to `[level]`) until
@@ -146,12 +219,7 @@ where
                 return Ok(saturated);
             }
             // (1) Depth-first: saturate the children (post-order).
-            let mut saturated_children: Vec<(u64, NodeId)> = Vec::with_capacity(arcs.len());
-            for (arc, target) in arcs.iter() {
-                let h_child = engine.transduction.phi_disp(level, &h, *arc);
-                let saturated = saturate_subtree(engine, pool, anchor, *target, h_child)?;
-                saturated_children.push((*arc, saturated));
-            }
+            let saturated_children = saturate_children(engine, pool, anchor, level, &arcs, &h)?;
             let mut current = pool.intern(
                 anchor,
                 Form::Node {
@@ -161,44 +229,11 @@ where
             );
             // (2) Local fires at `level` until local stabilization.
             loop {
-                engine.fires += 1;
-                if engine.fires > BOUND_FIRES {
-                    return Err(CoreError::NonTermination { bound: BOUND_FIRES });
-                }
-                // Restricted to `[level]`, the runner fires only here:
-                // `current` is the only node at its level in its subtree.
-                let runner = engine.runner(level.0);
-                let (image, _) = runner.run_same_pool_from(pool, anchor, current, h.clone())?;
-                let next = union(pool, engine.keys, anchor, current, image)?;
+                let next = fire_round(engine, pool, anchor, level, current, &h)?;
                 if next == current {
                     break; // Local fixpoint reached.
                 }
-                // (3) The fire may have introduced deep, not-yet-saturated
-                // content: saturate the children of the new node (the
-                // fresh ones compute, the saturated ones hit the memo).
                 current = next;
-                let (level_again, arcs_again) = match pool.resolve(current)? {
-                    Form::Node { level, arcs } => (level, arcs),
-                    // Defensive: a same-level union never collapses to a
-                    // terminal; if it ever did, the state is already stable.
-                    Form::Terminal(_) => {
-                        engine.fixpoints.insert((node, h), current);
-                        return Ok(current);
-                    }
-                };
-                let mut resaturated: Vec<(u64, NodeId)> = Vec::with_capacity(arcs_again.len());
-                for (arc, target) in arcs_again.iter() {
-                    let h_child = engine.transduction.phi_disp(level_again, &h, *arc);
-                    let saturated = saturate_subtree(engine, pool, anchor, *target, h_child)?;
-                    resaturated.push((*arc, saturated));
-                }
-                current = pool.intern(
-                    anchor,
-                    Form::Node {
-                        level: level_again,
-                        arcs: ArcRun::from_pairs(resaturated),
-                    },
-                );
             }
             engine.fixpoints.insert((node, h), current);
             Ok(current)
