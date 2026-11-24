@@ -46,6 +46,77 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-24 - HSDD-6 remainder: observed rounds, self-detected policy, per-fragment fixpoints (PR #NNN, issue #388, stacked on #395)
+
+- **Issue**: #388 (HSDD-6, the three items PR #395 left open: rounds
+  visible in the Observer events, the self-detected Hamez policy,
+  per-fragment sub-fixpoints) + parent #382. Closes nothing by design:
+  stacked brick on #395, #388 stays open for the genuinely-core items.
+- **Done**: all three remainder items, bench-only, zero `lisage-core`
+  change. `crates/lisage-bench/src/hsdd.rs` grows the policy section:
+  `TraceCollector` (a bench-side `Observer` impl) +
+  `pool_tower_observed` plug the pool storage events (`NodeCreated`,
+  `NodeShared`) into the existing core M1-0 observer port, and three
+  engines run the fold under three schedulers - `saturate_observed`
+  (the blind ring sweep of #395, one core `Round` event per performed
+  sweep with the active and modified fragments, structural chain
+  fingerprint in `OpStart`), `saturate_detected` (the Hamez lift of the
+  core `PolicySaturation::AutoDetectee`: a wave fires only the active
+  set, the next active set is the neighbourhood of the changed
+  positions - the re-arm rule - and a quiet wave confirms the
+  fixpoint; `firings` measures the schedule against the blind sweep),
+  `saturate_fragments` (n overlapping windows of f positions, each
+  driven to its own local fixpoint then one lift-off pass, one `Round`
+  event per parent pass; `Err(RingSizeOutOfRange)` on f == 0 or f > n).
+  Behaviour-preserving refactor to share the firing and the trace
+  count with #395 (`fire_set_at`, `trace_count`); the #395 tests are
+  unchanged and green. KEY FINDING: the previously-advertised "needs
+  core integration" was overly conservative - the core already exposes
+  the `Observer` trait, `TraceEvent::Round` (active/modified levels),
+  the `SpanKind::{Op,Round}` span helpers and
+  `PolicySaturation::AutoDetectee`, so the port sufficed from the
+  bench. What still genuinely needs core work: per-round rebuilt
+  handles/diagrams (real before/image/after growth), memo/memory
+  versions per (round x fragment), O(1)-per-fragment node-level
+  firings.
+- **Evidence**: `cargo test -p lisage-bench --test hsdd_policy`:
+  5 passed. Full `cargo test -p lisage-bench`: 127 passed, 0 failed,
+  11 ignored (122 of #395 + 5 new). `cargo clippy -p lisage-bench
+  --all-targets -- -D warnings`: clean. `cargo fmt --all -- --check`:
+  clean. Measured (temp bin `hsdd_policy_numbers`, since deleted;
+  fold == oracle asserted in-bin): full firing set n = 3..7 - every
+  policy recovers the golden 20/56/152/416/1136 in 2 rounds, detected
+  firings == 2n; all sets x n - closures match the oracle and the
+  rounds match the blind sweep, detected firings == n * max(rounds, 1),
+  the honest degeneration on the regular ring; fragments f = 1 - 2
+  parent passes, local fixpoints 9/12/15/18/21 == 3n, firings == lf;
+  f = 2 - lf 8/11/14/17/20 == 3n - 1, firings == 2 * lf; chain
+  [hungry; eat] - the golden recovered in 4 rounds (2 per set) under
+  every policy, detected firings 4n, f = 2 lf 16/22/28/34/40; observed
+  trace n = 5 - 6 `NodeCreated` (4 module + ring + saturation), 1
+  `NodeShared` on the re-saturation hit, `Round` events [(1, all, all),
+  (2, all, empty)], balanced `SpanOpen`/`SpanClose`, `OpStart`/`OpEnd`
+  around the saturation. Not run: `make check` (the english-only
+  scanner crashes at import; pre-existing `Sequence` bug in
+  `scripts/_shared.py`) - manual accent scan of the two touched files
+  instead: 0 hits.
+- **Judgement calls**: (1) bench-side `Observer` impl vs a core change
+  - the existing M1-0 port sufficed, C6 (zero core change) preserved;
+  (2) the self-detected rule re-arms the neighbourhood of the changes
+  (a position becomes firable again only through a neighbour's change)
+  rather than the core comment's literal "retain modified" reading,
+  which can under-converge on the ring; (3) `Round` event fields:
+  positions as the fragments (`active_levels`/`modified_levels`),
+  before/image/after = the tower root handle (the fold is matrix-side,
+  nothing is rebuilt), growth = 0 (the sweeps intern nothing);
+  (4) rounds accounting kept the #395 convention (productive +
+  confirming, 0 if never productive), so one `Round` event per
+  performed sweep/wave/pass differs from the rounds count when
+  rounds == 0.
+- **Escalations**: none.
+
+---
+
 ## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #395, issue #388, stacked on #394)
 
 - **Issue**: #388 (HSDD-6) + parent #382. Closes nothing by design:
