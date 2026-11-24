@@ -25,6 +25,7 @@ pub mod parallel_ops;
 pub mod region;
 pub mod saturate;
 pub mod schema;
+pub mod surplace;
 pub mod transduction;
 pub mod transfer;
 mod unique;
