@@ -366,7 +366,8 @@ pub fn fire_intervals(events: &[TraceEvent], tree: &SpanTree) -> BTreeMap<u32, R
     for (position, event) in events.iter().enumerate() {
         if let TraceEvent::LocalFire { number, span, .. } = event {
             intervals.entry(*number).or_insert_with(|| {
-                span.and_then(|span| tree.span_range(span)).unwrap_or(position..position + 1)
+                span.and_then(|span| tree.span_range(span))
+                    .unwrap_or(position..position + 1)
             });
         }
     }

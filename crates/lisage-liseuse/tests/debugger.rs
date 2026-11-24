@@ -236,7 +236,7 @@ fn test_fires_command_and_until_fire() {
             lane: 0,
         }, // 2
         TraceEvent::SpanClose { span: SpanId(2) }, // 3
-        TraceEvent::OpEnd { span: None },           // 4
+        TraceEvent::OpEnd { span: None },          // 4
         TraceEvent::LocalFire {
             number: 1,
             level: 1,
@@ -255,7 +255,7 @@ fn test_fires_command_and_until_fire() {
             fingerprint: 42,
             span: None,
         }, // 8
-        TraceEvent::OpEnd { span: None }, // 9
+        TraceEvent::OpEnd { span: None },          // 9
         TraceEvent::LocalFire {
             number: 2,
             level: 0,

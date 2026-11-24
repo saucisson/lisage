@@ -444,8 +444,14 @@ fn test_firing_order_view_in_place_n4() {
     }
     // A fire is either productive (the merged node grows) or sterile;
     // the last fire of the kernel is sterile (the root fixpoint).
-    assert!(lines.iter().any(|line| line.sterile), "at least one sterile fire");
-    assert!(lines.last().expect("at least one fire").sterile, "the last fire is sterile");
+    assert!(
+        lines.iter().any(|line| line.sterile),
+        "at least one sterile fire"
+    );
+    assert!(
+        lines.last().expect("at least one fire").sterile,
+        "the last fire is sterile"
+    );
 
     // The rendered lines carry the numbering, the level and the marker.
     let rendered = render_fire_lines(&lines);
