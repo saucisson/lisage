@@ -383,7 +383,15 @@ fn test_in_place_trace_of_the_firing_order() {
     }
     let fire_spans = events
         .iter()
-        .filter(|event| matches!(event, TraceEvent::SpanOpen { kind: SpanKind::Fire, .. }))
+        .filter(|event| {
+            matches!(
+                event,
+                TraceEvent::SpanOpen {
+                    kind: SpanKind::Fire,
+                    ..
+                }
+            )
+        })
         .count();
     assert_eq!(fire_spans, fires.len(), "one Fire span per local fire");
     // D1-1 over the whole emission: proper nesting, innermost close.
@@ -451,5 +459,8 @@ fn test_in_place_last_fire_is_sterile() {
         before, merged,
         "the last fire changes nothing (the root reached its local fixpoint)"
     );
-    assert_eq!(*number, result.iterations, "the last fire carries the count");
+    assert_eq!(
+        *number, result.iterations,
+        "the last fire carries the count"
+    );
 }

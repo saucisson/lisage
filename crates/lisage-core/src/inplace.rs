@@ -188,8 +188,7 @@ where
                 // Restricted to `[level]`, the runner fires only here:
                 // `current` is the only node at its level in its subtree.
                 let runner = engine.runner(level.0);
-                let (image, _) = match runner.run_same_pool_from(pool, anchor, current, h.clone())
-                {
+                let (image, _) = match runner.run_same_pool_from(pool, anchor, current, h.clone()) {
                     Ok(value) => value,
                     Err(error) => {
                         close_span(&engine.observer, span);
