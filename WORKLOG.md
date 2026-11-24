@@ -46,6 +46,59 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-24 - In-place firing-order trace: Fire spans + LocalFire events, trace v6, Liseuse views (ADR-0109 draft, PR #398)
+
+- **Issue**: none.
+- **Done**: ADR-0109 track 3 (firing-order trace) on top of the
+  in-place kernel of PR #397 — the kernel now opens one `Fire` span
+  (`SpanKind::Fire`) and emits one `TraceEvent::LocalFire`
+  (`number`/`level`/`before`/`image`/`merged`, contextualised, closed
+  on every exit path including the two `Err` paths) per local fire, in
+  firing order; `ResultSaturation.iterations` equals the LocalFire
+  count and the highest fire number (tested). Trace format v6: the
+  JSONL version bumps 5 → 6, `LocalFire` serialises with the English
+  field names `fire`/`level`/`before`/`image`/`merged` (M6 charter;
+  the legacy French keys of v1-v5 stay byte-unchanged), v5 joins
+  0-2-3-4 on the explicit rejection list. Liseuse: firing-order view
+  in `spans.rs` (`FireLine`/`fire_intervals`/`fire_lines`/
+  `render_fire_lines`, the structural twin of the rounds view, with
+  the `fixpoint` marker derived from `merged == before`), `fires`
+  command and `until fire` in the debugger, `fires: N` counter and
+  fires view on the offline page (committed artifact regenerated,
+  byte-identity against the generator). ADR-0109 draft committed to
+  `docs/decisions/` with the two deferred tracks (event-vs-level
+  granularity for the reference kernel, M≠() memories and channel S)
+  on the record. Core tests: one event per fire numbered from 1,
+  span nesting over the whole trace, fire spans hold their runner's
+  `Op`, last fire sterile; Liseuse tests: real in-place trace renders
+  the view, debugger parses `fires`/`until fire`, page embeds the
+  LocalFire payload, v6 serialization and v5 rejection.
+- **Evidence**: rustfmt/clippy/cargo-nextest NOT run locally (the
+  sandbox has no Rust toolchain) - GitHub CI is the arbiter, the PR
+  states this explicitly. The trace v6 serializer and the offline page
+  template were checked byte-exactly against the existing v5
+  conventions by a scripted comparison (including a simulated
+  `test_d6_1_committed_page_artifact` render, byte-identical after
+  span-id normalisation). Exhaustive matches over `TraceEvent`/
+  `SpanKind` completed in core observer, Liseuse step-by-step, page,
+  debugger and the observer-share bench; the remaining matches with
+  wildcards (mirror, snapshots, inspection, index, predicates,
+  oracle, Balances-only spans uses, bench_contention, gateway, dap)
+  were audited as unaffected.
+- **Judgement calls**: new `LocalFire` event rather than overloading
+  `Round` (the rounds views would silently lie about per-level lists);
+  `Fire` span per fire closed **before** re-saturating the children, so
+  fire spans are the roots of the span tree (nesting stays proper and
+  the runner's ops attach to their fire); sterile/productive derived
+  at render time, not stored on the event; English field names for the
+  new v6 fields while v1-v5 French keys stay untouched (M6).
+- **Escalations**: `needs-human` through ADR-0109 draft
+  (`docs/decisions/adr-0109-in-place-saturation-trace.md`): the
+  repository's decision log is touched, so the PR asks the human
+  owner to accept or reject the draft.
+
+---
+
 ## 2026-11-23 - Port project-template ADR-0008: gh-first GitHub client + short CI (ADR-0108)
 
 - **Issue**: none (template sync).
