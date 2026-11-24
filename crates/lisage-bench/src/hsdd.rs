@@ -44,20 +44,37 @@
 //! through the core `Observer` port: every round emits the active and
 //! modified fragments into the trace, with zero pool growth per round.
 //!
+//! Per-round diagrams and per-fragment memory versions (the #388 core
+//! remainder, HSDD-6): the materialized engine saturates a state
+//! interned as a diagram — one sheet node per position, at the
+//! fragment level of the position — through the core `saturate`
+//! itself: each round is one simultaneous firing of the set, the core
+//! `Round` events carry the **real** before/image/after handles and the
+//! real pool growth (M2-6 read back from the trace, the state countable
+//! from the final diagram), and the runner persists across the rounds
+//! so the memo and the memory of the untouched fragments survive (the
+//! per-fragment versions of `MemoryLevel`, M2-5).
+//!
 //! Honest scope (next bricks of the track): external
 //! libDDD/its-tools witness (HSDD-9, issue #391).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
 };
 use lisage_core::arena::Arena;
+use lisage_core::error::CoreError;
+use lisage_core::memory::EffectMemory;
 use lisage_core::observer::{
     NoOpObserver, Observer, SpanId, SpanKind, TraceEvent, contextualize, next_span_id, pop_span,
     push_span,
 };
+use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate as core_saturate};
+use lisage_core::schema::{Domain, Schema, SchemaKeys};
+use lisage_core::transduction::{PhiOutContext, Transduction as CoreTransduction};
+use lisage_lang::value::Atom;
 
 /// Level of the `pc` variable of the module.
 pub const LEVEL_PC: u32 = 0;
@@ -106,6 +123,16 @@ pub enum ErrorHsdd {
     EventSetOutOfRange(u64),
     /// The ring size is outside the instantiation bound.
     RingSizeOutOfRange(u64),
+    /// A materialized sheet sits at the wrong level: the chain read
+    /// expects the sheet of position `i` at `LEVEL_COUPLING_BASE + i`.
+    CouplingLevel { found: u32, expected: u32 },
+    /// A coupling arc key is outside the pc pair domain `|pcs|^2`.
+    CouplingKey(u64),
+    /// A materialized sheet carries two distinct arc targets: the
+    /// single-target chain contract forbids a fork.
+    CouplingFork(NodeId),
+    /// Error propagated from the core saturation.
+    Saturation(lisage_core::error::CoreError),
     /// Error propagated from the pool port.
     Pool(lisage_algebra::interface::PoolError),
 }
@@ -152,6 +179,25 @@ impl std::fmt::Display for ErrorHsdd {
                     "ring size {size} outside the instantiation bound"
                 )
             }
+            ErrorHsdd::CouplingLevel { found, expected } => {
+                write!(
+                    formatter,
+                    "coupling chain broken at level {found}, sheet of level {expected} expected"
+                )
+            }
+            ErrorHsdd::CouplingKey(key) => {
+                write!(
+                    formatter,
+                    "coupling arc key {key} outside the pc pair domain"
+                )
+            }
+            ErrorHsdd::CouplingFork(node) => {
+                write!(
+                    formatter,
+                    "node {node:?} carries a fork where the single-target chain contract forbids one"
+                )
+            }
+            ErrorHsdd::Saturation(error) => write!(formatter, "core saturation error: {error}"),
             ErrorHsdd::Pool(error) => write!(formatter, "pool error: {error}"),
         }
     }
@@ -160,6 +206,7 @@ impl std::fmt::Display for ErrorHsdd {
 impl std::error::Error for ErrorHsdd {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            ErrorHsdd::Saturation(error) => Some(error),
             ErrorHsdd::Pool(error) => Some(error),
             _ => None,
         }
@@ -169,6 +216,12 @@ impl std::error::Error for ErrorHsdd {
 impl From<lisage_algebra::interface::PoolError> for ErrorHsdd {
     fn from(error: lisage_algebra::interface::PoolError) -> Self {
         ErrorHsdd::Pool(error)
+    }
+}
+
+impl From<CoreError> for ErrorHsdd {
+    fn from(error: CoreError) -> Self {
+        ErrorHsdd::Saturation(error)
     }
 }
 
@@ -190,6 +243,7 @@ impl KeyAlgebra for TowerKeys {
             LEVEL_PC | LEVEL_LEFT => CARDINALITY_LOCAL,
             LEVEL_EVENT => EVENT_COUNT * (LIMIT_POSITIONS + 1),
             LEVEL_SATURATION => (1 << EVENT_COUNT) - 1,
+            level if level >= LEVEL_COUPLING_BASE => CARDINALITY_LOCAL * CARDINALITY_LOCAL,
             _ => CARDINALITY_POSITIONS,
         }
     }
@@ -780,6 +834,12 @@ pub fn count_image_reference(n: u64, events: &[(u64, u64)]) -> u64 {
 /// Level of a saturation node: the event set is data on its arc (one node
 /// per firing set, whatever the tower it saturates).
 pub const LEVEL_SATURATION: u32 = 4;
+/// Base of the coupling levels of the materialized state: the sheet of
+/// position `i` lives at level `LEVEL_COUPLING_BASE + i` — the fragment
+/// of the position (the per-fragment memory version of the core is one
+/// entry per sheet level, so an untouched sheet never invalidates the
+/// memo entries of its fragment).
+pub const LEVEL_COUPLING_BASE: u32 = 5;
 
 /// Chain read from a saturated tower root: the event sets in **application
 /// order** (innermost first — the root of the chain is the last applied),
@@ -1541,5 +1601,328 @@ pub fn saturate_fragments(
         },
         firings: firings_total,
         local_fixpoints: local_fixpoints_total,
+    })
+}
+
+/// Fingerprint salt of the firing-set step transduction: domain-separates
+/// the materialized saturation steps from the other tower fingerprints.
+const FINGERPRINT_FIRE_SET: u64 = 0x4855_5354_0000_0000;
+
+/// Fingerprint of a firing-set step: folds the set bits, so two steps of
+/// different sets never share a memo entry.
+fn fire_set_fingerprint(set: u64) -> u64 {
+    (0..EVENT_COUNT).fold(FINGERPRINT_FIRE_SET, |acc, event| {
+        if set & (1 << event) != 0 {
+            acc.rotate_left(8) ^ (0xF1EA_u64 + event)
+        } else {
+            acc
+        }
+    })
+}
+
+/// Key algebra of the coupling levels for the `union` of the core
+/// `saturate`: an atom domain of the pc pairs `|pcs|^2` — the levels
+/// `LEVEL_COUPLING_BASE + i` all share it (no default arc: the sheets
+/// carry their pairs explicitly).
+fn coupling_keys(size: usize) -> SchemaKeys {
+    let domain = Domain::new((0..(size * size) as u64).map(Atom).collect());
+    SchemaKeys::new(Schema::Atom(domain))
+}
+
+/// Interns a coupling state as a **materialized diagram**: one sheet node
+/// per position, the sheet of position `i` at level
+/// `LEVEL_COUPLING_BASE + i` (the fragment of the position), arcs keyed
+/// by the present pc pairs, all pointing at the sheet of position `i + 1`
+/// — the deepest sheet points at the true terminal. Hash-consing shares
+/// the equal sheets: two positions with the same pairs are the same node
+/// only when they are the same fragment; across rounds, the stable sheets
+/// are re-interned as themselves (the handle identity the saturation
+/// detects the fixpoint with).
+fn intern_coupling_chain(
+    pool: &mut Arena<TowerController>,
+    anchor: Anchor,
+    matrices: &[Vec<Vec<u64>>],
+    size: usize,
+) -> Result<NodeId, ErrorHsdd> {
+    let true_node = pool.intern(anchor, Form::Terminal(true));
+    let mut target = true_node;
+    for (position, matrix) in matrices.iter().enumerate().rev() {
+        let mut sheets: Vec<(u64, NodeId)> = Vec::new();
+        for (u, row) in matrix.iter().enumerate() {
+            for (v, &present) in row.iter().enumerate() {
+                if present != 0 {
+                    sheets.push((u as u64 * size as u64 + v as u64, target));
+                }
+            }
+        }
+        target = pool.intern(
+            anchor,
+            Form::Node {
+                level: Level(LEVEL_COUPLING_BASE + position as u32),
+                arcs: ArcRun::from_pairs(sheets),
+            },
+        );
+    }
+    Ok(target)
+}
+
+/// Reads a materialized coupling state back into its pair matrices: the
+/// inverse of `intern_coupling_chain` (the round-trip witness: the
+/// diagram IS the coupling state, countable by reading it back).
+pub fn read_coupling(
+    pool: &Arena<TowerController>,
+    state: NodeId,
+    n: usize,
+    size: usize,
+) -> Result<Vec<Vec<Vec<u64>>>, ErrorHsdd> {
+    let mut matrices = vec![vec![vec![0u64; size]; size]; n];
+    let mut current = state;
+    for (position, matrix) in matrices.iter_mut().enumerate() {
+        let form = pool.resolve(current).map_err(ErrorHsdd::Pool)?;
+        let Form::Node { level, arcs } = form else {
+            return Err(ErrorHsdd::UnexpectedTerminal(current));
+        };
+        if level.0 != LEVEL_COUPLING_BASE + position as u32 {
+            return Err(ErrorHsdd::CouplingLevel {
+                found: level.0,
+                expected: LEVEL_COUPLING_BASE + position as u32,
+            });
+        }
+        let mut next: Option<NodeId> = None;
+        for (key, target) in arcs {
+            let (u, v) = (key / size as u64, key % size as u64);
+            if u >= size as u64 || v >= size as u64 {
+                return Err(ErrorHsdd::CouplingKey(key));
+            }
+            match next {
+                None => next = Some(target),
+                Some(previous) if previous == target => {}
+                Some(_) => return Err(ErrorHsdd::CouplingFork(current)),
+            }
+            matrix[u as usize][v as usize] = 1;
+        }
+        current = next.ok_or(ErrorHsdd::UnexpectedTerminal(current))?;
+    }
+    Ok(matrices)
+}
+
+/// One **simultaneous firing step** of an event set over the materialized
+/// coupling state: the step transduction the core `saturate` iterates.
+/// Each visit restructures one sheet (the fragment of one position): the
+/// sheet of position `i` contains the pairs `(pc_i, pc_i+1)`, so it
+/// receives the row updates of the firings **at position `i`** (its right
+/// pc column) and the column updates of the firings at position `i + 1`
+/// (its left pc row) — both computable from the sheet alone plus the set,
+/// the eat guard carried by the pair legality (the `(eat, eat)` pair is
+/// never written, exactly the two-sided guard of `fire_position`).
+///
+/// The contract of the restructuring is **single-target sheets** (the
+/// chain pattern): a node carrying two distinct arc targets is copied
+/// identically (the chain construction only ever interns single-target
+/// sheets, and `union` preserves it).
+#[derive(Clone)]
+struct FireSetStep {
+    /// The firing set: one bit per module-local event.
+    set: u64,
+    /// The golden pc alphabet, read from the module.
+    alphabet: Vec<u64>,
+    /// Fingerprint of the step.
+    fingerprint: u64,
+}
+
+impl CoreTransduction for FireSetStep {
+    type H = ();
+    type S = ();
+    type Out = bool;
+    type M = ();
+
+    fn fingerprint(&self) -> u64 {
+        self.fingerprint
+    }
+    fn h0(&self) {}
+    fn phi_disp(&self, _level: Level, h: &(), _arc: u64) {
+        let _ = h;
+    }
+    fn phi_aggr(&self, _level: Level, _h: &(), _arcs: &BTreeMap<u64, (Option<Level>, ())>) {}
+    fn phi_out<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        ctx: PhiOutContext<'_, Self::H, Self::S, Self::M>,
+    ) -> (NodeId, EffectMemory<()>) {
+        let alphabet = &self.alphabet;
+        let size = alphabet.len();
+        let arcs: Vec<(u64, NodeId)> = ctx
+            .arcs
+            .iter()
+            .map(|(key, (node, _))| (*key, *node))
+            .collect();
+        let target = arcs.first().map(|&(_, node)| node);
+        let single_target =
+            target.is_some() && arcs.iter().all(|&(_, node)| node == target.unwrap());
+        if !single_target {
+            // Multi-target node: outside the chain pattern, identity copy.
+            return (
+                pool.intern(
+                    ctx.anchor,
+                    Form::Node {
+                        level: ctx.level,
+                        arcs: ArcRun::from_pairs(arcs),
+                    },
+                ),
+                EffectMemory::new(),
+            );
+        }
+        let target = target.unwrap();
+        // Input sheet: the pairs present on the visited node.
+        let mut matrix = vec![vec![0u64; size]; size];
+        for &(key, _) in &arcs {
+            matrix[(key / size as u64) as usize][(key % size as u64) as usize] = 1;
+        }
+        // One simultaneous firing of the set on this sheet: the row
+        // updates (firing at the position owning the right pc) and the
+        // column updates (firing at the position owning the left pc),
+        // the same guarded writes as `fire_position`, left and right.
+        for event in 0..EVENT_COUNT {
+            if self.set & (1 << event) == 0 {
+                continue;
+            }
+            for (u, &pc) in alphabet.iter().enumerate() {
+                let Some(fired) = fire_pc(event, pc) else {
+                    continue;
+                };
+                let Some(v) = pc_index(alphabet, fired) else {
+                    continue;
+                };
+                for a in 0..size {
+                    if matrix[a][u] == 0 {
+                        continue;
+                    }
+                    if alphabet[a] == EAT && alphabet[v] == EAT {
+                        continue;
+                    }
+                    matrix[a][v] = 1;
+                }
+                for b in 0..size {
+                    if matrix[u][b] == 0 {
+                        continue;
+                    }
+                    if alphabet[v] == EAT && alphabet[b] == EAT {
+                        continue;
+                    }
+                    matrix[v][b] = 1;
+                }
+            }
+        }
+        let mut sheets: Vec<(u64, NodeId)> = Vec::new();
+        for (u, row) in matrix.iter().enumerate() {
+            for (v, &present) in row.iter().enumerate() {
+                if present != 0 {
+                    sheets.push((u as u64 * size as u64 + v as u64, target));
+                }
+            }
+        }
+        (
+            pool.intern(
+                ctx.anchor,
+                Form::Node {
+                    level: ctx.level,
+                    arcs: ArcRun::from_pairs(sheets),
+                },
+            ),
+            EffectMemory::new(),
+        )
+    }
+    fn psi<P: Pool<Key = u64, Payload = bool>>(
+        &self,
+        pool: &mut P,
+        anchor: Anchor,
+        payload: bool,
+        _h: &(),
+    ) -> (NodeId, ()) {
+        (pool.intern(anchor, Form::Terminal(payload)), ())
+    }
+}
+
+/// Result of the materialized saturation: the closed count read back
+/// **from the final diagram**, the rounds, and the materialized state
+/// handles — the per-round diagrams of issue #388.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct DiagrammedClosure {
+    /// Closed count: the circular trace of the final chain's sheets.
+    pub count: u64,
+    /// Saturation iterations, confirming ones included, summed over the
+    /// sets of the chain.
+    pub rounds: u64,
+    /// Handle of the final materialized state.
+    pub state: NodeId,
+    /// Per-set fixpoint handles, one per event set of the chain (the
+    /// numbered rounds of the trace restart at each set).
+    pub states: Vec<NodeId>,
+}
+
+/// Saturates the stored tower with the state **materialized per round**:
+/// the coupling seed (every philosopher thinks) is interned as the
+/// initial chain of sheet nodes, then every event set of the chain is
+/// saturated **through the core `saturate`** — each iteration is one
+/// simultaneous firing of the set over the whole ring, the union merges
+/// the sheets pairwise (the accumulated pairs), and the fixpoint is
+/// detected by handle identity (the image chain equals the current one
+/// under hash-consing). Each round emits the core `Round` event with the
+/// **real** `before`/`image`/`after` handles, the real pool `growth`,
+/// the active fragments (one level per position) and the modified ones.
+/// The runner persists across the rounds (core M2-5): the memo entries
+/// of the untouched fragments are never invalidated, whatever the round.
+pub fn saturate_diagrammed(
+    pool: &mut Arena<TowerController>,
+    root: NodeId,
+    anchor: Anchor,
+    observer: Option<Arc<dyn Observer>>,
+) -> Result<DiagrammedClosure, ErrorHsdd> {
+    let TowerRead {
+        ring_size: n,
+        sets,
+        pcs,
+    } = fold_tower(pool, root)?;
+    let size = pcs.len();
+    let levels: Vec<Level> = (0..n)
+        .map(|position| Level(LEVEL_COUPLING_BASE + position as u32))
+        .collect();
+    let policy = PolicySaturation::Static(levels);
+    let keys = coupling_keys(size);
+    // Seed: the initial state interned as the first materialized diagram.
+    let matrices = seed_matrices(n as usize, &pcs);
+    let mut state = intern_coupling_chain(pool, anchor, &matrices, size)?;
+    let mut states = Vec::with_capacity(sets.len());
+    let mut rounds = 0u64;
+    for &set in &sets {
+        let step = FireSetStep {
+            set,
+            alphabet: pcs.clone(),
+            fingerprint: fire_set_fingerprint(set),
+        };
+        let mut params = SaturationParameters {
+            transduction: &step,
+            policy: &policy,
+            pool,
+            keys: &keys,
+            anchor,
+            initial: state,
+            number_levels: n as u32,
+            observer: observer.clone(),
+        };
+        let result = core_saturate(&mut params)?;
+        rounds += u64::from(result.iterations);
+        state = result.node;
+        states.push(state);
+    }
+    // The count is read back FROM the materialized diagram — the chain
+    // is the state, the state is countable.
+    let matrices = read_coupling(pool, state, n as usize, size)?;
+    let count = trace_count(&matrices, size);
+    Ok(DiagrammedClosure {
+        count,
+        rounds,
+        state,
+        states,
     })
 }

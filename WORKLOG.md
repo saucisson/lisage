@@ -47,6 +47,105 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 ## 2026-11-24 - PR #397: in-place saturation kernel (saturate_in_place) + review fixes
+## 2026-11-24 - HSDD-6 core: per-round diagrams, per-fragment memory versions (PR #N, issue #388, stacked on #396)
+
+- **Issue**: #388 (HSDD-6, the two genuinely-core items the bench
+  bricks could not reach: the per-round materialized diagrams - real
+  before/image/after handles and growth in the core `Round` events -
+  and memo/memory versions per fragment surviving the saturation
+  rounds) + parent #382. Closes nothing by design: stacked brick on
+  #396. This is the FIRST lisage-core change of the HSDD stack (C6
+  deliberately lifted: both items are core by the scope of #388
+  itself).
+- **Done**:
+  - `memory.rs`: `MemoryLevel` carries a per-fragment version counter
+    (one per written level), `write()` bumps both the global version
+    and the fragment's, new `version_of(fragment)`.
+  - `transduction.rs`: new trait method `Transduction::read_fragments`
+    (default: the visited level only - level-local scoping, the same
+    contract discipline as the fingerprint); the memo key becomes
+    (fingerprint, node, h, versions of the fragments the visit
+    DECLARES to read), deduplicated and sorted; terminal visits read
+    no fragment (psi pure in (payload, h)): empty versions; new
+    `Transducer::set_transduction` replaces the embedded transduction
+    KEEPING memo + memory.
+  - `saturate.rs`: ONE runner for the whole fixpoint - each round swaps
+    only the per-round `RestrictedToLevels` wrapper (fresh
+    modified-levels tracking) through `set_transduction`; the wrapper
+    fingerprint now folds the active levels, so an entry built under
+    one active set never answers for another.
+  - `lisage-bench/src/hsdd.rs`: `saturate_diagrammed` - the coupling
+    state interned as a materialized chain of sheet nodes (one sheet
+    per position at level 5 + i, the fragment of the position), every
+    set of the tower chain saturated through the core `saturate`
+    itself (Static policy over the coupling levels, one simultaneous
+    firing of the set per round), the core `Round` events carrying the
+    REAL handles and growth, the closure counted by reading the final
+    diagram back (`read_coupling`, public: the round-trip witness).
+  - Tests: 3 core (fragment versions bump; memo scoping surviving
+    foreign writes - run 2 answers at the root, 2 hits total, 4 memo
+    entries despite 2 foreign writes; saturate cross-round memo reuse -
+    same fixpoint, same iterations, hits past the second round span) +
+    5 bench (`hsdd_core_rounds.rs`: closure equality everywhere, real
+    round handles + read-back, storage/memo pins, chain handoff,
+    rerun one-big-share).
+  - `lisage-liseuse/offline/philosophers-n4.html`: the committed
+    offline page regenerated - the trace legitimately changed with
+    the persistent runner (196 events instead of 202, same 4 rounds,
+    more memo hits, new folded fingerprint).
+- **Evidence**: `cargo test -p lisage-core`: 198 passed, 0 failed (3
+  new). `cargo test -p lisage-bench`: 132 passed, 0 failed, 11 ignored
+  (127 of #396 + 5 new). `cargo test -p lisage-liseuse`: 140 passed, 0
+  failed (regenerated artifact). `cargo test -p lisage-backend -p
+  lisage-plan`: 27 passed, 0 failed. `cargo clippy -p lisage-core
+  --all-targets -- -D warnings` and `-p lisage-bench`: clean. `cargo
+  fmt --all -- --check`: clean. Manual accent scan of the touched
+  files: 0 hits. Not run: `make check` (the english-only scanner
+  crashes at import; pre-existing `Sequence` bug in
+  `scripts/_shared.py`, unchanged), GitHub CI. Measured (temp bin
+  `hsdd_core_numbers`, since deleted; fold == BFS oracle asserted
+  in-bin over n = 3..7 x sets 1..=7): the diagrammed engine recovers
+  the golden 20/56/152/416/1136 everywhere; rounds
+  (simultaneous-firing convention, NOT the in-place sweeps of
+  #395/#396): 2 for every set carrying the hungry bit, 1
+  (confirming-only) for the sets that cannot leave the all-think seed;
+  round 1: modified == active == levels 5..5+n-1, image != before,
+  after == image, growth == n; round 2: before == image == after,
+  growth == 0, nothing modified; storage pins: 2n coupling sheets
+  interned, 2n + 2 shares of which n in the confirming round, memo
+  misses 2n + 1, hits 7n + 1 ALL answering in round >= 2 (the seed
+  round misses only - a per-round runner would answer none of them);
+  chain [hungry; eat]: the golden in 2 rounds per set (4 events,
+  numbers restarting per set), the fixpoint state of each set handed
+  over as the first `before` of the next; rerun: zero `NodeCreated`,
+  identical handles; read-back: the seed sheets are the think-think
+  singletons, the final sheets the 8 legal pairs without (eat, eat).
+- **Judgement calls**:
+  - C6 lifted deliberately for this brick only: both items live in the
+    core (M2-6 round events, memo key semantics), #388 lists them as
+    core; everything else of the milestone stays bench-side.
+  - Memo key semantics change: the scoping is a contract - an op must
+    declare `read_fragments` correctly (default level-local).
+    `MemoConsult`/`MemoInsert` keep the GLOBAL version field (trace
+    compatibility, the divergence documented in the code).
+  - The rounds of the diagrammed engine are simultaneous-firing rounds
+    (one core saturate iteration = one firing of the set over the
+    whole ring): the closure equals the fold of #395 everywhere (35
+    combinations asserted) but the round counts are NOT those of the
+    in-place sweeps (measured, stated in the REPORT).
+  - The AutoDetectee "retain modified" rule is untouched (the #396
+    judgement call stands); `saturate_diagrammed` uses the Static
+    policy. The wrapper fingerprint folding was REQUIRED for
+    cross-round memo safety (entries of one active set must never
+    answer for another once the memo survives the rounds).
+  - The stale committed trace page of liseuse regenerated rather than
+    pinned: the trace change is the visible effect of the persistent
+    runner, the test would otherwise pin the OLD runner behaviour.
+- **Escalations**: none.
+
+---
+
+## 2026-11-24 - HSDD-6 remainder: observed rounds, self-detected policy, per-fragment fixpoints (PR #396, issue #388, stacked on #395)
 
 - **Issue**: none (spike follow-up, ADR-0109 draft territory).
 - **Done**: merged `saturation-sur-place` into `daily`. Review fixes
@@ -1933,3 +2032,4 @@ One entry per commit or pull request:
 - **Evidence**: `cargo test -p lisage-bench --test narrow` green with `PROPTEST_CASES=1024` (4 passed, 0 failed, pinned seeds replayed); `cargo clippy -p lisage-bench --all-targets -- -D warnings` clean; `cargo fmt --all -- --check` clean. `make english-only` fails on pre-existing accented docs (adr-0107, docs/etudes-surcharge/, docs/lisage-web-v1/) — also failing on plain `daily` (exit 2), not caused by this change; narrow.rs is not in the offender list. Not run: full `make check`, GitHub CI.
 - **Judgement calls**: the truncated seed `62c2e9ea` from the issue is not a parsable proptest regression line (needs the full 64-hex seed), so the deterministic test + the persisted full seed cover the case instead. Test strengthened (explicit collapse branch), not weakened.
 - **Escalations**: none.
+
