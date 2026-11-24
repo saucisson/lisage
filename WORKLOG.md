@@ -47,6 +47,16 @@ One entry per commit or pull request:
 
 <!-- Append new entries directly below this line. -->
 ## 2026-11-24 - PR #397: in-place saturation kernel (saturate_in_place) + review fixes
+
+- **Issue**: none (spike follow-up, ADR-0109 draft territory).
+- **Done**: merged `saturation-sur-place` into `daily`. Review fixes
+  applied on the branch: extracted helpers to bring cyclomatic
+  complexity and nesting under the constitutional budgets; added
+  WORKLOG entry; split proposal added to the PR body.
+- **Evidence**: `cargo fmt --all -- --check` clean, `cargo clippy
+  --all-targets -- -D warnings` clean, `cargo nextest run --all-targets`
+  488 passed / 11 skipped. CI green. Review 0 BLOCKING.
+- **Escalations**: none.
 ## 2026-11-24 - HSDD-6 core: per-round diagrams, per-fragment memory versions (PR #404, issue #388, stacked on #403)
 
 - **Issue**: #388 (HSDD-6, the two genuinely-core items the bench
