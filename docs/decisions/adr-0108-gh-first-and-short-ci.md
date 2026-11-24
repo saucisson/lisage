@@ -1,8 +1,8 @@
-# ADR-0022: gh-first GitHub client and short CI (ported from project-template)
+# ADR-0108: gh-first GitHub client and short CI (ported from project-template)
 
-- **Status**: accepted (2026-11-23, ported from saucisson/project-template ADR-0008)
+- **Status**: drafted (2026-11-23, ported from saucisson/project-template ADR-0008; awaiting human acceptance)
 - **Date**: 2026-11-23
-- **Deciders**: template owner
+- **Deciders**: template owner (source ADR); lisage human owner (acceptance pending)
 
 ## Context
 

@@ -46,11 +46,11 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
-## 2026-11-23 - Port project-template ADR-0008: gh-first GitHub client + short CI (ADR-0022)
+## 2026-11-23 - Port project-template ADR-0008: gh-first GitHub client + short CI (ADR-0108)
 
 - **Issue**: none (template sync).
 - **Done**: ported the two infrastructure improvements from
-  `saucisson/project-template` ADR-0008 into lisage as ADR-0022:
+  `saucisson/project-template` ADR-0008 into lisage as ADR-0108:
   (1) `scripts/_github.py` rewritten gh-first (`gh api` first, one
   REST fallback with `GITHUB_TOKEN`), all six drivers (`ci.py`,
   `merge.py`, `pulls.py`, `claims.py`, `review.py`, `night.py`) moved
@@ -59,7 +59,7 @@ One entry per commit or pull request:
   on lockfile changes and weekly, main `ci.yml` drops them from the
   security job and gains `timeout-minutes` + shallow checkouts;
   (3) `.vibe/config.toml` allowlists `gh` subcommands; (4) `AGENTS.md`
-  documents both rules; (5) ADR-0022 written.
+  documents both rules; (5) ADR-0108 written.
 - **Evidence**: `ruff check scripts/` clean, `ruff format --check`
   clean, `pytest scripts/tests/` 28 passed, `english-only` clean.
   mypy segfaults in this environment (Python 3.15 + mypy binary

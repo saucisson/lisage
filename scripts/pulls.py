@@ -1,7 +1,7 @@
 """Pull request drivers: open one, update one body (ADR-0017, ADR-0019).
 
 ``pr`` opens each pull request into ``daily`` through the GitHub API
-(gh client first, REST fallback, ADR-0022) and nothing else. The
+(gh client first, REST fallback, ADR-0108) and nothing else. The
 driver shares the token and the protocol of the review and merge
 drivers, so the flow works attended and unattended alike.
 
@@ -17,7 +17,12 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from scripts._github import fetch_issue, github_request
+from scripts._github import (
+    HTTP_CREATED_STATUS_CODE,
+    HTTP_SUCCESS_STATUS_CODE,
+    fetch_issue,
+    github_request,
+)
 from scripts._shared import (
     EXIT_CODE_CRITERIA_UNMET,
     EXIT_CODE_PROTOCOL_FAILURE,
@@ -34,7 +39,6 @@ PULL_REQUEST_TEMPLATE_PATH = ".github/PULL_REQUEST_TEMPLATE.md"
 DEFAULT_BASE_BRANCH = "daily"
 DETACHED_HEAD_NAME = "HEAD"
 UNPROCESSABLE_ENTITY_STATUS_CODE = 422
-HTTP_SUCCESS_STATUS_CODE = 200
 EXIT_CODE_OPENED = EXIT_CODE_SUCCESS  # a subcommand-local alias, same protocol code
 EXIT_CODE_UPDATED = EXIT_CODE_SUCCESS  # a subcommand-local alias, same protocol code
 
@@ -83,7 +87,9 @@ def open_pull_request(
         method="POST",
         json_payload={"title": title, "head": head_branch, "base": base_branch, "body": body},
     )
-    if status_code == HTTP_SUCCESS_STATUS_CODE and isinstance(payload, dict):
+    if status_code in (HTTP_SUCCESS_STATUS_CODE, HTTP_CREATED_STATUS_CODE) and isinstance(
+        payload, dict
+    ):
         return payload
     if status_code == UNPROCESSABLE_ENTITY_STATUS_CODE:
         print(
@@ -199,7 +205,7 @@ def write_body(
         method="PATCH",
         json_payload={"body": new_body},
     )
-    if status_code != HTTP_SUCCESS_STATUS_CODE:
+    if status_code not in (HTTP_SUCCESS_STATUS_CODE, HTTP_CREATED_STATUS_CODE):
         print(
             f"Error: could not update pull request #{pull_request_number}"
             f" ({status_code}) - the body is unchanged. Payload: {payload}",

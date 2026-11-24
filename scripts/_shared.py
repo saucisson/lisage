@@ -53,7 +53,7 @@ def load_github_token() -> str:
     """Read the GitHub token; absent means the REST fallback cannot run.
 
     The token only serves the drivers' REST fallback when gh failed
-    (ADR-0022); without it, there is no fallback, and the caller fails
+    (ADR-0108); without it, there is no fallback, and the caller fails
     closed.
     """
     github_token = os.environ.get(GITHUB_TOKEN_VARIABLE, "").strip()

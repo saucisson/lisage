@@ -13,7 +13,7 @@ never issued (linear history on ``daily``, ADR-0009) - and deletes
 the branch.
 
 Every GitHub operation goes through the gh client first, with the
-REST API as the fallback when gh fails (ADR-0022); the merge method is
+REST API as the fallback when gh fails (ADR-0108); the merge method is
 pinned ``sha`` to the reviewed head, as before.
 
 The reviewer session never merges: it writes the report; this driver
@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from scripts._github import (
+    HTTP_CREATED_STATUS_CODE,
+    HTTP_NO_CONTENT_STATUS_CODE,
     HTTP_SUCCESS_STATUS_CODE,
     check_runs_allow_merge,
     extract_head_ref,
@@ -217,7 +219,7 @@ def merge_pull_request(
         method="PUT",
         json_payload={"sha": head_sha, "merge_method": merge_method},
     )
-    if status_code == HTTP_SUCCESS_STATUS_CODE:
+    if status_code in (HTTP_SUCCESS_STATUS_CODE, HTTP_CREATED_STATUS_CODE):
         return True
     if status_code == METHOD_NOT_ALLOWED_STATUS_CODE:
         message = (
@@ -246,7 +248,7 @@ def delete_branch(
         endpoint=f"repos/{repository_slug}/git/refs/heads/{head_ref}",
         method="DELETE",
     )
-    if status_code not in (HTTP_SUCCESS_STATUS_CODE, 204):
+    if status_code not in (HTTP_SUCCESS_STATUS_CODE, HTTP_NO_CONTENT_STATUS_CODE):
         print(f"Warning: could not delete branch {head_ref} (status {status_code}).")
 
 

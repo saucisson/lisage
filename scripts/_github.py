@@ -1,8 +1,8 @@
-"""GitHub access for the drivers: the gh client first, REST fallback (ADR-0022).
+"""GitHub access for the drivers: the gh client first, REST fallback (ADR-0108).
 
 Drivers never hand-code HTTP against the GitHub API anymore: the gh
 client owns authentication, and one ``gh api`` subprocess replaces the
-per-driver HTTP wiring (ADR-0022, ported from project-template
+per-driver HTTP wiring (ADR-0108, ported from project-template
 ADR-0008). Every helper below is gh-first: ``gh api <endpoint>``
 returns the JSON payload. When gh is missing, unsigned, or fails for
 ANY reason, the call falls back to exactly one raw REST request built
@@ -36,10 +36,12 @@ if TYPE_CHECKING:
 GH_COMMAND = "gh"
 GH_API_TIMEOUT_SECONDS = 30.0
 HTTP_SUCCESS_STATUS_CODE = 200
+HTTP_CREATED_STATUS_CODE = 201
+HTTP_NO_CONTENT_STATUS_CODE = 204
 
 
 def try_gh_api(*, endpoint: str, method: str, payload_text: str | None) -> str | None:
-    """Run ``gh api`` once; None means gh failed, for any reason (ADR-0022).
+    """Run ``gh api`` once; None means gh failed, for any reason (ADR-0108).
 
     The command is fixed literals built from the endpoint string: no
     untrusted input ever reaches argv. ``--input -`` carries the JSON
@@ -83,7 +85,7 @@ def parse_payload_text(*, payload_text: str) -> object | None:
 def rest_fallback(
     *, endpoint: str, method: str, payload_text: str | None
 ) -> tuple[int, object | None]:
-    """One raw REST request with GITHUB_TOKEN, after gh failed (ADR-0022).
+    """One raw REST request with GITHUB_TOKEN, after gh failed (ADR-0108).
 
     The fallback needs the token; without it, the failure is closed
     with both transports named. A transport failure never passes as a
@@ -124,7 +126,7 @@ def github_request(
     method: str = "GET",
     json_payload: object | None = None,
 ) -> tuple[int, object | None]:
-    """One GitHub operation: gh first, REST fallback, fail closed (ADR-0022).
+    """One GitHub operation: gh first, REST fallback, fail closed (ADR-0108).
 
     Returns ``(status_code, payload)``. A successful gh call is
     reported with the 200 it carries (gh exits nonzero on any HTTP
@@ -207,7 +209,7 @@ def pull_request_has_merge_conflict(*, pull_request: dict[str, object]) -> bool:
     after a push: an unknown state is NOT a conflict. ``mergeable_state``
     carries a definitive ``dirty`` as soon as GitHub has computed it.
     A merge conflict is the first suspect whenever CI seems stuck
-    (ADR-0022): the wait and merge drivers check it before waiting.
+    (ADR-0108): the wait and merge drivers check it before waiting.
     """
     mergeable_state = pull_request.get("mergeable_state")
     if mergeable_state == "dirty":
