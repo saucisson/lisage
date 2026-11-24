@@ -154,6 +154,61 @@ fn merge_arc<P: Pool<Key = u64, Payload = bool>>(
 // Right-neighbor guard, continuation-aware.
 // ---------------------------------------------------------------------------
 
+/// Outcome of filtering one present-branch child.
+enum FilteredBranch {
+    /// Keep the arc with this (possibly rewritten) child.
+    Keep(NodeId),
+    /// Drop the arc entirely (only-eating branch: the word dies).
+    Drop,
+}
+
+/// Filters one value-level child of a present arc: removes the words
+/// with pc = eating at the next value level.
+fn filter_value_child<P: Pool<Key = u64, Payload = bool>>(
+    pool: &mut P,
+    anchor: Anchor,
+    presence_level: u32,
+    child: NodeId,
+) -> FilteredBranch {
+    match pool.resolve(child).expect("resolve value node") {
+        Form::Terminal(false) => FilteredBranch::Keep(child),
+        Form::Terminal(true) => {
+            let filtered = value_without_eats(pool, anchor, presence_level + 1, child);
+            FilteredBranch::Keep(filtered)
+        }
+        Form::Node {
+            level: lv,
+            arcs: va,
+        } if lv.0 == presence_level + 1 => {
+            if va.iter().any(|(vk, _)| *vk == EATS) {
+                let kept: Vec<(u64, NodeId)> = va
+                    .iter()
+                    .filter(|(vk, _)| **vk != EATS)
+                    .map(|(vk, vt)| (*vk, *vt))
+                    .collect();
+                if kept.is_empty() {
+                    return FilteredBranch::Drop;
+                }
+                let filtered = pool.intern(
+                    anchor,
+                    Form::Node {
+                        level: lv,
+                        arcs: ArcRun::from_pairs(kept),
+                    },
+                );
+                FilteredBranch::Keep(filtered)
+            } else {
+                FilteredBranch::Keep(child)
+            }
+        }
+        Form::Node { level: lv, .. } if lv.0 > presence_level + 1 => {
+            let filtered = value_without_eats(pool, anchor, presence_level + 1, child);
+            FilteredBranch::Keep(filtered)
+        }
+        Form::Node { .. } => FilteredBranch::Keep(child),
+    }
+}
+
 /// Continuation of the hungry branch under a take at key i
 /// (1 <= i <= n-2), filtered of its words with pc_{i+1} = eating.
 /// `target` is the raw subdiagram (continuation of the word), expected
@@ -177,46 +232,14 @@ fn guarded_continuation<P: Pool<Key = u64, Payload = bool>>(
                     branches.push((arc, child));
                     continue;
                 }
-                match pool.resolve(child).expect("resolve value node") {
-                    Form::Terminal(false) => branches.push((arc, child)),
-                    Form::Terminal(true) => {
-                        changed = true;
-                        let filtered = value_without_eats(pool, anchor, presence_level + 1, child);
+                match filter_value_child(pool, anchor, presence_level, child) {
+                    FilteredBranch::Keep(filtered) => {
+                        changed = changed || filtered != child;
                         branches.push((arc, filtered));
                     }
-                    Form::Node {
-                        level: lv,
-                        arcs: va,
-                    } if lv.0 == presence_level + 1 => {
-                        if va.iter().any(|(vk, _)| *vk == EATS) {
-                            changed = true;
-                            let kept: Vec<(u64, NodeId)> = va
-                                .iter()
-                                .filter(|(vk, _)| **vk != EATS)
-                                .map(|(vk, vt)| (*vk, *vt))
-                                .collect();
-                            if kept.is_empty() {
-                                // Only-eating branch: the word dies.
-                                continue;
-                            }
-                            let filtered = pool.intern(
-                                anchor,
-                                Form::Node {
-                                    level: lv,
-                                    arcs: ArcRun::from_pairs(kept),
-                                },
-                            );
-                            branches.push((arc, filtered));
-                        } else {
-                            branches.push((arc, child));
-                        }
-                    }
-                    Form::Node { level: lv, .. } if lv.0 > presence_level + 1 => {
+                    FilteredBranch::Drop => {
                         changed = true;
-                        let filtered = value_without_eats(pool, anchor, presence_level + 1, child);
-                        branches.push((arc, filtered));
                     }
-                    Form::Node { .. } => branches.push((arc, child)),
                 }
             }
             if branches.is_empty() {

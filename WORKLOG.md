@@ -46,6 +46,27 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-24 - PR #397: in-place saturation kernel (saturate_in_place) + review fixes
+
+- **Issue**: none (spike follow-up, ADR-0109 draft territory).
+- **Done**: merged `saturation-sur-place` into `daily`. Review fixes
+  applied on the branch: extracted `filter_value_child()` from
+  `guarded_continuation()` to bring cyclomatic complexity and nesting
+  under the constitutional budgets (complexity ≤ 10, depth ≤ 4);
+  added this WORKLOG entry; split proposal added to the PR body
+  (1 480 lines > ~1 000 budget: the bench binary `bench_saturation.rs`
+  926 lines is the bulk, the core kernel + tests are ~500 lines).
+- **Evidence**: `cargo fmt --all -- --check` clean, `cargo clippy
+  --all-targets -- -D warnings` clean (0 errors), `cargo nextest run
+  --all-targets` 488 passed / 11 skipped. CI on the PR head: quality
+  gate ✅, rust quality gate ✅, security gates ✅. Python gates
+  (ruff, mypy, pytest) not run locally on this branch — no Python
+  changes; CI covers them.
+- **Judgement calls**: the refactoring extracts the present-branch
+  filter into `filter_value_child()` returning a `FilteredBranch` enum
+  instead of inline match arms; behavior preserved (all 488 tests
+  pass, including the 4 new `inplace.rs` tests).
+- **Escalations**: none.
 ## 2026-11-23 - Port project-template ADR-0008: gh-first GitHub client + short CI (ADR-0108)
 
 - **Issue**: none (template sync).
