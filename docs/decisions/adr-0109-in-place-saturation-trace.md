@@ -116,21 +116,21 @@ For the transport:
    reference-kernel trace) renders the empty view gracefully — the
    views are additive, nothing round-based changes.
 
-## Deferred tracks (documented, not decided here)
+## Deferred tracks (now designed — see ADR-0110)
 
-- **Event vs level granularity for the reference kernel.** The
-  reference kernel `saturate` keeps its `Round` events as they are.
-  Whether its trace should also carry a finer unit is an open
-  question; it is not needed to observe the in-place kernel (track 3,
-  settled above), and changing the reference kernel's trace is a
-  separate decision with its own compatibility analysis.
-- **Memories `M≠()` and channel S.** Making the transduction-level
-  empty-memory (`M = ≠()`) and the implication channel S observable in
-  the trace is a real observability gap of the current trace, but it
-  touches the transduction runner (not the saturation kernels) and
-  needs a designed event vocabulary of its own. Deferred to a future
-  PR; this ADR keeps the two tracks on the record so they are not
-  silently dropped.
+- **Event vs level granularity for the reference kernel.** Settled by
+  ADR-0110 as a documentation decision, no code: the reference kernel
+  `saturate` keeps its `Round` events, and its per-node chronology is
+  observed through the D1-2 `StructureChange` events inside the round
+  spans. The two kernels intentionally keep different trace
+  vocabularies (rounds vs fires).
+- **Memories `M≠()` and channel S.** Designed and delivered by
+  ADR-0110 (draft, same discipline: only the human accepts it): a
+  `MemoryRead` event at every `φ_out` memory consultation (through a
+  runner probe), a per-op `MemoryState` event carrying the nil-memory
+  `(0, 0)` witness, and the synthesized channel S emitted at every
+  completed visit (terminal visits and memo hits included), trace
+  version 7.
 
 ## Consequences
 
