@@ -44,8 +44,9 @@ GH_FAILURE_EXCEPTIONS: tuple[type[BaseException], ...] = (OSError, subprocess.Ti
 def try_gh_api(*, endpoint: str, method: str, payload_text: str | None) -> str | None:
     """Run ``gh api`` once; None means gh failed, for any reason (ADR-0108).
 
-    The command is fixed literals built from the endpoint string: no
-    untrusted input ever reaches argv. ``--input -`` carries the JSON
+    The command is list-form (no shell), so the endpoint string cannot
+    inject shell metacharacters; it is still built from trusted inputs
+    only (the parsed git remote slug). ``--input -`` carries the JSON
     request body on stdin when there is one. A zero exit means the
     call succeeded and stdout carries the response body (possibly
     empty); any other outcome (missing binary, auth, HTTP error,
