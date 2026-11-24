@@ -46,6 +46,32 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-23 - Port project-template ADR-0008: gh-first GitHub client + short CI (ADR-0022)
+
+- **Issue**: none (template sync).
+- **Done**: ported the two infrastructure improvements from
+  `saucisson/project-template` ADR-0008 into lisage as ADR-0022:
+  (1) `scripts/_github.py` rewritten gh-first (`gh api` first, one
+  REST fallback with `GITHUB_TOKEN`), all six drivers (`ci.py`,
+  `merge.py`, `pulls.py`, `claims.py`, `review.py`, `night.py`) moved
+  from `httpx.Client` to `github_request()`; (2) new
+  `.github/workflows/dependency-audit.yml` runs pip-audit + cargo-audit
+  on lockfile changes and weekly, main `ci.yml` drops them from the
+  security job and gains `timeout-minutes` + shallow checkouts;
+  (3) `.vibe/config.toml` allowlists `gh` subcommands; (4) `AGENTS.md`
+  documents both rules; (5) ADR-0022 written.
+- **Evidence**: `ruff check scripts/` clean, `ruff format --check`
+  clean, `pytest scripts/tests/` 28 passed, `english-only` clean.
+  mypy segfaults in this environment (Python 3.15 + mypy binary
+  incompatibility, pre-existing, not caused by this change) - CI will
+  run it. Rust gates not run locally (no code change in crates/).
+- **Judgement calls**: kept lisage's Python-based night loop (richer
+  than the template's shell loop: claims, milestones, heartbeat); kept
+  lisage's ADR numbering (0022, next free slot after 0021).
+- **Escalations**: none.
+
+---
+
 ## 2026-11-23 - Integration of the delivered english-only patch (rebased on daily a99353a) + repair of its integration defects (issues #104, #110)
 
 - **Issue**: #104 (English-only charter) + #110; applies the delivered

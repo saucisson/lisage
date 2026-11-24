@@ -55,22 +55,18 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from scripts._github import open_github_client
+from scripts._github import HTTP_SUCCESS_STATUS_CODE, github_request
 from scripts._shared import (
     CLAIM_LABEL_NAME,
     EXIT_CODE_PROTOCOL_FAILURE,
     EXIT_CODE_SUCCESS,
-    GITHUB_API_BASE_URL,
     REPOSITORY_ROOT,
-    load_github_token,
     resolve_repository_slug,
 )
 
 if TYPE_CHECKING:
     import argparse
     from collections.abc import Sequence
-
-    import httpx
 
 EXIT_CODE_ALL_ISSUES_PROCESSED = EXIT_CODE_SUCCESS  # a subcommand-local alias, same protocol code
 DEVELOPER_CLI_COMMAND = "vibe"
@@ -173,22 +169,18 @@ def read_integer_setting(*, variable_name: str, default_value: int) -> int:
 
 def fetch_issue(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     issue_number: int,
 ) -> dict[str, object] | None:
-    """Fetch the issue, or report and return None if the API refuses it."""
-    response = http_client.get(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/issues/{issue_number}"
-    )
-    if not response.is_success:
-        print(f"Warning: could not fetch issue #{issue_number} ({response.status_code}).")
+    """Fetch the issue via gh (fallback REST), or report and return None if refused."""
+    status_code, payload = github_request(endpoint=f"repos/{repository_slug}/issues/{issue_number}")
+    if status_code != HTTP_SUCCESS_STATUS_CODE:
+        print(f"Warning: could not fetch issue #{issue_number} ({status_code}).")
         return None
-    issue: object = response.json()
-    if not isinstance(issue, dict):
+    if not isinstance(payload, dict):
         print(f"Warning: issue #{issue_number} has an unexpected payload.")
         return None
-    return issue
+    return payload
 
 
 def triage_issue(*, issue: dict[str, object]) -> str | None:
@@ -219,20 +211,17 @@ def render_issue_section(*, issue: dict[str, object], issue_number: int) -> str:
 
 def fetch_candidate_issues(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     candidate_limit: int,
     milestone_numbers: set[int],
 ) -> list[tuple[int, dict[str, object]]]:
     """Derive the auto-discovered worklist: open, eligible, unclaimed, in scope."""
-    response = http_client.get(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/issues",
-        params={"state": "open", "per_page": OPEN_ISSUES_PAGE_SIZE},
+    status_code, payload = github_request(
+        endpoint=f"repos/{repository_slug}/issues?state=open&per_page={OPEN_ISSUES_PAGE_SIZE}",
     )
-    if not response.is_success:
-        print(f"Warning: could not list open issues ({response.status_code}).")
+    if status_code != HTTP_SUCCESS_STATUS_CODE:
+        print(f"Warning: could not list open issues ({status_code}).")
         return []
-    payload = response.json()
     if not isinstance(payload, list):
         print("Warning: the open-issues payload is unexpected.")
         return []
@@ -285,7 +274,6 @@ def item_has_claim_label(*, item: dict[str, object]) -> bool:
 
 def fetch_candidate_pull_requests(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     candidate_limit: int,
     milestone_numbers: set[int],
@@ -298,18 +286,15 @@ def fetch_candidate_pull_requests(
     earlier unattended attempt), and the pull request itself is not
     already claimed by another recovery session.
     """
-    response = http_client.get(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/pulls",
-        params={
-            "state": "open",
-            "base": DAILY_BRANCH_NAME,
-            "per_page": OPEN_PULL_REQUESTS_PAGE_SIZE,
-        },
+    status_code, payload = github_request(
+        endpoint=(
+            f"repos/{repository_slug}/pulls"
+            f"?state=open&base={DAILY_BRANCH_NAME}&per_page={OPEN_PULL_REQUESTS_PAGE_SIZE}"
+        ),
     )
-    if not response.is_success:
-        print(f"Warning: could not list open pull requests ({response.status_code}).")
+    if status_code != HTTP_SUCCESS_STATUS_CODE:
+        print(f"Warning: could not list open pull requests ({status_code}).")
         return []
-    payload = response.json()
     if not isinstance(payload, list):
         print("Warning: the open-pull-requests payload is unexpected.")
         return []
@@ -330,7 +315,6 @@ def fetch_candidate_pull_requests(
         if backing_issue_number is None:
             continue
         backing_issue = fetch_issue(
-            http_client=http_client,
             repository_slug=repository_slug,
             issue_number=backing_issue_number,
         )
@@ -408,7 +392,6 @@ def describe_auto_candidates(
 
 def describe_claimed_items(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     keys: set[tuple[str, int]],
 ) -> list[str]:
@@ -420,7 +403,6 @@ def describe_claimed_items(
     claimed: list[str] = []
     for _kind, number in sorted(keys, key=lambda key: (key[0], key[1])):
         item = fetch_issue(
-            http_client=http_client,
             repository_slug=repository_slug,
             issue_number=number,
         )
@@ -632,7 +614,6 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 def run_explicit_directive(
     *,
-    http_client: httpx.Client,
     prompt_directory: Path,
     repository_slug: str,
     issue_numbers: Sequence[int],
@@ -646,7 +627,6 @@ def run_explicit_directive(
         print(f"\n=== Issue #{issue_number} ===")
         journal.log(text=f"explicit session: issue #{issue_number}")
         issue = fetch_issue(
-            http_client=http_client,
             repository_slug=repository_slug,
             issue_number=issue_number,
         )
@@ -688,7 +668,6 @@ def run_explicit_directive(
             heartbeat_seconds=arguments.heartbeat,
         )
         fresh_issue = fetch_issue(
-            http_client=http_client,
             repository_slug=repository_slug,
             issue_number=issue_number,
         )
@@ -713,7 +692,6 @@ def run_explicit_directive(
 
 def run_auto_discovered_sessions(
     *,
-    http_client: httpx.Client,
     prompt_directory: Path,
     repository_slug: str,
     milestone_numbers: set[int],
@@ -738,13 +716,11 @@ def run_auto_discovered_sessions(
     sessions_started = 0
     while sessions_started < arguments.max_sessions:
         issues = fetch_candidate_issues(
-            http_client=http_client,
             repository_slug=repository_slug,
             candidate_limit=arguments.candidates,
             milestone_numbers=milestone_numbers,
         )
         pull_requests = fetch_candidate_pull_requests(
-            http_client=http_client,
             repository_slug=repository_slug,
             candidate_limit=arguments.candidates,
             milestone_numbers=milestone_numbers,
@@ -785,13 +761,11 @@ def run_auto_discovered_sessions(
         )
         sessions_started += 1
         fresh_issues = fetch_candidate_issues(
-            http_client=http_client,
             repository_slug=repository_slug,
             candidate_limit=arguments.candidates,
             milestone_numbers=milestone_numbers,
         )
         fresh_pull_requests = fetch_candidate_pull_requests(
-            http_client=http_client,
             repository_slug=repository_slug,
             candidate_limit=arguments.candidates,
             milestone_numbers=milestone_numbers,
@@ -799,7 +773,6 @@ def run_auto_discovered_sessions(
         candidate_keys = auto_candidate_keys(issues=issues, pull_requests=pull_requests)
         fresh_keys = auto_candidate_keys(issues=fresh_issues, pull_requests=fresh_pull_requests)
         claimed_items = describe_claimed_items(
-            http_client=http_client,
             repository_slug=repository_slug,
             keys=candidate_keys - fresh_keys,
         )
@@ -844,7 +817,6 @@ def run_auto_discovered_sessions(
 
 def run(*, arguments: argparse.Namespace) -> int:
     """Entry point: night directive in (or auto-discovered), report out."""
-    github_token = load_github_token()
     if shutil.which(DEVELOPER_CLI_COMMAND) is None:
         print(
             f"Error: {DEVELOPER_CLI_COMMAND} is not on PATH - the unattended"
@@ -868,31 +840,28 @@ def run(*, arguments: argparse.Namespace) -> int:
     )
     prompt_directory.mkdir(parents=True, exist_ok=True)
     journal.log(text=f"session prompts: {prompt_directory}")
-    with open_github_client(token=github_token) as http_client:
-        if arguments.issues:
-            issue_numbers = parse_issue_list(raw_issue_list=arguments.issues)
-            prompt_template = load_prompt_template(template_path=PROMPT_TEMPLATE_PATH)
-            run_explicit_directive(
-                http_client=http_client,
-                prompt_directory=prompt_directory,
-                repository_slug=repository_slug,
-                issue_numbers=issue_numbers,
-                milestone_numbers=milestone_numbers,
-                prompt_template=prompt_template,
-                arguments=arguments,
-                journal=journal,
-            )
-        else:
-            prompt_template = load_prompt_template(template_path=AUTO_PROMPT_TEMPLATE_PATH)
-            run_auto_discovered_sessions(
-                http_client=http_client,
-                prompt_directory=prompt_directory,
-                repository_slug=repository_slug,
-                milestone_numbers=milestone_numbers,
-                prompt_template=prompt_template,
-                arguments=arguments,
-                journal=journal,
-            )
+    if arguments.issues:
+        issue_numbers = parse_issue_list(raw_issue_list=arguments.issues)
+        prompt_template = load_prompt_template(template_path=PROMPT_TEMPLATE_PATH)
+        run_explicit_directive(
+            prompt_directory=prompt_directory,
+            repository_slug=repository_slug,
+            issue_numbers=issue_numbers,
+            milestone_numbers=milestone_numbers,
+            prompt_template=prompt_template,
+            arguments=arguments,
+            journal=journal,
+        )
+    else:
+        prompt_template = load_prompt_template(template_path=AUTO_PROMPT_TEMPLATE_PATH)
+        run_auto_discovered_sessions(
+            prompt_directory=prompt_directory,
+            repository_slug=repository_slug,
+            milestone_numbers=milestone_numbers,
+            prompt_template=prompt_template,
+            arguments=arguments,
+            journal=journal,
+        )
     print("\n=== Night summary ===")
     for result in journal.summary_lines:
         print(f"- {result}")

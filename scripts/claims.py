@@ -3,8 +3,8 @@
 In the auto-discovered night loop (``make night`` without ISSUES) each
 session picks its own item, so its FIRST act is to claim it:
 ``make claim ISSUE=N`` or ``make claim-pr PR=N`` adds the
-``night-claimed`` label through the GitHub API (the issues endpoint
-serves pull requests too), with the same token as the other drivers.
+``night-claimed`` label through the GitHub API (gh client first, REST
+fallback, ADR-0022; the issues endpoint serves pull requests too).
 The claim is both the concurrency guard and the honesty record:
 
 - two sessions never work the same item (the loop filters claimed
@@ -22,49 +22,22 @@ claim, no work.
 import sys
 from typing import TYPE_CHECKING
 
-from scripts._github import open_github_client
+from scripts._github import fetch_issue, github_request
 from scripts._shared import (
     CLAIM_LABEL_NAME,
     EXIT_CODE_CRITERIA_UNMET,
     EXIT_CODE_PROTOCOL_FAILURE,
     EXIT_CODE_SUCCESS,
-    GITHUB_API_BASE_URL,
-    load_github_token,
     resolve_repository_slug,
 )
 
 if TYPE_CHECKING:
     import argparse
 
-    import httpx
-
 CLAIM_LABEL_COLOR = "d4c5f9"
 CLAIM_LABEL_DESCRIPTION = "Claimed by an unattended night session (ADR-0017)"
+HTTP_SUCCESS_STATUS_CODE = 200
 EXIT_CODE_CLAIMED = EXIT_CODE_SUCCESS  # a subcommand-local alias, same protocol code
-
-
-def fetch_issue(
-    *,
-    http_client: httpx.Client,
-    repository_slug: str,
-    item_number: int,
-) -> dict[str, object]:
-    """Fetch the issue or pull request, or fail closed: no item, no claim."""
-    response = http_client.get(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/issues/{item_number}"
-    )
-    if not response.is_success:
-        print(
-            f"Error: could not fetch #{item_number}"
-            f" ({response.status_code}) - do not work an unverified item.",
-            file=sys.stderr,
-        )
-        raise SystemExit(EXIT_CODE_CRITERIA_UNMET)
-    issue: object = response.json()
-    if not isinstance(issue, dict):
-        print("Error: the item payload is unexpected - do not work it.", file=sys.stderr)
-        raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
-    return issue
 
 
 def claim_is_allowed(
@@ -99,26 +72,25 @@ def claim_is_allowed(
             raise SystemExit(EXIT_CODE_CRITERIA_UNMET)
 
 
-def ensure_claim_label(*, http_client: httpx.Client, repository_slug: str) -> None:
+def ensure_claim_label(*, repository_slug: str) -> None:
     """Create the claim label once; a 403 means the human creates it."""
-    response = http_client.get(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/labels/{CLAIM_LABEL_NAME}"
-    )
-    if response.is_success:
+    status_code, _ = github_request(endpoint=f"repos/{repository_slug}/labels/{CLAIM_LABEL_NAME}")
+    if status_code == HTTP_SUCCESS_STATUS_CODE:
         return
-    creation_response = http_client.post(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/labels",
-        json={
+    creation_status, _ = github_request(
+        endpoint=f"repos/{repository_slug}/labels",
+        method="POST",
+        json_payload={
             "name": CLAIM_LABEL_NAME,
             "color": CLAIM_LABEL_COLOR,
             "description": CLAIM_LABEL_DESCRIPTION,
         },
     )
-    if creation_response.is_success:
+    if creation_status == HTTP_SUCCESS_STATUS_CODE:
         return
     print(
         f"Error: could not create the {CLAIM_LABEL_NAME} label"
-        f" ({creation_response.status_code}) - create it by hand or grant"
+        f" ({creation_status}) - create it by hand or grant"
         " issues write on the token, then relaunch the night.",
         file=sys.stderr,
     )
@@ -127,19 +99,19 @@ def ensure_claim_label(*, http_client: httpx.Client, repository_slug: str) -> No
 
 def add_claim_label(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     issue_number: int,
 ) -> None:
     """Add the claim label; a failure means no claim, no work."""
-    response = http_client.post(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/issues/{issue_number}/labels",
-        json={"labels": [CLAIM_LABEL_NAME]},
+    status_code, _ = github_request(
+        endpoint=f"repos/{repository_slug}/issues/{issue_number}/labels",
+        method="POST",
+        json_payload={"labels": [CLAIM_LABEL_NAME]},
     )
-    if not response.is_success:
+    if status_code != HTTP_SUCCESS_STATUS_CODE:
         print(
             f"Error: could not claim #{issue_number}"
-            f" ({response.status_code}) - do not work an unclaimed item.",
+            f" ({status_code}) - do not work an unclaimed item.",
             file=sys.stderr,
         )
         raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
@@ -168,29 +140,25 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 def run(*, arguments: argparse.Namespace) -> int:
     """Entry point: item number in, claimed item out."""
-    github_token = load_github_token()
     repository_slug = resolve_repository_slug()
     if arguments.issue is not None:
         item_number, expected_kind, item_word = arguments.issue, "issue", "Issue"
     else:
         item_number, expected_kind, item_word = arguments.pr, "pull_request", "Pull request"
-    with open_github_client(token=github_token) as http_client:
-        issue = fetch_issue(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            item_number=item_number,
-        )
-        claim_is_allowed(
-            issue=issue,
-            item_number=item_number,
-            expected_kind=expected_kind,
-        )
-        ensure_claim_label(http_client=http_client, repository_slug=repository_slug)
-        add_claim_label(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            issue_number=item_number,
-        )
+    issue = fetch_issue(
+        repository_slug=repository_slug,
+        item_number=item_number,
+    )
+    claim_is_allowed(
+        issue=issue,
+        item_number=item_number,
+        expected_kind=expected_kind,
+    )
+    ensure_claim_label(repository_slug=repository_slug)
+    add_claim_label(
+        repository_slug=repository_slug,
+        issue_number=item_number,
+    )
     print(
         f"{item_word} #{item_number} claimed ({CLAIM_LABEL_NAME}):"
         " it is yours, and no other session will pick it."
