@@ -48,6 +48,7 @@ One entry per commit or pull request:
 <!-- Append new entries directly below this line. -->
 ## 2026-11-24 - PR #397: in-place saturation kernel (saturate_in_place) + review fixes
 ## 2026-11-24 - HSDD-6 core: per-round diagrams, per-fragment memory versions (PR #N, issue #388, stacked on #396)
+## 2026-11-24 - HSDD-6 core: per-round diagrams, per-fragment memory versions (PR #398, issue #388, stacked on #396)
 
 - **Issue**: #388 (HSDD-6, the two genuinely-core items the bench
   bricks could not reach: the per-round materialized diagrams - real
