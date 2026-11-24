@@ -40,13 +40,15 @@ JWKS, and a pure ASGI middleware enforces a valid Bearer token on HTTP routes.
 
 Configuration lives in `.env` (git-ignored, never commit secrets):
 
-| Variable                 | Required | Description                                                              |
-| ------------------------ | -------- | ------------------------------------------------------------------------ |
-| `AUTH_ISSUER`            | yes      | Base URL of the OIDC issuer (drives discovery + JWKS, no URL in code)   |
-| `AUTH_CLIENT_ID`         | no       | Client id; also the default accepted audience                            |
-| `AUTH_CLIENT_SECRET`     | no       | Client secret (only if the IdP requires it)                             |
-| `AUTH_ALLOWED_AUDIENCES` | no       | Comma-separated accepted audiences; empty = client id only               |
-| `AUTH_DISABLED`          | no       | `1` = pass-through (local dev only); **unset in production**             |
+| Variable                  | Required | Description                                                              |
+| ------------------------- | -------- | ------------------------------------------------------------------------ |
+| `AUTH_ISSUER`             | yes      | Base URL of the OIDC issuer (drives discovery + JWKS, no URL in code)   |
+| `AUTH_API_CLIENT_ID`      | no       | Zitadel **API** client id (machine Bearer/PAT); default accepted audience |
+| `AUTH_API_CLIENT_SECRET`  | no       | Zitadel API client secret (only if the IdP requires it)                 |
+| `AUTH_WEB_CLIENT_ID`      | no       | Zitadel **Web** client id (browser Authorization Code + PKCE); default accepted audience |
+| `AUTH_WEB_CLIENT_SECRET`  | no       | Zitadel Web client secret (only if the IdP requires it)                 |
+| `AUTH_ALLOWED_AUDIENCES`  | no       | Comma-separated accepted audiences; empty = both client ids (API + Web)  |
+| `AUTH_DISABLED`           | no       | `1` = pass-through (local dev only); **unset in production**             |
 
 Authentication is **active by default**: leave `AUTH_DISABLED` unset in any
 deployed environment. `AUTH_DISABLED=1` is a local-development escape hatch

@@ -46,6 +46,30 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-24 - Zitadel clients split: API and Web (PR #405, human directive)
+
+- **Issue**: none (human directive: Zitadel clients changed — the app now has
+  an API client and a Web client; secrets live on the VPS at
+  `/home/deploy/zitadel-clients.json`).
+- **Done**: `AuthSettings` now carries `AUTH_API_CLIENT_ID` /
+  `AUTH_API_CLIENT_SECRET` (machine Bearer/PAT) and `AUTH_WEB_CLIENT_ID` /
+  `AUTH_WEB_CLIENT_SECRET` (browser Authorization Code + PKCE) instead of the
+  single `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET`. `accepted_audiences` defaults
+  to both client ids (API + Web) so tokens issued to either validate;
+  `AUTH_ALLOWED_AUDIENCES` still overrides. `.env.example`, `README.md`,
+  ADR-0107 and the web directive document the new variable set. Unit and
+  property tests updated (29 unit tests pass; property tests not run locally
+  — hypothesis native module broken in this environment, CI covers them).
+  No secret committed; real values stay on the VPS.
+- **Evidence**: `ruff check` clean, `ruff format --check` clean, `pytest`
+  (auth unit tests) 29 passed. `mypy` not run locally (segfaults on Python
+  3.15 in this environment) — CI covers it. `cargo` gates unaffected (no Rust
+  change).
+- **Judgement calls**: the old `AUTH_CLIENT_ID`/`AUTH_CLIENT_SECRET` names are
+  replaced, not kept alongside — the human said the clients *changed*, and
+  keeping both would leave a dead variable. `accepted_audiences` accepts both
+  client ids by default because Bearer tokens can be issued to either client.
+- **Escalations**: none.
 ## 2026-11-24 - PR #397: in-place saturation kernel (saturate_in_place) + review fixes
 
 - **Issue**: none (spike follow-up, ADR-0109 draft territory).

@@ -44,6 +44,14 @@ class ApplicationSettings(BaseSettings):
 class AuthSettings(BaseSettings):
     """OIDC configuration of this app, loaded from the environment (issue #309).
 
+    Zitadel exposes two clients for the app: the **API** client (machine
+    access, Bearer/PAT tokens) and the **Web** client (browser
+    Authorization Code + PKCE flow). Their ids and secrets arrive as
+    ``AUTH_API_CLIENT_ID`` / ``AUTH_API_CLIENT_SECRET`` and
+    ``AUTH_WEB_CLIENT_ID`` / ``AUTH_WEB_CLIENT_SECRET``; on the VPS they
+    live in ``/home/deploy/zitadel-clients.json`` and are injected into the
+    environment at deploy time - never committed.
+
     No endpoint URL is hard-coded: the issuer (``AUTH_ISSUER``, required)
     drives the discovery document, and the JWKS URI comes from it.
     ``AUTH_DISABLED=1`` is a local-development escape hatch only -
@@ -59,8 +67,10 @@ class AuthSettings(BaseSettings):
     )
 
     auth_issuer: IssuerUrl
-    auth_client_id: str | None = None
-    auth_client_secret: SecretStr | None = None
+    auth_api_client_id: str | None = None
+    auth_api_client_secret: SecretStr | None = None
+    auth_web_client_id: str | None = None
+    auth_web_client_secret: SecretStr | None = None
     auth_allowed_audiences: list[str] = []
     auth_disabled: bool = False
 
@@ -73,9 +83,17 @@ class AuthSettings(BaseSettings):
 
     @property
     def accepted_audiences(self) -> list[str]:
-        """Audiences accepted in access tokens: the explicit list, else the client id."""
+        """Audiences accepted in access tokens.
+
+        The explicit ``AUTH_ALLOWED_AUDIENCES`` list wins; otherwise both
+        client ids (API and Web) are accepted so Bearer tokens issued to
+        either client validate.
+        """
         if self.auth_allowed_audiences:
             return list(self.auth_allowed_audiences)
-        if self.auth_client_id is not None:
-            return [self.auth_client_id]
-        return []
+        audiences: list[str] = []
+        if self.auth_api_client_id is not None:
+            audiences.append(self.auth_api_client_id)
+        if self.auth_web_client_id is not None:
+            audiences.append(self.auth_web_client_id)
+        return audiences
