@@ -207,7 +207,6 @@ fn test_recursive_saturation_is_idempotent() {
 fn test_saturation_error_paths_are_guarded() {
     let mut pool = pool_tower();
     let module = build_module(&mut pool, ANCHOR_TOWER);
-    let ring = build_ring(&mut pool, ANCHOR_TOWER, module, 5).unwrap();
     let cells = read_cells(&pool, module).unwrap();
 
     // read_saturation on a non-saturation root (the module itself).
