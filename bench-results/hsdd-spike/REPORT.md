@@ -59,8 +59,10 @@ exact cardinality by structural fold, all inside the existing pool API.
 
 ## Honest scope (what this spike does NOT show)
 
-- No transduction of events across the module boundary (#387): the spike
-  reads and counts, it does not fire transitions inside the module.
+- Transduction of events across the module boundary (#387): the
+  original spike read and counted only; the stacked brick (section
+  "Transductions across the boundary" below) fires the events and
+  folds their images.
 - No recursive saturation / nested modules (#388): one tower level only.
 - No external witness (#391): compared against lisage's own enumeration
   oracle and the pinned golden series, not against an external DD library.
@@ -68,3 +70,49 @@ exact cardinality by structural fold, all inside the existing pool API.
   a PERF-deposit measurement (no machine fingerprint).
 
 Reproduce: `cargo test -p lisage-bench --test hsdd`.
+
+## Transductions across the boundary (HSDD-5, issue #387)
+
+Stacked brick on this spike (follow-up pull request, branch
+`feat/hsdd-transductions`): module-local events fired through the tower
+as **data on the arc** - one event node per (event, position) at a new
+pool-opaque `LEVEL_EVENT`, hash-consed, chains stack above the tower they
+transform; the ring and the module are never duplicated. Three events of
+the philosopher: `hungry` (think -> hungry, no guard), `eat` (hungry ->
+eat, the guard crosses the fragment boundary: no eater on either side),
+`think` (eat -> think).
+
+Semantics by structural fold over the pc words (the `left` fields are
+derived pairwise, so a firing that takes a neighbour fork updates it for
+free): every event is a partial injective map on the pc of one position,
+and each level of the chain must remain a legal ring word (no two
+adjacent eaters) - which is also what carries the `eat` guards across
+the boundary: firing beside an eater would build an illegal level word.
+The circular trace of heterogeneous pair matrices counts the images in
+O(n |pcs|^3); the product is never expanded. Fold == enumeration oracle,
+asserted for n = 3..7, every position, the three events and chains.
+
+Method note (falsifiability): a first draft folded the cell domain and
+was falsified by the oracle (0 images for `eat` where the oracle measured
+4 on n = 3): firing `eat` also changes the neighbour's `left` field, a
+derived value the cell-domain levels did not propagate. The final fold
+works on the pc domain and matches the oracle everywhere.
+
+Measured (fold == oracle, events at position 1 unless noted; chains
+innermost first):
+
+| n | R_n | hungry@1 | eat@1 | think@1 | hungry@1;eat@1 | eat@1;think@1 | hungry@0;eat@2 |
+|---|---|---|---|---|---|---|---|
+| 3 | 20 | 8 | 4 | 4 | 4 | 4 | 2 |
+| 4 | 56 | 22 | 12 | 12 | 12 | 12 | 4 |
+| 5 | 152 | 60 | 32 | 32 | 32 | 32 | 12 |
+| 6 | 416 | 164 | 88 | 88 | 88 | 88 | 32 |
+| 7 | 1136 | 448 | 240 | 240 | 240 | 240 | 88 |
+
+Storage: one node per (event, position) transduction, a hit on
+retransduction; the ring and the module keep their node ids (measured
+in-test). The images are counted by the fold, not stored as new towers -
+a stored image hierarchy (closed under the guards, reusable) is the
+subject of the #386 design.
+
+Reproduce: `cargo test -p lisage-bench --test hsdd_transduction`.
