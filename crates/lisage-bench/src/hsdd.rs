@@ -1437,6 +1437,65 @@ pub struct FragmentedClosure {
 /// guard rides the shared coupling). Parent passes repeat until the
 /// whole ring is stable; the trace carries one round event per parent
 /// pass.
+/// One parent pass over the ring: every window of `fragment` consecutive
+/// positions fires to its local fixpoint. Returns the set of modified
+/// positions.
+fn fire_parent_pass(
+    matrices: &mut [Vec<Vec<u64>>],
+    pcs: &[u64],
+    set: u64,
+    n: usize,
+    fragment: usize,
+    firings: &mut u64,
+    local_fixpoints: &mut u64,
+) -> BTreeSet<usize> {
+    let mut modified = BTreeSet::new();
+    for start in 0..n {
+        fire_window_to_fixpoint(
+            matrices,
+            pcs,
+            set,
+            n,
+            fragment,
+            start,
+            firings,
+            local_fixpoints,
+            &mut modified,
+        );
+    }
+    modified
+}
+
+/// Fires one window (starting at `start`, length `fragment`) to its local
+/// fixpoint: the window keeps sweeping until a pass changes nothing.
+fn fire_window_to_fixpoint(
+    matrices: &mut [Vec<Vec<u64>>],
+    pcs: &[u64],
+    set: u64,
+    n: usize,
+    fragment: usize,
+    start: usize,
+    firings: &mut u64,
+    local_fixpoints: &mut u64,
+    modified: &mut BTreeSet<usize>,
+) {
+    loop {
+        let mut window_changed = false;
+        for offset in 0..fragment {
+            let position = (start + offset) % n;
+            *firings += 1;
+            if fire_set_at(matrices, pcs, set, position) {
+                modified.insert(position);
+                window_changed = true;
+            }
+        }
+        *local_fixpoints += 1;
+        if !window_changed {
+            break;
+        }
+    }
+}
+
 pub fn saturate_fragments(
     pool: &Arena<TowerController>,
     root: NodeId,
@@ -1463,27 +1522,15 @@ pub fn saturate_fragments(
     for &set in &sets {
         let mut productive = 0u64;
         loop {
-            let mut modified = BTreeSet::new();
-            for start in 0..n {
-                // The window fires to its LOCAL fixpoint before the
-                // lift-off: the parent sheets stay untouched between
-                // windows.
-                loop {
-                    let mut window_changed = false;
-                    for offset in 0..fragment {
-                        let position = (start + offset) % n;
-                        firings += 1;
-                        if fire_set_at(&mut matrices, &pcs, set, position) {
-                            modified.insert(position);
-                            window_changed = true;
-                        }
-                    }
-                    local_fixpoints += 1;
-                    if !window_changed {
-                        break;
-                    }
-                }
-            }
+            let modified = fire_parent_pass(
+                &mut matrices,
+                &pcs,
+                set,
+                n,
+                fragment,
+                &mut firings,
+                &mut local_fixpoints,
+            );
             emit_round(observer, number, &all, &modified, root);
             number += 1;
             if modified.is_empty() {
