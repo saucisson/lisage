@@ -41,7 +41,7 @@ contract adds the common authentication, zone, and UI requirements on top.
    addition to the cookie — Rust equivalent of the notify token-validation
    brick (local JWT RS256 validation + JWKS + introspection). `AUTH_DISABLED=1`
    dev-only guard, disabled by default, test fails if active outside dev.
-   Environment variables: `AUTH_ISSUER`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`,
+   Environment variables: `AUTH_ISSUER`, `AUTH_API_CLIENT_ID`, `AUTH_API_CLIENT_SECRET`, `AUTH_WEB_CLIENT_ID`, `AUTH_WEB_CLIENT_SECRET`,
    `AUTH_ALLOWED_AUDIENCES`, `AUTH_DISABLED`.
 
 3. **Personal Mistral API token in preferences** — `Préférences` panel (account

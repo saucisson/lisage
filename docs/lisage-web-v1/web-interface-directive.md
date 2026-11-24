@@ -84,8 +84,8 @@ Endpoints verified on 21/11/2026:
   + introspection); do not reuse the Python.
 - `AUTH_DISABLED=1` local-dev-only guard rail: disabled by default, a
   test that fails if it is active outside dev.
-- Environment variables: `AUTH_ISSUER`, `AUTH_CLIENT_ID`,
-  `AUTH_CLIENT_SECRET`, `AUTH_ALLOWED_AUDIENCES`, `AUTH_DISABLED` (the
+- Environment variables: `AUTH_ISSUER`, `AUTH_API_CLIENT_ID`, `AUTH_API_CLIENT_SECRET`, `AUTH_WEB_CLIENT_ID`,
+  `AUTH_WEB_CLIENT_SECRET`, `AUTH_ALLOWED_AUDIENCES`, `AUTH_DISABLED` (the
   unified contract of the saucisson repositories).
 - No other authentication, no shared secret. The deterministic permalinks
   stay requests: no local application accounts, no app-side roles; the

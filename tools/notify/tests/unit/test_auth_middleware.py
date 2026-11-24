@@ -30,7 +30,7 @@ from notify.models.settings import AuthSettings
 from notify.models.types import AccessToken, IssuerUrl
 
 ISSUER = IssuerUrl("https://auth.test.example")
-CLIENT_ID = "lisage-client"
+API_CLIENT_ID = "lisage-api-client"
 NOW = 1_800_000_000
 
 
@@ -50,7 +50,7 @@ def _valid_claims() -> dict[str, object]:
     return {
         "iss": str(ISSUER),
         "sub": "user-1",
-        "aud": CLIENT_ID,
+        "aud": API_CLIENT_ID,
         "exp": NOW + 3600,
         "nbf": NOW - 10,
         "iat": NOW,
@@ -95,7 +95,7 @@ def idp(signing_key: RSAKey) -> _FakeIdp:
 def settings() -> AuthSettings:
     return AuthSettings(
         auth_issuer=ISSUER,
-        auth_client_id=CLIENT_ID,
+        auth_api_client_id=API_CLIENT_ID,
         auth_disabled=False,
     )
 
@@ -226,7 +226,7 @@ def test_build_middleware_from_settings(idp: _FakeIdp, settings: AuthSettings) -
 def test_build_middleware_auth_disabled(idp: _FakeIdp) -> None:
     settings = AuthSettings(
         auth_issuer=ISSUER,
-        auth_client_id=CLIENT_ID,
+        auth_api_client_id=API_CLIENT_ID,
         auth_disabled=True,
     )
     middleware = build_middleware(

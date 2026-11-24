@@ -26,7 +26,8 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict
 
 ISSUER = IssuerUrl("https://auth.test.example")
-CLIENT_ID = "lisage-client"
+API_CLIENT_ID = "lisage-api-client"
+WEB_CLIENT_ID = "lisage-web-client"
 NOW = 1_800_000_000
 
 
@@ -53,7 +54,7 @@ def _valid_claims() -> dict[str, object]:
     return {
         "iss": ISSUER,
         "sub": "user-1",
-        "aud": CLIENT_ID,
+        "aud": API_CLIENT_ID,
         "exp": NOW + 3600,
         "nbf": NOW - 10,
         "iat": NOW,
@@ -99,7 +100,9 @@ def other_key() -> RSAKey:
 
 @pytest.fixture
 def settings() -> AuthSettings:
-    return AuthSettings(auth_issuer=ISSUER, auth_client_id=CLIENT_ID)
+    return AuthSettings(
+        auth_issuer=ISSUER, auth_api_client_id=API_CLIENT_ID, auth_web_client_id=WEB_CLIENT_ID
+    )
 
 
 @pytest.fixture
@@ -120,7 +123,7 @@ def test_valid_token_returns_claims_and_caches_fetches(
     claims = verifier.verify_access_token(token=token)
     assert claims.subject == "user-1"
     assert claims.issuer == ISSUER
-    assert claims.audiences == [CLIENT_ID]
+    assert claims.audiences == [API_CLIENT_ID]
     assert claims.expires_at == NOW + 3600
     assert claims.not_before == NOW - 10
     assert claims.issued_at == NOW
@@ -287,14 +290,17 @@ def test_module_level_verify_access_token(
     assert parsed.subject == "user-1"
 
 
-def test_accepted_audiences_default_to_client_id() -> None:
-    settings = AuthSettings(auth_issuer=ISSUER, auth_client_id=CLIENT_ID)
-    assert settings.accepted_audiences == [CLIENT_ID]
+def test_accepted_audiences_default_to_both_client_ids() -> None:
+    settings = AuthSettings(
+        auth_issuer=ISSUER, auth_api_client_id=API_CLIENT_ID, auth_web_client_id=WEB_CLIENT_ID
+    )
+    assert settings.accepted_audiences == [API_CLIENT_ID, WEB_CLIENT_ID]
     # The comma-separated environment form is split by the field validator.
     explicit = AuthSettings.model_validate(
         {
             "auth_issuer": ISSUER,
-            "auth_client_id": CLIENT_ID,
+            "auth_api_client_id": API_CLIENT_ID,
+            "auth_web_client_id": WEB_CLIENT_ID,
             "auth_allowed_audiences": "app-a, app-b",
         }
     )
@@ -362,7 +368,10 @@ def test_jwks_unavailable_rejection_is_logged(
 
 def test_explicit_allowed_audiences_accepts_listed_token(idp: FakeIdp, signing_key: RSAKey) -> None:
     settings = AuthSettings(
-        auth_issuer=ISSUER, auth_client_id=CLIENT_ID, auth_allowed_audiences=["app-a", "app-b"]
+        auth_issuer=ISSUER,
+        auth_api_client_id=API_CLIENT_ID,
+        auth_web_client_id=WEB_CLIENT_ID,
+        auth_allowed_audiences=["app-a", "app-b"],
     )
     claims = _valid_claims()
     claims["aud"] = ["app-b", "something-else"]

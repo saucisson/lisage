@@ -24,7 +24,8 @@ from notify.models.types import AccessToken, IssuerUrl
 pytestmark = pytest.mark.property
 
 ISSUER = IssuerUrl("https://auth.test.example")
-CLIENT_ID = "lisage-client"
+API_CLIENT_ID = "lisage-api-client"
+WEB_CLIENT_ID = "lisage-web-client"
 NOW = 1_800_000_000
 
 # Printable ASCII only: lone surrogates would break JSON serialization.
@@ -59,20 +60,23 @@ def test_allowed_audiences_parsing_holds_for_any_raw_string(raw_audiences: str) 
     settings = AuthSettings.model_validate(
         {
             "auth_issuer": ISSUER,
-            "auth_client_id": CLIENT_ID,
+            "auth_api_client_id": API_CLIENT_ID,
+            "auth_web_client_id": WEB_CLIENT_ID,
             "auth_allowed_audiences": raw_audiences,
         }
     )
     expected = [item.strip() for item in raw_audiences.split(",") if item.strip()]
-    assert settings.accepted_audiences == (expected if expected else [CLIENT_ID])
+    assert settings.accepted_audiences == (expected if expected else [API_CLIENT_ID, WEB_CLIENT_ID])
 
 
 @hypothesis_settings(max_examples=100)
 @given(foreign_audience=SAFE_TEXT)
 def test_any_foreign_audience_is_rejected_as_audience(foreign_audience: str) -> None:
     """Any aud outside the accepted set maps to the ``audience`` rejection reason."""
-    assume(foreign_audience != CLIENT_ID)
-    settings = AuthSettings(auth_issuer=ISSUER, auth_client_id=CLIENT_ID)
+    assume(foreign_audience not in (API_CLIENT_ID, WEB_CLIENT_ID))
+    settings = AuthSettings(
+        auth_issuer=ISSUER, auth_api_client_id=API_CLIENT_ID, auth_web_client_id=WEB_CLIENT_ID
+    )
     client = httpx.Client(transport=httpx.MockTransport(_idp_handler))
     verifier = AccessTokenVerifier(settings=settings, http_client=client, now=lambda: NOW)
     token = _sign(
