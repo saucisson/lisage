@@ -12,15 +12,20 @@ use lisage_core::observer::{
     ChannelAttr, ClassHistogram, Observer, ReductionRule, SpanKind, StructureChangeKind, TraceEvent,
 };
 
-/// Trace schema version (`{"v":5, ...}`): v2 adds the
+/// Trace schema version (`{"v":6, ...}`): v2 adds the
 /// `Attr`/`MemoHit`/`MemoMiss`/`Round` events of the step-by-step view (M2-6);
 /// v3 adds the `Histogram` event (MEM-17: degree histogram per class);
 /// v4 adds the spans of D1-1 — `SpanOpen`/`SpanClose` events and a `"span"`
 /// field on every other event; v5 adds the register events of D1-2 —
 /// `OpStart`/`OpEnd`/`VisitEntry`/`VisitExit`/`MemoConsult`/`MemoInsert`/
 /// `MemoryWrite`/`StructureChange`, plus the extended `NodeCreated`
-/// (`form`), `Gc` (`collected_list`) and `Round` (levels, handles, growth).
-pub const TRACE_VERSION: u32 = 5;
+/// (`form`), `Gc` (`collected_list`) and `Round` (levels, handles, growth);
+/// v6 adds the events of the in-place kernel (ADR-0109): the `Fire`
+/// span kind (`"fire"`) and the `LocalFire` event, one per local fire
+/// in firing order. New-in-v6 fields follow the English-only charter
+/// (M6): the legacy French field names of v1-v5 stay unchanged, the
+/// `LocalFire` fields are `fire`/`level`/`before`/`image`/`merged`.
+pub const TRACE_VERSION: u32 = 6;
 
 /// Minimal JSON escaping of a string (events carry no dynamic
 /// ones, but the contract stays correct).
@@ -54,6 +59,7 @@ fn name_span_kind(kind: SpanKind) -> &'static str {
     match kind {
         SpanKind::Op => "op",
         SpanKind::Round => "round",
+        SpanKind::Fire => "fire",
         SpanKind::Visit => "visite",
     }
 }
@@ -225,6 +231,20 @@ pub fn serialize_event(event: &TraceEvent) -> String {
             ),
         ),
         TraceEvent::Histogram { classes, .. } => ("Histogram", serialize_histogramme(classes)),
+        TraceEvent::LocalFire {
+            number,
+            level,
+            before,
+            image,
+            merged,
+            ..
+        } => (
+            "LocalFire",
+            format!(
+                "\"fire\":{number},\"level\":{level},\"before\":{},\"image\":{},\"merged\":{}",
+                before.0, image.0, merged.0
+            ),
+        ),
         TraceEvent::OpStart { fingerprint, .. } => {
             ("OpStart", format!("\"empreinte\":{fingerprint}"))
         }
@@ -374,7 +394,7 @@ impl Observer for JsonlObserver {
 // rejected, not silently upgraded — v3/v4/v5 added fields (histogram,
 // spans, register events) that a v2 line does not carry, so an upgrade
 // would fabricate `null` spans and empty registers; the correct path is
-// to re-run the scenario and produce a v5 trace.
+// to re-run the scenario and produce a current (`TRACE_VERSION`) trace.
 // ---------------------------------------------------------------------
 
 use crate::json::{self, Json};
@@ -522,6 +542,7 @@ pub fn deserialize_event(line: &str) -> Result<TraceEvent, String> {
             let kind = match field_str(&obj, "kind")?.as_str() {
                 "op" => SpanKind::Op,
                 "round" => SpanKind::Round,
+                "fire" => SpanKind::Fire,
                 "visite" => SpanKind::Visit,
                 other => return Err(format!("unknown span kind '{other}'")),
             };
@@ -617,6 +638,17 @@ pub fn deserialize_event(line: &str) -> Result<TraceEvent, String> {
             growth: field_num(&obj, "croissance")?,
             span,
         },
+        "LocalFire" => {
+            let (number, level) = (field_u32(&obj, "fire")?, field_u32(&obj, "level")?);
+            TraceEvent::LocalFire {
+                number,
+                level,
+                before: node("before")?,
+                image: node("image")?,
+                merged: node("merged")?,
+                span,
+            }
+        }
         "Histogram" => TraceEvent::Histogram {
             classes: field_arr(&obj, "classes")?
                 .iter()

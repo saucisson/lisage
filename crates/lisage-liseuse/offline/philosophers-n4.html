@@ -16,7 +16,7 @@
 </head>
 <body>
 <h1>lisage — philosophers trace (offline)</h1>
-<div class="stats">events: 202 | ops: 4 | rounds: 4</div>
+<div class="stats">events: 202 | ops: 4 | rounds: 4 | fires: 0</div>
 <div class="controls">
   <button onclick="step(-1)">← back</button>
   <button onclick="step(1)">step →</button>
@@ -24,6 +24,7 @@
   <button onclick="goto(TRACE.length-1)">⏭ end</button>
   <button onclick="showDashboard()">dashboard</button>
   <button onclick="showOps()">ops</button>
+  <button onclick="showFires()">fires</button>
 </div>
 <div id="status">position: 0 / 202</div>
 <div id="event"></div>
@@ -54,6 +55,18 @@ function showDashboard() {
 function showOps() {
   const ops = TRACE.filter(e => e.type === 'OpStart').map(e => e.fingerprint);
   document.getElementById('dashboard').textContent = 'ops: ' + ops.join(', ');
+}
+function showFires() {
+  const fires = TRACE.filter(e => e.type === 'LocalFire');
+  if (fires.length === 0) {
+    document.getElementById('dashboard').textContent = 'no local fires (not an in-place trace)';
+    return;
+  }
+  document.getElementById('dashboard').textContent = fires.map(f =>
+    'fire ' + f.fire + ' at level ' + f.level +
+    ' | before ' + f.before + ' + image ' + f.image + ' = merged ' + f.merged +
+    (f.before === f.merged ? ' | FIXPOINT' : '')
+  ).join('\n');
 }
 render();
 </script>

@@ -20,7 +20,7 @@ use lisage_core::transduction::{PhiOutContext, Transduction};
 use lisage_core::{Anchor, Form, Level, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
 
-use crate::spans::{Balances, SpanNode, SpanTree};
+use crate::spans::{Balances, SpanNode, SpanTree, fire_intervals, fire_lines, render_fire_lines};
 
 /// Fingerprint of the [`ChainStep`] scenario transduction.
 const CHAIN_STEP_FINGERPRINT: u64 = 4164;
@@ -218,6 +218,9 @@ pub enum Command {
     Display,
     /// D3-3: list the operations of the trace.
     Ops,
+    /// ADR-0109: list the local fires of the trace, in firing order
+    /// (the trace of the in-place kernel), one balance line per fire.
+    Fires,
 }
 
 /// Event kinds accepted by `until`.
@@ -239,6 +242,8 @@ pub enum EventKind {
     SpanOpen,
     /// `SpanClose`.
     SpanClose,
+    /// `LocalFire` (the in-place kernel, ADR-0109).
+    LocalFire,
 }
 
 impl EventKind {
@@ -253,6 +258,7 @@ impl EventKind {
             "memo-miss" => Some(EventKind::MemoMiss),
             "span-open" => Some(EventKind::SpanOpen),
             "span-close" => Some(EventKind::SpanClose),
+            "fire" => Some(EventKind::LocalFire),
             _ => None,
         }
     }
@@ -270,6 +276,7 @@ impl EventKind {
                 | (EventKind::MemoMiss, TraceEvent::MemoMiss { .. })
                 | (EventKind::SpanOpen, TraceEvent::SpanOpen { .. })
                 | (EventKind::SpanClose, TraceEvent::SpanClose { .. })
+                | (EventKind::LocalFire, TraceEvent::LocalFire { .. })
         )
     }
 }
@@ -303,6 +310,7 @@ pub fn parse_command(line: &str) -> Option<Command> {
         "diff" => Some(Command::Diff),
         "display" => Some(Command::Display),
         "ops" => Some(Command::Ops),
+        "fires" => Some(Command::Fires),
         _ => None,
     }
 }
@@ -322,6 +330,7 @@ pub fn event_kind_name(event: &TraceEvent) -> &'static str {
         TraceEvent::MemoMiss { .. } => "MemoMiss",
         TraceEvent::Gc { .. } => "Gc",
         TraceEvent::Round { .. } => "Round",
+        TraceEvent::LocalFire { .. } => "LocalFire",
         TraceEvent::Histogram { .. } => "Histogram",
         TraceEvent::OpStart { .. } => "OpStart",
         TraceEvent::OpEnd { .. } => "OpEnd",
@@ -468,6 +477,13 @@ impl Debugger {
                 self.visit_stack().len(),
             ),
             Command::Ops => self.inspector.ops_view(self.position),
+            Command::Fires => {
+                // ADR-0109: the firing-order view of the trace, one
+                // balance line per local fire of the in-place kernel.
+                let intervals = fire_intervals(&self.events, &self.tree);
+                let lines = fire_lines(&self.events, &self.balances, &intervals);
+                render_fire_lines(&lines).join("\n")
+            }
         }
     }
 

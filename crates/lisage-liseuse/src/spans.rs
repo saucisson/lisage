@@ -10,11 +10,16 @@
 //!   that changed nothing, `after == before` = fixpoint).
 //! - [`diff_rounds`] compares two rounds (DoD: diff round 11 vs 12) by
 //!   round-interval lookup + prefix sums, in O(1) after one O(n) pass.
+//! - [`fire_lines`] / [`render_fire_lines`] present the in-place kernel
+//!   (ADR-0109) as one balance line per local fire, in firing order,
+//!   with the fixpoint marker on the sterile fire (the fire that
+//!   changed nothing closes the local fixpoint of the visited node).
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::ops::Range;
 
+use lisage_core::NodeId;
 use lisage_core::observer::{SpanId, SpanKind, TraceEvent};
 
 use crate::index::IndexTrace;
@@ -321,6 +326,106 @@ pub fn render_balance_lines(lines: &[RoundLine]) -> Vec<String> {
             format!(
                 "round {}: events={} nodes_created={} hits={} growth={:+}{marker}",
                 line.number,
+                line.balance.events,
+                line.balance.nodes_created,
+                line.balance.hits,
+                line.balance.growth
+            )
+        })
+        .collect()
+}
+
+/// One balance line of the firing-order view (ADR-0109): a local fire
+/// of the in-place kernel with its folded balance and its marker — the
+/// sterile fire (`merged == before`) closes the local fixpoint of the
+/// visited node.
+#[derive(Clone, Copy, Debug)]
+pub struct FireLine {
+    /// Fire number, 1-based (the firing order of the kernel).
+    pub number: u32,
+    /// Level at which the fire happened.
+    pub level: u32,
+    /// Node before the fire (the visited node).
+    pub before: NodeId,
+    /// Node after the fire (`before ⊕ image`).
+    pub merged: NodeId,
+    /// Folded balance of the fire's event interval.
+    pub balance: Balance,
+    /// `true` when the fire changed nothing (`merged == before`): the
+    /// visited node reached its local fixpoint.
+    pub sterile: bool,
+}
+
+/// Fire number → event interval, built in one O(n) pass: the range of
+/// the fire's `Fire` span in the span tree (the span covers the whole
+/// fire, `SpanOpen..=SpanClose`); falls back to the position of the
+/// `LocalFire` event itself when the span is absent. Lookups in the
+/// returned map are O(1).
+pub fn fire_intervals(events: &[TraceEvent], tree: &SpanTree) -> BTreeMap<u32, Range<usize>> {
+    let mut intervals: BTreeMap<u32, Range<usize>> = BTreeMap::new();
+    for (position, event) in events.iter().enumerate() {
+        if let TraceEvent::LocalFire { number, span, .. } = event {
+            intervals.entry(*number).or_insert_with(|| {
+                span.and_then(|span| tree.span_range(span)).unwrap_or(position..position + 1)
+            });
+        }
+    }
+    intervals
+}
+
+/// Fire lines of the trace, in firing order (ADR-0109): the local
+/// fires of the in-place kernel, with their folded balance — same
+/// shape as [`round_lines`], one line per fire instead of one line
+/// per round.
+pub fn fire_lines(
+    events: &[TraceEvent],
+    balances: &Balances,
+    intervals: &BTreeMap<u32, Range<usize>>,
+) -> Vec<FireLine> {
+    let mut fires: Vec<(u32, u32, NodeId, NodeId)> = events
+        .iter()
+        .filter_map(|event| match event {
+            TraceEvent::LocalFire {
+                number,
+                level,
+                before,
+                merged,
+                ..
+            } => Some((*number, *level, *before, *merged)),
+            _ => None,
+        })
+        .collect();
+    fires.sort_unstable();
+    fires.dedup();
+    fires
+        .iter()
+        .map(|&(number, level, before, merged)| {
+            let range = intervals.get(&number).cloned().unwrap_or(0..0);
+            FireLine {
+                number,
+                level,
+                before,
+                merged,
+                balance: balances.balance(range),
+                sterile: before == merged,
+            }
+        })
+        .collect()
+}
+
+/// Renders the fire lines: one line per local fire, in firing order,
+/// with the fixpoint marker on the sterile fire.
+pub fn render_fire_lines(lines: &[FireLine]) -> Vec<String> {
+    lines
+        .iter()
+        .map(|line| {
+            let marker = if line.sterile { " fixpoint" } else { "" };
+            format!(
+                "fire {} at level {}: before {} -> merged {} events={} nodes_created={} hits={} growth={:+}{marker}",
+                line.number,
+                line.level,
+                line.before.0,
+                line.merged.0,
                 line.balance.events,
                 line.balance.nodes_created,
                 line.balance.hits,

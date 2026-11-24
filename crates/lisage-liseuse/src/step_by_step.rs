@@ -143,7 +143,8 @@ impl Scrubber {
                 | TraceEvent::MemoConsult { .. }
                 | TraceEvent::MemoInsert { .. }
                 | TraceEvent::MemoryWrite { .. }
-                | TraceEvent::StructureChange { .. } => {}
+                | TraceEvent::StructureChange { .. }
+                | TraceEvent::LocalFire { .. } => {}
             }
         }
         state

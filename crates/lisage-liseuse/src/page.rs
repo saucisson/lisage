@@ -27,6 +27,10 @@ pub fn render_offline_page(events: &[TraceEvent], title: &str) -> String {
         .iter()
         .filter(|event| matches!(event, TraceEvent::OpStart { .. }))
         .count();
+    let fire_count = events
+        .iter()
+        .filter(|event| matches!(event, TraceEvent::LocalFire { .. }))
+        .count();
 
     let events_json = render_events_json(events);
     let index_json = render_index_json(&index);
@@ -51,7 +55,7 @@ pub fn render_offline_page(events: &[TraceEvent], title: &str) -> String {
 </head>
 <body>
 <h1>{title}</h1>
-<div class="stats">events: {event_count} | ops: {op_count} | rounds: {round_count}</div>
+<div class="stats">events: {event_count} | ops: {op_count} | rounds: {round_count} | fires: {fire_count}</div>
 <div class="controls">
   <button onclick="step(-1)">← back</button>
   <button onclick="step(1)">step →</button>
@@ -59,6 +63,7 @@ pub fn render_offline_page(events: &[TraceEvent], title: &str) -> String {
   <button onclick="goto(TRACE.length-1)">⏭ end</button>
   <button onclick="showDashboard()">dashboard</button>
   <button onclick="showOps()">ops</button>
+  <button onclick="showFires()">fires</button>
 </div>
 <div id="status">position: 0 / {event_count}</div>
 <div id="event"></div>
@@ -90,6 +95,18 @@ function showOps() {{
   const ops = TRACE.filter(e => e.type === 'OpStart').map(e => e.fingerprint);
   document.getElementById('dashboard').textContent = 'ops: ' + ops.join(', ');
 }}
+function showFires() {{
+  const fires = TRACE.filter(e => e.type === 'LocalFire');
+  if (fires.length === 0) {{
+    document.getElementById('dashboard').textContent = 'no local fires (not an in-place trace)';
+    return;
+  }}
+  document.getElementById('dashboard').textContent = fires.map(f =>
+    'fire ' + f.fire + ' at level ' + f.level +
+    ' | before ' + f.before + ' + image ' + f.image + ' = merged ' + f.merged +
+    (f.before === f.merged ? ' | FIXPOINT' : '')
+  ).join('\n');
+}}
 render();
 </script>
 </body>
@@ -98,6 +115,7 @@ render();
         event_count = event_count,
         op_count = op_count,
         round_count = round_count,
+        fire_count = fire_count,
         events_json = events_json,
         index_json = index_json,
         spans_json = spans_json,
@@ -292,6 +310,22 @@ fn event_json(event: &TraceEvent) -> String {
                 span_json(*span)
             )
         }
+        TraceEvent::LocalFire {
+            number,
+            level,
+            before,
+            image,
+            merged,
+            span,
+        } => format!(
+            r#"{{"type":"LocalFire","fire":{},"level":{},"before":{},"image":{},"merged":{},"span":{}}}"#,
+            number,
+            level,
+            before.0,
+            image.0,
+            merged.0,
+            span_json(*span)
+        ),
         TraceEvent::OpStart { fingerprint, span } => format!(
             r#"{{"type":"OpStart","fingerprint":{},"span":{}}}"#,
             fingerprint,
@@ -456,5 +490,40 @@ mod tests {
         );
         assert!(json.contains(r#""rounds":4"#));
         assert!(json.contains(r#""ops":4"#));
+    }
+
+    /// ADR-0109: an in-place trace renders on the offline page — the
+    /// fire counter in the stats, the fires button, and the full
+    /// `LocalFire` payload in the embedded JSON.
+    #[test]
+    fn test_render_offline_page_local_fire() {
+        use lisage_core::observer::SpanKind;
+        let events = vec![
+            TraceEvent::SpanOpen {
+                span: SpanId(1),
+                kind: SpanKind::Fire,
+                lane: 0,
+            },
+            TraceEvent::LocalFire {
+                number: 4,
+                level: 2,
+                before: NodeId(7),
+                image: NodeId(10),
+                merged: NodeId(11),
+                span: Some(SpanId(1)),
+            },
+            TraceEvent::SpanClose { span: SpanId(1) },
+        ];
+        let html = render_offline_page(&events, "in-place trace");
+        assert!(html.contains("fires: 1"), "the stats carry the fire count");
+        assert!(html.contains("showFires()"), "the fires button is wired");
+        assert!(
+            html.contains(r#""type":"LocalFire""#),
+            "the fire event is embedded"
+        );
+        assert!(
+            html.contains(r#""fire":4,"level":2,"before":7,"image":10,"merged":11"#),
+            "the fire payload is embedded in full"
+        );
     }
 }
