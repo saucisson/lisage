@@ -38,6 +38,7 @@ GH_API_TIMEOUT_SECONDS = 30.0
 HTTP_SUCCESS_STATUS_CODE = 200
 HTTP_CREATED_STATUS_CODE = 201
 HTTP_NO_CONTENT_STATUS_CODE = 204
+GH_FAILURE_EXCEPTIONS: tuple[type[BaseException], ...] = (OSError, subprocess.TimeoutExpired)
 
 
 def try_gh_api(*, endpoint: str, method: str, payload_text: str | None) -> str | None:
@@ -62,7 +63,7 @@ def try_gh_api(*, endpoint: str, method: str, payload_text: str | None) -> str |
             check=False,
             timeout=GH_API_TIMEOUT_SECONDS,
         )
-    except OSError, subprocess.TimeoutExpired:
+    except GH_FAILURE_EXCEPTIONS:
         return None
     if completed_process.returncode != EXIT_CODE_SUCCESS:
         return None
