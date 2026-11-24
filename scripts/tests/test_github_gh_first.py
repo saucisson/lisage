@@ -1,6 +1,7 @@
 """Pin the gh-first GitHub client: gh first, REST fallback, fail closed (ADR-0108)."""
 
 import json
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -113,19 +114,19 @@ def test_rest_fallback_transport_error_fails_closed() -> None:
 
 def test_pull_request_has_merge_conflict_dirty_state() -> None:
     """mergeable_state == 'dirty' is a definitive conflict."""
-    pr = {"mergeable_state": "dirty", "mergeable": None}
+    pr: dict[str, Any] = {"mergeable_state": "dirty", "mergeable": None}
     assert _github.pull_request_has_merge_conflict(pull_request=pr) is True
 
 
 def test_pull_request_has_merge_conflict_mergeable_false() -> None:
     """mergeable == False is a conflict even without mergeable_state."""
-    pr = {"mergeable": False}
+    pr: dict[str, Any] = {"mergeable": False}
     assert _github.pull_request_has_merge_conflict(pull_request=pr) is True
 
 
 def test_pull_request_has_merge_conflict_unknown_is_not_conflict() -> None:
     """A missing mergeable (still computing) is NOT a conflict."""
-    pr = {"mergeable": None, "mergeable_state": "unknown"}
+    pr: dict[str, Any] = {"mergeable": None, "mergeable_state": "unknown"}
     assert _github.pull_request_has_merge_conflict(pull_request=pr) is False
 
 
@@ -138,7 +139,7 @@ def test_check_runs_allow_merge_empty_refuses() -> None:
 
 def test_check_runs_allow_merge_all_success_allows() -> None:
     """Every completed+succeeded check run allows the merge."""
-    runs = [
+    runs: list[dict[str, Any]] = [
         {"name": "lint", "status": "completed", "conclusion": "success"},
         {"name": "test", "status": "completed", "conclusion": "success"},
     ]
@@ -147,7 +148,7 @@ def test_check_runs_allow_merge_all_success_allows() -> None:
 
 def test_check_runs_allow_merge_failed_refuses() -> None:
     """A failed check run refuses the merge with the check named."""
-    runs = [
+    runs: list[dict[str, Any]] = [
         {"name": "lint", "status": "completed", "conclusion": "failure"},
     ]
     reason = _github.check_runs_allow_merge(check_runs=runs)
@@ -167,7 +168,7 @@ def test_fetch_pull_request_fails_closed_on_error() -> None:
 
 def test_github_request_serializes_json_payload() -> None:
     """A json_payload dict is serialized to JSON text for gh stdin."""
-    captured: dict[str, object] = {}
+    captured: dict[str, Any] = {}
 
     def fake_try_gh_api(*, endpoint: str, method: str, payload_text: str | None) -> str:
         captured["payload_text"] = payload_text
@@ -177,4 +178,6 @@ def test_github_request_serializes_json_payload() -> None:
         _github.github_request(
             endpoint="repos/o/r/pulls", method="POST", json_payload={"title": "x"}
         )
-    assert json.loads(captured["payload_text"]) == {"title": "x"}
+    payload_text = captured["payload_text"]
+    assert isinstance(payload_text, str)
+    assert json.loads(payload_text) == {"title": "x"}
