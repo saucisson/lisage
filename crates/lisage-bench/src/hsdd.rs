@@ -570,6 +570,17 @@ fn pc_index(pcs: &[u64], pc: u64) -> Option<usize> {
 /// O(n |pcs|^3) - the product is never expanded, the module is never
 /// duplicated.
 pub fn count_image(cells: &[Cell], n: u64, events: &[(u64, u64)]) -> Result<u64, ErrorHsdd> {
+    validate_ring_events(n, events)?;
+    let pcs = golden_pcs(cells);
+    let size = pcs.len();
+    let levels = build_levels(&pcs, n as usize, events);
+    let matrices = build_pair_matrices(&pcs, &levels, n as usize);
+    Ok(circular_trace(&matrices, size))
+}
+
+/// Validates the ring size and the event list (event id < EVENT_COUNT,
+/// position < n).
+fn validate_ring_events(n: u64, events: &[(u64, u64)]) -> Result<(), ErrorHsdd> {
     if n == 0 || n > LIMIT_POSITIONS {
         return Err(ErrorHsdd::RingSizeOutOfRange(n));
     }
@@ -578,76 +589,124 @@ pub fn count_image(cells: &[Cell], n: u64, events: &[(u64, u64)]) -> Result<u64,
             return Err(ErrorHsdd::EventOutOfRange { event, position });
         }
     }
-    // Golden pc alphabet, read from the module cells.
+    Ok(())
+}
+
+/// Golden pc alphabet, read from the module cells (sorted, deduplicated).
+fn golden_pcs(cells: &[Cell]) -> Vec<u64> {
     let mut pcs: Vec<u64> = cells.iter().map(|cell| cell.pc).collect();
     pcs.sort_unstable();
     pcs.dedup();
-    let depth = events.len();
+    pcs
+}
+
+/// pcs of every level of the chain at each position, as functions of the
+/// base (level 0) pc index: `levels[position][level][base]`.
+fn build_levels(pcs: &[u64], n: usize, events: &[(u64, u64)]) -> Vec<Vec<Vec<Option<usize>>>> {
     let size = pcs.len();
-    let n = n as usize;
-    // pcs of every level of the chain at each position, as functions of
-    // the base (level 0) pc index: `levels[position][level][base]`.
     let mut levels: Vec<Vec<Vec<Option<usize>>>> = Vec::with_capacity(n);
     for position in 0..n {
         let mut columns: Vec<Vec<Option<usize>>> = vec![(0..size).map(Some).collect()];
         for &(event, event_position) in events {
-            let previous = columns.last().expect("depth invariant");
-            let event_fires = event_position as usize == position;
-            let column: Vec<Option<usize>> = previous
-                .iter()
-                .map(|&maybe| {
-                    maybe.and_then(|index| {
-                        if event_fires {
-                            fire_pc(event, pcs[index]).and_then(|fired| pc_index(&pcs, fired))
-                        } else {
-                            Some(index)
-                        }
-                    })
-                })
-                .collect();
+            let column = next_level_column(pcs, &columns, event, event_position, position);
             columns.push(column);
         }
         levels.push(columns);
     }
-    // Pair matrices of the folded coupling: the pair (position, position +
-    // 1) of every level word must be legal (no two adjacent eaters).
+    levels
+}
+
+/// One level column at `position`: applies `event` when it fires there,
+/// otherwise copies the previous column.
+fn next_level_column(
+    pcs: &[u64],
+    columns: &[Vec<Option<usize>>],
+    event: u64,
+    event_position: u64,
+    position: usize,
+) -> Vec<Option<usize>> {
+    let previous = columns.last().expect("depth invariant");
+    let event_fires = event_position as usize == position;
+    previous
+        .iter()
+        .map(|&maybe| {
+            maybe.and_then(|index| {
+                if event_fires {
+                    fire_pc(event, pcs[index]).and_then(|fired| pc_index(pcs, fired))
+                } else {
+                    Some(index)
+                }
+            })
+        })
+        .collect()
+}
+
+/// Pair matrices of the folded coupling: the pair (position, position + 1)
+/// of every level word must be legal (no two adjacent eaters).
+fn build_pair_matrices(
+    pcs: &[u64],
+    levels: &[Vec<Vec<Option<usize>>>],
+    n: usize,
+) -> Vec<Vec<Vec<u64>>> {
+    let size = pcs.len();
+    let depth = levels
+        .first()
+        .map_or(0, |columns| columns.len().saturating_sub(1));
     let mut matrices: Vec<Vec<Vec<u64>>> = Vec::with_capacity(n);
     for position in 0..n {
         let next = (position + 1) % n;
         let mut matrix = vec![vec![0u64; size]; size];
-        for (u, _) in pcs.iter().enumerate() {
-            for (v, _) in pcs.iter().enumerate() {
-                let mut legal = true;
-                for column in 0..=depth {
-                    let (Some(current), Some(neighbour)) =
-                        (levels[position][column][u], levels[next][column][v])
-                    else {
-                        legal = false;
-                        break;
-                    };
-                    if pcs[current] == EAT && pcs[neighbour] == EAT {
-                        legal = false;
-                        break;
-                    }
-                }
-                matrix[u][v] = u64::from(legal);
+        for u in 0..size {
+            for v in 0..size {
+                matrix[u][v] = u64::from(pair_is_legal(pcs, levels, position, next, depth, u, v));
             }
         }
         matrices.push(matrix);
     }
-    // Circular trace of the heterogeneous pair matrices.
-    let mut product: Vec<Vec<u128>> = matrices[0]
-        .iter()
-        .map(|row| row.iter().map(|&value| value as u128).collect())
-        .collect();
+    matrices
+}
+
+/// Whether the pair (position u, next v) is legal across all level words:
+/// both indices resolve at every level and no two adjacent eaters appear.
+fn pair_is_legal(
+    pcs: &[u64],
+    levels: &[Vec<Vec<Option<usize>>>],
+    position: usize,
+    next: usize,
+    depth: usize,
+    u: usize,
+    v: usize,
+) -> bool {
+    for column in 0..=depth {
+        let (Some(current), Some(neighbour)) =
+            (levels[position][column][u], levels[next][column][v])
+        else {
+            return false;
+        };
+        if pcs[current] == EAT && pcs[neighbour] == EAT {
+            return false;
+        }
+    }
+    true
+}
+
+/// Circular trace of the heterogeneous pair matrices (sum of the diagonal
+/// of the product), counting the images without expanding the product.
+fn circular_trace(matrices: &[Vec<Vec<u64>>], size: usize) -> u64 {
+    let mut product: Vec<Vec<u128>> = lift_matrix(&matrices[0]);
     for matrix in &matrices[1..] {
-        let lifted: Vec<Vec<u128>> = matrix
-            .iter()
-            .map(|row| row.iter().map(|&value| value as u128).collect())
-            .collect();
+        let lifted = lift_matrix(matrix);
         product = multiply_matrix(&product, &lifted);
     }
-    Ok((0..size).map(|i| product[i][i]).sum::<u128>() as u64)
+    (0..size).map(|i| product[i][i]).sum::<u128>() as u64
+}
+
+/// Lifts a u64 matrix to u128 for the trace product.
+fn lift_matrix(matrix: &[Vec<u64>]) -> Vec<Vec<u128>> {
+    matrix
+        .iter()
+        .map(|row| row.iter().map(|&value| value as u128).collect())
+        .collect()
 }
 
 /// Fires `event` at `position` on a legal `pc` word of the golden thread
