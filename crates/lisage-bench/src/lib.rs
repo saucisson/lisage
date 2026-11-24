@@ -2,6 +2,7 @@
 
 pub mod confrontation;
 pub mod differential;
+pub mod hsdd;
 pub mod pnml;
 pub mod sdd;
 pub mod triptych;
@@ -21,3 +22,4 @@ pub fn lane_b(x: u32) -> u32 {
 pub fn lane_c(x: u32) -> u32 {
     x + 1
 }
+
