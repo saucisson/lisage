@@ -212,3 +212,90 @@ fn test_dod_scenario_n4_end_to_end() {
     // The session visited every round: 4 rounds in the scenario.
     assert_eq!(round_numbers(&standard_scenario(4)).len(), 4);
 }
+
+/// ADR-0109: a hand-built in-place trace — `Fire` spans holding the
+/// runner's `Op` span, one `LocalFire` event inside each — reads back
+/// through the command bus: `fires` lists the firing order with the
+/// fixpoint marker on the sterile fire, `until fire` jumps between
+/// fires, `where` names the event.
+#[test]
+fn test_fires_command_and_until_fire() {
+    let trace = vec![
+        TraceEvent::SpanOpen {
+            span: SpanId(1),
+            kind: SpanKind::Fire,
+            lane: 0,
+        }, // 0
+        TraceEvent::OpStart {
+            fingerprint: 42,
+            span: None,
+        }, // 1
+        TraceEvent::SpanOpen {
+            span: SpanId(2),
+            kind: SpanKind::Op,
+            lane: 0,
+        }, // 2
+        TraceEvent::SpanClose { span: SpanId(2) }, // 3
+        TraceEvent::OpEnd { span: None },           // 4
+        TraceEvent::LocalFire {
+            number: 1,
+            level: 1,
+            before: NodeId(5),
+            image: NodeId(6),
+            merged: NodeId(7),
+            span: Some(SpanId(1)),
+        }, // 5
+        TraceEvent::SpanClose { span: SpanId(1) }, // 6
+        TraceEvent::SpanOpen {
+            span: SpanId(3),
+            kind: SpanKind::Fire,
+            lane: 0,
+        }, // 7
+        TraceEvent::OpStart {
+            fingerprint: 42,
+            span: None,
+        }, // 8
+        TraceEvent::OpEnd { span: None }, // 9
+        TraceEvent::LocalFire {
+            number: 2,
+            level: 0,
+            before: NodeId(7),
+            image: NodeId(8),
+            merged: NodeId(7),
+            span: Some(SpanId(3)),
+        }, // 10 (sterile)
+        TraceEvent::SpanClose { span: SpanId(3) }, // 11
+    ];
+    let mut debugger = Debugger::new(trace);
+
+    // `until fire` walks the firing order, one fire at a time.
+    debugger.run(Command::Until(EventKind::LocalFire));
+    assert!(matches!(
+        debugger.current_event(),
+        Some(TraceEvent::LocalFire { number: 1, .. })
+    ));
+    debugger.run(Command::Until(EventKind::LocalFire));
+    assert!(matches!(
+        debugger.current_event(),
+        Some(TraceEvent::LocalFire { number: 2, .. })
+    ));
+    // `where` names the event and the enclosing `Fire` span.
+    debugger.run(Command::Goto(5));
+    let where_output = debugger.run(Command::Where);
+    assert!(where_output.contains("LocalFire"), "{where_output}");
+    assert!(where_output.contains("Fire[0..7]"), "{where_output}");
+
+    // `fires` lists the firing order with the fixpoint marker.
+    let fires_output = debugger.run(Command::Fires);
+    assert_eq!(fires_output.lines().count(), 2, "{fires_output}");
+    assert!(fires_output.contains("fire 1 at level 1"), "{fires_output}");
+    assert!(fires_output.contains("fire 2 at level 0"), "{fires_output}");
+    assert!(fires_output.contains(" fixpoint"), "{fires_output}");
+
+    // Parsing: `fires` and `until fire`.
+    assert_eq!(parse_command("fires"), Some(Command::Fires));
+    assert_eq!(
+        parse_command("until fire"),
+        Some(Command::Until(EventKind::LocalFire))
+    );
+}

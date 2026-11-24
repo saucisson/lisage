@@ -31,6 +31,11 @@ fn all_the_events() -> Vec<TraceEvent> {
             kind: SpanKind::Visit,
             lane: 0,
         },
+        TraceEvent::SpanOpen {
+            span: SpanId(4),
+            kind: SpanKind::Fire,
+            lane: 0,
+        },
         TraceEvent::SpanClose { span: SpanId(1) },
         TraceEvent::NodeCreated {
             node: NodeId(7),
@@ -113,6 +118,14 @@ fn all_the_events() -> Vec<TraceEvent> {
             image: NodeId(8),
             after: NodeId(9),
             growth: -3,
+            span,
+        },
+        TraceEvent::LocalFire {
+            number: 4,
+            level: 2,
+            before: NodeId(7),
+            image: NodeId(10),
+            merged: NodeId(11),
             span,
         },
         TraceEvent::Histogram {
@@ -247,10 +260,10 @@ fn test_equality_event_without_values_lazy() {
 }
 
 /// Unknown versions are rejected explicitly — including v2 (documented
-/// decision: no silent upgrade, re-run to produce a v5 trace).
+/// decision: no silent upgrade, re-run to produce a v6 trace).
 #[test]
 fn test_rejection_versions_inconnues() {
-    for version in [0, 2, 3, 4, 6, 99] {
+    for version in [0, 2, 3, 4, 5, 99] {
         let line = format!("{{\"v\":{version},\"type\":\"OpEnd\",\"span\":null}}");
         let error = deserialize_event(&line).unwrap_err();
         assert!(
@@ -272,20 +285,20 @@ fn test_rejection_versions_inconnues() {
 #[test]
 fn test_rejection_entries_malformed() {
     assert!(deserialize_event("not json").is_err());
-    assert!(deserialize_event("{\"v\":5,\"type\":\"Nope\",\"span\":null}").is_err());
-    assert!(deserialize_event("{\"v\":5,\"type\":\"OpStart\",\"span\":null}").is_err());
-    assert!(deserialize_event("{\"v\":5,\"type\":\"MemoHit\",\"span\":null}").is_err());
+    assert!(deserialize_event("{\"v\":6,\"type\":\"Nope\",\"span\":null}").is_err());
+    assert!(deserialize_event("{\"v\":6,\"type\":\"OpStart\",\"span\":null}").is_err());
+    assert!(deserialize_event("{\"v\":6,\"type\":\"MemoHit\",\"span\":null}").is_err());
     assert!(
-        deserialize_event("{\"v\":5,\"type\":\"SpanOpen\",\"span\":1,\"kind\":\"x\",\"lane\":0}")
+        deserialize_event("{\"v\":6,\"type\":\"SpanOpen\",\"span\":1,\"kind\":\"x\",\"lane\":0}")
             .is_err()
     );
-    let doc = "{\"v\":5,\"type\":\"OpEnd\",\"span\":null}\n\
-               {\"v\":5,\"type\":\"MemoHit\",\"span\":null}\n";
+    let doc = "{\"v\":6,\"type\":\"OpEnd\",\"span\":null}\n\
+               {\"v\":6,\"type\":\"MemoHit\",\"span\":null}\n";
     let error = deserialize_trace(doc).unwrap_err();
     assert_eq!(error.line, 2, "the failing line is reported");
     assert!(error.message.contains("noeud"), "{}", error.message);
     // Empty lines are skipped.
-    let doc = "\n{\"v\":5,\"type\":\"OpEnd\",\"span\":null}\n\n";
+    let doc = "\n{\"v\":6,\"type\":\"OpEnd\",\"span\":null}\n\n";
     assert_eq!(deserialize_trace(doc).unwrap().len(), 1);
 }
 

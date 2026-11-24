@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use lisage_core::arena::Arena;
+use lisage_core::inplace::saturate_in_place;
 use lisage_core::observer::{Observer, SpanKind, TraceEvent};
 use lisage_core::saturate::{PolicySaturation, SaturationParameters, saturate};
 use lisage_core::schema::{
@@ -17,8 +18,8 @@ use lisage_core::{Anchor, Form, Level, NodeId, Pool};
 use lisage_lang::value::{Atom, Value};
 use lisage_liseuse::index::IndexTrace;
 use lisage_liseuse::spans::{
-    Balances, SpanTree, convergence_round, diff_rounds, render_balance_lines, round_intervals,
-    round_lines,
+    Balances, SpanTree, convergence_round, diff_rounds, fire_intervals, fire_lines,
+    render_balance_lines, render_fire_lines, round_intervals, round_lines,
 };
 
 /// Observer that collects the typed events in memory.
@@ -166,6 +167,55 @@ fn saturation_trace(n: u64) -> Vec<TraceEvent> {
     assert_eq!(
         result.iterations, n as u32,
         "the chain saturates in n rounds"
+    );
+    collector.take()
+}
+
+/// Runs the same chain scenario through the in-place kernel
+/// (`saturate_in_place`, ADR-0109): a real trace whose chronological
+/// units are the local fires — one `Fire` span and one `LocalFire`
+/// event per fire, in firing order.
+fn in_place_trace(n: u64) -> Vec<TraceEvent> {
+    let schema = Schema::Set(Domain::new((0..n).map(Atom).collect()));
+    let keys = SchemaKeys::new(schema.clone());
+    let mut pool = Arena::new(
+        ReferenceController::new(schema.clone()),
+        Box::new(lisage_core::observer::NoOpObserver),
+    );
+    let anchor = Anchor(0);
+    let initial = compiler(
+        &mut pool,
+        anchor,
+        &schema,
+        &Value::Set([Value::Atom(Atom(0))].into_iter().collect()),
+    )
+    .unwrap();
+
+    let collector = Collector::default();
+    // The policy is ignored by the in-place kernel (documented).
+    let policy = PolicySaturation::AutoDetected;
+    let step = Successor {
+        number_levels: schema.number_levels(),
+    };
+    let mut params = SaturationParameters {
+        transduction: &step,
+        policy: &policy,
+        pool: &mut pool,
+        keys: &keys,
+        anchor,
+        initial,
+        number_levels: schema.number_levels(),
+        observer: Some(Arc::new(collector.clone())),
+    };
+    let result = saturate_in_place(&mut params).unwrap();
+    assert_eq!(
+        result.iterations as usize,
+        collector
+            .take()
+            .iter()
+            .filter(|event| matches!(event, TraceEvent::LocalFire { .. }))
+            .count(),
+        "the fire counter and the LocalFire events agree"
     );
     collector.take()
 }
@@ -357,4 +407,64 @@ fn test_diff_rounds_11_vs_12() {
 
     // Display renders the signed components.
     assert!(format!("{delta}").contains("growth=+"));
+}
+
+/// ADR-0109: the firing-order view over a real in-place trace — one
+/// `Fire` root per local fire (each holding the runner's `Op` span),
+/// one fire line per fire, numbered from 1 in firing order, and the
+/// fixpoint marker on the sterile fire.
+#[test]
+fn test_firing_order_view_in_place_n4() {
+    let events = in_place_trace(4);
+    let tree = SpanTree::build(&events);
+    let balances = Balances::build(&events);
+    let intervals = fire_intervals(&events, &tree);
+    let lines = fire_lines(&events, &balances, &intervals);
+
+    // The span tree: every root is a `Fire` span holding exactly one
+    // `Op` span (the runner of the fire).
+    let roots = tree.roots();
+    assert!(!roots.is_empty(), "the in-place trace has fire spans");
+    for root in roots {
+        assert_eq!(root.kind, SpanKind::Fire, "fire spans are the roots");
+        assert_eq!(root.children.len(), 1, "the fire holds one runner op");
+        assert_eq!(root.children[0].kind, SpanKind::Op, "the child is an op");
+    }
+
+    // One line per local fire, numbered from 1 in firing order —
+    // `render_fire_lines` mirrors `fire_lines` line by line.
+    assert_eq!(lines.len(), roots.len(), "one line per fire span");
+    for (position, line) in lines.iter().enumerate() {
+        assert_eq!(
+            line.number,
+            position as u32 + 1,
+            "the lines follow the firing order"
+        );
+        assert!(line.level < 4, "the fire happens at a level of the schema");
+    }
+    // A fire is either productive (the merged node grows) or sterile;
+    // the last fire of the kernel is sterile (the root fixpoint).
+    assert!(lines.iter().any(|line| line.sterile), "at least one sterile fire");
+    assert!(lines.last().expect("at least one fire").sterile, "the last fire is sterile");
+
+    // The rendered lines carry the numbering, the level and the marker.
+    let rendered = render_fire_lines(&lines);
+    assert_eq!(rendered.len(), lines.len());
+    assert!(rendered[0].starts_with("fire 1 at level "), "{rendered[0]}");
+    assert!(
+        rendered.iter().any(|line| line.contains(" fixpoint")),
+        "the sterile fire carries the fixpoint marker"
+    );
+
+    // The balances fold the fire intervals: the total of the fires
+    // covers the `NodeCreated` events triggered by the fires.
+    let created_in_fires: usize = lines.iter().map(|line| line.balance.nodes_created).sum();
+    let created_total: usize = events
+        .iter()
+        .filter(|event| matches!(event, TraceEvent::NodeCreated { .. }))
+        .count();
+    assert!(
+        created_in_fires <= created_total,
+        "the fires cannot create more nodes than the trace"
+    );
 }
