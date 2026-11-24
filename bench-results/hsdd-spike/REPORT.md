@@ -63,7 +63,8 @@ exact cardinality by structural fold, all inside the existing pool API.
   original spike read and counted only; the stacked brick (section
   "Transductions across the boundary" below) fires the events and
   folds their images.
-- No recursive saturation / nested modules (#388): one tower level only.
+- Recursive saturation / nested modules (#388): covered by the stacked
+  brick (section "Recursive saturation through the ring" below).
 - No external witness (#391): compared against lisage's own enumeration
   oracle and the pinned golden series, not against an external DD library.
 - No timing publication: this is a correctness + storage-shape spike, not
@@ -116,3 +117,66 @@ a stored image hierarchy (closed under the guards, reusable) is the
 subject of the #386 design.
 
 Reproduce: `cargo test -p lisage-bench --test hsdd_transduction`.
+
+## Recursive saturation through the ring (HSDD-6, issue #388)
+
+Stacked brick on the transductions (follow-up pull request, branch
+`feat/hsdd-saturation`): a **firing set** - one bit per module-local
+event - as data on the arc of one new pool-opaque `LEVEL_SATURATION`
+node, hash-consed, target the tower it saturates (the ring, or another
+saturation node: recursive saturation, chains stack one node per
+level). One node per (set, target); the ring and the module are never
+duplicated, whatever n.
+
+Semantics by structural fold, to the fixpoint: the per-position pair
+matrices of the coupling are seeded at the **initial state** (every
+philosopher thinks) and grown **in place** - a sweep fires every event
+of the set at every position, position i after position i - 1, reading
+its fresh pairs, so information travels the whole ring in one sweep (the
+in-place firing of DDD saturation). The `eat` guards stay in the pair
+legality: the illegal (eat, eat) pair is never written, on both sides of
+the fired cell. The closed count is the circular trace of the product;
+the ring is never expanded. Fold == BFS oracle, asserted for n = 3..=7
+and all seven non-empty firing sets.
+
+Measured (fold == BFS oracle everywhere; rounds = sweeps through the
+ring, confirming sweep included), pins on ring 3:
+
+| firing set (n = 3) | closure | rounds |
+|---|---|---|
+| hungry | 8 | 2 |
+| eat | 1 | 0 |
+| think | 1 | 0 |
+| hungry + think | 8 | 2 |
+| eat + think | 1 | 0 |
+| hungry + eat | 20 | 2 |
+| all three | 20 | 2 |
+
+| n | golden \|R_n\| | saturated closure (full set) | rounds |
+|---|---|---|---|
+| 3 | 20 | 20 | 2 |
+| 4 | 56 | 56 | 2 |
+| 5 | 152 | 152 | 2 |
+| 6 | 416 | 416 | 2 |
+| 7 | 1136 | 1136 | 2 |
+
+Findings:
+
+- The saturation closure IS the reachability set the spike folded: the
+  full set recovers the golden thread exactly, in two sweeps whatever n.
+- `hungry` alone closes on the {think, hungry} words (2^3 = 8: every
+  position is independently think or hungry, no eater ever appears);
+  `eat` or `think` alone never fire from the initial state (closure 1,
+  zero sweeps).
+- `hungry` + `eat` already saturates to the golden thread: `think` is
+  enabled on the eaters of the closure, but every image it produces is
+  already in it - the closure, not the run length, is what the count
+  measures.
+- Recursive saturation is idempotent: nesting the full set over its own
+  closure adds no sweep (n = 6: 416, same rounds) - and the read chain
+  (`read_saturation`) exposes the nested sets, innermost first, without
+  duplicating the ring or the module.
+- Storage: one node per (firing set, target), measured in-test; the
+  sweeps never intern anything, the closure lives in the fold.
+
+Reproduce: `cargo test -p lisage-bench --test hsdd_saturation`.

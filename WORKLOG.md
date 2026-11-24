@@ -46,6 +46,66 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #NNN, issue #388, stacked on #394)
+
+- **Issue**: #388 (HSDD-6) + parent #382. Closes nothing by design:
+  this is the fixpoint brick stacked on the transductions of #394.
+- **Done**: `crates/lisage-bench/src/hsdd.rs` grows the saturation
+  section: a **firing set** (one bit per module-local event) as data
+  on the arc of one new pool-opaque `LEVEL_SATURATION` node,
+  hash-consed, one node per (set, target), ring and module never
+  duplicated; nested sets stack chains above their target (recursive
+  saturation, `read_saturation` mirrors `read_transduction`); new
+  tests `crates/lisage-bench/tests/hsdd_saturation.rs` (5). The
+  closure is computed by structural fold over the shared coupling:
+  per-position pair matrices seeded at the **initial state** (every
+  philosopher thinks), grown **in place** by sweeps of the firing set
+  through the positions (position i fires after position i - 1 and
+  reads its fresh pairs, so information travels the ring in one
+  sweep - the in-place firing of DDD saturation), `eat` guards
+  carried by the pair legality (the illegal (eat, eat) pair is never
+  written, both sides of the fired cell), closed count by circular
+  trace. The ring is never expanded, the module is never duplicated.
+  Report section appended in `bench-results/hsdd-spike/REPORT.md`.
+- **Evidence**: `cargo test -p lisage-bench --test hsdd_saturation`:
+  5 passed, 0 failed (fold == BFS oracle for n = 3..=7 and all seven
+  firing sets, golden recovery, ring-3 pins, storage, idempotence);
+  the stacked bases stay green (`--test hsdd`, `--test
+  hsdd_transduction`: 5 each); full `cargo test -p lisage-bench`:
+  122 passed, 0 failed, 11 ignored (117 + the 5 new); `cargo clippy
+  -p lisage-bench --all-targets -- -D warnings`: clean; `cargo fmt
+  --all -- --check`: clean. Measured with a temporary bin (deleted):
+  the full set saturates the initial state to exactly the golden
+  |R_n| (20/56/152/416/1136) in two sweeps per n = 3..=7; `hungry`
+  alone closes on the {think, hungry} words (2^n, two sweeps), `eat`
+  or `think` alone never fire from the initial state (1, zero
+  sweeps); nesting the full set over its own closure is idempotent
+  (same count 416 at n = 6, same sweeps). NOT run: full `make check`
+  (the english-only scanner crashes at import in the spike
+  environment, pre-existing `Sequence` bug in `scripts/_shared.py`;
+  manual accent scan of the touched files: clean), CI. The sweep
+  timing is not a PERF deposit (no machine fingerprint).
+- **Judgement calls**: (1) the fixpoint sweeps stay outside the
+  pool, above stored event nodes: the chain demonstrates the tower
+  height and the storage (one node per set, nested chains), the
+  closure matrices are the fold's own state - keeping C6 (zero core
+  change) beats interning intermediate matrices nobody reads;
+  (2) rounds count the sweeps through the ring, confirming sweep
+  included, zero for a seed that is already closed: a sweep is the
+  unit a policy layer would schedule (Hamez's strategy), so the
+  confirming sweep is the honest work cost; (3) firing order inside
+  a sweep: positions in ring order, the set applied per position -
+  the in-place cascade carries information once around the ring per
+  sweep (measured: two sweeps to the golden fixpoint whatever n);
+  (4) #388 is accepted partially: the convergence differential
+  (closure == flat reachable set == golden, BFS-oracle-checked) and
+  the O(1)-per-set storage are measured, but the Observer-visible
+  rounds, the self-detected policy and the per-fragment
+  sub-fixpoints need core integration and stay open in the issue.
+- **Escalations**: none.
+
+---
+
 ## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #394, issue #387, stacked on #393)
 
 - **Issue**: #387 (HSDD-5) + parent #382. Closes nothing by design:
