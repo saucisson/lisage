@@ -69,6 +69,7 @@ One entry per commit or pull request:
   pass, including the 4 new `inplace.rs` tests).
 - **Escalations**: none.
 ## 2026-11-24 - HSDD spike: set-valued instantiation above the flat pool (issue #382, milestone HSDD)
+## 2026-11-24 - HSDD spike: set-valued instantiation above the flat pool (PR #393, issue #382, milestone HSDD)
 
 - **Issue**: #382 (HSDD parent, spike scope). Closes nothing by design:
   the spike produces evidence for the sub-issues - #383 (reduction ADR
