@@ -1,11 +1,13 @@
 # ADR-0108: Bench configuration axis — two tiers, selection grids, tool idiom
 
-- Status: draft (awaiting human acceptance)
+- Status: accepted (accepted by the human owner on 2026-11-24)
 - Date: 2026-11-24
 
 > Drafted alongside the BENCH-MC milestone issues (labels `area/bench`,
-> `jalon/BENCH-MC`). Extends ADR-0102 (local Docker witnesses). Agents draft
-> ADRs inside a pull request; only the human owner accepts them.
+> `jalon/BENCH-MC`, milestone BENCH-MC #30). Extends ADR-0102 (local Docker
+> witnesses). Agents draft ADRs inside a pull request; only the human owner
+> accepts them. Accepted by the human owner on 2026-11-24.
+
 
 ## Context
 
