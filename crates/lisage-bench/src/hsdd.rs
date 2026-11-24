@@ -790,9 +790,15 @@ impl Saturation {
 
 /// Packs an event set into the arc key of a saturation node: the whole set
 /// is **data on the arc** (one bit per module-local event), never a form.
+///
+/// # Panics
+///
+/// Panics when an event id is outside the alphabet (`event >= EVENT_COUNT`):
+/// the shift would overflow or silently alias in release builds.
 pub fn pack_event_set(events: &[u64]) -> u64 {
     let mut set = 0u64;
     for &event in events {
+        assert!(event < EVENT_COUNT, "event id {event} outside the alphabet");
         set |= 1 << event;
     }
     set
@@ -892,31 +898,59 @@ fn fire_position(
         let Some(v) = pc_index(alphabet, fired) else {
             continue;
         };
-        for (a, &left) in alphabet.iter().enumerate() {
-            if matrices[before][a][u] == 0 {
-                continue;
-            }
-            // The left neighbour eats: the `eat` guard skips the firing.
-            if left == EAT && alphabet[v] == EAT {
-                continue;
-            }
-            if matrices[before][a][v] == 0 {
-                matrices[before][a][v] = 1;
-                changed = true;
-            }
+        changed |= fire_left_guard(matrices, alphabet, before, u, v);
+        changed |= fire_right_guard(matrices, alphabet, position, u, v);
+    }
+    changed
+}
+
+/// Left-neighbour leg of the firing: writes the pair (before, position) for
+/// every left index `a`, skipping when the left neighbour eats and the
+/// fired cell is `eat` (the `eat` boundary guard).
+fn fire_left_guard(
+    matrices: &mut [Vec<Vec<u64>>],
+    alphabet: &[u64],
+    before: usize,
+    u: usize,
+    v: usize,
+) -> bool {
+    let mut changed = false;
+    for (a, &left) in alphabet.iter().enumerate() {
+        if matrices[before][a][u] == 0 {
+            continue;
         }
-        for (b, &right) in alphabet.iter().enumerate() {
-            if matrices[position][u][b] == 0 {
-                continue;
-            }
-            // The right neighbour eats: the `eat` guard skips the firing.
-            if alphabet[v] == EAT && right == EAT {
-                continue;
-            }
-            if matrices[position][v][b] == 0 {
-                matrices[position][v][b] = 1;
-                changed = true;
-            }
+        if left == EAT && alphabet[v] == EAT {
+            continue;
+        }
+        if matrices[before][a][v] == 0 {
+            matrices[before][a][v] = 1;
+            changed = true;
+        }
+    }
+    changed
+}
+
+/// Right-neighbour leg of the firing: writes the pair (position, next) for
+/// every right index `b`, skipping when the fired cell is `eat` and the
+/// right neighbour eats (the `eat` boundary guard).
+fn fire_right_guard(
+    matrices: &mut [Vec<Vec<u64>>],
+    alphabet: &[u64],
+    position: usize,
+    u: usize,
+    v: usize,
+) -> bool {
+    let mut changed = false;
+    for (b, &right) in alphabet.iter().enumerate() {
+        if matrices[position][u][b] == 0 {
+            continue;
+        }
+        if alphabet[v] == EAT && right == EAT {
+            continue;
+        }
+        if matrices[position][v][b] == 0 {
+            matrices[position][v][b] = 1;
+            changed = true;
         }
     }
     changed
