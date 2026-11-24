@@ -8,6 +8,15 @@
 //! (`Δ_out` may differ from `Δ_in`, spec § 3.2): `psi` and `φ_out` write
 //! themselves (spec: "φ_out is the only rule that writes the diagram"),
 //! always by interning (A3: canonical result by construction).
+//!
+//! Observability of the memory and of the S channel (deferred ADR-0109
+//! tracks, trace v7): `φ_out` reads the level memory through
+//! [`MemoryProbe`], which emits one `MemoryRead` event per consultation;
+//! every op closes with a `MemoryState` event (version, entries — the
+//! `(0, 0)` witness of a nil memory `M = ()`); and the synthesized
+//! attribute is emitted at **every** completed visit — terminal visits
+//! (`ψ`) and memo hits included — so the S channel travels fully
+//! traced.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
@@ -51,17 +60,57 @@ fn classifier_structure(
 use crate::error::CoreError;
 use crate::memory::{EffectMemory, MemoryLevel};
 use crate::observer::{
-    ChannelAttr, Observer, SpanKind, StructureChangeKind, TraceEvent, Traceable, contextualize,
-    next_span_id, pop_span, push_span,
+    ChannelAttr, Observer, SpanKind, StructureChangeKind, TraceEvent, TraceVal, Traceable,
+    contextualize, next_span_id, pop_span, push_span,
 };
 
 /// Memo key: (operation fingerprint, node, inherited attribute,
 /// level-memory version) — lemma L1.
 type KeyMemo<H> = (u64, NodeId, H, u64);
 
+/// Read handle of the level memory exposed to `φ_out` by
+/// [`PhiOutContext`] (M2-3 + the deferred ADR-0109 tracks): same lookup
+/// semantics as [`MemoryLevel::read`], but the consultation is
+/// **observed** — each `read` emits a [`TraceEvent::MemoryRead`] when
+/// the owning runner has an observer. Before trace v7, the reads of
+/// `φ_out` were the invisible half of the memory channel: writes were
+/// traced, reads were not.
+///
+/// A probe without observer never allocates events (the hot path pays
+/// one branch per read); the nil-memory witness of a transduction with
+/// `M = ()` is carried by the per-op [`TraceEvent::MemoryState`] of the
+/// runner, not by reads.
+pub struct MemoryProbe<'a, M: Clone + Eq + Hash + Debug + Traceable> {
+    /// Observed level memory (M2-3).
+    memory: &'a MemoryLevel<M>,
+    /// Observer of the owning runner, captured at context
+    /// construction: emitting does not borrow the runner (the probe
+    /// travels into `φ_out` while `effect.apply` still needs `&mut` on
+    /// the runner's memory afterwards).
+    observer: Option<Arc<dyn Observer>>,
+}
+
+impl<M: Clone + Eq + Hash + Debug + Traceable> MemoryProbe<'_, M> {
+    /// Read of `(node, level)` (M2-3): returns the stored value, and
+    /// emits one `MemoryRead` event — key, hit flag, value — when an
+    /// observer is attached.
+    pub fn read(&self, node: NodeId, level: Level) -> Option<&M> {
+        let value = self.memory.read(node, level);
+        if let Some(observer) = &self.observer {
+            observer.on_event(&contextualize(TraceEvent::MemoryRead {
+                node,
+                level: level.0,
+                hit: value.is_some(),
+                value: value.map(|v| v.trace_val()).unwrap_or(TraceVal::Elided),
+            }));
+        }
+        value
+    }
+}
+
 /// Context of `φ_out` (T-NODE): groups the restructuring parameters
 /// (spec § 3.1: `φ_out(ℓ, h, {v ↦ (D', s)}, M)`).
-pub struct PhiOutContext<'a, H, S, M: Clone + Eq + Hash + Debug> {
+pub struct PhiOutContext<'a, H, S, M: Clone + Eq + Hash + Debug + Traceable> {
     /// Anchor of the root.
     pub anchor: Anchor,
     /// Level of the node being restructured.
@@ -70,8 +119,9 @@ pub struct PhiOutContext<'a, H, S, M: Clone + Eq + Hash + Debug> {
     pub h: &'a H,
     /// Already-transduced children: `{v ↦ (D', s)}`.
     pub arcs: BTreeMap<u64, (NodeId, S)>,
-    /// Level memory in read (M2-3).
-    pub memory: &'a MemoryLevel<M>,
+    /// Level memory in read (M2-3), through the observed probe: each
+    /// `read` emits a `MemoryRead` trace event (ADR-0109 tracks).
+    pub memory: MemoryProbe<'a, M>,
     /// Input node being visited (key of the level memory).
     pub node_input: NodeId,
 }
@@ -241,6 +291,16 @@ impl<T: Transduction> Transducer<T> {
             span: None,
         });
         let result = self.run_with(pool_input, pool_output, anchor, node, h);
+        // ADR-0109 tracks: the level memory at the end of the op — the
+        // traceable witness of a nil memory (`M = ()`: version 0, no
+        // entry) or of the effective writes of `M ≠ ()`. Emitted just
+        // before `OpEnd`, inside the `Op` span, so the register
+        // sequence keeps its shape (`OpEnd` stays second to last).
+        self.notifier(TraceEvent::MemoryState {
+            version: self.memory.version(),
+            entries: self.memory.size(),
+            span: None,
+        });
         self.notifier(TraceEvent::OpEnd { span: None });
         self.close_span(span);
         result
@@ -266,6 +326,14 @@ impl<T: Transduction> Transducer<T> {
             span: None,
         });
         let result = self.run_with_same_pool(pool, anchor, node, h);
+        // ADR-0109 tracks: same per-op memory state as `run` (one per
+        // round of the reference kernel, one per local fire of the
+        // in-place kernel).
+        self.notifier(TraceEvent::MemoryState {
+            version: self.memory.version(),
+            entries: self.memory.size(),
+            span: None,
+        });
         self.notifier(TraceEvent::OpEnd { span: None });
         self.close_span(span);
         result
@@ -294,6 +362,12 @@ impl<T: Transduction> Transducer<T> {
             span: None,
         });
         let result = self.run_with_same_pool(pool, anchor, node, h);
+        // ADR-0109 tracks: same per-op memory state as `run`.
+        self.notifier(TraceEvent::MemoryState {
+            version: self.memory.version(),
+            entries: self.memory.size(),
+            span: None,
+        });
         self.notifier(TraceEvent::OpEnd { span: None });
         self.close_span(span);
         result
@@ -361,6 +435,17 @@ impl<T: Transduction> Transducer<T> {
                 span: None,
             });
             self.notifier(TraceEvent::MemoHit { node, span: None });
+            // ADR-0109 tracks (S channel): the synthesized attribute of
+            // a memo hit flows up again — the S channel is emitted every
+            // time a value travels, not only when it was computed
+            // (otherwise the parent would aggregate an input that the
+            // trace never showed).
+            self.notifier(TraceEvent::Attr {
+                channel: ChannelAttr::Synthesized,
+                node,
+                value: s.trace_val(),
+                span: None,
+            });
             return Ok((*result, s.clone()));
         }
         self.notifier(TraceEvent::MemoConsult {
@@ -376,7 +461,19 @@ impl<T: Transduction> Transducer<T> {
         // D1-2: structural summary of the input form, for the StructureChange.
         let structure_before = extract_structure(&form);
         let (result, s) = match form {
-            Form::Terminal(payload) => self.transduction.psi(pool_output, anchor, payload, &h),
+            Form::Terminal(payload) => {
+                let pair = self.transduction.psi(pool_output, anchor, payload, &h);
+                // ADR-0109 tracks (S channel): the synthesized attribute
+                // of a terminal visit (`ψ`) is emitted like the one of a
+                // node visit — every completed visit emits its S value.
+                self.notifier(TraceEvent::Attr {
+                    channel: ChannelAttr::Synthesized,
+                    node,
+                    value: pair.1.trace_val(),
+                    span: None,
+                });
+                pair
+            }
             Form::Node { level, arcs } => {
                 let mut children = BTreeMap::new();
                 let mut s_arcs = BTreeMap::new();
@@ -410,7 +507,10 @@ impl<T: Transduction> Transducer<T> {
                     level,
                     h: &h,
                     arcs: children,
-                    memory: &self.memory,
+                    memory: MemoryProbe {
+                        memory: &self.memory,
+                        observer: self.observer.clone(),
+                    },
                     node_input: node,
                 };
                 let (node_result, effect) = self.transduction.phi_out(pool_output, ctx);
@@ -538,6 +638,15 @@ impl<T: Transduction> Transducer<T> {
                 span: None,
             });
             self.notifier(TraceEvent::MemoHit { node, span: None });
+            // ADR-0109 tracks (S channel): the synthesized attribute of
+            // a memo hit flows up again — same emission as the two-pool
+            // variant.
+            self.notifier(TraceEvent::Attr {
+                channel: ChannelAttr::Synthesized,
+                node,
+                value: s.trace_val(),
+                span: None,
+            });
             return Ok((*result, s.clone()));
         }
         self.notifier(TraceEvent::MemoConsult {
@@ -553,7 +662,19 @@ impl<T: Transduction> Transducer<T> {
         // D1-2: structural summary of the input form, for the StructureChange.
         let structure_before = extract_structure(&form);
         let (result, s) = match form {
-            Form::Terminal(payload) => self.transduction.psi(pool, anchor, payload, &h),
+            Form::Terminal(payload) => {
+                let pair = self.transduction.psi(pool, anchor, payload, &h);
+                // ADR-0109 tracks (S channel): the synthesized attribute
+                // of a terminal visit (`ψ`), emitted like the one of a
+                // node visit.
+                self.notifier(TraceEvent::Attr {
+                    channel: ChannelAttr::Synthesized,
+                    node,
+                    value: pair.1.trace_val(),
+                    span: None,
+                });
+                pair
+            }
             Form::Node { level, arcs } => {
                 let mut children = BTreeMap::new();
                 let mut s_arcs = BTreeMap::new();
@@ -587,7 +708,10 @@ impl<T: Transduction> Transducer<T> {
                     level,
                     h: &h,
                     arcs: children,
-                    memory: &self.memory,
+                    memory: MemoryProbe {
+                        memory: &self.memory,
+                        observer: self.observer.clone(),
+                    },
                     node_input: node,
                 };
                 let (node_result, effect) = self.transduction.phi_out(pool, ctx);
