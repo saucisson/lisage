@@ -1437,31 +1437,24 @@ pub struct FragmentedClosure {
 /// guard rides the shared coupling). Parent passes repeat until the
 /// whole ring is stable; the trace carries one round event per parent
 /// pass.
-/// One parent pass over the ring: every window of `fragment` consecutive
-/// positions fires to its local fixpoint. Returns the set of modified
-/// positions.
-fn fire_parent_pass(
-    matrices: &mut [Vec<Vec<u64>>],
-    pcs: &[u64],
+/// Mutable state threaded through the fragment firing helpers.
+struct FragmentFire<'a> {
+    matrices: &'a mut [Vec<Vec<u64>>],
+    pcs: &'a [u64],
     set: u64,
     n: usize,
     fragment: usize,
-    firings: &mut u64,
-    local_fixpoints: &mut u64,
-) -> BTreeSet<usize> {
+    firings: u64,
+    local_fixpoints: u64,
+}
+
+/// One parent pass over the ring: every window of `fragment` consecutive
+/// positions fires to its local fixpoint. Returns the set of modified
+/// positions.
+fn fire_parent_pass(state: &mut FragmentFire<'_>) -> BTreeSet<usize> {
     let mut modified = BTreeSet::new();
-    for start in 0..n {
-        fire_window_to_fixpoint(
-            matrices,
-            pcs,
-            set,
-            n,
-            fragment,
-            start,
-            firings,
-            local_fixpoints,
-            &mut modified,
-        );
+    for start in 0..state.n {
+        fire_window_to_fixpoint(state, start, &mut modified);
     }
     modified
 }
@@ -1469,27 +1462,21 @@ fn fire_parent_pass(
 /// Fires one window (starting at `start`, length `fragment`) to its local
 /// fixpoint: the window keeps sweeping until a pass changes nothing.
 fn fire_window_to_fixpoint(
-    matrices: &mut [Vec<Vec<u64>>],
-    pcs: &[u64],
-    set: u64,
-    n: usize,
-    fragment: usize,
+    state: &mut FragmentFire<'_>,
     start: usize,
-    firings: &mut u64,
-    local_fixpoints: &mut u64,
     modified: &mut BTreeSet<usize>,
 ) {
     loop {
         let mut window_changed = false;
-        for offset in 0..fragment {
-            let position = (start + offset) % n;
-            *firings += 1;
-            if fire_set_at(matrices, pcs, set, position) {
+        for offset in 0..state.fragment {
+            let position = (start + offset) % state.n;
+            state.firings += 1;
+            if fire_set_at(state.matrices, state.pcs, state.set, position) {
                 modified.insert(position);
                 window_changed = true;
             }
         }
-        *local_fixpoints += 1;
+        state.local_fixpoints += 1;
         if !window_changed {
             break;
         }
@@ -1517,20 +1504,21 @@ pub fn saturate_fragments(
     let all: BTreeSet<usize> = (0..n).collect();
     let mut number = 1u32;
     let mut rounds = 0u64;
-    let mut firings = 0u64;
-    let mut local_fixpoints = 0u64;
+    let mut firings_total = 0u64;
+    let mut local_fixpoints_total = 0u64;
     for &set in &sets {
+        let mut state = FragmentFire {
+            matrices: &mut matrices,
+            pcs: &pcs,
+            set,
+            n,
+            fragment,
+            firings: 0,
+            local_fixpoints: 0,
+        };
         let mut productive = 0u64;
         loop {
-            let modified = fire_parent_pass(
-                &mut matrices,
-                &pcs,
-                set,
-                n,
-                fragment,
-                &mut firings,
-                &mut local_fixpoints,
-            );
+            let modified = fire_parent_pass(&mut state);
             emit_round(observer, number, &all, &modified, root);
             number += 1;
             if modified.is_empty() {
@@ -1541,6 +1529,8 @@ pub fn saturate_fragments(
         if productive > 0 {
             rounds += productive + 1;
         }
+        firings_total += state.firings;
+        local_fixpoints_total += state.local_fixpoints;
     }
     let closed = trace_count(&matrices, pcs.len());
     emit_op_end(observer, op);
@@ -1549,7 +1539,7 @@ pub fn saturate_fragments(
             count: closed,
             rounds,
         },
-        firings,
-        local_fixpoints,
+        firings: firings_total,
+        local_fixpoints: local_fixpoints_total,
     })
 }
