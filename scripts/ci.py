@@ -16,13 +16,13 @@ verdict:
   budgets).
 
 A merge conflict is the FIRST suspect whenever CI seems stuck
-(ADR-0022) - it is the most common cause: the driver checks the pull
+(ADR-0108) - it is the most common cause: the driver checks the pull
 request's mergeable state on every poll and exits 1 immediately with
 the conflict named, instead of waiting for a CI verdict that cannot
 carry the head.
 
 Every GitHub operation goes through the gh client first, with the
-REST API as the fallback when gh fails (ADR-0022).
+REST API as the fallback when gh fails (ADR-0108).
 
 The wait follows the CURRENT head: if the branch is re-pushed while
 waiting, the driver switches to the new head and keeps waiting -

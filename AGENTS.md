@@ -39,7 +39,7 @@ If you are unsure which role this session assigns you, stop and ask.
 - `gh` is the GitHub surface for a session: pull requests, issues,
   labels and milestones are read through the `gh` CLI, and the
   drivers (`scripts/`) call `gh api` first with a REST fallback
-  (ADR-0022, ported from project-template ADR-0008). Hand-coded HTTP
+  (ADR-0108, ported from project-template ADR-0008). Hand-coded HTTP
   to the GitHub API outside the drivers' fallback is denied.
 - `main` can move without `daily` (template sync, hotfix, release):
   the day session reconciles early, right after `make day-start`, via
@@ -48,7 +48,7 @@ If you are unsure which role this session assigns you, stop and ask.
   unattended sessions never run it, and `main` is never rewritten.
 - The morning directive (issue list) is set by the human and is **never
   edited by agents**.
-- The merge-path CI stays **short** (ADR-0022): only the fast gates
+- The merge-path CI stays **short** (ADR-0108): only the fast gates
   (lint, types, unit tier, secret scan, rust quality gate) run on it.
   The dependency audit (pip-audit, cargo audit) lives in
   `dependency-audit.yml` and only runs when a lockfile moves or on a

@@ -300,7 +300,7 @@ def post_review_comment(
 ) -> None:
     """Post the review comment via gh (fallback REST); warn, never mask the verdict."""
     # Deferred import, on purpose: review-bundle stays stdlib-only.
-    from scripts._github import github_request  # noqa: PLC0415
+    from scripts._github import HTTP_CREATED_STATUS_CODE, HTTP_SUCCESS_STATUS_CODE, github_request  # noqa: PLC0415
 
     comment_path = review_directory / "review-comment.md"
     if not comment_path.is_file():
@@ -311,7 +311,7 @@ def post_review_comment(
         method="POST",
         json_payload={"body": comment_path.read_text(encoding="utf-8")},
     )
-    if status_code not in (200, 201):
+    if status_code not in (HTTP_SUCCESS_STATUS_CODE, HTTP_CREATED_STATUS_CODE):
         print(
             f"Warning: could not post the review comment"
             f" (status {status_code}); the verdict is unchanged,"

@@ -4,7 +4,7 @@ In the auto-discovered night loop (``make night`` without ISSUES) each
 session picks its own item, so its FIRST act is to claim it:
 ``make claim ISSUE=N`` or ``make claim-pr PR=N`` adds the
 ``night-claimed`` label through the GitHub API (gh client first, REST
-fallback, ADR-0022; the issues endpoint serves pull requests too).
+fallback, ADR-0108; the issues endpoint serves pull requests too).
 The claim is both the concurrency guard and the honesty record:
 
 - two sessions never work the same item (the loop filters claimed
@@ -22,7 +22,12 @@ claim, no work.
 import sys
 from typing import TYPE_CHECKING
 
-from scripts._github import fetch_issue, github_request
+from scripts._github import (
+    HTTP_CREATED_STATUS_CODE,
+    HTTP_SUCCESS_STATUS_CODE,
+    fetch_issue,
+    github_request,
+)
 from scripts._shared import (
     CLAIM_LABEL_NAME,
     EXIT_CODE_CRITERIA_UNMET,
@@ -36,7 +41,6 @@ if TYPE_CHECKING:
 
 CLAIM_LABEL_COLOR = "d4c5f9"
 CLAIM_LABEL_DESCRIPTION = "Claimed by an unattended night session (ADR-0017)"
-HTTP_SUCCESS_STATUS_CODE = 200
 EXIT_CODE_CLAIMED = EXIT_CODE_SUCCESS  # a subcommand-local alias, same protocol code
 
 
@@ -86,7 +90,7 @@ def ensure_claim_label(*, repository_slug: str) -> None:
             "description": CLAIM_LABEL_DESCRIPTION,
         },
     )
-    if creation_status == HTTP_SUCCESS_STATUS_CODE:
+    if creation_status in (HTTP_SUCCESS_STATUS_CODE, HTTP_CREATED_STATUS_CODE):
         return
     print(
         f"Error: could not create the {CLAIM_LABEL_NAME} label"
@@ -108,7 +112,7 @@ def add_claim_label(
         method="POST",
         json_payload={"labels": [CLAIM_LABEL_NAME]},
     )
-    if status_code != HTTP_SUCCESS_STATUS_CODE:
+    if status_code not in (HTTP_SUCCESS_STATUS_CODE, HTTP_CREATED_STATUS_CODE):
         print(
             f"Error: could not claim #{issue_number}"
             f" ({status_code}) - do not work an unclaimed item.",
