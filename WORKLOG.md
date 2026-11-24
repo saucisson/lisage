@@ -71,6 +71,7 @@ One entry per commit or pull request:
 ## 2026-11-24 - HSDD spike: set-valued instantiation above the flat pool (issue #382, milestone HSDD)
 ## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #401, issue #387, stacked on #393)
 ## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #NNN, issue #388, stacked on #394)
+## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #395, issue #388, stacked on #394)
 
 - **Issue**: #388 (HSDD-6) + parent #382. Closes nothing by design:
   this is the fixpoint brick stacked on the transductions of #394.
