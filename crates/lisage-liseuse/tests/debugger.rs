@@ -4,7 +4,7 @@
 //! the span tree. DoD: the standard scenario n=4 runs end-to-end.
 
 use lisage_core::NodeId;
-use lisage_core::observer::{SpanId, SpanKind, TraceEvent};
+use lisage_core::observer::{SpanId, SpanKind, TraceEvent, TraceVal};
 use lisage_liseuse::debugger::{
     Command, Debugger, EventKind, parse_command, round_numbers, standard_scenario,
 };
@@ -298,4 +298,90 @@ fn test_fires_command_and_until_fire() {
         parse_command("until fire"),
         Some(Command::Until(EventKind::LocalFire))
     );
+}
+
+/// ADR-0109 deferred tracks (v7): the memory events are first-class
+/// `until` targets and `where` names them, with `memory-read` and
+/// `memory-state` parsed as command words.
+#[test]
+fn test_until_memory_events() {
+    let trace = vec![
+        TraceEvent::OpStart {
+            fingerprint: 7,
+            span: None,
+        }, // 0
+        TraceEvent::MemoryRead {
+            node: NodeId(2),
+            level: 1,
+            hit: false,
+            value: TraceVal::Elided,
+            span: None,
+        }, // 1
+        TraceEvent::MemoryWrite {
+            version_before: 0,
+            version_after: 1,
+            span: None,
+        }, // 2
+        TraceEvent::MemoryRead {
+            node: NodeId(2),
+            level: 1,
+            hit: true,
+            value: TraceVal::text("1"),
+            span: None,
+        }, // 3
+        TraceEvent::MemoryState {
+            version: 1,
+            entries: 1,
+            span: None,
+        }, // 4
+        TraceEvent::OpEnd { span: None }, // 5
+    ];
+    let mut debugger = Debugger::new(trace);
+
+    // `until memory-read` stops on each read, hit or miss.
+    debugger.run(Command::Until(EventKind::MemoryRead));
+    assert!(matches!(
+        debugger.current_event(),
+        Some(TraceEvent::MemoryRead { hit: false, .. })
+    ));
+    debugger.run(Command::Until(EventKind::MemoryRead));
+    assert!(matches!(
+        debugger.current_event(),
+        Some(TraceEvent::MemoryRead { hit: true, .. })
+    ));
+    // No read left: `until` stops at the end of the trace.
+    debugger.run(Command::Until(EventKind::MemoryRead));
+    assert_eq!(debugger.current_event(), None);
+
+    // `until memory-state` lands on the per-op state event.
+    debugger.run(Command::Goto(0));
+    debugger.run(Command::Until(EventKind::MemoryState));
+    assert!(matches!(
+        debugger.current_event(),
+        Some(TraceEvent::MemoryState { version: 1, entries: 1, .. })
+    ));
+
+    // `where` names the new kinds.
+    debugger.run(Command::Goto(1));
+    let where_output = debugger.run(Command::Where);
+    assert!(where_output.contains("MemoryRead"), "{where_output}");
+    debugger.run(Command::Goto(4));
+    let where_output = debugger.run(Command::Where);
+    assert!(where_output.contains("MemoryState"), "{where_output}");
+
+    // Parsing: the command words of the v7 events.
+    assert_eq!(
+        parse_command("until memory-read"),
+        Some(Command::Until(EventKind::MemoryRead))
+    );
+    assert_eq!(
+        parse_command("until memory-state"),
+        Some(Command::Until(EventKind::MemoryState))
+    );
+    // `memory` still inspects the memory view (D3-3): the view covers
+    // the events strictly before the cursor.
+    debugger.run(Command::Goto(5));
+    let memory_output = debugger.run(Command::Memory);
+    assert!(memory_output.contains("reads: 1 hit / 1 miss"), "{memory_output}");
+    assert!(memory_output.contains("states: v1 e1 @ 4"), "{memory_output}");
 }

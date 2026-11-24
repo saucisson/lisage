@@ -60,11 +60,11 @@ fn set(pool: &mut PoolRef, anchor: Anchor, schema: &Schema, atoms: &[u64]) -> No
     .unwrap()
 }
 
-/// M2-6 / D1-1 / D1-2: the trace schema is versioned v6 and serializes the
+/// M2-6 / D1-1 / D1-2: the trace schema is versioned v7 and serializes the
 /// step-by-step events, each carrying its `"span"` field.
 #[test]
-fn test_serialization_v6_events_step_by_step() {
-    assert_eq!(TRACE_VERSION, 6);
+fn test_serialization_v7_events_step_by_step() {
+    assert_eq!(TRACE_VERSION, 7);
     let attr = serialize_event(&TraceEvent::Attr {
         channel: ChannelAttr::Inherited,
         node: NodeId(3),
@@ -73,21 +73,21 @@ fn test_serialization_v6_events_step_by_step() {
     });
     assert_eq!(
         attr,
-        "{\"v\":6,\"type\":\"Attr\",\"span\":null,\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
+        "{\"v\":7,\"type\":\"Attr\",\"span\":null,\"canal\":\"herite\",\"noeud\":3,\"valeur\":\"Transfert(1)\"}"
     );
     assert_eq!(
         serialize_event(&TraceEvent::MemoHit {
             node: NodeId(7),
             span: None
         }),
-        "{\"v\":6,\"type\":\"MemoHit\",\"span\":null,\"noeud\":7}"
+        "{\"v\":7,\"type\":\"MemoHit\",\"span\":null,\"noeud\":7}"
     );
     assert_eq!(
         serialize_event(&TraceEvent::MemoMiss {
             node: NodeId(8),
             span: None
         }),
-        "{\"v\":6,\"type\":\"MemoMiss\",\"span\":null,\"noeud\":8}"
+        "{\"v\":7,\"type\":\"MemoMiss\",\"span\":null,\"noeud\":8}"
     );
     assert_eq!(
         serialize_event(&TraceEvent::Round {
@@ -100,7 +100,7 @@ fn test_serialization_v6_events_step_by_step() {
             growth: 2,
             span: None
         }),
-        "{\"v\":6,\"type\":\"Round\",\"span\":null,\"numero\":2,\"niveaux_actifs\":[0,1],\"niveaux_modifies\":[1],\"avant\":4,\"image\":5,\"apres\":6,\"croissance\":2}"
+        "{\"v\":7,\"type\":\"Round\",\"span\":null,\"numero\":2,\"niveaux_actifs\":[0,1],\"niveaux_modifies\":[1],\"avant\":4,\"image\":5,\"apres\":6,\"croissance\":2}"
     );
     assert_eq!(
         serialize_event(&TraceEvent::Gc {
@@ -110,7 +110,7 @@ fn test_serialization_v6_events_step_by_step() {
             collected_list: vec![NodeId(3), NodeId(4)],
             span: None,
         }),
-        "{\"v\":6,\"type\":\"Gc\",\"span\":null,\"vivants\":12,\"collectes\":5,\"compaction\":true,\"liste_collectes\":[3,4]}"
+        "{\"v\":7,\"type\":\"Gc\",\"span\":null,\"vivants\":12,\"collectes\":5,\"compaction\":true,\"liste_collectes\":[3,4]}"
     );
     assert_eq!(
         serialize_event(&TraceEvent::Attr {
@@ -119,7 +119,35 @@ fn test_serialization_v6_events_step_by_step() {
             value: TraceVal::text("true"),
             span: None,
         }),
-        "{\"v\":6,\"type\":\"Attr\",\"span\":null,\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
+        "{\"v\":7,\"type\":\"Attr\",\"span\":null,\"canal\":\"memoire\",\"noeud\":1,\"valeur\":\"true\"}"
+    );
+    assert_eq!(
+        serialize_event(&TraceEvent::MemoryRead {
+            node: NodeId(2),
+            level: 1,
+            hit: true,
+            value: TraceVal::text("1"),
+            span: None,
+        }),
+        "{\"v\":7,\"type\":\"MemoryRead\",\"span\":null,\"node\":2,\"level\":1,\"hit\":true,\"value\":\"1\"}"
+    );
+    assert_eq!(
+        serialize_event(&TraceEvent::MemoryRead {
+            node: NodeId(3),
+            level: 0,
+            hit: false,
+            value: TraceVal::Elided,
+            span: None,
+        }),
+        "{\"v\":7,\"type\":\"MemoryRead\",\"span\":null,\"node\":3,\"level\":0,\"hit\":false,\"value\":\"…\"}"
+    );
+    assert_eq!(
+        serialize_event(&TraceEvent::MemoryState {
+            version: 4,
+            entries: 2,
+            span: None,
+        }),
+        "{\"v\":7,\"type\":\"MemoryState\",\"span\":null,\"version\":4,\"entries\":2}"
     );
 }
 
@@ -679,9 +707,9 @@ fn test_spans_saturation_round() {
     );
 }
 
-/// D1-1: golden serialization of the span boundary events (schema v6).
+/// D1-1: golden serialization of the span boundary events (schema v7).
 #[test]
-fn test_serialization_span_open_close_v6() {
+fn test_serialization_span_open_close_v7() {
     use lisage_core::observer::{SpanId, SpanKind};
 
     assert_eq!(
@@ -690,7 +718,7 @@ fn test_serialization_span_open_close_v6() {
             kind: SpanKind::Op,
             lane: 0,
         }),
-        "{\"v\":6,\"type\":\"SpanOpen\",\"span\":9,\"kind\":\"op\",\"lane\":0}"
+        "{\"v\":7,\"type\":\"SpanOpen\",\"span\":9,\"kind\":\"op\",\"lane\":0}"
     );
     assert_eq!(
         serialize_event(&TraceEvent::SpanOpen {
@@ -698,11 +726,11 @@ fn test_serialization_span_open_close_v6() {
             kind: SpanKind::Visit,
             lane: 2,
         }),
-        "{\"v\":6,\"type\":\"SpanOpen\",\"span\":10,\"kind\":\"visite\",\"lane\":2}"
+        "{\"v\":7,\"type\":\"SpanOpen\",\"span\":10,\"kind\":\"visite\",\"lane\":2}"
     );
     assert_eq!(
         serialize_event(&TraceEvent::SpanClose { span: SpanId(9) }),
-        "{\"v\":6,\"type\":\"SpanClose\",\"span\":9}"
+        "{\"v\":7,\"type\":\"SpanClose\",\"span\":9}"
     );
     // A spanned event renders its span id.
     assert_eq!(
@@ -710,6 +738,6 @@ fn test_serialization_span_open_close_v6() {
             node: NodeId(7),
             span: Some(SpanId(10)),
         }),
-        "{\"v\":6,\"type\":\"MemoHit\",\"span\":10,\"noeud\":7}"
+        "{\"v\":7,\"type\":\"MemoHit\",\"span\":10,\"noeud\":7}"
     );
 }

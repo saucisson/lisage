@@ -33,10 +33,10 @@ use std::collections::BTreeMap;
 use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, NodeId, Pool};
 
 use crate::fold::union;
-use crate::memory::{EffectMemory, MemoryLevel};
+use crate::memory::EffectMemory;
 use crate::observer::{TraceVal, Traceable};
 use crate::schema::{ABSENT, Domain, PRESENT, Schema, SchemaKeys};
-use crate::transduction::{PhiOutContext, Transduction};
+use crate::transduction::{MemoryProbe, PhiOutContext, Transduction};
 use lisage_lang::value::Atom;
 
 /// Base fingerprint of the transfer transduction.
@@ -148,7 +148,7 @@ impl TransferNonLocal {
         &self,
         pool: &mut P,
         anchor: Anchor,
-        memory: &MemoryLevel<bool>,
+        memory: &MemoryProbe<'_, bool>,
         node_input: NodeId,
         level: Level,
         arcs: BTreeMap<u64, (NodeId, ())>,
@@ -293,7 +293,7 @@ impl Transduction for TransferNonLocal {
             node_input,
         } = ctx;
         let (arcs, effect) = if level == self.level_source() {
-            self.decrement_source(pool, anchor, memory, node_input, level, arcs)
+            self.decrement_source(pool, anchor, &memory, node_input, level, arcs)
         } else if level == Schema::level_presence(self.index_destination)
             && matches!(h, StateTransfer::Transfer(_))
         {

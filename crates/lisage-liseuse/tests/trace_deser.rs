@@ -172,6 +172,25 @@ fn all_the_events() -> Vec<TraceEvent> {
             version_after: 1,
             span,
         },
+        TraceEvent::MemoryRead {
+            node: NodeId(7),
+            level: 2,
+            hit: true,
+            value: TraceVal::Text("1".to_string()),
+            span,
+        },
+        TraceEvent::MemoryRead {
+            node: NodeId(8),
+            level: 0,
+            hit: false,
+            value: TraceVal::Elided,
+            span: None,
+        },
+        TraceEvent::MemoryState {
+            version: 3,
+            entries: 2,
+            span,
+        },
         TraceEvent::StructureChange {
             node: NodeId(7),
             classification: StructureChangeKind::Collapse,
@@ -229,8 +248,9 @@ fn test_round_trip_document() {
 }
 
 /// Event-level equality for the events without lazy values (the lazy
-/// `TraceVal` fragments become `Text` on deserialization — covered by
-/// the line-level round-trip above).
+/// `TraceVal` fragments and the elided `MemoryRead` miss value become
+/// `Text` on deserialization — covered by the line-level round-trip
+/// above).
 #[test]
 fn test_equality_event_without_values_lazy() {
     for event in all_the_events() {
@@ -240,6 +260,7 @@ fn test_equality_event_without_values_lazy() {
                 | TraceEvent::Attr { .. }
                 | TraceEvent::MemoConsult { .. }
                 | TraceEvent::MemoInsert { .. }
+                | TraceEvent::MemoryRead { .. }
         );
         if a_lazy {
             continue;
@@ -259,11 +280,12 @@ fn test_equality_event_without_values_lazy() {
     assert_eq!(back, event);
 }
 
-/// Unknown versions are rejected explicitly — including v2 (documented
-/// decision: no silent upgrade, re-run to produce a v6 trace).
+/// Unknown versions are rejected explicitly — including v2 and the
+/// superseded v6 (documented decision: no silent upgrade, re-run to
+/// produce a v7 trace).
 #[test]
 fn test_rejection_versions_inconnues() {
-    for version in [0, 2, 3, 4, 5, 99] {
+    for version in [0, 2, 3, 4, 5, 6, 99] {
         let line = format!("{{\"v\":{version},\"type\":\"OpEnd\",\"span\":null}}");
         let error = deserialize_event(&line).unwrap_err();
         assert!(
@@ -285,20 +307,20 @@ fn test_rejection_versions_inconnues() {
 #[test]
 fn test_rejection_entries_malformed() {
     assert!(deserialize_event("not json").is_err());
-    assert!(deserialize_event("{\"v\":6,\"type\":\"Nope\",\"span\":null}").is_err());
-    assert!(deserialize_event("{\"v\":6,\"type\":\"OpStart\",\"span\":null}").is_err());
-    assert!(deserialize_event("{\"v\":6,\"type\":\"MemoHit\",\"span\":null}").is_err());
+    assert!(deserialize_event("{\"v\":7,\"type\":\"Nope\",\"span\":null}").is_err());
+    assert!(deserialize_event("{\"v\":7,\"type\":\"OpStart\",\"span\":null}").is_err());
+    assert!(deserialize_event("{\"v\":7,\"type\":\"MemoHit\",\"span\":null}").is_err());
     assert!(
-        deserialize_event("{\"v\":6,\"type\":\"SpanOpen\",\"span\":1,\"kind\":\"x\",\"lane\":0}")
+        deserialize_event("{\"v\":7,\"type\":\"SpanOpen\",\"span\":1,\"kind\":\"x\",\"lane\":0}")
             .is_err()
     );
-    let doc = "{\"v\":6,\"type\":\"OpEnd\",\"span\":null}\n\
-               {\"v\":6,\"type\":\"MemoHit\",\"span\":null}\n";
+    let doc = "{\"v\":7,\"type\":\"OpEnd\",\"span\":null}\n\
+               {\"v\":7,\"type\":\"MemoHit\",\"span\":null}\n";
     let error = deserialize_trace(doc).unwrap_err();
     assert_eq!(error.line, 2, "the failing line is reported");
     assert!(error.message.contains("noeud"), "{}", error.message);
     // Empty lines are skipped.
-    let doc = "\n{\"v\":6,\"type\":\"OpEnd\",\"span\":null}\n\n";
+    let doc = "\n{\"v\":7,\"type\":\"OpEnd\",\"span\":null}\n\n";
     assert_eq!(deserialize_trace(doc).unwrap().len(), 1);
 }
 

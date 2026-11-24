@@ -244,6 +244,10 @@ pub enum EventKind {
     SpanClose,
     /// `LocalFire` (the in-place kernel, ADR-0109).
     LocalFire,
+    /// `MemoryRead` (the observed reads of `φ_out`, ADR-0109 tracks).
+    MemoryRead,
+    /// `MemoryState` (the per-op level-memory state, ADR-0109 tracks).
+    MemoryState,
 }
 
 impl EventKind {
@@ -259,6 +263,8 @@ impl EventKind {
             "span-open" => Some(EventKind::SpanOpen),
             "span-close" => Some(EventKind::SpanClose),
             "fire" => Some(EventKind::LocalFire),
+            "memory-read" => Some(EventKind::MemoryRead),
+            "memory-state" => Some(EventKind::MemoryState),
             _ => None,
         }
     }
@@ -277,6 +283,8 @@ impl EventKind {
                 | (EventKind::SpanOpen, TraceEvent::SpanOpen { .. })
                 | (EventKind::SpanClose, TraceEvent::SpanClose { .. })
                 | (EventKind::LocalFire, TraceEvent::LocalFire { .. })
+                | (EventKind::MemoryRead, TraceEvent::MemoryRead { .. })
+                | (EventKind::MemoryState, TraceEvent::MemoryState { .. })
         )
     }
 }
@@ -339,6 +347,8 @@ pub fn event_kind_name(event: &TraceEvent) -> &'static str {
         TraceEvent::MemoConsult { .. } => "MemoConsult",
         TraceEvent::MemoInsert { .. } => "MemoInsert",
         TraceEvent::MemoryWrite { .. } => "EcritureMemoire",
+        TraceEvent::MemoryRead { .. } => "MemoryRead",
+        TraceEvent::MemoryState { .. } => "MemoryState",
         TraceEvent::StructureChange { .. } => "StructureChange",
     }
 }

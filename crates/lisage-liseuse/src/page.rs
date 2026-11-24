@@ -387,6 +387,30 @@ fn event_json(event: &TraceEvent) -> String {
             version_after,
             span_json(*span)
         ),
+        TraceEvent::MemoryRead {
+            node,
+            level,
+            hit,
+            value,
+            span,
+        } => format!(
+            r#"{{"type":"MemoryRead","node":{},"level":{},"hit":{},"value":"{}","span":{}}}"#,
+            node.0,
+            level,
+            hit,
+            json_escape(&value.render()),
+            span_json(*span)
+        ),
+        TraceEvent::MemoryState {
+            version,
+            entries,
+            span,
+        } => format!(
+            r#"{{"type":"MemoryState","version":{},"entries":{},"span":{}}}"#,
+            version,
+            entries,
+            span_json(*span)
+        ),
         TraceEvent::StructureChange {
             node,
             classification,
@@ -490,6 +514,37 @@ mod tests {
         );
         assert!(json.contains(r#""rounds":4"#));
         assert!(json.contains(r#""ops":4"#));
+    }
+
+    /// ADR-0109 deferred tracks: the memory and S-channel events render
+    /// on the offline page with their full payload (trace v7).
+    #[test]
+    fn test_render_offline_page_memory_events() {
+        let events = vec![
+            TraceEvent::MemoryRead {
+                node: NodeId(5),
+                level: 2,
+                hit: true,
+                value: lisage_core::observer::TraceVal::text("42"),
+                span: None,
+            },
+            TraceEvent::MemoryState {
+                version: 3,
+                entries: 7,
+                span: None,
+            },
+        ];
+        let html = render_offline_page(&events, "memory trace");
+        assert!(
+            html.contains(r#"{"type":"MemoryRead","node":5,"level":2,"hit":true,"value":"42","span":null}"#),
+            "the read event is embedded with its payload: {}",
+            html
+        );
+        assert!(
+            html.contains(r#"{"type":"MemoryState","version":3,"entries":7,"span":null}"#),
+            "the state event is embedded with its payload: {}",
+            html
+        );
     }
 
     /// ADR-0109: an in-place trace renders on the offline page — the

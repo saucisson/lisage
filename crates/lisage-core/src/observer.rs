@@ -574,6 +574,38 @@ pub enum TraceEvent {
         /// Span in which the event occurs (D1-1).
         span: Option<SpanId>,
     },
+    /// Consultation of the level memory by `φ_out` (M2-3, the
+    /// deferred ADR-0109 tracks): the key `(node, level)`, whether an
+    /// entry was stored, and the stored value (lazy `TraceVal`, D1-3)
+    /// — the read half of the memory channel, which the trace could
+    /// not see before v7. `φ_out` reads through the runner's probe
+    /// (`transduction::MemoryProbe`), so each read is observed.
+    MemoryRead {
+        /// Node of the consulted key.
+        node: NodeId,
+        /// Level of the consulted key.
+        level: u32,
+        /// Whether an entry was stored at the key.
+        hit: bool,
+        /// Value stored at the key (lazily rendered), elided on a miss.
+        value: TraceVal,
+        /// Span in which the event occurs (D1-1: the `Visit` span).
+        span: Option<SpanId>,
+    },
+    /// State of the level memory at the end of a transduction run,
+    /// emitted once per op, just before `OpEnd` (the deferred ADR-0109
+    /// tracks): the L1 version and the number of stored entries. A nil
+    /// memory (`M = ()`) keeps `(0, 0)` at every op — the traceable
+    /// witness that the computed-table entries never falsify — while
+    /// a memory `M ≠ ()` shows its effective version bumps here.
+    MemoryState {
+        /// Memory version (L1) at the end of the op.
+        version: u64,
+        /// Number of stored entries at the end of the op.
+        entries: usize,
+        /// Span in which the event occurs (D1-1: the `Op` span).
+        span: Option<SpanId>,
+    },
     /// Structure change of one node visit (D1-2): classification and arc
     /// correspondence between the input form and the output form.
     StructureChange {
@@ -614,6 +646,8 @@ impl TraceEvent {
             | TraceEvent::MemoConsult { span: s, .. }
             | TraceEvent::MemoInsert { span: s, .. }
             | TraceEvent::MemoryWrite { span: s, .. }
+            | TraceEvent::MemoryRead { span: s, .. }
+            | TraceEvent::MemoryState { span: s, .. }
             | TraceEvent::StructureChange { span: s, .. } => *s = span,
         }
     }
@@ -641,6 +675,8 @@ impl TraceEvent {
             | TraceEvent::MemoConsult { span, .. }
             | TraceEvent::MemoInsert { span, .. }
             | TraceEvent::MemoryWrite { span, .. }
+            | TraceEvent::MemoryRead { span, .. }
+            | TraceEvent::MemoryState { span, .. }
             | TraceEvent::StructureChange { span, .. } => *span,
         }
     }

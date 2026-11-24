@@ -33,6 +33,7 @@ fn node_of(event: &TraceEvent) -> Option<NodeId> {
         | TraceEvent::MemoMiss { node, .. }
         | TraceEvent::VisitEntry { node, .. }
         | TraceEvent::VisitExit { node, .. }
+        | TraceEvent::MemoryRead { node, .. }
         | TraceEvent::StructureChange { node, .. } => Some(*node),
         _ => None,
     }
