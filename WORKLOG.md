@@ -46,7 +46,7 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
-## 2026-11-24 - HSDD-6 remainder: observed rounds, self-detected policy, per-fragment fixpoints (PR #NNN, issue #388, stacked on #395)
+## 2026-11-24 - HSDD-6 remainder: observed rounds, self-detected policy, per-fragment fixpoints (PR #396, issue #388, stacked on #395)
 
 - **Issue**: #388 (HSDD-6, the three items PR #395 left open: rounds
   visible in the Observer events, the self-detected Hamez policy,
