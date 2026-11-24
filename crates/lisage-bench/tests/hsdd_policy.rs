@@ -252,7 +252,7 @@ fn test_fragment_sub_fixpoints_converge_same_closure() {
 #[test]
 fn test_fragment_policies_measured_pins() {
     let pins: [(u64, u64, u64, u64); 2] = [(3, 20, 9, 8), (7, 1136, 21, 20)];
-    for &(n, golden, lf1, lf2) in &pins {
+    for &(n, golden, expected_fragment_one_fixpoints, expected_fragment_two_fixpoints) in &pins {
         let (pool, root) = tower(n, &[full()]);
         let collector = TraceCollector::new();
         let one = saturate_fragments(&pool, root, 1, &NoOpObserver).unwrap();
@@ -275,8 +275,14 @@ fn test_fragment_policies_measured_pins() {
             two.local_fixpoints * 2,
             "fragment 2: two positions per window pass: n={n}"
         );
-        assert_eq!(one.local_fixpoints, lf1, "n={n}");
-        assert_eq!(two.local_fixpoints, lf2, "n={n}");
+        assert_eq!(
+            one.local_fixpoints, expected_fragment_one_fixpoints,
+            "n={n}"
+        );
+        assert_eq!(
+            two.local_fixpoints, expected_fragment_two_fixpoints,
+            "n={n}"
+        );
         // The trace: one round event per parent pass, the last quiet.
         let rounds = collector.rounds();
         assert_eq!(rounds.len(), 2, "n={n}");
