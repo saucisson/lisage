@@ -21,9 +21,14 @@
 //! - **C1**: the module re-interned under the same anchor is a hash-consing
 //!   hit; a second pool rebuilds the same forms.
 //!
-//! Honest scope of the spike (next bricks of the track): transductions
-//! crossing fragment boundaries (HSDD-5, issue #387), recursive saturation
-//! with firing through the ring (HSDD-6, issue #388), external
+//! Transductions (HSDD-5, issue #387): module-local events fired through
+//! the tower as **data on the arc** — one event node per (event, position)
+//! above the ring it transforms, chains stack; the `eat` guard crosses the
+//! fragment boundary (the right neighbour) and is folded into the pair
+//! coupling: image cardinalities by structural fold == enumeration.
+//!
+//! Honest scope (next bricks of the track): recursive saturation with
+//! firing through the ring (HSDD-6, issue #388), external
 //! libDDD/its-tools witness (HSDD-9, issue #391).
 
 use lisage_algebra::interface::{
@@ -68,6 +73,13 @@ pub enum ErrorHsdd {
     RootNotModule(NodeId),
     /// A cell of the module is not (pc, left).
     UnexpectedTerminal(NodeId),
+    /// The read node is not an event node of a transduction chain.
+    RootNotEvent(NodeId),
+    /// An event of the chain is unknown, or its position is outside the
+    /// ring.
+    EventOutOfRange { event: u64, position: u64 },
+    /// The ring size is outside the instantiation bound.
+    RingSizeOutOfRange(u64),
     /// Error propagated from the pool port.
     Pool(lisage_algebra::interface::PoolError),
 }
@@ -85,6 +97,24 @@ impl std::fmt::Display for ErrorHsdd {
                 write!(
                     formatter,
                     "node {node:?} is terminal where a cell was expected"
+                )
+            }
+            ErrorHsdd::RootNotEvent(node) => {
+                write!(
+                    formatter,
+                    "node {node:?} is not an event node of a transduction"
+                )
+            }
+            ErrorHsdd::EventOutOfRange { event, position } => {
+                write!(
+                    formatter,
+                    "unknown event {event} or position {position} outside the ring"
+                )
+            }
+            ErrorHsdd::RingSizeOutOfRange(size) => {
+                write!(
+                    formatter,
+                    "ring size {size} outside the instantiation bound"
                 )
             }
             ErrorHsdd::Pool(error) => write!(formatter, "pool error: {error}"),
@@ -123,6 +153,7 @@ impl KeyAlgebra for TowerKeys {
     fn cardinality(&self, level: Level) -> u64 {
         match level.0 {
             LEVEL_PC | LEVEL_LEFT => CARDINALITY_LOCAL,
+            LEVEL_EVENT => EVENT_COUNT * (LIMIT_POSITIONS + 1),
             _ => CARDINALITY_POSITIONS,
         }
     }
@@ -392,4 +423,261 @@ pub fn words_reference(n: u64) -> Vec<Vec<u64>> {
 /// Reference cardinal |R_n| by enumeration (oracle of the A/B/C triptych).
 pub fn count_words_reference(n: u64) -> u64 {
     words_reference(n).len() as u64
+}
+
+// ---------------------------------------------------------------------------
+// HSDD-5: transductions across the fragment boundary (issue #387)
+// ---------------------------------------------------------------------------
+
+/// Level of the transduction nodes: the event selector above the
+/// instance level. Pool-opaque like `LEVEL_INSTANCE`.
+pub const LEVEL_EVENT: u32 = 3;
+/// Module-local event: a thinking philosopher becomes hungry (no guard).
+pub const EVENT_HUNGRY: u64 = 0;
+/// Module-local event: a hungry philosopher starts eating. The local part
+/// of the guard (`left` free) stays inside the cell; the rest **crosses the
+/// fragment boundary** (no eater on either side) and is implied by the
+/// fold below: firing beside an eater would build an illegal level word
+/// (two adjacent eaters), so the coupling itself carries the guard.
+pub const EVENT_EAT: u64 = 1;
+/// Module-local event: an eating philosopher goes back to thinking.
+pub const EVENT_THINK: u64 = 2;
+/// Number of module-local events of the tower.
+pub const EVENT_COUNT: u64 = 3;
+
+/// Chain read from a transduced tower root: the events in **application
+/// order** (innermost first — the root of the chain is the last applied),
+/// the instantiation mask of the ring and the shared module root.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Transduction {
+    /// Events of the chain: (event, position), first applied first.
+    pub events: Vec<(u64, u64)>,
+    /// Instantiation mask of the underlying ring (its popcount is n).
+    pub mask: u64,
+    /// Shared module root (never duplicated by a transduction).
+    pub module: NodeId,
+}
+
+impl Transduction {
+    /// Size n of the underlying ring (popcount of the mask).
+    pub fn ring_size(&self) -> u64 {
+        self.mask.count_ones() as u64
+    }
+}
+
+/// Packs (event, position) into the arc key of an event node: the event
+/// is **data on the arc** (M4-2 pattern), not a form.
+pub fn pack_event(event: u64, position: u64) -> u64 {
+    event * (LIMIT_POSITIONS + 1) + position
+}
+
+/// Unpacks the arc key of an event node into (event, position).
+pub fn unpack_event(key: u64) -> (u64, u64) {
+    (key / (LIMIT_POSITIONS + 1), key % (LIMIT_POSITIONS + 1))
+}
+
+/// Builds one **transduction node**: the event (event, position) as data
+/// on a new arc, target the tower it transforms (ring or event node).
+/// One node per (event, position, target), hash-consed: transducing the
+/// same event twice is a hit, and the module and the ring are never
+/// duplicated. Chains stack one node per event.
+pub fn transduce(
+    pool: &mut Arena<TowerController>,
+    anchor: Anchor,
+    target: NodeId,
+    event: u64,
+    position: u64,
+) -> Result<NodeId, ErrorHsdd> {
+    if event >= EVENT_COUNT || position >= LIMIT_POSITIONS {
+        return Err(ErrorHsdd::EventOutOfRange { event, position });
+    }
+    Ok(pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(LEVEL_EVENT),
+            arcs: ArcRun::from_pairs([(pack_event(event, position), target)]),
+        },
+    ))
+}
+
+/// Reads a transduced tower: walks the chain of event nodes down to the
+/// ring (instantiation level), then the mask and the shared module root.
+pub fn read_transduction(
+    pool: &Arena<TowerController>,
+    root: NodeId,
+) -> Result<Transduction, ErrorHsdd> {
+    let mut events: Vec<(u64, u64)> = Vec::new();
+    let mut current = root;
+    loop {
+        let Form::Node { level, arcs } = pool.resolve(current)? else {
+            return Err(ErrorHsdd::RootNotInstance(current));
+        };
+        match level.0 {
+            LEVEL_EVENT => {
+                let Some((key, next)) = arcs.iter().next() else {
+                    return Err(ErrorHsdd::RootNotEvent(current));
+                };
+                events.push(unpack_event(*key));
+                current = *next;
+            }
+            LEVEL_INSTANCE => {
+                let Some((mask, module)) = arcs.iter().next() else {
+                    return Err(ErrorHsdd::RootNotInstance(current));
+                };
+                // The chain read from the root is last-applied first.
+                events.reverse();
+                return Ok(Transduction {
+                    events,
+                    mask: *mask,
+                    module: *module,
+                });
+            }
+            _ => return Err(ErrorHsdd::RootNotEvent(current)),
+        }
+    }
+}
+
+/// pc value of a position under `event` (None: the event is not enabled on
+/// this pc, the image of the chain dies at this position). The maps are
+/// partial injections on the pcs, so the image of a set is counted without
+/// duplicates. The guards of `eat` that read the *neighbours* are carried
+/// by the coupling (see `count_image`), not by this map.
+pub fn fire_pc(event: u64, pc: u64) -> Option<u64> {
+    match (event, pc) {
+        (EVENT_HUNGRY, THINK) => Some(HUNGRY),
+        (EVENT_EAT, HUNGRY) => Some(EAT),
+        (EVENT_THINK, EAT) => Some(THINK),
+        _ => None,
+    }
+}
+
+/// Index of a pc value in the golden alphabet (None when outside).
+fn pc_index(pcs: &[u64], pc: u64) -> Option<usize> {
+    pcs.iter().position(|candidate| *candidate == pc)
+}
+
+/// |image of R_n under the event chain| by structural fold over the
+/// shared coupling - the **transduction across the fragment boundary**.
+/// Every event of the chain is a partial map on the pc of one position
+/// (`fire_pc`): the pcs of every level of the chain are functions of the
+/// base pcs, a position without event is constant across the levels, and
+/// the `left` fields are **derived** pairwise (`fork_state`), so a firing
+/// that takes a neighbour fork updates it for free. Each level of the
+/// chain must remain a legal ring word (no two adjacent eaters) - which
+/// is also what carries the `eat` guards across the fragment boundary:
+/// firing beside an eater would build an illegal level word. The
+/// circular trace of the heterogeneous pair matrices counts the images in
+/// O(n |pcs|^3) - the product is never expanded, the module is never
+/// duplicated.
+pub fn count_image(cells: &[Cell], n: u64, events: &[(u64, u64)]) -> Result<u64, ErrorHsdd> {
+    if n == 0 || n > LIMIT_POSITIONS {
+        return Err(ErrorHsdd::RingSizeOutOfRange(n));
+    }
+    for &(event, position) in events {
+        if event >= EVENT_COUNT || position >= n {
+            return Err(ErrorHsdd::EventOutOfRange { event, position });
+        }
+    }
+    // Golden pc alphabet, read from the module cells.
+    let mut pcs: Vec<u64> = cells.iter().map(|cell| cell.pc).collect();
+    pcs.sort_unstable();
+    pcs.dedup();
+    let depth = events.len();
+    let size = pcs.len();
+    let n = n as usize;
+    // pcs of every level of the chain at each position, as functions of
+    // the base (level 0) pc index: `levels[position][level][base]`.
+    let mut levels: Vec<Vec<Vec<Option<usize>>>> = Vec::with_capacity(n);
+    for position in 0..n {
+        let mut columns: Vec<Vec<Option<usize>>> = vec![(0..size).map(Some).collect()];
+        for &(event, event_position) in events {
+            let previous = columns.last().expect("depth invariant");
+            let event_fires = event_position as usize == position;
+            let column: Vec<Option<usize>> = previous
+                .iter()
+                .map(|&maybe| {
+                    maybe.and_then(|index| {
+                        if event_fires {
+                            fire_pc(event, pcs[index]).and_then(|fired| pc_index(&pcs, fired))
+                        } else {
+                            Some(index)
+                        }
+                    })
+                })
+                .collect();
+            columns.push(column);
+        }
+        levels.push(columns);
+    }
+    // Pair matrices of the folded coupling: the pair (position, position +
+    // 1) of every level word must be legal (no two adjacent eaters).
+    let mut matrices: Vec<Vec<Vec<u64>>> = Vec::with_capacity(n);
+    for position in 0..n {
+        let next = (position + 1) % n;
+        let mut matrix = vec![vec![0u64; size]; size];
+        for (u, _) in pcs.iter().enumerate() {
+            for (v, _) in pcs.iter().enumerate() {
+                let mut legal = true;
+                for column in 0..=depth {
+                    let (Some(current), Some(neighbour)) =
+                        (levels[position][column][u], levels[next][column][v])
+                    else {
+                        legal = false;
+                        break;
+                    };
+                    if pcs[current] == EAT && pcs[neighbour] == EAT {
+                        legal = false;
+                        break;
+                    }
+                }
+                matrix[u][v] = u64::from(legal);
+            }
+        }
+        matrices.push(matrix);
+    }
+    // Circular trace of the heterogeneous pair matrices.
+    let mut product: Vec<Vec<u128>> = matrices[0]
+        .iter()
+        .map(|row| row.iter().map(|&value| value as u128).collect())
+        .collect();
+    for matrix in &matrices[1..] {
+        let lifted: Vec<Vec<u128>> = matrix
+            .iter()
+            .map(|row| row.iter().map(|&value| value as u128).collect())
+            .collect();
+        product = multiply_matrix(&product, &lifted);
+    }
+    Ok((0..size).map(|i| product[i][i]).sum::<u128>() as u64)
+}
+
+/// Fires `event` at `position` on a legal `pc` word of the golden thread
+/// (the oracle side): the boundary guard of `eat` reads both neighbours.
+pub fn fire_word(event: u64, position: usize, word: &[u64]) -> Option<Vec<u64>> {
+    let n = word.len();
+    let pc = word[position];
+    let previous = word[(position + n - 1) % n];
+    let next = word[(position + 1) % n];
+    let fired_cell = match event {
+        EVENT_HUNGRY if pc == THINK => Some(HUNGRY),
+        EVENT_EAT if pc == HUNGRY && previous != EAT && next != EAT => Some(EAT),
+        EVENT_THINK if pc == EAT => Some(THINK),
+        _ => None,
+    }?;
+    let mut image = word.to_vec();
+    image[position] = fired_cell;
+    Some(image)
+}
+
+/// |image of R_n under the event chain| by enumeration (oracle of the
+/// A/B/C triptych): the events are partial injective maps on the legal
+/// words, so the image of the set is counted without duplicates.
+pub fn count_image_reference(n: u64, events: &[(u64, u64)]) -> u64 {
+    let mut words = words_reference(n);
+    for &(event, position) in events {
+        words = words
+            .into_iter()
+            .filter_map(|word| fire_word(event, position as usize, &word))
+            .collect();
+    }
+    words.len() as u64
 }
