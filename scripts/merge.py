@@ -5,11 +5,16 @@ The developer agent merges each completed pull request into ``daily``
 merge criteria: it refuses to merge unless the review report exists,
 was written for THIS pull request and its CURRENT head (review
 context), contains zero BLOCKING findings, the pull request is open
-and mergeable, and every check run on its head has concluded
-"success". Then it merges through the GitHub API with the linear
-method the repository allows - squash preferred, a rebase merge as
-the fallback when squash is disabled; a merge commit is never issued
-(linear history on ``daily``, ADR-0009) - and deletes the branch.
+and mergeable (a merge conflict is named for what it is), and every
+check run on its head has concluded "success". Then it merges with
+the linear method the repository allows - squash preferred, a rebase
+merge as the fallback when squash is disabled; a merge commit is
+never issued (linear history on ``daily``, ADR-0009) - and deletes
+the branch.
+
+Every GitHub operation goes through the gh client first, with the
+REST API as the fallback when gh fails (ADR-0022); the merge method is
+pinned ``sha`` to the reviewed head, as before.
 
 The reviewer session never merges: it writes the report; this driver
 reads it. ``main`` is never merged here - that stays a human action.
@@ -21,27 +26,25 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from scripts._github import (
+    HTTP_SUCCESS_STATUS_CODE,
     check_runs_allow_merge,
     extract_head_ref,
     extract_head_sha,
     fetch_check_runs,
     fetch_pull_request,
-    open_github_client,
+    github_request,
+    pull_request_has_merge_conflict,
 )
 from scripts._shared import (
     EXIT_CODE_CRITERIA_UNMET,
     EXIT_CODE_PROTOCOL_FAILURE,
     EXIT_CODE_SUCCESS,
-    GITHUB_API_BASE_URL,
-    load_github_token,
     resolve_repository_slug,
 )
 
 if TYPE_CHECKING:
     import argparse
     from collections.abc import Sequence
-
-    import httpx
 
 DEFAULT_REPORT_FILE_NAME = ".review/review-report.json"
 DEFAULT_CONTEXT_FILE_NAME = ".review/review-context.json"
@@ -135,11 +138,7 @@ def check_review_context(
         raise SystemExit(EXIT_CODE_CRITERIA_UNMET)
 
 
-def resolve_merge_method(
-    *,
-    http_client: httpx.Client,
-    repository_slug: str,
-) -> str:
+def resolve_merge_method(*, repository_slug: str) -> str:
     """Return the linear merge method the repository allows (ADR-0009).
 
     Squash is preferred (one commit per pull request, the whole review
@@ -148,20 +147,17 @@ def resolve_merge_method(
     linear, so no merge commit is ever issued. A repository allowing
     neither is a human decision away, not an agent one.
     """
-    response = http_client.get(f"{GITHUB_API_BASE_URL}/repos/{repository_slug}")
-    if not response.is_success:
+    status_code, payload = github_request(endpoint=f"repos/{repository_slug}")
+    if status_code != HTTP_SUCCESS_STATUS_CODE or not isinstance(payload, dict):
         print(
-            f"Error: the GitHub API returned {response.status_code}"
-            f" for the settings of {repository_slug}.",
+            f"Error: could not fetch the settings of {repository_slug}"
+            f" through gh (status {status_code}).",
             file=sys.stderr,
         )
         raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
-    repository: object = response.json()
-    if not isinstance(repository, dict):
-        raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
     allowed_methods = {
-        "squash": repository.get("allow_squash_merge"),
-        "rebase": repository.get("allow_rebase_merge"),
+        "squash": payload.get("allow_squash_merge"),
+        "rebase": payload.get("allow_rebase_merge"),
     }
     for method in MERGE_METHOD_PREFERENCE:
         if allowed_methods.get(method) is True:
@@ -194,6 +190,10 @@ def evaluate_merge_criteria(  # noqa: PLR0911 - one return per codified criterio
         return False, "the pull request is not open"
     if pull_request.get("draft") is True:
         return False, "the pull request is a draft"
+    if pull_request_has_merge_conflict(pull_request=pull_request):
+        return False, (
+            "the pull request has a merge conflict - rebase it on daily and rerun the review"
+        )
     if pull_request.get("mergeable") is not True:
         return False, (
             "the pull request is not cleanly mergeable - rebase it on daily and rerun the review"
@@ -206,21 +206,20 @@ def evaluate_merge_criteria(  # noqa: PLR0911 - one return per codified criterio
 
 def merge_pull_request(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     pull_request_number: int,
     head_sha: str,
     merge_method: str,
 ) -> bool:
     """Merge the pull request with the given linear method; fail closed."""
-    response = http_client.put(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/pulls/{pull_request_number}/merge",
-        json={"sha": head_sha, "merge_method": merge_method},
+    status_code, payload = github_request(
+        endpoint=f"repos/{repository_slug}/pulls/{pull_request_number}/merge",
+        method="PUT",
+        json_payload={"sha": head_sha, "merge_method": merge_method},
     )
-    if response.is_success:
+    if status_code == HTTP_SUCCESS_STATUS_CODE:
         return True
-    if response.status_code == METHOD_NOT_ALLOWED_STATUS_CODE:
-        payload = response.json() if response.text else {}
+    if status_code == METHOD_NOT_ALLOWED_STATUS_CODE:
         message = (
             payload.get("message", "not mergeable")
             if isinstance(payload, dict)
@@ -229,7 +228,7 @@ def merge_pull_request(
         print(f"Merge refused by GitHub: {message}.", file=sys.stderr)
         raise SystemExit(EXIT_CODE_CRITERIA_UNMET)
     print(
-        f"Error: the merge API returned {response.status_code}: {response.text}",
+        f"Error: the merge API returned {status_code}: {payload}",
         file=sys.stderr,
     )
     raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
@@ -237,18 +236,18 @@ def merge_pull_request(
 
 def delete_branch(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     head_ref: str,
 ) -> None:
     """Delete the merged branch; best effort, never a merge failure."""
     if not head_ref:
         return
-    response = http_client.delete(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/git/refs/heads/{head_ref}"
+    status_code, _ = github_request(
+        endpoint=f"repos/{repository_slug}/git/refs/heads/{head_ref}",
+        method="DELETE",
     )
-    if not response.is_success:
-        print(f"Warning: could not delete branch {head_ref} (status {response.status_code}).")
+    if status_code not in (HTTP_SUCCESS_STATUS_CODE, 204):
+        print(f"Warning: could not delete branch {head_ref} (status {status_code}).")
 
 
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -279,52 +278,43 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 def run(*, arguments: argparse.Namespace) -> int:
     """Entry point: criteria checked, pull request merged, branch deleted."""
-    github_token = load_github_token()
     repository_slug = resolve_repository_slug()
     report = load_review_report(report_file=arguments.report_file)
-    with open_github_client(token=github_token) as http_client:
-        pull_request = fetch_pull_request(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            pull_request_number=arguments.pr_number,
-        )
-        head_sha = extract_head_sha(pull_request=pull_request)
-        head_ref = extract_head_ref(pull_request=pull_request)
-        context = load_review_context(context_file=arguments.context_file)
-        check_review_context(
-            context=context,
-            pull_request_number=arguments.pr_number,
-            head_sha=head_sha,
-        )
-        check_runs = fetch_check_runs(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            head_sha=head_sha,
-        )
-        criteria_met, reason = evaluate_merge_criteria(
-            report=report,
-            pull_request=pull_request,
-            check_runs=check_runs,
-        )
-        if not criteria_met:
-            print(f"Merge refused: {reason}.")
-            return EXIT_CODE_CRITERIA_UNMET
-        merge_method = resolve_merge_method(
-            http_client=http_client,
-            repository_slug=repository_slug,
-        )
-        print(f"Criteria met ({reason}); merging PR #{arguments.pr_number}.")
-        merge_pull_request(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            pull_request_number=arguments.pr_number,
-            head_sha=head_sha,
-            merge_method=merge_method,
-        )
-        delete_branch(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            head_ref=head_ref,
-        )
+    pull_request = fetch_pull_request(
+        repository_slug=repository_slug,
+        pull_request_number=arguments.pr_number,
+    )
+    head_sha = extract_head_sha(pull_request=pull_request)
+    head_ref = extract_head_ref(pull_request=pull_request)
+    context = load_review_context(context_file=arguments.context_file)
+    check_review_context(
+        context=context,
+        pull_request_number=arguments.pr_number,
+        head_sha=head_sha,
+    )
+    check_runs = fetch_check_runs(
+        repository_slug=repository_slug,
+        head_sha=head_sha,
+    )
+    criteria_met, reason = evaluate_merge_criteria(
+        report=report,
+        pull_request=pull_request,
+        check_runs=check_runs,
+    )
+    if not criteria_met:
+        print(f"Merge refused: {reason}.")
+        return EXIT_CODE_CRITERIA_UNMET
+    merge_method = resolve_merge_method(repository_slug=repository_slug)
+    print(f"Criteria met ({reason}); merging PR #{arguments.pr_number}.")
+    merge_pull_request(
+        repository_slug=repository_slug,
+        pull_request_number=arguments.pr_number,
+        head_sha=head_sha,
+        merge_method=merge_method,
+    )
+    delete_branch(
+        repository_slug=repository_slug,
+        head_ref=head_ref,
+    )
     print(f"PR #{arguments.pr_number} merged into daily ({merge_method} merge); branch deleted.")
     return EXIT_CODE_MERGED

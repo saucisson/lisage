@@ -15,7 +15,7 @@ checklist, the relevant ADRs, the pull request specification and the
 diff under review. Nothing else enters the prompt - context isolation
 is enforced by construction, not by prompt discipline. Stdlib only,
 so it runs in the bareest CI image: this module defers its
-``httpx``-dependent imports into the ``review`` runner, on purpose.
+gh/REST-dependent imports into the ``review`` runner, on purpose.
 
 The developer agent runs ``review`` after opening a pull request and
 only once CI has concluded on the pushed head: the driver refuses to
@@ -33,9 +33,7 @@ from scripts._shared import (
     EXIT_CODE_CRITERIA_UNMET,
     EXIT_CODE_PROTOCOL_FAILURE,
     EXIT_CODE_SUCCESS,
-    GITHUB_API_BASE_URL,
     REPOSITORY_ROOT,
-    load_github_token,
     resolve_repository_slug,
     run_git,
 )
@@ -43,8 +41,6 @@ from scripts._shared import (
 if TYPE_CHECKING:
     import argparse
     from collections.abc import Sequence
-
-    import httpx
 
 REVIEW_DIRECTORY = REPOSITORY_ROOT / ".review"
 ROLE_DOCUMENT_PATH = REPOSITORY_ROOT / "docs/agents/reviewer.md"
@@ -298,24 +294,27 @@ def write_review_context(
 
 def post_review_comment(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     pull_request_number: int,
     review_directory: Path,
 ) -> None:
-    """Post the review comment; warn, never mask the verdict."""
+    """Post the review comment via gh (fallback REST); warn, never mask the verdict."""
+    # Deferred import, on purpose: review-bundle stays stdlib-only.
+    from scripts._github import github_request  # noqa: PLC0415
+
     comment_path = review_directory / "review-comment.md"
     if not comment_path.is_file():
         print("Warning: no review comment was produced (protocol failure?).")
         return
-    response = http_client.post(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/issues/{pull_request_number}/comments",
-        json={"body": comment_path.read_text(encoding="utf-8")},
+    status_code, _ = github_request(
+        endpoint=f"repos/{repository_slug}/issues/{pull_request_number}/comments",
+        method="POST",
+        json_payload={"body": comment_path.read_text(encoding="utf-8")},
     )
-    if not response.is_success:
+    if status_code not in (200, 201):
         print(
             f"Warning: could not post the review comment"
-            f" (status {response.status_code}); the verdict is unchanged,"
+            f" (status {status_code}); the verdict is unchanged,"
             " but the audit trail is incomplete.",
             file=sys.stderr,
         )
@@ -349,79 +348,72 @@ def run_review(*, arguments: argparse.Namespace) -> int:
     # subcommand) stays stdlib-only and runs in the bareest CI image.
     from scripts import _github  # noqa: PLC0415
 
-    github_token = load_github_token()
     repository_slug = resolve_repository_slug()
-    with _github.open_github_client(token=github_token) as http_client:
-        pull_request = _github.fetch_pull_request(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            pull_request_number=arguments.pr_number,
-        )
-        head_sha = _github.extract_head_sha(pull_request=pull_request)
-        local_head = run_git(arguments=["rev-parse", "HEAD"]).strip()
-        pending_changes = run_git(arguments=["status", "--porcelain"]).strip()
-        check_runs = _github.fetch_check_runs(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            head_sha=head_sha,
-        )
-        refusal_reason = review_preconditions_refusal(
-            head_sha=head_sha,
-            local_head=local_head,
-            pending_changes=pending_changes,
-            check_runs=check_runs,
-        )
-        if refusal_reason is not None:
-            print(f"Review refused: {refusal_reason}.", file=sys.stderr)
-            return EXIT_CODE_PRECONDITIONS_UNMET
-        base_ref_container = pull_request.get("base")
-        base_ref = (
-            base_ref_container.get("ref", "daily")
-            if isinstance(base_ref_container, dict)
-            else "daily"
-        )
-        print(f"Reviewing PR #{arguments.pr_number} against {base_ref}.")
-        write_review_inputs(pull_request=pull_request, review_directory=REVIEW_DIRECTORY)
-        write_review_context(
-            pull_request_number=arguments.pr_number,
-            head_sha=head_sha,
-            review_directory=REVIEW_DIRECTORY,
-        )
-        build_diff(base_ref=base_ref, review_directory=REVIEW_DIRECTORY)
-        bundle_exit_code = run_script(
-            command=[
-                sys.executable,
-                "-m",
-                "scripts",
-                "review-bundle",
-                "--diff-file",
-                str(REVIEW_DIRECTORY / "pull-request.diff"),
-                "--description-file",
-                str(REVIEW_DIRECTORY / "pull-request-description.md"),
-                "--output",
-                str(REVIEW_DIRECTORY / "bundle.md"),
-            ]
-        )
-        if bundle_exit_code != EXIT_CODE_SUCCESS:
-            return EXIT_CODE_PROTOCOL_FAILURE
-        review_exit_code = run_script(
-            command=[
-                sys.executable,
-                "-m",
-                "scripts",
-                "agent-review",
-                "--bundle-file",
-                str(REVIEW_DIRECTORY / "bundle.md"),
-                "--report-file",
-                str(REVIEW_DIRECTORY / "review-report.json"),
-                "--comment-file",
-                str(REVIEW_DIRECTORY / "review-comment.md"),
-            ]
-        )
-        post_review_comment(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            pull_request_number=arguments.pr_number,
-            review_directory=REVIEW_DIRECTORY,
-        )
+    pull_request = _github.fetch_pull_request(
+        repository_slug=repository_slug,
+        pull_request_number=arguments.pr_number,
+    )
+    head_sha = _github.extract_head_sha(pull_request=pull_request)
+    local_head = run_git(arguments=["rev-parse", "HEAD"]).strip()
+    pending_changes = run_git(arguments=["status", "--porcelain"]).strip()
+    check_runs = _github.fetch_check_runs(
+        repository_slug=repository_slug,
+        head_sha=head_sha,
+    )
+    refusal_reason = review_preconditions_refusal(
+        head_sha=head_sha,
+        local_head=local_head,
+        pending_changes=pending_changes,
+        check_runs=check_runs,
+    )
+    if refusal_reason is not None:
+        print(f"Review refused: {refusal_reason}.", file=sys.stderr)
+        return EXIT_CODE_PRECONDITIONS_UNMET
+    base_ref_container = pull_request.get("base")
+    base_ref = (
+        base_ref_container.get("ref", "daily") if isinstance(base_ref_container, dict) else "daily"
+    )
+    print(f"Reviewing PR #{arguments.pr_number} against {base_ref}.")
+    write_review_inputs(pull_request=pull_request, review_directory=REVIEW_DIRECTORY)
+    write_review_context(
+        pull_request_number=arguments.pr_number,
+        head_sha=head_sha,
+        review_directory=REVIEW_DIRECTORY,
+    )
+    build_diff(base_ref=base_ref, review_directory=REVIEW_DIRECTORY)
+    bundle_exit_code = run_script(
+        command=[
+            sys.executable,
+            "-m",
+            "scripts",
+            "review-bundle",
+            "--diff-file",
+            str(REVIEW_DIRECTORY / "pull-request.diff"),
+            "--description-file",
+            str(REVIEW_DIRECTORY / "pull-request-description.md"),
+            "--output",
+            str(REVIEW_DIRECTORY / "bundle.md"),
+        ]
+    )
+    if bundle_exit_code != EXIT_CODE_SUCCESS:
+        return EXIT_CODE_PROTOCOL_FAILURE
+    review_exit_code = run_script(
+        command=[
+            sys.executable,
+            "-m",
+            "scripts",
+            "agent-review",
+            "--bundle-file",
+            str(REVIEW_DIRECTORY / "bundle.md"),
+            "--report-file",
+            str(REVIEW_DIRECTORY / "review-report.json"),
+            "--comment-file",
+            str(REVIEW_DIRECTORY / "review-comment.md"),
+        ]
+    )
+    post_review_comment(
+        repository_slug=repository_slug,
+        pull_request_number=arguments.pr_number,
+        review_directory=REVIEW_DIRECTORY,
+    )
     return review_exit_code
