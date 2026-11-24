@@ -5,7 +5,7 @@
 //! (same final result, different iteration strategy):
 //! - [`PolicySaturation::Static`] (Ciardo-style): `τ` is only applied
 //!   at the declared levels;
-//! - [`PolicySaturation::AutoDetectee`] (Hamez-style): all levels are
+//! - [`PolicySaturation::AutoDetected`] (Hamez-style): all levels are
 //!   active at first; a level whose current iteration changed nothing is
 //!   removed from the active set.
 //!
@@ -42,7 +42,7 @@ pub enum PolicySaturation {
     Static(Vec<Level>),
     /// Auto-detected (Hamez-style): all levels are active at first; a level
     /// is removed as soon as an iteration changes nothing at that level.
-    AutoDetectee,
+    AutoDetected,
 }
 
 /// Parameters of a saturation (record, ADR-0003).
@@ -60,7 +60,7 @@ pub struct SaturationParameters<'a, T, P> {
     pub anchor: Anchor,
     /// Initial node `D`.
     pub initial: NodeId,
-    /// Number of levels of the schema (for AutoDetectee: all levels).
+    /// Number of levels of the schema (for AutoDetected: all levels).
     pub number_levels: u32,
     /// Trace observer (M2-6): receives one `Round` per iteration and the
     /// events of the step runner. `None` = no trace.
@@ -108,7 +108,7 @@ impl<T> RestrictedToLevels<T> {
     }
 
     /// Levels at which `φ_out` produced a node different from the input
-    /// since the wrapper was created (AutoDetectee policy).
+    /// since the wrapper was created (AutoDetected policy).
     pub fn modified_levels(&self) -> BTreeSet<Level> {
         self.modified_levels
             .lock()
@@ -183,7 +183,7 @@ impl<T: Transduction> Transduction for RestrictedToLevels<T> {
 
 /// Increasing fixpoint `saturate(τ, D)` on the pool (spec § 7, T2):
 /// iterates `X ← X ⊕ τ(X)` until stabilization, applying `τ` according to
-/// the policy (restricted to the active levels; AutoDetectee removes the
+/// the policy (restricted to the active levels; AutoDetected removes the
 /// stabilized levels from the active set).
 ///
 /// Termination (T2) is guaranteed on a bounded schema: the set of canonical
@@ -199,7 +199,7 @@ where
     // Active levels according to the policy.
     let mut active_levels: Vec<Level> = match params.policy {
         PolicySaturation::Static(levels) => levels.clone(),
-        PolicySaturation::AutoDetectee => (0..params.number_levels).map(Level).collect(),
+        PolicySaturation::AutoDetected => (0..params.number_levels).map(Level).collect(),
     };
 
     let mut courant = params.initial;
@@ -280,7 +280,7 @@ where
                 iterations,
             });
         }
-        if matches!(params.policy, PolicySaturation::AutoDetectee) {
+        if matches!(params.policy, PolicySaturation::AutoDetected) {
             // Hamez policy: a level not modified by the iteration is removed
             // from the active set.
             let modified = runner.transduction().modified_levels();

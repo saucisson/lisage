@@ -1,6 +1,6 @@
 //! Tests for `saturate` (M2-4, spec § 7, T2/T3): increasing fixpoint,
 //! termination, level restriction of the Static policy, removal of
-//! stabilized levels by the AutoDetectee policy, and multi-iteration
+//! stabilized levels by the AutoDetected policy, and multi-iteration
 //! increasing chain via `saturate`.
 //!
 //! The diagrams denote families of sets (ZDD style): the fixpoint of
@@ -147,7 +147,7 @@ fn test_saturate_terminates_and_point_fixed() {
     let anchor = Anchor(0);
     let initial = compiler_set(&mut pool, anchor, &schema, &[0]);
 
-    let policy = PolicySaturation::AutoDetectee;
+    let policy = PolicySaturation::AutoDetected;
     let mut params = SaturationParameters {
         transduction: &Identity,
         policy: &policy,
@@ -173,7 +173,7 @@ fn test_saturate_policies_equivalentes() {
 
     let levels: Vec<Level> = (0..schema.number_levels()).map(Level).collect();
     let policy_static = PolicySaturation::Static(levels);
-    let policy_auto = PolicySaturation::AutoDetectee;
+    let policy_auto = PolicySaturation::AutoDetected;
 
     let mut pool_s = new_pool(&schema);
     let initial_s = compiler_set(&mut pool_s, anchor, &schema, &[0]);
@@ -210,7 +210,7 @@ fn test_saturate_policies_equivalentes() {
 
 /// M2-4: the `Static` policy really restricts the active levels — with a
 /// step that emits a singleton at the root (level 0), excluding level 0
-/// from the static list leaves the fixpoint unchanged, while `AutoDetectee`
+/// from the static list leaves the fixpoint unchanged, while `AutoDetected`
 /// (all levels active) reaches it with the singleton added. This test fails
 /// if the `policy` parameter is ignored.
 #[test]
@@ -245,8 +245,8 @@ fn test_saturate_static_restricted_the_levels() {
     );
     assert_eq!(r_static.iterations, 1);
 
-    // AutoDetectee policy: all levels active, the singleton is reached.
-    let policy_auto = PolicySaturation::AutoDetectee;
+    // AutoDetected policy: all levels active, the singleton is reached.
+    let policy_auto = PolicySaturation::AutoDetected;
     let mut pool_a = new_pool(&schema);
     let initial_a = compiler_set(&mut pool_a, anchor, &schema, &[0]);
     let singleton_a = compiler_set(&mut pool_a, anchor, &schema, &[2]);
@@ -292,7 +292,7 @@ fn test_saturate_string_growing_multi_iterations() {
     let step = EmitsSingleton {
         singleton: singleton_2,
     };
-    let policy = PolicySaturation::AutoDetectee;
+    let policy = PolicySaturation::AutoDetected;
     let mut params = SaturationParameters {
         transduction: &step,
         policy: &policy,

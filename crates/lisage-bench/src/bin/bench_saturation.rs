@@ -4,11 +4,11 @@
 //!
 //! Four configurations reaching the same fixpoint |R_n|:
 //! - `naive`  : `saturate` `Static`(all value levels), BFS rounds;
-//! - `hamez`  : `saturate` `AutoDetectee`, blind level deactivation;
+//! - `hamez`  : `saturate` `AutoDetected`, blind level deactivation;
 //! - `ciardo` : manual sweeps i = n-1..0 of `saturate` `Static`([level
 //!   i]), until a sterile sweep;
 //! - `inplace`: `saturate_in_place`, local depth-first fires (the
-//!   in-place kernel of `surplace`; the recursion order replaces the
+//!   in-place kernel of `inplace`; the recursion order replaces the
 //!   policy).
 //!
 //! The step transduction `DiningStep` fires each event exactly once per
@@ -23,7 +23,7 @@
 //! Checks: count(fixpoint) == explicit enumeration (BFS oracle), and
 //! for n <= 7 the golden-thread pins 20/56/152/416/1136.
 //!
-//! `LIS_SAT_PROBE=1`: probe the `AutoDetectee` loop round by round
+//! `LIS_SAT_PROBE=1`: probe the `AutoDetected` loop round by round
 //! (active set, modified levels, re-traversed diagram) instead of the
 //! benchmark.
 
@@ -34,11 +34,11 @@ use std::time::Instant;
 use lisage_algebra::interface::{Anchor, ArcRun, Form, Level, MemoryPolicy, NodeId, Pool};
 use lisage_core::arena::Arena;
 use lisage_core::fold::{count, union};
+use lisage_core::inplace::saturate_in_place;
 use lisage_core::memory::EffectMemory;
 use lisage_core::observer::{NoOpObserver, TraceVal, Traceable};
 use lisage_core::saturate::{PolicySaturation, RestrictedToLevels, SaturationParameters, saturate};
 use lisage_core::schema::{Domain, ReferenceController, Schema, SchemaKeys, compiler};
-use lisage_core::surplace::saturate_in_place;
 use lisage_core::transduction::{PhiOutContext, Transducer, Transduction};
 use lisage_lang::value::{Atom, Value};
 
@@ -619,9 +619,9 @@ fn saturate_naive(n: u32, keys: &SchemaKeys, pool: &mut PoolRef, initial: NodeId
     saturate_with(keys, &policy, &step, pool, initial, 2 * n)
 }
 
-/// Hamez saturation: `AutoDetectee`.
+/// Hamez saturation: `AutoDetected`.
 fn saturate_hamez(n: u32, keys: &SchemaKeys, pool: &mut PoolRef, initial: NodeId) -> (NodeId, u32) {
-    let policy = PolicySaturation::AutoDetectee;
+    let policy = PolicySaturation::AutoDetected;
     let step = DiningStep {
         n,
         keys: Arc::new(keys.clone()),
@@ -684,7 +684,7 @@ fn saturate_ciardo(
     }
 }
 
-/// In-place saturation: local depth-first fires (`surplace` kernel; the
+/// In-place saturation: local depth-first fires (`inplace` kernel; the
 /// policy is ignored, documented).
 fn saturate_inplace(
     n: u32,
@@ -696,7 +696,7 @@ fn saturate_inplace(
         n,
         keys: Arc::new(keys.clone()),
     };
-    let policy = PolicySaturation::AutoDetectee; // ignored (documented).
+    let policy = PolicySaturation::AutoDetected; // ignored (documented).
     let mut params = SaturationParameters {
         transduction: &step,
         policy: &policy,
@@ -758,7 +758,7 @@ struct Row {
 }
 
 // ---------------------------------------------------------------------------
-// Probe: why AutoDetectee degenerates. Replicates the saturate loop in
+// Probe: why AutoDetected degenerates. Replicates the saturate loop in
 // Hamez mode, tracking round by round the active set, the really
 // modified levels and the re-traversed diagram (the runner — hence its
 // memo — is recreated at each round, exactly as in saturate).
@@ -775,7 +775,7 @@ fn probe_hamez(n: u32) {
     let mut number = 0u32;
     let mut traversed_total = 0usize;
     println!(
-        "=== AutoDetectee probe, n = {n} ({n} keys, {} levels) ===",
+        "=== AutoDetected probe, n = {n} ({n} keys, {} levels) ===",
         2 * n
     );
     loop {
@@ -825,7 +825,7 @@ fn main() {
     let mut rows: Vec<Row> = Vec::new();
     println!("lisage saturation benchmark: philosophers, flat Map schema, 2n levels");
     println!(
-        "configs: naive (Static odd), hamez (AutoDetectee), ciardo (single-level Static sweeps), inplace (in-place kernel)"
+        "configs: naive (Static odd), hamez (AutoDetected), ciardo (single-level Static sweeps), inplace (in-place kernel)"
     );
     for n in 3..=N_MAX {
         let oracle = if n <= N_MAX_ORACLE {
