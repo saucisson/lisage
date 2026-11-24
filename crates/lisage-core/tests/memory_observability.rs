@@ -75,8 +75,7 @@ impl Transduction for ReadsMemory {
         // The observed read: goes through the runner's probe, which
         // emits the `MemoryRead` event.
         let read = ctx.memory.read(ctx.node_input, ctx.level);
-        let effect =
-            EffectMemory::one(ctx.node_input, ctx.level, read.copied().unwrap_or(*ctx.h));
+        let effect = EffectMemory::one(ctx.node_input, ctx.level, read.copied().unwrap_or(*ctx.h));
         let arcs = ctx.arcs.into_iter().map(|(v, (n, _))| (v, n)).collect();
         (
             pool.intern(
@@ -411,18 +410,18 @@ fn test_s_channel_at_every_completed_visit() {
         "one synthesized Attr per completed visit (miss, terminal, hit)"
     );
     // Every synthesized Attr sits inside its visit span.
-    for event in events.iter().filter(|e| {
-        matches!(
-            e,
-            TraceEvent::Attr {
-                channel: ChannelAttr::Synthesized,
-                ..
-            }
-        )
-    }) {
-        assert!(
-            matches!(event, TraceEvent::Attr { span: Some(_), .. }),
-            "the synthesized Attr carries its visit span"
-        );
-    }
+    let with_span = events
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                TraceEvent::Attr {
+                    channel: ChannelAttr::Synthesized,
+                    ..
+                }
+            )
+        })
+        .filter(|e| matches!(e, TraceEvent::Attr { span: Some(_), .. }))
+        .count();
+    assert_eq!(with_span, synthesized, "the synthesized Attr carries its visit span");
 }
