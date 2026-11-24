@@ -68,13 +68,11 @@ One entry per commit or pull request:
   instead of inline match arms; behavior preserved (all 488 tests
   pass, including the 4 new `inplace.rs` tests).
 - **Escalations**: none.
-## 2026-11-24 - HSDD spike: set-valued instantiation above the flat pool (issue #382, milestone HSDD)
 ## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #401, issue #387, stacked on #393)
-## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #NNN, issue #388, stacked on #394)
-## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #395, issue #388, stacked on #394)
+## 2026-11-24 - HSDD-6: recursive saturation through the ring (PR #402, issue #388, stacked on #401)
 
 - **Issue**: #388 (HSDD-6) + parent #382. Closes nothing by design:
-  this is the fixpoint brick stacked on the transductions of #394.
+  this is the fixpoint brick stacked on the transductions of #401.
 - **Done**: `crates/lisage-bench/src/hsdd.rs` grows the saturation
   section: a **firing set** (one bit per module-local event) as data
   on the arc of one new pool-opaque `LEVEL_SATURATION` node,
@@ -129,54 +127,6 @@ One entry per commit or pull request:
   sub-fixpoints need core integration and stay open in the issue.
 - **Escalations**: none.
 
----
-
-## 2026-11-24 - HSDD-5: transductions across the fragment boundary (PR #394, issue #387, stacked on #393)
-
-- **Issue**: #387 (HSDD-5) + parent #382. Closes nothing by design:
-  this is the event-firing brick stacked on the spike of #393; the
-  reduction ADR (#383) gains a data point (a third pool-opaque level,
-  still zero core change).
-- **Done**: `crates/lisage-bench/src/hsdd.rs` grows the transduction
-  section: three module-local events of the philosopher (`hungry`,
-  `eat`, `think`) fired through the tower as **data on the arc** - one
-  event node per (event, position) at the new pool-opaque
-  `LEVEL_EVENT`, hash-consed, chains stack one node per event above
-  the tower they transform, ring and module never duplicated; new
-  tests `crates/lisage-bench/tests/hsdd_transduction.rs` (5). The
-  image cardinality is computed by structural fold over the pc words:
-  every event is a partial injective map on the pc of one position,
-  the `left` fields are derived pairwise (so a firing that takes a
-  neighbour fork updates it for free), and each level of the chain
-  must remain a legal ring word - which carries the `eat` guards
-  across the fragment boundary (firing beside an eater would build
-  an illegal level word). Circular trace of heterogeneous pair
-  matrices, O(n |pcs|^3), no expansion. Report table extended in
-  `bench-results/hsdd-spike/REPORT.md`.
-- **Evidence**: `cargo test -p lisage-bench --test hsdd`: 5 passed,
-  0 failed (the stacked base stays green); `--test hsdd_transduction`:
-  5 passed, 0 failed; full `cargo test -p lisage-bench`: 117 passed,
-  0 failed, 11 ignored (112 + the 5 new); `cargo clippy -p
-  lisage-bench --all-targets -- -D warnings`: clean; `cargo fmt --all
-  -- --check`: clean. A first draft was **falsified by the oracle**
-  and rewritten: a cell-domain fold returned 0 images for `eat`
-  (the neighbour's `left` field changes when a firing takes its
-  fork), the pc-domain fold matches the oracle everywhere. NOT run:
-  full `make check` (the english-only scanner crashes at import in
-  the spike environment, pre-existing `Sequence` bug; manual accent
-  and word scan of the touched files: clean), CI. The fold timing is
-  not a PERF deposit (no machine fingerprint).
-- **Judgement calls**: (1) pc-domain fold with pairwise derived
-  `left` fields instead of a cell-domain recovery map: decided by the
-  oracle differential, not by taste (the falsified draft is the
-  protocol working); (2) interleaved single-position events rather
-  than synchronous mask firing: synchronous firing is saturation
-  territory (HSDD-6, #388); the event chain already demonstrates the
-  tower height and the sharing; (3) the `eat` guards carried by the
-  level legality instead of explicit guard matrices: no duplicated
-  guard logic, and the boundary crossing stays measured (pin on ring
-  3: 4 enabled words, fold == direct count == oracle).
-- **Escalations**: none.
 
 ---
 

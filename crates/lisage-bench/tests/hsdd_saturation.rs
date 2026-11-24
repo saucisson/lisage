@@ -199,3 +199,32 @@ fn test_recursive_saturation_is_idempotent() {
     assert_eq!(folded.count, single.count);
     assert_eq!(folded.rounds, single.rounds);
 }
+
+/// Error paths of the saturation brick: read_saturation on a non-saturation
+/// root, count_closure with an out-of-range ring size or an event set
+/// outside the alphabet — every guard is pinned by an assertion.
+#[test]
+fn test_saturation_error_paths_are_guarded() {
+    let mut pool = pool_tower();
+    let module = build_module(&mut pool, ANCHOR_TOWER);
+    let ring = build_ring(&mut pool, ANCHOR_TOWER, module, 5).unwrap();
+    let cells = read_cells(&pool, module).unwrap();
+
+    // read_saturation on a non-saturation root (the module itself).
+    assert_eq!(
+        read_saturation(&pool, module).unwrap_err(),
+        ErrorHsdd::RootNotSaturation(module)
+    );
+
+    // count_closure with an out-of-range ring size.
+    assert_eq!(
+        count_closure(&cells, 0, &[1]).unwrap_err(),
+        ErrorHsdd::RingSizeOutOfRange(0)
+    );
+
+    // count_closure with an event set outside the alphabet.
+    assert_eq!(
+        count_closure(&cells, 5, &[8]).unwrap_err(),
+        ErrorHsdd::EventSetOutOfRange(8)
+    );
+}
