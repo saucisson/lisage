@@ -27,8 +27,16 @@
 //! fragment boundary (the right neighbour) and is folded into the pair
 //! coupling: image cardinalities by structural fold == enumeration.
 //!
-//! Honest scope (next bricks of the track): recursive saturation with
-//! firing through the ring (HSDD-6, issue #388), external
+//! Saturation (HSDD-6, issue #388): recursive firing of a **set of
+//! module-local events** through the whole ring, to a **fixpoint** — a
+//! saturation node carries the event set as data on its arc above the
+//! tower it saturates, nested chains stack one node per level; the
+//! closure is folded structurally over the shared coupling (in-place
+//! sweeps of the pair matrices, the ring is never expanded), and the
+//! full event set saturates the initial state up to the golden thread
+//! itself.
+//!
+//! Honest scope (next bricks of the track): external
 //! libDDD/its-tools witness (HSDD-9, issue #391).
 
 use lisage_algebra::interface::{
@@ -78,6 +86,10 @@ pub enum ErrorHsdd {
     /// An event of the chain is unknown, or its position is outside the
     /// ring.
     EventOutOfRange { event: u64, position: u64 },
+    /// The read node is not a saturation node of a saturation chain.
+    RootNotSaturation(NodeId),
+    /// A saturation set is empty or has an unknown event bit.
+    EventSetOutOfRange(u64),
     /// The ring size is outside the instantiation bound.
     RingSizeOutOfRange(u64),
     /// Error propagated from the pool port.
@@ -110,6 +122,15 @@ impl std::fmt::Display for ErrorHsdd {
                     formatter,
                     "unknown event {event} or position {position} outside the ring"
                 )
+            }
+            ErrorHsdd::RootNotSaturation(node) => {
+                write!(
+                    formatter,
+                    "node {node:?} is not a saturation node of a chain"
+                )
+            }
+            ErrorHsdd::EventSetOutOfRange(set) => {
+                write!(formatter, "unknown or empty event set {set}")
             }
             ErrorHsdd::RingSizeOutOfRange(size) => {
                 write!(
@@ -154,6 +175,7 @@ impl KeyAlgebra for TowerKeys {
         match level.0 {
             LEVEL_PC | LEVEL_LEFT => CARDINALITY_LOCAL,
             LEVEL_EVENT => EVENT_COUNT * (LIMIT_POSITIONS + 1),
+            LEVEL_SATURATION => (1 << EVENT_COUNT) - 1,
             _ => CARDINALITY_POSITIONS,
         }
     }
@@ -739,4 +761,285 @@ pub fn count_image_reference(n: u64, events: &[(u64, u64)]) -> u64 {
             .collect();
     }
     words.len() as u64
+}
+
+/// Level of a saturation node: the event set is data on its arc (one node
+/// per firing set, whatever the tower it saturates).
+pub const LEVEL_SATURATION: u32 = 4;
+
+/// Chain read from a saturated tower root: the event sets in **application
+/// order** (innermost first — the root of the chain is the last applied),
+/// the instantiation mask of the ring and the shared module root.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Saturation {
+    /// Event sets of the chain: one bit per module-local event, first
+    /// applied first.
+    pub sets: Vec<u64>,
+    /// Instantiation mask of the underlying ring (its popcount is n).
+    pub mask: u64,
+    /// Shared module root (never duplicated by a saturation).
+    pub module: NodeId,
+}
+
+impl Saturation {
+    /// Size n of the underlying ring (popcount of the mask).
+    pub fn ring_size(&self) -> u64 {
+        self.mask.count_ones() as u64
+    }
+}
+
+/// Packs an event set into the arc key of a saturation node: the whole set
+/// is **data on the arc** (one bit per module-local event), never a form.
+pub fn pack_event_set(events: &[u64]) -> u64 {
+    let mut set = 0u64;
+    for &event in events {
+        set |= 1 << event;
+    }
+    set
+}
+
+/// Builds one **saturation node**: the event set as data on a new arc,
+/// target the tower it saturates (a ring or another saturation node — a
+/// nested chain is recursive saturation). One node per (set, target),
+/// hash-consed: the same set on the same tower is a hit, the ring and the
+/// module are never duplicated.
+pub fn saturate(
+    pool: &mut Arena<TowerController>,
+    anchor: Anchor,
+    target: NodeId,
+    events: u64,
+) -> Result<NodeId, ErrorHsdd> {
+    if events == 0 || events >= 1 << EVENT_COUNT {
+        return Err(ErrorHsdd::EventSetOutOfRange(events));
+    }
+    Ok(pool.intern(
+        anchor,
+        Form::Node {
+            level: Level(LEVEL_SATURATION),
+            arcs: ArcRun::from_pairs([(events, target)]),
+        },
+    ))
+}
+
+/// Reads a saturated tower: walks the chain of saturation nodes down to
+/// the ring (instantiation level), then the mask and the shared module
+/// root. Nested chains expose every set, innermost first.
+pub fn read_saturation(
+    pool: &Arena<TowerController>,
+    root: NodeId,
+) -> Result<Saturation, ErrorHsdd> {
+    let mut sets: Vec<u64> = Vec::new();
+    let mut current = root;
+    loop {
+        let Form::Node { level, arcs } = pool.resolve(current)? else {
+            return Err(ErrorHsdd::RootNotSaturation(current));
+        };
+        match level.0 {
+            LEVEL_SATURATION => {
+                let Some((events, next)) = arcs.iter().next() else {
+                    return Err(ErrorHsdd::RootNotSaturation(current));
+                };
+                sets.push(*events);
+                current = *next;
+            }
+            LEVEL_INSTANCE => {
+                let Some((mask, module)) = arcs.iter().next() else {
+                    return Err(ErrorHsdd::RootNotSaturation(current));
+                };
+                // The chain read from the root is last-applied first.
+                sets.reverse();
+                return Ok(Saturation {
+                    sets,
+                    mask: *mask,
+                    module: *module,
+                });
+            }
+            _ => return Err(ErrorHsdd::RootNotSaturation(current)),
+        }
+    }
+}
+
+/// Fixpoint measurement of a saturation: closed count and the sweeps that
+/// reached it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ClosureCount {
+    /// |closed language| by structural fold (circular trace).
+    pub count: u64,
+    /// Sweeps through the ring that reached and confirmed the fixpoint (a
+    /// closed seed counts zero rounds).
+    pub rounds: u64,
+}
+
+/// Fires `event` at `position` over the pair matrices of consecutive
+/// cells: the fired cell is the right cell of the pair before it and the
+/// left cell of the pair after it. The `eat` guard reads both neighbours:
+/// a firing beside an eater would build an illegal (eat, eat) pair, so the
+/// clamped pair itself carries the boundary guard, now on both sides and
+/// to the fixpoint (the HSDD-2 crossing of the transduction brick).
+fn fire_position(
+    matrices: &mut [Vec<Vec<u64>>],
+    alphabet: &[u64],
+    event: u64,
+    position: usize,
+) -> bool {
+    let n = matrices.len();
+    let before = (position + n - 1) % n;
+    let mut changed = false;
+    for (u, &pc) in alphabet.iter().enumerate() {
+        let Some(fired) = fire_pc(event, pc) else {
+            continue;
+        };
+        let Some(v) = pc_index(alphabet, fired) else {
+            continue;
+        };
+        for (a, &left) in alphabet.iter().enumerate() {
+            if matrices[before][a][u] == 0 {
+                continue;
+            }
+            // The left neighbour eats: the `eat` guard skips the firing.
+            if left == EAT && alphabet[v] == EAT {
+                continue;
+            }
+            if matrices[before][a][v] == 0 {
+                matrices[before][a][v] = 1;
+                changed = true;
+            }
+        }
+        for (b, &right) in alphabet.iter().enumerate() {
+            if matrices[position][u][b] == 0 {
+                continue;
+            }
+            // The right neighbour eats: the `eat` guard skips the firing.
+            if alphabet[v] == EAT && right == EAT {
+                continue;
+            }
+            if matrices[position][v][b] == 0 {
+                matrices[position][v][b] = 1;
+                changed = true;
+            }
+        }
+    }
+    changed
+}
+
+/// One sweep of the event set through the ring (a round of the
+/// saturation): every event of the set fires at every position, **in
+/// place** — the matrices only grow, position i fires after position i - 1
+/// and reads its fresh pairs, so information travels the whole ring in one
+/// sweep, exactly the in-place firing of DDD saturation. Returns whether
+/// the sweep changed any pair.
+fn sweep_event_set(matrices: &mut [Vec<Vec<u64>>], alphabet: &[u64], set: u64) -> bool {
+    let n = matrices.len();
+    let mut changed = false;
+    for position in 0..n {
+        for event in 0..EVENT_COUNT {
+            if set & (1 << event) != 0 {
+                changed |= fire_position(matrices, alphabet, event, position);
+            }
+        }
+    }
+    changed
+}
+
+/// |closure of the saturation| by structural fold over the shared
+/// coupling — the seed is the **initial state** of the philosophers
+/// (every philosopher thinks), the sweeps grow the pair matrices of
+/// consecutive cells in place until nothing changes, and the closed count
+/// is the circular trace of the product: the ring is never expanded, the
+/// module is never duplicated, the count is exact. The sets of the chain
+/// apply in order — a nested set saturates the closure of the previous
+/// one (recursive saturation), and saturating a closed set with itself
+/// does no sweep (idempotence).
+pub fn count_closure(cells: &[Cell], n: u64, sets: &[u64]) -> Result<ClosureCount, ErrorHsdd> {
+    if n == 0 || n > LIMIT_POSITIONS {
+        return Err(ErrorHsdd::RingSizeOutOfRange(n));
+    }
+    for &set in sets {
+        if set == 0 || set >= 1 << EVENT_COUNT {
+            return Err(ErrorHsdd::EventSetOutOfRange(set));
+        }
+    }
+    // Golden pc alphabet, read from the module cells.
+    let mut pcs: Vec<u64> = cells.iter().map(|cell| cell.pc).collect();
+    pcs.sort_unstable();
+    pcs.dedup();
+    let size = pcs.len();
+    let n = n as usize;
+    // Seed: the initial state — every philosopher thinks, so only the
+    // (think, think) pair is reachable.
+    let mut matrices: Vec<Vec<Vec<u64>>> = (0..n)
+        .map(|_| {
+            (0..size)
+                .map(|u| {
+                    (0..size)
+                        .map(|v| u64::from(pcs[u] == THINK && pcs[v] == THINK))
+                        .collect()
+                })
+                .collect()
+        })
+        .collect();
+    let mut rounds = 0u64;
+    for &set in sets {
+        let mut sweeps = 0u64;
+        loop {
+            let changed = sweep_event_set(&mut matrices, &pcs, set);
+            if !changed {
+                break;
+            }
+            sweeps += 1;
+        }
+        // The trailing unproductive sweep confirms the fixpoint: it
+        // counts when at least one sweep produced a change.
+        if sweeps > 0 {
+            sweeps += 1;
+        }
+        rounds += sweeps;
+    }
+    // Circular trace of the closed pair matrices (the heterogeneous count
+    // of `count_image`, at the fixpoint).
+    let mut product: Vec<Vec<u128>> = matrices[0]
+        .iter()
+        .map(|row| row.iter().map(|&value| value as u128).collect())
+        .collect();
+    for matrix in &matrices[1..] {
+        let lifted: Vec<Vec<u128>> = matrix
+            .iter()
+            .map(|row| row.iter().map(|&value| value as u128).collect())
+            .collect();
+        product = multiply_matrix(&product, &lifted);
+    }
+    let count = (0..size).map(|i| product[i][i]).sum::<u128>() as u64;
+    Ok(ClosureCount { count, rounds })
+}
+
+/// |closure of the saturation| by BFS enumeration (the enumeration side
+/// of the A/B/C triptych): fires every event of every set at every
+/// position from the initial state (every philosopher thinks) until the
+/// closure is reached — the oracle the fold must reproduce exactly.
+pub fn count_closure_reference(n: u64, sets: &[u64]) -> u64 {
+    let n = n as usize;
+    let mut seen: Vec<Vec<u64>> = vec![vec![THINK; n]];
+    let mut frontier = seen.clone();
+    while !frontier.is_empty() {
+        let mut next: Vec<Vec<u64>> = Vec::new();
+        for word in &frontier {
+            for &set in sets {
+                for event in 0..EVENT_COUNT {
+                    if set & (1 << event) == 0 {
+                        continue;
+                    }
+                    for position in 0..n {
+                        if let Some(image) = fire_word(event, position, word)
+                            && !seen.contains(&image)
+                        {
+                            seen.push(image.clone());
+                            next.push(image);
+                        }
+                    }
+                }
+            }
+        }
+        frontier = next;
+    }
+    seen.len() as u64
 }
