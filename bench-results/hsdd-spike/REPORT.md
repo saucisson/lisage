@@ -180,3 +180,77 @@ Findings:
   sweeps never intern anything, the closure lives in the fold.
 
 Reproduce: `cargo test -p lisage-bench --test hsdd_saturation`.
+
+## Observed, self-detected and per-fragment saturation (HSDD-6 remainder, issue #388)
+
+The three items the saturation brick left open, now measured - still with
+zero `lisage-core` change. The load-bearing finding: the core M1-0 observer
+port already exposes what the #388 remainder asked for (`Observer`,
+`TraceEvent::Round` with `active_levels`/`modified_levels`, the
+`SpanKind::{Op,Round}` span helpers), so the schedulers plug into it from
+`lisage-bench`: a `TraceCollector` observes the pool storage events
+(`NodeCreated`, `NodeShared`) and the fold emits its own `Round` events
+with the structural fingerprint of the chain in `OpStart`.
+
+Three schedulers share the #395 fold (same closure, same rounds
+accounting, fold == BFS oracle everywhere):
+
+- **Observed** (`saturate_observed`): the blind ring sweep of #395, one
+  core `Round` event per performed sweep, active and modified fragments
+  in the event.
+- **Self-detected** (`saturate_detected`): the Hamez lift of the core
+  `PolicySaturation::AutoDetectee` - a wave fires only the active set,
+  the next active set is the neighbourhood of the changed positions
+  (the re-arm rule: a position becomes firable again only through a
+  neighbour's change), a quiet wave confirms the fixpoint and ends the
+  set; `firings` measures the schedule against the blind sweep.
+- **Per-fragment** (`saturate_fragments`): n overlapping windows of f
+  positions, each window driven to its own local fixpoint, then one
+  lift-off pass over the whole ring; one `Round` event per parent pass;
+  `local_fixpoints` counts the per-window fixpoints; f == 0 and f > n
+  are rejected.
+
+Measured on the full firing set (fold == BFS oracle everywhere):
+
+| n | golden \|R_n\| | all policies | rounds | detected firings |
+|---|---|---|---|---|
+| 3 | 20 | 20 | 2 | 6 |
+| 4 | 56 | 56 | 2 | 8 |
+| 5 | 152 | 152 | 2 | 10 |
+| 6 | 416 | 416 | 2 | 12 |
+| 7 | 1136 | 1136 | 2 | 14 |
+
+Per-fragment sub-fixpoints (full set, 2 parent passes whatever n):
+
+| f | local fixpoints (n = 3..7) | firings |
+|---|---|---|
+| 1 | 9 / 12 / 15 / 18 / 21 (= 3n) | lf |
+| 2 | 8 / 11 / 14 / 17 / 20 (= 3n - 1) | 2 * lf |
+
+Two-set chain [hungry; eat] (nested saturation of #395): the golden
+thread is recovered under every policy in 4 rounds (2 per set);
+detected firings == 4n; f = 2 local fixpoints 16 / 22 / 28 / 34 / 40.
+
+Findings:
+
+- The honest degeneration: on the regular ring the self-detected
+  schedule degenerates to the blind sweep - `firings == n * max(rounds, 1)`
+  for every n and every firing set. The detection machinery is in place
+  and the trace proves the schedule, but the uniform topology gives it
+  nothing to skip.
+- The observed trace (n = 5) carries the whole story without growing the
+  structure: 6 `NodeCreated` (4 module + ring + saturation), 1
+  `NodeShared` on the re-saturation hit, `Round` events [(1, all
+  positions, all positions), (2, all positions, empty)] - the
+  confirming sweep is visible as the round that modifies nothing -
+  balanced `SpanOpen`/`SpanClose`, `OpStart`/`OpEnd` around the
+  saturation.
+- Per-fragment fixpoints converge to the same closure with the same 2
+  parent passes as the blind sweep: the window-local fixpoints (3n for
+  f = 1, 3n - 1 for f = 2) do not inflate the parent schedule, and the
+  last pass modifies nothing.
+- Zero core change held: the #388 items that genuinely need core work
+  are the per-round materialized diagrams (real before/image/after
+  handles and growth) and memo/memory versions per (round x fragment).
+
+Reproduce: `cargo test -p lisage-bench --test hsdd_policy`.

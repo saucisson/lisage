@@ -36,14 +36,28 @@
 //! full event set saturates the initial state up to the golden thread
 //! itself.
 //!
+//! Saturation policies (the #388 remainder): the fold runs under three
+//! schedulers — the blind ring sweep, the **self-detected** Hamez lift
+//! (the active fragments derived from the change structure, no explicit
+//! user order) and the **per-fragment** sub-fixpoints (window-local
+//! fixpoints, then lift-off through the shared boundary sheets) — all
+//! through the core `Observer` port: every round emits the active and
+//! modified fragments into the trace, with zero pool growth per round.
+//!
 //! Honest scope (next bricks of the track): external
 //! libDDD/its-tools witness (HSDD-9, issue #391).
+
+use std::collections::BTreeSet;
+use std::sync::{Arc, Mutex};
 
 use lisage_algebra::interface::{
     Anchor, ArcRun, Controller, ControllerId, Form, KeyAlgebra, Level, NodeId, Pool,
 };
 use lisage_core::arena::Arena;
-use lisage_core::observer::NoOpObserver;
+use lisage_core::observer::{
+    NoOpObserver, Observer, SpanId, SpanKind, TraceEvent, contextualize, next_span_id, pop_span,
+    push_span,
+};
 
 /// Level of the `pc` variable of the module.
 pub const LEVEL_PC: u32 = 0;
@@ -956,6 +970,24 @@ fn fire_right_guard(
     changed
 }
 
+/// Fires every event of the set at one position (the local step of every
+/// scheduling policy below). Returns whether the position's pair sheets
+/// changed — the fragment-level change detection the policies feed on.
+fn fire_set_at(
+    matrices: &mut [Vec<Vec<u64>>],
+    alphabet: &[u64],
+    set: u64,
+    position: usize,
+) -> bool {
+    let mut changed = false;
+    for event in 0..EVENT_COUNT {
+        if set & (1 << event) != 0 {
+            changed |= fire_position(matrices, alphabet, event, position);
+        }
+    }
+    changed
+}
+
 /// One sweep of the event set through the ring (a round of the
 /// saturation): every event of the set fires at every position, **in
 /// place** — the matrices only grow, position i fires after position i - 1
@@ -963,14 +995,9 @@ fn fire_right_guard(
 /// sweep, exactly the in-place firing of DDD saturation. Returns whether
 /// the sweep changed any pair.
 fn sweep_event_set(matrices: &mut [Vec<Vec<u64>>], alphabet: &[u64], set: u64) -> bool {
-    let n = matrices.len();
     let mut changed = false;
-    for position in 0..n {
-        for event in 0..EVENT_COUNT {
-            if set & (1 << event) != 0 {
-                changed |= fire_position(matrices, alphabet, event, position);
-            }
-        }
+    for position in 0..matrices.len() {
+        changed |= fire_set_at(matrices, alphabet, set, position);
     }
     changed
 }
@@ -1031,6 +1058,14 @@ pub fn count_closure(cells: &[Cell], n: u64, sets: &[u64]) -> Result<ClosureCoun
     }
     // Circular trace of the closed pair matrices (the heterogeneous count
     // of `count_image`, at the fixpoint).
+    let count = trace_count(&matrices, size);
+    Ok(ClosureCount { count, rounds })
+}
+
+/// Closed count of the pair matrices: the circular trace of their
+/// product (the heterogeneous count of `count_image`, at the fixpoint)
+/// — the product of the matrices is counted, never expanded.
+fn trace_count(matrices: &[Vec<Vec<u64>>], size: usize) -> u64 {
     let mut product: Vec<Vec<u128>> = matrices[0]
         .iter()
         .map(|row| row.iter().map(|&value| value as u128).collect())
@@ -1042,8 +1077,7 @@ pub fn count_closure(cells: &[Cell], n: u64, sets: &[u64]) -> Result<ClosureCoun
             .collect();
         product = multiply_matrix(&product, &lifted);
     }
-    let count = (0..size).map(|i| product[i][i]).sum::<u128>() as u64;
-    Ok(ClosureCount { count, rounds })
+    (0..size).map(|i| product[i][i]).sum::<u128>() as u64
 }
 
 /// |closure of the saturation| by BFS enumeration (the enumeration side
@@ -1076,4 +1110,399 @@ pub fn count_closure_reference(n: u64, sets: &[u64]) -> u64 {
         frontier = next;
     }
     seen.len() as u64
+}
+
+// --- Saturation policies: observed, self-detected, per-fragment (#388) ---
+
+/// Recording observer of the tower, the bench side of the M1-0 port: it
+/// plugs into the pool (`pool_tower_observed` — the pool emits its own
+/// storage events through it) and into the observed saturation engines
+/// below. Clones share the same buffer.
+#[derive(Clone)]
+pub struct TraceCollector {
+    events: Arc<Mutex<Vec<TraceEvent>>>,
+}
+
+impl TraceCollector {
+    /// New empty collector.
+    pub fn new() -> Self {
+        TraceCollector {
+            events: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    /// Events recorded so far, in emission order.
+    pub fn events(&self) -> Vec<TraceEvent> {
+        self.events.lock().expect("collector lock").clone()
+    }
+
+    /// Round events recorded, as `(number, active fragments, modified
+    /// fragments)` — the acceptance-criterion triple of #388.
+    pub fn rounds(&self) -> Vec<(u32, Vec<u32>, Vec<u32>)> {
+        self.events()
+            .iter()
+            .filter_map(|event| match event {
+                TraceEvent::Round {
+                    number,
+                    active_levels,
+                    modified_levels,
+                    ..
+                } => Some((*number, active_levels.clone(), modified_levels.clone())),
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+impl Default for TraceCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Observer for TraceCollector {
+    fn on_event(&self, event: &TraceEvent) {
+        self.events
+            .lock()
+            .expect("collector lock")
+            .push(event.clone());
+    }
+}
+
+/// Observed tower: the pool armed with a trace observer instead of the
+/// no-op default — the pool emits its storage events (`NodeCreated`,
+/// `NodeShared`, reductions) through it, exactly as on the flat pool.
+pub fn pool_tower_observed(observer: Box<dyn Observer>) -> Arena<TowerController> {
+    Arena::new(TowerController::new(), observer)
+}
+
+/// Fold-time read of a saturated tower: the validated ring size, the
+/// firing sets of the chain and the sorted golden pc alphabet.
+struct TowerRead {
+    ring_size: u64,
+    sets: Vec<u64>,
+    pcs: Vec<u64>,
+}
+
+/// Engine read of a saturated tower: validates the chain (the same
+/// errors as `count_closure`), reads the shared cells and the golden pc
+/// alphabet.
+fn fold_tower(pool: &Arena<TowerController>, root: NodeId) -> Result<TowerRead, ErrorHsdd> {
+    let saturation = read_saturation(pool, root)?;
+    let n = saturation.ring_size();
+    if n == 0 || n > LIMIT_POSITIONS {
+        return Err(ErrorHsdd::RingSizeOutOfRange(n));
+    }
+    for &set in &saturation.sets {
+        if set == 0 || set >= 1 << EVENT_COUNT {
+            return Err(ErrorHsdd::EventSetOutOfRange(set));
+        }
+    }
+    let cells = read_cells(pool, saturation.module)?;
+    let mut pcs: Vec<u64> = cells.iter().map(|cell| cell.pc).collect();
+    pcs.sort_unstable();
+    pcs.dedup();
+    Ok(TowerRead {
+        ring_size: n,
+        sets: saturation.sets.clone(),
+        pcs,
+    })
+}
+
+/// Matrices of the **initial state** seed: every philosopher thinks, so
+/// only the (think, think) pair is reachable — the seed of every policy.
+fn seed_matrices(n: usize, pcs: &[u64]) -> Vec<Vec<Vec<u64>>> {
+    let size = pcs.len();
+    (0..n)
+        .map(|_| {
+            (0..size)
+                .map(|u| {
+                    (0..size)
+                        .map(|v| u64::from(pcs[u] == THINK && pcs[v] == THINK))
+                        .collect()
+                })
+                .collect()
+        })
+        .collect()
+}
+
+/// Structural fingerprint of a saturated chain (n, sets), packed into the
+/// OpStart event.
+fn chain_fingerprint(n: u64, sets: &[u64]) -> u64 {
+    sets.iter().fold(n, |acc, &set| acc.rotate_left(8) ^ set)
+}
+
+/// Opens the op span of a saturation and emits `OpStart` inside it. The
+/// caller closes with `emit_op_end`.
+fn emit_op_start(observer: &dyn Observer, fingerprint: u64) -> SpanId {
+    let op = next_span_id();
+    push_span(op);
+    observer.on_event(&TraceEvent::SpanOpen {
+        span: op,
+        kind: SpanKind::Op,
+        lane: 0,
+    });
+    observer.on_event(&contextualize(TraceEvent::OpStart {
+        fingerprint,
+        span: None,
+    }));
+    op
+}
+
+/// Closes the op span of a saturation: `OpEnd` then `SpanClose`.
+fn emit_op_end(observer: &dyn Observer, op: SpanId) {
+    observer.on_event(&contextualize(TraceEvent::OpEnd { span: None }));
+    pop_span();
+    observer.on_event(&TraceEvent::SpanClose { span: op });
+}
+
+/// Emits one core round event for a tower round (the #388 acceptance
+/// visibility), inside its own `Round` span: `number` (1-based),
+/// `active_levels` the **fragments** fired in the round (the positions,
+/// the n instantiated module copies), `modified_levels` the fragments
+/// whose pair sheets changed, `before/image/after` the saturated tower
+/// root (the fold is matrix-side: no per-round handle is rebuilt) and
+/// `growth` 0 — the sweeps intern nothing, the tower stays one edge per
+/// set.
+fn emit_round(
+    observer: &dyn Observer,
+    number: u32,
+    active: &BTreeSet<usize>,
+    modified: &BTreeSet<usize>,
+    root: NodeId,
+) {
+    let span = next_span_id();
+    push_span(span);
+    observer.on_event(&TraceEvent::SpanOpen {
+        span,
+        kind: SpanKind::Round,
+        lane: 0,
+    });
+    observer.on_event(&contextualize(TraceEvent::Round {
+        number,
+        active_levels: active.iter().map(|&position| position as u32).collect(),
+        modified_levels: modified.iter().map(|&position| position as u32).collect(),
+        before: root,
+        image: root,
+        after: root,
+        growth: 0,
+        span: None,
+    }));
+    pop_span();
+    observer.on_event(&TraceEvent::SpanClose { span });
+}
+
+/// Saturates the stored tower under the **ring** policy (the blind
+/// sweep of `count_closure`, every position once per sweep), **through
+/// the observer**: every performed sweep — the confirming ones included
+/// — emits the core round event with the active and modified fragments.
+/// Same closure and same round accounting as the fold.
+pub fn saturate_observed(
+    pool: &Arena<TowerController>,
+    root: NodeId,
+    observer: &dyn Observer,
+) -> Result<ClosureCount, ErrorHsdd> {
+    let TowerRead {
+        ring_size: n,
+        sets,
+        pcs,
+    } = fold_tower(pool, root)?;
+    let op = emit_op_start(observer, chain_fingerprint(n, &sets));
+    let mut matrices = seed_matrices(n as usize, &pcs);
+    let all: BTreeSet<usize> = (0..n as usize).collect();
+    let mut number = 1u32;
+    let mut rounds = 0u64;
+    for &set in &sets {
+        let mut productive = 0u64;
+        loop {
+            let mut modified = BTreeSet::new();
+            for &position in &all {
+                if fire_set_at(&mut matrices, &pcs, set, position) {
+                    modified.insert(position);
+                }
+            }
+            emit_round(observer, number, &all, &modified, root);
+            number += 1;
+            if modified.is_empty() {
+                break;
+            }
+            productive += 1;
+        }
+        // The trailing unproductive sweep confirms the fixpoint: it
+        // counts when at least one sweep produced a change.
+        if productive > 0 {
+            rounds += productive + 1;
+        }
+    }
+    let closed = trace_count(&matrices, pcs.len());
+    emit_op_end(observer, op);
+    Ok(ClosureCount {
+        count: closed,
+        rounds,
+    })
+}
+
+/// Closure and work of the **self-detected** policy.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct DetectedClosure {
+    /// Closed count, rounds = waves (productive + confirming).
+    pub closed: ClosureCount,
+    /// Position firings performed (the measured work of the policy).
+    pub firings: u64,
+}
+
+/// Saturates the stored tower under the **self-detected** policy — the
+/// Hamez strategy lifted to the tower, the M2-4 AutoDetectee
+/// generalized: no explicit order. The seed activates every fragment;
+/// a wave fires only the ACTIVE fragments, and the next wave is
+/// derived from the structure alone: the fragments whose pair sheets
+/// CHANGED re-arm their neighbourhood (the changed fragment and its two
+/// neighbours — the only fragments a change can reach through the
+/// coupling). A wave that modifies nothing confirms the fixpoint. The
+/// trace carries the same round triple as the ring policy; the
+/// firings measure the schedule against the blind sweep.
+pub fn saturate_detected(
+    pool: &Arena<TowerController>,
+    root: NodeId,
+    observer: &dyn Observer,
+) -> Result<DetectedClosure, ErrorHsdd> {
+    let TowerRead {
+        ring_size: n,
+        sets,
+        pcs,
+    } = fold_tower(pool, root)?;
+    let n = n as usize;
+    let op = emit_op_start(observer, chain_fingerprint(n as u64, &sets));
+    let mut matrices = seed_matrices(n, &pcs);
+    let mut number = 1u32;
+    let mut rounds = 0u64;
+    let mut firings = 0u64;
+    for &set in &sets {
+        let mut active: BTreeSet<usize> = (0..n).collect();
+        let mut productive = 0u64;
+        loop {
+            let mut modified = BTreeSet::new();
+            for &position in &active {
+                firings += 1;
+                if fire_set_at(&mut matrices, &pcs, set, position) {
+                    modified.insert(position);
+                }
+            }
+            emit_round(observer, number, &active, &modified, root);
+            number += 1;
+            if modified.is_empty() {
+                break;
+            }
+            productive += 1;
+            // The structure speaks: only the neighbourhood of a change
+            // can fire again.
+            active = modified
+                .iter()
+                .flat_map(|&position| [(position + n - 1) % n, position, (position + 1) % n])
+                .collect();
+        }
+        if productive > 0 {
+            rounds += productive + 1;
+        }
+    }
+    let closed = trace_count(&matrices, pcs.len());
+    emit_op_end(observer, op);
+    Ok(DetectedClosure {
+        closed: ClosureCount {
+            count: closed,
+            rounds,
+        },
+        firings,
+    })
+}
+
+/// Closure and work of the **per-fragment** policy.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct FragmentedClosure {
+    /// Closed count, rounds = parent passes (productive + confirming).
+    pub closed: ClosureCount,
+    /// Position firings performed inside the windows.
+    pub firings: u64,
+    /// Local fixpoint iterations of the windows (confirming ones included).
+    pub local_fixpoints: u64,
+}
+
+/// Saturates the stored tower under the **per-fragment** policy (HSDD-6):
+/// the ring splits into the n overlapping windows of `fragment`
+/// consecutive positions. A parent pass sweeps the windows; each window
+/// fires **to its local fixpoint** (its fragments fire out-of-order inside
+/// it, until the window is quiet) before the lift-off to the next — the
+/// parent pair sheets carry the change through the window boundaries,
+/// the per-fragment memory of the transduction brick (the boundary
+/// guard rides the shared coupling). Parent passes repeat until the
+/// whole ring is stable; the trace carries one round event per parent
+/// pass.
+pub fn saturate_fragments(
+    pool: &Arena<TowerController>,
+    root: NodeId,
+    fragment: u64,
+    observer: &dyn Observer,
+) -> Result<FragmentedClosure, ErrorHsdd> {
+    let TowerRead {
+        ring_size: n,
+        sets,
+        pcs,
+    } = fold_tower(pool, root)?;
+    if fragment == 0 || fragment > n {
+        return Err(ErrorHsdd::RingSizeOutOfRange(fragment));
+    }
+    let n = n as usize;
+    let fragment = fragment as usize;
+    let op = emit_op_start(observer, chain_fingerprint(n as u64, &sets));
+    let mut matrices = seed_matrices(n, &pcs);
+    let all: BTreeSet<usize> = (0..n).collect();
+    let mut number = 1u32;
+    let mut rounds = 0u64;
+    let mut firings = 0u64;
+    let mut local_fixpoints = 0u64;
+    for &set in &sets {
+        let mut productive = 0u64;
+        loop {
+            let mut modified = BTreeSet::new();
+            for start in 0..n {
+                // The window fires to its LOCAL fixpoint before the
+                // lift-off: the parent sheets stay untouched between
+                // windows.
+                loop {
+                    let mut window_changed = false;
+                    for offset in 0..fragment {
+                        let position = (start + offset) % n;
+                        firings += 1;
+                        if fire_set_at(&mut matrices, &pcs, set, position) {
+                            modified.insert(position);
+                            window_changed = true;
+                        }
+                    }
+                    local_fixpoints += 1;
+                    if !window_changed {
+                        break;
+                    }
+                }
+            }
+            emit_round(observer, number, &all, &modified, root);
+            number += 1;
+            if modified.is_empty() {
+                break;
+            }
+            productive += 1;
+        }
+        if productive > 0 {
+            rounds += productive + 1;
+        }
+    }
+    let closed = trace_count(&matrices, pcs.len());
+    emit_op_end(observer, op);
+    Ok(FragmentedClosure {
+        closed: ClosureCount {
+            count: closed,
+            rounds,
+        },
+        firings,
+        local_fixpoints,
+    })
 }
