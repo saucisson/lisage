@@ -22,4 +22,3 @@ pub fn lane_b(x: u32) -> u32 {
 pub fn lane_c(x: u32) -> u32 {
     x + 1
 }
-
