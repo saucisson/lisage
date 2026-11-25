@@ -33,6 +33,13 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: english-subject
+        name: commit subjects are English (issues #104, #110)
+        entry: uv run python -m scripts english-only --subject-file
+        language: system
+        stages: [commit-msg]
+        always_run: true
+
   - repo: https://github.com/doublify/pre-commit-rust
     rev: v1.0
     hooks:

@@ -29,9 +29,26 @@ Allowed, on purpose and reviewed per PR:
 - ``bench-results/**`` archives published measurement outputs;
 - lock files are machine-generated.
 
+The subcommand takes two shapes (the second one ported from
+project-template ADR-0008 N4, PR 21):
+
+- ``python -m scripts english-only`` and ``make english-only``: scan
+  the whole scope, print one line per offender, exit 1 as soon as one
+  is found - the CI and ``make check`` front;
+- ``python -m scripts english-only --subject-file PATH``: scan only
+  the first line of that file, accents and stop-words, exit 1 on an
+  offender - the commit-msg hook shape: a commit subject is an
+  artifact like any other, and the hook wiring lives in
+  ``.pre-commit-config.yaml``.
+
 Entry point (ADR-0021): ``python -m scripts english-only`` or
 ``make english-only``. Exit codes: 0 clean, 1 offenders found (printed
-one per line, with the reason and the matching word).
+one per line, with the reason and the matching word), 2 protocol
+failure (an unreadable commit message file).
+
+The package targets Python 3.15: the sources use unparenthesized
+multi-exception ``except`` clauses, which parse only from Python 3.14,
+so nothing under 3.14 can import ``scripts``.
 """
 
 import argparse
@@ -201,6 +218,8 @@ InlineSpan = re.compile(r"`[^`\n]*`")
 _RUST_STRING_PREFIX = re.compile(r"(?:b?r|r|b)(?P<hashes>#{0,9})\"")
 Identifier_RE = re.compile(r"[A-Za-z_][A-Za-z_0-9]*")
 _PART_SPLIT_RE = re.compile(r"[_0-9]+|(?<=[a-z])(?=[A-Z])")
+
+COMMIT_SUBJECT_ANCHOR = Path("<commit-subject>")
 
 
 def is_allowed(relative: Path) -> bool:
@@ -526,19 +545,60 @@ def scan_repository() -> list[Offender]:
     return offenders
 
 
-def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+def scan_subject(*, subject: str) -> Offender | None:
+    """Scan a commit subject: accented characters and French stop-words.
+
+    The subject is prose, so the stem corpus stays out of it and
+    identifiers with their own naming rules never apply.
+    """
+    finding = _first_accent(subject)
+    if finding is None:
+        finding = _first_stop_word(subject)
+    if finding is None:
+        return None
+    position, evidence = finding
+    return Offender(COMMIT_SUBJECT_ANCHOR, _line_of(subject, position), evidence)
+
+
+def register(subparsers: argparse._SubParsersAction) -> None:
     """Register the english-only subcommand."""
     subparser = subparsers.add_parser(
         "english-only",
         help="Fail on French text over the repository (issues #104, #110).",
         description="Fail on French text over the repository (issues #104, #110).",
     )
+    subparser.add_argument(
+        "--subject-file",
+        default=None,
+        help="Commit-msg hook shape: scan only the first line of this file.",
+    )
     subparser.set_defaults(runner=run)
 
 
 def run(*, arguments: argparse.Namespace) -> int:
-    """Print one line per offender; exit 1 as soon as one was found."""
-    del arguments  # The driver takes no option, on purpose.
+    """Print one line per offender; exit 1 as soon as one was found.
+
+    The commit-msg hook shape (`--subject-file`) scans only the first
+    line of that file instead of the whole repository.
+    """
+    subject_file = getattr(arguments, "subject_file", None)
+    if subject_file is not None:
+        try:
+            message_text = Path(subject_file).read_text(encoding="utf-8")
+        except OSError:
+            print(
+                f"Error: could not read the commit message file: {subject_file}.",
+                file=sys.stderr,
+            )
+            return 2
+        subject_lines = message_text.splitlines()
+        subject = subject_lines[0] if subject_lines else ""
+        subject_offender = scan_subject(subject=subject)
+        if subject_offender is not None:
+            print(f"english-only: {subject_offender}")
+            print("english-only: the commit subject must be English (issues #104, #110).")
+            return 1
+        return 0
     offenders = scan_repository()
     for offender in offenders:
         print(f"english-only: {offender}")

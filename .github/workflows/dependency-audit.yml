@@ -4,7 +4,9 @@ name: dependency-audit
 # dependency graph when it actually moves - the locked graph rarely
 # changes, and the day's CI stays short. A weekly sweep catches
 # advisories published for the same lockfile; a human reads the
-# scheduled findings either way.
+# scheduled findings either way. The license gate of the Python tooling
+# environment rides the same trigger (ADR-0108 N2): licenses travel
+# with the lockfile, alongside pip-audit.
 on:
   pull_request:
     paths: ["uv.lock", "pyproject.toml", "Cargo.lock", "Cargo.toml"]
@@ -39,6 +41,22 @@ jobs:
             --output-file requirements.txt
           uvx pip-audit --requirement requirements.txt --strict
 
+  license-gate:
+    name: license gate of the locked graph
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: License gate of the locked environment
+        run: uv run python -m scripts license-gate
+
   cargo-audit:
     name: cargo audit of the locked graph
     runs-on: ubuntu-latest
@@ -48,8 +66,7 @@ jobs:
 
       - name: Install cargo-audit
         uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
-        with:
-          tool: cargo-audit
+        tool: cargo-audit
 
       - name: cargo audit
         run: cargo audit

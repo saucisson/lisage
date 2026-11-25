@@ -1,0 +1,40 @@
+name: deployment
+
+# The merge is the deploy trigger (project-template ADR-0008 N3,
+# instantiated here for ADR-0107): every push of `daily` deploys the
+# staging channel - lisage.linard.fr on the saucisson VPS. The release
+# channel is deferred: `main` has no deployment target yet, the human
+# release of this repository is not a deploy. Until the WEB milestone
+# ships the distribution (WEB-6), the remote command is the connection
+# smoke of the template contract; the real distribution replaces it in
+# place (docs/deployment.md).
+
+on:
+  push:
+    branches: [daily]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-staging:
+    name: deploy staging (lisage.linard.fr)
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout the deployed tree
+        uses: actions/checkout@v5
+
+      - name: Connect to the target host (distribution smoke)
+        env:
+          DEPLOY_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.STAGING_USER }}
+        run: |
+          key_path="$RUNNER_TEMP/deploy_key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key_path"
+          chmod 600 "$key_path"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+            -i "$key_path" \
+            "$DEPLOY_USER@$DEPLOY_HOST" "true"
+          rm -f "$key_path"

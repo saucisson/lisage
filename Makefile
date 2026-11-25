@@ -10,9 +10,10 @@ DAY_TAG := daily-$(shell date +%F)
 .DEFAULT_GOAL := help
 .PHONY: help install lint format typecheck imports test check security build \
         rust-lint rust-format rust-test rust-check rust-audit rust-deny \
-        english-only \
-        day-start day-report smoke-test mutate notify review merge-pr pr claim \
-        claim-pr update-pr wait-ci night review-bundle sync-daily clean bench-confrontation
+        english-only probe-merge license-gate \
+        day-start day-report smoke-test mutate notify review merge-pr \
+        pr claim claim-pr update-pr wait-ci night review-bundle sync-daily clean \
+        bench-confrontation
 
 help: ## List available targets with their description.
 	@grep --extended-regexp '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -20,7 +21,7 @@ help: ## List available targets with their description.
 
 install: ## Install the environment and the pre-commit hooks.
 	$(UV) sync --locked
-	$(UV) run pre-commit install
+	$(UV) run pre-commit install --hook-type pre-commit --hook-type commit-msg
 
 lint: ## Lint every file (Ruff, ADR-0004/0008).
 	$(UV) run ruff check .
@@ -49,27 +50,21 @@ security: ## Secret scan of the whole history (gitleaks, ADR-0008).
 
 build: ## Build the wheel and the sdist (ADR-0001).
 	$(UV) build
-
 rust-lint: ## Clippy on the Rust workspace (-D warnings).
 	cargo clippy --all-targets -- -D warnings
-
 rust-format: ## Format the Rust workspace in place (rustfmt).
 	cargo fmt --all
-
 rust-format-check: ## Check Rust formatting without modifying.
 	cargo fmt --all -- --check
-
 rust-test: ## Run the Rust test suite (cargo nextest).
 	cargo nextest run --all-targets
-
 rust-check: rust-format-check rust-lint rust-test ## Full Rust quality gate.
-
 rust-audit: ## Dependency vulnerability audit (cargo-audit).
 	cargo audit
-
 rust-deny: ## License and dependency policy (cargo-deny).
 	cargo deny check
-
+license-gate: ## Fail on any installed Python license outside the allowed set (ADR-0108 N2).
+	$(PYTHON) -m scripts license-gate
 day-start: ## Tag the morning restore point on `daily` (docs/branching.md).
 	git tag "$(DAY_TAG)"
 
@@ -93,6 +88,9 @@ review: ## Run the local reviewer session on pull request PR=N (ADR-0010).
 
 merge-pr: ## Merge pull request PR=N into daily after review and CI (ADR-0009).
 	$(PYTHON) -m scripts merge-pr --pr-number $(PR)
+
+probe-merge: ## Replay this branch onto BASE=origin/daily, probe every commit (ADR-0108 N5/H5).
+	$(PYTHON) -m scripts probe-merge --base-ref "$(BASE)"
 
 pr: ## Open the pull request from the current branch: TITLE=... [BODY_FILE=...] (ADR-0017).
 	$(PYTHON) -m scripts pr --title "$(TITLE)" --body-file "$(BODY_FILE)"
