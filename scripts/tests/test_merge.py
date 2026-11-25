@@ -53,7 +53,7 @@ def test_criteria_refuse_a_main_base() -> None:
         check_runs=_green_check_runs(),
     )
     assert not accepted
-    assert "targets \`main\`" in reason
+    assert "targets `main`" in reason
 
 
 def test_criteria_refuse_an_unknown_base() -> None:

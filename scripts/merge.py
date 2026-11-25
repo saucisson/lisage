@@ -194,9 +194,9 @@ def evaluate_merge_criteria(  # noqa: PLR0911 - one return per codified criterio
     base_ref = extract_base_ref(pull_request=pull_request)
     if base_ref != BASE_BRANCH_NAME:
         return False, (
-            f"the pull request targets \`{base_ref or 'an unknown branch'}\`"
-            f", not \`{BASE_BRANCH_NAME}\` - agent tooling merges into"
-            " \`daily\` only (A1: no agent ever merges \`main\`)"
+            f"the pull request targets `{base_ref or 'an unknown branch'}`"
+            f", not `{BASE_BRANCH_NAME}` - agent tooling merges into"
+            " `daily` only (A1: no agent ever merges `main`)"
         )
     blocking_count = report.get("blocking_count")
     if blocking_count is None:
