@@ -46,6 +46,14 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
+## 2026-11-25 - Nomenclature of reduction rules: the minimal core in docs/ (PR #406, human directive)
+
+- **Issue**: none (human directive: import the validated reduction-rule nomenclature into the repository, cleaned of conversation-history mentions, translated to English by owner decision).
+- **Done**: adds `docs/nomenclature-of-reduction-rules-the-minimal-core.md`: the minimal core of the reduction system (R-share, R-transparent, R-absorb, R-section in the pool; R-fix on the channels), the absorbed readings (R-collapse as the unanimous case of R-transparent; R-default as the value-side encoding of R-absorb under the verified convention D_δ = D^def), the four faces of R-section (keys, complement, swap, weighting), the position-shift channel, the generalization of the edge term as a function of the channel state, the total application order R-fix ≺ R-section ≺ R-absorb ≺ R-transparent ≺ R-share, the channel × algebra matrix, and the traceability table against the code identifiers. No code change.
+- **Evidence**: docs-only change. Not run: `make check` and CI locally (nothing to compile or test; one new markdown file plus this entry). Content cross-checked against current `daily`: `crates/lisage-algebra/src/reduction.rs` (reduce, reduce_dabs, reduce_inverse), `crates/lisage-core/src/arena.rs` (collapse_active, generalized_absorption, default_active, is_default), `crates/lisage-algebra/src/relative.rs` (ShiftGroup, CycleGroup, InputArc), `docs/specification-computing-attributed-transductions-reference-instance.md` (§2.4.1, §2.4.2, §2.4.5), `docs/state-of-the-art-decision-diagrams.md`.
+- **Judgement calls**: translated to English rather than kept in French, per the English-only direction (milestone M6) and the owner's in-session decision. The R- names (R-absorb, R-transparent, R-fix) are specification proposals; the code identifiers remain the reference and nothing is renamed in this change. The confluence of the extended system is stated as open, not claimed.
+- **Escalations**: none.
+
 ## 2026-11-24 - Zitadel clients split: API and Web (PR #405, human directive)
 
 - **Issue**: none (human directive: Zitadel clients changed — the app now has
