@@ -46,7 +46,7 @@ One entry per commit or pull request:
 ---
 
 <!-- Append new entries directly below this line. -->
-## 2026-11-25 - Nomenclature of reduction rules: the minimal core in docs/ (PR #PENDING, human directive)
+## 2026-11-25 - Nomenclature of reduction rules: the minimal core in docs/ (PR #406, human directive)
 
 - **Issue**: none (human directive: import the validated reduction-rule nomenclature into the repository, cleaned of conversation-history mentions, translated to English by owner decision).
 - **Done**: adds `docs/nomenclature-of-reduction-rules-the-minimal-core.md`: the minimal core of the reduction system (R-share, R-transparent, R-absorb, R-section in the pool; R-fix on the channels), the absorbed readings (R-collapse as the unanimous case of R-transparent; R-default as the value-side encoding of R-absorb under the verified convention D_δ = D^def), the four faces of R-section (keys, complement, swap, weighting), the position-shift channel, the generalization of the edge term as a function of the channel state, the total application order R-fix ≺ R-section ≺ R-absorb ≺ R-transparent ≺ R-share, the channel × algebra matrix, and the traceability table against the code identifiers. No code change.
