@@ -1,11 +1,9 @@
 """Pull request drivers: open one, update one body (ADR-0017, ADR-0019).
 
 ``pr`` opens each pull request into ``daily`` through the GitHub API
-and nothing else - never by hand, never through ``gh``: the driver
-shares the token and the protocol of the review and merge drivers, so
-the flow works attended and unattended alike (the runtime profile gates
-``gh`` out, ADR-0015, and an unattended session cannot answer an
-approval).
+(gh client first, REST fallback, ADR-0108) and nothing else. The
+driver shares the token and the protocol of the review and merge
+drivers, so the flow works attended and unattended alike.
 
 ``update-pr`` replaces the whole body of an OPEN pull request from a
 file (ADR-0019): the review checklist resolves an over-budget pull
@@ -19,22 +17,23 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from scripts._github import open_github_client
+from scripts._github import (
+    HTTP_CREATED_STATUS_CODE,
+    HTTP_SUCCESS_STATUS_CODE,
+    fetch_issue,
+    github_request,
+)
 from scripts._shared import (
     EXIT_CODE_CRITERIA_UNMET,
     EXIT_CODE_PROTOCOL_FAILURE,
     EXIT_CODE_SUCCESS,
-    GITHUB_API_BASE_URL,
     REPOSITORY_ROOT,
-    load_github_token,
     resolve_repository_slug,
     run_git,
 )
 
 if TYPE_CHECKING:
     import argparse
-
-    import httpx
 
 PULL_REQUEST_TEMPLATE_PATH = ".github/PULL_REQUEST_TEMPLATE.md"
 DEFAULT_BASE_BRANCH = "daily"
@@ -76,7 +75,6 @@ def read_pull_request_body(*, body_file: str | None) -> str:
 
 def open_pull_request(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     title: str,
     head_branch: str,
@@ -84,16 +82,16 @@ def open_pull_request(
     body: str,
 ) -> dict[str, object]:
     """Open the pull request; a 422 means the state, not the API, is wrong."""
-    response = http_client.post(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/pulls",
-        json={"title": title, "head": head_branch, "base": base_branch, "body": body},
+    status_code, payload = github_request(
+        endpoint=f"repos/{repository_slug}/pulls",
+        method="POST",
+        json_payload={"title": title, "head": head_branch, "base": base_branch, "body": body},
     )
-    if response.is_success:
-        pull_request: object = response.json()
-        if not isinstance(pull_request, dict):
-            raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
-        return pull_request
-    if response.status_code == UNPROCESSABLE_ENTITY_STATUS_CODE:
+    if status_code in (HTTP_SUCCESS_STATUS_CODE, HTTP_CREATED_STATUS_CODE) and isinstance(
+        payload, dict
+    ):
+        return payload
+    if status_code == UNPROCESSABLE_ENTITY_STATUS_CODE:
         print(
             f"Pull request refused: push the branch {head_branch} first, or a"
             " pull request for it already exists.",
@@ -101,7 +99,7 @@ def open_pull_request(
         )
         raise SystemExit(EXIT_CODE_CRITERIA_UNMET)
     print(
-        f"Error: the GitHub API returned {response.status_code}: {response.text}",
+        f"Error: the GitHub API returned {status_code}: {payload}",
         file=sys.stderr,
     )
     raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
@@ -139,19 +137,16 @@ def register_pr(subparsers: argparse._SubParsersAction[argparse.ArgumentParser])
 
 def run_pr(*, arguments: argparse.Namespace) -> int:
     """Entry point: title in, opened pull request out."""
-    github_token = load_github_token()
     repository_slug = resolve_repository_slug()
     head_branch = arguments.head or current_branch()
     body = read_pull_request_body(body_file=arguments.body_file or None)
-    with open_github_client(token=github_token) as http_client:
-        pull_request = open_pull_request(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            title=arguments.title,
-            head_branch=head_branch,
-            base_branch=arguments.base,
-            body=body,
-        )
+    pull_request = open_pull_request(
+        repository_slug=repository_slug,
+        title=arguments.title,
+        head_branch=head_branch,
+        base_branch=arguments.base,
+        body=body,
+    )
     pull_request_number = pull_request.get("number")
     pull_request_url = pull_request.get("html_url", "")
     print(
@@ -182,30 +177,6 @@ def read_new_body(*, body_file: str) -> str:
     return new_body
 
 
-def fetch_issue(
-    *,
-    http_client: httpx.Client,
-    repository_slug: str,
-    item_number: int,
-) -> dict[str, object]:
-    """Fetch the item, or fail closed: no item, no update."""
-    response = http_client.get(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/issues/{item_number}"
-    )
-    if not response.is_success:
-        print(
-            f"Error: could not fetch #{item_number}"
-            f" ({response.status_code}) - do not update an unverified item.",
-            file=sys.stderr,
-        )
-        raise SystemExit(EXIT_CODE_CRITERIA_UNMET)
-    issue: object = response.json()
-    if not isinstance(issue, dict):
-        print("Error: the item payload is unexpected - do not update it.", file=sys.stderr)
-        raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
-    return issue
-
-
 def update_is_allowed(*, issue: dict[str, object], item_number: int) -> None:
     """Refuse anything that is not an open pull request."""
     if "pull_request" not in issue:
@@ -224,20 +195,20 @@ def update_is_allowed(*, issue: dict[str, object], item_number: int) -> None:
 
 def write_body(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     pull_request_number: int,
     new_body: str,
 ) -> None:
     """Replace the pull request body; a failure means no update."""
-    response = http_client.patch(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/pulls/{pull_request_number}",
-        json={"body": new_body},
+    status_code, payload = github_request(
+        endpoint=f"repos/{repository_slug}/pulls/{pull_request_number}",
+        method="PATCH",
+        json_payload={"body": new_body},
     )
-    if not response.is_success:
+    if status_code not in (HTTP_SUCCESS_STATUS_CODE, HTTP_CREATED_STATUS_CODE):
         print(
             f"Error: could not update pull request #{pull_request_number}"
-            f" ({response.status_code}) - the body is unchanged.",
+            f" ({status_code}) - the body is unchanged. Payload: {payload}",
             file=sys.stderr,
         )
         raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
@@ -273,21 +244,17 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 def run_update_pr(*, arguments: argparse.Namespace) -> int:
     """Entry point: pull request number and body file in, updated body out."""
     new_body = read_new_body(body_file=arguments.body_file)
-    github_token = load_github_token()
     repository_slug = resolve_repository_slug()
-    with open_github_client(token=github_token) as http_client:
-        issue = fetch_issue(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            item_number=arguments.pr_number,
-        )
-        update_is_allowed(issue=issue, item_number=arguments.pr_number)
-        write_body(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            pull_request_number=arguments.pr_number,
-            new_body=new_body,
-        )
+    issue = fetch_issue(
+        repository_slug=repository_slug,
+        item_number=arguments.pr_number,
+    )
+    update_is_allowed(issue=issue, item_number=arguments.pr_number)
+    write_body(
+        repository_slug=repository_slug,
+        pull_request_number=arguments.pr_number,
+        new_body=new_body,
+    )
     print(
         f"Pull request #{arguments.pr_number} body updated from"
         f" {arguments.body_file}: the WHOLE body now comes from that file"

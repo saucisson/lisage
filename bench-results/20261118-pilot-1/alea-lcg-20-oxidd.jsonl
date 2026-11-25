@@ -1,0 +1,5 @@
+{"charge": "alea-lcg-20", "noeuds": 106760, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 50348, "temps_ms": 132.029, "variante": "bdd", "verifie": 523228}
+{"charge": "alea-lcg-20", "noeuds": 106760, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 50424, "temps_ms": 129.294, "variante": "bdd", "verifie": 523228}
+{"charge": "alea-lcg-20", "noeuds": 106760, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 50328, "temps_ms": 128.93, "variante": "bdd", "verifie": 523228}
+{"charge": "alea-lcg-20", "noeuds": 106760, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 50172, "temps_ms": 131.195, "variante": "bdd", "verifie": 523228}
+{"charge": "alea-lcg-20", "noeuds": 106760, "outil": "oxidd", "parametres": {"n": "20"}, "rss_max_ko": 50324, "temps_ms": 129.831, "variante": "bdd", "verifie": 523228}

@@ -1,0 +1,24 @@
+[package]
+name = "lisage-bench"
+version = "0.1.0"
+description = "Differential, property-based, MCC, non-local events"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lisage-core = { path = "../lisage-core" }
+lisage-lang = { path = "../lisage-lang" }
+lisage-algebra = { path = "../lisage-algebra" }
+lisage-plan = { path = "../lisage-plan" }
+
+[dev-dependencies]
+proptest = "1"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "micro"
+harness = false
+
+[[bin]]
+name = "confrontation"

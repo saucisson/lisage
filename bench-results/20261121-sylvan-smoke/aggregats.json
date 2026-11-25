@@ -1,0 +1,125 @@
+{
+  "run": "20261121-sylvan-smoke",
+  "aggregats": [
+    {
+      "outil": "lisage",
+      "charge": "cnf-uf20-01",
+      "repetitions": 3,
+      "temps_ms": {
+        "mediane": 135.227,
+        "min": 135.15,
+        "max": 135.319
+      },
+      "rss_max_ko": {
+        "mediane": 6332,
+        "min": 6268,
+        "max": 6400
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "oxidd",
+      "charge": "cnf-uf20-01",
+      "repetitions": 3,
+      "temps_ms": {
+        "mediane": 93.732,
+        "min": 86.02,
+        "max": 95.593
+      },
+      "rss_max_ko": {
+        "mediane": 52512,
+        "min": 52336,
+        "max": 52684
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "lisage",
+      "charge": "cnf-uf20-01",
+      "repetitions": 3,
+      "temps_ms": {
+        "mediane": 167.972,
+        "min": 130.701,
+        "max": 187.482
+      },
+      "rss_max_ko": {
+        "mediane": 6328,
+        "min": 6280,
+        "max": 6444
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "oxidd",
+      "charge": "cnf-uf20-01",
+      "repetitions": 3,
+      "temps_ms": {
+        "mediane": 90.62,
+        "min": 86.372,
+        "max": 91.519
+      },
+      "rss_max_ko": {
+        "mediane": 52480,
+        "min": 52468,
+        "max": 52584
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "cudd",
+      "charge": "cnf-uf20-01",
+      "repetitions": 3,
+      "temps_ms": {
+        "mediane": 107.118,
+        "min": 106.671,
+        "max": 108.452
+      },
+      "rss_max_ko": {
+        "mediane": 18836,
+        "min": 18808,
+        "max": 18864
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "libddd",
+      "charge": "cnf-uf20-01",
+      "repetitions": 3,
+      "temps_ms": {
+        "mediane": 295.6,
+        "min": 295.295,
+        "max": 298.605
+      },
+      "rss_max_ko": {
+        "mediane": 32280,
+        "min": 32256,
+        "max": 32400
+      },
+      "noeuds": 51,
+      "verifie": 8
+    },
+    {
+      "outil": "sylvan",
+      "charge": "cnf-uf20-01",
+      "repetitions": 3,
+      "temps_ms": {
+        "mediane": 137.518,
+        "min": 135.854,
+        "max": 138.403
+      },
+      "rss_max_ko": {
+        "mediane": 18780,
+        "min": 18608,
+        "max": 18804
+      },
+      "noeuds": 51,
+      "verifie": 8
+    }
+  ],
+  "divergences": []
+}

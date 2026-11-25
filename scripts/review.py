@@ -15,7 +15,7 @@ checklist, the relevant ADRs, the pull request specification and the
 diff under review. Nothing else enters the prompt - context isolation
 is enforced by construction, not by prompt discipline. Stdlib only,
 so it runs in the bareest CI image: this module defers its
-``httpx``-dependent imports into the ``review`` runner, on purpose.
+gh/REST-dependent imports into the ``review`` runner, on purpose.
 
 The developer agent runs ``review`` after opening a pull request and
 only once CI has concluded on the pushed head: the driver refuses to
@@ -33,9 +33,7 @@ from scripts._shared import (
     EXIT_CODE_CRITERIA_UNMET,
     EXIT_CODE_PROTOCOL_FAILURE,
     EXIT_CODE_SUCCESS,
-    GITHUB_API_BASE_URL,
     REPOSITORY_ROOT,
-    load_github_token,
     resolve_repository_slug,
     run_git,
 )
@@ -43,8 +41,6 @@ from scripts._shared import (
 if TYPE_CHECKING:
     import argparse
     from collections.abc import Sequence
-
-    import httpx
 
 REVIEW_DIRECTORY = REPOSITORY_ROOT / ".review"
 ROLE_DOCUMENT_PATH = REPOSITORY_ROOT / "docs/agents/reviewer.md"
@@ -55,6 +51,16 @@ SECTION_SEPARATOR = "\n\n---\n\n"
 NO_DESCRIPTION_TEXT = "No pull request description was provided."
 EXIT_CODE_FAILURE = EXIT_CODE_CRITERIA_UNMET  # local alias: a bundle component is missing
 EXIT_CODE_PRECONDITIONS_UNMET = 3  # the review never started: not a verdict, not an attempt
+
+# Data files are never application code: the reviewer does not go over
+# them. A file is elided from the diff when its extension is a known data
+# extension. Code files are always kept in full, whatever their size —
+# the reviewer must see the whole diff of application code (ADR-0010).
+DATA_FILE_EXTENSIONS = frozenset(
+    {".pnml", ".cnf", ".jsonl", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".bin"}
+)
+ELISION_MARKER = "ELIDED FROM REVIEW (data file, not reviewed)"
+ELIDED_FILES_HEADER = "## ELIDED FILES (data files, not reviewed)"
 
 
 def read_text_file(*, path: Path) -> str:
@@ -75,6 +81,64 @@ def collect_decisions() -> list[tuple[str, str]]:
     return decisions
 
 
+def split_diff_sections(*, diff_text: str) -> list[str]:
+    """Split a unified diff into per-file sections at each `diff --git` line."""
+    sections: list[str] = []
+    current: list[str] = []
+    for line in diff_text.splitlines(keepends=True):
+        if line.startswith("diff --git ") and current:
+            sections.append("".join(current))
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        sections.append("".join(current))
+    return sections
+
+
+def section_file_path(*, section: str) -> str:
+    """Extract the file path of one diff section (`+++ b/<path>`, or `--- a/` for deletions)."""
+    lines = section.splitlines()
+    for line in lines:
+        if line.startswith("+++ b/"):
+            return line[len("+++ b/") :].strip()
+    for line in lines:
+        if line.startswith("--- a/"):
+            return line[len("--- a/") :].strip()
+    return ""
+
+
+def elide_data_files(*, diff_text: str) -> str:
+    """Replace the diff sections of data files with an explicit marker.
+
+    The reviewer's context is bounded: large data files (benchmark models,
+    deposited results, images) are not application code and must not
+    consume the reviewer's turns. Only data extensions are elided — code
+    files stay in full, whatever their size. The elision is explicit — a
+    marker per elided file plus a summary at the top of the diff — never
+    silent.
+    """
+    kept: list[str] = []
+    elided: list[tuple[str, int]] = []
+    for section in split_diff_sections(diff_text=diff_text):
+        path = section_file_path(section=section)
+        line_count = len(section.splitlines())
+        extension = Path(path).suffix.lower()
+        if extension in DATA_FILE_EXTENSIONS:
+            elided.append((path, line_count))
+            kept.append(f"### {ELISION_MARKER}: {path} ({line_count} diff lines omitted)\n")
+        else:
+            kept.append(section)
+    if not elided:
+        return diff_text
+    summary = (
+        ELIDED_FILES_HEADER
+        + "\n\n"
+        + "\n".join(f"- {path} ({line_count} diff lines)" for path, line_count in elided)
+    )
+    return summary + "\n\n" + "".join(kept)
+
+
 def render_bundle(
     *,
     diff_text: str,
@@ -89,7 +153,7 @@ def render_bundle(
     for decision_title, decision_content in decisions:
         sections.append(f"## DECISION - {decision_title}\n\n{decision_content}")
     sections.append(f"## PULL REQUEST SPECIFICATION\n\n{description_text}")
-    sections.append(f"## DIFF UNDER REVIEW\n\n{diff_text}")
+    sections.append(f"## DIFF UNDER REVIEW\n\n{elide_data_files(diff_text=diff_text)}")
     return SECTION_SEPARATOR.join(sections)
 
 
@@ -230,24 +294,27 @@ def write_review_context(
 
 def post_review_comment(
     *,
-    http_client: httpx.Client,
     repository_slug: str,
     pull_request_number: int,
     review_directory: Path,
 ) -> None:
-    """Post the review comment; warn, never mask the verdict."""
+    """Post the review comment via gh (fallback REST); warn, never mask the verdict."""
+    # Deferred import, on purpose: review-bundle stays stdlib-only.
+    from scripts._github import HTTP_CREATED_STATUS_CODE, HTTP_SUCCESS_STATUS_CODE, github_request  # noqa: PLC0415
+
     comment_path = review_directory / "review-comment.md"
     if not comment_path.is_file():
         print("Warning: no review comment was produced (protocol failure?).")
         return
-    response = http_client.post(
-        f"{GITHUB_API_BASE_URL}/repos/{repository_slug}/issues/{pull_request_number}/comments",
-        json={"body": comment_path.read_text(encoding="utf-8")},
+    status_code, _ = github_request(
+        endpoint=f"repos/{repository_slug}/issues/{pull_request_number}/comments",
+        method="POST",
+        json_payload={"body": comment_path.read_text(encoding="utf-8")},
     )
-    if not response.is_success:
+    if status_code not in (HTTP_SUCCESS_STATUS_CODE, HTTP_CREATED_STATUS_CODE):
         print(
             f"Warning: could not post the review comment"
-            f" (status {response.status_code}); the verdict is unchanged,"
+            f" (status {status_code}); the verdict is unchanged,"
             " but the audit trail is incomplete.",
             file=sys.stderr,
         )
@@ -281,79 +348,72 @@ def run_review(*, arguments: argparse.Namespace) -> int:
     # subcommand) stays stdlib-only and runs in the bareest CI image.
     from scripts import _github  # noqa: PLC0415
 
-    github_token = load_github_token()
     repository_slug = resolve_repository_slug()
-    with _github.open_github_client(token=github_token) as http_client:
-        pull_request = _github.fetch_pull_request(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            pull_request_number=arguments.pr_number,
-        )
-        head_sha = _github.extract_head_sha(pull_request=pull_request)
-        local_head = run_git(arguments=["rev-parse", "HEAD"]).strip()
-        pending_changes = run_git(arguments=["status", "--porcelain"]).strip()
-        check_runs = _github.fetch_check_runs(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            head_sha=head_sha,
-        )
-        refusal_reason = review_preconditions_refusal(
-            head_sha=head_sha,
-            local_head=local_head,
-            pending_changes=pending_changes,
-            check_runs=check_runs,
-        )
-        if refusal_reason is not None:
-            print(f"Review refused: {refusal_reason}.", file=sys.stderr)
-            return EXIT_CODE_PRECONDITIONS_UNMET
-        base_ref_container = pull_request.get("base")
-        base_ref = (
-            base_ref_container.get("ref", "daily")
-            if isinstance(base_ref_container, dict)
-            else "daily"
-        )
-        print(f"Reviewing PR #{arguments.pr_number} against {base_ref}.")
-        write_review_inputs(pull_request=pull_request, review_directory=REVIEW_DIRECTORY)
-        write_review_context(
-            pull_request_number=arguments.pr_number,
-            head_sha=head_sha,
-            review_directory=REVIEW_DIRECTORY,
-        )
-        build_diff(base_ref=base_ref, review_directory=REVIEW_DIRECTORY)
-        bundle_exit_code = run_script(
-            command=[
-                sys.executable,
-                "-m",
-                "scripts",
-                "review-bundle",
-                "--diff-file",
-                str(REVIEW_DIRECTORY / "pull-request.diff"),
-                "--description-file",
-                str(REVIEW_DIRECTORY / "pull-request-description.md"),
-                "--output",
-                str(REVIEW_DIRECTORY / "bundle.md"),
-            ]
-        )
-        if bundle_exit_code != EXIT_CODE_SUCCESS:
-            return EXIT_CODE_PROTOCOL_FAILURE
-        review_exit_code = run_script(
-            command=[
-                sys.executable,
-                "-m",
-                "scripts",
-                "agent-review",
-                "--bundle-file",
-                str(REVIEW_DIRECTORY / "bundle.md"),
-                "--report-file",
-                str(REVIEW_DIRECTORY / "review-report.json"),
-                "--comment-file",
-                str(REVIEW_DIRECTORY / "review-comment.md"),
-            ]
-        )
-        post_review_comment(
-            http_client=http_client,
-            repository_slug=repository_slug,
-            pull_request_number=arguments.pr_number,
-            review_directory=REVIEW_DIRECTORY,
-        )
+    pull_request = _github.fetch_pull_request(
+        repository_slug=repository_slug,
+        pull_request_number=arguments.pr_number,
+    )
+    head_sha = _github.extract_head_sha(pull_request=pull_request)
+    local_head = run_git(arguments=["rev-parse", "HEAD"]).strip()
+    pending_changes = run_git(arguments=["status", "--porcelain"]).strip()
+    check_runs = _github.fetch_check_runs(
+        repository_slug=repository_slug,
+        head_sha=head_sha,
+    )
+    refusal_reason = review_preconditions_refusal(
+        head_sha=head_sha,
+        local_head=local_head,
+        pending_changes=pending_changes,
+        check_runs=check_runs,
+    )
+    if refusal_reason is not None:
+        print(f"Review refused: {refusal_reason}.", file=sys.stderr)
+        return EXIT_CODE_PRECONDITIONS_UNMET
+    base_ref_container = pull_request.get("base")
+    base_ref = (
+        base_ref_container.get("ref", "daily") if isinstance(base_ref_container, dict) else "daily"
+    )
+    print(f"Reviewing PR #{arguments.pr_number} against {base_ref}.")
+    write_review_inputs(pull_request=pull_request, review_directory=REVIEW_DIRECTORY)
+    write_review_context(
+        pull_request_number=arguments.pr_number,
+        head_sha=head_sha,
+        review_directory=REVIEW_DIRECTORY,
+    )
+    build_diff(base_ref=base_ref, review_directory=REVIEW_DIRECTORY)
+    bundle_exit_code = run_script(
+        command=[
+            sys.executable,
+            "-m",
+            "scripts",
+            "review-bundle",
+            "--diff-file",
+            str(REVIEW_DIRECTORY / "pull-request.diff"),
+            "--description-file",
+            str(REVIEW_DIRECTORY / "pull-request-description.md"),
+            "--output",
+            str(REVIEW_DIRECTORY / "bundle.md"),
+        ]
+    )
+    if bundle_exit_code != EXIT_CODE_SUCCESS:
+        return EXIT_CODE_PROTOCOL_FAILURE
+    review_exit_code = run_script(
+        command=[
+            sys.executable,
+            "-m",
+            "scripts",
+            "agent-review",
+            "--bundle-file",
+            str(REVIEW_DIRECTORY / "bundle.md"),
+            "--report-file",
+            str(REVIEW_DIRECTORY / "review-report.json"),
+            "--comment-file",
+            str(REVIEW_DIRECTORY / "review-comment.md"),
+        ]
+    )
+    post_review_comment(
+        repository_slug=repository_slug,
+        pull_request_number=arguments.pr_number,
+        review_directory=REVIEW_DIRECTORY,
+    )
     return review_exit_code

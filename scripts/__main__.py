@@ -9,13 +9,46 @@ import argparse
 import sys
 from typing import TYPE_CHECKING
 
-from scripts import ci, claims, day, merge, night, pulls, review, session
+from scripts import (
+    bench_confrontation,
+    ci,
+    claims,
+    day,
+    english_only,
+    machine_fingerprint,
+    merge,
+    night,
+    pulls,
+    review,
+    session,
+)
 from scripts._shared import load_environment_file
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Sequence
+    from typing import Protocol
 
-COMMAND_MODULES = (claims, pulls, merge, ci, review, session, day, night)
+    class Runner(Protocol):
+        """Keyword-only driver callable."""
+
+        def __call__(self, *, arguments: argparse.Namespace) -> int:
+            """Run the driver with parsed arguments."""
+            ...
+
+
+COMMAND_MODULES = (
+    claims,
+    pulls,
+    merge,
+    ci,
+    review,
+    session,
+    day,
+    night,
+    bench_confrontation,
+    english_only,
+    machine_fingerprint,
+)
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -34,8 +67,8 @@ def main(*, command_line_arguments: Sequence[str]) -> int:
     """Entry point: environment loaded once, subcommand dispatched."""
     load_environment_file()
     arguments = build_argument_parser().parse_args(command_line_arguments)
-    runner: Callable[[argparse.Namespace], int] = arguments.runner
-    return runner(arguments)
+    runner: Runner = arguments.runner
+    return runner(arguments=arguments)
 
 
 if __name__ == "__main__":

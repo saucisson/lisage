@@ -1,5 +1,13 @@
 name: continuous-integration
 
+# ADR-0108 (ported from project-template ADR-0008): the GitHub CI is
+# one merge signal among several gates (review, mutation at EOD), so
+# it stays SHORT: cancellable, shallow where history does not pay,
+# time-boxed. Only the fast gates belong here (lint, types, unit tier,
+# secret scan, rust quality gate) - long builds and long test tiers
+# stay off the merge path: local make targets, EOD or scheduled
+# workflows. The dependency audit lives in dependency-audit.yml and
+# only runs when the lockfile moves.
 on:
   push:
     branches: [main, daily]
@@ -8,14 +16,20 @@ on:
 permissions:
   contents: read
 
+# Cancel obsolete runs of the same branch/PR.
+concurrency:
+  group: continuous-integration-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     name: quality gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
+      # Shallow on purpose: no check below needs the history (the
+      # secret scan does, and it lives in the security job).
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
 
       - name: Install uv and pin Python 3.15
         uses: astral-sh/setup-uv@v7
@@ -41,25 +55,63 @@ jobs:
       - name: pytest with coverage floor
         run: uv run pytest
 
+  rust-check:
+    name: rust quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: rustfmt check
+        run: cargo fmt --all -- --check
+
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      # Performance benchmarks (criterion) run locally only, not in CI (ADR-0102).
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        with:
+          tool: cargo-nextest
+
+      - name: nextest
+        run: cargo nextest run --all-targets
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        with:
+          tool: cargo-llvm-cov
+
+      - name: coverage
+        run: cargo llvm-cov nextest --all-targets --lcov --output-path lcov.info
+
+      # The Rust license/dependency policy check lives in the
+      # dependency-audit workflow; do not duplicate it here.
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        with:
+          tool: cargo-deny
+
+      - name: deny
+        run: cargo deny check
+
   security:
     name: security gates
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # the secret scan reads the history
 
       - name: gitleaks secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
           # Required by gitleaks-action to read pull request history.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: pip-audit of the locked graph
-        run: |
-          uv export --locked --no-emit-project --format requirements-txt \
-            --output-file requirements.txt
-          uvx pip-audit --requirement requirements.txt --strict

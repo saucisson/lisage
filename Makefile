@@ -9,8 +9,10 @@ DAY_TAG := daily-$(shell date +%F)
 
 .DEFAULT_GOAL := help
 .PHONY: help install lint format typecheck imports test check security build \
+        rust-lint rust-format rust-test rust-check rust-audit rust-deny \
+        english-only \
         day-start day-report smoke-test mutate notify review merge-pr pr claim \
-        claim-pr update-pr wait-ci night review-bundle sync-daily clean
+        claim-pr update-pr wait-ci night review-bundle sync-daily clean bench-confrontation
 
 help: ## List available targets with their description.
 	@grep --extended-regexp '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -32,16 +34,41 @@ typecheck: ## Run the reference type checker (mypy strict, ADR-0006).
 imports: ## Verify the onion layer contract (import-linter, ADR-0002).
 	$(UV) run lint-imports
 
+# The allowlist (glossary, audit inventory, WORKLOG pre-M6 entries,
+# historical PR bodies, bench-results/) is documented inside the checker.
+english-only: ## Fail on French text (accents, stop-words, stale French identifiers) over the repo (issues #104, #110).
+	$(PYTHON) -m scripts english-only
+
 test: ## Run the full test suite with the coverage floor (ADR-0007).
 	$(UV) run pytest
 
-check: lint typecheck imports test ## Full quality gate: run before reporting work.
+check: lint typecheck imports test rust-check english-only ## Full quality gate: run before reporting work.
 
 security: ## Secret scan of the whole history (gitleaks, ADR-0008).
 	gitleaks git --no-banner --redact .
 
 build: ## Build the wheel and the sdist (ADR-0001).
 	$(UV) build
+
+rust-lint: ## Clippy on the Rust workspace (-D warnings).
+	cargo clippy --all-targets -- -D warnings
+
+rust-format: ## Format the Rust workspace in place (rustfmt).
+	cargo fmt --all
+
+rust-format-check: ## Check Rust formatting without modifying.
+	cargo fmt --all -- --check
+
+rust-test: ## Run the Rust test suite (cargo nextest).
+	cargo nextest run --all-targets
+
+rust-check: rust-format-check rust-lint rust-test ## Full Rust quality gate.
+
+rust-audit: ## Dependency vulnerability audit (cargo-audit).
+	cargo audit
+
+rust-deny: ## License and dependency policy (cargo-deny).
+	cargo deny check
 
 day-start: ## Tag the morning restore point on `daily` (docs/branching.md).
 	git tag "$(DAY_TAG)"
@@ -88,10 +115,16 @@ wait-ci: ## Actively wait for CI on the pull request head: PR=N (ADR-0018).
 night: ## Run the unattended loop: ISSUES="12,13,14", MILESTONES="3,4", or auto-discovery when empty (ADR-0017).
 	$(PYTHON) -m scripts night --issues "$(ISSUES)" --milestones "$(MILESTONES)"
 
+bench-confrontation: ## Run the confrontation benchmark campaign, local only, never in CI (ADR-0102, M7-5): ARGS="--repetitions 5".
+	$(PYTHON) -m scripts bench-confrontation $(ARGS)
+
+machine-fingerprint: ## Emit one normalized JSON line fingerprinting this machine (ALIGN-7a): ARGS="--register bench-results/machines.md".
+	$(PYTHON) -m scripts machine-fingerprint $(ARGS)
+
 review-bundle: ## Print the reviewer bundle against origin/daily (ADR-0010).
 	$(PYTHON) -m scripts review-bundle --base-ref origin/daily
 
 clean: ## Remove caches, build outputs and mutation cache.
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .mutmut-cache htmlcov \
-		build dist .coverage coverage.xml .review
+		build dist .coverage coverage.xml .review target
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +

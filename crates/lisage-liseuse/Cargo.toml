@@ -1,0 +1,16 @@
+[package]
+name = "lisage-liseuse"
+version = "0.1.0"
+description = "The visualizer (trace, index, SVG/HTML rendering)"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lisage-core = { path = "../lisage-core" }
+lisage-lang = { path = "../lisage-lang" }
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "net", "io-util", "sync", "macros", "time"] }
+tokio-tungstenite = "=0.24.0"
+
+[dev-dependencies]
+proptest = "=1.12.0"

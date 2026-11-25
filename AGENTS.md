@@ -23,7 +23,7 @@ If you are unsure which role this session assigns you, stop and ask.
   via the merge driver (`make merge-pr`, ADR-0009). Full model:
   `docs/branching.md`.
 - One issue at a time, one branch per issue (`feat/<issue>` or
-  `fix/<issue>` from `daily`), pull requests under ~500 lines.
+  `fix/<issue>` from `daily`), pull requests under ~1 000 lines.
 - One session context per pull request: after each merge, clear the
   session (`/clear` in the Vibe Code CLI, a new session elsewhere).
   The residue of a previous issue rationalizes the next one; the
@@ -36,6 +36,11 @@ If you are unsure which role this session assigns you, stop and ask.
   left open - and claims it first (`make claim ISSUE=N` or
   `make claim-pr PR=N`). Nobody answers approvals: a denied call is a
   stop-and-escalate signal, never an obstacle to route around.
+- `gh` is the GitHub surface for a session: pull requests, issues,
+  labels and milestones are read through the `gh` CLI, and the
+  drivers (`scripts/`) call `gh api` first with a REST fallback
+  (ADR-0108, ported from project-template ADR-0008). Hand-coded HTTP
+  to the GitHub API outside the drivers' fallback is denied.
 - `main` can move without `daily` (template sync, hotfix, release):
   the day session reconciles early, right after `make day-start`, via
   `make sync-daily` (rebase `daily` onto `origin/main`, push with
@@ -43,6 +48,11 @@ If you are unsure which role this session assigns you, stop and ask.
   unattended sessions never run it, and `main` is never rewritten.
 - The morning directive (issue list) is set by the human and is **never
   edited by agents**.
+- The merge-path CI stays **short** (ADR-0108): only the fast gates
+  (lint, types, unit tier, secret scan, rust quality gate) run on it.
+  The dependency audit (pip-audit, cargo audit) lives in
+  `dependency-audit.yml` and only runs when a lockfile moves or on a
+  weekly schedule - never as a required check on every PR.
 - End of day: freeze merges, `make day-report`, `make smoke-test`;
   the human tests, audits `WORKLOG.md`, and merges `daily` into `main`.
 
@@ -65,6 +75,10 @@ checklist - read them in `docs/architecture.md`. The short version:
 
 - Keyword-only parameters. No abbreviations (`id`, `url`, `http`
   excepted). Constants in `UPPER_CASE`. Linear over decomposed.
+- English-only code and docs (issues #110, #118): new modules and new
+  identifiers are in English; any remaining French identifier is renamed
+  incrementally as it is touched, never in a big-bang (ADR-0101 budget).
+  Enforced by `make english-only`.
 - Types: strict static typing, distinct types for domain
   primitives, closed sets, discriminated unions, explicit
   narrowing. No unjustified dynamic escape.

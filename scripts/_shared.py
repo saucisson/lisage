@@ -50,13 +50,18 @@ def load_environment_file() -> None:
 
 
 def load_github_token() -> str:
-    """Read the GitHub token; absent means protocol failure."""
+    """Read the GitHub token; absent means the REST fallback cannot run.
+
+    The token only serves the drivers' REST fallback when gh failed
+    (ADR-0108); without it, there is no fallback, and the caller fails
+    closed.
+    """
     github_token = os.environ.get(GITHUB_TOKEN_VARIABLE, "").strip()
     if not github_token:
         print(
-            f"Error: {GITHUB_TOKEN_VARIABLE} is not set - cannot reach the"
-            " GitHub API (fine-grained PAT: repository, issues and pull"
-            " requests read/write, as the driver at hand requires).",
+            f"Error: {GITHUB_TOKEN_VARIABLE} is not set - gh failed and the"
+            " REST fallback needs it (fine-grained PAT: repository, issues"
+            " and pull requests read/write, as the driver at hand requires).",
             file=sys.stderr,
         )
         raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
@@ -107,11 +112,3 @@ def run_git(*, arguments: Sequence[str]) -> str:
         )
         raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
     return completed_process.stdout
-
-
-def github_headers(*, token: str) -> dict[str, str]:
-    """Build the GitHub API headers shared by every driver."""
-    return {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github.v3+json",
-    }

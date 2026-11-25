@@ -1,0 +1,16 @@
+[package]
+name = "lisage-core"
+version = "0.1.0"
+description = "Level 3: pool, handles, GC, two-plane, placement"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lisage-lang = { path = "../lisage-lang" }
+lisage-algebra = { path = "../lisage-algebra" }
+# Named by issue #139 (P1-1); already in the lockfile as a transitive
+# dependency, promoted here to a direct one — no new version introduced.
+rayon = "1.12"
+
+[dev-dependencies]
