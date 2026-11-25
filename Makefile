@@ -21,7 +21,7 @@ help: ## List available targets with their description.
 
 install: ## Install the environment and the pre-commit hooks.
 	$(UV) sync --locked
-	$(UV) run pre-commit install
+	$(UV) run pre-commit install --hook-type pre-commit --hook-type commit-msg
 
 lint: ## Lint every file (Ruff, ADR-0004/0008).
 	$(UV) run ruff check .
