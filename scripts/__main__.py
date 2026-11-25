@@ -15,9 +15,11 @@ from scripts import (
     claims,
     day,
     english_only,
+    license_gate,
     machine_fingerprint,
     merge,
     night,
+    probe,
     pulls,
     review,
     session,
@@ -40,6 +42,7 @@ COMMAND_MODULES = (
     claims,
     pulls,
     merge,
+    probe,
     ci,
     review,
     session,
@@ -48,6 +51,7 @@ COMMAND_MODULES = (
     bench_confrontation,
     english_only,
     machine_fingerprint,
+    license_gate,
 )
 
 
