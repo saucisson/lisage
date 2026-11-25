@@ -8,9 +8,11 @@ exists, was written for THIS pull request and its CURRENT head (review
 context), contains zero BLOCKING findings, the pull request is open
 and mergeable (a merge conflict is named for what it is), and every
 check run on its head has concluded "success". Then it merges with
-the linear method the repository allows - squash preferred, a rebase
-merge as the fallback when squash is disabled; a merge commit is
-never issued (linear history on ``daily``, ADR-0009) - and deletes
+the linear method the repository allows - a rebase merge preferred
+(ADR-0111): the reviewed commits land one idea at a time; a squash
+merge is the accepted fallback when the repository forbids rebase;
+a merge commit is never issued (linear history on ``daily``,
+ADR-0009 and ADR-0111) - and deletes
 the branch.
 
 Every GitHub operation goes through the gh client first, with the
@@ -55,7 +57,7 @@ if TYPE_CHECKING:
 DEFAULT_REPORT_FILE_NAME = ".review/review-report.json"
 DEFAULT_CONTEXT_FILE_NAME = ".review/review-context.json"
 BASE_BRANCH_NAME = "daily"  # agent merges land on daily, never main
-MERGE_METHOD_PREFERENCE = ("squash", "rebase")
+MERGE_METHOD_PREFERENCE = ("rebase", "squash")  # ADR-0111: rebase first
 METHOD_NOT_ALLOWED_STATUS_CODE = 405
 EXIT_CODE_MERGED = EXIT_CODE_SUCCESS  # a subcommand-local alias, same protocol code
 
@@ -146,12 +148,12 @@ def check_review_context(
 
 
 def resolve_merge_method(*, repository_slug: str) -> str:
-    """Return the linear merge method the repository allows (ADR-0009).
+    """Return the linear merge method the repository allows (ADR-0111).
 
-    Squash is preferred (one commit per pull request, the whole review
-    trace in one place); a rebase merge is the accepted fallback when
-    the repository forbids squash - both keep the history of ``daily``
-    linear, so no merge commit is ever issued. A repository allowing
+    Rebase is preferred: the commits the review examined land on
+    ``daily`` as they are, one idea per commit. Squash is the accepted
+    fallback when the repository forbids rebase merges - both keep the
+    history of ``daily`` linear, so no merge commit is ever issued. A repository allowing
     neither is a human decision away, not an agent one.
     """
     status_code, payload = github_request(endpoint=f"repos/{repository_slug}")

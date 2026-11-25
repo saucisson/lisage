@@ -1,6 +1,7 @@
 """Tests for the merge driver scripts/merge.py (ADR-0009, A1)."""
 
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
 
@@ -268,4 +269,36 @@ def test_load_review_context_refuses_a_non_object(tmp_path: Path) -> None:
     context_path.write_text("[1]", encoding="utf-8")
     with pytest.raises(SystemExit) as exit_information:
         merge.load_review_context(context_file=str(context_path))
+    assert exit_information.value.code == EXIT_CODE_PROTOCOL_FAILURE
+
+
+def test_merge_method_prefers_rebase_when_both_are_allowed() -> None:
+    """Rebase-first: both methods allowed means rebase (ADR-0111)."""
+    with mock.patch.object(
+        merge,
+        "github_request",
+        return_value=(200, {"allow_squash_merge": True, "allow_rebase_merge": True}),
+    ):
+        assert merge.resolve_merge_method(repository_slug="saucisson/lisage") == "rebase"
+
+
+def test_merge_method_falls_back_to_squash_without_rebase() -> None:
+    """Squash is the fallback when rebase is disabled, never the preference."""
+    with mock.patch.object(
+        merge,
+        "github_request",
+        return_value=(200, {"allow_squash_merge": True, "allow_rebase_merge": False}),
+    ):
+        assert merge.resolve_merge_method(repository_slug="saucisson/lisage") == "squash"
+
+
+def test_merge_method_fails_closed_when_no_linear_method_is_allowed() -> None:
+    """Neither rebase nor squash: a human decision away."""
+    with mock.patch.object(
+        merge,
+        "github_request",
+        return_value=(200, {"allow_squash_merge": False, "allow_rebase_merge": False}),
+    ):
+        with pytest.raises(SystemExit) as exit_information:
+            merge.resolve_merge_method(repository_slug="saucisson/lisage")
     assert exit_information.value.code == EXIT_CODE_PROTOCOL_FAILURE

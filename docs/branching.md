@@ -64,8 +64,8 @@ day (right after `make day-start`, before opening pull requests):
   `ci.yml`. There is no `reviewer` status check: the review runs
   locally (ADR-0010) and the merge driver enforces its verdict
   (ADR-0009).
-- Require linear history (the merge driver squash-merges, or
-  rebase-merges when squash is disabled).
+- Require linear history (the merge driver rebase-merges, or
+  squash-merges when rebase is disabled - ADR-0111, needs-human).
 - Allow force pushes on `daily` only (the sync driver pushes
   `--force-with-lease`, ADR-0020); keep them forbidden on `main`.
 - Delete head branches on merge (the driver also deletes them).
