@@ -10,8 +10,8 @@ DAY_TAG := daily-$(shell date +%F)
 .DEFAULT_GOAL := help
 .PHONY: help install lint format typecheck imports test check security build \
         rust-lint rust-format rust-test rust-check rust-audit rust-deny \
-        english-only \
-        day-start day-report smoke-test mutate notify review merge-pr probe-merge \
+        english-only probe-merge license-gate \
+        day-start day-report smoke-test mutate notify review merge-pr \
         pr claim claim-pr update-pr wait-ci night review-bundle sync-daily clean \
         bench-confrontation
 
@@ -63,6 +63,8 @@ rust-audit: ## Dependency vulnerability audit (cargo-audit).
 	cargo audit
 rust-deny: ## License and dependency policy (cargo-deny).
 	cargo deny check
+license-gate: ## Fail on any installed Python license outside the allowed set (ADR-0108 N2).
+	$(PYTHON) -m scripts license-gate
 day-start: ## Tag the morning restore point on `daily` (docs/branching.md).
 	git tag "$(DAY_TAG)"
 
