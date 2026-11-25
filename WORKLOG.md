@@ -56,8 +56,10 @@ One entry per commit or pull request:
   `AUTH_WEB_CLIENT_SECRET` (browser Authorization Code + PKCE) instead of the
   single `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET`. `accepted_audiences` defaults
   to both client ids (API + Web) so tokens issued to either validate;
-  `AUTH_ALLOWED_AUDIENCES` still overrides. `.env.example`, `README.md`,
-  ADR-0107 and the web directive document the new variable set. Unit and
+  `AUTH_ALLOWED_AUDIENCES` still overrides. `.env.example`, `README.md`
+  and the web directive (`docs/lisage-web-v1/`) document the new variable
+  set; ADR-0107 (`docs/decisions/`) is constitutional and left untouched
+  per ADR-0010 (needs-human escalation to update it). Unit and
   property tests updated (29 unit tests pass; property tests not run locally
   — hypothesis native module broken in this environment, CI covers them).
   No secret committed; real values stay on the VPS.
