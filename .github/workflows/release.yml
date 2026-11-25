@@ -24,6 +24,12 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  # The published package is `lisage` itself, the product this
+  # repository ships (ADR-0013): publishing it keeps the demonstrated
+  # release path exercised end to end, and trusted publishing carries
+  # no stored secret. A branch of this repository that ships nothing
+  # can delete this whole `publish` job - the `release-please` step
+  # above alone carries ADR-0013.
   publish:
     needs: release-please
     if: needs.release-please.outputs.released == 'true'
