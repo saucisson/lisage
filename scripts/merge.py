@@ -2,8 +2,9 @@
 
 The developer agent merges each completed pull request into ``daily``
 - through this driver and nothing else. The driver IS the codified
-merge criteria: it refuses to merge unless the review report exists,
-was written for THIS pull request and its CURRENT head (review
+merge criteria: it refuses to merge unless the pull request targets
+`daily` only (an agent never merges `main`; A1), the review report
+exists, was written for THIS pull request and its CURRENT head (review
 context), contains zero BLOCKING findings, the pull request is open
 and mergeable (a merge conflict is named for what it is), and every
 check run on its head has concluded "success". Then it merges with
@@ -14,7 +15,10 @@ the branch.
 
 Every GitHub operation goes through the gh client first, with the
 REST API as the fallback when gh fails (ADR-0108); the merge method is
-pinned ``sha`` to the reviewed head, as before.
+pinned ``sha`` to the reviewed head, as before. The base check is
+ported from project-template PR 27: the driver verified every criterion
+except the one that decides WHERE the merge lands - fail-open against
+A1, now fail-closed in the head of evaluate_merge_criteria.
 
 The reviewer session never merges: it writes the report; this driver
 reads it. ``main`` is never merged here - that stays a human action.
@@ -50,6 +54,7 @@ if TYPE_CHECKING:
 
 DEFAULT_REPORT_FILE_NAME = ".review/review-report.json"
 DEFAULT_CONTEXT_FILE_NAME = ".review/review-context.json"
+BASE_BRANCH_NAME = "daily"  # agent merges land on daily, never main
 MERGE_METHOD_PREFERENCE = ("squash", "rebase")
 METHOD_NOT_ALLOWED_STATUS_CODE = 405
 EXIT_CODE_MERGED = EXIT_CODE_SUCCESS  # a subcommand-local alias, same protocol code
@@ -173,6 +178,12 @@ def resolve_merge_method(*, repository_slug: str) -> str:
     raise SystemExit(EXIT_CODE_PROTOCOL_FAILURE)
 
 
+def extract_base_ref(*, pull_request: dict[str, object]) -> str:
+    """Return the pull request base branch name, empty when unknown."""
+    base_container = pull_request.get("base")
+    return base_container.get("ref", "") if isinstance(base_container, dict) else ""
+
+
 def evaluate_merge_criteria(  # noqa: PLR0911 - one return per codified criterion (ADR-0009)
     *,
     report: dict[str, object],
@@ -180,6 +191,13 @@ def evaluate_merge_criteria(  # noqa: PLR0911 - one return per codified criterio
     check_runs: Sequence[dict[str, object]],
 ) -> tuple[bool, str]:
     """Apply the codified merge criteria (ADR-0009); return (ok, reason)."""
+    base_ref = extract_base_ref(pull_request=pull_request)
+    if base_ref != BASE_BRANCH_NAME:
+        return False, (
+            f"the pull request targets \`{base_ref or 'an unknown branch'}\`"
+            f", not \`{BASE_BRANCH_NAME}\` - agent tooling merges into"
+            " \`daily\` only (A1: no agent ever merges \`main\`)"
+        )
     blocking_count = report.get("blocking_count")
     if blocking_count is None:
         return False, "the review report has no blocking_count - rerun the review"
